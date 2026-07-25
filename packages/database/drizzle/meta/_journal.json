@@ -57,6 +57,13 @@
       "when": 1784978846820,
       "tag": "0007_aromatic_doorman",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784987159441,
+      "tag": "0008_thankful_blizzard",
+      "breakpoints": true
     }
   ]
 }

@@ -207,6 +207,12 @@ Routine feature work, bug fixes, refactoring, implementation details, and small 
 | 0033 | Accounts Receivable    | Accepted |
 | 0034 | Accounts Payable       | Accepted |
 | 0035 | Payments & Bank Reconciliation | Accepted |
+| 0036 | Lead Management        | Accepted |
+| 0037 | Accounts & Contacts    | Accepted |
+| 0038 | Opportunities & Pipeline | Accepted |
+| 0039 | Activities & Notes     | Accepted |
+| 0040 | CRM to Sales Integration | Accepted |
+
 
 
 

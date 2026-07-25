@@ -26,6 +26,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@ananya/crm':
+        specifier: workspace:^
+        version: link:../../packages/crm
       '@ananya/database':
         specifier: workspace:^
         version: link:../../packages/database
@@ -183,6 +186,19 @@ importers:
         version: 5.9.2
 
   packages/core:
+    devDependencies:
+      '@ananya/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/crm:
+    dependencies:
+      '@ananya/core':
+        specifier: workspace:^
+        version: link:../core
     devDependencies:
       '@ananya/typescript-config':
         specifier: workspace:*

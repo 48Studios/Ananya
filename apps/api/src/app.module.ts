@@ -37,6 +37,11 @@ import { ReceivableInvoicesModule } from './receivable-invoices/receivable-invoi
 import { PayableInvoicesModule } from './payable-invoices/payable-invoices.module';
 import { PaymentsModule } from './payments/payments.module';
 import { BankReconciliationsModule } from './bank-reconciliations/bank-reconciliations.module';
+import { LeadsModule } from './leads/leads.module';
+import { CrmAccountsModule } from './crm-accounts/crm-accounts.module';
+import { OpportunitiesModule } from './opportunities/opportunities.module';
+import { ActivitiesModule } from './activities/activities.module';
+import { NotesModule } from './notes/notes.module';
 
 @Module({
   imports: [
@@ -77,6 +82,11 @@ import { BankReconciliationsModule } from './bank-reconciliations/bank-reconcili
     PayableInvoicesModule,
     PaymentsModule,
     BankReconciliationsModule,
+    LeadsModule,
+    CrmAccountsModule,
+    OpportunitiesModule,
+    ActivitiesModule,
+    NotesModule,
   ],
   controllers: [AppController],
 })

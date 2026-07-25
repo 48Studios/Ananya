@@ -34,6 +34,12 @@ export * from "./receivable-invoices";
 export * from "./payable-invoices";
 export * from "./payments";
 export * from "./bank-reconciliations";
+export * from "./crm-leads";
+export * from "./crm-accounts";
+export * from "./crm-opportunities";
+export * from "./crm-activities";
+export * from "./crm-notes";
+
 
 
 

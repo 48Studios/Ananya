@@ -591,7 +591,93 @@ export const api = {
   matchBankTransaction: (id: string, data: { transactionId: string; paymentId: string }) =>
     fetchApi<Record<string, unknown>>(`/bank-reconciliations/${id}/match`, { method: 'POST', body: JSON.stringify(data) }),
   completeBankReconciliation: (id: string) => fetchApi<Record<string, unknown>>(`/bank-reconciliations/${id}/complete`, { method: 'POST' }),
+
+  // CRM - Leads
+  getLeads: (status?: string, source?: string, owner?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (source) params.append('source', source);
+    if (owner) params.append('owner', owner);
+    if (search) params.append('search', search);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/leads${q ? `?${q}` : ''}`);
+  },
+  getLead: (id: string) => fetchApi<Record<string, unknown>>(`/leads/${id}`),
+  createLead: (data: { name: string; company: string; email?: string; phone?: string; source?: string; industry?: string; owner: string }) =>
+    fetchApi<Record<string, unknown>>('/leads', { method: 'POST', body: JSON.stringify(data) }),
+  assignLead: (id: string, owner: string) =>
+    fetchApi<Record<string, unknown>>(`/leads/${id}/assign`, { method: 'POST', body: JSON.stringify({ owner }) }),
+  qualifyLead: (id: string) => fetchApi<Record<string, unknown>>(`/leads/${id}/qualify`, { method: 'POST' }),
+  disqualifyLead: (id: string, reason: string) =>
+    fetchApi<Record<string, unknown>>(`/leads/${id}/disqualify`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  convertLead: (id: string) => fetchApi<Record<string, unknown>>(`/leads/${id}/convert`, { method: 'POST' }),
+
+  // CRM - Accounts & Contacts
+  getCrmAccounts: (isArchived?: boolean, search?: string) => {
+    const params = new URLSearchParams();
+    if (isArchived !== undefined) params.append('isArchived', String(isArchived));
+    if (search) params.append('search', search);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/crm-accounts${q ? `?${q}` : ''}`);
+  },
+  getCrmAccount: (id: string) => fetchApi<Record<string, unknown>>(`/crm-accounts/${id}`),
+  createCrmAccount: (data: { companyName: string; industry?: string; website?: string; billingAddress?: string; shippingAddress?: string }) =>
+    fetchApi<Record<string, unknown>>('/crm-accounts', { method: 'POST', body: JSON.stringify(data) }),
+  addCrmContact: (id: string, data: { firstName: string; lastName: string; email: string; phone?: string; role?: string; isPrimary?: boolean }) =>
+    fetchApi<Record<string, unknown>>(`/crm-accounts/${id}/contacts`, { method: 'POST', body: JSON.stringify(data) }),
+  archiveCrmAccount: (id: string) => fetchApi<Record<string, unknown>>(`/crm-accounts/${id}/archive`, { method: 'POST' }),
+
+  // CRM - Opportunities
+  getOpportunities: (crmAccountId?: string, stage?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (crmAccountId) params.append('crmAccountId', crmAccountId);
+    if (stage) params.append('stage', stage);
+    if (search) params.append('search', search);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/opportunities${q ? `?${q}` : ''}`);
+  },
+  getOpportunity: (id: string) => fetchApi<Record<string, unknown>>(`/opportunities/${id}`),
+  createOpportunity: (data: { name: string; leadId?: string; crmAccountId: string; estimatedValue: number; expectedCloseDate: string; probability?: number }) =>
+    fetchApi<Record<string, unknown>>('/opportunities', { method: 'POST', body: JSON.stringify(data) }),
+  advanceOpportunityStage: (id: string, stage: string) =>
+    fetchApi<Record<string, unknown>>(`/opportunities/${id}/advance`, { method: 'POST', body: JSON.stringify({ stage }) }),
+  winOpportunity: (id: string) => fetchApi<Record<string, unknown>>(`/opportunities/${id}/win`, { method: 'POST' }),
+  loseOpportunity: (id: string, reason: string) =>
+    fetchApi<Record<string, unknown>>(`/opportunities/${id}/lose`, { method: 'POST', body: JSON.stringify({ reason }) }),
+
+  // CRM - Activities
+  getActivities: (type?: string, status?: string, owner?: string, relatedLeadId?: string, relatedAccountId?: string, relatedOpportunityId?: string) => {
+    const params = new URLSearchParams();
+    if (type) params.append('type', type);
+    if (status) params.append('status', status);
+    if (owner) params.append('owner', owner);
+    if (relatedLeadId) params.append('relatedLeadId', relatedLeadId);
+    if (relatedAccountId) params.append('relatedAccountId', relatedAccountId);
+    if (relatedOpportunityId) params.append('relatedOpportunityId', relatedOpportunityId);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/activities${q ? `?${q}` : ''}`);
+  },
+  getActivity: (id: string) => fetchApi<Record<string, unknown>>(`/activities/${id}`),
+  createActivity: (data: { type: string; subject: string; dueDate: string; owner: string; relatedLeadId?: string; relatedAccountId?: string; relatedOpportunityId?: string }) =>
+    fetchApi<Record<string, unknown>>('/activities', { method: 'POST', body: JSON.stringify(data) }),
+  completeActivity: (id: string) => fetchApi<Record<string, unknown>>(`/activities/${id}/complete`, { method: 'POST' }),
+  cancelActivity: (id: string) => fetchApi<Record<string, unknown>>(`/activities/${id}/cancel`, { method: 'POST' }),
+
+  // CRM - Notes
+  getNotes: (leadId?: string, crmAccountId?: string, opportunityId?: string, activityId?: string) => {
+    const params = new URLSearchParams();
+    if (leadId) params.append('leadId', leadId);
+    if (crmAccountId) params.append('crmAccountId', crmAccountId);
+    if (opportunityId) params.append('opportunityId', opportunityId);
+    if (activityId) params.append('activityId', activityId);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/notes${q ? `?${q}` : ''}`);
+  },
+  getNote: (id: string) => fetchApi<Record<string, unknown>>(`/notes/${id}`),
+  createNote: (data: { author: string; body: string; leadId?: string; crmAccountId?: string; opportunityId?: string; activityId?: string }) =>
+    fetchApi<Record<string, unknown>>('/notes', { method: 'POST', body: JSON.stringify(data) }),
 };
+
 
 
 
