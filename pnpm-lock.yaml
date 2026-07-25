@@ -38,6 +38,9 @@ importers:
       '@ananya/procurement':
         specifier: workspace:^
         version: link:../../packages/procurement
+      '@ananya/warehouse':
+        specifier: workspace:^
+        version: link:../../packages/warehouse
       '@nestjs/common':
         specifier: ^11.0.1
         version: 11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -298,6 +301,22 @@ importers:
         version: 5.9.2
 
   packages/typescript-config: {}
+
+  packages/warehouse:
+    dependencies:
+      '@ananya/core':
+        specifier: workspace:^
+        version: link:../core
+      '@ananya/inventory':
+        specifier: workspace:^
+        version: link:../inventory
+    devDependencies:
+      '@ananya/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
 
 packages:
 

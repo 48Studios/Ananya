@@ -192,4 +192,10 @@ Routine feature work, bug fixes, refactoring, implementation details, and small 
 | 0018 | Material Consumption   | Accepted |
 | 0019 | Finished Goods Receipt | Accepted |
 | 0020 | Manufacturing Traceability | Accepted |
+| 0021 | Warehouse Structure & Bin Locations | Accepted |
+| 0022 | Stock Counts           | Accepted |
+| 0023 | Cycle Counting         | Accepted |
+| 0024 | Warehouse Transfers    | Accepted |
+| 0025 | Warehouse Policies     | Accepted |
+
 

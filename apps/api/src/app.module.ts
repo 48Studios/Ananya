@@ -21,6 +21,11 @@ import { ProductionOrdersModule } from './production-orders/production-orders.mo
 import { MaterialConsumptionsModule } from './material-consumptions/material-consumptions.module';
 import { FinishedGoodsModule } from './finished-goods/finished-goods.module';
 import { ManufacturingTraceabilityModule } from './manufacturing-traceability/manufacturing-traceability.module';
+import { WarehousesModule } from './warehouses/warehouses.module';
+import { StockCountsModule } from './stock-counts/stock-counts.module';
+import { CycleCountsModule } from './cycle-counts/cycle-counts.module';
+import { WarehouseTransfersModule } from './warehouse-transfers/warehouse-transfers.module';
+import { WarehousePoliciesModule } from './warehouse-policies/warehouse-policies.module';
 
 @Module({
   imports: [
@@ -45,6 +50,11 @@ import { ManufacturingTraceabilityModule } from './manufacturing-traceability/ma
     MaterialConsumptionsModule,
     FinishedGoodsModule,
     ManufacturingTraceabilityModule,
+    WarehousesModule,
+    StockCountsModule,
+    CycleCountsModule,
+    WarehouseTransfersModule,
+    WarehousePoliciesModule,
   ],
   controllers: [AppController],
 })

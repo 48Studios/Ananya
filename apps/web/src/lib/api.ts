@@ -328,5 +328,76 @@ export const api = {
     return fetchApi<Record<string, unknown>[]>(`/traceability/backward?${q.toString()}`);
   },
   getProductionOrderTrace: (id: string) => fetchApi<Record<string, unknown>[]>(`/traceability/production-order/${id}`),
+
+  // Warehouse - Warehouses & Bins
+  getWarehouses: () => fetchApi<Record<string, unknown>[]>(`/warehouses`),
+  getWarehouse: (id: string) => fetchApi<Record<string, unknown>>(`/warehouses/${id}`),
+  createWarehouse: (data: { code: string; name: string; description?: string }) =>
+    fetchApi<Record<string, unknown>>('/warehouses', { method: 'POST', body: JSON.stringify(data) }),
+  addWarehouseBin: (id: string, data: { code: string; capacity?: number; purpose?: string }) =>
+    fetchApi<Record<string, unknown>>(`/warehouses/${id}/bins`, { method: 'POST', body: JSON.stringify(data) }),
+  updateWarehouseBin: (id: string, binId: string, data: { isActive?: boolean; capacity?: number }) =>
+    fetchApi<Record<string, unknown>>(`/warehouses/${id}/bins/${binId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  // Warehouse - Stock Counts
+  getStockCounts: (warehouseId?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (warehouseId) params.append('warehouseId', warehouseId);
+    if (status) params.append('status', status);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/stock-counts${q ? `?${q}` : ''}`);
+  },
+  getStockCount: (id: string) => fetchApi<Record<string, unknown>>(`/stock-counts/${id}`),
+  createStockCount: (data: { warehouseId: string; assignedUser?: string }) =>
+    fetchApi<Record<string, unknown>>('/stock-counts', { method: 'POST', body: JSON.stringify(data) }),
+  assignStockCountUser: (id: string, assignedUser: string) =>
+    fetchApi<Record<string, unknown>>(`/stock-counts/${id}/assign`, { method: 'POST', body: JSON.stringify({ assignedUser }) }),
+  addStockCountLine: (id: string, data: { componentId: string; binId: string; expectedQuantity?: number; countedQuantity: number; notes?: string }) =>
+    fetchApi<Record<string, unknown>>(`/stock-counts/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
+  submitStockCount: (id: string) => fetchApi<Record<string, unknown>>(`/stock-counts/${id}/submit`, { method: 'POST' }),
+  approveStockCount: (id: string) => fetchApi<Record<string, unknown>>(`/stock-counts/${id}/approve`, { method: 'POST' }),
+  postStockCount: (id: string) => fetchApi<Record<string, unknown>>(`/stock-counts/${id}/post`, { method: 'POST' }),
+  cancelStockCount: (id: string) => fetchApi<Record<string, unknown>>(`/stock-counts/${id}/cancel`, { method: 'POST' }),
+
+  // Warehouse - Cycle Counts
+  getCycleCounts: (warehouseId?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (warehouseId) params.append('warehouseId', warehouseId);
+    if (status) params.append('status', status);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/cycle-counts${q ? `?${q}` : ''}`);
+  },
+  getCycleCount: (id: string) => fetchApi<Record<string, unknown>>(`/cycle-counts/${id}`),
+  createCycleCount: (data: { warehouseId: string; name: string; frequency: string; selectionRule?: Record<string, unknown>; nextScheduledDate?: string }) =>
+    fetchApi<Record<string, unknown>>('/cycle-counts', { method: 'POST', body: JSON.stringify(data) }),
+  executeCycleCount: (id: string) => fetchApi<Record<string, unknown>>(`/cycle-counts/${id}/execute`, { method: 'POST' }),
+  pauseCycleCount: (id: string) => fetchApi<Record<string, unknown>>(`/cycle-counts/${id}/pause`, { method: 'POST' }),
+  resumeCycleCount: (id: string) => fetchApi<Record<string, unknown>>(`/cycle-counts/${id}/resume`, { method: 'POST' }),
+
+  // Warehouse - Transfers
+  getWarehouseTransfers: (sourceBinId?: string, destinationBinId?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (sourceBinId) params.append('sourceBinId', sourceBinId);
+    if (destinationBinId) params.append('destinationBinId', destinationBinId);
+    if (status) params.append('status', status);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/warehouse-transfers${q ? `?${q}` : ''}`);
+  },
+  getWarehouseTransfer: (id: string) => fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}`),
+  createWarehouseTransfer: (data: { sourceBinId: string; destinationBinId: string }) =>
+    fetchApi<Record<string, unknown>>('/warehouse-transfers', { method: 'POST', body: JSON.stringify(data) }),
+  addTransferLine: (id: string, data: { componentId: string; quantity: number; batchNumber?: string; serialNumbers?: string[] }) =>
+    fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
+  approveTransfer: (id: string) => fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/approve`, { method: 'POST' }),
+  dispatchTransfer: (id: string) => fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/dispatch`, { method: 'POST' }),
+  completeTransfer: (id: string) => fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/complete`, { method: 'POST' }),
+  cancelTransfer: (id: string) => fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/cancel`, { method: 'POST' }),
+
+  // Warehouse - Policies
+  getWarehousePolicies: () => fetchApi<Record<string, unknown>[]>(`/warehouse-policies`),
+  getWarehousePolicy: (warehouseId: string) => fetchApi<Record<string, unknown>>(`/warehouse-policies/warehouse/${warehouseId}`),
+  saveWarehousePolicy: (data: { warehouseId: string; allowNegativeInventory?: boolean; enforceBinCapacity?: boolean; directedPutaway?: boolean; directedPicking?: boolean; defaultReceivingBinId?: string; defaultProductionBinId?: string; defaultShippingBinId?: string }) =>
+    fetchApi<Record<string, unknown>>('/warehouse-policies', { method: 'POST', body: JSON.stringify(data) }),
 };
+
 
