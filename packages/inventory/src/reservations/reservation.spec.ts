@@ -33,7 +33,7 @@ describe("Reservation aggregate", () => {
     res.fulfill();
     expect(res.status).toBe(ReservationStatus.Fulfilled);
 
-    expect(() => res.cancel()).toThrow(InvalidReservationStatusError);
+    expect(() => res.cancel()).toThrow("Only active reservations can be cancelled");
   });
 
   it("should throw error when creating zero quantity reservation", () => {
@@ -45,6 +45,6 @@ describe("Reservation aggregate", () => {
         unitOfMeasure: "pcs",
         reservedBy: "operator-1",
       }),
-    ).toThrow(InvalidReservationQuantityError);
+    ).toThrow("Reservation quantity must be greater than zero");
   });
 });

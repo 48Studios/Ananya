@@ -29,6 +29,9 @@ importers:
       '@ananya/database':
         specifier: workspace:^
         version: link:../../packages/database
+      '@ananya/finance':
+        specifier: workspace:^
+        version: link:../../packages/finance
       '@ananya/inventory':
         specifier: workspace:^
         version: link:../../packages/inventory
@@ -38,6 +41,9 @@ importers:
       '@ananya/procurement':
         specifier: workspace:^
         version: link:../../packages/procurement
+      '@ananya/sales':
+        specifier: workspace:^
+        version: link:../../packages/sales
       '@ananya/warehouse':
         specifier: workspace:^
         version: link:../../packages/warehouse
@@ -246,6 +252,19 @@ importers:
         specifier: ^8.50.0
         version: 8.64.0(eslint@9.39.5)(typescript@5.9.2)
 
+  packages/finance:
+    dependencies:
+      '@ananya/core':
+        specifier: workspace:^
+        version: link:../core
+    devDependencies:
+      '@ananya/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
   packages/inventory:
     dependencies:
       '@ananya/core':
@@ -276,6 +295,22 @@ importers:
         version: 5.9.2
 
   packages/procurement:
+    dependencies:
+      '@ananya/core':
+        specifier: workspace:^
+        version: link:../core
+      '@ananya/inventory':
+        specifier: workspace:^
+        version: link:../inventory
+    devDependencies:
+      '@ananya/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/sales:
     dependencies:
       '@ananya/core':
         specifier: workspace:^

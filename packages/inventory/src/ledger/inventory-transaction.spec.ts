@@ -36,7 +36,7 @@ describe("InventoryTransaction aggregate", () => {
         transactionType: TransactionType.Receipt,
         createdBy: "user-1",
       }),
-    ).toThrow(InvalidQuantityError);
+    ).toThrow("Quantity must be greater than zero");
   });
 
   it("should enforce Transfer transaction location invariants", () => {
@@ -50,6 +50,6 @@ describe("InventoryTransaction aggregate", () => {
         transactionType: TransactionType.Transfer,
         createdBy: "user-1",
       }),
-    ).toThrow(InvalidLocationError);
+    ).toThrow("Source and destination locations cannot be identical for transfer");
   });
 });

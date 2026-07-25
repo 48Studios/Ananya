@@ -197,5 +197,17 @@ Routine feature work, bug fixes, refactoring, implementation details, and small 
 | 0023 | Cycle Counting         | Accepted |
 | 0024 | Warehouse Transfers    | Accepted |
 | 0025 | Warehouse Policies     | Accepted |
+| 0026 | Customer Management    | Accepted |
+| 0027 | Quotations & Sales Orders | Accepted |
+| 0028 | Order Fulfillment Requests | Accepted |
+| 0029 | Shipping & Delivery    | Accepted |
+| 0030 | Customer Returns       | Accepted |
+| 0031 | Chart of Accounts      | Accepted |
+| 0032 | General Ledger & Journal Entries | Accepted |
+| 0033 | Accounts Receivable    | Accepted |
+| 0034 | Accounts Payable       | Accepted |
+| 0035 | Payments & Bank Reconciliation | Accepted |
+
+
 
 

@@ -26,6 +26,17 @@ import { StockCountsModule } from './stock-counts/stock-counts.module';
 import { CycleCountsModule } from './cycle-counts/cycle-counts.module';
 import { WarehouseTransfersModule } from './warehouse-transfers/warehouse-transfers.module';
 import { WarehousePoliciesModule } from './warehouse-policies/warehouse-policies.module';
+import { CustomersModule } from './customers/customers.module';
+import { QuotationsModule } from './quotations/quotations.module';
+import { SalesOrdersModule } from './sales-orders/sales-orders.module';
+import { FulfillmentRequestsModule } from './fulfillment/fulfillment-requests.module';
+import { CustomerReturnsModule } from './customer-returns/customer-returns.module';
+import { AccountsModule } from './accounts/accounts.module';
+import { JournalEntriesModule } from './journal-entries/journal-entries.module';
+import { ReceivableInvoicesModule } from './receivable-invoices/receivable-invoices.module';
+import { PayableInvoicesModule } from './payable-invoices/payable-invoices.module';
+import { PaymentsModule } from './payments/payments.module';
+import { BankReconciliationsModule } from './bank-reconciliations/bank-reconciliations.module';
 
 @Module({
   imports: [
@@ -55,6 +66,17 @@ import { WarehousePoliciesModule } from './warehouse-policies/warehouse-policies
     CycleCountsModule,
     WarehouseTransfersModule,
     WarehousePoliciesModule,
+    CustomersModule,
+    QuotationsModule,
+    SalesOrdersModule,
+    FulfillmentRequestsModule,
+    CustomerReturnsModule,
+    AccountsModule,
+    JournalEntriesModule,
+    ReceivableInvoicesModule,
+    PayableInvoicesModule,
+    PaymentsModule,
+    BankReconciliationsModule,
   ],
   controllers: [AppController],
 })
