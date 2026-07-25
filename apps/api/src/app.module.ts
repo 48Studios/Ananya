@@ -51,6 +51,12 @@ import { WarrantyClaimsModule } from './warranty-claims/warranty-claims.module';
 import { RmaRequestsModule } from './rma-requests/rma-requests.module';
 import { MaintenanceSchedulesModule } from './maintenance-schedules/maintenance-schedules.module';
 import { ServiceNotesModule } from './service-notes/service-notes.module';
+import { PlanningRunsModule } from './planning-runs/planning-runs.module';
+import { MaterialRequirementsModule } from './material-requirements/material-requirements.module';
+import { PurchaseRecommendationsModule } from './purchase-recommendations/purchase-recommendations.module';
+import { ProductionRecommendationsModule } from './production-recommendations/production-recommendations.module';
+import { CapacityPlansModule } from './capacity-plans/capacity-plans.module';
+import { PlanningMessagesModule } from './planning-messages/planning-messages.module';
 
 @Module({
   imports: [
@@ -105,6 +111,12 @@ import { ServiceNotesModule } from './service-notes/service-notes.module';
     RmaRequestsModule,
     MaintenanceSchedulesModule,
     ServiceNotesModule,
+    PlanningRunsModule,
+    MaterialRequirementsModule,
+    PurchaseRecommendationsModule,
+    ProductionRecommendationsModule,
+    CapacityPlansModule,
+    PlanningMessagesModule,
   ],
   controllers: [AppController],
 })

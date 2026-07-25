@@ -865,6 +865,81 @@ export const api = {
   },
   createServiceNote: (data: { author: string; body: string; serviceRequestId?: string; workOrderId?: string; warrantyClaimId?: string }) =>
     fetchApi<Record<string, unknown>>('/service-notes', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Planning Runs
+  getPlanningRuns: (status?: string, startedBy?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (startedBy) params.append('startedBy', startedBy);
+    if (search) params.append('search', search);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/planning-runs${q ? `?${q}` : ''}`);
+  },
+  getPlanningRun: (id: string) => fetchApi<Record<string, unknown>>(`/planning-runs/${id}`),
+  startPlanningRun: (data: { horizonDays: number; startedBy: string }) =>
+    fetchApi<Record<string, unknown>>('/planning-runs', { method: 'POST', body: JSON.stringify(data) }),
+  cancelPlanningRun: (id: string) => fetchApi<Record<string, unknown>>(`/planning-runs/${id}/cancel`, { method: 'POST' }),
+
+  // Material Requirements
+  getMaterialRequirements: (planningRunId?: string, componentId?: string, source?: string, onlyShortages?: boolean) => {
+    const params = new URLSearchParams();
+    if (planningRunId) params.append('planningRunId', planningRunId);
+    if (componentId) params.append('componentId', componentId);
+    if (source) params.append('source', source);
+    if (onlyShortages) params.append('onlyShortages', 'true');
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/material-requirements${q ? `?${q}` : ''}`);
+  },
+  getMaterialRequirement: (id: string) => fetchApi<Record<string, unknown>>(`/material-requirements/${id}`),
+
+  // Purchase Recommendations
+  getPurchaseRecommendations: (planningRunId?: string, componentId?: string, supplierId?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (planningRunId) params.append('planningRunId', planningRunId);
+    if (componentId) params.append('componentId', componentId);
+    if (supplierId) params.append('supplierId', supplierId);
+    if (status) params.append('status', status);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/purchase-recommendations${q ? `?${q}` : ''}`);
+  },
+  getPurchaseRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-recommendations/${id}`),
+  acceptPurchaseRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-recommendations/${id}/accept`, { method: 'POST' }),
+  rejectPurchaseRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-recommendations/${id}/reject`, { method: 'POST' }),
+  implementPurchaseRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-recommendations/${id}/implement`, { method: 'POST' }),
+
+  // Production Recommendations
+  getProductionRecommendations: (planningRunId?: string, productId?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (planningRunId) params.append('planningRunId', planningRunId);
+    if (productId) params.append('productId', productId);
+    if (status) params.append('status', status);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/production-recommendations${q ? `?${q}` : ''}`);
+  },
+  getProductionRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/production-recommendations/${id}`),
+  acceptProductionRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/production-recommendations/${id}/accept`, { method: 'POST' }),
+  rejectProductionRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/production-recommendations/${id}/reject`, { method: 'POST' }),
+  implementProductionRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/production-recommendations/${id}/implement`, { method: 'POST' }),
+
+  // Capacity Plans
+  getCapacityPlans: (planningRunId?: string, workCenterId?: string, onlyOverloaded?: boolean) => {
+    const params = new URLSearchParams();
+    if (planningRunId) params.append('planningRunId', planningRunId);
+    if (workCenterId) params.append('workCenterId', workCenterId);
+    if (onlyOverloaded) params.append('onlyOverloaded', 'true');
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/capacity-plans${q ? `?${q}` : ''}`);
+  },
+  getCapacityPlan: (id: string) => fetchApi<Record<string, unknown>>(`/capacity-plans/${id}`),
+
+  // Planning Messages
+  getPlanningMessages: (planningRunId?: string, severity?: string) => {
+    const params = new URLSearchParams();
+    if (planningRunId) params.append('planningRunId', planningRunId);
+    if (severity) params.append('severity', severity);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/planning-messages${q ? `?${q}` : ''}`);
+  },
 };
 
 

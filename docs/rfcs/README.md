@@ -222,6 +222,11 @@ Routine feature work, bug fixes, refactoring, implementation details, and small 
 | 0048 | Warranty & RMA         | Accepted |
 | 0049 | Field Service & Maintenance | Accepted |
 | 0050 | Service Integration    | Accepted |
+| 0051 | Material Requirements Planning | Accepted |
+| 0052 | Demand & Supply Planning | Accepted |
+| 0053 | Production Planning & Capacity | Accepted |
+| 0054 | Purchase Planning      | Accepted |
+| 0055 | Planning Integration   | Accepted |
 
 
 

@@ -41,6 +41,7 @@ export * from "./crm-activities";
 export * from "./crm-notes";
 export * from "./projects";
 export * from "./service";
+export * from "./mrp";
 
 
 
