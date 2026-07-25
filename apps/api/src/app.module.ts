@@ -45,6 +45,12 @@ import { NotesModule } from './notes/notes.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TasksModule } from './tasks/tasks.module';
 import { TimeEntriesModule } from './time-entries/time-entries.module';
+import { ServiceRequestsModule } from './service-requests/service-requests.module';
+import { WorkOrdersModule } from './work-orders/work-orders.module';
+import { WarrantyClaimsModule } from './warranty-claims/warranty-claims.module';
+import { RmaRequestsModule } from './rma-requests/rma-requests.module';
+import { MaintenanceSchedulesModule } from './maintenance-schedules/maintenance-schedules.module';
+import { ServiceNotesModule } from './service-notes/service-notes.module';
 
 @Module({
   imports: [
@@ -93,6 +99,12 @@ import { TimeEntriesModule } from './time-entries/time-entries.module';
     ProjectsModule,
     TasksModule,
     TimeEntriesModule,
+    ServiceRequestsModule,
+    WorkOrdersModule,
+    WarrantyClaimsModule,
+    RmaRequestsModule,
+    MaintenanceSchedulesModule,
+    ServiceNotesModule,
   ],
   controllers: [AppController],
 })

@@ -739,6 +739,132 @@ export const api = {
   approveTimeEntry: (id: string, approverId: string) =>
     fetchApi<Record<string, unknown>>(`/time-entries/${id}/approve`, { method: 'POST', body: JSON.stringify({ approverId }) }),
   rejectTimeEntry: (id: string) => fetchApi<Record<string, unknown>>(`/time-entries/${id}/reject`, { method: 'POST' }),
+
+  // Service Requests
+  getServiceRequests: (status?: string, priority?: string, category?: string, customerId?: string, assignedTechnician?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (priority) params.append('priority', priority);
+    if (category) params.append('category', category);
+    if (customerId) params.append('customerId', customerId);
+    if (assignedTechnician) params.append('assignedTechnician', assignedTechnician);
+    if (search) params.append('search', search);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/service-requests${q ? `?${q}` : ''}`);
+  },
+  getServiceRequest: (id: string) => fetchApi<Record<string, unknown>>(`/service-requests/${id}`),
+  createServiceRequest: (data: { customerId: string; salesOrderId?: string; projectId?: string; componentId?: string; serialNumber?: string; title: string; description?: string; priority?: string; category: string }) =>
+    fetchApi<Record<string, unknown>>('/service-requests', { method: 'POST', body: JSON.stringify(data) }),
+  assignServiceRequest: (id: string, technician: string) =>
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/assign`, { method: 'POST', body: JSON.stringify({ technician }) }),
+  diagnoseServiceRequest: (id: string, notes: string) =>
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/diagnose`, { method: 'POST', body: JSON.stringify({ notes }) }),
+  setServiceRequestWaitingParts: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/waiting-parts`, { method: 'POST' }),
+  startServiceRequestRepair: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/start-repair`, { method: 'POST' }),
+  completeServiceRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/complete`, { method: 'POST' }),
+  closeServiceRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/close`, { method: 'POST' }),
+  cancelServiceRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/cancel`, { method: 'POST' }),
+
+  // Work Orders
+  getWorkOrders: (serviceRequestId?: string, assignedTechnician?: string, status?: string, priority?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (serviceRequestId) params.append('serviceRequestId', serviceRequestId);
+    if (assignedTechnician) params.append('assignedTechnician', assignedTechnician);
+    if (status) params.append('status', status);
+    if (priority) params.append('priority', priority);
+    if (search) params.append('search', search);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/work-orders${q ? `?${q}` : ''}`);
+  },
+  getWorkOrder: (id: string) => fetchApi<Record<string, unknown>>(`/work-orders/${id}`),
+  createWorkOrder: (data: { serviceRequestId: string; assignedTechnician?: string; title: string; description?: string; plannedHours: number; priority?: string }) =>
+    fetchApi<Record<string, unknown>>('/work-orders', { method: 'POST', body: JSON.stringify(data) }),
+  assignWorkOrder: (id: string, technician: string) =>
+    fetchApi<Record<string, unknown>>(`/work-orders/${id}/assign`, { method: 'POST', body: JSON.stringify({ technician }) }),
+  startWorkOrder: (id: string) => fetchApi<Record<string, unknown>>(`/work-orders/${id}/start`, { method: 'POST' }),
+  pauseWorkOrder: (id: string) => fetchApi<Record<string, unknown>>(`/work-orders/${id}/pause`, { method: 'POST' }),
+  logWorkOrderHours: (id: string, hours: number) =>
+    fetchApi<Record<string, unknown>>(`/work-orders/${id}/hours`, { method: 'POST', body: JSON.stringify({ hours }) }),
+  completeWorkOrder: (id: string) => fetchApi<Record<string, unknown>>(`/work-orders/${id}/complete`, { method: 'POST' }),
+  cancelWorkOrder: (id: string) => fetchApi<Record<string, unknown>>(`/work-orders/${id}/cancel`, { method: 'POST' }),
+
+  // Warranty Claims
+  getWarrantyClaims: (customerId?: string, productId?: string, decision?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (customerId) params.append('customerId', customerId);
+    if (productId) params.append('productId', productId);
+    if (decision) params.append('decision', decision);
+    if (search) params.append('search', search);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/warranty-claims${q ? `?${q}` : ''}`);
+  },
+  getWarrantyClaim: (id: string) => fetchApi<Record<string, unknown>>(`/warranty-claims/${id}`),
+  createWarrantyClaim: (data: { customerId: string; productId: string; serialNumber?: string; purchaseDate: string; expiryDate: string; claimReason: string }) =>
+    fetchApi<Record<string, unknown>>('/warranty-claims', { method: 'POST', body: JSON.stringify(data) }),
+  reviewWarrantyClaim: (id: string) => fetchApi<Record<string, unknown>>(`/warranty-claims/${id}/review`, { method: 'POST' }),
+  approveWarrantyClaim: (id: string, notes?: string) =>
+    fetchApi<Record<string, unknown>>(`/warranty-claims/${id}/approve`, { method: 'POST', body: JSON.stringify({ notes }) }),
+  rejectWarrantyClaim: (id: string, notes?: string) =>
+    fetchApi<Record<string, unknown>>(`/warranty-claims/${id}/reject`, { method: 'POST', body: JSON.stringify({ notes }) }),
+
+  // RMA Requests
+  getRmaRequests: (customerId?: string, salesOrderId?: string, status?: string, disposition?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (customerId) params.append('customerId', customerId);
+    if (salesOrderId) params.append('salesOrderId', salesOrderId);
+    if (status) params.append('status', status);
+    if (disposition) params.append('disposition', disposition);
+    if (search) params.append('search', search);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/rma-requests${q ? `?${q}` : ''}`);
+  },
+  getRmaRequest: (id: string) => fetchApi<Record<string, unknown>>(`/rma-requests/${id}`),
+  createRmaRequest: (data: { customerId: string; salesOrderId?: string; itemDescription: string; serialNumber?: string; reason: string }) =>
+    fetchApi<Record<string, unknown>>('/rma-requests', { method: 'POST', body: JSON.stringify(data) }),
+  approveRmaRequest: (id: string) => fetchApi<Record<string, unknown>>(`/rma-requests/${id}/approve`, { method: 'POST' }),
+  receiveRmaItem: (id: string) => fetchApi<Record<string, unknown>>(`/rma-requests/${id}/receive`, { method: 'POST' }),
+  inspectRmaItem: (id: string, data: { disposition: string; notes?: string }) =>
+    fetchApi<Record<string, unknown>>(`/rma-requests/${id}/inspect`, { method: 'POST', body: JSON.stringify(data) }),
+  processRmaRequest: (id: string) => fetchApi<Record<string, unknown>>(`/rma-requests/${id}/process`, { method: 'POST' }),
+  closeRmaRequest: (id: string) => fetchApi<Record<string, unknown>>(`/rma-requests/${id}/close`, { method: 'POST' }),
+  rejectRmaRequest: (id: string) => fetchApi<Record<string, unknown>>(`/rma-requests/${id}/reject`, { method: 'POST' }),
+
+  // Maintenance Schedules
+  getMaintenanceSchedules: (customerId?: string, assignedTechnician?: string, status?: string, frequency?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (customerId) params.append('customerId', customerId);
+    if (assignedTechnician) params.append('assignedTechnician', assignedTechnician);
+    if (status) params.append('status', status);
+    if (frequency) params.append('frequency', frequency);
+    if (search) params.append('search', search);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/maintenance-schedules${q ? `?${q}` : ''}`);
+  },
+  getMaintenanceSchedule: (id: string) => fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}`),
+  createMaintenanceSchedule: (data: { customerId: string; assetName: string; serialNumber?: string; frequency: string; nextVisitDate: string; assignedTechnician?: string; notes?: string }) =>
+    fetchApi<Record<string, unknown>>('/maintenance-schedules', { method: 'POST', body: JSON.stringify(data) }),
+  pauseMaintenanceSchedule: (id: string) => fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/pause`, { method: 'POST' }),
+  resumeMaintenanceSchedule: (id: string) => fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/resume`, { method: 'POST' }),
+  completeMaintenanceVisit: (id: string) => fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/complete-visit`, { method: 'POST' }),
+  completeMaintenancePlan: (id: string) => fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/complete-plan`, { method: 'POST' }),
+  cancelMaintenanceSchedule: (id: string) => fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/cancel`, { method: 'POST' }),
+
+  // Service Notes
+  getServiceNotes: (serviceRequestId?: string, workOrderId?: string, warrantyClaimId?: string) => {
+    const params = new URLSearchParams();
+    if (serviceRequestId) params.append('serviceRequestId', serviceRequestId);
+    if (workOrderId) params.append('workOrderId', workOrderId);
+    if (warrantyClaimId) params.append('warrantyClaimId', warrantyClaimId);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/service-notes${q ? `?${q}` : ''}`);
+  },
+  createServiceNote: (data: { author: string; body: string; serviceRequestId?: string; workOrderId?: string; warrantyClaimId?: string }) =>
+    fetchApi<Record<string, unknown>>('/service-notes', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 

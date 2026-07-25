@@ -40,6 +40,7 @@ export * from "./crm-opportunities";
 export * from "./crm-activities";
 export * from "./crm-notes";
 export * from "./projects";
+export * from "./service";
 
 
 

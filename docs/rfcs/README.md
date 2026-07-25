@@ -217,6 +217,11 @@ Routine feature work, bug fixes, refactoring, implementation details, and small 
 | 0043 | Task Management        | Accepted |
 | 0044 | Time Tracking          | Accepted |
 | 0045 | Project Integration    | Accepted |
+| 0046 | Service Requests       | Accepted |
+| 0047 | Work Orders & Repairs  | Accepted |
+| 0048 | Warranty & RMA         | Accepted |
+| 0049 | Field Service & Maintenance | Accepted |
+| 0050 | Service Integration    | Accepted |
 
 
 
