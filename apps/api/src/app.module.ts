@@ -42,6 +42,9 @@ import { CrmAccountsModule } from './crm-accounts/crm-accounts.module';
 import { OpportunitiesModule } from './opportunities/opportunities.module';
 import { ActivitiesModule } from './activities/activities.module';
 import { NotesModule } from './notes/notes.module';
+import { ProjectsModule } from './projects/projects.module';
+import { TasksModule } from './tasks/tasks.module';
+import { TimeEntriesModule } from './time-entries/time-entries.module';
 
 @Module({
   imports: [
@@ -87,6 +90,9 @@ import { NotesModule } from './notes/notes.module';
     OpportunitiesModule,
     ActivitiesModule,
     NotesModule,
+    ProjectsModule,
+    TasksModule,
+    TimeEntriesModule,
   ],
   controllers: [AppController],
 })

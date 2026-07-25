@@ -212,6 +212,12 @@ Routine feature work, bug fixes, refactoring, implementation details, and small 
 | 0038 | Opportunities & Pipeline | Accepted |
 | 0039 | Activities & Notes     | Accepted |
 | 0040 | CRM to Sales Integration | Accepted |
+| 0041 | Project Management     | Accepted |
+| 0042 | Milestones & Deliverables | Accepted |
+| 0043 | Task Management        | Accepted |
+| 0044 | Time Tracking          | Accepted |
+| 0045 | Project Integration    | Accepted |
+
 
 
 

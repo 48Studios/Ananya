@@ -676,6 +676,69 @@ export const api = {
   getNote: (id: string) => fetchApi<Record<string, unknown>>(`/notes/${id}`),
   createNote: (data: { author: string; body: string; leadId?: string; crmAccountId?: string; opportunityId?: string; activityId?: string }) =>
     fetchApi<Record<string, unknown>>('/notes', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Projects
+  getProjects: (status?: string, priority?: string, customerId?: string, salesOrderId?: string, projectManager?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (priority) params.append('priority', priority);
+    if (customerId) params.append('customerId', customerId);
+    if (salesOrderId) params.append('salesOrderId', salesOrderId);
+    if (projectManager) params.append('projectManager', projectManager);
+    if (search) params.append('search', search);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/projects${q ? `?${q}` : ''}`);
+  },
+  getProject: (id: string) => fetchApi<Record<string, unknown>>(`/projects/${id}`),
+  createProject: (data: { name: string; customerId: string; salesOrderId: string; projectManager: string; startDate: string; targetCompletionDate: string; priority?: string }) =>
+    fetchApi<Record<string, unknown>>('/projects', { method: 'POST', body: JSON.stringify(data) }),
+  startProject: (id: string) => fetchApi<Record<string, unknown>>(`/projects/${id}/start`, { method: 'POST' }),
+  pauseProject: (id: string) => fetchApi<Record<string, unknown>>(`/projects/${id}/pause`, { method: 'POST' }),
+  completeProject: (id: string) => fetchApi<Record<string, unknown>>(`/projects/${id}/complete`, { method: 'POST' }),
+  cancelProject: (id: string) => fetchApi<Record<string, unknown>>(`/projects/${id}/cancel`, { method: 'POST' }),
+  addProjectMilestone: (id: string, data: { name: string; dueDate: string; completionPercentage?: number }) =>
+    fetchApi<Record<string, unknown>>(`/projects/${id}/milestones`, { method: 'POST', body: JSON.stringify(data) }),
+  completeProjectMilestone: (id: string, milestoneId: string) =>
+    fetchApi<Record<string, unknown>>(`/projects/${id}/milestones/${milestoneId}/complete`, { method: 'POST' }),
+
+  // Tasks
+  getTasks: (projectId?: string, assignedUser?: string, status?: string, priority?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (projectId) params.append('projectId', projectId);
+    if (assignedUser) params.append('assignedUser', assignedUser);
+    if (status) params.append('status', status);
+    if (priority) params.append('priority', priority);
+    if (search) params.append('search', search);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/tasks${q ? `?${q}` : ''}`);
+  },
+  getTask: (id: string) => fetchApi<Record<string, unknown>>(`/tasks/${id}`),
+  createTask: (data: { projectId: string; title: string; description?: string; assignedUser?: string; estimatedHours: number; priority?: string }) =>
+    fetchApi<Record<string, unknown>>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
+  assignTask: (id: string, userId: string) =>
+    fetchApi<Record<string, unknown>>(`/tasks/${id}/assign`, { method: 'POST', body: JSON.stringify({ userId }) }),
+  startTask: (id: string) => fetchApi<Record<string, unknown>>(`/tasks/${id}/start`, { method: 'POST' }),
+  blockTask: (id: string) => fetchApi<Record<string, unknown>>(`/tasks/${id}/block`, { method: 'POST' }),
+  completeTask: (id: string) => fetchApi<Record<string, unknown>>(`/tasks/${id}/complete`, { method: 'POST' }),
+  cancelTask: (id: string) => fetchApi<Record<string, unknown>>(`/tasks/${id}/cancel`, { method: 'POST' }),
+
+  // Time Entries
+  getTimeEntries: (userId?: string, taskId?: string, status?: string, startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (userId) params.append('userId', userId);
+    if (taskId) params.append('taskId', taskId);
+    if (status) params.append('status', status);
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/time-entries${q ? `?${q}` : ''}`);
+  },
+  getTimeEntry: (id: string) => fetchApi<Record<string, unknown>>(`/time-entries/${id}`),
+  createTimeEntry: (data: { userId: string; taskId: string; date: string; hours: number; description?: string }) =>
+    fetchApi<Record<string, unknown>>('/time-entries', { method: 'POST', body: JSON.stringify(data) }),
+  approveTimeEntry: (id: string, approverId: string) =>
+    fetchApi<Record<string, unknown>>(`/time-entries/${id}/approve`, { method: 'POST', body: JSON.stringify({ approverId }) }),
+  rejectTimeEntry: (id: string) => fetchApi<Record<string, unknown>>(`/time-entries/${id}/reject`, { method: 'POST' }),
 };
 
 

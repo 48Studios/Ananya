@@ -64,6 +64,13 @@
       "when": 1784987159441,
       "tag": "0008_thankful_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785003799425,
+      "tag": "0009_unusual_lady_vermin",
+      "breakpoints": true
     }
   ]
 }

@@ -39,6 +39,8 @@ export * from "./crm-accounts";
 export * from "./crm-opportunities";
 export * from "./crm-activities";
 export * from "./crm-notes";
+export * from "./projects";
+
 
 
 
