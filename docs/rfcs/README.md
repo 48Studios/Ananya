@@ -187,3 +187,9 @@ Routine feature work, bug fixes, refactoring, implementation details, and small 
 | 0013 | Purchase Invoices      | Accepted |
 | 0014 | Procurement Policies   | Accepted |
 | 0015 | Procurement Reporting  | Accepted |
+| 0016 | Bill of Materials      | Accepted |
+| 0017 | Production Orders      | Accepted |
+| 0018 | Material Consumption   | Accepted |
+| 0019 | Finished Goods Receipt | Accepted |
+| 0020 | Manufacturing Traceability | Accepted |
+

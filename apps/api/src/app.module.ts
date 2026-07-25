@@ -16,6 +16,11 @@ import { SupplierReturnsModule } from './supplier-returns/supplier-returns.modul
 import { PurchaseInvoicesModule } from './purchase-invoices/purchase-invoices.module';
 import { ProcurementPoliciesModule } from './procurement-policies/procurement-policies.module';
 import { ProcurementReportingModule } from './procurement-reporting/procurement-reporting.module';
+import { BomsModule } from './boms/boms.module';
+import { ProductionOrdersModule } from './production-orders/production-orders.module';
+import { MaterialConsumptionsModule } from './material-consumptions/material-consumptions.module';
+import { FinishedGoodsModule } from './finished-goods/finished-goods.module';
+import { ManufacturingTraceabilityModule } from './manufacturing-traceability/manufacturing-traceability.module';
 
 @Module({
   imports: [
@@ -35,6 +40,11 @@ import { ProcurementReportingModule } from './procurement-reporting/procurement-
     PurchaseInvoicesModule,
     ProcurementPoliciesModule,
     ProcurementReportingModule,
+    BomsModule,
+    ProductionOrdersModule,
+    MaterialConsumptionsModule,
+    FinishedGoodsModule,
+    ManufacturingTraceabilityModule,
   ],
   controllers: [AppController],
 })

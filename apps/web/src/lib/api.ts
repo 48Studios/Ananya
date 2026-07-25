@@ -257,4 +257,76 @@ export const api = {
     fetchApi<Record<string, unknown>>('/procurement-policies', { method: 'POST', body: JSON.stringify(data) }),
   getProcurementMetrics: () => fetchApi<Record<string, unknown>>('/procurement/reporting/metrics'),
   getOpenPoAging: () => fetchApi<Record<string, unknown>[]>(`/procurement/reporting/open-po-aging`),
+
+  // Manufacturing - BOMs
+  getBoms: (componentId?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (componentId) params.append('componentId', componentId);
+    if (status) params.append('status', status);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/boms${q ? `?${q}` : ''}`);
+  },
+  getBom: (id: string) => fetchApi<Record<string, unknown>>(`/boms/${id}`),
+  createBom: (data: { componentId: string; revision?: string; notes?: string }) =>
+    fetchApi<Record<string, unknown>>('/boms', { method: 'POST', body: JSON.stringify(data) }),
+  addBomLine: (id: string, data: { componentId: string; quantityPerUnit: number; unitOfMeasure?: string; scrapFactorPercent?: number; notes?: string }) =>
+    fetchApi<Record<string, unknown>>(`/boms/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
+  releaseBom: (id: string) => fetchApi<Record<string, unknown>>(`/boms/${id}/release`, { method: 'POST' }),
+  obsoleteBom: (id: string) => fetchApi<Record<string, unknown>>(`/boms/${id}/obsolete`, { method: 'POST' }),
+
+  // Manufacturing - Production Orders
+  getProductionOrders: (componentId?: string, bomId?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (componentId) params.append('componentId', componentId);
+    if (bomId) params.append('bomId', bomId);
+    if (status) params.append('status', status);
+    const q = params.toString();
+    return fetchApi<Record<string, unknown>[]>(`/production-orders${q ? `?${q}` : ''}`);
+  },
+  getProductionOrder: (id: string) => fetchApi<Record<string, unknown>>(`/production-orders/${id}`),
+  createProductionOrder: (data: { bomId: string; componentId: string; quantityPlanned: number; startDate?: string; endDate?: string }) =>
+    fetchApi<Record<string, unknown>>('/production-orders', { method: 'POST', body: JSON.stringify(data) }),
+  releaseProductionOrder: (id: string) => fetchApi<Record<string, unknown>>(`/production-orders/${id}/release`, { method: 'POST' }),
+  startProductionOrder: (id: string) => fetchApi<Record<string, unknown>>(`/production-orders/${id}/start`, { method: 'POST' }),
+  completeProductionOrder: (id: string) => fetchApi<Record<string, unknown>>(`/production-orders/${id}/complete`, { method: 'POST' }),
+  closeProductionOrder: (id: string) => fetchApi<Record<string, unknown>>(`/production-orders/${id}/close`, { method: 'POST' }),
+  cancelProductionOrder: (id: string) => fetchApi<Record<string, unknown>>(`/production-orders/${id}/cancel`, { method: 'POST' }),
+
+  // Manufacturing - Material Consumptions
+  getMaterialConsumptions: (productionOrderId?: string) =>
+    fetchApi<Record<string, unknown>[]>(`/material-consumptions${productionOrderId ? `?productionOrderId=${productionOrderId}` : ''}`),
+  getMaterialConsumption: (id: string) => fetchApi<Record<string, unknown>>(`/material-consumptions/${id}`),
+  createMaterialConsumption: (data: { productionOrderId: string }) =>
+    fetchApi<Record<string, unknown>>('/material-consumptions', { method: 'POST', body: JSON.stringify(data) }),
+  addConsumptionLine: (id: string, data: { componentId: string; locationId: string; quantityPlanned?: number; quantityConsumed: number; batchNumber?: string; serialNumbers?: string[] }) =>
+    fetchApi<Record<string, unknown>>(`/material-consumptions/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
+  postMaterialConsumption: (id: string) => fetchApi<Record<string, unknown>>(`/material-consumptions/${id}/post`, { method: 'POST' }),
+
+  // Manufacturing - Finished Goods Receipts
+  getFinishedGoodsReceipts: (productionOrderId?: string) =>
+    fetchApi<Record<string, unknown>[]>(`/finished-goods${productionOrderId ? `?productionOrderId=${productionOrderId}` : ''}`),
+  getFinishedGoodsReceipt: (id: string) => fetchApi<Record<string, unknown>>(`/finished-goods/${id}`),
+  createFinishedGoodsReceipt: (data: { productionOrderId: string }) =>
+    fetchApi<Record<string, unknown>>('/finished-goods', { method: 'POST', body: JSON.stringify(data) }),
+  addFgrLine: (id: string, data: { componentId: string; locationId: string; quantityProduced: number; quantityScrapped?: number; batchNumber?: string; serialNumbers?: string[] }) =>
+    fetchApi<Record<string, unknown>>(`/finished-goods/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
+  postFinishedGoodsReceipt: (id: string) => fetchApi<Record<string, unknown>>(`/finished-goods/${id}/post`, { method: 'POST' }),
+
+  // Manufacturing - Traceability
+  getForwardTrace: (params: { batchNumber?: string; serialNumber?: string; componentId?: string }) => {
+    const q = new URLSearchParams();
+    if (params.batchNumber) q.append('batchNumber', params.batchNumber);
+    if (params.serialNumber) q.append('serialNumber', params.serialNumber);
+    if (params.componentId) q.append('componentId', params.componentId);
+    return fetchApi<Record<string, unknown>[]>(`/traceability/forward?${q.toString()}`);
+  },
+  getBackwardTrace: (params: { batchNumber?: string; serialNumber?: string; componentId?: string }) => {
+    const q = new URLSearchParams();
+    if (params.batchNumber) q.append('batchNumber', params.batchNumber);
+    if (params.serialNumber) q.append('serialNumber', params.serialNumber);
+    if (params.componentId) q.append('componentId', params.componentId);
+    return fetchApi<Record<string, unknown>[]>(`/traceability/backward?${q.toString()}`);
+  },
+  getProductionOrderTrace: (id: string) => fetchApi<Record<string, unknown>[]>(`/traceability/production-order/${id}`),
 };
+

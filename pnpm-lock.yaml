@@ -32,6 +32,9 @@ importers:
       '@ananya/inventory':
         specifier: workspace:^
         version: link:../../packages/inventory
+      '@ananya/manufacturing':
+        specifier: workspace:^
+        version: link:../../packages/manufacturing
       '@ananya/procurement':
         specifier: workspace:^
         version: link:../../packages/procurement
@@ -245,6 +248,22 @@ importers:
       '@ananya/core':
         specifier: workspace:^
         version: link:../core
+    devDependencies:
+      '@ananya/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/manufacturing:
+    dependencies:
+      '@ananya/core':
+        specifier: workspace:^
+        version: link:../core
+      '@ananya/inventory':
+        specifier: workspace:^
+        version: link:../inventory
     devDependencies:
       '@ananya/typescript-config':
         specifier: workspace:*

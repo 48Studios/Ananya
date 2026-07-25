@@ -13,4 +13,9 @@ export * from "./goods-receipts";
 export * from "./supplier-returns";
 export * from "./purchase-invoices";
 export * from "./procurement-policies";
+export * from "./bill-of-materials";
+export * from "./production-orders";
+export * from "./material-consumptions";
+export * from "./finished-goods-receipts";
+export * from "./manufacturing-traceability";
 
