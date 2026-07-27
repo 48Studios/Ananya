@@ -3,6 +3,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { api } from '../../src/lib/api';
+import { Button } from '../../src/components/ui/Button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../src/components/ui/Card';
+import { Badge } from '../../src/components/ui/Badge';
+import { Table } from '../../src/components/ui/Table';
+import { Skeleton } from '../../src/components/ui/Skeleton';
+import { ErrorState } from '../../src/components/ui/ErrorState';
+import { IconCRM, IconPlus, IconArrowRight } from '../../src/components/ui/Icons';
 
 export default function CrmDashboardPage() {
   const [leads, setLeads] = useState<Record<string, unknown>[]>([]);
@@ -10,9 +17,11 @@ export default function CrmDashboardPage() {
   const [opportunities, setOpportunities] = useState<Record<string, unknown>[]>([]);
   const [activities, setActivities] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const [lData, aData, oData, actData] = await Promise.all([
         api.getLeads().catch(() => []),
@@ -25,7 +34,7 @@ export default function CrmDashboardPage() {
       setOpportunities(oData);
       setActivities(actData);
     } catch (err: unknown) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to load CRM dashboard data');
     } finally {
       setLoading(false);
     }
@@ -44,123 +53,229 @@ export default function CrmDashboardPage() {
     .reduce((sum, o) => sum + (Number(o.estimatedValue) || 0), 0);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center border-b pb-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+      {/* Top Banner */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Customer Relationship Management (CRM)</h1>
-          <p className="text-sm text-gray-500">Lead qualification, pre-sales accounts, deal pipeline, and activity management.</p>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+            Customer Relationship Management (CRM)
+          </h1>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Lead qualification, pre-sales accounts, deal pipeline, and activity management
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/leads" className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded hover:bg-gray-800">
-            + New Lead
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <Link href="/leads">
+            <Button variant="secondary" size="sm" leftIcon={<IconPlus size={14} />}>
+              New Lead
+            </Button>
           </Link>
-          <Link href="/opportunities" className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700">
-            Pipeline Kanban
+          <Link href="/opportunities">
+            <Button variant="primary" size="sm" leftIcon={<IconPlus size={14} />}>
+              Pipeline Kanban
+            </Button>
           </Link>
         </div>
       </div>
 
-      {/* CRM Summary Metrics */}
-      <div className="grid grid-cols-5 gap-4">
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Active Leads</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : leads.length}</div>
-          <div className="text-xs text-blue-600 font-semibold mt-1">
-            {leads.filter((l) => l.status === 'NEW' || l.status === 'QUALIFIED').length} In Pipeline
-          </div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">CRM Accounts</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : accounts.length}</div>
-          <div className="text-xs text-gray-500 mt-1">Prospect Companies</div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Scheduled Activities</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : activities.length}</div>
-          <div className="text-xs text-purple-700 font-semibold mt-1">
-            {activities.filter((act) => act.status === 'SCHEDULED').length} Pending Tasks
-          </div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Pipeline Forecast</div>
-          <div className="text-2xl font-bold mt-1 text-green-700">${loading ? '...' : pipelineValue.toFixed(2)}</div>
-          <div className="text-xs text-gray-500 mt-1">Total Estimated Value</div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Won Revenue</div>
-          <div className="text-2xl font-bold mt-1 text-blue-700">${loading ? '...' : wonValue.toFixed(2)}</div>
-          <div className="text-xs text-green-700 font-semibold mt-1">
-            Handed off to Sales
-          </div>
-        </div>
+      {error && <ErrorState message={error} onRetry={loadData} />}
+
+      {/* CRM Summary Metrics Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Active Leads
+              </span>
+              <IconCRM size={18} style={{ color: 'var(--accent)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : leads.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600 }}>
+              {leads.filter((l) => l.status === 'NEW' || l.status === 'QUALIFIED').length} In Pipeline
+            </span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                CRM Accounts
+              </span>
+              <IconCRM size={18} style={{ color: 'var(--info)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : accounts.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Prospect Companies</span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Activities
+              </span>
+              <IconCRM size={18} style={{ color: 'var(--warning)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : activities.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--warning)', fontWeight: 600 }}>
+              {activities.filter((act) => act.status === 'SCHEDULED').length} Pending Tasks
+            </span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Pipeline Forecast
+              </span>
+              <IconCRM size={18} style={{ color: 'var(--success)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>
+              {loading ? <Skeleton width="80px" height="2rem" /> : `$${pipelineValue.toFixed(2)}`}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Estimated Value</span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Won Revenue
+              </span>
+              <IconCRM size={18} style={{ color: 'var(--accent)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+              {loading ? <Skeleton width="80px" height="2rem" /> : `$${wonValue.toFixed(2)}`}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>
+              Handed Off to Sales
+            </span>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* CRM Navigation Modules */}
-      <div className="grid grid-cols-4 gap-4">
-        <Link href="/leads" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">1. Lead Management</h3>
-          <p className="text-xs text-gray-500 mt-1">Inbound leads, qualification & conversion.</p>
+      {/* Navigation Modules Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+        <Link href="/leads">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>1. Lead Management</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Inbound leads, qualification & conversion.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/accounts" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">2. Accounts & Contacts</h3>
-          <p className="text-xs text-gray-500 mt-1">Pre-sales prospect companies & key decision makers.</p>
+        <Link href="/accounts">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>2. Accounts & Contacts</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Pre-sales prospect companies & key decision makers.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/opportunities" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">3. Opportunity Pipeline</h3>
-          <p className="text-xs text-gray-500 mt-1">Kanban deal progression & sales quotation handoff.</p>
+        <Link href="/opportunities">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>3. Opportunity Pipeline</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Kanban deal progression & sales quotation handoff.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/activities" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">4. Activities & Tasks</h3>
-          <p className="text-xs text-gray-500 mt-1">Calls, meetings, emails & scheduled touchpoints.</p>
+        <Link href="/activities">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>4. Activities & Tasks</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Calls, meetings, emails & scheduled touchpoints.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
       </div>
 
       {/* Active Pipeline Deals Table */}
-      <div className="border rounded bg-white p-4 space-y-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-700">Active CRM Opportunity Pipeline</h2>
-        <table className="w-full text-left text-xs">
-          <thead className="bg-gray-100 uppercase text-gray-600 border-b">
-            <tr>
-              <th className="p-3">Deal #</th>
-              <th className="p-3">Deal Name</th>
-              <th className="p-3">Stage</th>
-              <th className="p-3">Est. Value</th>
-              <th className="p-3">Win Prob.</th>
-              <th className="p-3">Expected Close</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {opportunities.map((opp) => (
-              <tr key={String(opp.id)} className="hover:bg-gray-50">
-                <td className="p-3 font-mono font-bold">{String(opp.opportunityNumber)}</td>
-                <td className="p-3 font-semibold text-gray-900">
-                  <Link href={`/opportunities/${String(opp.id)}`} className="text-blue-600 hover:underline">
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Active CRM Opportunity Pipeline</CardTitle>
+            <CardDescription>Qualified commercial deal progression and win probabilities</CardDescription>
+          </div>
+          <Link href="/opportunities">
+            <Button variant="ghost" size="sm" rightIcon={<IconArrowRight size={14} />}>
+              View Pipeline
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent style={{ padding: 0 }}>
+          <Table<Record<string, unknown>>
+            isLoading={loading}
+            data={opportunities}
+            keyExtractor={(opp) => String(opp.id)}
+            emptyText="No opportunities in pipeline."
+            columns={[
+              {
+                header: 'Deal #',
+                accessor: (opp) => (
+                  <span className="code-font" style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                    {String(opp.opportunityNumber)}
+                  </span>
+                ),
+              },
+              {
+                header: 'Deal Name',
+                accessor: (opp) => (
+                  <Link href={`/opportunities/${String(opp.id)}`} style={{ fontWeight: 600, color: 'var(--accent)' }}>
                     {String(opp.name)}
                   </Link>
-                </td>
-                <td className="p-3">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    opp.stage === 'WON' ? 'bg-green-100 text-green-800' :
-                    opp.stage === 'LOST' ? 'bg-red-100 text-red-800' :
-                    opp.stage === 'NEGOTIATION' ? 'bg-purple-100 text-purple-800' :
-                    'bg-blue-100 text-blue-800'
-                  }`}>
-                    {String(opp.stage)}
+                ),
+              },
+              {
+                header: 'Stage',
+                accessor: (opp) => {
+                  const stage = String(opp.stage);
+                  const variant = stage === 'WON' ? 'receipt' : stage === 'LOST' ? 'issue' : 'transfer';
+                  return <Badge variant={variant}>{stage}</Badge>;
+                },
+              },
+              {
+                header: 'Est. Value',
+                accessor: (opp) => (
+                  <span className="code-font" style={{ fontWeight: 700 }}>
+                    ${Number(opp.estimatedValue).toFixed(2)}
                   </span>
-                </td>
-                <td className="p-3 font-mono font-bold text-gray-900">${Number(opp.estimatedValue).toFixed(2)}</td>
-                <td className="p-3 font-mono">{Number(opp.probability)}%</td>
-                <td className="p-3 text-gray-600">{new Date(String(opp.expectedCloseDate)).toLocaleDateString()}</td>
-              </tr>
-            ))}
-            {opportunities.length === 0 && (
-              <tr>
-                <td colSpan={6} className="p-4 text-center text-gray-500">No opportunities in pipeline.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                ),
+              },
+              {
+                header: 'Win Prob.',
+                accessor: (opp) => <span className="code-font">{Number(opp.probability)}%</span>,
+              },
+              {
+                header: 'Expected Close',
+                accessor: (opp) => (
+                  <span className="code-font" style={{ color: 'var(--text-secondary)' }}>
+                    {new Date(String(opp.expectedCloseDate)).toLocaleDateString()}
+                  </span>
+                ),
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

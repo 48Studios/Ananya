@@ -5,10 +5,17 @@ import Link from 'next/link';
 import type { Component, Location, InventoryTransaction } from '@ananya/inventory';
 import { TransactionType } from '@ananya/inventory';
 import { api } from '../src/lib/api';
+import { Button } from '../src/components/ui/Button';
 import { Badge } from '../src/components/ui/Badge';
-import { Table } from '../src/components/ui/Table';
+import { PageHeader } from '../src/components/shared/page-header/PageHeader';
+import { StatCard } from '../src/components/shared/stat-card/StatCard';
+import { DashboardCard } from '../src/components/shared/dashboard-card/DashboardCard';
+import { EntityTable } from '../src/components/shared/entity-table/EntityTable';
+import { ErrorState } from '../src/components/shared/error-state/ErrorState';
 import { formatLocationPathString } from '../src/lib/location-utils';
 import { TransactionModal } from '../src/features/transactions/TransactionModal';
+import { Plus, Boxes, Warehouse, Activity, Search, ArrowRight } from 'lucide-react';
+import { ColumnDef } from '@tanstack/react-table';
 
 export default function DashboardPage() {
   const [components, setComponents] = useState<Component[]>([]);
@@ -16,12 +23,13 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<TransactionType>(TransactionType.Receipt);
 
   const loadData = async () => {
     setLoading(true);
+    setError('');
     try {
       const [compRes, locRes, txRes] = await Promise.all([
         api.getComponents().catch(() => []),
@@ -52,145 +60,195 @@ export default function DashboardPage() {
     return c ? `${c.sku} (${c.name})` : id;
   };
 
+  const transactionColumns: ColumnDef<InventoryTransaction>[] = [
+    {
+      accessorKey: 'createdAt',
+      header: 'Timestamp',
+      cell: ({ row }) => (
+        <span className="code-font" style={{ color: 'var(--muted-foreground)' }}>
+          {new Date(row.original.createdAt).toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'transactionType',
+      header: 'Type',
+      cell: ({ row }) => {
+        const v = row.original.transactionType.toLowerCase();
+        const variant = v === 'receipt' ? 'receipt' : v === 'transfer' ? 'transfer' : v === 'issue' ? 'issue' : 'adjustment';
+        return <Badge variant={variant}>{row.original.transactionType}</Badge>;
+      },
+    },
+    {
+      accessorKey: 'componentId',
+      header: 'Component',
+      cell: ({ row }) => (
+        <span style={{ fontWeight: 500 }}>{getComponentName(row.original.componentId)}</span>
+      ),
+    },
+    {
+      accessorKey: 'quantity',
+      header: 'Quantity',
+      cell: ({ row }) => (
+        <span className="code-font" style={{ fontWeight: 600 }}>
+          {row.original.quantity} {row.original.unitOfMeasure}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'sourceLocationId',
+      header: 'Source Location',
+      cell: ({ row }) => (
+        <span className="code-font" style={{ color: 'var(--muted-foreground)' }}>
+          {row.original.sourceLocationId ? formatLocationPathString(locations, row.original.sourceLocationId) : '-'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'destinationLocationId',
+      header: 'Destination Location',
+      cell: ({ row }) => (
+        <span className="code-font" style={{ color: 'var(--muted-foreground)' }}>
+          {row.original.destinationLocationId ? formatLocationPathString(locations, row.original.destinationLocationId) : '-'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'reference',
+      header: 'Reference',
+      cell: ({ row }) => (
+        <span className="code-font" style={{ color: 'var(--muted-foreground)' }}>
+          {row.original.reference || '-'}
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <div>
-      <div className="section-header">
-        <div>
-          <h1 className="section-title">Operations Console</h1>
-          <p className="section-sub">48 Studios physical inventory & ledger operations</p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-primary" onClick={() => openAction(TransactionType.Receipt)}>
-            + Receive Stock
-          </button>
-          <button className="btn btn-secondary" onClick={() => openAction(TransactionType.Transfer)}>
-            Move Stock
-          </button>
-          <button className="btn btn-secondary" onClick={() => openAction(TransactionType.Issue)}>
-            Consume Stock
-          </button>
-          <button className="btn btn-secondary" onClick={() => openAction(TransactionType.Adjustment)}>
-            Adjust Stock
-          </button>
-        </div>
-      </div>
-
-      {error && <div className="error-banner">{error}</div>}
-
-      {/* Metrics Row */}
-      <div className="stats-grid">
-        <div className="stat-cell">
-          <div className="stat-label">Components Catalog</div>
-          <div className="stat-value">{loading ? '...' : components.length}</div>
-        </div>
-        <div className="stat-cell">
-          <div className="stat-label">Storage Locations</div>
-          <div className="stat-value">{loading ? '...' : locations.length}</div>
-        </div>
-        <div className="stat-cell">
-          <div className="stat-label">Ledger Transactions</div>
-          <div className="stat-value">{loading ? '...' : transactions.length}</div>
-        </div>
-        <div className="stat-cell">
-          <div className="stat-label">Primary Context</div>
-          <div className="stat-value" style={{ fontSize: '1.1rem', color: 'var(--accent)' }}>
-            Search First
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Search Launcher */}
-      <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Direct Inventory Discovery</span>
-          <Link href="/inventory" className="btn btn-secondary btn-sm">
-            Open Full Inventory Browser →
-          </Link>
-        </div>
-        <Link href="/inventory" style={{ display: 'block' }}>
-          <div className="search-container">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Search components by SKU, name, MPN, location, alias, or specs..."
-              readOnly
-            />
-            <span className="shortcut-kbd">Press /</span>
-          </div>
-        </Link>
-      </div>
-
-      {/* Recent Ledger Activity */}
-      <div className="section-header">
-        <h2 className="section-title" style={{ fontSize: '1rem' }}>Recent Ledger Activity</h2>
-        <Link href="/transactions" style={{ fontSize: '0.825rem', color: 'var(--accent)' }}>
-          View All Transactions →
-        </Link>
-      </div>
-
-      <Table<InventoryTransaction>
-        isLoading={loading}
-        data={transactions.slice(0, 10)}
-        keyExtractor={(t) => t.id}
-        emptyText="No ledger transactions recorded yet. Use 'Receive Stock' to add initial inventory."
-        columns={[
-          {
-            header: 'Timestamp',
-            accessor: (t) => (
-              <span className="code-font" style={{ color: 'var(--text-secondary)' }}>
-                {new Date(t.createdAt).toLocaleString()}
-              </span>
-            ),
-          },
-          {
-            header: 'Type',
-            accessor: (t) => {
-              const v = t.transactionType.toLowerCase();
-              const variant = v === 'receipt' ? 'receipt' : v === 'transfer' ? 'transfer' : v === 'issue' ? 'issue' : 'adjustment';
-              return <Badge variant={variant}>{t.transactionType}</Badge>;
-            },
-          },
-          {
-            header: 'Component',
-            accessor: (t) => (
-              <span style={{ fontWeight: 500 }}>{getComponentName(t.componentId)}</span>
-            ),
-          },
-          {
-            header: 'Quantity',
-            accessor: (t) => (
-              <span className="code-font" style={{ fontWeight: 600 }}>
-                {t.quantity} {t.unitOfMeasure}
-              </span>
-            ),
-          },
-          {
-            header: 'Source Location',
-            accessor: (t) => (
-              <span className="code-font" style={{ color: 'var(--text-secondary)' }}>
-                {t.sourceLocationId ? formatLocationPathString(locations, t.sourceLocationId) : '-'}
-              </span>
-            ),
-          },
-          {
-            header: 'Destination Location',
-            accessor: (t) => (
-              <span className="code-font" style={{ color: 'var(--text-secondary)' }}>
-                {t.destinationLocationId ? formatLocationPathString(locations, t.destinationLocationId) : '-'}
-              </span>
-            ),
-          },
-          {
-            header: 'Reference',
-            accessor: (t) => (
-              <span className="code-font" style={{ color: 'var(--text-muted)' }}>
-                {t.reference || '-'}
-              </span>
-            ),
-          },
-        ]}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* Page Header */}
+      <PageHeader
+        title="Operations Console"
+        description="48 Studios physical inventory management & audited ledger operations"
+        actions={
+          <>
+            <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => openAction(TransactionType.Receipt)}>
+              Receive Stock
+            </Button>
+            <Button variant="secondary" onClick={() => openAction(TransactionType.Transfer)}>
+              Move Stock
+            </Button>
+            <Button variant="secondary" onClick={() => openAction(TransactionType.Issue)}>
+              Consume Stock
+            </Button>
+            <Button variant="outline" onClick={() => openAction(TransactionType.Adjustment)}>
+              Adjust Stock
+            </Button>
+          </>
+        }
       />
+
+      {error && <ErrorState message={error} onRetry={loadData} />}
+
+      {/* KPI Metrics Cards Grid */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '16px',
+        }}
+      >
+        <StatCard
+          title="Total Products"
+          value={loading ? '...' : components.length}
+          subtitle="Registered SKU Catalog"
+          icon={<Boxes size={18} />}
+        />
+        <StatCard
+          title="Storage Bins"
+          value={loading ? '...' : locations.length}
+          subtitle="Active Warehouse Locations"
+          icon={<Warehouse size={18} />}
+        />
+        <StatCard
+          title="Ledger Entries"
+          value={loading ? '...' : transactions.length}
+          subtitle="Audited Stock Transactions"
+          icon={<Activity size={18} />}
+        />
+        <StatCard
+          title="Primary Discovery"
+          value="Search First"
+          subtitle="Human-Readable Storage Paths"
+          icon={<Search size={18} />}
+        />
+      </div>
+
+      {/* Direct Search Launcher Card */}
+      <DashboardCard
+        title="Direct Inventory Discovery"
+        subtitle="Search components by SKU, MPN, location path, or specifications"
+        action={
+          <Link href="/inventory">
+            <Button variant="secondary" size="sm" rightIcon={<ArrowRight size={14} />}>
+              Open Inventory Browser
+            </Button>
+          </Link>
+        }
+      >
+        <Link href="/inventory" style={{ display: 'block' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: 'var(--muted)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '12px 16px',
+              gap: '12px',
+              color: 'var(--muted-foreground)',
+              fontSize: '0.85rem',
+            }}
+          >
+            <Search size={18} />
+            <span style={{ flex: 1 }}>Filter components by SKU, identity, manufacturer MPN, alias, or bin...</span>
+            <span
+              style={{
+                fontSize: '0.7rem',
+                fontFamily: 'var(--font-mono)',
+                backgroundColor: 'var(--card)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '2px 6px',
+              }}
+            >
+              Press /
+            </span>
+          </div>
+        </Link>
+      </DashboardCard>
+
+      {/* Recent Ledger Transactions DataTable */}
+      <DashboardCard
+        title="Recent Ledger Transactions"
+        subtitle="Latest audited stock receipts, transfers, issues, and adjustments"
+        action={
+          <Link href="/transactions">
+            <Button variant="ghost" size="sm" rightIcon={<ArrowRight size={14} />}>
+              View All
+            </Button>
+          </Link>
+        }
+      >
+        <EntityTable<InventoryTransaction>
+          data={transactions}
+          columns={transactionColumns}
+          isLoading={loading}
+          searchPlaceholder="Search recent transactions..."
+          emptyTitle="No ledger transactions recorded yet"
+          emptyDescription="Stock operations will record audited ledger entries here."
+        />
+      </DashboardCard>
 
       <TransactionModal
         isOpen={modalOpen}

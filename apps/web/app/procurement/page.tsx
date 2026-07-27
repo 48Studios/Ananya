@@ -1,97 +1,165 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../../src/lib/api';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../src/components/ui/Card';
+import { Table } from '../../src/components/ui/Table';
+import { Badge } from '../../src/components/ui/Badge';
+import { Skeleton } from '../../src/components/ui/Skeleton';
+import { ErrorState } from '../../src/components/ui/ErrorState';
+import { IconProcurement, IconInventory, IconFinance } from '../../src/components/ui/Icons';
 
 export default function ProcurementDashboardPage() {
   const [metrics, setMetrics] = useState<Record<string, unknown> | null>(null);
   const [openPos, setOpenPos] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const loadData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [m, aging] = await Promise.all([
+        api.getProcurementMetrics().catch(() => null),
+        api.getOpenPoAging().catch(() => []),
+      ]);
+      setMetrics(m);
+      setOpenPos(aging);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load procurement metrics');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        const [m, aging] = await Promise.all([
-          api.getProcurementMetrics(),
-          api.getOpenPoAging(),
-        ]);
-        setMetrics(m);
-        setOpenPos(aging);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadData();
   }, []);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="border-b pb-4">
-        <h1 className="text-xl font-bold tracking-tight">Procurement Operations</h1>
-        <p className="text-sm text-gray-500">Purchasing KPIs, vendor commitment exposure, and open order aging.</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+      {/* Top Banner */}
+      <div>
+        <h1 style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+          Procurement Operations
+        </h1>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          Purchasing KPIs, vendor commitment exposure, and open order aging
+        </p>
       </div>
 
-      {loading ? (
-        <p className="text-sm text-gray-500">Loading procurement metrics...</p>
-      ) : (
-        <>
-          <div className="grid grid-cols-4 gap-4">
-            <div className="p-4 border rounded bg-white shadow-sm">
-              <p className="text-xs font-semibold text-gray-500 uppercase">Active Suppliers</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{String(metrics?.activeSuppliersCount ?? 0)}</p>
-            </div>
-            <div className="p-4 border rounded bg-white shadow-sm">
-              <p className="text-xs font-semibold text-gray-500 uppercase">Total Purchase Orders</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{String(metrics?.totalPurchaseOrdersCount ?? 0)}</p>
-            </div>
-            <div className="p-4 border rounded bg-white shadow-sm">
-              <p className="text-xs font-semibold text-gray-500 uppercase">Completed Receipts</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{String(metrics?.completedGoodsReceiptsCount ?? 0)}</p>
-            </div>
-            <div className="p-4 border rounded bg-white shadow-sm">
-              <p className="text-xs font-semibold text-gray-500 uppercase">Fulfilled Purchasing Spend</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">${Number(metrics?.totalFulfilledSpend ?? 0).toFixed(2)}</p>
-            </div>
-          </div>
+      {error && <ErrorState message={error} onRetry={loadData} />}
 
-          <div className="space-y-3">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-gray-700">Open Purchase Order Aging</h2>
-            <div className="border rounded overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-gray-100 uppercase text-gray-600 border-b">
-                  <tr>
-                    <th className="p-3">PO Number</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Total Value</th>
-                    <th className="p-3">Issued / Created</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {openPos.map((po) => (
-                    <tr key={String(po.id)} className="hover:bg-gray-50">
-                      <td className="p-3 font-mono font-bold text-gray-900">{String(po.poNumber)}</td>
-                      <td className="p-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800">
-                          {String(po.status)}
-                        </span>
-                      </td>
-                      <td className="p-3 font-mono font-bold">${Number(po.grandTotal).toFixed(2)}</td>
-                      <td className="p-3 text-gray-500">{new Date(String(po.createdAt)).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                  {openPos.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="p-4 text-center text-gray-500">No open Purchase Orders pending receipt.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+      {/* Metrics Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)' }}>
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Active Suppliers
+              </span>
+              <IconProcurement size={18} style={{ color: 'var(--accent)' }} />
             </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : String(metrics?.activeSuppliersCount ?? 0)}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Approved Vendors</span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Purchase Orders
+              </span>
+              <IconInventory size={18} style={{ color: 'var(--info)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : String(metrics?.totalPurchaseOrdersCount ?? 0)}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Total Executed Orders</span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Completed Receipts
+              </span>
+              <IconProcurement size={18} style={{ color: 'var(--success)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : String(metrics?.completedGoodsReceiptsCount ?? 0)}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>Goods Received</span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Fulfilled Spend
+              </span>
+              <IconFinance size={18} style={{ color: 'var(--warning)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="80px" height="2rem" /> : `$${Number(metrics?.totalFulfilledSpend ?? 0).toFixed(2)}`}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Total Purchasing Value</span>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Open PO Aging Table */}
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Open Purchase Order Aging</CardTitle>
+            <CardDescription>Active purchase orders pending warehouse receipt</CardDescription>
           </div>
-        </>
-      )}
+        </CardHeader>
+        <CardContent style={{ padding: 0 }}>
+          <Table<Record<string, unknown>>
+            isLoading={loading}
+            data={openPos}
+            keyExtractor={(po) => String(po.id)}
+            emptyText="No open Purchase Orders pending receipt."
+            columns={[
+              {
+                header: 'PO Number',
+                accessor: (po) => (
+                  <span className="code-font" style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                    {String(po.poNumber)}
+                  </span>
+                ),
+              },
+              {
+                header: 'Status',
+                accessor: (po) => <Badge variant="transfer">{String(po.status)}</Badge>,
+              },
+              {
+                header: 'Total Value',
+                accessor: (po) => (
+                  <span className="code-font" style={{ fontWeight: 700 }}>
+                    ${Number(po.grandTotal).toFixed(2)}
+                  </span>
+                ),
+              },
+              {
+                header: 'Issued Date',
+                accessor: (po) => (
+                  <span className="code-font" style={{ color: 'var(--text-secondary)' }}>
+                    {new Date(String(po.createdAt)).toLocaleDateString()}
+                  </span>
+                ),
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

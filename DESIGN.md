@@ -1,132 +1,459 @@
-# Ananya Design System
+# Visual Design Language
 
-## Product Identity
+## Canonical Reference
 
-Ananya is the internal operations system for 48 Studios.
+The visual language of Ananya is based on the ShadcnSpace Dashboard.
 
-It is designed for managing physical inventory, procurement,
-projects, manufacturing, assets, and operational workflows.
+Reference:
 
-Ananya is not a generic ERP dashboard.
+https://dashboard.shadcnspace.com/
 
-## Design Principles
+This dashboard is **not copied**, but serves as the benchmark for:
 
-### Operational First
+- Layout
+- Spacing
+- Typography
+- Component composition
+- Navigation
+- Tables
+- Cards
+- Dashboard structure
+- Light & Dark mode
+- Overall visual polish
 
-The interface should optimize for completing real physical tasks.
+When making UI decisions, prefer the visual language of the reference dashboard over legacy Ananya UI.
 
-Examples:
+---
 
-- Find a component
-- Locate stock
-- Receive stock
-- Move stock
-- Consume stock
+# Design Philosophy
 
-Prefer direct actions over navigating administrative screens.
+Ananya is an enterprise ERP.
 
-### Search First
+The interface should disappear behind the user's work.
 
-Inventory discovery begins with search.
+The design should never compete with the content.
 
-Users may search using:
+Every screen should feel:
 
-- Item code
-- Item name
-- Component value
-- Package
-- Manufacturer part number
-- Alias
-- Specification
+- Calm
+- Modern
+- Minimal
+- Spacious
+- Professional
+- Predictable
 
-### Physical Context Matters
+Users should immediately understand where to look without visual clutter.
 
-Always show human-readable physical locations.
+---
 
-Prefer:
+# Core Principles
 
-Office › SMD Storage › Drawer 2 › C3 › Container 1 › Tray 1
+## Content First
 
-Avoid showing only:
+The application exists to display information.
 
-OFF-SMD-D02-C03-K01-T01
+Decorative elements should be minimized.
 
-The canonical code may be secondary metadata.
+The user's data should always be the primary focus.
 
-### Dense but Calm
+---
 
-Ananya is an operational tool.
+## Whitespace Creates Hierarchy
 
-Prefer:
+Prefer spacing over borders.
 
-- High information density
-- Clear hierarchy
-- Minimal decorative UI
-- Strong typography
-- Predictable spacing
-- Fast scanning
+Prefer margins over separators.
+
+Prefer layout over decoration.
+
+Whitespace is a design element.
+
+Never compress content to fit more on screen.
+
+---
+
+## Consistency Before Creativity
+
+Every page should feel like it belongs to the same product.
+
+Avoid page-specific visual experiments.
+
+Use the same spacing, typography, and layout patterns throughout the application.
+
+---
+
+## Minimal Chrome
+
+Navigation, headers, borders, and containers exist only to support the content.
+
+Avoid large visual blocks.
+
+Avoid unnecessary decoration.
+
+The interface should feel lightweight.
+
+---
+
+# Layout Language
+
+The application uses a single application shell.
+
+```
+
+DashboardLayout
+
+├── Sidebar
+├── Header
+├── Content
+└── Footer
+
+```
+
+Every page inherits this layout.
+
+No feature may create its own shell.
+
+---
+
+# Dashboard Composition
+
+Pages should be composed using responsive grids rather than vertical stacks.
+
+Example layout:
+
+```
+
+KPI Cards
+Chart + Metrics
+Secondary Widgets
+Activity
+Tables
+
+```
+
+Avoid placing every section below the previous one.
+
+Build pages horizontally where appropriate.
+
+---
+
+# Cards
+
+Cards are quiet containers.
+
+Cards should:
+
+- use soft borders
+- have generous padding
+- avoid heavy shadows
+- avoid thick outlines
+- provide breathing room
+
+Cards should never become the visual focus.
+
+The content inside the card is the focus.
+
+---
+
+# Visual Weight
+
+Reduce visual noise.
 
 Avoid:
 
-- Marketing-style layouts
-- Excessive cards
-- Giant headings
-- Decorative gradients
-- Glassmorphism
-- Excessive animations
+- thick borders
+- large dark panels
+- oversized containers
+- unnecessary separators
+- excessive shadows
+- multiple competing accent colors
 
-### Actions Should Be Obvious
+Prefer:
 
-Primary inventory actions:
+- thin borders
+- subtle elevation
+- whitespace
+- alignment
+- typography
 
-- Receive
-- Move
-- Consume
-- Adjust
+---
 
-Actions should be available near the inventory context.
+# Typography
 
-## Inventory Browser
+Typography establishes hierarchy.
 
-The Inventory Browser is the primary daily interface.
+Not decoration.
 
-Each item result should communicate:
+Hierarchy should follow:
 
-1. Item identity
-2. Current quantity
-3. Important taxonomy/specifications
-4. Physical location
-5. Immediate actions
+Page Title
 
-## Visual Direction
+↓
 
-Ananya should feel like a modern engineering operations tool.
+Section Title
 
-References in spirit:
+↓
 
-- Linear
-- GitHub
-- Vercel dashboard
-- Modern warehouse tooling
-- Engineering consoles
+Card Title
 
-Do not directly clone any reference product.
+↓
 
-## Responsive Behaviour
+Body
 
-Desktop is the primary interface.
+↓
 
-Mobile should remain operational for:
+Muted Supporting Text
 
-- Searching inventory
-- Locating components
-- Receiving stock
-- Moving stock
-- Barcode/QR workflows
+Avoid excessive font sizes.
 
-## Accessibility
+Prefer consistent weights:
 
-- Keyboard navigation is required.
-- Search must be keyboard accessible.
-- Do not communicate state using colour alone.
-- Interactive controls require visible focus states.
+400
+
+500
+
+600
+
+700
+
+Do not use typography purely for emphasis.
+
+---
+
+# Color Philosophy
+
+The interface should remain largely neutral.
+
+Use color intentionally.
+
+Accent colors should indicate:
+
+- Actions
+- Status
+- Notifications
+- Charts
+- Validation
+- Alerts
+
+Avoid colorful interfaces.
+
+Most of the application should use neutral surfaces.
+
+---
+
+# Light & Dark Mode
+
+Light mode and dark mode are equal citizens.
+
+Dark mode is **not** an inverted light theme.
+
+Both themes should feel intentionally designed.
+
+Both should use:
+
+- layered surfaces
+- comfortable contrast
+- semantic colors
+- identical spacing
+- identical hierarchy
+
+---
+
+# Sidebar
+
+The sidebar is the application's backbone.
+
+Characteristics:
+
+- Compact
+- Clean
+- Icon driven
+- Text first
+- Nested navigation
+- Persistent collapse state
+- Active page indicators
+- Responsive drawer on mobile
+
+The sidebar should feel quiet rather than dominant.
+
+---
+
+# Header
+
+The header should be visually lightweight.
+
+Contains only:
+
+- Breadcrumb
+- Search
+- Notifications
+- Theme Toggle
+- User Menu
+
+Do not place large page titles inside the header.
+
+---
+
+# Tables
+
+Tables are one of the most important components.
+
+They should resemble modern SaaS dashboards rather than spreadsheets.
+
+Characteristics:
+
+- Comfortable row height
+- Clear typography
+- Minimal borders
+- Soft separators
+- Responsive layout
+- Search
+- Filters
+- Pagination
+- Sorting
+- Column visibility
+- Empty states
+- Skeleton loading
+
+Rows should never appear cramped.
+
+Avoid heavy grid lines.
+
+---
+
+# Forms
+
+Forms should feel lightweight.
+
+Requirements:
+
+- consistent spacing
+- aligned labels
+- predictable validation
+- comfortable field height
+- logical grouping
+
+Users should immediately understand the form structure.
+
+---
+
+# Dashboard Widgets
+
+Dashboard widgets should be small, reusable components.
+
+Examples:
+
+- KPI Card
+- Stat Card
+- Activity Feed
+- Chart Card
+- Recent Transactions
+- Quick Actions
+- Metric Summary
+- Status Distribution
+- Recent Alerts
+
+Avoid creating large page-specific widgets.
+
+---
+
+# Information Density
+
+Enterprise applications contain large amounts of information.
+
+Use layout and whitespace to organize information rather than reducing content.
+
+The goal is high information density with low cognitive load.
+
+---
+
+# Micro Components
+
+Prefer reusable building blocks.
+
+Examples:
+
+- Status Badge
+- Avatar Group
+- Metric Tile
+- Progress Indicator
+- Toolbar
+- Search Bar
+- Filter Bar
+- Empty State
+- Loading State
+
+Build pages by composing these primitives.
+
+---
+
+# Motion
+
+Motion should communicate interaction.
+
+Animations should be:
+
+- subtle
+- short
+- purposeful
+
+Avoid decorative animations.
+
+---
+
+# Accessibility
+
+Accessibility is part of the design language.
+
+Every interaction must support:
+
+- Keyboard navigation
+- Focus indicators
+- Screen readers
+- WCAG AA contrast
+- Reduced motion
+
+---
+
+# Component Rules
+
+If shadcn/ui provides the component:
+
+Use it.
+
+Do not recreate it.
+
+Compose existing primitives before creating new abstractions.
+
+---
+
+# AI Design Rules
+
+Before implementing any UI:
+
+1. Read this document.
+2. Review the ShadcnSpace dashboard.
+3. Match its spacing and layout philosophy.
+4. Prefer whitespace over borders.
+5. Prefer typography over decoration.
+6. Prefer composition over custom components.
+7. Reuse before creating.
+8. Every new page must visually fit beside every existing page.
+9. If a page looks visually heavier than the reference dashboard, simplify it.
+10. If uncertain, choose the solution that is cleaner, quieter, and more consistent.
+
+---
+
+# Definition of Done
+
+A UI implementation is complete only when:
+
+- The page immediately feels like part of the same product.
+- Visual weight is low.
+- Information hierarchy is obvious.
+- Components are reused.
+- Tables feel like modern SaaS dashboards.
+- Forms are clean and predictable.
+- Light mode is polished.
+- Dark mode is polished.
+- The page could reasonably exist alongside the ShadcnSpace dashboard without feeling out of place.

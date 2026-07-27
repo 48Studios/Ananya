@@ -3,6 +3,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { api } from '../../src/lib/api';
+import { Button } from '../../src/components/ui/Button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../src/components/ui/Card';
+import { Badge } from '../../src/components/ui/Badge';
+import { Table } from '../../src/components/ui/Table';
+import { Skeleton } from '../../src/components/ui/Skeleton';
+import { ErrorState } from '../../src/components/ui/ErrorState';
+import { IconSales, IconPlus, IconArrowRight, IconCRM, IconInventory, IconProcurement, IconCheck } from '../../src/components/ui/Icons';
 
 export default function SalesDashboardPage() {
   const [customers, setCustomers] = useState<Record<string, unknown>[]>([]);
@@ -11,9 +18,11 @@ export default function SalesDashboardPage() {
   const [fulfillmentRequests, setFulfillmentRequests] = useState<Record<string, unknown>[]>([]);
   const [returns, setReturns] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const [cData, qData, soData, fData, rData] = await Promise.all([
         api.getCustomers().catch(() => []),
@@ -28,7 +37,7 @@ export default function SalesDashboardPage() {
       setFulfillmentRequests(fData);
       setReturns(rData);
     } catch (err: unknown) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to load sales dashboard data');
     } finally {
       setLoading(false);
     }
@@ -38,125 +47,239 @@ export default function SalesDashboardPage() {
     loadData();
   }, [loadData]);
 
+  const activeCustomersCount = customers.filter((c) => c.status === 'ACTIVE').length;
+  const sentQuotationsCount = quotations.filter((q) => q.status === 'SENT').length;
+  const pendingOrdersCount = salesOrders.filter((s) => s.status === 'RELEASED' || s.status === 'APPROVED').length;
+  const openReturnsCount = returns.filter((r) => r.status === 'APPROVED' || r.status === 'RECEIVED').length;
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center border-b pb-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+      {/* Top Banner */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Sales Operations Console</h1>
-          <p className="text-sm text-gray-500">Commercial customer relationships, quotations, sales orders, and warehouse fulfillment tracking.</p>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+            Sales Operations Console
+          </h1>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Commercial customer relationships, quotations, sales orders, and warehouse fulfillment tracking
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/customers" className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded hover:bg-gray-800">
-            + New Customer
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <Link href="/customers">
+            <Button variant="secondary" size="sm" leftIcon={<IconPlus size={14} />}>
+              New Customer
+            </Button>
           </Link>
-          <Link href="/sales-orders" className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700">
-            + Sales Order
+          <Link href="/sales-orders">
+            <Button variant="primary" size="sm" leftIcon={<IconPlus size={14} />}>
+              Sales Order
+            </Button>
           </Link>
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-5 gap-4">
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Customers</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : customers.length}</div>
-          <div className="text-xs text-green-700 font-semibold mt-1">
-            {customers.filter((c) => c.status === 'ACTIVE').length} Active Accounts
-          </div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Quotations</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : quotations.length}</div>
-          <div className="text-xs text-blue-600 font-semibold mt-1">
-            {quotations.filter((q) => q.status === 'SENT').length} Sent Quotes
-          </div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Sales Orders</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : salesOrders.length}</div>
-          <div className="text-xs text-yellow-700 font-semibold mt-1">
-            {salesOrders.filter((s) => s.status === 'RELEASED' || s.status === 'APPROVED').length} Pending Fulfillment
-          </div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Fulfillment Requests</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : fulfillmentRequests.length}</div>
-          <div className="text-xs text-gray-400 mt-1">
-            {fulfillmentRequests.filter((f) => f.status === 'SHIPPED').length} Shipped Packages
-          </div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Customer Returns</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : returns.length}</div>
-          <div className="text-xs text-red-600 font-semibold mt-1">
-            {returns.filter((r) => r.status === 'APPROVED' || r.status === 'RECEIVED').length} Open RMAs
-          </div>
-        </div>
+      {error && <ErrorState message={error} onRetry={loadData} />}
+
+      {/* KPI Metrics Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Customers
+              </span>
+              <IconCRM size={18} style={{ color: 'var(--accent)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : customers.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>
+              {activeCustomersCount} Active Accounts
+            </span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Quotations
+              </span>
+              <IconSales size={18} style={{ color: 'var(--info)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : quotations.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600 }}>
+              {sentQuotationsCount} Sent Proposals
+            </span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Sales Orders
+              </span>
+              <IconProcurement size={18} style={{ color: 'var(--warning)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : salesOrders.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--warning)', fontWeight: 600 }}>
+              {pendingOrdersCount} Pending Fulfillment
+            </span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Fulfillments
+              </span>
+              <IconInventory size={18} style={{ color: 'var(--success)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : fulfillmentRequests.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Dispatched Packages
+            </span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Returns (RMA)
+              </span>
+              <IconCheck size={18} style={{ color: 'var(--danger)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : returns.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 600 }}>
+              {openReturnsCount} Open RMAs
+            </span>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Navigation Cards */}
-      <div className="grid grid-cols-5 gap-4">
-        <Link href="/customers" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">1. Customers</h3>
-          <p className="text-xs text-gray-500 mt-1">Account master & contact rosters.</p>
+      {/* Navigation Shortcuts Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+        <Link href="/customers">
+          <Card style={{ transition: 'border-color var(--transition-fast)' }}>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>1. Customers</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Account master & contact rosters.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/quotations" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">2. Quotations</h3>
-          <p className="text-xs text-gray-500 mt-1">Price proposals & conversions.</p>
+        <Link href="/quotations">
+          <Card style={{ transition: 'border-color var(--transition-fast)' }}>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>2. Quotations</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Price proposals & conversions.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/sales-orders" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">3. Sales Orders</h3>
-          <p className="text-xs text-gray-500 mt-1">Order approval & warehouse release.</p>
+        <Link href="/sales-orders">
+          <Card style={{ transition: 'border-color var(--transition-fast)' }}>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>3. Sales Orders</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Order approval & warehouse release.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/fulfillment" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">4. Fulfillment</h3>
-          <p className="text-xs text-gray-500 mt-1">Pick, pack, & dispatch tracking.</p>
+        <Link href="/fulfillment">
+          <Card style={{ transition: 'border-color var(--transition-fast)' }}>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>4. Fulfillment</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Pick, pack, & dispatch tracking.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/customer-returns" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">5. Returns (RMA)</h3>
-          <p className="text-xs text-gray-500 mt-1">Inspection & restocking management.</p>
+        <Link href="/customer-returns">
+          <Card style={{ transition: 'border-color var(--transition-fast)' }}>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>5. Returns (RMA)</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Inspection & restocking management.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
       </div>
 
-      {/* Recent Orders Overview */}
-      <div className="border rounded bg-white p-4 space-y-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-700">Recent Sales Orders</h2>
-        <table className="w-full text-left text-xs">
-          <thead className="bg-gray-100 uppercase text-gray-600 border-b">
-            <tr>
-              <th className="p-3">Order #</th>
-              <th className="p-3">Customer</th>
-              <th className="p-3">Order Date</th>
-              <th className="p-3">Status</th>
-              <th className="p-3">Lines</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {salesOrders.map((so) => {
-              const cust = customers.find((c) => c.id === so.customerId);
-              const lines = (so.lines as Record<string, unknown>[]) || [];
-              return (
-                <tr key={String(so.id)} className="hover:bg-gray-50">
-                  <td className="p-3 font-mono font-bold">{String(so.orderNumber)}</td>
-                  <td className="p-3 font-semibold">{String(cust?.name ?? so.customerId)}</td>
-                  <td className="p-3 text-gray-600">{new Date(String(so.orderDate)).toLocaleDateString()}</td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800">
-                      {String(so.status)}
-                    </span>
-                  </td>
-                  <td className="p-3 font-mono">{lines.length} items</td>
-                </tr>
-              );
-            })}
-            {salesOrders.length === 0 && (
-              <tr>
-                <td colSpan={5} className="p-4 text-center text-gray-500">No commercial sales orders generated yet.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* Recent Orders Overview Table */}
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Recent Sales Orders</CardTitle>
+            <CardDescription>Commercial order approvals and warehouse release status</CardDescription>
+          </div>
+          <Link href="/sales-orders">
+            <Button variant="ghost" size="sm" rightIcon={<IconArrowRight size={14} />}>
+              View All
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent style={{ padding: 0 }}>
+          <Table<Record<string, unknown>>
+            isLoading={loading}
+            data={salesOrders}
+            keyExtractor={(so) => String(so.id)}
+            emptyText="No commercial sales orders generated yet."
+            columns={[
+              {
+                header: 'Order Number',
+                accessor: (so) => (
+                  <span className="code-font" style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                    {String(so.orderNumber)}
+                  </span>
+                ),
+              },
+              {
+                header: 'Customer',
+                accessor: (so) => {
+                  const cust = customers.find((c) => c.id === so.customerId);
+                  return <span style={{ fontWeight: 600 }}>{String(cust?.name ?? so.customerId)}</span>;
+                },
+              },
+              {
+                header: 'Order Date',
+                accessor: (so) => (
+                  <span className="code-font" style={{ color: 'var(--text-secondary)' }}>
+                    {new Date(String(so.orderDate)).toLocaleDateString()}
+                  </span>
+                ),
+              },
+              {
+                header: 'Status',
+                accessor: (so) => <Badge variant="transfer">{String(so.status)}</Badge>,
+              },
+              {
+                header: 'Line Items',
+                accessor: (so) => {
+                  const lines = (so.lines as Record<string, unknown>[]) || [];
+                  return <span className="code-font">{lines.length} items</span>;
+                },
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

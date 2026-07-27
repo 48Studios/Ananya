@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { Navigation } from "../src/components/Navigation";
+import type { Metadata } from 'next';
+import './globals.css';
+import { GlobalProviders } from '../src/components/layout/providers/GlobalProviders';
+import { DashboardLayout } from '../src/components/layout/dashboard-layout/DashboardLayout';
 
 export const metadata: Metadata = {
-  title: "Ananya - 48 Studios Operations System",
-  description: "Internal operations system for physical inventory, procurement, and manufacturing",
+  title: 'Ananya — 48 Studios ERP Platform',
+  description: 'Enterprise Operations System for physical inventory, procurement, manufacturing, and analytics',
 };
 
 export default function RootLayout({
@@ -13,12 +14,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <div className="app-shell">
-          <Navigation />
-          <main className="main-content">{children}</main>
-        </div>
+        <GlobalProviders>
+          <DashboardLayout>{children}</DashboardLayout>
+        </GlobalProviders>
       </body>
     </html>
   );

@@ -1,11 +1,17 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import type { Component, Location, Manufacturer, Unit } from '@ananya/inventory';
 import { api } from '../../src/lib/api';
+import { Button } from '../../src/components/ui/Button';
+import { Card, CardHeader, CardContent } from '../../src/components/ui/Card';
 import { Table } from '../../src/components/ui/Table';
+import { Input } from '../../src/components/ui/Input';
+import { Select } from '../../src/components/ui/Select';
 import { Dialog } from '../../src/components/ui/Dialog';
+import { ErrorState } from '../../src/components/ui/ErrorState';
 import { formatLocationPathString } from '../../src/lib/location-utils';
+import { IconPlus, IconSearch } from '../../src/components/ui/Icons';
 
 export default function ComponentsPage() {
   const [components, setComponents] = useState<Component[]>([]);
@@ -16,7 +22,7 @@ export default function ComponentsPage() {
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
 
-  // Create Modal
+  // Create Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [sku, setSku] = useState('');
   const [name, setName] = useState('');
@@ -27,8 +33,9 @@ export default function ComponentsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const [compRes, locRes, mfgRes, unitRes] = await Promise.all([
         api.getComponents().catch(() => []),
@@ -45,11 +52,11 @@ export default function ComponentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleCreateComponent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,205 +103,184 @@ export default function ComponentsPage() {
   );
 
   return (
-    <div>
-      <div className="section-header">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+      {/* Header Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         <div>
-          <h1 className="section-title">Components Catalog</h1>
-          <p className="section-sub">Master registry of physical parts, electronic components, and assemblies</p>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+            Components Catalog
+          </h1>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Master registry of physical parts, electronic components, and assemblies
+          </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setModalOpen(true)}>
-          + New Component
-        </button>
+        <Button
+          variant="primary"
+          size="sm"
+          leftIcon={<IconPlus size={14} />}
+          onClick={() => setModalOpen(true)}
+        >
+          New Component
+        </Button>
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && <ErrorState message={error} onRetry={loadData} />}
 
-      <div className="search-container" style={{ marginBottom: '1.25rem' }}>
-        <span className="search-icon">🔍</span>
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search by SKU, component name, description..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
+      {/* Main Card Table Wrapper */}
+      <Card>
+        <CardHeader style={{ gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '280px' }}>
+            <Input
+              placeholder="Search by SKU, component name, specifications..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              leftIcon={<IconSearch size={16} />}
+            />
+          </div>
+        </CardHeader>
+        <CardContent style={{ padding: 0 }}>
+          <Table<Component>
+            isLoading={loading}
+            data={filteredComponents}
+            keyExtractor={(c) => c.id}
+            emptyText="No components found in master registry."
+            columns={[
+              {
+                header: 'SKU / Code',
+                accessor: (c) => (
+                  <span className="code-font" style={{ fontWeight: 600, color: 'var(--accent)' }}>
+                    {c.sku}
+                  </span>
+                ),
+              },
+              {
+                header: 'Component Name',
+                accessor: (c) => <span style={{ fontWeight: 600 }}>{c.name}</span>,
+              },
+              {
+                header: 'Description',
+                accessor: (c) => (
+                  <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                    {c.description || '-'}
+                  </span>
+                ),
+              },
+              {
+                header: 'Manufacturer',
+                accessor: (c) => (
+                  <span className="code-font" style={{ color: 'var(--text-secondary)' }}>
+                    {getManufacturerName(c.manufacturerId)}
+                  </span>
+                ),
+              },
+              {
+                header: 'Default Location',
+                accessor: (c) => (
+                  <span className="location-path">
+                    {formatLocationPathString(locations, c.defaultLocationId)}
+                  </span>
+                ),
+              },
+              {
+                header: 'UOM',
+                accessor: (c) => (
+                  <span className="code-font" style={{ textTransform: 'lowercase' }}>
+                    {c.unit || 'pcs'}
+                  </span>
+                ),
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
 
-      <Table<Component>
-        isLoading={loading}
-        data={filteredComponents}
-        keyExtractor={(c) => c.id}
-        emptyText="No components found in master registry."
-        columns={[
-          {
-            header: 'SKU / Code',
-            accessor: (c) => (
-              <span className="code-font" style={{ fontWeight: 600, color: 'var(--accent)' }}>
-                {c.sku}
-              </span>
-            ),
-          },
-          {
-            header: 'Component Name',
-            accessor: (c) => <span style={{ fontWeight: 600 }}>{c.name}</span>,
-          },
-          {
-            header: 'Description',
-            accessor: (c) => (
-              <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
-                {c.description || '-'}
-              </span>
-            ),
-          },
-          {
-            header: 'Manufacturer',
-            accessor: (c) => (
-              <span className="code-font" style={{ color: 'var(--text-secondary)' }}>
-                {getManufacturerName(c.manufacturerId)}
-              </span>
-            ),
-          },
-          {
-            header: 'Default Storage Location',
-            accessor: (c) => (
-              <span className="location-path">
-                {formatLocationPathString(locations, c.defaultLocationId)}
-              </span>
-            ),
-          },
-          {
-            header: 'UOM',
-            accessor: (c) => (
-              <span className="code-font" style={{ textTransform: 'lowercase' }}>
-                {c.unit || 'pcs'}
-              </span>
-            ),
-          },
-        ]}
-      />
-
+      {/* Create Component Modal Dialog */}
       <Dialog
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Create New Component"
         footer={
           <>
-            <button
-              type="button"
-              className="btn btn-secondary"
+            <Button
+              variant="secondary"
               onClick={() => setModalOpen(false)}
               disabled={submitting}
             >
               Cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
+            </Button>
+            <Button
+              variant="primary"
               onClick={handleCreateComponent}
-              disabled={submitting}
+              isLoading={submitting}
             >
-              {submitting ? 'Creating...' : 'Save Component'}
-            </button>
+              Save Component
+            </Button>
           </>
         }
       >
-        <form onSubmit={handleCreateComponent} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {formError && <div className="error-banner">{formError}</div>}
+        <form onSubmit={handleCreateComponent} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          {formError && <ErrorState message={formError} />}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-            <div className="input-group">
-              <label className="input-label">SKU / Code</label>
-              <input
-                type="text"
-                className="input-field code-font"
-                placeholder="e.g. RES-0805-10K"
-                value={sku}
-                onChange={(e) => setSku(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="input-group">
-              <label className="input-label">Component Name</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="e.g. 10k Ohm 0805 Resistor 1%"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="input-group">
-            <label className="input-label">Description / Specifications</label>
-            <textarea
-              className="textarea-field"
-              rows={3}
-              placeholder="e.g. Thick film surface mount resistor, 100mW power rating"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--space-3)' }}>
+            <Input
+              label="SKU / Code *"
+              required
+              placeholder="e.g. RES-0805-10K"
+              value={sku}
+              onChange={(e) => setSku(e.target.value)}
+            />
+            <Input
+              label="Component Name *"
+              required
+              placeholder="e.g. 10k Ohm 0805 Resistor 1%"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="input-group">
-              <label className="input-label">Manufacturer</label>
-              <select
-                className="select-field"
-                value={manufacturerId}
-                onChange={(e) => setManufacturerId(e.target.value)}
-              >
-                <option value="">-- None / Unknown --</option>
-                {manufacturers.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.code} - {m.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <Input
+            label="Description / Specifications"
+            placeholder="e.g. Thick film surface mount resistor, 100mW power rating"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
 
-            <div className="input-group">
-              <label className="input-label">Unit of Measure (UOM)</label>
-              <select
-                className="select-field"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-              >
-                {units.length > 0 ? (
-                  units.map((u) => (
-                    <option key={u.id} value={u.name}>
-                      {u.name} ({u.category})
-                    </option>
-                  ))
-                ) : (
-                  <>
-                    <option value="pcs">pcs (Pieces)</option>
-                    <option value="meters">meters</option>
-                    <option value="grams">grams</option>
-                    <option value="liters">liters</option>
-                  </>
-                )}
-              </select>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+            <Select
+              label="Manufacturer"
+              value={manufacturerId}
+              onChange={(e) => setManufacturerId(e.target.value)}
+              options={[
+                { value: '', label: '-- None / Unknown --' },
+                ...manufacturers.map((m) => ({ value: m.id, label: `${m.code} - ${m.name}` })),
+              ]}
+            />
+            <Select
+              label="Unit of Measure (UOM)"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              options={
+                units.length > 0
+                  ? units.map((u) => ({ value: u.name, label: `${u.name} (${u.category})` }))
+                  : [
+                      { value: 'pcs', label: 'pcs (Pieces)' },
+                      { value: 'meters', label: 'meters' },
+                      { value: 'grams', label: 'grams' },
+                      { value: 'liters', label: 'liters' },
+                    ]
+              }
+            />
           </div>
 
-          <div className="input-group">
-            <label className="input-label">Default Storage Location</label>
-            <select
-              className="select-field"
-              value={defaultLocationId}
-              onChange={(e) => setDefaultLocationId(e.target.value)}
-            >
-              <option value="">-- Unassigned --</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.code} - {loc.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label="Default Storage Location"
+            value={defaultLocationId}
+            onChange={(e) => setDefaultLocationId(e.target.value)}
+            options={[
+              { value: '', label: '-- Unassigned --' },
+              ...locations.map((loc) => ({ value: loc.id, label: `${loc.code} - ${loc.name}` })),
+            ]}
+          />
         </form>
       </Dialog>
     </div>

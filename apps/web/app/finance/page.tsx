@@ -3,6 +3,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { api } from '../../src/lib/api';
+import { Button } from '../../src/components/ui/Button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../src/components/ui/Card';
+import { Badge } from '../../src/components/ui/Badge';
+import { Table } from '../../src/components/ui/Table';
+import { Skeleton } from '../../src/components/ui/Skeleton';
+import { ErrorState } from '../../src/components/ui/ErrorState';
+import { IconFinance, IconPlus, IconArrowRight } from '../../src/components/ui/Icons';
 
 export default function FinanceDashboardPage() {
   const [accounts, setAccounts] = useState<Record<string, unknown>[]>([]);
@@ -11,9 +18,11 @@ export default function FinanceDashboardPage() {
   const [payables, setPayables] = useState<Record<string, unknown>[]>([]);
   const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const [accData, jData, arData, apData, pData] = await Promise.all([
         api.getAccounts().catch(() => []),
@@ -28,7 +37,7 @@ export default function FinanceDashboardPage() {
       setPayables(apData);
       setPayments(pData);
     } catch (err: unknown) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to load finance metrics');
     } finally {
       setLoading(false);
     }
@@ -42,131 +51,250 @@ export default function FinanceDashboardPage() {
   const totalPayables = payables.reduce((sum, p) => sum + (Number(p.balance) || 0), 0);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center border-b pb-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+      {/* Top Banner */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Financial Core Operations Console</h1>
-          <p className="text-sm text-gray-500">General ledger system of record, chart of accounts, AR/AP ledgers, payments, and bank reconciliations.</p>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+            Financial Core Operations Console
+          </h1>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            General ledger system of record, chart of accounts, AR/AP ledgers, payments, and bank reconciliations
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/chart-of-accounts" className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded hover:bg-gray-800">
-            + Chart of Accounts
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <Link href="/chart-of-accounts">
+            <Button variant="secondary" size="sm" leftIcon={<IconPlus size={14} />}>
+              Chart of Accounts
+            </Button>
           </Link>
-          <Link href="/journal-entries" className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700">
-            + New Journal Entry
+          <Link href="/journal-entries">
+            <Button variant="primary" size="sm" leftIcon={<IconPlus size={14} />}>
+              New Journal Entry
+            </Button>
           </Link>
         </div>
       </div>
 
-      {/* Financial Metrics Cards */}
-      <div className="grid grid-cols-5 gap-4">
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Active Accounts</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : accounts.length}</div>
-          <div className="text-xs text-green-700 font-semibold mt-1">
-            {accounts.filter((a) => a.isActive).length} Active Nodes
-          </div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Journal Entries</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : journals.length}</div>
-          <div className="text-xs text-blue-600 font-semibold mt-1">
-            {journals.filter((j) => j.status === 'POSTED').length} Posted Entries
-          </div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Accounts Receivable</div>
-          <div className="text-2xl font-bold mt-1 text-green-700">${loading ? '...' : totalReceivables.toFixed(2)}</div>
-          <div className="text-xs text-gray-500 mt-1">
-            {receivables.filter((r) => r.status !== 'PAID').length} Open Customer Invoices
-          </div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Accounts Payable</div>
-          <div className="text-2xl font-bold mt-1 text-red-700">${loading ? '...' : totalPayables.toFixed(2)}</div>
-          <div className="text-xs text-gray-500 mt-1">
-            {payables.filter((p) => p.status !== 'PAID').length} Open Vendor Bills
-          </div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Payments Processed</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : payments.length}</div>
-          <div className="text-xs text-purple-700 font-semibold mt-1">
-            {payments.filter((p) => p.status === 'POSTED' || p.status === 'RECONCILED').length} Settled Transactions
-          </div>
-        </div>
+      {error && <ErrorState message={error} onRetry={loadData} />}
+
+      {/* Financial Metrics Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Active Accounts
+              </span>
+              <IconFinance size={18} style={{ color: 'var(--accent)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : accounts.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>
+              {accounts.filter((a) => a.isActive).length} Active Nodes
+            </span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Journal Entries
+              </span>
+              <IconFinance size={18} style={{ color: 'var(--info)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : journals.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600 }}>
+              {journals.filter((j) => j.status === 'POSTED').length} Posted Entries
+            </span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Receivables (AR)
+              </span>
+              <IconFinance size={18} style={{ color: 'var(--success)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>
+              {loading ? <Skeleton width="80px" height="2rem" /> : `$${totalReceivables.toFixed(2)}`}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {receivables.filter((r) => r.status !== 'PAID').length} Open Customer Invoices
+            </span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Payables (AP)
+              </span>
+              <IconFinance size={18} style={{ color: 'var(--danger)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)', color: 'var(--danger)' }}>
+              {loading ? <Skeleton width="80px" height="2rem" /> : `$${totalPayables.toFixed(2)}`}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {payables.filter((p) => p.status !== 'PAID').length} Open Vendor Bills
+            </span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Payments
+              </span>
+              <IconFinance size={18} style={{ color: 'var(--warning)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : payments.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--warning)', fontWeight: 600 }}>
+              Settled Transactions
+            </span>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Navigation Submodules */}
-      <div className="grid grid-cols-4 gap-4">
-        <Link href="/chart-of-accounts" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">1. Chart of Accounts</h3>
-          <p className="text-xs text-gray-500 mt-1">Asset, liability, equity, revenue & expense accounts.</p>
+      {/* Navigation Submodules Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+        <Link href="/chart-of-accounts">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>1. Chart of Accounts</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Asset, liability, equity, revenue & expense accounts.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/journal-entries" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">2. Journal Entries & GL</h3>
-          <p className="text-xs text-gray-500 mt-1">Double-entry ledger posting & reversals.</p>
+        <Link href="/journal-entries">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>2. Journal Entries & GL</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Double-entry ledger posting & reversals.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/accounts-receivable" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">3. Accounts Receivable</h3>
-          <p className="text-xs text-gray-500 mt-1">Customer invoices & collection aging.</p>
+        <Link href="/accounts-receivable">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>3. Accounts Receivable</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Customer invoices & collection aging.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/accounts-payable" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">4. Accounts Payable</h3>
-          <p className="text-xs text-gray-500 mt-1">Vendor bills & supplier liability schedules.</p>
+        <Link href="/accounts-payable">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>4. Accounts Payable</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Vendor bills & supplier liability schedules.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/payments" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">5. Payments & Cash</h3>
-          <p className="text-xs text-gray-500 mt-1">Inflow, outflow, transfers & refunds.</p>
+        <Link href="/payments">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>5. Payments & Cash</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Inflow, outflow, transfers & refunds.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/bank-accounts" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">6. Bank Accounts</h3>
-          <p className="text-xs text-gray-500 mt-1">Corporate bank accounts & balances.</p>
+        <Link href="/bank-accounts">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>6. Bank Accounts</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Corporate bank accounts & balances.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/bank-reconciliation" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block col-span-2">
-          <h3 className="font-bold text-sm text-gray-900">7. Bank Reconciliation</h3>
-          <p className="text-xs text-gray-500 mt-1">Statement transaction matching & completion.</p>
+        <Link href="/bank-reconciliation">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>7. Bank Reconciliation</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Statement transaction matching & completion.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
       </div>
 
-      {/* Recent Ledger Entries */}
-      <div className="border rounded bg-white p-4 space-y-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-700">Recent Posted General Ledger Journals</h2>
-        <table className="w-full text-left text-xs">
-          <thead className="bg-gray-100 uppercase text-gray-600 border-b">
-            <tr>
-              <th className="p-3">Journal #</th>
-              <th className="p-3">Description</th>
-              <th className="p-3">Posting Date</th>
-              <th className="p-3">Status</th>
-              <th className="p-3">Lines</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {journals.map((j) => {
-              const lines = (j.lines as Record<string, unknown>[]) || [];
-              return (
-                <tr key={String(j.id)} className="hover:bg-gray-50">
-                  <td className="p-3 font-mono font-bold">{String(j.journalNumber)}</td>
-                  <td className="p-3 font-semibold">{String(j.description)}</td>
-                  <td className="p-3 text-gray-600">{new Date(String(j.date)).toLocaleDateString()}</td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800">
-                      {String(j.status)}
-                    </span>
-                  </td>
-                  <td className="p-3 font-mono">{lines.length} lines</td>
-                </tr>
-              );
-            })}
-            {journals.length === 0 && (
-              <tr>
-                <td colSpan={5} className="p-4 text-center text-gray-500">No journal entries posted in general ledger.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* Recent Ledger Entries Table */}
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Recent Posted General Ledger Journals</CardTitle>
+            <CardDescription>System of record journal postings and financial transactions</CardDescription>
+          </div>
+          <Link href="/journal-entries">
+            <Button variant="ghost" size="sm" rightIcon={<IconArrowRight size={14} />}>
+              View All
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent style={{ padding: 0 }}>
+          <Table<Record<string, unknown>>
+            isLoading={loading}
+            data={journals.slice(0, 10)}
+            keyExtractor={(j) => String(j.id)}
+            emptyText="No journal entries posted in general ledger."
+            columns={[
+              {
+                header: 'Journal #',
+                accessor: (j) => (
+                  <span className="code-font" style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                    {String(j.journalNumber)}
+                  </span>
+                ),
+              },
+              {
+                header: 'Description',
+                accessor: (j) => <span style={{ fontWeight: 500 }}>{String(j.description)}</span>,
+              },
+              {
+                header: 'Posting Date',
+                accessor: (j) => (
+                  <span className="code-font" style={{ color: 'var(--text-secondary)' }}>
+                    {new Date(String(j.date)).toLocaleDateString()}
+                  </span>
+                ),
+              },
+              {
+                header: 'Status',
+                accessor: (j) => <Badge variant="receipt">{String(j.status)}</Badge>,
+              },
+              {
+                header: 'Lines',
+                accessor: (j) => {
+                  const lines = (j.lines as Record<string, unknown>[]) || [];
+                  return <span className="code-font">{lines.length} lines</span>;
+                },
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

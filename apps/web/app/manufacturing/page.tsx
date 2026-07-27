@@ -3,6 +3,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { api } from '../../src/lib/api';
+import { Button } from '../../src/components/ui/Button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../src/components/ui/Card';
+import { Badge } from '../../src/components/ui/Badge';
+import { Table } from '../../src/components/ui/Table';
+import { Skeleton } from '../../src/components/ui/Skeleton';
+import { ErrorState } from '../../src/components/ui/ErrorState';
+import { IconManufacturing, IconPlus, IconArrowRight, IconInventory } from '../../src/components/ui/Icons';
 
 export default function ManufacturingDashboardPage() {
   const [boms, setBoms] = useState<Record<string, unknown>[]>([]);
@@ -10,9 +17,11 @@ export default function ManufacturingDashboardPage() {
   const [consumptions, setConsumptions] = useState<Record<string, unknown>[]>([]);
   const [fgrs, setFgrs] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const [bomData, orderData, mcData, fgrData] = await Promise.all([
         api.getBoms().catch(() => []),
@@ -25,7 +34,7 @@ export default function ManufacturingDashboardPage() {
       setConsumptions(mcData);
       setFgrs(fgrData);
     } catch (err: unknown) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to load manufacturing metrics');
     } finally {
       setLoading(false);
     }
@@ -39,111 +48,222 @@ export default function ManufacturingDashboardPage() {
   const releasedBoms = boms.filter((b) => b.status === 'RELEASED');
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center border-b pb-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+      {/* Top Banner */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Manufacturing Operations</h1>
-          <p className="text-sm text-gray-500">Bill of Materials, Production Runs, Material Consumption & Traceability</p>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+            Manufacturing Operations
+          </h1>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Bill of Materials, Production Runs, Material Consumption & Traceability
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/boms" className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded hover:bg-gray-800">
-            + New BOM
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <Link href="/boms">
+            <Button variant="secondary" size="sm" leftIcon={<IconPlus size={14} />}>
+              New BOM
+            </Button>
           </Link>
-          <Link href="/production-orders" className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700">
-            + Create Production Order
+          <Link href="/production-orders">
+            <Button variant="primary" size="sm" leftIcon={<IconPlus size={14} />}>
+              Production Order
+            </Button>
           </Link>
         </div>
       </div>
 
+      {error && <ErrorState message={error} onRetry={loadData} />}
+
       {/* Metrics Row */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Total BOMs</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : boms.length}</div>
-          <div className="text-xs text-gray-400 mt-1">{releasedBoms.length} Released</div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Production Orders</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : orders.length}</div>
-          <div className="text-xs text-blue-600 font-semibold mt-1">{activeOrders.length} Active Runs</div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Material Consumptions</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : consumptions.length}</div>
-          <div className="text-xs text-gray-400 mt-1">{consumptions.filter((c) => c.status === 'POSTED').length} Posted</div>
-        </div>
-        <div className="border rounded p-4 bg-white">
-          <div className="text-xs uppercase font-semibold text-gray-500">Finished Goods Receipts</div>
-          <div className="text-2xl font-bold mt-1">{loading ? '...' : fgrs.length}</div>
-          <div className="text-xs text-gray-400 mt-1">{fgrs.filter((f) => f.status === 'POSTED').length} Posted</div>
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Total BOMs
+              </span>
+              <IconManufacturing size={18} style={{ color: 'var(--accent)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : boms.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{releasedBoms.length} Released Structures</span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Production Orders
+              </span>
+              <IconManufacturing size={18} style={{ color: 'var(--warning)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : orders.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600 }}>{activeOrders.length} Active Jobs</span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Material Consumptions
+              </span>
+              <IconInventory size={18} style={{ color: 'var(--info)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : consumptions.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Posted Withdrawals</span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent style={{ padding: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Finished Goods
+              </span>
+              <IconInventory size={18} style={{ color: 'var(--success)' }} />
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: 'var(--space-2)', fontFamily: 'var(--font-mono)' }}>
+              {loading ? <Skeleton width="50px" height="2rem" /> : fgrs.length}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>Assembly Receipts</span>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Modules Quick Navigation */}
-      <div className="grid grid-cols-5 gap-4">
-        <Link href="/boms" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">1. Bill of Materials</h3>
-          <p className="text-xs text-gray-500 mt-1">Manage component assembly structures and revisions.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+        <Link href="/boms">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>1. Bill of Materials</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Manage component assembly structures and revisions.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/production-orders" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">2. Production Orders</h3>
-          <p className="text-xs text-gray-500 mt-1">Schedule and execute manufacturing jobs.</p>
+        <Link href="/production-orders">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>2. Production Orders</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Schedule and execute manufacturing jobs.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/material-consumption" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">3. Material Consumption</h3>
-          <p className="text-xs text-gray-500 mt-1">Record raw material withdrawal from inventory.</p>
+        <Link href="/material-consumption">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>3. Material Consumption</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Record raw material withdrawal from inventory.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/finished-goods" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">4. Finished Goods</h3>
-          <p className="text-xs text-gray-500 mt-1">Receive finished assemblies into stock.</p>
+        <Link href="/finished-goods">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>4. Finished Goods</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Receive finished assemblies into stock.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
-        <Link href="/traceability" className="border rounded p-4 bg-gray-50 hover:bg-white hover:shadow-sm transition block">
-          <h3 className="font-bold text-sm text-gray-900">5. Traceability</h3>
-          <p className="text-xs text-gray-500 mt-1">Forward & backward batch genealogy lookups.</p>
+        <Link href="/traceability">
+          <Card>
+            <CardContent style={{ padding: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700 }}>5. Traceability</h3>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Forward & backward batch genealogy lookups.
+              </p>
+            </CardContent>
+          </Card>
         </Link>
       </div>
 
       {/* Active Production Orders Summary Table */}
-      <div className="border rounded bg-white p-4 space-y-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-700">Active Production Runs</h2>
-        <table className="w-full text-left text-xs">
-          <thead className="bg-gray-100 uppercase text-gray-600 border-b">
-            <tr>
-              <th className="p-3">Order #</th>
-              <th className="p-3">Status</th>
-              <th className="p-3">Planned Qty</th>
-              <th className="p-3">Completed</th>
-              <th className="p-3">Scrapped</th>
-              <th className="p-3">Created At</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {orders.slice(0, 10).map((o) => (
-              <tr key={String(o.id)} className="hover:bg-gray-50">
-                <td className="p-3 font-mono font-bold">{String(o.productionNumber)}</td>
-                <td className="p-3">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                    o.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
-                    o.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {String(o.status)}
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Active Production Runs</CardTitle>
+            <CardDescription>Manufacturing job execution, completion, and scrap rates</CardDescription>
+          </div>
+          <Link href="/production-orders">
+            <Button variant="ghost" size="sm" rightIcon={<IconArrowRight size={14} />}>
+              View All
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent style={{ padding: 0 }}>
+          <Table<Record<string, unknown>>
+            isLoading={loading}
+            data={orders.slice(0, 10)}
+            keyExtractor={(o) => String(o.id)}
+            emptyText="No production orders created yet."
+            columns={[
+              {
+                header: 'Production #',
+                accessor: (o) => (
+                  <span className="code-font" style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                    {String(o.productionNumber)}
                   </span>
-                </td>
-                <td className="p-3 font-mono">{String(o.quantityPlanned)} pcs</td>
-                <td className="p-3 font-mono text-green-700 font-semibold">{String(o.quantityCompleted)} pcs</td>
-                <td className="p-3 font-mono text-red-600">{String(o.quantityScrapped)} pcs</td>
-                <td className="p-3 text-gray-500">{new Date(String(o.createdAt)).toLocaleString()}</td>
-              </tr>
-            ))}
-            {orders.length === 0 && (
-              <tr>
-                <td colSpan={6} className="p-4 text-center text-gray-500">No production orders created yet.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                ),
+              },
+              {
+                header: 'Status',
+                accessor: (o) => {
+                  const statusStr = String(o.status);
+                  const variant = statusStr === 'COMPLETED' ? 'receipt' : statusStr === 'IN_PROGRESS' ? 'transfer' : 'neutral';
+                  return <Badge variant={variant}>{statusStr}</Badge>;
+                },
+              },
+              {
+                header: 'Planned Qty',
+                accessor: (o) => (
+                  <span className="code-font" style={{ fontWeight: 600 }}>
+                    {String(o.quantityPlanned)} pcs
+                  </span>
+                ),
+              },
+              {
+                header: 'Completed',
+                accessor: (o) => (
+                  <span className="code-font" style={{ fontWeight: 700, color: 'var(--success)' }}>
+                    {String(o.quantityCompleted)} pcs
+                  </span>
+                ),
+              },
+              {
+                header: 'Scrapped',
+                accessor: (o) => (
+                  <span className="code-font" style={{ color: 'var(--danger)' }}>
+                    {String(o.quantityScrapped)} pcs
+                  </span>
+                ),
+              },
+              {
+                header: 'Created At',
+                accessor: (o) => (
+                  <span className="code-font" style={{ color: 'var(--text-secondary)' }}>
+                    {new Date(String(o.createdAt)).toLocaleString()}
+                  </span>
+                ),
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

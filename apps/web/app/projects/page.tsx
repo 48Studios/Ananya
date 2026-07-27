@@ -3,12 +3,23 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { api } from '../../src/lib/api';
+import { Button } from '../../src/components/ui/Button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../src/components/ui/Card';
+import { Badge } from '../../src/components/ui/Badge';
+import { Table } from '../../src/components/ui/Table';
+import { Input } from '../../src/components/ui/Input';
+import { Select } from '../../src/components/ui/Select';
+import { FormItem, FormLabel } from '../../src/components/ui/Form';
+import { ErrorState } from '../../src/components/ui/ErrorState';
+import { IconPlus } from '../../src/components/ui/Icons';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Record<string, unknown>[]>([]);
   const [customers, setCustomers] = useState<Record<string, unknown>[]>([]);
   const [salesOrders, setSalesOrders] = useState<Record<string, unknown>[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // Form state
   const [name, setName] = useState('');
@@ -20,17 +31,21 @@ export default function ProjectsPage() {
   const [priority, setPriority] = useState('MEDIUM');
 
   const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError('');
     try {
       const [pData, cData, soData] = await Promise.all([
-        api.getProjects(),
-        api.getCustomers(),
-        api.getSalesOrders(),
+        api.getProjects().catch(() => []),
+        api.getCustomers().catch(() => []),
+        api.getSalesOrders().catch(() => []),
       ]);
       setProjects(pData);
       setCustomers(cData);
       setSalesOrders(soData);
     } catch (err: unknown) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to load projects');
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -54,7 +69,7 @@ export default function ProjectsPage() {
       setName('');
       fetchData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to create project');
+      setError(err instanceof Error ? err.message : 'Failed to create project');
     }
   };
 
@@ -63,176 +78,198 @@ export default function ProjectsPage() {
       await api.startProject(id);
       fetchData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to start project');
+      setError(err instanceof Error ? err.message : 'Failed to start project');
     }
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center border-b pb-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+      {/* Header Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Project Management Console</h1>
-          <p className="text-sm text-gray-500">Post-sales commercial execution workspaces, milestone delivery, and progress orchestration.</p>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+            Project Management Console
+          </h1>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Post-sales commercial execution workspaces, milestone delivery, and progress orchestration
+          </p>
         </div>
-        <button
+        <Button
+          variant={isCreating ? 'secondary' : 'primary'}
+          size="sm"
+          leftIcon={!isCreating ? <IconPlus size={14} /> : undefined}
           onClick={() => setIsCreating(!isCreating)}
-          className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded hover:bg-gray-800"
         >
-          {isCreating ? 'Cancel' : '+ New Delivery Project'}
-        </button>
+          {isCreating ? 'Cancel' : 'New Delivery Project'}
+        </Button>
       </div>
 
+      {error && <ErrorState message={error} onRetry={fetchData} />}
+
+      {/* Creation Card Form */}
       {isCreating && (
-        <form onSubmit={handleCreate} className="p-4 border rounded bg-gray-50 space-y-4 max-w-xl">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-700">Create Project Workspace</h2>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Project Name *</label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Acme Corp Cloud Migration & Deployment"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-1.5 text-sm border rounded bg-white font-bold"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+        <Card style={{ maxWidth: 700 }}>
+          <CardHeader>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Customer *</label>
-              <select
-                required
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border rounded bg-white"
-              >
-                <option value="">-- Select Customer --</option>
-                {customers.map((c) => (
-                  <option key={String(c.id)} value={String(c.id)}>{String(c.name)}</option>
-                ))}
-              </select>
+              <CardTitle>Create Project Workspace</CardTitle>
+              <CardDescription>Initiate a delivery project tied to a commercial sales order</CardDescription>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Initiating Sales Order *</label>
-              <select
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <Input
+                label="Project Name *"
                 required
-                value={salesOrderId}
-                onChange={(e) => setSalesOrderId(e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border rounded bg-white font-mono"
-              >
-                <option value="">-- Select Sales Order --</option>
-                {salesOrders.map((so) => (
-                  <option key={String(so.id)} value={String(so.id)}>{String(so.orderNumber)}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Project Manager</label>
-              <input
-                type="text"
-                required
-                value={projectManager}
-                onChange={(e) => setProjectManager(e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border rounded bg-white font-mono"
+                placeholder="e.g. Acme Corp Cloud Migration & Deployment"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
               />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Start Date *</label>
-              <input
-                type="date"
-                required
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border rounded bg-white"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Target Completion *</label>
-              <input
-                type="date"
-                required
-                value={targetCompletionDate}
-                onChange={(e) => setTargetCompletionDate(e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border rounded bg-white"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Priority</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-              className="w-full px-3 py-1.5 text-sm border rounded bg-white font-semibold"
-            >
-              <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-              <option value="URGENT">Urgent</option>
-            </select>
-          </div>
-          <button type="submit" className="px-4 py-2 bg-black text-white text-xs font-semibold rounded">
-            Save Project
-          </button>
-        </form>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                <Select
+                  label="Customer *"
+                  required
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  options={[
+                    { value: '', label: '-- Select Customer --' },
+                    ...customers.map((c) => ({ value: String(c.id), label: String(c.name) })),
+                  ]}
+                />
+                <Select
+                  label="Initiating Sales Order *"
+                  required
+                  value={salesOrderId}
+                  onChange={(e) => setSalesOrderId(e.target.value)}
+                  options={[
+                    { value: '', label: '-- Select Sales Order --' },
+                    ...salesOrders.map((so) => ({ value: String(so.id), label: String(so.orderNumber) })),
+                  ]}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
+                <Input
+                  label="Project Manager"
+                  required
+                  value={projectManager}
+                  onChange={(e) => setProjectManager(e.target.value)}
+                />
+                <Input
+                  label="Start Date *"
+                  type="date"
+                  required
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+                <Input
+                  label="Target Completion *"
+                  type="date"
+                  required
+                  value={targetCompletionDate}
+                  onChange={(e) => setTargetCompletionDate(e.target.value)}
+                />
+              </div>
+
+              <FormItem>
+                <FormLabel>Priority</FormLabel>
+                <Select
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                  options={[
+                    { value: 'LOW', label: 'Low' },
+                    { value: 'MEDIUM', label: 'Medium' },
+                    { value: 'HIGH', label: 'High' },
+                    { value: 'URGENT', label: 'Urgent' },
+                  ]}
+                />
+              </FormItem>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+                <Button type="button" variant="secondary" onClick={() => setIsCreating(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary">
+                  Save Project
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="border rounded overflow-hidden bg-white">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-gray-100 uppercase text-gray-600 border-b">
-            <tr>
-              <th className="p-3">Project #</th>
-              <th className="p-3">Project Name</th>
-              <th className="p-3">Manager</th>
-              <th className="p-3">Target Completion</th>
-              <th className="p-3">Priority</th>
-              <th className="p-3">Status</th>
-              <th className="p-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {projects.map((p) => (
-              <tr key={String(p.id)} className="hover:bg-gray-50">
-                <td className="p-3 font-mono font-bold text-gray-900">{String(p.projectNumber)}</td>
-                <td className="p-3 font-semibold text-gray-900">
-                  <Link href={`/projects/${String(p.id)}`} className="text-blue-600 hover:underline">
+      {/* Main Table Card */}
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Delivery Projects Roster</CardTitle>
+            <CardDescription>Active commercial delivery projects, project managers, and milestone targets</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent style={{ padding: 0 }}>
+          <Table<Record<string, unknown>>
+            isLoading={loading}
+            data={projects}
+            keyExtractor={(p) => String(p.id)}
+            emptyText="No projects found."
+            columns={[
+              {
+                header: 'Project #',
+                accessor: (p) => (
+                  <span className="code-font" style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                    {String(p.projectNumber)}
+                  </span>
+                ),
+              },
+              {
+                header: 'Project Name',
+                accessor: (p) => (
+                  <Link href={`/projects/${String(p.id)}`} style={{ fontWeight: 600, color: 'var(--accent)' }}>
                     {String(p.name)}
                   </Link>
-                </td>
-                <td className="p-3 font-mono text-gray-700">{String(p.projectManager)}</td>
-                <td className="p-3 text-gray-600">{new Date(String(p.targetCompletionDate)).toLocaleDateString()}</td>
-                <td className="p-3 font-bold text-gray-800">{String(p.priority)}</td>
-                <td className="p-3">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    p.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                    p.status === 'ACTIVE' ? 'bg-blue-100 text-blue-800' :
-                    p.status === 'ON_HOLD' ? 'bg-yellow-100 text-yellow-800' :
-                    p.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {String(p.status)}
+                ),
+              },
+              {
+                header: 'Manager',
+                accessor: (p) => <span className="code-font">{String(p.projectManager)}</span>,
+              },
+              {
+                header: 'Target Completion',
+                accessor: (p) => (
+                  <span className="code-font" style={{ color: 'var(--text-secondary)' }}>
+                    {new Date(String(p.targetCompletionDate)).toLocaleDateString()}
                   </span>
-                </td>
-                <td className="p-3 text-right">
-                  {p.status === 'PLANNING' && (
-                    <button
+                ),
+              },
+              {
+                header: 'Priority',
+                accessor: (p) => <span style={{ fontWeight: 600 }}>{String(p.priority)}</span>,
+              },
+              {
+                header: 'Status',
+                accessor: (p) => {
+                  const st = String(p.status);
+                  const variant = st === 'COMPLETED' ? 'receipt' : st === 'ACTIVE' ? 'transfer' : st === 'CANCELLED' ? 'issue' : 'neutral';
+                  return <Badge variant={variant}>{st}</Badge>;
+                },
+              },
+              {
+                header: 'Actions',
+                accessor: (p) =>
+                  p.status === 'PLANNING' ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
                       onClick={() => handleStart(String(p.id))}
-                      className="px-2 py-1 bg-blue-600 text-white text-[10px] font-bold rounded shadow hover:bg-blue-700"
                     >
                       Start Project
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {projects.length === 0 && (
-              <tr>
-                <td colSpan={7} className="p-4 text-center text-gray-500">No projects found.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                    </Button>
+                  ) : null,
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,12 +1,18 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Component, Location, InventoryTransaction } from '@ananya/inventory';
 import { TransactionType } from '@ananya/inventory';
 import { api } from '../../src/lib/api';
-import { Table } from '../../src/components/ui/Table';
+import { Button } from '../../src/components/ui/Button';
+import { PageHeader } from '../../src/components/shared/page-header/PageHeader';
+import { DashboardCard } from '../../src/components/shared/dashboard-card/DashboardCard';
+import { EntityTable } from '../../src/components/shared/entity-table/EntityTable';
+import { ErrorState } from '../../src/components/shared/error-state/ErrorState';
 import { formatLocationPathString } from '../../src/lib/location-utils';
 import { TransactionModal } from '../../src/features/transactions/TransactionModal';
+import { Plus } from 'lucide-react';
+import { ColumnDef } from '@tanstack/react-table';
 
 interface InventoryStockRow {
   component: Component;
@@ -18,11 +24,8 @@ export default function InventoryBrowserPage() {
   const [components, setComponents] = useState<Component[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Modal State
   const [actionModalOpen, setActionModalOpen] = useState(false);
@@ -32,6 +35,7 @@ export default function InventoryBrowserPage() {
 
   const loadData = async () => {
     setLoading(true);
+    setError('');
     try {
       const [compRes, locRes, txRes] = await Promise.all([
         api.getComponents().catch(() => []),
@@ -50,21 +54,11 @@ export default function InventoryBrowserPage() {
 
   useEffect(() => {
     loadData();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === '/' && document.activeElement !== searchInputRef.current) {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Compute calculated stock balances from transactions
+  // Compute stock balances
   const stockMap = new Map<string, InventoryStockRow>();
 
-  // Ensure all components exist in map
   components.forEach((comp) => {
     const key = `${comp.id}:${comp.defaultLocationId || 'unassigned'}`;
     stockMap.set(key, {
@@ -74,7 +68,6 @@ export default function InventoryBrowserPage() {
     });
   });
 
-  // Apply ledger transactions
   transactions.forEach((tx) => {
     const comp = components.find((c) => c.id === tx.componentId);
     if (!comp) return;
@@ -112,19 +105,6 @@ export default function InventoryBrowserPage() {
 
   const stockRows = Array.from(stockMap.values());
 
-  // Filter based on search input (SKU, name, location, specs, etc.)
-  const filteredRows = stockRows.filter((row) => {
-    if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase();
-    const locStr = formatLocationPathString(locations, row.locationId).toLowerCase();
-    return (
-      row.component.sku.toLowerCase().includes(query) ||
-      row.component.name.toLowerCase().includes(query) ||
-      (row.component.description || '').toLowerCase().includes(query) ||
-      locStr.includes(query)
-    );
-  });
-
   const triggerAction = (type: TransactionType, compId: string, locId?: string | null) => {
     setSelectedTxType(type);
     setSelectedCompId(compId);
@@ -132,124 +112,130 @@ export default function InventoryBrowserPage() {
     setActionModalOpen(true);
   };
 
-  return (
-    <div>
-      <div className="section-header">
+  const columns: ColumnDef<InventoryStockRow>[] = [
+    {
+      accessorKey: 'component.sku',
+      header: 'Item SKU',
+      cell: ({ row }) => (
+        <span className="code-font" style={{ fontWeight: 600, color: 'var(--primary)' }}>
+          {row.original.component.sku}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'component.name',
+      header: 'Item Identity / Specifications',
+      cell: ({ row }) => (
         <div>
-          <h1 className="section-title">Inventory Browser</h1>
-          <p className="section-sub">Search-first primary daily interface for component discovery & stock actions</p>
+          <div style={{ fontWeight: 600 }}>{row.original.component.name}</div>
+          {row.original.component.description && (
+            <div style={{ fontSize: '0.775rem', color: 'var(--muted-foreground)' }}>
+              {row.original.component.description}
+            </div>
+          )}
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => triggerAction(TransactionType.Receipt, '')}
+      ),
+    },
+    {
+      accessorKey: 'totalQuantity',
+      header: 'Current Quantity',
+      cell: ({ row }) => (
+        <span
+          className="code-font"
+          style={{
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            color: row.original.totalQuantity > 0 ? 'var(--success)' : 'var(--muted-foreground)',
+          }}
         >
-          + Receive Inventory
-        </button>
-      </div>
+          {row.original.totalQuantity} {row.original.component.unit || 'pcs'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'locationId',
+      header: 'Physical Location',
+      cell: ({ row }) => (
+        <span className="code-font" style={{ color: 'var(--foreground)' }}>
+          {formatLocationPathString(locations, row.original.locationId)}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <div style={{ display: 'flex', gap: '4px' }}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => triggerAction(TransactionType.Receipt, row.original.component.id, row.original.locationId)}
+          >
+            Receive
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => triggerAction(TransactionType.Transfer, row.original.component.id, row.original.locationId)}
+          >
+            Move
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => triggerAction(TransactionType.Issue, row.original.component.id, row.original.locationId)}
+          >
+            Consume
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => triggerAction(TransactionType.Adjustment, row.original.component.id, row.original.locationId)}
+          >
+            Adjust
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
-      {error && <div className="error-banner">{error}</div>}
-
-      {/* Primary Search Bar */}
-      <div className="search-container" style={{ marginBottom: '1.25rem' }}>
-        <span className="search-icon">🔍</span>
-        <input
-          ref={searchInputRef}
-          type="text"
-          className="search-input"
-          placeholder="Filter by SKU, item name, component value, package, manufacturer MPN, alias, location..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <span className="shortcut-kbd">/</span>
-      </div>
-
-      <Table<InventoryStockRow>
-        isLoading={loading}
-        data={filteredRows}
-        keyExtractor={(r) => `${r.component.id}:${r.locationId}`}
-        emptyText="No inventory items match search criteria"
-        columns={[
-          {
-            header: 'Item SKU',
-            accessor: (r) => (
-              <span className="code-font" style={{ fontWeight: 600, color: 'var(--accent)' }}>
-                {r.component.sku}
-              </span>
-            ),
-          },
-          {
-            header: 'Item Identity / Specifications',
-            accessor: (r) => (
-              <div>
-                <div style={{ fontWeight: 600 }}>{r.component.name}</div>
-                {r.component.description && (
-                  <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
-                    {r.component.description}
-                  </div>
-                )}
-              </div>
-            ),
-          },
-          {
-            header: 'Current Quantity',
-            accessor: (r) => (
-              <span
-                className="code-font"
-                style={{
-                  fontWeight: 700,
-                  fontSize: '0.95rem',
-                  color: r.totalQuantity > 0 ? 'var(--success)' : 'var(--text-muted)',
-                }}
-              >
-                {r.totalQuantity} {r.component.unit || 'pcs'}
-              </span>
-            ),
-          },
-          {
-            header: 'Physical Location',
-            accessor: (r) => (
-              <span className="location-path">
-                {formatLocationPathString(locations, r.locationId)}
-              </span>
-            ),
-          },
-          {
-            header: 'Immediate Actions',
-            accessor: (r) => (
-              <div style={{ display: 'flex', gap: '0.35rem' }}>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => triggerAction(TransactionType.Receipt, r.component.id, r.locationId)}
-                  title="Receive Stock"
-                >
-                  Receive
-                </button>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => triggerAction(TransactionType.Transfer, r.component.id, r.locationId)}
-                  title="Move Stock"
-                >
-                  Move
-                </button>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => triggerAction(TransactionType.Issue, r.component.id, r.locationId)}
-                  title="Consume Stock"
-                >
-                  Consume
-                </button>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => triggerAction(TransactionType.Adjustment, r.component.id, r.locationId)}
-                  title="Adjust Stock"
-                >
-                  Adjust
-                </button>
-              </div>
-            ),
-          },
-        ]}
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <PageHeader
+        title="Inventory Browser"
+        description="Search-first primary daily interface for component discovery & stock actions"
+        actions={
+          <Button
+            variant="primary"
+            leftIcon={<Plus size={16} />}
+            onClick={() => triggerAction(TransactionType.Receipt, '')}
+          >
+            Receive Inventory
+          </Button>
+        }
       />
+
+      {error && <ErrorState message={error} onRetry={loadData} />}
+
+      <DashboardCard>
+        <EntityTable<InventoryStockRow>
+          data={stockRows}
+          columns={columns}
+          isLoading={loading}
+          searchPlaceholder="Filter by SKU, item name, MPN, location, specs..."
+          globalFilterFn={(row, query) => {
+            const locStr = formatLocationPathString(locations, row.locationId).toLowerCase();
+            return (
+              row.component.sku.toLowerCase().includes(query.toLowerCase()) ||
+              row.component.name.toLowerCase().includes(query.toLowerCase()) ||
+              (row.component.description || '').toLowerCase().includes(query.toLowerCase()) ||
+              locStr.includes(query.toLowerCase())
+            );
+          }}
+          emptyTitle="No inventory items match search criteria"
+          emptyDescription="Try adjusting your filter query or add new stock items."
+        />
+      </DashboardCard>
 
       <TransactionModal
         isOpen={actionModalOpen}
