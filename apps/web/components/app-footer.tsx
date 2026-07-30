@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { getAppInfo } from '@/lib/app-info'
+import { ExternalLink } from '@/components/ui/external-link'
 import { cn } from '@/lib/utils'
 
 export interface AppFooterProps {
@@ -29,26 +30,21 @@ export function AppFooter({ className }: AppFooterProps) {
   return (
     <footer
       className={cn(
-        'border-t border-border bg-card/50 px-4 lg:px-6 h-10 flex items-center justify-between text-xs text-muted-foreground select-none shrink-0',
+        'border-t border-border bg-card/50 px-4 lg:px-6 h-14 flex items-center justify-between text-xs text-muted-foreground select-none shrink-0',
         className
       )}
     >
       {/* Left Section: Copyright & Hyperlink */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 font-medium">
         <span>© {currentYear}</span>
-        <a
-          href={appInfo.organization.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-foreground transition-colors"
-        >
+        <ExternalLink href={appInfo.organization.url} hideIcon>
           {appInfo.organization.name}
-        </a>
+        </ExternalLink>
         <span>•</span>
         <span>All rights reserved.</span>
       </div>
 
-      {/* Right Section: Environment • Version • [Icon] GitHub */}
+      {/* Right Section: Environment • Version • [Icon] GitHub [External Indicator] */}
       <div className="flex items-center gap-2">
         {/* 1. Environment */}
         <div className="flex items-center gap-1.5">
@@ -74,16 +70,11 @@ export function AppFooter({ className }: AppFooterProps) {
 
         <span>•</span>
 
-        {/* 3. GitHub Link with Icon */}
-        <a
-          href={appInfo.repository.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
-        >
+        {/* 3. GitHub External Link with Octocat and External Indicator Icon */}
+        <ExternalLink href={appInfo.repository.url}>
           <GitHubIcon className="size-3.5 shrink-0" />
           <span>{appInfo.repository.name}</span>
-        </a>
+        </ExternalLink>
       </div>
     </footer>
   )
