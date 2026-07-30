@@ -7,7 +7,7 @@ import { ContextSidebar } from '@/lib/navigation/components/context-sidebar'
 import { TopHeader } from '@/lib/navigation/components/top-header'
 import { MobileDrawer } from '@/lib/navigation/components/mobile-drawer'
 import { CommandPalette } from '@/lib/navigation/components/command-palette'
-import { Footer } from '@/components/footer'
+import { AppFooter } from '@/components/app-footer'
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -32,11 +32,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
           <TopHeader />
-          <main className="flex-1 overflow-y-auto bg-background">
-            <div className="p-6 lg:p-8 max-w-7xl mx-auto w-full min-h-[calc(100vh-8rem)]">
+          <main className="flex-1 overflow-y-auto bg-background flex flex-col justify-between">
+            <div className="flex-1 p-6 lg:p-8 max-w-7xl mx-auto w-full">
               {children}
             </div>
-            <Footer />
+            <AppFooter />
           </main>
         </div>
       </div>
