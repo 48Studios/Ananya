@@ -2,29 +2,117 @@ import {
   IsString,
   IsNotEmpty,
   IsOptional,
-  IsDateString,
-  IsObject,
+  IsNumber,
+  Min,
+  IsArray,
+  ValidateNested,
 } from 'class-validator';
-import { CountFrequency } from '@ananya/warehouse';
+import { Type } from 'class-transformer';
+
+export class CycleCountLineInputDto {
+  @IsString()
+  @IsNotEmpty()
+  componentId!: string;
+
+  @IsNumber()
+  @Min(0)
+  systemQuantity!: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  countedQuantity?: number;
+
+  @IsString()
+  @IsOptional()
+  unitOfMeasure?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
 
 export class CreateCycleCountDto {
   @IsString()
   @IsNotEmpty()
-  warehouseId!: string;
+  locationId!: string;
 
   @IsString()
-  @IsNotEmpty()
-  name!: string;
+  @IsOptional()
+  assignedCounter?: string;
 
   @IsString()
+  @IsOptional()
+  scheduledDate?: string;
+
+  @IsString()
+  @IsOptional()
+  createdBy?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CycleCountLineInputDto)
+  @IsOptional()
+  lines?: CycleCountLineInputDto[];
+}
+
+export class UpdateCycleCountDto {
+  @IsString()
+  @IsOptional()
+  locationId?: string;
+
+  @IsString()
+  @IsOptional()
+  assignedCounter?: string;
+
+  @IsString()
+  @IsOptional()
+  scheduledDate?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CycleCountLineInputDto)
+  @IsOptional()
+  lines?: CycleCountLineInputDto[];
+}
+
+export class AssignCounterDto {
+  @IsString()
   @IsNotEmpty()
-  frequency!: CountFrequency;
+  assignedCounter!: string;
+}
 
-  @IsObject()
-  @IsOptional()
-  selectionRule?: Record<string, unknown>;
+export class PhysicalCountEntryDto {
+  @IsString()
+  @IsNotEmpty()
+  lineId!: string;
 
-  @IsDateString()
+  @IsNumber()
+  @Min(0)
+  countedQuantity!: number;
+
+  @IsString()
   @IsOptional()
-  nextScheduledDate?: string;
+  notes?: string;
+}
+
+export class RecordPhysicalCountsDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PhysicalCountEntryDto)
+  counts!: PhysicalCountEntryDto[];
+}
+
+export class ApproveCycleCountDto {
+  @IsString()
+  @IsOptional()
+  approvedBy?: string;
 }

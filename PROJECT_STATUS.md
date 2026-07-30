@@ -16,7 +16,7 @@
 
 ## Current Vertical Slice
 
-**Stock Ledger**
+**Reporting & Analytics**
 
 ## Current Sprint Goal
 
@@ -28,7 +28,7 @@ Implement the core inventory management experience and establish the foundationa
 
 ## Current Status
 
-🟡 In Progress
+🟢 Projects Complete — Moving to Reporting & Analytics
 
 ---
 
@@ -59,8 +59,11 @@ Implement the core inventory management experience and establish the foundationa
 - [ ] Brands
 - [x] Categories
 - [x] Suppliers
-- [ ] Stock Ledger
+- [x] Stock Adjustments
 - [x] Inventory Transactions
+- [x] Warehouse Transfers
+- [x] Cycle Counting
+- [x] Inventory Reservations & Allocations
 - [x] Purchase Orders
 - [x] Goods Receipts
 
@@ -68,16 +71,16 @@ Implement the core inventory management experience and establish the foundationa
 
 ## Manufacturing
 
-- [ ] Bill of Materials (BOM)
-- [ ] Work Orders
-- [ ] Production
+- [x] Bill of Materials (BOM)
+- [x] Work Orders
+- [x] Production
 
 ---
 
 ## Projects
 
-- [ ] Projects
-- [ ] Project Inventory
+- [x] Projects
+- [x] Project Inventory (Material Allocation, Issue, Return)
 - [ ] Project Costing
 
 ---
@@ -97,7 +100,7 @@ Only the active work should appear here.
 
 ## Active
 
-- [ ] Stock Ledger Module
+- [ ] Reporting & Analytics
 
 Completed work should immediately move into the **Completed** section.
 
@@ -107,14 +110,14 @@ Completed work should immediately move into the **Completed** section.
 
 After the current slice is complete, implement:
 
-## Stock Ledger Management
+## Reporting & Analytics
 
 Requirements
 
-- List Stock Balances by Location and Component
-- View Component Stock History
-- Record Manual Stock Adjustments / Stock Takes
-- Low Stock & Reorder Level Warnings
+- Inventory Reports
+- Purchase Reports
+- Stock Valuation
+- Dashboard Analytics
 
 Reuse:
 
@@ -133,6 +136,7 @@ Do not redesign the application shell.
 
 ## 2026-07-30
 
+- Complete Projects & Material Allocation module (List /projects, View /projects/[id], Create & Edit project with ProjectForm, Project lifecycle PLANNING -> ACTIVE -> ON_HOLD -> COMPLETED / ARCHIVED / CANCELLED, Project metadata manager with type/priority/manager/owner/dates, Material Allocation to reserve components for project usage, Material Issue from allocated stock for active projects, Material Return back to warehouse inventory, Milestone management with completion tracking, Activity log with chronological audit trail, Project stat cards for materials/milestones/allocations, Domain aggregate with addMilestone() completeMilestone() allocateMaterial() issueMaterial() returnMaterial() lifecycle methods, ProjectExceptionFilter for domain error handling, API Integration GET/POST/PUT /projects with material & milestone sub-endpoints, Drizzle ORM multi-table persistence for projects/milestones/materials/activities)
 - Complete UI foundation rebuild
 - Integrate new v0 application shell
 - Establish DashboardLayout
@@ -140,6 +144,13 @@ Do not redesign the application shell.
 - Implement shared Header
 - Implement shared Footer
 - Integrate Light & Dark mode
+- Complete Inventory Reservations & Allocations module (List /reservations, View /reservations/[id], Create & Edit draft/active reservation with ReservationForm React Hook Form + Zod, Multi-item line reservation manager, Purpose selection WORK_ORDER / PROJECT / PURCHASE_REQUEST / SALES_ORDER, Expiration lock hold date, Live available inventory calculation Available = On Hand - Reserved, Over-reservation prevention guard Reserved <= Available, Manual release workflow restoring Available stock instantly without physical inventory moves, Fulfillment workflow upon material issuance, Lifecycle state machine DRAFT -> ACTIVE -> FULFILLED / RELEASED / EXPIRED / CANCELLED, Print report view, API Integration GET/POST/PUT/DELETE /reservations, Drizzle ORM persistence)
+- Complete Cycle Counting physical inventory audit module (List /cycle-counts, View /cycle-counts/[id], Create & Edit draft cycle count with CycleCountForm React Hook Form + Zod, Facility location selection, Assigned counter user assignment, Dynamic component scope manager, Physical count recording modal RecordCountsModal with live variance calculation Match/Shortage/Surplus, Discrepancy summary metrics, Lifecycle state machine DRAFT -> ASSIGNED -> COUNTING -> REVIEW -> APPROVED / CANCELLED, Automated Stock Adjustment generation upon approval posting immutable Inventory Ledger transactions, Print report view, API Integration GET/POST/PUT/DELETE /cycle-counts, Drizzle ORM persistence)
+- Complete Warehouse Transfers inter-facility stock movement module (List /warehouse-transfers, View /warehouse-transfers/[id], Create & Edit draft transfer with WarehouseTransferForm React Hook Form + Zod, Source/destination location pickers preventing identical locations, Dynamic component line items manager, Lifecycle state machine DRAFT -> SUBMITTED -> DISPATCHED -> RECEIVED / CANCELLED, Automatic Inventory Ledger posting TransferOut (Issue) on dispatch and TransferIn (Receipt) on receipt, Compensating return transactions on cancellation of dispatched transfers, Linked inventory transactions audit log, Print report view, API Integration GET/POST/PUT/DELETE /warehouse-transfers, Drizzle ORM persistence)
+- Complete Production Execution workflow (Work Order Summary dashboard, Material Requirements table with shortage indicators, Yield & completion progress bar, Record partial batch output runs, Proportional raw material issues via InventoryTransaction, Finished goods receipt via InventoryTransaction, Record raw material & product scrap via InventoryTransaction, Pause & Resume production job execution, Chronological production activity timeline, Print report view, API Integration POST /work-orders/:id/record-output, POST /work-orders/:id/record-scrap, POST /work-orders/:id/pause, POST /work-orders/:id/resume, GET /work-orders/:id/timeline, Drizzle ORM persistence)
+- Complete Work Orders manufacturing execution module (List /work-orders, View /work-orders/[id], Create & Edit draft Work Order with WorkOrderForm React Hook Form + Zod, BOM selection & auto material requirement calculation, Location assignment, Priority levels URGENT/HIGH/NORMAL/LOW, Lifecycle state machine DRAFT -> RELEASED -> IN_PROGRESS -> COMPLETED / CANCELLED, Automatic Inventory Ledger posting ProductionIssue for raw materials and ProductionOutput for finished goods receipt, Production progress tracking bar, Linked inventory transactions audit trail, Print order report view, API Integration GET/POST/PUT/DELETE /work-orders, Drizzle ORM persistence)
+- Complete Bill of Materials (BOM) module (List /boms, View /boms/[id], Create & Edit draft BOM with BomForm React Hook Form + Zod, Dynamic component line items manager, Unit & scrap factor % inputs, Revision management v1.0 -> v1.1, Release/Publish revision guard enforcing single active RELEASED BOM per finished product, Duplication revision workflow copying line items, Invariants against self-reference circular dependencies and duplicate component lines, Print report view, API Integration GET/POST/PUT/DELETE /boms, Drizzle ORM persistence)
+- Complete Stock Adjustments reconciliation module (List /stock-adjustments, View /stock-adjustments/[id], Create Adjustment with StockAdjustmentForm React Hook Form + Zod, Automatic difference calculation Counted - Current, Non-negative counted quantity validation, Approval workflow PENDING -> APPROVED, Cancellation for pending adjustments, Single DB transaction posting Adjustment inventory ledger entries, Updating stock projections, Print report view, API Integration GET/POST /stock-adjustments, Drizzle ORM persistence)
 - Complete Inventory Transactions immutable audit trail module (List /transactions, View /transactions/[id], Component Timeline /components/transactions/component-timeline.tsx, Direction indicators + Inbound / - Outbound, Transaction type badges, Filtering by component, location, transaction type, and reference search, API Integration GET /inventory-transactions, Drizzle ORM persistence)
 - Complete Goods Receipts (GRN) module (List /goods-receipts, View /goods-receipts/[id], Create Goods Receipt from open Purchase Order, Receive Partial Deliveries, Receive Complete Deliveries, GoodsReceiptForm with React Hook Form + Zod & PO line prefilling, Destination location selector, Over-receiving validation, Immutable Inventory Ledger transaction creation, Automatic PO status transition PARTIALLY_RECEIVED / FULFILLED, Print-friendly view, API Integration GET/POST /goods-receipts, Drizzle ORM persistence)
 - Complete Purchase Orders transactional document module (List /purchase-orders, View /purchase-orders/[id], Create, Edit Draft, Submit PO, Cancel PO, Delete with ConfirmDialog, PurchaseOrderForm with React Hook Form + Zod & dynamic line items editor, real-time totals calculation, Status Timeline progress bar, Print-friendly view, API Integration GET/POST/PUT/DELETE /purchase-orders, Domain aggregate updateHeader() & clearLines(), line item invariants, Drizzle ORM line item synchronization persistence)

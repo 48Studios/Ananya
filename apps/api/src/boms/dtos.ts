@@ -3,22 +3,11 @@ import {
   IsNotEmpty,
   IsOptional,
   IsNumber,
+  IsArray,
   Min,
+  ValidateNested,
 } from 'class-validator';
-
-export class CreateBomDto {
-  @IsString()
-  @IsNotEmpty()
-  componentId!: string;
-
-  @IsString()
-  @IsOptional()
-  revision?: string;
-
-  @IsString()
-  @IsOptional()
-  notes?: string;
-}
+import { Type } from 'class-transformer';
 
 export class AddBomLineDto {
   @IsString()
@@ -34,10 +23,49 @@ export class AddBomLineDto {
   unitOfMeasure?: string;
 
   @IsNumber()
+  @Min(0)
   @IsOptional()
   scrapFactorPercent?: number;
 
   @IsString()
   @IsOptional()
   notes?: string;
+}
+
+export class CreateBomDto {
+  @IsString()
+  @IsNotEmpty()
+  componentId!: string;
+
+  @IsString()
+  @IsOptional()
+  revision?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddBomLineDto)
+  lines?: AddBomLineDto[];
+}
+
+export class UpdateBomDto {
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddBomLineDto)
+  lines?: AddBomLineDto[];
+}
+
+export class DuplicateBomDto {
+  @IsString()
+  @IsOptional()
+  newRevision?: string;
 }

@@ -1,9 +1,25 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseFilters,
+} from '@nestjs/common';
 import { WarehouseTransfersService } from './warehouse-transfers.service';
-import { CreateWarehouseTransferDto, AddTransferLineDto } from './dtos';
-import { TransferStatus } from '@ananya/warehouse';
+import {
+  CreateWarehouseTransferDto,
+  UpdateWarehouseTransferDto,
+  AddTransferLineDto,
+} from './dtos';
+import { WarehouseTransferExceptionFilter } from './warehouse-transfer-exception.filter';
+import type { TransferStatus } from '@ananya/warehouse';
 
-@Controller('warehouse-transfers')
+@Controller(['warehouse-transfers', 'transfers'])
+@UseFilters(WarehouseTransferExceptionFilter)
 export class WarehouseTransfersController {
   constructor(private readonly transfersService: WarehouseTransfersService) {}
 
@@ -14,11 +30,17 @@ export class WarehouseTransfersController {
 
   @Get()
   findAll(
-    @Query('sourceBinId') sourceBinId?: string,
-    @Query('destinationBinId') destinationBinId?: string,
+    @Query('sourceLocationId') sourceLocationId?: string,
+    @Query('destinationLocationId') destinationLocationId?: string,
     @Query('status') status?: TransferStatus,
+    @Query('search') search?: string,
   ) {
-    return this.transfersService.findAll(sourceBinId, destinationBinId, status);
+    return this.transfersService.findAll(
+      sourceLocationId,
+      destinationLocationId,
+      status,
+      search,
+    );
   }
 
   @Get(':id')
@@ -26,14 +48,19 @@ export class WarehouseTransfersController {
     return this.transfersService.findOne(id);
   }
 
+  @Put(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateWarehouseTransferDto) {
+    return this.transfersService.update(id, dto);
+  }
+
   @Post(':id/lines')
   addLine(@Param('id') id: string, @Body() dto: AddTransferLineDto) {
     return this.transfersService.addLine(id, dto);
   }
 
-  @Post(':id/approve')
-  approve(@Param('id') id: string) {
-    return this.transfersService.approve(id);
+  @Post(':id/submit')
+  submit(@Param('id') id: string) {
+    return this.transfersService.submit(id);
   }
 
   @Post(':id/dispatch')
@@ -41,13 +68,18 @@ export class WarehouseTransfersController {
     return this.transfersService.dispatch(id);
   }
 
-  @Post(':id/complete')
-  completeTransfer(@Param('id') id: string) {
-    return this.transfersService.completeTransfer(id);
+  @Post(':id/receive')
+  receive(@Param('id') id: string) {
+    return this.transfersService.receive(id);
   }
 
   @Post(':id/cancel')
   cancel(@Param('id') id: string) {
     return this.transfersService.cancel(id);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.transfersService.delete(id);
   }
 }

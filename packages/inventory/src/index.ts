@@ -3,6 +3,7 @@ export * from "./components";
 export * from "./manufacturers";
 export * from "./categories";
 export * from "./ledger";
+export * from "./adjustments";
 export * from "./units";
 export * from "./projection";
 export * from "./reservations";

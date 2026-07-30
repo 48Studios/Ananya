@@ -9,10 +9,10 @@ export class InvalidTransferStatusTransitionError extends DomainError {
   }
 }
 
-export class IdenticalTransferBinsError extends DomainError {
+export class IdenticalTransferLocationsError extends DomainError {
   constructor() {
-    super("Source bin and destination bin cannot be identical for transfer.");
-    this.name = "IdenticalTransferBinsError";
+    super("Source location and destination location cannot be identical.");
+    this.name = "IdenticalTransferLocationsError";
   }
 }
 
@@ -25,7 +25,7 @@ export class InvalidTransferQuantityError extends DomainError {
 
 export class ImmutableTransferError extends DomainError {
   constructor() {
-    super("Completed or Cancelled Warehouse Transfer is immutable.");
+    super("Received or Cancelled Warehouse Transfer is immutable.");
     this.name = "ImmutableTransferError";
   }
 }

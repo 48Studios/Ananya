@@ -1,9 +1,30 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseFilters,
+} from '@nestjs/common';
 import { ProductionOrdersService } from './production-orders.service';
-import { CreateProductionOrderDto } from './dtos';
-import { ProductionOrderStatus } from '@ananya/manufacturing';
+import {
+  CreateProductionOrderDto,
+  UpdateProductionOrderDto,
+  RecordPartialOutputDto,
+  RecordScrapDto,
+  CompleteProductionOrderDto,
+} from './dtos';
+import { ProductionOrderExceptionFilter } from './production-order-exception.filter';
+import type {
+  ProductionOrderStatus,
+  ProductionOrderPriority,
+} from '@ananya/manufacturing';
 
-@Controller('production-orders')
+@Controller(['work-orders', 'production-orders'])
+@UseFilters(ProductionOrderExceptionFilter)
 export class ProductionOrdersController {
   constructor(
     private readonly productionOrdersService: ProductionOrdersService,
@@ -18,14 +39,39 @@ export class ProductionOrdersController {
   findAll(
     @Query('componentId') componentId?: string,
     @Query('bomId') bomId?: string,
+    @Query('locationId') locationId?: string,
     @Query('status') status?: ProductionOrderStatus,
+    @Query('priority') priority?: ProductionOrderPriority,
+    @Query('search') search?: string,
   ) {
-    return this.productionOrdersService.findAll(componentId, bomId, status);
+    return this.productionOrdersService.findAll(
+      componentId,
+      bomId,
+      locationId,
+      status,
+      priority,
+      search,
+    );
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.productionOrdersService.findOne(id);
+  }
+
+  @Get(':id/materials')
+  getMaterialRequirements(@Param('id') id: string) {
+    return this.productionOrdersService.getMaterialRequirements(id);
+  }
+
+  @Get(':id/timeline')
+  getActivityTimeline(@Param('id') id: string) {
+    return this.productionOrdersService.getActivityTimeline(id);
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateProductionOrderDto) {
+    return this.productionOrdersService.update(id, dto);
   }
 
   @Post(':id/release')
@@ -38,9 +84,32 @@ export class ProductionOrdersController {
     return this.productionOrdersService.start(id);
   }
 
+  @Post(':id/record-output')
+  recordPartialOutput(
+    @Param('id') id: string,
+    @Body() dto: RecordPartialOutputDto,
+  ) {
+    return this.productionOrdersService.recordPartialOutput(id, dto);
+  }
+
+  @Post(':id/record-scrap')
+  recordScrap(@Param('id') id: string, @Body() dto: RecordScrapDto) {
+    return this.productionOrdersService.recordScrap(id, dto);
+  }
+
+  @Post(':id/pause')
+  pause(@Param('id') id: string) {
+    return this.productionOrdersService.pause(id);
+  }
+
+  @Post(':id/resume')
+  resume(@Param('id') id: string) {
+    return this.productionOrdersService.resume(id);
+  }
+
   @Post(':id/complete')
-  complete(@Param('id') id: string) {
-    return this.productionOrdersService.complete(id);
+  complete(@Param('id') id: string, @Body() dto?: CompleteProductionOrderDto) {
+    return this.productionOrdersService.complete(id, dto);
   }
 
   @Post(':id/close')
@@ -51,5 +120,10 @@ export class ProductionOrdersController {
   @Post(':id/cancel')
   cancel(@Param('id') id: string) {
     return this.productionOrdersService.cancel(id);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.productionOrdersService.delete(id);
   }
 }

@@ -4,6 +4,8 @@ import {
   ImmutableBomError,
   InvalidBomLineQuantityError,
   InvalidBomStatusTransitionError,
+  DuplicateBomComponentLineError,
+  CircularBomDependencyError,
 } from "./bill-of-materials.errors";
 
 export type BomStatus = "DRAFT" | "RELEASED" | "OBSOLETE";
@@ -86,9 +88,23 @@ export class BillOfMaterials {
     });
   }
 
+  public updateHeader(notes?: string | null): void {
+    if (this.status !== "DRAFT") {
+      throw new ImmutableBomError();
+    }
+    this.notes = notes?.trim() ?? null;
+    this.updatedAt = new Date();
+  }
+
   public addLine(input: AddBomLineInput): void {
     if (this.status !== "DRAFT") {
       throw new ImmutableBomError();
+    }
+    if (input.componentId === this.componentId) {
+      throw new CircularBomDependencyError(this.componentId);
+    }
+    if (this.lines.some((l) => l.componentId === input.componentId)) {
+      throw new DuplicateBomComponentLineError(input.componentId);
     }
     if (input.quantityPerUnit <= 0) {
       throw new InvalidBomLineQuantityError(
@@ -119,6 +135,14 @@ export class BillOfMaterials {
     this.updatedAt = now;
   }
 
+  public clearLines(): void {
+    if (this.status !== "DRAFT") {
+      throw new ImmutableBomError();
+    }
+    this.lines.length = 0;
+    this.updatedAt = new Date();
+  }
+
   public removeLine(lineId: string): void {
     if (this.status !== "DRAFT") {
       throw new ImmutableBomError();
@@ -128,6 +152,37 @@ export class BillOfMaterials {
       this.lines.splice(idx, 1);
       this.updatedAt = new Date();
     }
+  }
+
+  public duplicate(newRevision?: string): BillOfMaterials {
+    const nextRev = newRevision?.trim() || this.getNextRevisionNumber();
+    const newBom = BillOfMaterials.create({
+      componentId: this.componentId,
+      revision: nextRev,
+      notes: `Duplicated from ${this.revision}. ${this.notes || ""}`.trim(),
+    });
+
+    for (const l of this.lines) {
+      newBom.addLine({
+        componentId: l.componentId,
+        quantityPerUnit: l.quantityPerUnit,
+        unitOfMeasure: l.unitOfMeasure,
+        scrapFactorPercent: l.scrapFactorPercent,
+        notes: l.notes,
+      });
+    }
+
+    return newBom;
+  }
+
+  private getNextRevisionNumber(): string {
+    const match = /^v?(\d+)\.(\d+)$/i.exec(this.revision);
+    if (match && match[1] && match[2]) {
+      const major = parseInt(match[1], 10);
+      const minor = parseInt(match[2], 10) + 1;
+      return `v${major}.${minor}`;
+    }
+    return `${this.revision}-rev`;
   }
 
   public release(): void {

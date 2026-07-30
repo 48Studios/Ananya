@@ -10,6 +10,8 @@ import {
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
 import { customers } from './customers';
 import { salesOrders } from './sales-orders';
+import { components } from './components';
+import { locations } from './locations';
 
 export const projects = pgTable(
   'projects',
@@ -19,13 +21,14 @@ export const projects = pgTable(
       .notNull()
       .unique(),
     name: varchar('name', { length: 255 }).notNull(),
-    customerId: uuid('customer_id')
+    projectType: varchar('project_type', { length: 50 })
       .notNull()
-      .references(() => customers.id),
-    salesOrderId: uuid('sales_order_id')
-      .notNull()
-      .references(() => salesOrders.id),
+      .default('INTERNAL'),
+    description: text('description'),
+    owner: varchar('owner', { length: 100 }).notNull().default('Project Lead'),
     projectManager: varchar('project_manager', { length: 100 }).notNull(),
+    customerId: uuid('customer_id').references(() => customers.id),
+    salesOrderId: uuid('sales_order_id').references(() => salesOrders.id),
     startDate: timestamp('start_date', { withTimezone: true }).notNull(),
     targetCompletionDate: timestamp('target_completion_date', {
       withTimezone: true,
@@ -43,7 +46,79 @@ export const projects = pgTable(
     index('projects_customer_id_idx').on(table.customerId),
     index('projects_sales_order_id_idx').on(table.salesOrderId),
     index('projects_status_idx').on(table.status),
+    index('projects_type_idx').on(table.projectType),
+    index('projects_owner_idx').on(table.owner),
     index('projects_manager_idx').on(table.projectManager),
+  ],
+);
+
+export const projectMaterials = pgTable(
+  'project_materials',
+  {
+    id: uuid('id').primaryKey(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    componentId: uuid('component_id')
+      .notNull()
+      .references(() => components.id),
+    locationId: uuid('location_id')
+      .notNull()
+      .references(() => locations.id),
+    allocatedQuantity: numeric('allocated_quantity', {
+      precision: 12,
+      scale: 4,
+    })
+      .notNull()
+      .default('0.0000'),
+    issuedQuantity: numeric('issued_quantity', {
+      precision: 12,
+      scale: 4,
+    })
+      .notNull()
+      .default('0.0000'),
+    returnedQuantity: numeric('returned_quantity', {
+      precision: 12,
+      scale: 4,
+    })
+      .notNull()
+      .default('0.0000'),
+    unitOfMeasure: varchar('unit_of_measure', { length: 50 })
+      .notNull()
+      .default('pcs'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('project_materials_project_id_idx').on(table.projectId),
+    index('project_materials_component_id_idx').on(table.componentId),
+    index('project_materials_location_id_idx').on(table.locationId),
+  ],
+);
+
+export const projectActivities = pgTable(
+  'project_activities',
+  {
+    id: uuid('id').primaryKey(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    activityType: varchar('activity_type', { length: 50 }).notNull(),
+    description: text('description').notNull(),
+    performedBy: varchar('performed_by', { length: 100 }).notNull(),
+    metadata: text('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('project_activities_project_id_idx').on(table.projectId),
+    index('project_activities_type_idx').on(table.activityType),
   ],
 );
 
@@ -160,6 +235,12 @@ export const timeEntries = pgTable(
 
 export type ProjectRecord = InferSelectModel<typeof projects>;
 export type NewProjectRecord = InferInsertModel<typeof projects>;
+
+export type ProjectMaterialRecord = InferSelectModel<typeof projectMaterials>;
+export type NewProjectMaterialRecord = InferInsertModel<typeof projectMaterials>;
+
+export type ProjectActivityRecord = InferSelectModel<typeof projectActivities>;
+export type NewProjectActivityRecord = InferInsertModel<typeof projectActivities>;
 
 export type ProjectMilestoneRecord = InferSelectModel<
   typeof projectMilestones

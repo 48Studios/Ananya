@@ -6,7 +6,14 @@ import {
   ProjectPriority,
   MilestoneProps,
 } from '@ananya/projects';
-import { CreateProjectDto, AddMilestoneDto } from './dtos';
+import {
+  CreateProjectDto,
+  UpdateProjectDto,
+  AddMilestoneDto,
+  AllocateMaterialDto,
+  IssueMaterialDto,
+  ReturnMaterialDto,
+} from './dtos';
 import { CustomersService } from '../customers/customers.service';
 import { SalesOrdersService } from '../sales-orders/sales-orders.service';
 
@@ -22,19 +29,54 @@ export class ProjectsService {
   ) {}
 
   async create(dto: CreateProjectDto): Promise<Project> {
-    await this.customersService.findOne(dto.customerId);
-    await this.salesOrdersService.findOne(dto.salesOrderId);
+    if (dto.customerId) {
+      await this.customersService.findOne(dto.customerId);
+    }
+    if (dto.salesOrderId) {
+      await this.salesOrdersService.findOne(dto.salesOrderId);
+    }
 
     const projectNumber =
       await this.projectRepository.generateNextProjectNumber();
     const project = Project.create({
       projectNumber,
       name: dto.name,
+      projectType: dto.projectType,
+      description: dto.description,
+      owner: dto.owner,
+      projectManager: dto.projectManager,
       customerId: dto.customerId,
       salesOrderId: dto.salesOrderId,
-      projectManager: dto.projectManager,
       startDate: new Date(dto.startDate),
       targetCompletionDate: new Date(dto.targetCompletionDate),
+      priority: dto.priority,
+    });
+    await this.projectRepository.save(project);
+    return project;
+  }
+
+  async update(id: string, dto: UpdateProjectDto): Promise<Project> {
+    const project = await this.findOne(id);
+
+    if (dto.customerId) {
+      await this.customersService.findOne(dto.customerId);
+    }
+    if (dto.salesOrderId) {
+      await this.salesOrdersService.findOne(dto.salesOrderId);
+    }
+
+    project.update({
+      name: dto.name,
+      projectType: dto.projectType,
+      description: dto.description,
+      owner: dto.owner,
+      projectManager: dto.projectManager,
+      customerId: dto.customerId,
+      salesOrderId: dto.salesOrderId,
+      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+      targetCompletionDate: dto.targetCompletionDate
+        ? new Date(dto.targetCompletionDate)
+        : undefined,
       priority: dto.priority,
     });
     await this.projectRepository.save(project);
@@ -88,6 +130,13 @@ export class ProjectsService {
     return project;
   }
 
+  async archive(id: string): Promise<Project> {
+    const project = await this.findOne(id);
+    project.archive();
+    await this.projectRepository.save(project);
+    return project;
+  }
+
   async cancel(id: string): Promise<Project> {
     const project = await this.findOne(id);
     project.cancel();
@@ -112,6 +161,47 @@ export class ProjectsService {
   async completeMilestone(id: string, milestoneId: string): Promise<Project> {
     const project = await this.findOne(id);
     project.completeMilestone(milestoneId);
+    await this.projectRepository.save(project);
+    return project;
+  }
+
+  async allocateMaterial(
+    id: string,
+    dto: AllocateMaterialDto,
+  ): Promise<Project> {
+    const project = await this.findOne(id);
+    project.allocateMaterial(
+      dto.componentId,
+      dto.locationId,
+      dto.quantity,
+      dto.unitOfMeasure,
+      dto.notes,
+      dto.performedBy,
+    );
+    await this.projectRepository.save(project);
+    return project;
+  }
+
+  async issueMaterial(id: string, dto: IssueMaterialDto): Promise<Project> {
+    const project = await this.findOne(id);
+    project.issueMaterial(
+      dto.componentId,
+      dto.locationId,
+      dto.quantity,
+      dto.performedBy,
+    );
+    await this.projectRepository.save(project);
+    return project;
+  }
+
+  async returnMaterial(id: string, dto: ReturnMaterialDto): Promise<Project> {
+    const project = await this.findOne(id);
+    project.returnMaterial(
+      dto.componentId,
+      dto.locationId,
+      dto.quantity,
+      dto.performedBy,
+    );
     await this.projectRepository.save(project);
     return project;
   }

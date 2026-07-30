@@ -5,10 +5,10 @@ import {
   CYCLE_COUNT_REPOSITORY,
 } from './cycle-counts.service';
 import { DrizzleCycleCountRepository } from '../infrastructure/repositories/drizzle-cycle-count.repository';
-import { StockCountsModule } from '../stock-counts/stock-counts.module';
+import { StockAdjustmentsModule } from '../stock-adjustments/stock-adjustments.module';
 
 @Module({
-  imports: [StockCountsModule],
+  imports: [StockAdjustmentsModule],
   controllers: [CycleCountsController],
   providers: [
     CycleCountsService,

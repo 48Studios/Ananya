@@ -1,34 +1,70 @@
 import { db } from '@ananya/database';
-import { projects, projectMilestones } from '@ananya/database/schema';
-import { eq, desc, count, ilike } from '@ananya/database/query';
+import {
+  projects,
+  projectMilestones,
+  projectMaterials,
+  projectActivities,
+} from '@ananya/database/schema';
+import { eq, desc, count, ilike, or, and } from '@ananya/database/query';
 import type {
   ProjectRecord,
   ProjectMilestoneRecord,
+  ProjectMaterialRecord,
+  ProjectActivityRecord,
 } from '@ananya/database/schema';
 import {
   Project,
   type ProjectRepository,
   type ProjectStatus,
+  type ProjectType,
   type ProjectPriority,
   type MilestoneStatus,
+  type ProjectActivityType,
   type FindManyProjectsOptions,
 } from '@ananya/projects';
 
 function toDomain(
   row: ProjectRecord,
   milestones: ProjectMilestoneRecord[] = [],
+  materials: ProjectMaterialRecord[] = [],
+  activities: ProjectActivityRecord[] = [],
 ): Project {
   return Project.rehydrate({
     id: row.id,
     projectNumber: row.projectNumber,
     name: row.name,
+    projectType: (row.projectType as ProjectType) || 'INTERNAL',
+    description: row.description,
+    owner: row.owner || row.projectManager || 'Project Lead',
+    projectManager: row.projectManager,
     customerId: row.customerId,
     salesOrderId: row.salesOrderId,
-    projectManager: row.projectManager,
     startDate: row.startDate,
     targetCompletionDate: row.targetCompletionDate,
     priority: row.priority as ProjectPriority,
     status: row.status as ProjectStatus,
+    materials: materials.map((m) => ({
+      id: m.id,
+      projectId: m.projectId,
+      componentId: m.componentId,
+      locationId: m.locationId,
+      allocatedQuantity: parseFloat(m.allocatedQuantity),
+      issuedQuantity: parseFloat(m.issuedQuantity),
+      returnedQuantity: parseFloat(m.returnedQuantity),
+      unitOfMeasure: m.unitOfMeasure,
+      notes: m.notes,
+      createdAt: m.createdAt,
+      updatedAt: m.updatedAt,
+    })),
+    activities: activities.map((a) => ({
+      id: a.id,
+      projectId: a.projectId,
+      activityType: a.activityType as ProjectActivityType,
+      description: a.description,
+      performedBy: a.performedBy,
+      metadata: a.metadata,
+      createdAt: a.createdAt,
+    })),
     milestones: milestones.map((m) => ({
       id: m.id,
       projectId: m.projectId,
@@ -52,11 +88,24 @@ export class DrizzleProjectRepository implements ProjectRepository {
       .where(eq(projects.id, id))
       .limit(1);
     if (!row) return null;
-    const ms = await db
-      .select()
-      .from(projectMilestones)
-      .where(eq(projectMilestones.projectId, id));
-    return toDomain(row, ms);
+
+    const [ms, mats, acts] = await Promise.all([
+      db
+        .select()
+        .from(projectMilestones)
+        .where(eq(projectMilestones.projectId, id)),
+      db
+        .select()
+        .from(projectMaterials)
+        .where(eq(projectMaterials.projectId, id)),
+      db
+        .select()
+        .from(projectActivities)
+        .where(eq(projectActivities.projectId, id))
+        .orderBy(desc(projectActivities.createdAt)),
+    ]);
+
+    return toDomain(row, ms, mats, acts);
   }
 
   async findByNumber(projectNumber: string): Promise<Project | null> {
@@ -66,41 +115,88 @@ export class DrizzleProjectRepository implements ProjectRepository {
       .where(eq(projects.projectNumber, projectNumber.toUpperCase()))
       .limit(1);
     if (!row) return null;
-    const ms = await db
-      .select()
-      .from(projectMilestones)
-      .where(eq(projectMilestones.projectId, row.id));
-    return toDomain(row, ms);
+
+    const [ms, mats, acts] = await Promise.all([
+      db
+        .select()
+        .from(projectMilestones)
+        .where(eq(projectMilestones.projectId, row.id)),
+      db
+        .select()
+        .from(projectMaterials)
+        .where(eq(projectMaterials.projectId, row.id)),
+      db
+        .select()
+        .from(projectActivities)
+        .where(eq(projectActivities.projectId, row.id))
+        .orderBy(desc(projectActivities.createdAt)),
+    ]);
+
+    return toDomain(row, ms, mats, acts);
   }
 
   async findMany(options?: FindManyProjectsOptions): Promise<Project[]> {
-    const query = db.select().from(projects);
+    const conditions = [];
+
     if (options?.status) {
-      query.where(eq(projects.status, options.status));
+      conditions.push(eq(projects.status, options.status));
+    }
+    if (options?.projectType) {
+      conditions.push(eq(projects.projectType, options.projectType));
     }
     if (options?.priority) {
-      query.where(eq(projects.priority, options.priority));
+      conditions.push(eq(projects.priority, options.priority));
+    }
+    if (options?.owner) {
+      conditions.push(eq(projects.owner, options.owner));
     }
     if (options?.customerId) {
-      query.where(eq(projects.customerId, options.customerId));
+      conditions.push(eq(projects.customerId, options.customerId));
     }
     if (options?.salesOrderId) {
-      query.where(eq(projects.salesOrderId, options.salesOrderId));
+      conditions.push(eq(projects.salesOrderId, options.salesOrderId));
     }
     if (options?.projectManager) {
-      query.where(eq(projects.projectManager, options.projectManager));
+      conditions.push(eq(projects.projectManager, options.projectManager));
     }
     if (options?.search) {
-      query.where(ilike(projects.name, `%${options.search}%`));
+      const pattern = `%${options.search}%`;
+      conditions.push(
+        or(
+          ilike(projects.name, pattern),
+          ilike(projects.projectNumber, pattern),
+          ilike(projects.owner, pattern),
+          ilike(projects.projectManager, pattern),
+          ilike(projects.description, pattern),
+        ),
+      );
     }
+
+    const query = db.select().from(projects);
+    if (conditions.length > 0) {
+      query.where(and(...conditions));
+    }
+
     const rows = await query.orderBy(desc(projects.createdAt));
+
     return Promise.all(
       rows.map(async (row) => {
-        const ms = await db
-          .select()
-          .from(projectMilestones)
-          .where(eq(projectMilestones.projectId, row.id));
-        return toDomain(row, ms);
+        const [ms, mats, acts] = await Promise.all([
+          db
+            .select()
+            .from(projectMilestones)
+            .where(eq(projectMilestones.projectId, row.id)),
+          db
+            .select()
+            .from(projectMaterials)
+            .where(eq(projectMaterials.projectId, row.id)),
+          db
+            .select()
+            .from(projectActivities)
+            .where(eq(projectActivities.projectId, row.id))
+            .orderBy(desc(projectActivities.createdAt)),
+        ]);
+        return toDomain(row, ms, mats, acts);
       }),
     );
   }
@@ -112,9 +208,12 @@ export class DrizzleProjectRepository implements ProjectRepository {
         id: project.id,
         projectNumber: project.projectNumber,
         name: project.name,
-        customerId: project.customerId,
-        salesOrderId: project.salesOrderId,
+        projectType: project.projectType,
+        description: project.description,
+        owner: project.owner,
         projectManager: project.projectManager,
+        customerId: project.customerId || null,
+        salesOrderId: project.salesOrderId || null,
         startDate: project.startDate,
         targetCompletionDate: project.targetCompletionDate,
         priority: project.priority,
@@ -124,7 +223,12 @@ export class DrizzleProjectRepository implements ProjectRepository {
         target: projects.id,
         set: {
           name: project.name,
+          projectType: project.projectType,
+          description: project.description,
+          owner: project.owner,
           projectManager: project.projectManager,
+          customerId: project.customerId || null,
+          salesOrderId: project.salesOrderId || null,
           startDate: project.startDate,
           targetCompletionDate: project.targetCompletionDate,
           priority: project.priority,
@@ -133,6 +237,7 @@ export class DrizzleProjectRepository implements ProjectRepository {
         },
       });
 
+    // Save Milestones
     for (const m of project.milestones) {
       await db
         .insert(projectMilestones)
@@ -155,6 +260,53 @@ export class DrizzleProjectRepository implements ProjectRepository {
           },
         });
     }
+
+    // Save Materials
+    for (const mat of project.materials) {
+      await db
+        .insert(projectMaterials)
+        .values({
+          id: mat.id,
+          projectId: project.id,
+          componentId: mat.componentId,
+          locationId: mat.locationId,
+          allocatedQuantity: mat.allocatedQuantity.toString(),
+          issuedQuantity: mat.issuedQuantity.toString(),
+          returnedQuantity: mat.returnedQuantity.toString(),
+          unitOfMeasure: mat.unitOfMeasure,
+          notes: mat.notes,
+        })
+        .onConflictDoUpdate({
+          target: projectMaterials.id,
+          set: {
+            allocatedQuantity: mat.allocatedQuantity.toString(),
+            issuedQuantity: mat.issuedQuantity.toString(),
+            returnedQuantity: mat.returnedQuantity.toString(),
+            unitOfMeasure: mat.unitOfMeasure,
+            notes: mat.notes,
+            updatedAt: new Date(),
+          },
+        });
+    }
+
+    // Save Activities
+    for (const act of project.activities) {
+      await db
+        .insert(projectActivities)
+        .values({
+          id: act.id,
+          projectId: project.id,
+          activityType: act.activityType,
+          description: act.description,
+          performedBy: act.performedBy,
+          metadata: act.metadata,
+        })
+        .onConflictDoNothing();
+    }
+  }
+
+  async delete(id: string): Promise<void> {
+    await db.delete(projects).where(eq(projects.id, id));
   }
 
   async generateNextProjectNumber(): Promise<string> {

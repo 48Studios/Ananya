@@ -1,6 +1,6 @@
 import { db } from '@ananya/database';
 import { billOfMaterials, billOfMaterialLines } from '@ananya/database/schema';
-import { eq, desc } from '@ananya/database/query';
+import { eq, desc, and } from '@ananya/database/query';
 import type {
   BillOfMaterialsRecord,
   BillOfMaterialLineRecord,
@@ -46,11 +46,14 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
       .from(billOfMaterials)
       .where(eq(billOfMaterials.id, id))
       .limit(1);
+
     if (!row) return null;
+
     const lines = await db
       .select()
       .from(billOfMaterialLines)
       .where(eq(billOfMaterialLines.bomId, id));
+
     return toDomain(row, lines);
   }
 
@@ -60,25 +63,56 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
     const [row] = await db
       .select()
       .from(billOfMaterials)
-      .where(eq(billOfMaterials.componentId, componentId))
+      .where(
+        and(
+          eq(billOfMaterials.componentId, componentId),
+          eq(billOfMaterials.status, 'RELEASED'),
+        ),
+      )
       .limit(1);
+
     if (!row) return null;
+
     const lines = await db
       .select()
       .from(billOfMaterialLines)
       .where(eq(billOfMaterialLines.bomId, row.id));
+
     return toDomain(row, lines);
+  }
+
+  async findRevisionsByComponentId(
+    componentId: string,
+  ): Promise<BillOfMaterials[]> {
+    const rows = await db
+      .select()
+      .from(billOfMaterials)
+      .where(eq(billOfMaterials.componentId, componentId))
+      .orderBy(desc(billOfMaterials.createdAt));
+
+    return Promise.all(
+      rows.map(async (row) => {
+        const lines = await db
+          .select()
+          .from(billOfMaterialLines)
+          .where(eq(billOfMaterialLines.bomId, row.id));
+        return toDomain(row, lines);
+      }),
+    );
   }
 
   async findMany(options?: FindManyBomsOptions): Promise<BillOfMaterials[]> {
     const query = db.select().from(billOfMaterials);
+
     if (options?.componentId) {
       query.where(eq(billOfMaterials.componentId, options.componentId));
     }
     if (options?.status) {
       query.where(eq(billOfMaterials.status, options.status));
     }
+
     const rows = await query.orderBy(desc(billOfMaterials.createdAt));
+
     return Promise.all(
       rows.map(async (row) => {
         const lines = await db
@@ -111,28 +145,25 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
         },
       });
 
+    // Synchronize lines: delete existing and re-insert
+    await db
+      .delete(billOfMaterialLines)
+      .where(eq(billOfMaterialLines.bomId, bom.id));
+
     for (const line of bom.lines) {
-      await db
-        .insert(billOfMaterialLines)
-        .values({
-          id: line.id,
-          bomId: bom.id,
-          componentId: line.componentId,
-          quantityPerUnit: line.quantityPerUnit.toString(),
-          unitOfMeasure: line.unitOfMeasure,
-          scrapFactorPercent: line.scrapFactorPercent.toString(),
-          notes: line.notes ?? null,
-        })
-        .onConflictDoUpdate({
-          target: billOfMaterialLines.id,
-          set: {
-            quantityPerUnit: line.quantityPerUnit.toString(),
-            unitOfMeasure: line.unitOfMeasure,
-            scrapFactorPercent: line.scrapFactorPercent.toString(),
-            notes: line.notes ?? null,
-            updatedAt: new Date(),
-          },
-        });
+      await db.insert(billOfMaterialLines).values({
+        id: line.id,
+        bomId: bom.id,
+        componentId: line.componentId,
+        quantityPerUnit: line.quantityPerUnit.toString(),
+        unitOfMeasure: line.unitOfMeasure,
+        scrapFactorPercent: line.scrapFactorPercent.toString(),
+        notes: line.notes ?? null,
+      });
     }
+  }
+
+  async delete(id: string): Promise<void> {
+    await db.delete(billOfMaterials).where(eq(billOfMaterials.id, id));
   }
 }

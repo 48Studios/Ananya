@@ -21,6 +21,7 @@ export * from "./finished-goods-receipts";
 export * from "./manufacturing-traceability";
 export * from "./warehouses";
 export * from "./stock-counts";
+export * from "./stock-adjustments";
 export * from "./cycle-counts";
 export * from "./warehouse-transfers";
 export * from "./warehouse-policies";

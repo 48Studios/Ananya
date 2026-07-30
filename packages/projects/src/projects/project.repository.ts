@@ -1,8 +1,10 @@
-import { Project, ProjectStatus, ProjectPriority } from './project';
+import { Project, ProjectStatus, ProjectType, ProjectPriority } from './project';
 
 export interface FindManyProjectsOptions {
   status?: ProjectStatus;
+  projectType?: ProjectType;
   priority?: ProjectPriority;
+  owner?: string;
   customerId?: string;
   salesOrderId?: string;
   projectManager?: string;
@@ -14,5 +16,6 @@ export interface ProjectRepository {
   findByNumber(projectNumber: string): Promise<Project | null>;
   findMany(options?: FindManyProjectsOptions): Promise<Project[]>;
   save(project: Project): Promise<void>;
+  delete(id: string): Promise<void>;
   generateNextProjectNumber(): Promise<string>;
 }

@@ -3,7 +3,7 @@ import {
   warehouseTransfers,
   warehouseTransferLines,
 } from '@ananya/database/schema';
-import { eq, desc, count } from '@ananya/database/query';
+import { eq, desc, count, ilike, or } from '@ananya/database/query';
 import type {
   WarehouseTransferRecord,
   WarehouseTransferLineRecord,
@@ -22,17 +22,21 @@ function toDomain(
   return WarehouseTransfer.rehydrate({
     id: row.id,
     transferNumber: row.transferNumber,
-    sourceBinId: row.sourceBinId,
-    destinationBinId: row.destinationBinId,
+    sourceLocationId: row.sourceLocationId,
+    destinationLocationId: row.destinationLocationId,
     status: row.status as TransferStatus,
-    completedAt: row.completedAt,
+    requestedDate: row.requestedDate,
+    dispatchedAt: row.dispatchedAt,
+    receivedAt: row.receivedAt,
+    requestedBy: row.requestedBy,
+    notes: row.notes,
     lines: lines.map((l) => ({
       id: l.id,
       transferId: l.transferId,
       componentId: l.componentId,
       quantity: parseFloat(l.quantity),
-      batchNumber: l.batchNumber,
-      serialNumbers: l.serialNumbers,
+      unitOfMeasure: l.unitOfMeasure,
+      notes: l.notes,
       createdAt: l.createdAt,
       updatedAt: l.updatedAt,
     })),
@@ -48,11 +52,35 @@ export class DrizzleWarehouseTransferRepository implements WarehouseTransferRepo
       .from(warehouseTransfers)
       .where(eq(warehouseTransfers.id, id))
       .limit(1);
+
     if (!row) return null;
+
     const lines = await db
       .select()
       .from(warehouseTransferLines)
       .where(eq(warehouseTransferLines.transferId, id));
+
+    return toDomain(row, lines);
+  }
+
+  async findByTransferNumber(
+    transferNumber: string,
+  ): Promise<WarehouseTransfer | null> {
+    const [row] = await db
+      .select()
+      .from(warehouseTransfers)
+      .where(
+        eq(warehouseTransfers.transferNumber, transferNumber.toUpperCase()),
+      )
+      .limit(1);
+
+    if (!row) return null;
+
+    const lines = await db
+      .select()
+      .from(warehouseTransferLines)
+      .where(eq(warehouseTransferLines.transferId, row.id));
+
     return toDomain(row, lines);
   }
 
@@ -60,18 +88,35 @@ export class DrizzleWarehouseTransferRepository implements WarehouseTransferRepo
     options?: FindManyTransfersOptions,
   ): Promise<WarehouseTransfer[]> {
     const query = db.select().from(warehouseTransfers);
-    if (options?.sourceBinId) {
-      query.where(eq(warehouseTransfers.sourceBinId, options.sourceBinId));
-    }
-    if (options?.destinationBinId) {
+
+    if (options?.sourceLocationId) {
       query.where(
-        eq(warehouseTransfers.destinationBinId, options.destinationBinId),
+        eq(warehouseTransfers.sourceLocationId, options.sourceLocationId),
+      );
+    }
+    if (options?.destinationLocationId) {
+      query.where(
+        eq(
+          warehouseTransfers.destinationLocationId,
+          options.destinationLocationId,
+        ),
       );
     }
     if (options?.status) {
       query.where(eq(warehouseTransfers.status, options.status));
     }
+    if (options?.search) {
+      const pattern = `%${options.search}%`;
+      query.where(
+        or(
+          ilike(warehouseTransfers.transferNumber, pattern),
+          ilike(warehouseTransfers.notes, pattern),
+        ),
+      );
+    }
+
     const rows = await query.orderBy(desc(warehouseTransfers.createdAt));
+
     return Promise.all(
       rows.map(async (row) => {
         const lines = await db
@@ -89,41 +134,49 @@ export class DrizzleWarehouseTransferRepository implements WarehouseTransferRepo
       .values({
         id: transfer.id,
         transferNumber: transfer.transferNumber,
-        sourceBinId: transfer.sourceBinId,
-        destinationBinId: transfer.destinationBinId,
+        sourceLocationId: transfer.sourceLocationId,
+        destinationLocationId: transfer.destinationLocationId,
         status: transfer.status,
-        completedAt: transfer.completedAt ?? null,
+        requestedDate: transfer.requestedDate ?? null,
+        dispatchedAt: transfer.dispatchedAt ?? null,
+        receivedAt: transfer.receivedAt ?? null,
+        requestedBy: transfer.requestedBy ?? null,
+        notes: transfer.notes ?? null,
       })
       .onConflictDoUpdate({
         target: warehouseTransfers.id,
         set: {
+          sourceLocationId: transfer.sourceLocationId,
+          destinationLocationId: transfer.destinationLocationId,
           status: transfer.status,
-          completedAt: transfer.completedAt ?? null,
+          requestedDate: transfer.requestedDate ?? null,
+          dispatchedAt: transfer.dispatchedAt ?? null,
+          receivedAt: transfer.receivedAt ?? null,
+          requestedBy: transfer.requestedBy ?? null,
+          notes: transfer.notes ?? null,
           updatedAt: new Date(),
         },
       });
 
+    // Replace lines
+    await db
+      .delete(warehouseTransferLines)
+      .where(eq(warehouseTransferLines.transferId, transfer.id));
+
     for (const line of transfer.lines) {
-      await db
-        .insert(warehouseTransferLines)
-        .values({
-          id: line.id,
-          transferId: transfer.id,
-          componentId: line.componentId,
-          quantity: line.quantity.toString(),
-          batchNumber: line.batchNumber ?? null,
-          serialNumbers: line.serialNumbers ?? null,
-        })
-        .onConflictDoUpdate({
-          target: warehouseTransferLines.id,
-          set: {
-            quantity: line.quantity.toString(),
-            batchNumber: line.batchNumber ?? null,
-            serialNumbers: line.serialNumbers ?? null,
-            updatedAt: new Date(),
-          },
-        });
+      await db.insert(warehouseTransferLines).values({
+        id: line.id,
+        transferId: transfer.id,
+        componentId: line.componentId,
+        quantity: line.quantity.toString(),
+        unitOfMeasure: line.unitOfMeasure || 'pcs',
+        notes: line.notes ?? null,
+      });
     }
+  }
+
+  async delete(id: string): Promise<void> {
+    await db.delete(warehouseTransfers).where(eq(warehouseTransfers.id, id));
   }
 
   async generateNextTransferNumber(): Promise<string> {
