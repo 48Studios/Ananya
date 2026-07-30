@@ -18,7 +18,7 @@ async function fetchApi<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-  
+
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),

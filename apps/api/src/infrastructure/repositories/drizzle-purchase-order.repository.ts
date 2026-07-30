@@ -140,33 +140,28 @@ export class DrizzlePurchaseOrderRepository implements PurchaseOrderRepository {
         },
       });
 
-    // Save line items
+    // Synchronize lines: delete existing and insert new
+    await db
+      .delete(purchaseOrderLines)
+      .where(eq(purchaseOrderLines.purchaseOrderId, po.id));
+
     for (const line of po.lines) {
-      await db
-        .insert(purchaseOrderLines)
-        .values({
-          id: line.id,
-          purchaseOrderId: po.id,
-          componentId: line.componentId,
-          vendorPartNumber: line.vendorPartNumber ?? null,
-          unitPrice: line.unitPrice.toString(),
-          quantityOrdered: line.quantityOrdered,
-          quantityReceived: line.quantityReceived,
-          taxRate: line.taxRate.toString(),
-          lineTotal: line.lineTotal.toString(),
-        })
-        .onConflictDoUpdate({
-          target: purchaseOrderLines.id,
-          set: {
-            unitPrice: line.unitPrice.toString(),
-            quantityOrdered: line.quantityOrdered,
-            quantityReceived: line.quantityReceived,
-            taxRate: line.taxRate.toString(),
-            lineTotal: line.lineTotal.toString(),
-            updatedAt: new Date(),
-          },
-        });
+      await db.insert(purchaseOrderLines).values({
+        id: line.id,
+        purchaseOrderId: po.id,
+        componentId: line.componentId,
+        vendorPartNumber: line.vendorPartNumber ?? null,
+        unitPrice: line.unitPrice.toString(),
+        quantityOrdered: line.quantityOrdered,
+        quantityReceived: line.quantityReceived,
+        taxRate: line.taxRate.toString(),
+        lineTotal: line.lineTotal.toString(),
+      });
     }
+  }
+
+  async delete(id: string): Promise<void> {
+    await db.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
   }
 
   async generateNextPoNumber(): Promise<string> {

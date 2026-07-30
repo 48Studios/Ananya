@@ -20,3 +20,17 @@ export class EmptyPurchaseOrderError extends DomainError {
     this.name = "EmptyPurchaseOrderError";
   }
 }
+
+export class PurchaseOrderNotFoundError extends DomainError {
+  constructor(id: string) {
+    super(`Purchase Order not found: ${id}`);
+    this.name = "PurchaseOrderNotFoundError";
+  }
+}
+
+export class PurchaseOrderCannotBeDeletedError extends DomainError {
+  constructor(status: string) {
+    super(`Cannot delete Purchase Order with status "${status}". Only DRAFT or CANCELLED purchase orders can be deleted.`);
+    this.name = "PurchaseOrderCannotBeDeletedError";
+  }
+}

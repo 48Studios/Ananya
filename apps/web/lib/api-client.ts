@@ -1,0 +1,61 @@
+export class ApiError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    message: string,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+
+async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  };
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    let errorData: { message?: string | string[]; error?: string } = {};
+    try {
+      errorData = (await response.json()) as { message?: string | string[]; error?: string };
+    } catch {
+      // JSON parse failed
+    }
+
+    const message = Array.isArray(errorData.message)
+      ? errorData.message.join(', ')
+      : errorData.message || response.statusText || 'An unexpected API error occurred';
+
+    throw new ApiError(response.status, message, errorData);
+  }
+
+  if (response.status === 204) {
+    return undefined as unknown as T;
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export const apiClient = {
+  get: <T>(endpoint: string, options?: RequestInit): Promise<T> =>
+    request<T>(endpoint, { ...options, method: 'GET' }),
+
+  post: <T, B = unknown>(endpoint: string, body: B, options?: RequestInit): Promise<T> =>
+    request<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) }),
+
+  put: <T, B = unknown>(endpoint: string, body: B, options?: RequestInit): Promise<T> =>
+    request<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+
+  delete: <T>(endpoint: string, options?: RequestInit): Promise<T> =>
+    request<T>(endpoint, { ...options, method: 'DELETE' }),
+};

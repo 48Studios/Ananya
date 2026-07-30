@@ -7,4 +7,7 @@ export interface ManufacturerRepository {
   findByCode(code: string): Promise<Manufacturer | null>;
   findMany(options?: FindManyManufacturersOptions): Promise<Manufacturer[]>;
   save(manufacturer: Manufacturer): Promise<Manufacturer>;
+  update(manufacturer: Manufacturer): Promise<Manufacturer>;
+  delete(id: string): Promise<void>;
+  hasComponents(id: string): Promise<boolean>;
 }

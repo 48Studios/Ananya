@@ -75,4 +75,32 @@ export class DrizzleComponentRepository implements ComponentRepository {
 
     return toDomain(row);
   }
+
+  async update(component: Component): Promise<Component> {
+    const [row] = await db
+      .update(components)
+      .set({
+        sku: component.sku,
+        name: component.name,
+        description: component.description ?? null,
+        manufacturerId: component.manufacturerId ?? null,
+        categoryId: component.categoryId ?? null,
+        defaultLocationId: component.defaultLocationId ?? null,
+        unit: component.unit,
+        isActive: component.isActive,
+        updatedAt: component.updatedAt,
+      })
+      .where(eq(components.id, component.id))
+      .returning();
+
+    if (!row) {
+      throw new Error(`Failed to update component: ${component.id}`);
+    }
+
+    return toDomain(row);
+  }
+
+  async delete(id: string): Promise<void> {
+    await db.delete(components).where(eq(components.id, id));
+  }
 }

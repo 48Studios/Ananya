@@ -3,6 +3,7 @@ import {
   suppliers,
   supplierContacts,
   supplierComponents,
+  purchaseOrders,
 } from '@ananya/database/schema';
 import { eq, ilike, or } from '@ananya/database/query';
 import type {
@@ -156,6 +157,53 @@ export class DrizzleSupplierRepository implements SupplierRepository {
           updatedAt: new Date(),
         },
       });
+  }
+
+  async update(supplier: Supplier): Promise<Supplier> {
+    const [row] = await db
+      .update(suppliers)
+      .set({
+        code: supplier.code,
+        name: supplier.name,
+        taxId: supplier.taxId ?? null,
+        paymentTerms: supplier.paymentTerms,
+        currency: supplier.currency,
+        rating: supplier.rating.toString(),
+        isActive: supplier.isActive,
+        updatedAt: supplier.updatedAt,
+      })
+      .where(eq(suppliers.id, supplier.id))
+      .returning();
+
+    if (!row) {
+      throw new Error(`Failed to update supplier: ${supplier.id}`);
+    }
+
+    const contacts = await db
+      .select()
+      .from(supplierContacts)
+      .where(eq(supplierContacts.supplierId, supplier.id));
+
+    const componentsList = await db
+      .select()
+      .from(supplierComponents)
+      .where(eq(supplierComponents.supplierId, supplier.id));
+
+    return toDomain(row, contacts, componentsList);
+  }
+
+  async delete(id: string): Promise<void> {
+    await db.delete(suppliers).where(eq(suppliers.id, id));
+  }
+
+  async hasPurchaseOrders(id: string): Promise<boolean> {
+    const [row] = await db
+      .select({ id: purchaseOrders.id })
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.supplierId, id))
+      .limit(1);
+
+    return Boolean(row);
   }
 
   async addContact(contact: {

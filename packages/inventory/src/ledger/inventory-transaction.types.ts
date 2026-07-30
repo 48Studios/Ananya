@@ -28,4 +28,11 @@ export interface InventoryTransactionProps {
   createdAt: Date;
 }
 
-export interface FindManyInventoryTransactionsOptions {}
+export interface FindManyInventoryTransactionsOptions {
+  componentId?: string;
+  locationId?: string;
+  transactionType?: TransactionType;
+  reference?: string;
+  createdBy?: string;
+  search?: string;
+}

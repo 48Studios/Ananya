@@ -5,25 +5,9 @@ import {
   IsNumber,
   IsArray,
   IsDateString,
+  ValidateNested,
 } from 'class-validator';
-
-export class CreateGoodsReceiptDto {
-  @IsString()
-  @IsNotEmpty()
-  purchaseOrderId!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  supplierId!: string;
-
-  @IsString()
-  @IsOptional()
-  packingSlipNumber?: string;
-
-  @IsDateString()
-  @IsOptional()
-  receivedAt?: string;
-}
+import { Type } from 'class-transformer';
 
 export class AddGoodsReceiptLineDto {
   @IsString()
@@ -58,4 +42,28 @@ export class AddGoodsReceiptLineDto {
   @IsString({ each: true })
   @IsOptional()
   serialNumbers?: string[];
+}
+
+export class CreateGoodsReceiptDto {
+  @IsString()
+  @IsNotEmpty()
+  purchaseOrderId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  supplierId!: string;
+
+  @IsString()
+  @IsOptional()
+  packingSlipNumber?: string;
+
+  @IsDateString()
+  @IsOptional()
+  receivedAt?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddGoodsReceiptLineDto)
+  lines?: AddGoodsReceiptLineDto[];
 }

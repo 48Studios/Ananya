@@ -18,6 +18,12 @@ export interface CreateManufacturerInput {
   name: string;
 }
 
+export interface UpdateManufacturerInput {
+  code?: string;
+  name?: string;
+  isActive?: boolean;
+}
+
 export class Manufacturer {
   public readonly id: string;
   public readonly code: string;
@@ -40,23 +46,17 @@ export class Manufacturer {
    * Owns identity generation, timestamps, defaults, normalization, and invariants.
    */
   public static create(input: CreateManufacturerInput): Manufacturer {
-    // Normalize code: trim and lowercase
     const code = input.code.trim().toLowerCase();
-
-    // Normalize name: trim
     const name = input.name.trim();
 
-    // Validate code
     if (!code) {
       throw new InvalidManufacturerCodeError("Manufacturer code is required");
     }
 
-    // Validate name
     if (!name) {
       throw new InvalidManufacturerNameError("Manufacturer name is required");
     }
 
-    // Generate identity and timestamps
     const id = ObjectId.generate().value;
     const createdAt = new Date();
     const updatedAt = createdAt;
@@ -65,16 +65,39 @@ export class Manufacturer {
       id,
       code,
       name,
-      isActive: true, // Default to active
+      isActive: true,
       createdAt,
       updatedAt,
     });
   }
 
   /**
+   * Updates manufacturer parameters maintaining invariants.
+   */
+  public update(input: UpdateManufacturerInput): Manufacturer {
+    const code = input.code !== undefined ? input.code.trim().toLowerCase() : this.code;
+    const name = input.name !== undefined ? input.name.trim() : this.name;
+
+    if (!code) {
+      throw new InvalidManufacturerCodeError("Manufacturer code is required");
+    }
+
+    if (!name) {
+      throw new InvalidManufacturerNameError("Manufacturer name is required");
+    }
+
+    return new Manufacturer({
+      id: this.id,
+      code,
+      name,
+      isActive: input.isActive !== undefined ? input.isActive : this.isActive,
+      createdAt: this.createdAt,
+      updatedAt: new Date(),
+    });
+  }
+
+  /**
    * Rehydrates an existing Manufacturer from persistence.
-   * Reconstructs state exactly as stored without validation or normalization.
-   * Used only by repositories when loading from the database.
    */
   public static rehydrate(props: ManufacturerProps): Manufacturer {
     return new Manufacturer(props);

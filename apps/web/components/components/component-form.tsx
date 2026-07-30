@@ -1,0 +1,209 @@
+'use client'
+
+import * as React from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  componentsApi,
+  type ComponentDto,
+  type CreateComponentPayload,
+  type UpdateComponentPayload,
+} from '@/lib/api/components-api'
+import { locationsApi, type LocationDto } from '@/lib/api/locations-api'
+
+const componentSchema = z.object({
+  sku: z
+    .string()
+    .min(1, 'SKU is required')
+    .transform((val) => val.trim().toLowerCase()),
+  name: z.string().min(1, 'Component name is required').transform((val) => val.trim()),
+  description: z.string().optional().nullable(),
+  unit: z
+    .string()
+    .min(1, 'Unit of measure is required')
+    .transform((val) => val.trim().toLowerCase()),
+  defaultLocationId: z.string().optional().nullable(),
+})
+
+export type ComponentFormValues = z.infer<typeof componentSchema>
+
+interface ComponentFormProps {
+  initialData?: ComponentDto | null
+  onSuccess: (savedComponent: ComponentDto) => void
+  onCancel: () => void
+}
+
+export function ComponentForm({
+  initialData,
+  onSuccess,
+  onCancel,
+}: ComponentFormProps) {
+  const [locations, setLocations] = React.useState<LocationDto[]>([])
+  const [serverError, setServerError] = React.useState<string | null>(null)
+  const isEditing = Boolean(initialData)
+
+  React.useEffect(() => {
+    locationsApi
+      .getAll()
+      .then(setLocations)
+      .catch(() => {
+        // Non-blocking location load error
+      })
+  }, [])
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ComponentFormValues>({
+    resolver: zodResolver(componentSchema),
+    defaultValues: {
+      sku: initialData?.sku ?? '',
+      name: initialData?.name ?? '',
+      description: initialData?.description ?? '',
+      unit: initialData?.unit ?? 'pcs',
+      defaultLocationId: initialData?.defaultLocationId ?? '',
+    },
+  })
+
+  const onSubmit = async (values: ComponentFormValues) => {
+    setServerError(null)
+    try {
+      if (isEditing && initialData) {
+        const payload: UpdateComponentPayload = {
+          sku: values.sku,
+          name: values.name,
+          description: values.description || null,
+          unit: values.unit,
+          defaultLocationId: values.defaultLocationId || null,
+        }
+        const updated = await componentsApi.update(initialData.id, payload)
+        onSuccess(updated)
+      } else {
+        const payload: CreateComponentPayload = {
+          sku: values.sku,
+          name: values.name,
+          description: values.description || null,
+          unit: values.unit,
+          defaultLocationId: values.defaultLocationId || null,
+        }
+        const created = await componentsApi.create(payload)
+        onSuccess(created)
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setServerError(err.message)
+      } else {
+        setServerError(isEditing ? 'Failed to update component' : 'Failed to create component')
+      }
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {serverError && (
+        <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+          {serverError}
+        </div>
+      )}
+
+      {/* SKU */}
+      <div className="space-y-1">
+        <label htmlFor="component-sku" className="text-xs font-medium text-foreground">
+          SKU / Internal Part Number <span className="text-destructive">*</span>
+        </label>
+        <input
+          id="component-sku"
+          type="text"
+          placeholder="e.g. MCU-STM32F4-01"
+          {...register('sku')}
+          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground font-mono"
+        />
+        {errors.sku && (
+          <p className="text-xs text-destructive">{errors.sku.message}</p>
+        )}
+      </div>
+
+      {/* Name */}
+      <div className="space-y-1">
+        <label htmlFor="component-name" className="text-xs font-medium text-foreground">
+          Component Name <span className="text-destructive">*</span>
+        </label>
+        <input
+          id="component-name"
+          type="text"
+          placeholder="e.g. Microcontroller Unit 32-bit ARM Cortex-M4"
+          {...register('name')}
+          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
+        />
+        {errors.name && (
+          <p className="text-xs text-destructive">{errors.name.message}</p>
+        )}
+      </div>
+
+      {/* Unit */}
+      <div className="space-y-1">
+        <label htmlFor="component-unit" className="text-xs font-medium text-foreground">
+          Default Unit of Measure <span className="text-destructive">*</span>
+        </label>
+        <input
+          id="component-unit"
+          type="text"
+          placeholder="e.g. pcs, kg, m, box"
+          {...register('unit')}
+          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground lowercase font-mono"
+        />
+        {errors.unit && (
+          <p className="text-xs text-destructive">{errors.unit.message}</p>
+        )}
+      </div>
+
+      {/* Description */}
+      <div className="space-y-1">
+        <label htmlFor="component-desc" className="text-xs font-medium text-foreground">
+          Description
+        </label>
+        <textarea
+          id="component-desc"
+          rows={3}
+          placeholder="Detailed component specification..."
+          {...register('description')}
+          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground resize-none"
+        />
+      </div>
+
+      {/* Default Location */}
+      <div className="space-y-1">
+        <label htmlFor="component-location" className="text-xs font-medium text-foreground">
+          Default Storage Location
+        </label>
+        <select
+          id="component-location"
+          {...register('defaultLocationId')}
+          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
+        >
+          <option value="">None / Unassigned</option>
+          {locations.map((loc) => (
+            <option key={loc.id} value={loc.id}>
+              {loc.code} - {loc.name} ({loc.kind})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Form Actions */}
+      <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+        <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+          {isEditing ? 'Save Changes' : 'Create Component'}
+        </Button>
+      </div>
+    </form>
+  )
+}

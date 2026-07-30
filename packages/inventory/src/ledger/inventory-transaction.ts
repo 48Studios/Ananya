@@ -124,6 +124,14 @@ export class InventoryTransaction {
         // Production transactions can have either source or destination location
         break;
 
+      case TransactionTypeEnum.ManualCorrection:
+        // Manual correction can have either source or destination location
+        break;
+
+      case TransactionTypeEnum.InitialStock:
+        // Initial stock transactions have destination location
+        break;
+
       default:
         assertNever(input.transactionType);
     }

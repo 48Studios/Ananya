@@ -29,6 +29,17 @@ export interface CreateComponentInput {
   unit: string;
 }
 
+export interface UpdateComponentInput {
+  sku?: string;
+  name?: string;
+  description?: string | null;
+  manufacturerId?: string | null;
+  categoryId?: string | null;
+  defaultLocationId?: string | null;
+  unit?: string;
+  isActive?: boolean;
+}
+
 export interface FindManyComponentsOptions {}
 
 export class Component {
@@ -63,16 +74,10 @@ export class Component {
    * Owns identity generation, timestamps, defaults, normalization, and invariants.
    */
   public static create(input: CreateComponentInput): Component {
-    // Normalize SKU: trim and lowercase
     const sku = input.sku.trim().toLowerCase();
-
-    // Normalize name: trim
     const name = input.name.trim();
-
-    // Normalize unit: trim
     const unit = input.unit.trim();
 
-    // Validate required fields
     if (!sku) {
       throw new InvalidComponentSkuError("SKU is required");
     }
@@ -85,7 +90,6 @@ export class Component {
       throw new InvalidUnitError("Unit is required");
     }
 
-    // Generate identity and timestamps
     const id = ObjectId.generate().value;
     const createdAt = new Date();
     const updatedAt = createdAt;
@@ -99,16 +103,49 @@ export class Component {
       categoryId: input.categoryId ?? null,
       defaultLocationId: input.defaultLocationId ?? null,
       unit,
-      isActive: true, // Default to active
+      isActive: true,
       createdAt,
       updatedAt,
     });
   }
 
   /**
+   * Updates component properties maintaining invariants.
+   */
+  public update(input: UpdateComponentInput): Component {
+    const sku = input.sku !== undefined ? input.sku.trim().toLowerCase() : this.sku;
+    const name = input.name !== undefined ? input.name.trim() : this.name;
+    const unit = input.unit !== undefined ? input.unit.trim() : this.unit;
+
+    if (!sku) {
+      throw new InvalidComponentSkuError("SKU is required");
+    }
+
+    if (!name) {
+      throw new InvalidComponentNameError("Name is required");
+    }
+
+    if (!unit) {
+      throw new InvalidUnitError("Unit is required");
+    }
+
+    return new Component({
+      id: this.id,
+      sku,
+      name,
+      description: input.description !== undefined ? (input.description?.trim() ?? null) : this.description,
+      manufacturerId: input.manufacturerId !== undefined ? input.manufacturerId : this.manufacturerId,
+      categoryId: input.categoryId !== undefined ? input.categoryId : this.categoryId,
+      defaultLocationId: input.defaultLocationId !== undefined ? input.defaultLocationId : this.defaultLocationId,
+      unit,
+      isActive: input.isActive !== undefined ? input.isActive : this.isActive,
+      createdAt: this.createdAt,
+      updatedAt: new Date(),
+    });
+  }
+
+  /**
    * Rehydrates an existing Component from persistence.
-   * Reconstructs state exactly as stored without validation or normalization.
-   * Used only by repositories when loading from the database.
    */
   public static rehydrate(props: ComponentProps): Component {
     return new Component(props);

@@ -41,3 +41,16 @@ export class InvalidLocationKindError extends DomainError {
     super(message);
   }
 }
+
+export class LocationHasChildrenError extends DomainError {
+  constructor(id: string) {
+    super(`Cannot delete location '${id}' because it has child locations.`);
+  }
+}
+
+export class CannotParentToSelfError extends DomainError {
+  constructor(id: string) {
+    super(`Location '${id}' cannot be set as its own parent.`);
+  }
+}
+

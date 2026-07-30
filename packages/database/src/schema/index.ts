@@ -1,6 +1,7 @@
 export * from "./locations";
 export * from "./components";
 export * from "./manufacturers";
+export * from "./categories";
 export * from "./inventory-transactions";
 export * from "./units";
 export * from "./inventory-projections";
@@ -42,9 +43,3 @@ export * from "./crm-notes";
 export * from "./projects";
 export * from "./service";
 export * from "./mrp";
-
-
-
-
-
-

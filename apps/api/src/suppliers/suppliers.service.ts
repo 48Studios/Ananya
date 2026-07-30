@@ -1,32 +1,62 @@
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import {
-  Injectable,
-  Inject,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
-import { Supplier, SupplierRepository } from '@ananya/procurement';
-import { CreateSupplierDto, AddContactDto, MapComponentDto } from './dtos';
+  Supplier,
+  SupplierRepository,
+  CreateSupplier,
+  UpdateSupplier,
+  DeleteSupplier,
+  type CreateSupplierInput,
+  type UpdateSupplierInput,
+} from '@ananya/procurement';
+import {
+  CreateSupplierDto,
+  UpdateSupplierDto,
+  AddContactDto,
+  MapComponentDto,
+} from './dtos';
 
 export const SUPPLIER_REPOSITORY = 'SUPPLIER_REPOSITORY';
 
 @Injectable()
 export class SuppliersService {
+  private readonly createSupplier: CreateSupplier;
+  private readonly updateSupplier: UpdateSupplier;
+  private readonly deleteSupplier: DeleteSupplier;
+
   constructor(
     @Inject(SUPPLIER_REPOSITORY)
     private readonly supplierRepository: SupplierRepository,
-  ) {}
+  ) {
+    this.createSupplier = new CreateSupplier(supplierRepository);
+    this.updateSupplier = new UpdateSupplier(supplierRepository);
+    this.deleteSupplier = new DeleteSupplier(supplierRepository);
+  }
 
   async create(dto: CreateSupplierDto): Promise<Supplier> {
-    const existing = await this.supplierRepository.findByCode(dto.code);
-    if (existing) {
-      throw new ConflictException(
-        `Supplier code "${dto.code}" already exists.`,
-      );
-    }
+    const input: CreateSupplierInput = {
+      code: dto.code,
+      name: dto.name,
+      taxId: dto.taxId,
+      paymentTerms: dto.paymentTerms,
+      currency: dto.currency,
+    };
+    return this.createSupplier.execute(input);
+  }
 
-    const supplier = Supplier.create(dto);
-    await this.supplierRepository.save(supplier);
-    return supplier;
+  async update(id: string, dto: UpdateSupplierDto): Promise<Supplier> {
+    const input: UpdateSupplierInput = {
+      code: dto.code,
+      name: dto.name,
+      taxId: dto.taxId,
+      paymentTerms: dto.paymentTerms,
+      currency: dto.currency,
+      isActive: dto.isActive,
+    };
+    return this.updateSupplier.execute(id, input);
+  }
+
+  async delete(id: string): Promise<void> {
+    return this.deleteSupplier.execute(id);
   }
 
   async findAll(search?: string): Promise<Supplier[]> {

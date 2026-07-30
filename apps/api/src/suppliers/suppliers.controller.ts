@@ -2,17 +2,26 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Body,
   Param,
   Query,
   HttpCode,
   HttpStatus,
+  UseFilters,
 } from '@nestjs/common';
 import { SuppliersService } from './suppliers.service';
-import { CreateSupplierDto, AddContactDto, MapComponentDto } from './dtos';
+import {
+  CreateSupplierDto,
+  UpdateSupplierDto,
+  AddContactDto,
+  MapComponentDto,
+} from './dtos';
+import { SupplierExceptionFilter } from './supplier-exception.filter';
 
 @Controller('suppliers')
+@UseFilters(SupplierExceptionFilter)
 export class SuppliersController {
   constructor(private readonly suppliersService: SuppliersService) {}
 
@@ -29,6 +38,17 @@ export class SuppliersController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.suppliersService.findOne(id);
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateSupplierDto) {
+    return this.suppliersService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  delete(@Param('id') id: string) {
+    return this.suppliersService.delete(id);
   }
 
   @Post(':id/contacts')

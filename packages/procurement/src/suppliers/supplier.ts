@@ -53,6 +53,15 @@ export interface CreateSupplierInput {
   currency?: string;
 }
 
+export interface UpdateSupplierInput {
+  code?: string;
+  name?: string;
+  taxId?: string | null;
+  paymentTerms?: string;
+  currency?: string;
+  isActive?: boolean;
+}
+
 export class Supplier {
   public readonly id: string;
   public readonly code: string;
@@ -109,6 +118,37 @@ export class Supplier {
       components: [],
       createdAt,
       updatedAt: createdAt,
+    });
+  }
+
+  public update(input: UpdateSupplierInput): Supplier {
+    const code = input.code !== undefined ? input.code.trim().toUpperCase() : this.code;
+    const name = input.name !== undefined ? input.name.trim() : this.name;
+
+    if (!code) {
+      throw new InvalidSupplierCodeError("Supplier code is required.");
+    }
+    if (!name) {
+      throw new InvalidSupplierNameError("Supplier name is required.");
+    }
+
+    return new Supplier({
+      id: this.id,
+      code,
+      name,
+      taxId: input.taxId !== undefined ? input.taxId?.trim() ?? null : this.taxId,
+      paymentTerms:
+        input.paymentTerms !== undefined
+          ? input.paymentTerms.trim() || "NET30"
+          : this.paymentTerms,
+      currency:
+        input.currency !== undefined ? input.currency.trim() || "USD" : this.currency,
+      rating: this.rating,
+      isActive: input.isActive !== undefined ? input.isActive : this.isActive,
+      contacts: this.contacts,
+      components: this.components,
+      createdAt: this.createdAt,
+      updatedAt: new Date(),
     });
   }
 

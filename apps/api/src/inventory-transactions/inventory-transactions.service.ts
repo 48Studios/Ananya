@@ -4,6 +4,7 @@ import {
   type CreateInventoryTransactionProps,
   type InventoryTransaction,
   type InventoryTransactionRepository,
+  type FindManyInventoryTransactionsOptions,
 } from '@ananya/inventory';
 import { INVENTORY_TRANSACTION_REPOSITORY } from './inventory-transaction.tokens';
 
@@ -21,8 +22,10 @@ export class InventoryTransactionsService {
     return this.repository.save(tx);
   }
 
-  async getAll(): Promise<InventoryTransaction[]> {
-    return this.repository.findMany();
+  async getAll(
+    options?: FindManyInventoryTransactionsOptions,
+  ): Promise<InventoryTransaction[]> {
+    return this.repository.findMany(options);
   }
 
   async getById(id: string): Promise<InventoryTransaction | null> {

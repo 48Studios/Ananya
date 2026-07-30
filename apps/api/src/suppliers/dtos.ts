@@ -28,6 +28,32 @@ export class CreateSupplierDto {
   currency?: string;
 }
 
+export class UpdateSupplierDto {
+  @IsString()
+  @IsOptional()
+  code?: string;
+
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  taxId?: string;
+
+  @IsString()
+  @IsOptional()
+  paymentTerms?: string;
+
+  @IsString()
+  @IsOptional()
+  currency?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+}
+
 export class AddContactDto {
   @IsString()
   @IsNotEmpty()

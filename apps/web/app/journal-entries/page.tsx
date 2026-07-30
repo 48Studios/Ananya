@@ -1,8 +1,21 @@
+'use client'
+
 export default function Page() {
   return (
-    <div style={{ padding: '24px' }}>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Journal Entries</h1>
-      <p style={{ color: '#71717a', marginTop: '8px', fontSize: '0.875rem' }}>UI under reconstruction</p>
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-3xl font-bold text-foreground mb-1">
+          Journal Entries Overview
+        </h1>
+        <p className="text-muted-foreground text-sm">
+          UI under reconstruction for feature module
+        </p>
+      </div>
+      <div className="bg-card border border-border rounded-lg p-6">
+        <p className="text-sm text-muted-foreground">
+          This module is queued for feature migration onto the new v0 UI shell.
+        </p>
+      </div>
     </div>
-  );
+  )
 }

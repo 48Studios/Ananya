@@ -3,31 +3,61 @@ import {
   PurchaseOrder,
   PurchaseOrderRepository,
   PurchaseOrderStatus,
+  CreatePurchaseOrder,
+  UpdatePurchaseOrder,
+  DeletePurchaseOrder,
 } from '@ananya/procurement';
-import { CreatePurchaseOrderDto, AddPoLineDto } from './dtos';
+import {
+  CreatePurchaseOrderDto,
+  UpdatePurchaseOrderDto,
+  AddPoLineDto,
+} from './dtos';
 
 export const PURCHASE_ORDER_REPOSITORY = 'PURCHASE_ORDER_REPOSITORY';
 
 @Injectable()
 export class PurchaseOrdersService {
+  private readonly createPo: CreatePurchaseOrder;
+  private readonly updatePo: UpdatePurchaseOrder;
+  private readonly deletePo: DeletePurchaseOrder;
+
   constructor(
     @Inject(PURCHASE_ORDER_REPOSITORY)
     private readonly poRepository: PurchaseOrderRepository,
-  ) {}
+  ) {
+    this.createPo = new CreatePurchaseOrder(poRepository);
+    this.updatePo = new UpdatePurchaseOrder(poRepository);
+    this.deletePo = new DeletePurchaseOrder(poRepository);
+  }
 
   async create(dto: CreatePurchaseOrderDto): Promise<PurchaseOrder> {
-    const poNumber = await this.poRepository.generateNextPoNumber();
-    const po = PurchaseOrder.create({
-      poNumber,
+    return this.createPo.execute({
+      poNumber: '',
       supplierId: dto.supplierId,
       currency: dto.currency,
       notes: dto.notes,
       expectedDeliveryDate: dto.expectedDeliveryDate
         ? new Date(dto.expectedDeliveryDate)
         : null,
+      lines: dto.lines,
     });
-    await this.poRepository.save(po);
-    return po;
+  }
+
+  async update(
+    id: string,
+    dto: UpdatePurchaseOrderDto,
+  ): Promise<PurchaseOrder> {
+    return this.updatePo.execute(id, {
+      notes: dto.notes,
+      expectedDeliveryDate: dto.expectedDeliveryDate
+        ? new Date(dto.expectedDeliveryDate)
+        : undefined,
+      lines: dto.lines,
+    });
+  }
+
+  async delete(id: string): Promise<void> {
+    return this.deletePo.execute(id);
   }
 
   async findAll(

@@ -5,9 +5,11 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
 } from '@nestjs/common';
 import { CreateInventoryTransactionDto } from './create-inventory-transaction.dto';
 import { InventoryTransactionsService } from './inventory-transactions.service';
+import type { TransactionType } from '@ananya/inventory';
 
 @Controller('inventory-transactions')
 export class InventoryTransactionsController {
@@ -19,8 +21,22 @@ export class InventoryTransactionsController {
   }
 
   @Get()
-  async findAll() {
-    return this.service.getAll();
+  async findAll(
+    @Query('componentId') componentId?: string,
+    @Query('locationId') locationId?: string,
+    @Query('transactionType') transactionType?: TransactionType,
+    @Query('reference') reference?: string,
+    @Query('createdBy') createdBy?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.service.getAll({
+      componentId,
+      locationId,
+      transactionType,
+      reference,
+      createdBy,
+      search,
+    });
   }
 
   @Get(':id')

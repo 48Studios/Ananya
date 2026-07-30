@@ -6,4 +6,6 @@ export interface ComponentRepository {
   findBySku(sku: string): Promise<Component | null>;
   findMany(options?: FindManyComponentsOptions): Promise<Component[]>;
   save(component: Component): Promise<Component>;
+  update(component: Component): Promise<Component>;
+  delete(id: string): Promise<void>;
 }

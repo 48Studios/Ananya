@@ -53,6 +53,16 @@ export class DrizzleLocationRepository implements LocationRepository {
     return row ? toDomain(row) : null;
   }
 
+  async findByParentId(parentId: string): Promise<Location[]> {
+    const rows = await db
+      .select()
+      .from(locations)
+      .where(eq(locations.parentId, parentId))
+      .orderBy(locations.code);
+
+    return rows.map(toDomain);
+  }
+
   async findMany(): Promise<Location[]> {
     const rows = await db.select().from(locations).orderBy(locations.code);
 
@@ -70,5 +80,31 @@ export class DrizzleLocationRepository implements LocationRepository {
     }
 
     return toDomain(row);
+  }
+
+  async update(location: Location): Promise<Location> {
+    const [row] = await db
+      .update(locations)
+      .set({
+        code: location.code,
+        name: location.name,
+        kind: location.kind,
+        parentId: location.parentId,
+        isActive: location.isActive,
+        metadata: location.metadata,
+        updatedAt: location.updatedAt,
+      })
+      .where(eq(locations.id, location.id))
+      .returning();
+
+    if (!row) {
+      throw new Error(`Failed to update location: ${location.id}`);
+    }
+
+    return toDomain(row);
+  }
+
+  async delete(id: string): Promise<void> {
+    await db.delete(locations).where(eq(locations.id, id));
   }
 }

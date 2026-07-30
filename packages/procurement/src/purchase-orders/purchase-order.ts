@@ -53,6 +53,11 @@ export interface CreatePurchaseOrderInput {
   expectedDeliveryDate?: Date | null;
 }
 
+export interface UpdatePurchaseOrderInput {
+  notes?: string | null;
+  expectedDeliveryDate?: Date | null;
+}
+
 export interface AddPoLineInput {
   componentId: string;
   vendorPartNumber?: string | null;
@@ -73,7 +78,7 @@ export class PurchaseOrder {
   public notes?: string | null;
   public issuedAt?: Date | null;
   public expectedDeliveryDate?: Date | null;
-  public readonly lines: PurchaseOrderLineProps[];
+  public lines: PurchaseOrderLineProps[];
   public readonly createdAt: Date;
   public updatedAt: Date;
 
@@ -113,6 +118,26 @@ export class PurchaseOrder {
       createdAt,
       updatedAt: createdAt,
     });
+  }
+
+  public updateHeader(input: UpdatePurchaseOrderInput): void {
+    if (this.status !== "DRAFT") {
+      throw new InvalidPoStatusTransitionError(this.status, "EDIT");
+    }
+    this.notes = input.notes !== undefined ? input.notes : this.notes;
+    this.expectedDeliveryDate =
+      input.expectedDeliveryDate !== undefined
+        ? input.expectedDeliveryDate
+        : this.expectedDeliveryDate;
+    this.updatedAt = new Date();
+  }
+
+  public clearLines(): void {
+    if (this.status !== "DRAFT") {
+      throw new InvalidPoStatusTransitionError(this.status, "EDIT_LINES");
+    }
+    this.lines = [];
+    this.recalculateTotals();
   }
 
   public addLine(input: AddPoLineInput): void {

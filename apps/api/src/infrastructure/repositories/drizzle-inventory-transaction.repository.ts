@@ -4,8 +4,9 @@ import type {
   InventoryTransaction,
   InventoryTransactionRepository,
   TransactionType,
+  FindManyInventoryTransactionsOptions,
 } from '@ananya/inventory';
-import { eq } from '@ananya/database/query';
+import { eq, or, ilike, desc } from '@ananya/database/query';
 import type { InventoryTransactionRow } from '@ananya/database/schema';
 import { InventoryTransaction as InventoryTransactionAggregate } from '@ananya/inventory';
 
@@ -52,11 +53,45 @@ export class DrizzleInventoryTransactionRepository implements InventoryTransacti
     return row ? toDomain(row) : null;
   }
 
-  async findMany(): Promise<InventoryTransaction[]> {
-    const rows = await db
-      .select()
-      .from(inventoryTransactions)
-      .orderBy(inventoryTransactions.createdAt);
+  async findMany(
+    options?: FindManyInventoryTransactionsOptions,
+  ): Promise<InventoryTransaction[]> {
+    const query = db.select().from(inventoryTransactions);
+
+    if (options?.componentId) {
+      query.where(eq(inventoryTransactions.componentId, options.componentId));
+    }
+
+    if (options?.locationId) {
+      query.where(
+        or(
+          eq(inventoryTransactions.sourceLocationId, options.locationId),
+          eq(inventoryTransactions.destinationLocationId, options.locationId),
+        ),
+      );
+    }
+
+    if (options?.transactionType) {
+      query.where(
+        eq(inventoryTransactions.transactionType, options.transactionType),
+      );
+    }
+
+    if (options?.createdBy) {
+      query.where(eq(inventoryTransactions.createdBy, options.createdBy));
+    }
+
+    if (options?.search) {
+      const pattern = `%${options.search}%`;
+      query.where(
+        or(
+          ilike(inventoryTransactions.reference, pattern),
+          ilike(inventoryTransactions.reason, pattern),
+        ),
+      );
+    }
+
+    const rows = await query.orderBy(desc(inventoryTransactions.createdAt));
 
     return rows.map(toDomain);
   }

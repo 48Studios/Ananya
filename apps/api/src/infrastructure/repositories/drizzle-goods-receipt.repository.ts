@@ -154,6 +154,10 @@ export class DrizzleGoodsReceiptRepository implements GoodsReceiptRepository {
     }
   }
 
+  async delete(id: string): Promise<void> {
+    await db.delete(goodsReceipts).where(eq(goodsReceipts.id, id));
+  }
+
   async generateNextGrNumber(): Promise<string> {
     const year = new Date().getFullYear();
     const [result] = await db.select({ count: count() }).from(goodsReceipts);

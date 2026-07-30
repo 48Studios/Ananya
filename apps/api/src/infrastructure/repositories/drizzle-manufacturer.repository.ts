@@ -1,5 +1,5 @@
 import { db } from '@ananya/database';
-import { manufacturers } from '@ananya/database/schema';
+import { manufacturers, components } from '@ananya/database/schema';
 import type { Manufacturer, ManufacturerRepository } from '@ananya/inventory';
 import { eq } from '@ananya/database/query';
 import type { Manufacturer as ManufacturerRow } from '@ananya/database/schema';
@@ -67,5 +67,38 @@ export class DrizzleManufacturerRepository implements ManufacturerRepository {
     }
 
     return toDomain(row);
+  }
+
+  async update(manufacturer: Manufacturer): Promise<Manufacturer> {
+    const [row] = await db
+      .update(manufacturers)
+      .set({
+        code: manufacturer.code,
+        name: manufacturer.name,
+        isActive: manufacturer.isActive,
+        updatedAt: manufacturer.updatedAt,
+      })
+      .where(eq(manufacturers.id, manufacturer.id))
+      .returning();
+
+    if (!row) {
+      throw new Error(`Failed to update manufacturer: ${manufacturer.id}`);
+    }
+
+    return toDomain(row);
+  }
+
+  async delete(id: string): Promise<void> {
+    await db.delete(manufacturers).where(eq(manufacturers.id, id));
+  }
+
+  async hasComponents(id: string): Promise<boolean> {
+    const [row] = await db
+      .select({ id: components.id })
+      .from(components)
+      .where(eq(components.manufacturerId, id))
+      .limit(1);
+
+    return Boolean(row);
   }
 }

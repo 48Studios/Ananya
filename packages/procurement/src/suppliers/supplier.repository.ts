@@ -10,6 +10,9 @@ export interface SupplierRepository {
   findByCode(code: string): Promise<Supplier | null>;
   findMany(options?: FindManySuppliersOptions): Promise<Supplier[]>;
   save(supplier: Supplier): Promise<void>;
+  update(supplier: Supplier): Promise<Supplier>;
+  delete(id: string): Promise<void>;
+  hasPurchaseOrders(id: string): Promise<boolean>;
   addContact(contact: {
     supplierId: string;
     name: string;

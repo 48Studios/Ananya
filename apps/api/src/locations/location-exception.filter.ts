@@ -9,6 +9,8 @@ import {
   ParentLocationNotFoundError,
   InactiveParentLocationError,
   LocationNotFoundError,
+  LocationHasChildrenError,
+  CannotParentToSelfError,
 } from '@ananya/inventory';
 import type { Response } from 'express';
 
@@ -17,6 +19,8 @@ import type { Response } from 'express';
   ParentLocationNotFoundError,
   InactiveParentLocationError,
   LocationNotFoundError,
+  LocationHasChildrenError,
+  CannotParentToSelfError,
 )
 export class LocationExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
@@ -37,6 +41,12 @@ export class LocationExceptionFilter implements ExceptionFilter {
       message = exception.message;
     } else if (exception instanceof LocationNotFoundError) {
       status = HttpStatus.NOT_FOUND;
+      message = exception.message;
+    } else if (exception instanceof LocationHasChildrenError) {
+      status = HttpStatus.BAD_REQUEST;
+      message = exception.message;
+    } else if (exception instanceof CannotParentToSelfError) {
+      status = HttpStatus.BAD_REQUEST;
       message = exception.message;
     }
 

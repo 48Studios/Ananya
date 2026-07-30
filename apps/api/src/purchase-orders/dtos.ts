@@ -4,25 +4,10 @@ import {
   IsOptional,
   IsNumber,
   IsDateString,
+  IsArray,
+  ValidateNested,
 } from 'class-validator';
-
-export class CreatePurchaseOrderDto {
-  @IsString()
-  @IsNotEmpty()
-  supplierId!: string;
-
-  @IsString()
-  @IsOptional()
-  currency?: string;
-
-  @IsString()
-  @IsOptional()
-  notes?: string;
-
-  @IsDateString()
-  @IsOptional()
-  expectedDeliveryDate?: string;
-}
+import { Type } from 'class-transformer';
 
 export class AddPoLineDto {
   @IsString()
@@ -44,4 +29,44 @@ export class AddPoLineDto {
   @IsNumber()
   @IsOptional()
   taxRate?: number;
+}
+
+export class CreatePurchaseOrderDto {
+  @IsString()
+  @IsNotEmpty()
+  supplierId!: string;
+
+  @IsString()
+  @IsOptional()
+  currency?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @IsDateString()
+  @IsOptional()
+  expectedDeliveryDate?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddPoLineDto)
+  lines?: AddPoLineDto[];
+}
+
+export class UpdatePurchaseOrderDto {
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @IsDateString()
+  @IsOptional()
+  expectedDeliveryDate?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddPoLineDto)
+  lines?: AddPoLineDto[];
 }

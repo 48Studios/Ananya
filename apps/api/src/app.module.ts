@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { LocationsModule } from './locations/locations.module';
 import { ComponentsModule } from './components/components.module';
 import { ManufacturersModule } from './manufacturers/manufacturers.module';
+import { CategoriesModule } from './categories/categories.module';
 import { UnitsModule } from './units/units.module';
 import { InventoryTransactionsModule } from './inventory-transactions/inventory-transactions.module';
 import { InventoryProjectionsModule } from './inventory-projections/inventory-projections.module';
@@ -63,6 +64,7 @@ import { PlanningMessagesModule } from './planning-messages/planning-messages.mo
     LocationsModule,
     ComponentsModule,
     ManufacturersModule,
+    CategoriesModule,
     UnitsModule,
     InventoryTransactionsModule,
     InventoryProjectionsModule,

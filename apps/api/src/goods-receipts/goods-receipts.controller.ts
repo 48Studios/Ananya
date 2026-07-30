@@ -1,8 +1,18 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseFilters,
+} from '@nestjs/common';
 import { GoodsReceiptsService } from './goods-receipts.service';
 import { CreateGoodsReceiptDto, AddGoodsReceiptLineDto } from './dtos';
+import { GrExceptionFilter } from './gr-exception.filter';
 
 @Controller('goods-receipts')
+@UseFilters(GrExceptionFilter)
 export class GoodsReceiptsController {
   constructor(private readonly grService: GoodsReceiptsService) {}
 

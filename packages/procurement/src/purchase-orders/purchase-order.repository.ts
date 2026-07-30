@@ -11,5 +11,6 @@ export interface PurchaseOrderRepository {
   findByPoNumber(poNumber: string): Promise<PurchaseOrder | null>;
   findMany(options?: FindManyPurchaseOrdersOptions): Promise<PurchaseOrder[]>;
   save(po: PurchaseOrder): Promise<void>;
+  delete(id: string): Promise<void>;
   generateNextPoNumber(): Promise<string>;
 }

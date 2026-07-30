@@ -6,6 +6,8 @@ export const TRANSACTION_TYPES = [
   "Return",
   "Consumption",
   "Production",
+  "ManualCorrection",
+  "InitialStock",
 ] as const;
 
 export const TransactionType = {
@@ -16,6 +18,8 @@ export const TransactionType = {
   Return: TRANSACTION_TYPES[4],
   Consumption: TRANSACTION_TYPES[5],
   Production: TRANSACTION_TYPES[6],
+  ManualCorrection: TRANSACTION_TYPES[7],
+  InitialStock: TRANSACTION_TYPES[8],
 } as const;
 
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];

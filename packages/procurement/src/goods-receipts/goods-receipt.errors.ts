@@ -13,3 +13,19 @@ export class InvalidReceivingQuantityError extends DomainError {
     this.name = "InvalidReceivingQuantityError";
   }
 }
+
+export class GoodsReceiptNotFoundError extends DomainError {
+  constructor(id: string) {
+    super(`Goods Receipt not found: ${id}`);
+    this.name = "GoodsReceiptNotFoundError";
+  }
+}
+
+export class ExceededRemainingQuantityError extends DomainError {
+  constructor(componentId: string, requested: number, remaining: number) {
+    super(
+      `Cannot receive ${requested} units for component ${componentId}. Only ${remaining} units remain outstanding on the Purchase Order.`,
+    );
+    this.name = "ExceededRemainingQuantityError";
+  }
+}

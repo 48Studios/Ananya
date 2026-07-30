@@ -25,6 +25,15 @@ export interface CreateLocationInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface UpdateLocationInput {
+  code?: string;
+  name?: string;
+  kind?: string;
+  parentId?: string | null;
+  isActive?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
 export class Location {
   public readonly id: string;
   public readonly code: string;
@@ -92,6 +101,37 @@ export class Location {
       metadata: input.metadata ?? {},
       createdAt,
       updatedAt,
+    });
+  }
+
+  /**
+   * Updates existing Location aggregate parameters maintaining invariants.
+   */
+  public update(input: UpdateLocationInput): Location {
+    const code = input.code !== undefined ? input.code.trim().toUpperCase() : this.code;
+    const name = input.name !== undefined ? input.name.trim() : this.name;
+    const kind = input.kind !== undefined ? input.kind.trim().toLowerCase() : this.kind;
+
+    if (!code) {
+      throw new InvalidLocationCodeError("Location code is required");
+    }
+    if (!name) {
+      throw new InvalidLocationNameError("Location name is required");
+    }
+    if (!kind) {
+      throw new InvalidLocationKindError("Location kind is required");
+    }
+
+    return new Location({
+      id: this.id,
+      code,
+      name,
+      kind,
+      parentId: input.parentId !== undefined ? input.parentId : this.parentId,
+      isActive: input.isActive !== undefined ? input.isActive : this.isActive,
+      metadata: input.metadata !== undefined ? input.metadata : this.metadata,
+      createdAt: this.createdAt,
+      updatedAt: new Date(),
     });
   }
 

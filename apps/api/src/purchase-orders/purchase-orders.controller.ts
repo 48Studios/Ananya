@@ -1,9 +1,27 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  HttpCode,
+  HttpStatus,
+  UseFilters,
+} from '@nestjs/common';
 import { PurchaseOrdersService } from './purchase-orders.service';
-import { CreatePurchaseOrderDto, AddPoLineDto } from './dtos';
+import {
+  CreatePurchaseOrderDto,
+  UpdatePurchaseOrderDto,
+  AddPoLineDto,
+} from './dtos';
 import { PurchaseOrderStatus } from '@ananya/procurement';
+import { PoExceptionFilter } from './po-exception.filter';
 
 @Controller('purchase-orders')
+@UseFilters(PoExceptionFilter)
 export class PurchaseOrdersController {
   constructor(private readonly poService: PurchaseOrdersService) {}
 
@@ -24,6 +42,17 @@ export class PurchaseOrdersController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.poService.findOne(id);
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Body() dto: UpdatePurchaseOrderDto) {
+    return this.poService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  delete(@Param('id') id: string) {
+    return this.poService.delete(id);
   }
 
   @Post(':id/lines')

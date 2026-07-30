@@ -10,5 +10,6 @@ export interface GoodsReceiptRepository {
   findByGrNumber(grNumber: string): Promise<GoodsReceipt | null>;
   findMany(options?: FindManyGoodsReceiptsOptions): Promise<GoodsReceipt[]>;
   save(gr: GoodsReceipt): Promise<void>;
+  delete(id: string): Promise<void>;
   generateNextGrNumber(): Promise<string>;
 }
