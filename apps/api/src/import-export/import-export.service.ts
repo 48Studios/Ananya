@@ -18,7 +18,12 @@ import {
 
 function safeString(val: unknown): string {
   if (val === null || val === undefined) return '';
-  let str = typeof val === 'string' ? val : typeof val === 'number' || typeof val === 'boolean' ? String(val) : JSON.stringify(val);
+  let str =
+    typeof val === 'string'
+      ? val
+      : typeof val === 'number' || typeof val === 'boolean'
+        ? String(val)
+        : JSON.stringify(val);
   // Prevent CSV Formula Injection
   if (/^[=+@\-\t\r]/.test(str)) {
     str = `'${str}`;
