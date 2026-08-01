@@ -1,1 +1,0 @@
-{"version":3,"file":"create-manufacturer.d.ts","sourceRoot":"","sources":["create-manufacturer.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,YAAY,EAAE,KAAK,uBAAuB,EAAE,MAAM,gBAAgB,CAAC;AAE5E,OAAO,KAAK,EAAE,sBAAsB,EAAE,MAAM,2BAA2B,CAAC;AAExE,qBAAa,kBAAkB;IACjB,OAAO,CAAC,QAAQ,CAAC,aAAa;gBAAb,aAAa,EAAE,sBAAsB;IAE5D,OAAO,CAAC,KAAK,EAAE,uBAAuB,GAAG,OAAO,CAAC,YAAY,CAAC;CAgBrE"}

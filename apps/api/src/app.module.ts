@@ -61,6 +61,14 @@ import { CapacityPlansModule } from './capacity-plans/capacity-plans.module';
 import { PlanningMessagesModule } from './planning-messages/planning-messages.module';
 import { ReportingModule } from './reporting/reporting.module';
 import { BarcodesModule } from './barcodes/barcodes.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { RolesModule } from './roles/roles.module';
+import { PermissionsModule } from './permissions/permissions.module';
+import { SecurityAuditModule } from './security-audit/security-audit.module';
+import { SearchModule } from './search/search.module';
+import { ActivityModule } from './activity/activity.module';
+import { ImportExportModule } from './import-export/import-export.module';
 
 @Module({
   imports: [
@@ -125,6 +133,14 @@ import { BarcodesModule } from './barcodes/barcodes.module';
     PlanningMessagesModule,
     ReportingModule,
     BarcodesModule,
+    AuthModule,
+    UsersModule,
+    RolesModule,
+    PermissionsModule,
+    SecurityAuditModule,
+    SearchModule,
+    ActivityModule,
+    ImportExportModule,
   ],
   controllers: [AppController],
 })

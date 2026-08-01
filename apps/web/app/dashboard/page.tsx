@@ -1,135 +1,102 @@
 'use client'
 
+import React from 'react'
 import { LayoutGrid, TrendingUp, AlertCircle, Clock } from 'lucide-react'
-
-function StatCard({
-  icon,
-  label,
-  value,
-  description,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  description: string
-}) {
-  return (
-    <div className="bg-card border border-border rounded-lg p-6">
-      <div className="flex items-start justify-between mb-4">
-        <div className="text-muted-foreground">{icon}</div>
-      </div>
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-        {label}
-      </p>
-      <p className="text-2xl font-bold text-foreground mb-2">{value}</p>
-      <p className="text-sm text-muted-foreground">{description}</p>
-    </div>
-  )
-}
+import { PageHeader } from '@/components/ui/page-header'
+import { StatCard } from '@/components/ui/stat-card'
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-8">
-      {/* Welcome Section */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          Dashboard
-        </h1>
-        <p className="text-muted-foreground">
-          Get a complete overview of your enterprise operations.
-        </p>
-      </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <PageHeader
+        title="Operations Dashboard"
+        description="Real-time operational summary and metrics across all enterprise domains."
+      />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          icon={<LayoutGrid className="w-5 h-5" />}
-          label="Total Inventory Items"
+          icon={LayoutGrid}
+          title="Total Inventory Items"
           value="2,847"
-          description="Across all warehouses"
+          subtitle="Across active warehouse locations"
         />
         <StatCard
-          icon={<TrendingUp className="w-5 h-5" />}
-          label="Purchase Orders"
+          icon={TrendingUp}
+          title="Purchase Orders"
           value="124"
-          description="Active and pending"
+          subtitle="Active and pending orders"
         />
         <StatCard
-          icon={<AlertCircle className="w-5 h-5" />}
-          label="Alerts"
+          icon={AlertCircle}
+          title="System Alerts"
           value="8"
-          description="Requires attention"
+          subtitle="Low stock & reorder notifications"
         />
         <StatCard
-          icon={<Clock className="w-5 h-5" />}
-          label="Pending Tasks"
+          icon={Clock}
+          title="Pending Tasks"
           value="23"
-          description="In progress"
+          subtitle="Work order & transfer queue"
         />
       </div>
 
       {/* Charts and Content */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Chart Placeholder */}
-        <div className="bg-card border border-border rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">
-            Inventory Trends
-          </h2>
-          <div className="h-64 bg-input rounded flex items-center justify-center">
-            <p className="text-muted-foreground">Chart will render here</p>
-          </div>
-        </div>
-
-        {/* Stats Placeholder */}
-        <div className="bg-card border border-border rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">
-            Top Categories
+        {/* Category Breakdown */}
+        <div className="bg-card border border-border rounded-xl p-6 shadow-xs space-y-4">
+          <h2 className="text-base font-semibold text-foreground">
+            Top Component Categories
           </h2>
           <div className="space-y-3">
-            {['Electronics', 'Components', 'Raw Materials', 'Accessories'].map(
-              (category, i) => (
-                <div key={category} className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">{category}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-2 bg-input rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-sidebar-primary rounded-full"
-                        style={{
-                          width: `${100 - i * 15}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="text-sm text-muted-foreground w-12 text-right">
-                      {100 - i * 15}%
-                    </span>
+            {[
+              { name: 'Electronics', pct: 85 },
+              { name: 'Components', pct: 70 },
+              { name: 'Raw Materials', pct: 55 },
+              { name: 'Accessories', pct: 40 },
+            ].map((cat) => (
+              <div key={cat.name} className="flex items-center justify-between text-xs">
+                <span className="font-medium text-foreground">{cat.name}</span>
+                <div className="flex items-center gap-3 w-1/2">
+                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ width: `${cat.pct}%` }}
+                    />
                   </div>
+                  <span className="font-mono text-muted-foreground w-8 text-right">
+                    {cat.pct}%
+                  </span>
                 </div>
-              )
-            )}
+              </div>
+            ))}
           </div>
         </div>
-      </div>
 
-      {/* Recent Activity */}
-      <div className="bg-card border border-border rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4">
-          Recent Activity
-        </h2>
-        <div className="space-y-3">
-          {[
-            { action: 'Inventory updated', time: '2 hours ago' },
-            { action: 'Purchase order created', time: '4 hours ago' },
-            { action: 'Stock received', time: '1 day ago' },
-            { action: 'Report generated', time: '2 days ago' },
-          ].map((item, i) => (
-            <div key={i} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-sidebar-primary flex-shrink-0" />
-                <p className="text-sm text-foreground">{item.action}</p>
-              </div>
-              <p className="text-xs text-muted-foreground">{item.time}</p>
+        {/* Operational Overview Widget */}
+        <div className="bg-card border border-border rounded-xl p-6 shadow-xs space-y-4">
+          <h2 className="text-base font-semibold text-foreground">
+            System Quick Actions
+          </h2>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="p-3 bg-muted/20 border border-border rounded-lg space-y-1">
+              <p className="font-bold text-foreground">Inventory Search</p>
+              <p className="text-[11px] text-muted-foreground">Scan or query active components</p>
             </div>
-          ))}
+            <div className="p-3 bg-muted/20 border border-border rounded-lg space-y-1">
+              <p className="font-bold text-foreground">Purchase Order</p>
+              <p className="text-[11px] text-muted-foreground">Issue draft purchase request</p>
+            </div>
+            <div className="p-3 bg-muted/20 border border-border rounded-lg space-y-1">
+              <p className="font-bold text-foreground">Stock Transfer</p>
+              <p className="text-[11px] text-muted-foreground">Move inventory between bins</p>
+            </div>
+            <div className="p-3 bg-muted/20 border border-border rounded-lg space-y-1">
+              <p className="font-bold text-foreground">Cycle Count</p>
+              <p className="text-[11px] text-muted-foreground">Execute location verification</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -12,15 +12,15 @@
 
 ## Current Milestone
 
-**Core Inventory Management**
+**Enterprise Platform Services**
 
 ## Current Vertical Slice
 
-**Authentication & Authorization (RBAC)**
+**Document & Attachment Management**
 
 ## Current Sprint Goal
 
-Implement the core inventory management experience and establish the foundational inventory modules.
+Implement platform-wide file attachment management, document versioning, storage provider abstraction, and entity document associations.
 
 ## Current Branch
 
@@ -28,7 +28,7 @@ Implement the core inventory management experience and establish the foundationa
 
 ## Current Status
 
-🟢 Barcode & QR Operations Complete — Moving to Authentication & Authorization (RBAC)
+🟢 Import / Export Framework Complete — Moving to Document & Attachment Management
 
 ---
 
@@ -48,6 +48,13 @@ Implement the core inventory management experience and establish the foundationa
 - [x] Application Shell
 - [x] Theme Support
 - [x] Dashboard Layout
+- [x] Authentication & Authorization (RBAC)
+- [x] User Management & User Directory
+- [x] Role Management & Permission Matrix
+- [x] Security Audit Log
+- [x] Global Search & Command Center (⌘K / Ctrl+K)
+- [x] Activity Center & Audit Explorer
+- [x] Import / Export Framework
 
 ---
 
@@ -100,7 +107,7 @@ Only the active work should appear here.
 
 ## Active
 
-- [ ] Authentication & Authorization (RBAC)
+- [ ] Document & Attachment Management
 
 Completed work should immediately move into the **Completed** section.
 
@@ -110,11 +117,11 @@ Completed work should immediately move into the **Completed** section.
 
 After the current slice is complete, implement:
 
-## Authentication & Authorization (RBAC)
+## Document & Attachment Management
 
 Requirements
 
-- User authentication, JWT tokens, session security, role-based access control (RBAC), and permission guards across API controllers and UI views
+- Centralized attachment storage, document categorization, version history, file preview, entity attachments, and upload permissions.
 
 Reuse:
 
@@ -131,8 +138,13 @@ Do not redesign the application shell.
 
 # Completed
 
-## 2026-07-30
+## 2026-08-01
 
+- Complete Import / Export Framework platform capability (Database schema importExportJobs table in packages/database/src/schema/import-export.ts, NestJS ImportExportModule, ImportExportController, and ImportExportService in apps/api/src/import-export, importExportApi client, reusable ExportDialog supporting CSV, Excel, and JSON, reusable 7-step ImportWizard modal with pre-import validation engine and column mapping, floating BulkActionToolbar for batch operations in EntityDataTable, template download generators, NestJS unit tests in import-export.service.spec.ts)
+- Complete Activity Center & Audit Explorer platform capability (Database schema activityEvents table in packages/database/src/schema/activity.ts, NestJS ActivityModule, ActivityController, and ActivityService in apps/api/src/activity, activityApi client, reusable ActivityTimeline, ActivityCard, ActivityBadge, ActivityIcon, ActivityFilters, and AuditTable UI components in apps/web/components/ui/activity-timeline.tsx, Global Activity Feed page /activity, Enterprise Audit Explorer page /audit, navigation context integration in navigation-config.tsx, NestJS unit tests in activity.service.spec.ts)
+- Complete Global Search & Command Center capability (Platform-wide ⌘K / Ctrl+K keyboard shortcut listener, shadcn/ui command primitives in /components/ui/command.tsx, global CommandPalette modal component, NestJS SearchModule, SearchController, and SearchService with modular bounded context search providers InventorySearchProvider, ProcurementSearchProvider, ManufacturingSearchProvider, ProjectsSearchProvider, and AdministrationSearchProvider, searchApi client, quick action command shortcuts, recent searches and recent pages history cached in localStorage, TopHeader search bar trigger integration)
+- Production Engineering Verification & Quality Assurance Pass (Repository health assessment, cleaned stray compiled JS artifacts in package src/ causing stale Vitest test execution, fixed Reservation aggregate unit test assertions in @ananya/inventory, refactored Dashboard page to use shared StatCard and PageHeader primitives, verified zero explicit any / @ts-ignore / @ts-expect-error annotations, verified 100% test pass rate across all 25 test tasks, confirmed pnpm lint, pnpm check-types, pnpm test, and pnpm build clean success across all 17 monorepo packages)
+- Complete Authentication & Authorization (RBAC) capability (Database schema for users, roles, user_sessions, password_reset_tokens, and security_audit_logs, NestJS AuthModule, UsersModule, RolesModule, PermissionsModule, SecurityAuditModule, Granular permissions matrix & default system roles, AuthContext provider with token handling and PermissionGuard UI component to hide unauthorized actions, Login page /login, Profile & Security page /profile, User Directory page /users & /users/[id], Roles & Permissions page /roles & /roles/[id], Security Audit Log page /settings/security, TopHeader profile menu & logout integration, Navigation config updates)
 - Complete Barcode & QR Operations capability (Barcode & QR Operations Studio /barcodes, Vector SVG BarcodeViewer supporting Code 128, Code 39, EAN-13, and UPC-A, Vector SVG QRCodeViewer for versioned payloads ANANYA:V1:TYPE:ID, Printable LabelPreview with Compact, Standard, Detailed, and Shelf Bin Tag templates, Global ScanDialog modal with hardware USB/Bluetooth scanner keypress buffering and camera simulation stream, BatchPrintDialog studio, Centralized NestJS BarcodesModule & BarcodesController & BarcodesService lookup resolving barcodes, QR payloads, SKUs, PO #s, WO #s, Location codes, Project #s, and UUIDs to entity details & target URLs, Type-safe barcodesApi client, Quick Scan header button trigger, Navigation integration)
 - Complete Reporting & Analytics capability (Reports Hub /reports, Inventory Reports /reports/inventory, Procurement Reports /reports/procurement, Manufacturing Reports /reports/manufacturing, Project Reports /reports/projects, Transaction Reports /reports/transactions, Reusable chart components ChartCard, AreaChartWidget, BarChartWidget, DonutChartWidget, TrendCard, ReportFilters bar, Read-only NestJS ReportingModule & ReportingController & ReportingService, Type-safe reportingApi client, Navigation module integration, Drill-down entity navigation links)
 - Complete Projects & Material Allocation module (List /projects, View /projects/[id], Create & Edit project with ProjectForm, Project lifecycle PLANNING -> ACTIVE -> ON_HOLD -> COMPLETED / ARCHIVED / CANCELLED, Project metadata manager with type/priority/manager/owner/dates, Material Allocation to reserve components for project usage, Material Issue from allocated stock for active projects, Material Return back to warehouse inventory, Milestone management with completion tracking, Activity log with chronological audit trail, Project stat cards for materials/milestones/allocations, Domain aggregate with addMilestone() completeMilestone() allocateMaterial() issueMaterial() returnMaterial() lifecycle methods, ProjectExceptionFilter for domain error handling, API Integration GET/POST/PUT /projects with material & milestone sub-endpoints, Drizzle ORM multi-table persistence for projects/milestones/materials/activities)

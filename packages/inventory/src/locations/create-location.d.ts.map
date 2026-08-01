@@ -1,1 +1,0 @@
-{"version":3,"file":"create-location.d.ts","sourceRoot":"","sources":["create-location.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAE,KAAK,mBAAmB,EAAE,MAAM,YAAY,CAAC;AAMhE,OAAO,KAAK,EAAE,kBAAkB,EAAE,MAAM,uBAAuB,CAAC;AAEhE,qBAAa,cAAc;IACb,OAAO,CAAC,QAAQ,CAAC,SAAS;gBAAT,SAAS,EAAE,kBAAkB;IAEpD,OAAO,CAAC,KAAK,EAAE,mBAAmB,GAAG,OAAO,CAAC,QAAQ,CAAC;CA4B7D"}

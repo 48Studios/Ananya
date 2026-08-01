@@ -1,1 +1,0 @@
-{"version":3,"file":"reservation.errors.d.ts","sourceRoot":"","sources":["reservation.errors.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,WAAW,EAAE,qBAAqB;AAE3C,qBAAa,+BAAgC,SAAQ,WAAW;gBAClD,OAAO,SAAmD;CAGvE;AAED,qBAAa,wBAAyB,SAAQ,WAAW;gBAC3C,EAAE,EAAE,MAAM;CAGvB;AAED,qBAAa,6BAA8B,SAAQ,WAAW;gBAChD,OAAO,SAA0C;CAG9D"}

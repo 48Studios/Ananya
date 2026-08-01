@@ -12,9 +12,12 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { Search, ArrowUpDown, ChevronLeft, ChevronRight, Inbox } from 'lucide-react'
+import { Search, ArrowUpDown, ChevronLeft, ChevronRight, Inbox, Upload, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { ExportDialog } from '@/components/ui/export-dialog'
+import { ImportWizard } from '@/components/ui/import-wizard'
+import { BulkActionToolbar } from '@/components/ui/bulk-action-toolbar'
 
 export interface FilterOption {
   label: string
@@ -37,6 +40,8 @@ export interface EntityDataTableProps<TData, TValue> {
   emptyTitle?: string
   emptyMessage?: string
   actionButton?: React.ReactNode
+  entityType?: string
+  onRefreshData?: () => void
 }
 
 export function EntityDataTable<TData, TValue>({
@@ -49,10 +54,15 @@ export function EntityDataTable<TData, TValue>({
   emptyTitle = 'No data found',
   emptyMessage = 'No records match your criteria.',
   actionButton,
+  entityType = 'Entity',
+  onRefreshData,
 }: EntityDataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = React.useState('')
+  const [rowSelection, setRowSelection] = React.useState({})
+  const [isExportOpen, setIsExportOpen] = React.useState(false)
+  const [isImportOpen, setIsImportOpen] = React.useState(false)
 
   const table = useReactTable({
     data,
@@ -61,31 +71,34 @@ export function EntityDataTable<TData, TValue>({
       sorting,
       columnFilters,
       globalFilter,
+      rowSelection,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
+    onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    enableRowSelection: true,
   })
+
+  const selectedRows = table.getSelectedRowModel().rows
+  const selectedIds = selectedRows.map((r) => String((r.original as Record<string, unknown>).id || r.id))
+  const availableCols = columns.map((c) => (c as { accessorKey?: string; id?: string }).accessorKey || (c as { id?: string }).id || '').filter(Boolean)
 
   return (
     <div className="space-y-4">
-      {/* Toolbar: Search, Filters & Action Button */}
+      {/* Controls Header */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="flex flex-1 flex-wrap items-center gap-2">
-          {/* Global or Specific Search */}
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="flex flex-1 items-center gap-2 flex-wrap">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              value={
-                searchKey
-                  ? ((table.getColumn(searchKey)?.getFilterValue() as string) ?? '')
-                  : globalFilter
-              }
+              value={searchKey ? (table.getColumn(searchKey)?.getFilterValue() as string) ?? '' : globalFilter}
               onChange={(e) => {
                 const val = e.target.value
                 if (searchKey) {
@@ -123,8 +136,50 @@ export function EntityDataTable<TData, TValue>({
           })}
         </div>
 
-        {actionButton && <div>{actionButton}</div>}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setIsImportOpen(true)} className="text-xs">
+            <Upload className="w-3.5 h-3.5 mr-1" />
+            Import
+          </Button>
+
+          <Button variant="outline" size="sm" onClick={() => setIsExportOpen(true)} className="text-xs">
+            <Download className="w-3.5 h-3.5 mr-1" />
+            Export
+          </Button>
+
+          {actionButton && <div>{actionButton}</div>}
+        </div>
       </div>
+
+      {/* Export Dialog */}
+      <ExportDialog
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        entityType={entityType}
+        availableColumns={availableCols.length > 0 ? availableCols : ['id', 'name', 'code', 'status']}
+        selectedIds={selectedIds}
+        totalRecordsCount={table.getFilteredRowModel().rows.length}
+      />
+
+      {/* Import Wizard */}
+      <ImportWizard
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        entityType={entityType}
+        onImportComplete={() => {
+          if (onRefreshData) onRefreshData()
+        }}
+      />
+
+      {/* Bulk Action Toolbar */}
+      <BulkActionToolbar
+        entityType={entityType}
+        selectedIds={selectedIds}
+        onClearSelection={() => setRowSelection({})}
+        onActionComplete={() => {
+          if (onRefreshData) onRefreshData()
+        }}
+      />
 
       {/* Table Container */}
       <div className="bg-card border border-border rounded-lg overflow-hidden shadow-xs">

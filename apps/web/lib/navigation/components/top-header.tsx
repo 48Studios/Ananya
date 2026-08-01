@@ -19,12 +19,14 @@ import { useTheme } from 'next-themes'
 import { useNavigation } from '../navigation-context'
 import { Button } from '@/components/ui/button'
 import { ScanDialog } from '@/components/barcodes/scan-dialog'
+import { useAuth } from '@/lib/auth/auth-context'
 import { cn } from '@/lib/utils'
 
 import { NAV_TOKENS } from '../tokens'
 
 export function TopHeader() {
   const { theme, setTheme } = useTheme()
+  const { user, logout } = useAuth()
   const {
     activePath,
     currentModule,
@@ -183,26 +185,37 @@ export function TopHeader() {
           <div className="absolute right-0 mt-2 w-52 bg-popover border border-border rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in-50 duration-100">
             <div className="px-4 py-3 border-b border-border">
               <p className="text-xs font-semibold text-popover-foreground">
-                J. Sarath
+                {user ? `${user.firstName} ${user.lastName}` : 'J. Sarath'}
               </p>
               <p className="text-[11px] text-muted-foreground truncate">
-                jrsarath@48studios.internal
+                {user?.email || 'jrsarath@48studios.internal'}
               </p>
             </div>
 
             <div className="py-1">
               <Link
+                href="/profile"
+                onClick={() => setIsUserMenuOpen(false)}
+                className="block px-4 py-2 text-xs text-popover-foreground hover:bg-input text-left transition-colors"
+              >
+                Profile & Security
+              </Link>
+              <Link
                 href="/settings"
                 onClick={() => setIsUserMenuOpen(false)}
                 className="block px-4 py-2 text-xs text-popover-foreground hover:bg-input text-left transition-colors"
               >
-                Profile & Settings
+                General Settings
               </Link>
             </div>
 
             <div className="border-t border-border py-1">
               <button
                 type="button"
+                onClick={() => {
+                  setIsUserMenuOpen(false)
+                  logout()
+                }}
                 className="w-full px-4 py-2 text-xs text-destructive hover:bg-input text-left transition-colors flex items-center gap-2"
               >
                 <LogOut className="size-3.5" />

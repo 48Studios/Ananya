@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
 import { DashboardLayout } from '@/components/dashboard-layout'
+import { AuthProvider } from '@/lib/auth/auth-context'
 
 export const metadata: Metadata = {
   title: 'Ananya ERP',
@@ -25,7 +26,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className="bg-background">
       <body className="antialiased bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <DashboardLayout>{children}</DashboardLayout>
+          <AuthProvider>
+            <DashboardLayout>{children}</DashboardLayout>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

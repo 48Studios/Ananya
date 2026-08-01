@@ -32,6 +32,7 @@ import {
   ShieldCheck,
   BarChart3,
   QrCode,
+  Shield,
 } from 'lucide-react'
 import { NavigationModule } from './types'
 
@@ -499,6 +500,12 @@ export const navigationModules: NavigationModule[] = [
         type: 'nav',
         items: [
           { id: 'settings-main', title: 'General Settings', href: '/settings', icon: <Settings className="w-4 h-4" /> },
+          { id: 'settings-activity', title: 'Activity Center', href: '/activity', icon: <BarChart3 className="w-4 h-4" /> },
+          { id: 'settings-audit', title: 'Audit Explorer', href: '/audit', icon: <Shield className="w-4 h-4" /> },
+          { id: 'settings-profile', title: 'My Profile', href: '/profile', icon: <UserCheck className="w-4 h-4" /> },
+          { id: 'settings-users', title: 'Users Directory', href: '/users', icon: <Users className="w-4 h-4" /> },
+          { id: 'settings-roles', title: 'Roles & Permissions', href: '/roles', icon: <Shield className="w-4 h-4" /> },
+          { id: 'settings-security', title: 'Security Audit Log', href: '/settings/security', icon: <ShieldCheck className="w-4 h-4" /> },
         ],
       },
     ],
