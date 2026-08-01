@@ -59,6 +59,8 @@ import { PurchaseRecommendationsModule } from './purchase-recommendations/purcha
 import { ProductionRecommendationsModule } from './production-recommendations/production-recommendations.module';
 import { CapacityPlansModule } from './capacity-plans/capacity-plans.module';
 import { PlanningMessagesModule } from './planning-messages/planning-messages.module';
+import { ReportingModule } from './reporting/reporting.module';
+import { BarcodesModule } from './barcodes/barcodes.module';
 
 @Module({
   imports: [
@@ -121,6 +123,8 @@ import { PlanningMessagesModule } from './planning-messages/planning-messages.mo
     ProductionRecommendationsModule,
     CapacityPlansModule,
     PlanningMessagesModule,
+    ReportingModule,
+    BarcodesModule,
   ],
   controllers: [AppController],
 })

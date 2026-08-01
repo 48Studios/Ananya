@@ -16,7 +16,7 @@
 
 ## Current Vertical Slice
 
-**Reporting & Analytics**
+**Authentication & Authorization (RBAC)**
 
 ## Current Sprint Goal
 
@@ -28,7 +28,7 @@ Implement the core inventory management experience and establish the foundationa
 
 ## Current Status
 
-🟢 Projects Complete — Moving to Reporting & Analytics
+🟢 Barcode & QR Operations Complete — Moving to Authentication & Authorization (RBAC)
 
 ---
 
@@ -87,10 +87,10 @@ Implement the core inventory management experience and establish the foundationa
 
 ## Reporting
 
-- [ ] Inventory Reports
-- [ ] Purchase Reports
-- [ ] Stock Valuation
-- [ ] Dashboard Analytics
+- [x] Inventory Reports
+- [x] Purchase Reports
+- [x] Stock Valuation
+- [x] Dashboard Analytics
 
 ---
 
@@ -100,7 +100,7 @@ Only the active work should appear here.
 
 ## Active
 
-- [ ] Reporting & Analytics
+- [ ] Authentication & Authorization (RBAC)
 
 Completed work should immediately move into the **Completed** section.
 
@@ -110,14 +110,11 @@ Completed work should immediately move into the **Completed** section.
 
 After the current slice is complete, implement:
 
-## Reporting & Analytics
+## Authentication & Authorization (RBAC)
 
 Requirements
 
-- Inventory Reports
-- Purchase Reports
-- Stock Valuation
-- Dashboard Analytics
+- User authentication, JWT tokens, session security, role-based access control (RBAC), and permission guards across API controllers and UI views
 
 Reuse:
 
@@ -136,6 +133,8 @@ Do not redesign the application shell.
 
 ## 2026-07-30
 
+- Complete Barcode & QR Operations capability (Barcode & QR Operations Studio /barcodes, Vector SVG BarcodeViewer supporting Code 128, Code 39, EAN-13, and UPC-A, Vector SVG QRCodeViewer for versioned payloads ANANYA:V1:TYPE:ID, Printable LabelPreview with Compact, Standard, Detailed, and Shelf Bin Tag templates, Global ScanDialog modal with hardware USB/Bluetooth scanner keypress buffering and camera simulation stream, BatchPrintDialog studio, Centralized NestJS BarcodesModule & BarcodesController & BarcodesService lookup resolving barcodes, QR payloads, SKUs, PO #s, WO #s, Location codes, Project #s, and UUIDs to entity details & target URLs, Type-safe barcodesApi client, Quick Scan header button trigger, Navigation integration)
+- Complete Reporting & Analytics capability (Reports Hub /reports, Inventory Reports /reports/inventory, Procurement Reports /reports/procurement, Manufacturing Reports /reports/manufacturing, Project Reports /reports/projects, Transaction Reports /reports/transactions, Reusable chart components ChartCard, AreaChartWidget, BarChartWidget, DonutChartWidget, TrendCard, ReportFilters bar, Read-only NestJS ReportingModule & ReportingController & ReportingService, Type-safe reportingApi client, Navigation module integration, Drill-down entity navigation links)
 - Complete Projects & Material Allocation module (List /projects, View /projects/[id], Create & Edit project with ProjectForm, Project lifecycle PLANNING -> ACTIVE -> ON_HOLD -> COMPLETED / ARCHIVED / CANCELLED, Project metadata manager with type/priority/manager/owner/dates, Material Allocation to reserve components for project usage, Material Issue from allocated stock for active projects, Material Return back to warehouse inventory, Milestone management with completion tracking, Activity log with chronological audit trail, Project stat cards for materials/milestones/allocations, Domain aggregate with addMilestone() completeMilestone() allocateMaterial() issueMaterial() returnMaterial() lifecycle methods, ProjectExceptionFilter for domain error handling, API Integration GET/POST/PUT /projects with material & milestone sub-endpoints, Drizzle ORM multi-table persistence for projects/milestones/materials/activities)
 - Complete UI foundation rebuild
 - Integrate new v0 application shell

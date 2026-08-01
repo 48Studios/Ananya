@@ -30,6 +30,8 @@ import {
   PackageCheck,
   ShieldAlert,
   ShieldCheck,
+  BarChart3,
+  QrCode,
 } from 'lucide-react'
 import { NavigationModule } from './types'
 
@@ -155,6 +157,7 @@ export const navigationModules: NavigationModule[] = [
             children: [
               { id: 'inv-transactions', title: 'Ledger Transactions', href: '/transactions', icon: <ListFilter className="w-4 h-4" /> },
               { id: 'inv-adjustments', title: 'Stock Adjustments', href: '/stock-adjustments', icon: <Wrench className="w-4 h-4" /> },
+              { id: 'inv-barcodes', title: 'Barcode & QR Studio', href: '/barcodes', icon: <QrCode className="w-4 h-4" /> },
             ],
           },
           {
@@ -454,6 +457,32 @@ export const navigationModules: NavigationModule[] = [
           { id: 'trace-serials', title: 'Serials', href: '/serials', icon: <Tag className="w-4 h-4" /> },
           { id: 'trace-reservations', title: 'Stock Reservations', href: '/reservations', icon: <ClipboardList className="w-4 h-4" /> },
           { id: 'trace-projections', title: 'Demand Projections', href: '/projections', icon: <ListFilter className="w-4 h-4" /> },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'reports',
+    name: 'Reporting & Analytics',
+    icon: <BarChart3 className="w-4 h-4" />,
+    defaultRoute: '/reports',
+    sidebar: [
+      {
+        id: 'reports-pinned',
+        title: 'Pinned',
+        type: 'pinned',
+      },
+      {
+        id: 'reports-nav',
+        title: 'Workspace',
+        type: 'nav',
+        items: [
+          { id: 'rep-overview', title: 'Reports Hub', href: '/reports', icon: <LayoutDashboard className="w-4 h-4" /> },
+          { id: 'rep-inventory', title: 'Inventory Reports', href: '/reports/inventory', icon: <Boxes className="w-4 h-4" /> },
+          { id: 'rep-procurement', title: 'Procurement Reports', href: '/reports/procurement', icon: <ShoppingCart className="w-4 h-4" /> },
+          { id: 'rep-manufacturing', title: 'Manufacturing Reports', href: '/reports/manufacturing', icon: <Factory className="w-4 h-4" /> },
+          { id: 'rep-projects', title: 'Project Reports', href: '/reports/projects', icon: <FolderKanban className="w-4 h-4" /> },
+          { id: 'rep-transactions', title: 'Transaction Reports', href: '/reports/transactions', icon: <ArrowRightLeft className="w-4 h-4" /> },
         ],
       },
     ],

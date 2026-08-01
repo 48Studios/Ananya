@@ -13,10 +13,12 @@ import {
   Menu,
   X,
   Command,
+  Scan,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useNavigation } from '../navigation-context'
 import { Button } from '@/components/ui/button'
+import { ScanDialog } from '@/components/barcodes/scan-dialog'
 import { cn } from '@/lib/utils'
 
 import { NAV_TOKENS } from '../tokens'
@@ -32,6 +34,7 @@ export function TopHeader() {
   } = useNavigation()
   const [mounted, setMounted] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [isScanOpen, setIsScanOpen] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -122,6 +125,21 @@ export function TopHeader() {
           <Command className="size-2.5" /> K
         </kbd>
       </button>
+
+      {/* Barcode & QR Quick Scan Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setIsScanOpen(true)}
+        className="hidden md:inline-flex items-center gap-1.5 text-xs text-foreground bg-input/40 hover:bg-input border-border/60"
+        title="Quick Barcode & QR Scan"
+      >
+        <Scan className="size-3.5 text-primary" />
+        <span>Scan</span>
+      </Button>
+
+      {/* Quick Scan Dialog */}
+      <ScanDialog isOpen={isScanOpen} onClose={() => setIsScanOpen(false)} />
 
       {/* Theme Toggle */}
       <Button
