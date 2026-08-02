@@ -33,6 +33,8 @@ import {
   BarChart3,
   QrCode,
   Shield,
+  Bell,
+  Zap,
 } from 'lucide-react'
 import { NavigationModule } from './types'
 
@@ -500,6 +502,8 @@ export const navigationModules: NavigationModule[] = [
         type: 'nav',
         items: [
           { id: 'settings-main', title: 'General Settings', href: '/settings', icon: <Settings className="w-4 h-4" /> },
+          { id: 'settings-notifications', title: 'Notification Center', href: '/notifications', icon: <Bell className="w-4 h-4" /> },
+          { id: 'settings-workflows', title: 'Workflow Automation', href: '/workflows', icon: <Zap className="w-4 h-4" /> },
           { id: 'settings-activity', title: 'Activity Center', href: '/activity', icon: <BarChart3 className="w-4 h-4" /> },
           { id: 'settings-audit', title: 'Audit Explorer', href: '/audit', icon: <Shield className="w-4 h-4" /> },
           { id: 'settings-profile', title: 'My Profile', href: '/profile', icon: <UserCheck className="w-4 h-4" /> },

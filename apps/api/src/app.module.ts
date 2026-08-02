@@ -69,6 +69,10 @@ import { SecurityAuditModule } from './security-audit/security-audit.module';
 import { SearchModule } from './search/search.module';
 import { ActivityModule } from './activity/activity.module';
 import { ImportExportModule } from './import-export/import-export.module';
+import { DocumentsModule } from './documents/documents.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { SettingsModule } from './settings/settings.module';
+import { PreferencesModule } from './preferences/preferences.module';
 
 @Module({
   imports: [
@@ -141,6 +145,10 @@ import { ImportExportModule } from './import-export/import-export.module';
     SearchModule,
     ActivityModule,
     ImportExportModule,
+    DocumentsModule,
+    NotificationsModule,
+    SettingsModule,
+    PreferencesModule,
   ],
   controllers: [AppController],
 })

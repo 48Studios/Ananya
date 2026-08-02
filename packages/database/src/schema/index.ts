@@ -47,5 +47,13 @@ export * from "./mrp";
 export * from "./auth";
 export * from "./activity";
 export * from "./import-export";
+export * from "./documents";
+export * from "./notifications";
+export * from "./settings";
+export * from "./preferences";
+
+
+
+
 
 

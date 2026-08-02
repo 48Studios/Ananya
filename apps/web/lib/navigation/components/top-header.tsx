@@ -6,7 +6,6 @@ import {
   Moon,
   Sun,
   Search,
-  Bell,
   User,
   LogOut,
   ChevronRight,
@@ -19,6 +18,7 @@ import { useTheme } from 'next-themes'
 import { useNavigation } from '../navigation-context'
 import { Button } from '@/components/ui/button'
 import { ScanDialog } from '@/components/barcodes/scan-dialog'
+import { NotificationBell } from '@/components/ui/notification-bell'
 import { useAuth } from '@/lib/auth/auth-context'
 import { cn } from '@/lib/utils'
 
@@ -158,16 +158,8 @@ export function TopHeader() {
         )}
       </Button>
 
-      {/* Notifications Button */}
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="relative text-foreground hover:bg-input"
-        aria-label="Notifications"
-      >
-        <Bell className="size-4" />
-        <span className="absolute top-1 right-1 size-2 bg-emerald-500 rounded-full" />
-      </Button>
+      {/* Notifications Popover Bell */}
+      <NotificationBell />
 
       {/* User Profile Menu */}
       <div className="relative">

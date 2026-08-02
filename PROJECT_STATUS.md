@@ -12,15 +12,15 @@
 
 ## Current Milestone
 
-**Enterprise Platform Services**
+**Release Candidate Stabilization**
 
 ## Current Vertical Slice
 
-**Document & Attachment Management**
+**RC1 Engineering Stabilization & Verification Pass**
 
 ## Current Sprint Goal
 
-Implement platform-wide file attachment management, document versioning, storage provider abstraction, and entity document associations.
+Perform full repository health audit, end-to-end user journey verification, security hardening, performance profiling, and release candidate preparation.
 
 ## Current Branch
 
@@ -28,7 +28,7 @@ Implement platform-wide file attachment management, document versioning, storage
 
 ## Current Status
 
-🟢 Import / Export Framework Complete — Moving to Document & Attachment Management
+🟢 Dashboard Personalization & Saved Views Complete — Feature Freeze Reached! Moving to Release Candidate Stabilization Sprint.
 
 ---
 
@@ -55,6 +55,10 @@ Implement platform-wide file attachment management, document versioning, storage
 - [x] Global Search & Command Center (⌘K / Ctrl+K)
 - [x] Activity Center & Audit Explorer
 - [x] Import / Export Framework
+- [x] Document & Attachment Management
+- [x] Notification Center & Workflow Automation
+- [x] Organization & System Administration
+- [x] Dashboard Personalization & Saved Views
 
 ---
 
@@ -107,32 +111,9 @@ Only the active work should appear here.
 
 ## Active
 
-- [ ] Document & Attachment Management
+- [ ] Release Candidate Stabilization Sprint
 
 Completed work should immediately move into the **Completed** section.
-
----
-
-# Next Vertical Slice
-
-After the current slice is complete, implement:
-
-## Document & Attachment Management
-
-Requirements
-
-- Centralized attachment storage, document categorization, version history, file preview, entity attachments, and upload permissions.
-
-Reuse:
-
-- DashboardLayout
-- PageHeader
-- EntityDataTable
-- StatCard
-- EmptyState
-- LoadingState
-
-Do not redesign the application shell.
 
 ---
 
@@ -140,6 +121,10 @@ Do not redesign the application shell.
 
 ## 2026-08-01
 
+- Complete Dashboard Personalization & Saved Views platform capability (Database schema userDashboardLayouts, userSavedViews, userFavorites, and userWorkspacePreferences tables in packages/database/src/schema/preferences.ts, NestJS PreferencesModule, PreferencesController, and PreferencesService in apps/api/src/preferences, preferencesApi client, DashboardGrid widget layout renderer, WidgetPicker modal drawer, FavoritesPanel pinned items component, SavedViewDialog filter preset modal, integrated /dashboard page customization mode, NestJS unit tests in preferences.service.spec.ts)
+- Complete Organization & System Administration platform capability (Database schema organizationProfile, systemSettings, numberingSeries, and featureFlags tables in packages/database/src/schema/settings.ts, NestJS SettingsModule, SettingsController, and SettingsService in apps/api/src/settings, settingsApi client, NumberingSeriesEditor with live code preview, FeatureFlagTable toggle table, Centralized Administration Hub /settings wrapped in PermissionGuard, NestJS unit tests in settings.service.spec.ts)
+- Complete Notification Center & Workflow Automation platform capability (Database schema notifications, notificationPreferences, workflows, and workflowExecutions tables in packages/database/src/schema/notifications.ts, NestJS NotificationsModule, NotificationsController, NotificationsService, and WorkflowEngineService in apps/api/src/notifications, notificationsApi client, TopHeader NotificationBell popover, NotificationCard component, Global Notification Center page /notifications, Workflow Automation Rule Builder modal WorkflowBuilder, Enterprise Workflow Management page /workflows, navigation context integration, NestJS unit tests in notifications.service.spec.ts)
+- Complete Document & Attachment Management platform capability (Database schema documents and documentVersions tables in packages/database/src/schema/documents.ts, NestJS DocumentsModule, DocumentsController, DocumentsService, and StorageService in apps/api/src/documents, documentsApi client, reusable FileUploader with drag & drop and clipboard image paste, DocumentViewer inline previewer supporting PDF, images, text, and CAD file metadata, VersionHistoryDialog versioning modal, AttachmentPanel embedded component, NestJS unit tests in documents.service.spec.ts)
 - Complete Import / Export Framework platform capability (Database schema importExportJobs table in packages/database/src/schema/import-export.ts, NestJS ImportExportModule, ImportExportController, and ImportExportService in apps/api/src/import-export, importExportApi client, reusable ExportDialog supporting CSV, Excel, and JSON, reusable 7-step ImportWizard modal with pre-import validation engine and column mapping, floating BulkActionToolbar for batch operations in EntityDataTable, template download generators, NestJS unit tests in import-export.service.spec.ts)
 - Complete Activity Center & Audit Explorer platform capability (Database schema activityEvents table in packages/database/src/schema/activity.ts, NestJS ActivityModule, ActivityController, and ActivityService in apps/api/src/activity, activityApi client, reusable ActivityTimeline, ActivityCard, ActivityBadge, ActivityIcon, ActivityFilters, and AuditTable UI components in apps/web/components/ui/activity-timeline.tsx, Global Activity Feed page /activity, Enterprise Audit Explorer page /audit, navigation context integration in navigation-config.tsx, NestJS unit tests in activity.service.spec.ts)
 - Complete Global Search & Command Center capability (Platform-wide ⌘K / Ctrl+K keyboard shortcut listener, shadcn/ui command primitives in /components/ui/command.tsx, global CommandPalette modal component, NestJS SearchModule, SearchController, and SearchService with modular bounded context search providers InventorySearchProvider, ProcurementSearchProvider, ManufacturingSearchProvider, ProjectsSearchProvider, and AdministrationSearchProvider, searchApi client, quick action command shortcuts, recent searches and recent pages history cached in localStorage, TopHeader search bar trigger integration)
