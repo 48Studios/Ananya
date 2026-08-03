@@ -117,8 +117,8 @@ export default function ProfilePage() {
         />
         <StatCard
           title="Assigned Role"
-          value={user.roleName}
-          subtitle={`${user.permissions.length} granted permissions`}
+          value={user.roleName || 'User'}
+          subtitle={`${user.permissions?.length || 0} granted permissions`}
           icon={Shield}
         />
         <StatCard
@@ -323,7 +323,7 @@ export default function ProfilePage() {
                         IP: {s.ipAddress || '127.0.0.1'}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
-                        Expires: {new Date(s.expiresAt).toLocaleDateString()}
+                        Expires: {s.expiresAt ? new Date(s.expiresAt).toLocaleDateString() : 'N/A'}
                       </p>
                     </div>
 

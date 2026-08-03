@@ -126,6 +126,41 @@ export const securityAuditLogs = pgTable(
   ]
 );
 
+export const userInvitations = pgTable(
+  "user_invitations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    email: varchar("email", { length: 255 }).notNull(),
+    roleId: uuid("role_id").references(() => roles.id, { onDelete: "cascade" }),
+    department: varchar("department", { length: 100 }),
+    token: varchar("token", { length: 255 }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    status: varchar("status", { length: 32 }).notNull().default("PENDING"), // 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'REVOKED'
+    invitedById: uuid("invited_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("user_invitations_token_unique").on(table.token),
+    index("user_invitations_email_idx").on(table.email),
+    index("user_invitations_status_idx").on(table.status),
+  ]
+);
+
+export const organizationSetupStatus = pgTable(
+  "organization_setup_status",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    isCompleted: boolean("is_completed").notNull().default(false),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    completedById: uuid("completed_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  }
+);
+
 export type Role = typeof roles.$inferSelect;
 export type NewRole = typeof roles.$inferInsert;
 
@@ -140,3 +175,7 @@ export type NewPasswordResetToken = typeof passwordResetTokens.$inferInsert;
 
 export type SecurityAuditLog = typeof securityAuditLogs.$inferSelect;
 export type NewSecurityAuditLog = typeof securityAuditLogs.$inferInsert;
+
+export type UserInvitation = typeof userInvitations.$inferSelect;
+export type OrganizationSetupStatus = typeof organizationSetupStatus.$inferSelect;
+

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { authApi, UserProfileDto, LoginPayload, PermissionGroup } from '../api/auth-api'
+import { authApi, UserProfileDto, PermissionGroup } from '../api/auth-api'
 
 interface AuthContextType {
   user: UserProfileDto | null
@@ -10,7 +10,7 @@ interface AuthContextType {
   permissionGroups: PermissionGroup[]
   isAuthenticated: boolean
   loading: boolean
-  login: (payload: LoginPayload) => Promise<void>
+  login: (email: string, passwordHash: string) => Promise<void>
   logout: () => Promise<void>
   hasPermission: (requiredPermission: string) => boolean
   hasRole: (roleName: string) => boolean
@@ -58,8 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser()
   }, [refreshUser])
 
-  const login = async (payload: LoginPayload) => {
-    const res = await authApi.login(payload)
+  const login = async (email: string, passwordHash: string) => {
+    const res = await authApi.login(email, passwordHash)
     localStorage.setItem(TOKEN_KEY, res.token)
     setToken(res.token)
     setUser(res.user)
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hasRole = useCallback(
     (roleName: string): boolean => {
       if (!user) return false
-      return user.roleName.toLowerCase() === roleName.toLowerCase()
+      return (user.roleName || '').toLowerCase() === roleName.toLowerCase()
     },
     [user],
   )

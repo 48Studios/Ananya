@@ -343,21 +343,24 @@ export default function RolesListPage() {
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {group.permissions.map((p) => {
-                        const isChecked = selectedPermissions.includes(p.code)
+                        const code = typeof p === 'string' ? p : p.code
+                        const name = typeof p === 'string' ? p : p.name
+                        const description = typeof p === 'string' ? '' : p.description
+                        const isChecked = selectedPermissions.includes(code)
                         return (
                           <label
-                            key={p.code}
+                            key={code}
                             className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-muted/40 rounded transition-colors"
                           >
                             <input
                               type="checkbox"
                               checked={isChecked}
-                              onChange={() => handleTogglePermission(p.code)}
+                              onChange={() => handleTogglePermission(code)}
                               className="mt-0.5 rounded border-border"
                             />
                             <div>
-                              <p className="font-semibold text-foreground">{p.name}</p>
-                              <p className="text-[10px] text-muted-foreground">{p.description}</p>
+                              <p className="font-semibold text-foreground">{name}</p>
+                              {description && <p className="text-[10px] text-muted-foreground">{description}</p>}
                             </div>
                           </label>
                         )

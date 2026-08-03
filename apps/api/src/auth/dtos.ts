@@ -1,46 +1,92 @@
-import {
-  IsEmail,
-  IsString,
-  IsNotEmpty,
-  MinLength,
-  IsOptional,
-} from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsBoolean } from 'class-validator';
 
 export class LoginDto {
   @IsEmail()
-  @IsNotEmpty()
   email!: string;
 
   @IsString()
-  @IsNotEmpty()
   password!: string;
 
   @IsOptional()
+  @IsBoolean()
   rememberMe?: boolean;
 }
 
 export class ChangePasswordDto {
   @IsString()
-  @IsNotEmpty()
   currentPassword!: string;
 
   @IsString()
-  @MinLength(6)
   newPassword!: string;
 }
 
 export class ResetPasswordRequestDto {
   @IsEmail()
-  @IsNotEmpty()
   email!: string;
 }
 
 export class ResetPasswordDto {
   @IsString()
-  @IsNotEmpty()
   token!: string;
 
   @IsString()
-  @MinLength(6)
   newPassword!: string;
+}
+
+export class CreateInvitationDto {
+  @IsEmail()
+  email!: string;
+
+  @IsOptional()
+  @IsString()
+  roleId?: string;
+
+  @IsOptional()
+  @IsString()
+  department?: string;
+}
+
+export class AcceptInvitationDto {
+  @IsString()
+  token!: string;
+
+  @IsString()
+  password!: string;
+
+  @IsString()
+  firstName!: string;
+
+  @IsString()
+  lastName!: string;
+}
+
+export class SetupOrganizationDto {
+  @IsString()
+  companyName!: string;
+
+  @IsString()
+  legalName!: string;
+
+  @IsString()
+  taxId!: string;
+
+  @IsEmail()
+  adminEmail!: string;
+
+  @IsString()
+  adminPassword!: string;
+
+  @IsString()
+  adminFirstName!: string;
+
+  @IsString()
+  adminLastName!: string;
+
+  @IsOptional()
+  @IsString()
+  baseCurrency?: string;
+
+  @IsOptional()
+  @IsString()
+  primaryTimezone?: string;
 }

@@ -128,8 +128,8 @@ export default function UserDetailPage() {
         />
         <StatCard
           title="Assigned Role"
-          value={userInfo.roleName}
-          subtitle={`${userInfo.permissions.length} granted permissions`}
+          value={userInfo.roleName || 'User'}
+          subtitle={`${userInfo.permissions?.length || 0} granted permissions`}
           icon={Shield}
         />
         <StatCard
@@ -155,7 +155,7 @@ export default function UserDetailPage() {
         <div className="lg:col-span-2 space-y-4 bg-card border border-border rounded-xl p-6 shadow-xs">
           <div className="border-b border-border pb-3">
             <h3 className="text-base font-semibold text-foreground">
-              Effective Permissions Matrix ({userInfo.permissions.length})
+              Effective Permissions Matrix ({ (userInfo.permissions || []).length })
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Permissions inherited from role: <span className="font-semibold text-foreground">{userInfo.roleName}</span>
@@ -163,10 +163,10 @@ export default function UserDetailPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {userInfo.permissions.length === 0 ? (
+            {!(userInfo.permissions && userInfo.permissions.length > 0) ? (
               <p className="text-xs text-muted-foreground">No permissions assigned.</p>
             ) : (
-              userInfo.permissions.map((perm) => (
+              (userInfo.permissions || []).map((perm: string) => (
                 <div
                   key={perm}
                   className="p-2.5 bg-muted/20 border border-border rounded-lg flex items-center gap-2 text-xs"

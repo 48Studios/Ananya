@@ -6,88 +6,113 @@ export interface UserProfileDto {
   firstName: string;
   lastName: string;
   department?: string | null;
-  status: 'ACTIVE' | 'DISABLED';
+  status: string;
   roleId?: string | null;
-  roleName: string;
-  permissions: string[];
+  roleName?: string;
+  permissions?: string[];
+  secondaryRoleIds?: string[];
   lastLoginAt?: string | null;
   createdAt: string;
-  updatedAt: string;
-}
-
-export interface PermissionDefinition {
-  code: string;
-  name: string;
-  category: string;
-  description: string;
 }
 
 export interface PermissionGroup {
   category: string;
-  permissions: PermissionDefinition[];
-}
-
-export interface LoginPayload {
-  email: string;
-  password: string;
-  rememberMe?: boolean;
-}
-
-export interface LoginResponseDto {
-  token: string;
-  user: UserProfileDto;
-  permissions: string[];
-  permissionGroups: PermissionGroup[];
-}
-
-export interface MeResponseDto {
-  user: UserProfileDto;
-  permissions: string[];
-  permissionGroups: PermissionGroup[];
-  currentSessionId: string;
+  module?: string;
+  permissions: Array<{ code: string; name: string; description: string }>;
 }
 
 export interface SessionDto {
   id: string;
-  userId: string;
-  token: string;
-  ipAddress?: string | null;
-  userAgent?: string | null;
   deviceInfo?: string | null;
+  ipAddress?: string | null;
+  lastActiveAt?: string | null;
+  expiresAt?: string | null;
+  isCurrent?: boolean;
+}
+
+export interface LoginPayload {
+  token: string;
+  user: UserProfileDto;
+  permissions?: string[];
+  permissionGroups?: PermissionGroup[];
+}
+
+export interface SetupStatusDto {
+  isCompleted: boolean;
+  completedAt?: string | null;
+}
+
+export interface UserInvitationDto {
+  id: string;
+  email: string;
+  roleId?: string | null;
+  department?: string | null;
+  token: string;
   expiresAt: string;
-  isRevoked: boolean;
-  createdAt: string;
-  updatedAt: string;
+  status: string;
 }
 
 export const authApi = {
-  login: (payload: LoginPayload): Promise<LoginResponseDto> =>
-    apiClient.post<LoginResponseDto, LoginPayload>('/auth/login', payload),
+  login: (email: string, passwordHash: string): Promise<LoginPayload> => {
+    return apiClient.post<LoginPayload>('/auth/login', { email, passwordHash });
+  },
 
-  logout: (): Promise<{ success: boolean }> =>
-    apiClient.post<{ success: boolean }, Record<string, never>>('/auth/logout', {}),
+  logout: (): Promise<{ success: boolean }> => {
+    return apiClient.post<{ success: boolean }>('/auth/logout', {});
+  },
 
-  getMe: (): Promise<MeResponseDto> =>
-    apiClient.get<MeResponseDto>('/auth/me'),
+  getMe: (): Promise<LoginPayload> => {
+    return apiClient.get<LoginPayload>('/auth/me');
+  },
 
-  changePassword: (payload: { currentPassword: string; newPassword: string }): Promise<{ success: boolean }> =>
-    apiClient.post<{ success: boolean }, { currentPassword: string; newPassword: string }>(
-      '/auth/change-password',
-      payload,
-    ),
+  changePassword: (data: { currentPassword?: string; newPassword?: string }): Promise<{ success: boolean }> => {
+    return apiClient.post<{ success: boolean }>('/auth/change-password', data);
+  },
 
-  requestPasswordReset: (email: string): Promise<{ message: string }> =>
-    apiClient.post<{ message: string }, { email: string }>('/auth/reset-password-request', { email }),
+  getSessions: (): Promise<SessionDto[]> => {
+    return apiClient.get<SessionDto[]>('/auth/sessions');
+  },
 
-  resetPassword: (payload: { token: string; newPassword: string }): Promise<{ success: boolean }> =>
-    apiClient.post<{ success: boolean }, { token: string; newPassword: string }>('/auth/reset-password', payload),
+  revokeSession: (id: string): Promise<{ success: boolean }> => {
+    return apiClient.post<{ success: boolean }>(`/auth/sessions/${id}/revoke`, {});
+  },
 
-  getSessions: (): Promise<SessionDto[]> =>
-    apiClient.get<SessionDto[]>('/auth/sessions'),
+  revokeOtherSessions: (): Promise<{ success: boolean }> => {
+    return apiClient.post<{ success: boolean }>('/auth/revoke-sessions', {});
+  },
 
-  revokeSession: (id: string): Promise<{ success: boolean }> =>
-    apiClient.delete<{ success: boolean }>(`/auth/sessions/${id}`),
+  getSetupStatus: (): Promise<SetupStatusDto> => {
+    return apiClient.get<SetupStatusDto>('/auth/setup-status');
+  },
 
-  revokeOtherSessions: (): Promise<{ success: boolean }> =>
-    apiClient.delete<{ success: boolean }>('/auth/sessions-revoke-others'),
+  setupOrganization: (data: {
+    companyName: string;
+    legalName: string;
+    taxId: string;
+    adminEmail: string;
+    adminPassword: string;
+    adminFirstName: string;
+    adminLastName: string;
+    baseCurrency?: string;
+    primaryTimezone?: string;
+  }): Promise<{ success: boolean }> => {
+    return apiClient.post<{ success: boolean }>('/auth/setup-organization', data);
+  },
+
+  verifyInvitation: (token: string): Promise<UserInvitationDto> => {
+    return apiClient.get<UserInvitationDto>(`/auth/invitations/verify/${encodeURIComponent(token)}`);
+  },
+
+  acceptInvitation: (data: {
+    token: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  }): Promise<{ id: string; email: string }> => {
+    return apiClient.post<{ id: string; email: string }>('/auth/invitations/accept', data);
+  },
+
+  createInvitation: (data: { email: string; roleId?: string; department?: string }): Promise<UserInvitationDto> => {
+    return apiClient.post<UserInvitationDto>('/auth/invitations', data);
+  },
 };
