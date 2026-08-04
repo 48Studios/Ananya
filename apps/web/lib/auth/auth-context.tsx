@@ -29,7 +29,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const refreshUser = useCallback(async () => {
-    const savedToken = localStorage.getItem(TOKEN_KEY)
+    let savedToken = localStorage.getItem(TOKEN_KEY)
+    if (!savedToken && typeof document !== 'undefined') {
+      const match = document.cookie.match(/ananya_auth_token=([^;]+)/)
+      if (match && match[1]) savedToken = match[1]
+    }
+
     if (!savedToken) {
       setUser(null)
       setPermissions([])
@@ -46,6 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPermissionGroups(res.permissionGroups || [])
     } catch {
       localStorage.removeItem(TOKEN_KEY)
+      if (typeof document !== 'undefined') {
+        document.cookie = 'ananya_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      }
       setUser(null)
       setPermissions([])
       setToken(null)
@@ -61,6 +69,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, passwordHash: string) => {
     const res = await authApi.login(email, passwordHash)
     localStorage.setItem(TOKEN_KEY, res.token)
+    if (typeof document !== 'undefined') {
+      document.cookie = `ananya_auth_token=${res.token}; path=/; SameSite=Lax`
+    }
     setToken(res.token)
     setUser(res.user)
     setPermissions(res.permissions || [])
@@ -74,6 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Ignore logout errors
     } finally {
       localStorage.removeItem(TOKEN_KEY)
+      if (typeof document !== 'undefined') {
+        document.cookie = 'ananya_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      }
       setToken(null)
       setUser(null)
       setPermissions([])

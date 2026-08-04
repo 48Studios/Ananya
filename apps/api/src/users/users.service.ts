@@ -24,7 +24,11 @@ export class UsersService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.ensureInitialAdminUser();
+    try {
+      await this.ensureInitialAdminUser();
+    } catch {
+      // Catch relation does not exist error if DB tables are not yet created/migrated
+    }
   }
 
   async ensureInitialAdminUser() {

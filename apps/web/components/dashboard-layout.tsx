@@ -1,6 +1,8 @@
 'use client'
 
 import React from 'react'
+import { usePathname } from 'next/navigation'
+import { useAuth } from '@/lib/auth/auth-context'
 import { NavigationProvider } from '@/lib/navigation/navigation-context'
 import { NavigationRail } from '@/lib/navigation/components/navigation-rail'
 import { ContextSidebar } from '@/lib/navigation/components/context-sidebar'
@@ -9,7 +11,30 @@ import { MobileDrawer } from '@/lib/navigation/components/mobile-drawer'
 import { CommandPalette } from '@/lib/navigation/components/command-palette'
 import { AppFooter } from '@/components/app-footer'
 
+const PUBLIC_ROUTES = [
+  '/login',
+  '/forgot-password',
+  '/reset-password',
+  '/onboarding',
+  '/setup',
+  '/maintenance',
+]
+
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const { user, loading } = useAuth()
+
+  const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname?.startsWith(route))
+
+  // Completely isolate public pages or unauthenticated state from the authenticated ERP shell
+  if (isPublicRoute || !user || loading) {
+    return (
+      <main className="min-h-screen w-full bg-background text-foreground">
+        {children}
+      </main>
+    )
+  }
+
   return (
     <NavigationProvider>
       <div className="flex h-screen overflow-hidden bg-background text-foreground">

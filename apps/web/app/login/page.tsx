@@ -11,10 +11,10 @@ export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
 
-  const [email, setEmail] = React.useState('admin@48studios.com')
-  const [password, setPassword] = React.useState('Admin@123456')
+  const [email, setEmail] = React.useState('')
+  const [password, setPassword] = React.useState('')
   const [showPassword, setShowPassword] = React.useState(false)
-  const [rememberMe, setRememberMe] = React.useState(true)
+  const [rememberMe, setRememberMe] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 

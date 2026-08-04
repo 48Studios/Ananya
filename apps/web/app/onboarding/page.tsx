@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 
 export default function UserOnboardingPage() {
   const router = useRouter()
-  const [token, setToken] = React.useState('sample-invite-token')
+  const [token, setToken] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [firstName, setFirstName] = React.useState('')
   const [lastName, setLastName] = React.useState('')

@@ -16,11 +16,11 @@
 
 ## Current Vertical Slice
 
-**RC1 Production Readiness & Stabilization**
+**Database Automated Setup & Migration Tooling**
 
 ## Current Sprint Goal
 
-Maintain strict Feature Freeze, enforce zero lint/type errors, maintain 100% test pass rate, and ensure production-grade security, accessibility, and performance.
+Maintain strict Feature Freeze, enforce zero lint/type errors, maintain 100% test pass rate, and ensure automated single-command database migration & seeding tooling (`pnpm db:setup`).
 
 ## Current Branch
 
@@ -28,7 +28,7 @@ Maintain strict Feature Freeze, enforce zero lint/type errors, maintain 100% tes
 
 ## Current Status
 
-🟢 Release Candidate 1 (RC1) Complete — Feature Freeze Enforced! All 17 monorepo packages verified production-ready.
+🟢 Database Setup Tooling Complete — Added `packages/database/src/setup/setup.ts` and `pnpm db:setup` command to automatically apply Drizzle migrations and seed initial data!
 
 ---
 
@@ -60,7 +60,10 @@ Maintain strict Feature Freeze, enforce zero lint/type errors, maintain 100% tes
 - [x] Organization & System Administration
 - [x] Dashboard Personalization & Saved Views
 - [x] Identity, Authentication & Onboarding Platform
-- [x] Release Candidate 1 (RC1) Stabilization
+- [x] Automated QA & E2E Testing Platform
+- [x] Authentication & Authorization Security Architecture Remediation
+- [x] Application Shell Auth Isolation & Hardening
+- [x] Database Automated Setup & Migration Script (`pnpm db:setup`)
 
 ---
 
@@ -123,6 +126,10 @@ Completed work should immediately move into the **Completed** section.
 
 ## 2026-08-01
 
+- Complete Database Automated Setup & Migration Script (Implemented packages/database/src/setup/setup.ts leveraging drizzle-orm/node-postgres/migrator to apply SQL schema migrations automatically and run initial database seeding, added pnpm db:setup and pnpm db:push scripts to package.json)
+- Complete Application Shell Auth Isolation & Hardening (Refactored DashboardLayout in apps/web/components/dashboard-layout.tsx to isolate public auth routes /login, /forgot-password, /reset-password, /onboarding, /setup, /maintenance and unauthenticated loading states from ERP chrome NavigationRail, ContextSidebar, TopHeader, AppFooter, CommandPalette, updated login.spec.ts to verify 0 layout chrome leakage)
+- Complete Authentication & Authorization Security Architecture Remediation (Implemented apps/web/middleware.ts enforcing global edge-level route protection for all protected ERP pages, updated auth-context.tsx with SameSite=Lax cookie synchronization, added automated Playwright security redirect tests in tests/e2e/authentication/login.spec.ts, verified unauthenticated navigation redirects to /login)
+- Complete Automated QA & E2E Testing Platform (Configured playwright.config.ts for multi-browser Chromium, Firefox, WebKit, Mobile Chrome, and Mobile Safari, built Page Object Models LoginPage, DashboardPage, ComponentsPage, SettingsPage, implemented custom fixtures with automatic console/runtime exception listeners, created modular E2E test suites in tests/e2e/, integrated axe-core accessibility auditing in tests/accessibility/accessibility.spec.ts, created visual regression test suite tests/e2e/visual-regression.spec.ts, added pnpm test:e2e, pnpm test:accessibility, pnpm test:visual, and consolidated pnpm qa script in package.json, documented architecture in docs/testing.md)
 - Complete Release Candidate 1 (RC1) Stabilization Sprint (Passed comprehensive 15-phase audit across 17 monorepo packages, verified 0 lint errors/warnings, verified clean tsc --noEmit, verified 100% Vitest pass rate, verified 14/14 Next.js/Turborepo production builds, audited security, performance, accessibility, DDD boundaries, and user workspace isolation)
 - Complete Identity, Authentication & Onboarding platform capability (Database schema userSessions, userInvitations, and organizationSetupStatus tables in packages/database/src/schema/auth.ts, NestJS AuthModule, AuthController, AuthService, InvitationsService, and OnboardingService in apps/api/src/auth, authApi client, AuthProvider state context, modern split-layout login page /login, account recovery pages /forgot-password & /reset-password, invited user onboarding wizard /onboarding, first-launch Organization Setup Wizard /setup, NestJS unit tests in auth.service.spec.ts)
 - Complete Dashboard Personalization & Saved Views platform capability (Database schema userDashboardLayouts, userSavedViews, userFavorites, and userWorkspacePreferences tables in packages/database/src/schema/preferences.ts, NestJS PreferencesModule, PreferencesController, and PreferencesService in apps/api/src/preferences, preferencesApi client, DashboardGrid widget layout renderer, WidgetPicker modal drawer, FavoritesPanel pinned items component, SavedViewDialog filter preset modal, integrated /dashboard page customization mode, NestJS unit tests in preferences.service.spec.ts)

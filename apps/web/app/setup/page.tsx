@@ -9,15 +9,15 @@ import { Button } from '@/components/ui/button'
 export default function OrganizationSetupPage() {
   const router = useRouter()
   const [step, setStep] = React.useState<1 | 2>(1)
-  const [companyName, setCompanyName] = React.useState('48 Studios')
-  const [legalName, setLegalName] = React.useState('48 Studios Pvt Ltd')
-  const [taxId, setTaxId] = React.useState('GSTIN-33AAACD4848A1Z5')
+  const [companyName, setCompanyName] = React.useState('')
+  const [legalName, setLegalName] = React.useState('')
+  const [taxId, setTaxId] = React.useState('')
   const [baseCurrency, setBaseCurrency] = React.useState('INR')
 
-  const [adminEmail, setAdminEmail] = React.useState('admin@48studios.com')
-  const [adminPassword, setAdminPassword] = React.useState('Admin@123456')
-  const [adminFirstName, setAdminFirstName] = React.useState('System')
-  const [adminLastName, setAdminLastName] = React.useState('Admin')
+  const [adminEmail, setAdminEmail] = React.useState('')
+  const [adminPassword, setAdminPassword] = React.useState('')
+  const [adminFirstName, setAdminFirstName] = React.useState('')
+  const [adminLastName, setAdminLastName] = React.useState('')
 
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)

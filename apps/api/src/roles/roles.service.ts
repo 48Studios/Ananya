@@ -16,7 +16,11 @@ export class RolesService implements OnModuleInit {
   constructor(private readonly auditService: SecurityAuditService) {}
 
   async onModuleInit() {
-    await this.ensureSystemRoles();
+    try {
+      await this.ensureSystemRoles();
+    } catch {
+      // Catch relation does not exist error if DB tables are not yet created/migrated
+    }
   }
 
   async ensureSystemRoles() {

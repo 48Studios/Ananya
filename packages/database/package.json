@@ -20,14 +20,20 @@
   },
   "typesVersions": {
     "*": {
-      "schema": ["./src/schema/index.ts"],
-      "query": ["./src/query.ts"]
+      "schema": [
+        "./src/schema/index.ts"
+      ],
+      "query": [
+        "./src/query.ts"
+      ]
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
+    "db:setup": "pnpm build && node dist/setup/setup.js",
     "db:studio": "drizzle-kit studio",
     "db:check": "drizzle-kit check",
     "db:seed": "pnpm build && node dist/seed/seed.js",
