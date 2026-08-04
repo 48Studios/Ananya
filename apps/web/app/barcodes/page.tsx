@@ -44,13 +44,15 @@ export default function BarcodesHubPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  const activeComponent = components[0]
+
   const sampleLabel: LabelData = {
-    id: 'demo-123',
+    id: activeComponent?.id || 'sys-preview',
     entityType: 'COMPONENT',
-    primaryCode: sampleCode || 'ANANYA-INV-2026',
-    qrPayload: sampleQr || 'ANANYA:V1:COMPONENT:demo-id-123',
-    title: 'High-Precision Microcontroller Unit',
-    subtitle: 'SKU: MCU-32BIT-PRO | Location: BAY-A1',
+    primaryCode: sampleCode || activeComponent?.sku || 'INV-ITEM-001',
+    qrPayload: sampleQr || `ANANYA:V1:COMPONENT:${activeComponent?.id || 'sys-preview'}`,
+    title: activeComponent?.name || 'Inventory Item Label',
+    subtitle: `SKU: ${activeComponent?.sku || 'N/A'} | Location: ${locations[0]?.name || 'Unassigned'}`,
   }
 
   const handleOpenBatchComponents = () => {

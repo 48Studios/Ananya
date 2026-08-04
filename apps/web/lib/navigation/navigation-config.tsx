@@ -46,15 +46,6 @@ export const navigationModules: NavigationModule[] = [
     defaultRoute: '/',
     sidebar: [
       {
-        id: 'dashboard-quick-stats',
-        title: 'Quick Stats',
-        type: 'quick_stats',
-        quickStats: [
-          { id: 'stat-active-po', label: 'Active POs', value: '14', trend: 'up' },
-          { id: 'stat-low-stock', label: 'Low Stock Alerts', value: '8', trend: 'down' },
-        ],
-      },
-      {
         id: 'dashboard-pinned',
         title: 'Pinned',
         type: 'pinned',
@@ -84,10 +75,6 @@ export const navigationModules: NavigationModule[] = [
         id: 'inventory-quick-stats',
         title: 'Quick Stats',
         type: 'quick_stats',
-        quickStats: [
-          { id: 'inv-items', label: 'Total SKUs', value: '1,240' },
-          { id: 'inv-low', label: 'Low Stock', value: '12', trend: 'down' },
-        ],
       },
       {
         id: 'inventory-quick-actions',
@@ -195,10 +182,6 @@ export const navigationModules: NavigationModule[] = [
         id: 'proc-quick-stats',
         title: 'Quick Stats',
         type: 'quick_stats',
-        quickStats: [
-          { id: 'proc-open-po', label: 'Open Orders', value: '9' },
-          { id: 'proc-pending-rec', label: 'Pending Receipts', value: '4' },
-        ],
       },
       {
         id: 'proc-quick-actions',
@@ -244,10 +227,6 @@ export const navigationModules: NavigationModule[] = [
         id: 'mfg-quick-stats',
         title: 'Quick Stats',
         type: 'quick_stats',
-        quickStats: [
-          { id: 'mfg-boms', label: 'Active BOMs', value: '34' },
-          { id: 'mfg-active-wo', label: 'Active Work Orders', value: '7' },
-        ],
       },
       {
         id: 'mfg-quick-actions',

@@ -9,6 +9,8 @@ import { useNavigation } from '../navigation-context'
 import { NAV_TOKENS } from '../tokens'
 import { SidebarFlyout } from './sidebar-flyout'
 
+import { useAuth } from '@/lib/auth/auth-context'
+
 interface SidebarItemProps {
   item: NavigationItem
   isCollapsed: boolean
@@ -23,6 +25,8 @@ export function SidebarItem({
   onItemClick,
 }: SidebarItemProps) {
   const { activePath, isItemPinned, togglePinnedItem } = useNavigation()
+  const { hasPermission } = useAuth()
+
   const isActive = activePath === item.href || activePath.startsWith(item.href + '/')
   const pinned = isItemPinned(item.href)
 
@@ -30,6 +34,10 @@ export function SidebarItem({
   const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  if (item.permissions && item.permissions.length > 0 && !item.permissions.some((p) => hasPermission(p))) {
+    return null
+  }
 
   const handleMouseEnter = () => {
     if (timerRef.current) clearTimeout(timerRef.current)

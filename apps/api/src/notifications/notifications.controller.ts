@@ -50,21 +50,19 @@ export class NotificationsController {
   }
 
   @Get('notifications/preferences')
-  getPreferences(@Query('userId') userId: string) {
-    return this.notificationsService.getPreferences(userId || 'default-user');
+  getPreferences(@Query('userId') userId?: string) {
+    return this.notificationsService.getPreferences(userId);
   }
 
   @Put('notifications/preferences')
   updatePreferences(
-    @Query('userId') userId: string,
+    @Query('userId') userId: string | undefined,
     @Body() dto: UpdateNotificationPreferencesDto,
   ) {
-    return this.notificationsService.updatePreferences(
-      userId || 'default-user',
-      dto,
-    );
+    return this.notificationsService.updatePreferences(userId, dto);
   }
 
+  // Workflow Automation Endpoints
   @Get('workflows')
   getWorkflows() {
     return this.workflowService.getWorkflows();

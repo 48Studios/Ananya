@@ -12,7 +12,7 @@ export function ContextSidebar({ onItemClick }: { onItemClick?: () => void }) {
 
   // Find index of first section that actually renders content in the current mode
   const firstVisibleIndex = currentModule.sidebar.findIndex((section) => {
-    if (section.type === 'quick_stats') return !isSidebarCollapsed && !!section.quickStats?.length
+    if (section.type === 'quick_stats') return !isSidebarCollapsed
     if (section.type === 'quick_actions') return !isSidebarCollapsed && !!section.quickActions?.length
     if (section.type === 'pinned') return !isSidebarCollapsed && pinnedItems.length > 0
     if (section.type === 'nav') return !!section.items?.length
@@ -69,15 +69,21 @@ export function ContextSidebar({ onItemClick }: { onItemClick?: () => void }) {
 
       {/* Sidebar Content Sections */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1">
-        {currentModule.sidebar.map((section, idx) => (
-          <SidebarSection
-            key={section.id}
-            section={section}
-            isCollapsed={isSidebarCollapsed}
-            isFirst={idx === firstVisibleIndex}
-            onItemClick={onItemClick}
-          />
-        ))}
+        {currentModule.sidebar.map((section, idx) => {
+          const prevSection = idx > 0 ? currentModule.sidebar[idx - 1] : null
+          const isAfterQuickStats = !isSidebarCollapsed && prevSection?.type === 'quick_stats'
+
+          return (
+            <SidebarSection
+              key={section.id}
+              section={section}
+              isCollapsed={isSidebarCollapsed}
+              isFirst={idx === firstVisibleIndex}
+              isAfterQuickStats={isAfterQuickStats}
+              onItemClick={onItemClick}
+            />
+          )
+        })}
       </div>
     </aside>
   )

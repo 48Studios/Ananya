@@ -35,4 +35,17 @@ test.describe('Authentication & Security Bounds', () => {
     await page.goto('/settings');
     await expect(page).toHaveURL(/\/login/);
   });
+
+  test('should maintain authenticated session across browser refresh', async ({ loginPage, page }) => {
+    await loginPage.goto();
+    await loginPage.login('jrsarath@48studios.internal', 'Admin123!');
+    await expect(page).toHaveURL(/\/(dashboard)?/);
+
+    // Perform full browser page refresh
+    await page.reload();
+
+    // Verify user remains logged in and protected ERP page renders seamlessly
+    await expect(page).not.toHaveURL(/\/login/);
+    await expect(page.locator('header')).toBeVisible();
+  });
 });

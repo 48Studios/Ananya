@@ -53,8 +53,8 @@ export interface UserInvitationDto {
 }
 
 export const authApi = {
-  login: (email: string, passwordHash: string): Promise<LoginPayload> => {
-    return apiClient.post<LoginPayload>('/auth/login', { email, passwordHash });
+  login: (email: string, password: string): Promise<LoginPayload> => {
+    return apiClient.post<LoginPayload>('/auth/login', { email, password });
   },
 
   logout: (): Promise<{ success: boolean }> => {

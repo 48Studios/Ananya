@@ -10,6 +10,8 @@ import { SectionHeader } from './sidebar-section-header'
 import { NAV_TOKENS } from '../tokens'
 import { SidebarFlyout } from './sidebar-flyout'
 
+import { useAuth } from '@/lib/auth/auth-context'
+
 interface SidebarAccordionProps {
   item: NavigationItem
   isCollapsed: boolean
@@ -24,6 +26,8 @@ export function SidebarAccordion({
   onItemClick,
 }: SidebarAccordionProps) {
   const { expandedAccordions, toggleAccordion, activePath } = useNavigation()
+  const { hasPermission } = useAuth()
+
   const isOpen = !!expandedAccordions[item.id]
 
   const isChildActive = item.children?.some(
@@ -34,6 +38,10 @@ export function SidebarAccordion({
   const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  if (item.permissions && item.permissions.length > 0 && !item.permissions.some((p) => hasPermission(p))) {
+    return null
+  }
 
   const handleMouseEnter = () => {
     if (timerRef.current) clearTimeout(timerRef.current)

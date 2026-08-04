@@ -16,11 +16,11 @@
 
 ## Current Vertical Slice
 
-**Database Automated Setup & Migration Tooling**
+**Dynamic Navigation Quick Stats API Integration & Layout Polish**
 
 ## Current Sprint Goal
 
-Maintain strict Feature Freeze, enforce zero lint/type errors, maintain 100% test pass rate, and ensure automated single-command database migration & seeding tooling (`pnpm db:setup`).
+Maintain strict Feature Freeze, enforce zero lint/type errors, maintain 100% test pass rate, dynamically wire up navigation sidebar Quick Stats to live backend reporting APIs, and ensure a single clean bottom separator border without duplicate borders.
 
 ## Current Branch
 
@@ -28,7 +28,7 @@ Maintain strict Feature Freeze, enforce zero lint/type errors, maintain 100% tes
 
 ## Current Status
 
-🟢 Database Setup Tooling Complete — Added `packages/database/src/setup/setup.ts` and `pnpm db:setup` command to automatically apply Drizzle migrations and seed initial data!
+🟢 Quick Stats Separator Polish Complete — Eliminated duplicate double border by passing `isAfterQuickStats` from `ContextSidebar` to `SidebarSection`, suppressing duplicate top borders on subsequent sections!
 
 ---
 
@@ -64,6 +64,11 @@ Maintain strict Feature Freeze, enforce zero lint/type errors, maintain 100% tes
 - [x] Authentication & Authorization Security Architecture Remediation
 - [x] Application Shell Auth Isolation & Hardening
 - [x] Database Automated Setup & Migration Script (`pnpm db:setup`)
+- [x] UI Data Integrity Audit & Backend API Data Synchronization
+- [x] Critical Authentication Session Restoration & Permission-Aware Navigation
+- [x] Reporting Service Database Query Fix (`reserved_quantity` column alias)
+- [x] Dynamic Navigation Sidebar Quick Stats API Wiring
+- [x] Single Clean Bottom Separator under Quick Stats
 
 ---
 
@@ -126,6 +131,10 @@ Completed work should immediately move into the **Completed** section.
 
 ## 2026-08-01
 
+- Complete Dynamic Navigation Sidebar Quick Stats API Wiring & Bottom Separator Polish (Updated SidebarSection in apps/web/lib/navigation/components/sidebar-section.tsx to apply bottom border separator pb-2.5 mb-2.5 border-b border-sidebar-border/50 under quick_stats, passed isAfterQuickStats from ContextSidebar in context-sidebar.tsx to suppress duplicate top borders on subsequent sections, wired up SidebarQuickStats to reportingApi endpoints)
+- Complete RC1 Production Bug Remediation (Removed static quick_stats sections from Inventory, Procurement, and Manufacturing submenus in apps/web/lib/navigation/navigation-config.tsx, removed static fallback numbers 850/45 in Manufacturing Reports graph in apps/web/app/reports/manufacturing/page.tsx using nullish coalescing summary.totalProductionOutput ?? 0, resolved 500 error in ReportingService.getInventorySummary by querying reservedQuantity from inventoryReservationLines joined with inventoryReservations status ACTIVE, added getTransactionSummary method to ReportingService)
+- Complete Critical Authentication Session Restoration & Permission-Aware Navigation (Discovered and fixed root cause of browser refresh logouts in apps/web/lib/api-client.ts by automatically attaching stored Authorization: Bearer tokens to all outgoing fetch requests, updated AuthProvider in apps/web/lib/auth/auth-context.tsx with synchronized cookie max-age and session restoration, removed hardcoded user tooltip 'J. Sarath (48 Studios)' in NavigationRail, enforced permission array evaluation in NavigationRail, SidebarItem, and SidebarAccordion, added E2E session refresh test in login.spec.ts)
+- Complete UI Data Integrity Audit & Backend API Data Synchronization (Replaced hardcoded dashboard stat cards, categories list, and PO activity status in apps/web/app/dashboard/page.tsx with live API calls to componentsApi, purchaseOrdersApi, notificationsApi, workOrdersApi, categoriesApi, and activityApi, refactored barcodes/page.tsx sample label generator to derive title, SKU, and locations dynamically from backend API data, updated reports/page.tsx trend velocity to derive dynamically from transaction metrics, removed hardcoded fallback user name/email strings in top-header.tsx, removed hardcoded quickStats in navigation-config.tsx)
 - Complete Database Automated Setup & Migration Script (Implemented packages/database/src/setup/setup.ts leveraging drizzle-orm/node-postgres/migrator to apply SQL schema migrations automatically and run initial database seeding, added pnpm db:setup and pnpm db:push scripts to package.json)
 - Complete Application Shell Auth Isolation & Hardening (Refactored DashboardLayout in apps/web/components/dashboard-layout.tsx to isolate public auth routes /login, /forgot-password, /reset-password, /onboarding, /setup, /maintenance and unauthenticated loading states from ERP chrome NavigationRail, ContextSidebar, TopHeader, AppFooter, CommandPalette, updated login.spec.ts to verify 0 layout chrome leakage)
 - Complete Authentication & Authorization Security Architecture Remediation (Implemented apps/web/middleware.ts enforcing global edge-level route protection for all protected ERP pages, updated auth-context.tsx with SameSite=Lax cookie synchronization, added automated Playwright security redirect tests in tests/e2e/authentication/login.spec.ts, verified unauthenticated navigation redirects to /login)

@@ -10,6 +10,17 @@ export class ApiError extends Error {
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const TOKEN_KEY = 'ananya_auth_token';
+
+function getStoredToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  let token = localStorage.getItem(TOKEN_KEY);
+  if (!token && typeof document !== 'undefined') {
+    const match = document.cookie.match(/ananya_auth_token=([^;]+)/);
+    if (match && match[1]) token = match[1];
+  }
+  return token;
+}
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
@@ -19,7 +30,13 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     ...(options?.headers as Record<string, string>),
   };
 
+  const storedToken = getStoredToken();
+  if (storedToken && !headers['Authorization'] && !headers['authorization']) {
+    headers['Authorization'] = `Bearer ${storedToken}`;
+  }
+
   const response = await fetch(url, {
+    credentials: 'include',
     ...options,
     headers,
   });

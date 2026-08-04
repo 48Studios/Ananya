@@ -44,6 +44,7 @@ export interface NavigationModule {
   name: string
   icon: ReactNode
   defaultRoute: string
+  permissions?: string[]
   sidebar: SidebarSection[]
 }
 

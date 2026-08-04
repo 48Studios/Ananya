@@ -1,152 +1,214 @@
 'use client'
 
-import { Search, Plus, MoreHorizontal } from 'lucide-react'
+import * as React from 'react'
+import Link from 'next/link'
+import type { ColumnDef } from '@tanstack/react-table'
+import { Plus, Boxes, Package, MapPin, Tags, Eye, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/components/ui/page-header'
+import { StatCard } from '@/components/ui/stat-card'
+import { EntityDataTable, type FilterConfig } from '@/components/ui/entity-data-table'
+import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
+import { categoriesApi, type CategoryDto } from '@/lib/api/categories-api'
+import { locationsApi, type LocationDto } from '@/lib/api/locations-api'
 
 export default function InventoryPage() {
+  const [components, setComponents] = React.useState<ComponentDto[]>([])
+  const [categories, setCategories] = React.useState<CategoryDto[]>([])
+  const [locations, setLocations] = React.useState<LocationDto[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  const fetchData = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const [comps, cats, locs] = await Promise.all([
+        componentsApi.getAll(),
+        categoriesApi.getAll().catch(() => []),
+        locationsApi.getAll().catch(() => []),
+      ])
+      setComponents(comps)
+      setCategories(cats)
+      setLocations(locs)
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const categoryMap = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const cat of categories) {
+      map.set(cat.id, cat.name)
+    }
+    return map
+  }, [categories])
+
+  const locationMap = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const loc of locations) {
+      map.set(loc.id, loc.name)
+    }
+    return map
+  }, [locations])
+
+  const columns: ColumnDef<ComponentDto>[] = React.useMemo(
+    () => [
+      {
+        accessorKey: 'sku',
+        header: 'SKU / Part No.',
+        cell: ({ row }) => (
+          <Link
+            href={`/components/${row.original.id}`}
+            className="font-mono text-xs text-primary font-semibold hover:underline"
+          >
+            {row.original.sku}
+          </Link>
+        ),
+      },
+      {
+        accessorKey: 'name',
+        header: 'Description',
+        cell: ({ row }) => (
+          <div>
+            <span className="font-medium text-foreground text-xs">{row.original.name}</span>
+            {row.original.description && (
+              <p className="text-[11px] text-muted-foreground truncate max-w-xs">
+                {row.original.description}
+              </p>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'categoryId',
+        header: 'Category',
+        cell: ({ row }) => {
+          const catName = row.original.categoryId ? categoryMap.get(row.original.categoryId) : undefined
+          return <span className="text-xs text-muted-foreground">{catName || 'Unassigned'}</span>
+        },
+      },
+      {
+        accessorKey: 'defaultLocationId',
+        header: 'Default Location',
+        cell: ({ row }) => {
+          const locName = row.original.defaultLocationId ? locationMap.get(row.original.defaultLocationId) : undefined
+          return <span className="text-xs text-muted-foreground">{locName || 'Unassigned'}</span>
+        },
+      },
+      {
+        accessorKey: 'unit',
+        header: 'Unit',
+        cell: ({ row }) => <span className="font-mono text-xs uppercase">{row.original.unit}</span>,
+      },
+      {
+        accessorKey: 'isActive',
+        header: 'Status',
+        cell: ({ row }) => (
+          <span
+            className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full ${
+              row.original.isActive
+                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            {row.original.isActive ? 'Active' : 'Inactive'}
+          </span>
+        ),
+      },
+      {
+        id: 'actions',
+        header: () => <span className="sr-only">Actions</span>,
+        cell: ({ row }) => (
+          <div className="flex justify-end">
+            <Link href={`/components/${row.original.id}`}>
+              <Button size="sm" variant="ghost">
+                <Eye className="w-3.5 h-3.5 mr-1" />
+                View
+              </Button>
+            </Link>
+          </div>
+        ),
+      },
+    ],
+    [categoryMap, locationMap]
+  )
+
+  const filterConfigs: FilterConfig[] = React.useMemo(
+    () => [
+      {
+        columnId: 'categoryId',
+        title: 'Category',
+        options: categories.map((c) => ({ label: c.name, value: c.id })),
+      },
+    ],
+    [categories]
+  )
+
+  const activeItemsCount = components.filter((c) => c.isActive).length
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Inventory Overview
-          </h1>
-          <p className="text-muted-foreground">
-            Manage components, categories, and warehouse locations.
-          </p>
-        </div>
-        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground w-full md:w-auto">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Item
-        </Button>
-      </div>
-
-      {/* Search and Filter */}
-      <div className="flex gap-4">
-        <div className="flex-1 flex items-center gap-2 bg-input rounded-lg px-3 py-2">
-          <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-          <input
-            type="text"
-            placeholder="Search items..."
-            className="bg-transparent text-sm outline-none w-full text-foreground placeholder-muted-foreground"
-          />
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-card border border-border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-input/50">
-                <th className="px-6 py-3 text-left font-medium text-foreground">
-                  Item Code
-                </th>
-                <th className="px-6 py-3 text-left font-medium text-foreground">
-                  Description
-                </th>
-                <th className="px-6 py-3 text-left font-medium text-foreground">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left font-medium text-foreground">
-                  Quantity
-                </th>
-                <th className="px-6 py-3 text-left font-medium text-foreground">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right font-medium text-foreground">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                {
-                  code: 'INV-001',
-                  description: 'Microcontroller Unit',
-                  category: 'Components',
-                  quantity: 245,
-                  status: 'In Stock',
-                },
-                {
-                  code: 'INV-002',
-                  description: 'Resistor Pack',
-                  category: 'Components',
-                  quantity: 1020,
-                  status: 'In Stock',
-                },
-                {
-                  code: 'INV-003',
-                  description: 'Power Supply Module',
-                  category: 'Modules',
-                  quantity: 45,
-                  status: 'Low Stock',
-                },
-                {
-                  code: 'INV-004',
-                  description: 'PCB Assembly',
-                  category: 'Assemblies',
-                  quantity: 0,
-                  status: 'Out of Stock',
-                },
-                {
-                  code: 'INV-005',
-                  description: 'Connector Kit',
-                  category: 'Components',
-                  quantity: 156,
-                  status: 'In Stock',
-                },
-              ].map((item) => (
-                <tr
-                  key={item.code}
-                  className="border-b border-border hover:bg-input/50 transition-colors"
-                >
-                  <td className="px-6 py-4 font-medium text-foreground">
-                    {item.code}
-                  </td>
-                  <td className="px-6 py-4 text-foreground">{item.description}</td>
-                  <td className="px-6 py-4 text-muted-foreground">
-                    {item.category}
-                  </td>
-                  <td className="px-6 py-4 text-foreground">{item.quantity}</td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${
-                        item.status === 'In Stock'
-                          ? 'bg-green-500/10 text-green-700 dark:text-green-400'
-                          : item.status === 'Low Stock'
-                            ? 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
-                            : 'bg-red-500/10 text-red-700 dark:text-red-400'
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="text-muted-foreground hover:text-foreground transition-colors">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="px-6 py-4 border-t border-border flex items-center justify-between text-sm">
-          <p className="text-muted-foreground">Showing 1 to 5 of 47 items</p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              Previous
+      <PageHeader
+        title="Inventory Overview"
+        description="Comprehensive inventory catalog, component tracking, and stock locations."
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
-            <Button variant="outline" size="sm">
-              Next
-            </Button>
+            <Link href="/components">
+              <Button size="sm">
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                Manage Components
+              </Button>
+            </Link>
           </div>
-        </div>
+        }
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Items"
+          value={loading ? '...' : components.length}
+          subtitle="Registered SKU records"
+          icon={Boxes}
+        />
+        <StatCard
+          title="Active SKUs"
+          value={loading ? '...' : activeItemsCount}
+          subtitle="Active inventory items"
+          icon={Package}
+        />
+        <StatCard
+          title="Categories"
+          value={loading ? '...' : categories.length}
+          subtitle="Taxonomy groups"
+          icon={Tags}
+        />
+        <StatCard
+          title="Locations"
+          value={loading ? '...' : locations.length}
+          subtitle="Storage bays & zones"
+          icon={MapPin}
+        />
       </div>
+
+      <EntityDataTable
+        data={components}
+        columns={columns}
+        searchKey="sku"
+        searchPlaceholder="Search inventory by SKU..."
+        filters={filterConfigs}
+        loading={loading}
+        emptyTitle="No Inventory Items"
+        emptyMessage="No inventory components have been registered yet."
+      />
     </div>
   )
 }

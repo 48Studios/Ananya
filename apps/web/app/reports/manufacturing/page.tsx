@@ -155,8 +155,8 @@ export default function ManufacturingReportsPage() {
   ]
 
   const outputVsScrapData = [
-    { name: 'Finished Output', value: summary.totalProductionOutput || 850 },
-    { name: 'Scrap Generated', value: summary.totalScrapQuantity || 45 },
+    { name: 'Finished Output', value: summary.totalProductionOutput ?? 0 },
+    { name: 'Scrap Generated', value: summary.totalScrapQuantity ?? 0 },
   ]
 
   return (

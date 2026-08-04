@@ -16,6 +16,7 @@ interface SidebarSectionProps {
   section: SidebarSectionType
   isCollapsed: boolean
   isFirst?: boolean
+  isAfterQuickStats?: boolean
   onItemClick?: () => void
 }
 
@@ -23,14 +24,15 @@ export function SidebarSection({
   section,
   isCollapsed,
   isFirst = false,
+  isAfterQuickStats = false,
   onItemClick,
 }: SidebarSectionProps) {
-  const { pinnedItems } = useNavigation()
+  const { pinnedItems, currentModuleId } = useNavigation()
 
   // In collapsed mode, quick_stats, quick_actions, and pinned sections return null.
   // In expanded mode, empty pinned section (pinnedItems.length === 0) returns null.
   const isContentHidden =
-    (section.type === 'quick_stats' && (isCollapsed || !section.quickStats?.length)) ||
+    (section.type === 'quick_stats' && isCollapsed) ||
     (section.type === 'quick_actions' && (isCollapsed || !section.quickActions?.length)) ||
     (section.type === 'pinned' && (isCollapsed || pinnedItems.length === 0)) ||
     (section.type === 'nav' && (!section.items || section.items.length === 0))
@@ -39,14 +41,14 @@ export function SidebarSection({
     return null
   }
 
-  // Divider styling ABOVE section headings (only when not the first visible section)
-  const dividerClass = !isFirst ? NAV_TOKENS.SECTION_DIVIDER : ''
+  // Divider styling ABOVE section headings (only when not first visible section and not after quick_stats)
+  const dividerClass = !isFirst && !isAfterQuickStats ? NAV_TOKENS.SECTION_DIVIDER : ''
 
-  if (section.type === 'quick_stats' && section.quickStats) {
+  if (section.type === 'quick_stats') {
     return (
-      <div className={dividerClass}>
+      <div className="pb-2.5 mb-2.5 border-b border-sidebar-border/50">
         {!isCollapsed && section.title && <SectionHeader title={section.title} />}
-        <SidebarQuickStats stats={section.quickStats} isCollapsed={isCollapsed} />
+        <SidebarQuickStats stats={section.quickStats} moduleId={currentModuleId} isCollapsed={isCollapsed} />
       </div>
     )
   }

@@ -10,7 +10,7 @@ interface AuthContextType {
   permissionGroups: PermissionGroup[]
   isAuthenticated: boolean
   loading: boolean
-  login: (email: string, passwordHash: string) => Promise<void>
+  login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   hasPermission: (requiredPermission: string) => boolean
   hasRole: (roleName: string) => boolean
@@ -49,6 +49,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(res.user)
       setPermissions(res.permissions || [])
       setPermissionGroups(res.permissionGroups || [])
+      // Ensure cookie and localStorage stay synchronized
+      if (typeof document !== 'undefined') {
+        document.cookie = `ananya_auth_token=${savedToken}; path=/; max-age=604800; SameSite=Lax`
+      }
+      localStorage.setItem(TOKEN_KEY, savedToken)
     } catch {
       localStorage.removeItem(TOKEN_KEY)
       if (typeof document !== 'undefined') {
@@ -66,11 +71,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser()
   }, [refreshUser])
 
-  const login = async (email: string, passwordHash: string) => {
-    const res = await authApi.login(email, passwordHash)
+  const login = async (email: string, password: string) => {
+    const res = await authApi.login(email, password)
     localStorage.setItem(TOKEN_KEY, res.token)
     if (typeof document !== 'undefined') {
-      document.cookie = `ananya_auth_token=${res.token}; path=/; SameSite=Lax`
+      document.cookie = `ananya_auth_token=${res.token}; path=/; max-age=604800; SameSite=Lax`
     }
     setToken(res.token)
     setUser(res.user)
@@ -91,15 +96,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(null)
       setUser(null)
       setPermissions([])
+      setPermissionGroups([])
     }
   }
 
   const hasPermission = useCallback(
     (requiredPermission: string): boolean => {
-      if (!permissions || permissions.length === 0) {
-        // Default dev fallback if logged in as default system user
-        return true
-      }
+      if (!user) return false
+      if (!permissions || permissions.length === 0) return true
       if (permissions.includes('*')) return true
       if (permissions.includes(requiredPermission)) return true
 
@@ -108,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return false
     },
-    [permissions],
+    [user, permissions],
   )
 
   const hasRole = useCallback(
