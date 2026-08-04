@@ -46,7 +46,7 @@ export function SidebarSection({
 
   if (section.type === 'quick_stats') {
     return (
-      <div className="pb-2.5 mb-2.5 border-b border-sidebar-border/50">
+      <div className="pb-4 mb-2.5 border-b border-sidebar-border/50">
         {!isCollapsed && section.title && <SectionHeader title={section.title} />}
         <SidebarQuickStats stats={section.quickStats} moduleId={currentModuleId} isCollapsed={isCollapsed} />
       </div>
@@ -55,7 +55,7 @@ export function SidebarSection({
 
   if (section.type === 'quick_actions' && section.quickActions) {
     return (
-      <div className={dividerClass}>
+      <div className={cn(dividerClass, 'pb-2')}>
         {!isCollapsed && section.title && <SectionHeader title={section.title} />}
         <SidebarQuickActions actions={section.quickActions} isCollapsed={isCollapsed} />
       </div>
