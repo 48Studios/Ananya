@@ -10,6 +10,15 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { LabelPreview, LabelTemplate } from '@/components/barcodes/label-preview'
@@ -129,62 +138,62 @@ export default function BarcodesHubPage() {
           </div>
 
           <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">
-                Primary Barcode Input
-              </label>
-              <input
+            <Field>
+              <FieldLabel className="text-xs">Primary Barcode Input</FieldLabel>
+              <Input
                 type="text"
                 value={sampleCode}
                 onChange={(e) => setSampleCode(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-mono bg-input/40 border border-border rounded-md outline-none text-foreground"
+                className="h-8 text-xs font-mono"
               />
-            </div>
+            </Field>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">
-                Structured QR Payload Input
-              </label>
-              <input
+            <Field>
+              <FieldLabel className="text-xs">Structured QR Payload Input</FieldLabel>
+              <Input
                 type="text"
                 value={sampleQr}
                 onChange={(e) => setSampleQr(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-mono bg-input/40 border border-border rounded-md outline-none text-foreground"
+                className="h-8 text-xs font-mono"
               />
-            </div>
+            </Field>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-foreground">
-                  Barcode Symbology
-                </label>
-                <select
+              <Field>
+                <FieldLabel className="text-xs">Barcode Symbology</FieldLabel>
+                <Select
                   value={format}
-                  onChange={(e) => setFormat(e.target.value as BarcodeFormat)}
-                  className="w-full px-3 py-2 text-xs bg-input/40 border border-border rounded-md outline-none text-foreground"
+                  onValueChange={(val) => setFormat(val as BarcodeFormat)}
                 >
-                  <option value="CODE128">Code 128 (High Density)</option>
-                  <option value="CODE39">Code 39 (Alphanumeric)</option>
-                  <option value="EAN13">EAN-13 (13 Digits)</option>
-                  <option value="UPCA">UPC-A (12 Digits)</option>
-                </select>
-              </div>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CODE128">Code 128 (High Density)</SelectItem>
+                    <SelectItem value="CODE39">Code 39 (Alphanumeric)</SelectItem>
+                    <SelectItem value="EAN13">EAN-13 (13 Digits)</SelectItem>
+                    <SelectItem value="UPCA">UPC-A (12 Digits)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-foreground">
-                  Label Template
-                </label>
-                <select
+              <Field>
+                <FieldLabel className="text-xs">Label Template</FieldLabel>
+                <Select
                   value={template}
-                  onChange={(e) => setTemplate(e.target.value as LabelTemplate)}
-                  className="w-full px-3 py-2 text-xs bg-input/40 border border-border rounded-md outline-none text-foreground"
+                  onValueChange={(val) => setTemplate(val as LabelTemplate)}
                 >
-                  <option value="STANDARD">Standard (2&quot; x 4&quot;)</option>
-                  <option value="COMPACT">Compact (1&quot; x 2&quot;)</option>
-                  <option value="DETAILED">Detailed (3&quot; x 4&quot;)</option>
-                  <option value="SHELF_BIN">Shelf Bin Tag</option>
-                </select>
-              </div>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="STANDARD">Standard (2&quot; x 4&quot;)</SelectItem>
+                    <SelectItem value="COMPACT">Compact (1&quot; x 2&quot;)</SelectItem>
+                    <SelectItem value="DETAILED">Detailed (3&quot; x 4&quot;)</SelectItem>
+                    <SelectItem value="SHELF_BIN">Shelf Bin Tag</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
             </div>
           </div>
 
@@ -281,3 +290,4 @@ export default function BarcodesHubPage() {
     </div>
   )
 }
+

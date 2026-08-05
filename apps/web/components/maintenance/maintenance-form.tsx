@@ -1,11 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   maintenanceApi,
   type MaintenanceScheduleDto,
@@ -37,6 +46,7 @@ export function MaintenanceForm({
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<MaintenanceFormValues>({
     resolver: zodResolver(maintenanceSchema),
@@ -76,55 +86,65 @@ export function MaintenanceForm({
         </div>
       )}
 
-      <div className="space-y-1">
-        <label className="text-xs font-medium text-foreground">Equipment Asset Name</label>
-        <input
+      <Field>
+        <FieldLabel htmlFor="maint-equipment">Equipment Asset Name</FieldLabel>
+        <Input
+          id="maint-equipment"
           {...register('equipmentName')}
           placeholder="e.g. CNC Milling Machine 04"
-          className="w-full h-9 px-3 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-primary"
         />
-        {errors.equipmentName && (
-          <p className="text-[11px] text-destructive">{errors.equipmentName.message}</p>
+        {errors.equipmentName?.message && (
+          <FieldError>{errors.equipmentName.message}</FieldError>
         )}
-      </div>
+      </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-foreground">Work Center Code</label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="maint-wc">Work Center Code</FieldLabel>
+          <Input
+            id="maint-wc"
             {...register('workCenterCode')}
             placeholder="e.g. WC-MACHINING"
-            className="w-full h-9 px-3 text-xs font-mono uppercase rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+            className="font-mono uppercase"
           />
-          {errors.workCenterCode && (
-            <p className="text-[11px] text-destructive">{errors.workCenterCode.message}</p>
+          {errors.workCenterCode?.message && (
+            <FieldError>{errors.workCenterCode.message}</FieldError>
           )}
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-foreground">Task Type</label>
-          <select
-            {...register('taskType')}
-            className="w-full h-9 px-3 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="PREVENTIVE">PREVENTIVE</option>
-            <option value="CALIBRATION">CALIBRATION</option>
-            <option value="OVERHAUL">OVERHAUL</option>
-          </select>
-        </div>
+        <Field>
+          <FieldLabel htmlFor="maint-type">Task Type</FieldLabel>
+          <Controller
+            name="taskType"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="maint-type">
+                  <SelectValue placeholder="Select task type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PREVENTIVE">PREVENTIVE</SelectItem>
+                  <SelectItem value="CALIBRATION">CALIBRATION</SelectItem>
+                  <SelectItem value="OVERHAUL">OVERHAUL</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
       </div>
 
-      <div className="space-y-1">
-        <label className="text-xs font-medium text-foreground">Next Service Due Date</label>
-        <input
+      <Field>
+        <FieldLabel htmlFor="maint-due">Next Service Due Date</FieldLabel>
+        <Input
+          id="maint-due"
           type="date"
           {...register('nextDueDate')}
-          className="w-full h-9 px-3 text-xs font-mono rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+          className="font-mono"
         />
-        {errors.nextDueDate && (
-          <p className="text-[11px] text-destructive">{errors.nextDueDate.message}</p>
+        {errors.nextDueDate?.message && (
+          <FieldError>{errors.nextDueDate.message}</FieldError>
         )}
-      </div>
+      </Field>
 
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
         <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>
@@ -138,3 +158,4 @@ export function MaintenanceForm({
     </form>
   )
 }
+

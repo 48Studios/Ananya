@@ -13,6 +13,13 @@ import { StatCard } from '@/components/ui/stat-card'
 import { EntityDataTable } from '@/components/ui/entity-data-table'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { auditApi, SecurityAuditLogDto } from '@/lib/api/audit-api'
 
 export default function SecurityAuditPage() {
@@ -146,15 +153,19 @@ export default function SecurityAuditPage() {
           <Filter className="w-3.5 h-3.5 text-muted-foreground" />
           <span>Category Filter</span>
         </div>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-3 py-1.5 text-xs bg-input/40 border border-border rounded-md outline-none text-foreground"
+        <Select
+          value={categoryFilter || 'ALL'}
+          onValueChange={(val) => setCategoryFilter(!val || val === 'ALL' ? '' : val)}
         >
-          <option value="">All Categories</option>
-          <option value="SECURITY">SECURITY</option>
-          <option value="AUTHENTICATION">AUTHENTICATION</option>
-        </select>
+          <SelectTrigger className="h-8 text-xs w-[180px]">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Categories</SelectItem>
+            <SelectItem value="SECURITY">SECURITY</SelectItem>
+            <SelectItem value="AUTHENTICATION">AUTHENTICATION</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Audit Log DataTable */}
@@ -175,3 +186,4 @@ export default function SecurityAuditPage() {
     </div>
   )
 }
+

@@ -8,6 +8,14 @@ import { ErrorState } from '@/components/ui/error-state'
 import { AuditTable } from '@/components/ui/activity-timeline'
 import { activityApi, SecurityAuditLogDto } from '@/lib/api/activity-api'
 import { Shield, Lock, Search, Filter, KeyRound } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 import { PermissionGuard } from '@/lib/auth/auth-context'
 
@@ -78,30 +86,34 @@ export default function AuditExplorerPage() {
         {/* Filter Toolbar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 bg-card border border-border rounded-xl shadow-2xs">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
+            <Input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search audit trail (action, user email, category)..."
-              className="w-full pl-9 pr-4 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary"
+              className="pl-9 h-8 text-xs"
             />
           </div>
 
           <div className="flex items-center gap-2">
             <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-            <select
-              value={module}
-              onChange={(e) => setModule(e.target.value)}
-              className="px-2.5 py-1.5 bg-input/50 border border-border rounded-lg text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
+            <Select
+              value={module || 'ALL'}
+              onValueChange={(val) => setModule(!val || val === 'ALL' ? '' : val)}
             >
-              <option value="">All Categories</option>
-              <option value="Authentication">Authentication</option>
-              <option value="Administration">Administration</option>
-              <option value="Security">Security</option>
-              <option value="Inventory">Inventory</option>
-              <option value="Procurement">Procurement</option>
-            </select>
+              <SelectTrigger className="h-8 text-xs w-[160px]">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Categories</SelectItem>
+                <SelectItem value="Authentication">Authentication</SelectItem>
+                <SelectItem value="Administration">Administration</SelectItem>
+                <SelectItem value="Security">Security</SelectItem>
+                <SelectItem value="Inventory">Inventory</SelectItem>
+                <SelectItem value="Procurement">Procurement</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -117,3 +129,4 @@ export default function AuditExplorerPage() {
     </PermissionGuard>
   )
 }
+

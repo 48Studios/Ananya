@@ -1,11 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { useForm, SubmitHandler } from 'react-hook-form'
+import { useForm, SubmitHandler, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2, AlertCircle, AlertTriangle, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import { workOrdersApi, type WorkOrderDto, type MaterialRequirementDetailDto } from '@/lib/api/work-orders-api'
 import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
 
@@ -32,15 +41,17 @@ export function RecordScrapModal({
   onSuccess,
   onClose,
 }: RecordScrapModalProps) {
-  const [componentsMap, setComponentsMap] = React.useState<Record<string, ComponentDto>>({})
+  const [componentsMap, setComponentsMap] = React.useState<Map<string, ComponentDto>>(
+    new Map(),
+  )
   const [serverError, setServerError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     componentsApi
       .getAll()
       .then((comps) => {
-        const map: Record<string, ComponentDto> = {}
-        for (const c of comps) map[c.id] = c
+        const map = new Map<string, ComponentDto>()
+        for (const c of comps) map.set(c.id, c)
         setComponentsMap(map)
       })
       .catch(() => null)
@@ -48,6 +59,7 @@ export function RecordScrapModal({
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<RecordScrapFormValues>({
@@ -109,76 +121,67 @@ export function RecordScrapModal({
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1">
-            <label
-              htmlFor="scrap-component"
-              className="text-xs font-medium text-foreground"
-            >
+          <Field>
+            <FieldLabel htmlFor="scrap-component">
               Component / Item <span className="text-destructive">*</span>
-            </label>
-            <select
-              id="scrap-component"
-              {...register('componentId')}
-              className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-            >
-              <option value={workOrder.componentId}>
-                Finished Product — {componentsMap[workOrder.componentId]?.name || 'Finished Product'}
-              </option>
-              {materials.map((m) => (
-                <option key={m.componentId} value={m.componentId}>
-                  Raw Material — {componentsMap[m.componentId]?.name || m.componentId}
-                </option>
-              ))}
-            </select>
-            {errors.componentId && (
-              <p className="text-xs text-destructive">
-                {errors.componentId.message}
-              </p>
+            </FieldLabel>
+            <Controller
+              name="componentId"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="scrap-component">
+                    <SelectValue placeholder="Select item" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={workOrder.componentId}>
+                      Finished Product — {componentsMap.get(workOrder.componentId)?.name || 'Finished Product'}
+                    </SelectItem>
+                    {materials.map((m) => (
+                      <SelectItem key={m.componentId} value={m.componentId}>
+                        Raw Material — {componentsMap.get(m.componentId)?.name || m.componentId}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.componentId?.message && (
+              <FieldError>{errors.componentId.message}</FieldError>
             )}
-          </div>
+          </Field>
 
-          <div className="space-y-1">
-            <label
-              htmlFor="scrap-qty"
-              className="text-xs font-medium text-foreground"
-            >
+          <Field>
+            <FieldLabel htmlFor="scrap-qty">
               Scrapped Quantity <span className="text-destructive">*</span>
-            </label>
-            <input
+            </FieldLabel>
+            <Input
               id="scrap-qty"
               type="number"
               step="any"
               min={0.0001}
               {...register('quantity', { valueAsNumber: true })}
-              className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground font-mono font-bold"
+              className="font-mono font-bold"
             />
-            {errors.quantity && (
-              <p className="text-xs text-destructive">
-                {errors.quantity.message}
-              </p>
+            {errors.quantity?.message && (
+              <FieldError>{errors.quantity.message}</FieldError>
             )}
-          </div>
+          </Field>
 
-          <div className="space-y-1">
-            <label
-              htmlFor="scrap-reason"
-              className="text-xs font-medium text-foreground"
-            >
+          <Field>
+            <FieldLabel htmlFor="scrap-reason">
               Scrap Reason / Defect Category <span className="text-destructive">*</span>
-            </label>
-            <input
+            </FieldLabel>
+            <Input
               id="scrap-reason"
               type="text"
               placeholder="e.g. Component cracked during assembly line stress test"
               {...register('reason')}
-              className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
             />
-            {errors.reason && (
-              <p className="text-xs text-destructive">
-                {errors.reason.message}
-              </p>
+            {errors.reason?.message && (
+              <FieldError>{errors.reason.message}</FieldError>
             )}
-          </div>
+          </Field>
 
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
             <Button
@@ -202,3 +205,4 @@ export function RecordScrapModal({
     </div>
   )
 }
+

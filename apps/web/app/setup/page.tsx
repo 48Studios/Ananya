@@ -5,6 +5,16 @@ import { useRouter } from 'next/navigation'
 import { authApi } from '@/lib/api/auth-api'
 import { Building2, CheckCircle2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel } from '@/components/ui/field'
+
 
 export default function OrganizationSetupPage() {
   const router = useRouter()
@@ -81,107 +91,110 @@ export default function OrganizationSetupPage() {
 
         {step === 1 ? (
           <div className="space-y-4 text-xs">
-            <div>
-              <label className="font-semibold text-foreground block mb-1">Organization Name (Required)</label>
-              <input
+            <Field>
+              <FieldLabel htmlFor="setup-company">
+                Organization Name <span className="text-destructive">*</span>
+              </FieldLabel>
+              <Input
+                id="setup-company"
                 type="text"
                 required
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 placeholder="e.g. Acme Corporation"
-                className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
               />
-            </div>
+            </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Legal Entity Name (Optional)</label>
-                <input
+              <Field>
+                <FieldLabel htmlFor="setup-legal">Legal Entity Name (Optional)</FieldLabel>
+                <Input
+                  id="setup-legal"
                   type="text"
                   value={legalName}
                   onChange={(e) => setLegalName(e.target.value)}
                   placeholder="e.g. Acme Corp Pvt Ltd"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
                 />
-              </div>
-              <div>
-                <label className="font-semibold text-foreground block mb-1">GST / Tax ID (Optional)</label>
-                <input
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="setup-tax">GST / Tax ID (Optional)</FieldLabel>
+                <Input
+                  id="setup-tax"
                   type="text"
                   value={taxId}
                   onChange={(e) => setTaxId(e.target.value)}
                   placeholder="e.g. GSTIN-12345"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
                 />
-              </div>
+              </Field>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Support Phone (Optional)</label>
-                <input
+              <Field>
+                <FieldLabel htmlFor="setup-phone">Support Phone (Optional)</FieldLabel>
+                <Input
+                  id="setup-phone"
                   type="text"
                   value={supportPhone}
                   onChange={(e) => setSupportPhone(e.target.value)}
                   placeholder="e.g. +1 555-0199"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
                 />
-              </div>
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Website URL (Optional)</label>
-                <input
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="setup-url">Website URL (Optional)</FieldLabel>
+                <Input
+                  id="setup-url"
                   type="url"
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
                   placeholder="https://example.com"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
                 />
-              </div>
+              </Field>
             </div>
 
-            <div>
-              <label className="font-semibold text-foreground block mb-1">HQ Operating Address (Optional)</label>
-              <input
+            <Field>
+              <FieldLabel htmlFor="setup-address">HQ Operating Address (Optional)</FieldLabel>
+              <Input
+                id="setup-address"
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="e.g. 100 Technology Parkway, Suite 400"
-                className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
               />
-            </div>
+            </Field>
 
             <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Country</label>
-                <input
+              <Field>
+                <FieldLabel htmlFor="setup-country">Country</FieldLabel>
+                <Input
+                  id="setup-country"
                   type="text"
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
                 />
-              </div>
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Timezone</label>
-                <input
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="setup-tz">Timezone</FieldLabel>
+                <Input
+                  id="setup-tz"
                   type="text"
                   value={primaryTimezone}
                   onChange={(e) => setPrimaryTimezone(e.target.value)}
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
                 />
-              </div>
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Base Currency</label>
-                <select
-                  value={baseCurrency}
-                  onChange={(e) => setBaseCurrency(e.target.value)}
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
-                >
-                  <option value="INR">INR (₹)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                </select>
-              </div>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="setup-currency">Base Currency</FieldLabel>
+                <Select value={baseCurrency} onValueChange={(val) => setBaseCurrency(val ?? '')}>
+                  <SelectTrigger id="setup-currency">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INR">INR (₹)</SelectItem>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                    <SelectItem value="GBP">GBP (£)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
             </div>
 
             <div className="flex justify-end pt-4">
@@ -200,53 +213,53 @@ export default function OrganizationSetupPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-semibold text-foreground block mb-1">First Name</label>
-                <input
+              <Field>
+                <FieldLabel htmlFor="admin-fn">First Name</FieldLabel>
+                <Input
+                  id="admin-fn"
                   type="text"
                   required
                   value={adminFirstName}
                   onChange={(e) => setAdminFirstName(e.target.value)}
                   placeholder="System"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
                 />
-              </div>
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Last Name</label>
-                <input
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="admin-ln">Last Name</FieldLabel>
+                <Input
+                  id="admin-ln"
                   type="text"
                   required
                   value={adminLastName}
                   onChange={(e) => setAdminLastName(e.target.value)}
                   placeholder="Administrator"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
                 />
-              </div>
+              </Field>
             </div>
 
-            <div>
-              <label className="font-semibold text-foreground block mb-1">Admin Email Address</label>
-              <input
+            <Field>
+              <FieldLabel htmlFor="admin-email">Admin Email Address</FieldLabel>
+              <Input
+                id="admin-email"
                 type="email"
                 required
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
-                placeholder="admin@example.com"
-                className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
+                placeholder="admin@company.com"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="font-semibold text-foreground block mb-1">Admin Account Password</label>
-              <input
+            <Field>
+              <FieldLabel htmlFor="admin-pw">Admin Master Password</FieldLabel>
+              <Input
+                id="admin-pw"
                 type="password"
                 required
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
               />
-            </div>
+            </Field>
 
             <div className="flex items-center justify-between pt-4">
               <Button type="button" variant="outline" size="sm" onClick={() => setStep(1)} disabled={loading}>

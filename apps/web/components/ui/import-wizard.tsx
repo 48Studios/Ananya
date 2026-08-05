@@ -14,6 +14,13 @@ import {
 } from 'lucide-react'
 import { importExportApi, ImportPreviewResultDto } from '@/lib/api/import-export-api'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 export interface ImportWizardProps {
   isOpen: boolean
@@ -175,18 +182,22 @@ export function ImportWizard({
                   <div key={h} className="flex items-center justify-between text-xs gap-3">
                     <span className="font-mono text-muted-foreground w-1/3 truncate">{h}</span>
                     <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
-                    <select
-                      value={columnMapping[h] || ''}
-                      onChange={(e) => setColumnMapping({ ...columnMapping, [h]: e.target.value })}
-                      className="w-1/2 p-1.5 bg-input border border-border rounded text-xs text-foreground outline-none"
+                    <Select
+                      value={columnMapping[h] || 'IGNORE'}
+                      onValueChange={(val) => setColumnMapping({ ...columnMapping, [h]: !val || val === 'IGNORE' ? '' : val })}
                     >
-                      <option value="">-- Ignore Column --</option>
-                      {previewData.systemFields.map((f) => (
-                        <option key={f} value={f}>
-                          {f}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="w-1/2 h-8 text-xs">
+                        <SelectValue placeholder="Ignore Column" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="IGNORE">-- Ignore Column --</SelectItem>
+                        {previewData.systemFields.map((f) => (
+                          <SelectItem key={f} value={f}>
+                            {f}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 ))}
               </div>

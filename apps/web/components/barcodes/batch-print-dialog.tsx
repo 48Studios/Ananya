@@ -3,6 +3,14 @@
 import * as React from 'react'
 import { Printer, X, Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { LabelPreview, LabelTemplate } from './label-preview'
 import { barcodesApi, EntityType, LabelData, BarcodeFormat } from '@/lib/api/barcodes-api'
 
@@ -81,33 +89,41 @@ export function BatchPrintDialog({
 
         {/* Options Toolbar */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-muted/20 border border-border rounded-lg shrink-0">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground">Label Template</label>
-            <select
+          <Field>
+            <FieldLabel className="text-xs">Label Template</FieldLabel>
+            <Select
               value={template}
-              onChange={(e) => setTemplate(e.target.value as LabelTemplate)}
-              className="w-full px-3 py-1.5 text-xs bg-input/40 border border-border rounded-md outline-none text-foreground"
+              onValueChange={(val) => setTemplate(val as LabelTemplate)}
             >
-              <option value="STANDARD">Standard (2&quot; x 4&quot;)</option>
-              <option value="COMPACT">Compact (1&quot; x 2&quot;)</option>
-              <option value="DETAILED">Detailed (3&quot; x 4&quot;)</option>
-              <option value="SHELF_BIN">Shelf Bin Tag</option>
-            </select>
-          </div>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Select template" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="STANDARD">Standard (2&quot; x 4&quot;)</SelectItem>
+                <SelectItem value="COMPACT">Compact (1&quot; x 2&quot;)</SelectItem>
+                <SelectItem value="DETAILED">Detailed (3&quot; x 4&quot;)</SelectItem>
+                <SelectItem value="SHELF_BIN">Shelf Bin Tag</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
 
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground">Barcode Format</label>
-            <select
+          <Field>
+            <FieldLabel className="text-xs">Barcode Format</FieldLabel>
+            <Select
               value={format}
-              onChange={(e) => setFormat(e.target.value as BarcodeFormat)}
-              className="w-full px-3 py-1.5 text-xs bg-input/40 border border-border rounded-md outline-none text-foreground"
+              onValueChange={(val) => setFormat(val as BarcodeFormat)}
             >
-              <option value="CODE128">Code 128 (High Density)</option>
-              <option value="CODE39">Code 39 (Standard Alphanumeric)</option>
-              <option value="EAN13">EAN-13 (13 Digits)</option>
-              <option value="UPCA">UPC-A (12 Digits)</option>
-            </select>
-          </div>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Select format" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CODE128">Code 128 (High Density)</SelectItem>
+                <SelectItem value="CODE39">Code 39 (Standard Alphanumeric)</SelectItem>
+                <SelectItem value="EAN13">EAN-13 (13 Digits)</SelectItem>
+                <SelectItem value="UPCA">UPC-A (12 Digits)</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
         </div>
 
         {/* Content Preview List */}
@@ -159,3 +175,4 @@ export function BatchPrintDialog({
     </div>
   )
 }
+

@@ -6,6 +6,15 @@ import Link from 'next/link'
 import { authApi } from '@/lib/api/auth-api'
 import { Building2, CheckCircle2, ArrowRight, ArrowLeft, Loader2, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel } from '@/components/ui/field'
 
 export default function CreateOrganizationPage() {
   const router = useRouter()
@@ -31,39 +40,52 @@ export default function CreateOrganizationPage() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
+  const handleStep1Next = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+
+    if (!adminFirstName.trim() || !adminLastName.trim() || !adminEmail.trim() || !adminPassword.trim()) {
+      setError('Please complete all account administrator details.')
+      return
+    }
+
+    setStep(2)
+  }
+
   const handleCreateOrganization = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError(null)
+
+    if (!companyName.trim()) {
+      setError('Organization Name is required.')
+      return
+    }
+
+    setLoading(true)
+
     try {
-      const res = await authApi.setupOrganization({
-        companyName,
-        legalName: legalName || undefined,
-        taxId: taxId || undefined,
-        supportPhone: supportPhone || undefined,
-        address: address || undefined,
-        website: website || undefined,
-        country: country || undefined,
-        primaryTimezone: primaryTimezone || undefined,
-        baseCurrency,
-        adminEmail,
-        adminPassword,
-        adminFirstName,
-        adminLastName,
+      await authApi.setupOrganization({
+        companyName: companyName.trim(),
+        legalName: legalName.trim() || undefined,
+        taxId: taxId.trim() || undefined,
+        supportPhone: supportPhone.trim() || undefined,
+        address: address.trim() || undefined,
+        website: website.trim() || undefined,
+        country: country.trim() || 'India',
+        primaryTimezone: primaryTimezone.trim() || 'Asia/Kolkata',
+        baseCurrency: baseCurrency.trim() || 'INR',
+        adminFirstName: adminFirstName.trim(),
+        adminLastName: adminLastName.trim(),
+        adminEmail: adminEmail.trim(),
+        adminPassword: adminPassword.trim(),
       })
 
-      if (res.token) {
-        localStorage.setItem('ananya_auth_token', res.token)
-        document.cookie = `ananya_auth_token=${res.token}; path=/; max-age=604800; SameSite=Lax`
-      } else {
-        await authApi.login(adminEmail, adminPassword)
-      }
       router.push('/dashboard')
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message)
       } else {
-        setError('Failed to create organization. It may already exist.')
+        setError('Failed to initialize organization profile.')
       }
     } finally {
       setLoading(false)
@@ -71,238 +93,234 @@ export default function CreateOrganizationPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-background text-foreground font-sans">
-      <div className="w-full max-w-lg bg-card border border-border p-6 rounded-2xl shadow-2xl space-y-6">
-        <div className="flex items-center justify-between border-b border-border pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-foreground">Create New Organization</h2>
-              <p className="text-xs text-muted-foreground">Step {step} of 2 — No invitation token required</p>
-            </div>
+    <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="flex justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg">
+            <Building2 className="w-6 h-6" />
           </div>
-          <span className="px-2.5 py-0.5 text-[10px] font-bold bg-primary/10 text-primary rounded-full font-mono">
-            {step === 1 ? 'Step 1: Owner Account' : 'Step 2: Organization'}
-          </span>
         </div>
+        <h2 className="mt-4 text-center text-2xl font-bold tracking-tight text-foreground">
+          Create New Organization
+        </h2>
+        <p className="mt-1 text-center text-xs text-muted-foreground">
+          Step {step} of 2 — {step === 1 ? 'Root Administrator Account' : 'Organization Setup'}
+        </p>
+      </div>
 
-        {error && (
-          <div className="p-3 text-xs bg-destructive/10 border border-destructive/30 text-destructive rounded-xl">
-            {error}
-          </div>
-        )}
-
-        {step === 1 ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              if (adminFirstName && adminLastName && adminEmail && adminPassword) {
-                setStep(2)
-              }
-            }}
-            className="space-y-4 text-xs"
-          >
-            <div className="p-3 bg-muted/40 rounded-xl space-y-1">
-              <div className="flex items-center gap-2 font-semibold text-foreground">
-                <ShieldCheck className="w-4 h-4 text-primary" />
-                <span>Organization Owner Account</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                You will be designated as the Organization Owner with full administrative permissions (`Admin` role).
-              </p>
+      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-card py-8 px-4 shadow-xl border border-border sm:rounded-2xl sm:px-8 space-y-6">
+          {error && (
+            <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
+              {error}
             </div>
+          )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-semibold text-foreground block mb-1">First Name</label>
-                <input
-                  type="text"
+          {step === 1 ? (
+            <form onSubmit={handleStep1Next} className="space-y-4 text-xs">
+              <div className="p-3 bg-muted/40 border border-border rounded-xl flex items-start gap-2.5">
+                <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  The account created here will become the Root Administrator for your organization with full system privileges.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field>
+                  <FieldLabel htmlFor="admin-firstname">First Name</FieldLabel>
+                  <Input
+                    id="admin-firstname"
+                    type="text"
+                    required
+                    value={adminFirstName}
+                    onChange={(e) => setAdminFirstName(e.target.value)}
+                    placeholder="Jane"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="admin-lastname">Last Name</FieldLabel>
+                  <Input
+                    id="admin-lastname"
+                    type="text"
+                    required
+                    value={adminLastName}
+                    onChange={(e) => setAdminLastName(e.target.value)}
+                    placeholder="Smith"
+                  />
+                </Field>
+              </div>
+
+              <Field>
+                <FieldLabel htmlFor="admin-email">Email Address</FieldLabel>
+                <Input
+                  id="admin-email"
+                  type="email"
                   required
-                  value={adminFirstName}
-                  onChange={(e) => setAdminFirstName(e.target.value)}
-                  placeholder="Jane"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  placeholder="owner@company.com"
                 />
-              </div>
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Last Name</label>
-                <input
-                  type="text"
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="admin-password">Create Account Password</FieldLabel>
+                <Input
+                  id="admin-password"
+                  type="password"
                   required
-                  value={adminLastName}
-                  onChange={(e) => setAdminLastName(e.target.value)}
-                  placeholder="Smith"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder="••••••••••••"
                 />
-              </div>
-            </div>
+              </Field>
 
-            <div>
-              <label className="font-semibold text-foreground block mb-1">Email Address</label>
-              <input
-                type="email"
-                required
-                value={adminEmail}
-                onChange={(e) => setAdminEmail(e.target.value)}
-                placeholder="owner@company.com"
-                className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-foreground block mb-1">Create Account Password</label>
-              <input
-                type="password"
-                required
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
-              />
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-border">
-              <Link href="/onboarding">
-                <Button type="button" variant="ghost" size="sm">
-                  <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
-                  Cancel
+              <div className="flex items-center justify-between pt-4 border-t border-border">
+                <Link href="/onboarding">
+                  <Button type="button" variant="ghost" size="sm">
+                    <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
+                    Cancel
+                  </Button>
+                </Link>
+                <Button type="submit" size="sm">
+                  Next: Organization Details
+                  <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                 </Button>
-              </Link>
-              <Button type="submit" size="sm">
-                Next: Organization Details
-                <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={handleCreateOrganization} className="space-y-4 text-xs">
-            <div>
-              <label className="font-semibold text-foreground block mb-1">Organization Name (Required)</label>
-              <input
-                type="text"
-                required
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="e.g. Apex Hardware Technologies"
-                className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Legal Entity Name (Optional)</label>
-                <input
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleCreateOrganization} className="space-y-4 text-xs">
+              <Field>
+                <FieldLabel htmlFor="company-name">Organization Name (Required)</FieldLabel>
+                <Input
+                  id="company-name"
                   type="text"
-                  value={legalName}
-                  onChange={(e) => setLegalName(e.target.value)}
-                  placeholder="Apex Hardware Inc."
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
+                  required
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="e.g. Apex Hardware Technologies"
                 />
-              </div>
-              <div>
-                <label className="font-semibold text-foreground block mb-1">GST / Tax ID (Optional)</label>
-                <input
-                  type="text"
-                  value={taxId}
-                  onChange={(e) => setTaxId(e.target.value)}
-                  placeholder="TAX-998877"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
-                />
-              </div>
-            </div>
+              </Field>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Support Phone (Optional)</label>
-                <input
-                  type="text"
-                  value={supportPhone}
-                  onChange={(e) => setSupportPhone(e.target.value)}
-                  placeholder="+1 555-0100"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <Field>
+                  <FieldLabel htmlFor="legal-name">Legal Entity Name (Optional)</FieldLabel>
+                  <Input
+                    id="legal-name"
+                    type="text"
+                    value={legalName}
+                    onChange={(e) => setLegalName(e.target.value)}
+                    placeholder="Apex Hardware Inc."
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="tax-id">GST / Tax ID (Optional)</FieldLabel>
+                  <Input
+                    id="tax-id"
+                    type="text"
+                    value={taxId}
+                    onChange={(e) => setTaxId(e.target.value)}
+                    placeholder="TAX-998877"
+                  />
+                </Field>
               </div>
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Website (Optional)</label>
-                <input
-                  type="url"
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
-                  placeholder="https://apex.hardware"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
-                />
-              </div>
-            </div>
 
-            <div>
-              <label className="font-semibold text-foreground block mb-1">Operating Address (Optional)</label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="400 Innovation Drive"
-                className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
-              />
-            </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field>
+                  <FieldLabel htmlFor="support-phone">Support Phone (Optional)</FieldLabel>
+                  <Input
+                    id="support-phone"
+                    type="text"
+                    value={supportPhone}
+                    onChange={(e) => setSupportPhone(e.target.value)}
+                    placeholder="+1 555-0100"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="website">Website (Optional)</FieldLabel>
+                  <Input
+                    id="website"
+                    type="url"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://apex.hardware"
+                  />
+                </Field>
+              </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Country</label>
-                <input
+              <Field>
+                <FieldLabel htmlFor="address">Operating Address (Optional)</FieldLabel>
+                <Input
+                  id="address"
                   type="text"
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="400 Innovation Drive"
                 />
-              </div>
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Timezone</label>
-                <input
-                  type="text"
-                  value={primaryTimezone}
-                  onChange={(e) => setPrimaryTimezone(e.target.value)}
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
-                />
-              </div>
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Base Currency</label>
-                <select
-                  value={baseCurrency}
-                  onChange={(e) => setBaseCurrency(e.target.value)}
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
-                >
-                  <option value="INR">INR (₹)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                </select>
-              </div>
-            </div>
+              </Field>
 
-            <div className="flex items-center justify-between pt-4 border-t border-border">
-              <Button type="button" variant="outline" size="sm" onClick={() => setStep(1)} disabled={loading}>
-                <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
-                Back
-              </Button>
-              <Button type="submit" size="sm" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                    Creating Organization...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                    Create Organization & Launch
-                  </>
-                )}
-              </Button>
-            </div>
+              <div className="grid grid-cols-3 gap-3">
+                <Field>
+                  <FieldLabel htmlFor="country">Country</FieldLabel>
+                  <Input
+                    id="country"
+                    type="text"
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="timezone">Timezone</FieldLabel>
+                  <Input
+                    id="timezone"
+                    type="text"
+                    value={primaryTimezone}
+                    onChange={(e) => setPrimaryTimezone(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="currency">Base Currency</FieldLabel>
+                  <Select
+                    value={baseCurrency}
+                    onValueChange={(val) => setBaseCurrency(val ?? 'INR')}
+                  >
+                    <SelectTrigger id="currency">
+                      <SelectValue placeholder="INR" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="INR">INR (₹)</SelectItem>
+                      <SelectItem value="USD">USD ($)</SelectItem>
+                      <SelectItem value="EUR">EUR (€)</SelectItem>
+                      <SelectItem value="GBP">GBP (£)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-border">
+                <Button type="button" variant="outline" size="sm" onClick={() => setStep(1)} disabled={loading}>
+                  <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
+                  Back
+                </Button>
+                <Button type="submit" size="sm" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      Creating Organization...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                      Create Organization &amp; Launch
+                    </>
+                  )}
+                </Button>
+              </div>
+
           </form>
         )}
       </div>
     </div>
+  </div>
   )
 }
+

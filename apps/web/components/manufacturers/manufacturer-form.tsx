@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   manufacturersApi,
   type ManufacturerDto,
@@ -90,38 +92,33 @@ export function ManufacturerForm({
       )}
 
       {/* Code */}
-      <div className="space-y-1">
-        <label htmlFor="mfr-code" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="mfr-code">
           Manufacturer Code <span className="text-destructive">*</span>
-        </label>
-        <input
+        </FieldLabel>
+        <Input
           id="mfr-code"
           type="text"
           placeholder="e.g. MFR-ST-MICRO"
           {...register('code')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground uppercase font-mono"
+          className="uppercase font-mono"
         />
-        {errors.code && (
-          <p className="text-xs text-destructive">{errors.code.message}</p>
-        )}
-      </div>
+        {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
+      </Field>
 
       {/* Name */}
-      <div className="space-y-1">
-        <label htmlFor="mfr-name" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="mfr-name">
           Manufacturer Name <span className="text-destructive">*</span>
-        </label>
-        <input
+        </FieldLabel>
+        <Input
           id="mfr-name"
           type="text"
           placeholder="e.g. STMicroelectronics N.V."
           {...register('name')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
         />
-        {errors.name && (
-          <p className="text-xs text-destructive">{errors.name.message}</p>
-        )}
-      </div>
+        {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
+      </Field>
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
@@ -142,3 +139,4 @@ export function ManufacturerForm({
     </form>
   )
 }
+

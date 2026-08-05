@@ -1,11 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { useForm, useFieldArray, SubmitHandler } from 'react-hook-form'
+import { useForm, useFieldArray, SubmitHandler, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2, AlertCircle, Plus, Trash2, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   reservationsApi,
   type ReservationDto,
@@ -16,21 +25,21 @@ import {
 import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
 import { locationsApi, type LocationDto } from '@/lib/api/locations-api'
 
-const lineSchema = z.object({
-  componentId: z.string().min(1, 'Component item is required'),
-  locationId: z.string().min(1, 'Warehouse location is required'),
+const reservationLineSchema = z.object({
+  componentId: z.string().min(1, 'Component is required'),
+  locationId: z.string().min(1, 'Location is required'),
   reservedQuantity: z.number().min(0.0001, 'Quantity must be greater than zero'),
-  unitOfMeasure: z.string().optional(),
-  notes: z.string().optional(),
+  unitOfMeasure: z.string().min(1, 'Unit of measure is required'),
+  notes: z.string().optional().nullable(),
 })
 
 const reservationSchema = z.object({
   reservationType: z.enum(['WORK_ORDER', 'PROJECT', 'PURCHASE_REQUEST', 'SALES_ORDER']),
-  referenceDocument: z.string().optional(),
-  reservedBy: z.string().min(1, 'Reserved By identity is required'),
-  expiresAt: z.string().optional(),
-  notes: z.string().optional(),
-  lines: z.array(lineSchema).min(1, 'At least one reserved line item is required'),
+  referenceDocument: z.string().optional().nullable(),
+  reservedBy: z.string().min(1, 'Reserved by identifier is required'),
+  expiresAt: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  lines: z.array(reservationLineSchema).min(1, 'At least one line item is required for reservation'),
 })
 
 export type ReservationFormValues = z.infer<typeof reservationSchema>
@@ -57,7 +66,7 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
       })
       .catch((err) => {
         setServerError(
-          err instanceof Error ? err.message : 'Failed to load reference catalogs',
+          err instanceof Error ? err.message : 'Failed to load catalogs',
         )
       })
       .finally(() => setLoadingRef(false))
@@ -67,6 +76,7 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
     register,
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ReservationFormValues>({
     resolver: zodResolver(reservationSchema),
@@ -77,22 +87,19 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
           reservedBy: initialData.reservedBy,
           expiresAt: initialData.expiresAt ? initialData.expiresAt.split('T')[0] : '',
           notes: initialData.notes || '',
-          lines:
-            initialData.lines.length > 0
-              ? initialData.lines.map((l) => ({
-                  componentId: l.componentId,
-                  locationId: l.locationId,
-                  reservedQuantity: l.reservedQuantity,
-                  unitOfMeasure: l.unitOfMeasure || 'pcs',
-                  notes: l.notes || '',
-                }))
-              : [{ componentId: '', locationId: '', reservedQuantity: 10, unitOfMeasure: 'pcs', notes: '' }],
+          lines: initialData.lines.map((l) => ({
+            componentId: l.componentId,
+            locationId: l.locationId,
+            reservedQuantity: l.reservedQuantity,
+            unitOfMeasure: l.unitOfMeasure,
+            notes: l.notes || '',
+          })),
         }
       : {
           reservationType: 'WORK_ORDER',
           referenceDocument: '',
-          reservedBy: 'Production Planning Lead',
-          expiresAt: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+          reservedBy: 'OPERATIONS',
+          expiresAt: '',
           notes: '',
           lines: [{ componentId: '', locationId: '', reservedQuantity: 10, unitOfMeasure: 'pcs', notes: '' }],
         },
@@ -103,49 +110,46 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
     name: 'lines',
   })
 
+  const handleLineComponentChange = (idx: number, compId: string) => {
+    setValue(`lines.${idx}.componentId`, compId)
+    const comp = components.find((c) => c.id === compId)
+    if (comp) {
+      setValue(`lines.${idx}.unitOfMeasure`, comp.unit || 'pcs')
+      if (comp.defaultLocationId) {
+        setValue(`lines.${idx}.locationId`, comp.defaultLocationId)
+      }
+    }
+  }
+
   const onSubmit: SubmitHandler<ReservationFormValues> = async (values) => {
     setServerError(null)
     try {
+      const payloadBase = {
+        reservationType: values.reservationType as ReservationType,
+        referenceDocument: values.referenceDocument || undefined,
+        reservedBy: values.reservedBy,
+        expiresAt: values.expiresAt ? new Date(values.expiresAt).toISOString() : undefined,
+        notes: values.notes || undefined,
+        lines: values.lines.map((l) => ({
+          componentId: l.componentId,
+          locationId: l.locationId,
+          reservedQuantity: Number(l.reservedQuantity),
+          unitOfMeasure: l.unitOfMeasure,
+          notes: l.notes || undefined,
+        })),
+      }
       if (isEdit && initialData) {
-        const payload: UpdateReservationPayload = {
-          reservationType: values.reservationType as ReservationType,
-          referenceDocument: values.referenceDocument || undefined,
-          reservedBy: values.reservedBy,
-          expiresAt: values.expiresAt || undefined,
-          notes: values.notes || undefined,
-          lines: values.lines.map((l) => ({
-            componentId: l.componentId,
-            locationId: l.locationId,
-            reservedQuantity: Number(l.reservedQuantity),
-            unitOfMeasure: l.unitOfMeasure,
-            notes: l.notes || undefined,
-          })),
-        }
-        const updated = await reservationsApi.update(initialData.id, payload)
+        const updated = await reservationsApi.update(initialData.id, payloadBase as UpdateReservationPayload)
         onSuccess(updated)
       } else {
-        const payload: CreateReservationPayload = {
-          reservationType: values.reservationType as ReservationType,
-          referenceDocument: values.referenceDocument || undefined,
-          reservedBy: values.reservedBy,
-          expiresAt: values.expiresAt || undefined,
-          notes: values.notes || undefined,
-          lines: values.lines.map((l) => ({
-            componentId: l.componentId,
-            locationId: l.locationId,
-            reservedQuantity: Number(l.reservedQuantity),
-            unitOfMeasure: l.unitOfMeasure,
-            notes: l.notes || undefined,
-          })),
-        }
-        const created = await reservationsApi.create(payload)
+        const created = await reservationsApi.create(payloadBase as CreateReservationPayload)
         onSuccess(created)
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setServerError(err.message)
       } else {
-        setServerError('Failed to submit Inventory Reservation')
+        setServerError('Failed to submit inventory reservation')
       }
     }
   }
@@ -168,99 +172,78 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
         </div>
       )}
 
-      {/* Reservation Type & Reference Document */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label
-            htmlFor="res-type"
-            className="text-xs font-medium text-foreground"
-          >
+        <Field>
+          <FieldLabel htmlFor="res-type">
             Reservation Purpose / Type <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="res-type"
-            {...register('reservationType')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-          >
-            <option value="WORK_ORDER">Work Order Commitment</option>
-            <option value="PROJECT">Project Stock Allocation</option>
-            <option value="PURCHASE_REQUEST">Purchase Request Reservation</option>
-            <option value="SALES_ORDER">Sales Order Reservation</option>
-          </select>
-        </div>
+          </FieldLabel>
+          <Controller
+            name="reservationType"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="res-type">
+                  <SelectValue placeholder="Select purpose" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="WORK_ORDER">Work Order Commitment</SelectItem>
+                  <SelectItem value="PROJECT">Project Stock Allocation</SelectItem>
+                  <SelectItem value="PURCHASE_REQUEST">Purchase Request Reservation</SelectItem>
+                  <SelectItem value="SALES_ORDER">Sales Order Reservation</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
 
-        <div className="space-y-1">
-          <label
-            htmlFor="res-ref"
-            className="text-xs font-medium text-foreground"
-          >
-            Reference Document #
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="res-ref">Reference Document #</FieldLabel>
+          <Input
             id="res-ref"
             type="text"
             placeholder="e.g. WO-2026-0012 or PRJ-BUILD-01"
             {...register('referenceDocument')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
           />
-        </div>
+        </Field>
       </div>
 
-      {/* Reserved By & Expiration */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label
-            htmlFor="res-by"
-            className="text-xs font-medium text-foreground"
-          >
+        <Field>
+          <FieldLabel htmlFor="res-by">
             Reserved By <span className="text-destructive">*</span>
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             id="res-by"
             type="text"
             placeholder="e.g. Assembly Lead (Jane Doe)"
             {...register('reservedBy')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
           />
-          {errors.reservedBy && (
-            <p className="text-xs text-destructive">{errors.reservedBy.message}</p>
+          {errors.reservedBy?.message && (
+            <FieldError>{errors.reservedBy.message}</FieldError>
           )}
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label
-            htmlFor="res-expires"
-            className="text-xs font-medium text-foreground"
-          >
-            Expiration Date (Lock Hold)
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="res-expires">Expiration Date (Lock Hold)</FieldLabel>
+          <Input
             id="res-expires"
             type="date"
             {...register('expiresAt')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
+            className="font-mono"
           />
-        </div>
+        </Field>
       </div>
 
-      {/* Notes */}
-      <div className="space-y-1">
-        <label
-          htmlFor="res-notes"
-          className="text-xs font-medium text-foreground"
-        >
-          Allocation Notes / Justification
-        </label>
-        <input
+      <Field>
+        <FieldLabel htmlFor="res-notes">Allocation Notes / Justification</FieldLabel>
+        <Input
           id="res-notes"
           type="text"
           placeholder="e.g. Hold critical high-precision sensors for scheduled Work Order WO-2026-0012"
           {...register('notes')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
         />
-      </div>
+      </Field>
 
-      {/* Line Items Manager */}
       <div className="space-y-2 pt-2 border-t border-border">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
@@ -269,26 +252,22 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
           <Button
             type="button"
             variant="outline"
-            size="xs"
+            size="sm"
             onClick={() =>
               append({ componentId: '', locationId: '', reservedQuantity: 10, unitOfMeasure: 'pcs', notes: '' })
             }
           >
             <Plus className="w-3 h-3 mr-1" />
-            Add Reserved Item
+            Add Item
           </Button>
         </div>
 
         <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-md text-[11px] text-blue-800 dark:text-blue-200 flex items-center gap-1.5">
           <Info className="w-3.5 h-3.5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
           <span>
-            Reservations commit stock and reduce <strong>Available Quantity</strong>. On-hand inventory is modified only upon material fulfillment.
+            Reservations commit stock and reduce <strong>Available Quantity</strong>.
           </span>
         </div>
-
-        {errors.lines?.root && (
-          <p className="text-xs text-destructive">{errors.lines.root.message}</p>
-        )}
 
         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
           {fields.map((field, idx) => (
@@ -300,17 +279,30 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
                 <label className="text-[11px] font-medium text-muted-foreground">
                   Component <span className="text-destructive">*</span>
                 </label>
-                <select
-                  {...register(`lines.${idx}.componentId` as const)}
-                  className="w-full px-2.5 py-1.5 text-xs bg-input/40 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-                >
-                  <option value="">Select component...</option>
-                  {components.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.sku} — {c.name}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  name={`lines.${idx}.componentId` as const}
+                  control={control}
+                  render={({ field: compField }) => (
+                    <Select
+                      value={compField.value}
+                      onValueChange={(val) => {
+                        compField.onChange(val ?? '')
+                        handleLineComponentChange(idx, val ?? '')
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select component..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {components.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.sku} — {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
                 {errors.lines?.[idx]?.componentId && (
                   <p className="text-[11px] text-destructive">
                     {errors.lines[idx]?.componentId?.message}
@@ -322,17 +314,27 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
                 <label className="text-[11px] font-medium text-muted-foreground">
                   Warehouse Location <span className="text-destructive">*</span>
                 </label>
-                <select
-                  {...register(`lines.${idx}.locationId` as const)}
-                  className="w-full px-2.5 py-1.5 text-xs bg-input/40 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-                >
-                  <option value="">Select warehouse location...</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>
-                      {loc.code} — {loc.name}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  name={`lines.${idx}.locationId` as const}
+                  control={control}
+                  render={({ field: locField }) => (
+                    <Select
+                      value={locField.value}
+                      onValueChange={locField.onChange}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select warehouse location..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((loc) => (
+                          <SelectItem key={loc.id} value={loc.id}>
+                            {loc.code} — {loc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
                 {errors.lines?.[idx]?.locationId && (
                   <p className="text-[11px] text-destructive">
                     {errors.lines[idx]?.locationId?.message}
@@ -344,14 +346,14 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
                 <label className="text-[11px] font-medium text-muted-foreground">
                   Reserved Qty <span className="text-destructive">*</span>
                 </label>
-                <input
+                <Input
                   type="number"
                   step="any"
                   min={0.0001}
                   {...register(`lines.${idx}.reservedQuantity` as const, {
                     valueAsNumber: true,
                   })}
-                  className="w-full px-2.5 py-1.5 text-xs bg-input/40 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground font-mono font-bold"
+                  className="h-8 text-xs font-mono font-bold"
                 />
                 {errors.lines?.[idx]?.reservedQuantity && (
                   <p className="text-[11px] text-destructive">
@@ -364,10 +366,10 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
                 <label className="text-[11px] font-medium text-muted-foreground">
                   Unit
                 </label>
-                <input
+                <Input
                   type="text"
                   {...register(`lines.${idx}.unitOfMeasure` as const)}
-                  className="w-full px-2.5 py-1.5 text-xs bg-input/40 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground font-mono"
+                  className="h-8 text-xs font-mono"
                 />
               </div>
 
@@ -375,12 +377,12 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon"
                   disabled={fields.length === 1}
                   onClick={() => remove(idx)}
-                  className="text-destructive hover:bg-destructive/10"
+                  className="text-destructive hover:bg-destructive/10 h-8 w-8"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -388,21 +390,12 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
         </div>
       </div>
 
-      {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          disabled={isSubmitting}
-        >
+        <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && (
-            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-          )}
+          {isSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
           {isEdit ? 'Save Changes' : 'Create Reservation'}
         </Button>
       </div>

@@ -1,11 +1,21 @@
 'use client'
 
 import * as React from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   categoriesApi,
   type CategoryDto,
@@ -62,6 +72,7 @@ export function CategoryForm({
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
@@ -113,71 +124,72 @@ export function CategoryForm({
       )}
 
       {/* Code */}
-      <div className="space-y-1">
-        <label htmlFor="category-code" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="category-code">
           Category Code <span className="text-destructive">*</span>
-        </label>
-        <input
+        </FieldLabel>
+        <Input
           id="category-code"
           type="text"
           placeholder="e.g. CAT-ACTIVE-COMP"
           {...register('code')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground uppercase font-mono"
+          className="uppercase font-mono"
         />
-        {errors.code && (
-          <p className="text-xs text-destructive">{errors.code.message}</p>
-        )}
-      </div>
+        {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
+      </Field>
 
       {/* Name */}
-      <div className="space-y-1">
-        <label htmlFor="category-name" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="category-name">
           Category Name <span className="text-destructive">*</span>
-        </label>
-        <input
+        </FieldLabel>
+        <Input
           id="category-name"
           type="text"
           placeholder="e.g. Active Electronic Components"
           {...register('name')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
         />
-        {errors.name && (
-          <p className="text-xs text-destructive">{errors.name.message}</p>
-        )}
-      </div>
+        {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
+      </Field>
 
       {/* Parent Category */}
-      <div className="space-y-1">
-        <label htmlFor="category-parent" className="text-xs font-medium text-foreground">
-          Parent Category
-        </label>
-        <select
-          id="category-parent"
-          {...register('parentId')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-        >
-          <option value="">None (Top-Level Root Category)</option>
-          {allCategories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.code} - {cat.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Field>
+        <FieldLabel htmlFor="category-parent">Parent Category</FieldLabel>
+        <Controller
+          name="parentId"
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value ?? 'none'}
+              onValueChange={(val) => field.onChange(val === 'none' ? '' : val)}
+            >
+              <SelectTrigger id="category-parent">
+                <SelectValue placeholder="Select parent category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None (Top-Level Root Category)</SelectItem>
+                {allCategories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.code} - {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </Field>
 
       {/* Description */}
-      <div className="space-y-1">
-        <label htmlFor="category-desc" className="text-xs font-medium text-foreground">
-          Description
-        </label>
-        <textarea
+      <Field>
+        <FieldLabel htmlFor="category-desc">Description</FieldLabel>
+        <Textarea
           id="category-desc"
           rows={3}
           placeholder="Detailed categorization description..."
           {...register('description')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground resize-none"
+          className="resize-none"
         />
-      </div>
+      </Field>
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
@@ -192,3 +204,4 @@ export function CategoryForm({
     </form>
   )
 }
+

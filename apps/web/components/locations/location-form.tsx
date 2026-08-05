@@ -1,11 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   locationsApi,
   type LocationDto,
@@ -49,6 +58,7 @@ export function LocationForm({
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<LocationFormValues>({
     resolver: zodResolver(locationSchema),
@@ -100,78 +110,86 @@ export function LocationForm({
       )}
 
       {/* Code */}
-      <div className="space-y-1">
-        <label htmlFor="location-code" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="location-code">
           Location Code <span className="text-destructive">*</span>
-        </label>
-        <input
+        </FieldLabel>
+        <Input
           id="location-code"
           type="text"
           placeholder="e.g. WH-A-01"
           {...register('code')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground uppercase"
+          className="uppercase"
         />
-        {errors.code && (
-          <p className="text-xs text-destructive">{errors.code.message}</p>
-        )}
-      </div>
+        {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
+      </Field>
 
       {/* Name */}
-      <div className="space-y-1">
-        <label htmlFor="location-name" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="location-name">
           Location Name <span className="text-destructive">*</span>
-        </label>
-        <input
+        </FieldLabel>
+        <Input
           id="location-name"
           type="text"
           placeholder="e.g. Main Warehouse Row A"
           {...register('name')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
         />
-        {errors.name && (
-          <p className="text-xs text-destructive">{errors.name.message}</p>
-        )}
-      </div>
+        {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
+      </Field>
 
       {/* Kind */}
-      <div className="space-y-1">
-        <label htmlFor="location-kind" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="location-kind">
           Location Kind <span className="text-destructive">*</span>
-        </label>
-        <select
-          id="location-kind"
-          {...register('kind')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-        >
-          <option value="warehouse">Warehouse</option>
-          <option value="aisle">Aisle</option>
-          <option value="rack">Rack</option>
-          <option value="shelf">Shelf</option>
-          <option value="bin">Bin</option>
-        </select>
-        {errors.kind && (
-          <p className="text-xs text-destructive">{errors.kind.message}</p>
-        )}
-      </div>
+        </FieldLabel>
+        <Controller
+          name="kind"
+          control={control}
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id="location-kind">
+                <SelectValue placeholder="Select location kind" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="warehouse">Warehouse</SelectItem>
+                <SelectItem value="aisle">Aisle</SelectItem>
+                <SelectItem value="rack">Rack</SelectItem>
+                <SelectItem value="shelf">Shelf</SelectItem>
+                <SelectItem value="bin">Bin</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {errors.kind?.message && <FieldError>{errors.kind.message}</FieldError>}
+      </Field>
 
       {/* Parent Location */}
-      <div className="space-y-1">
-        <label htmlFor="location-parent" className="text-xs font-medium text-foreground">
-          Parent Location
-        </label>
-        <select
-          id="location-parent"
-          {...register('parentId')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-        >
-          <option value="">None (Top Level)</option>
-          {availableParents.map((loc) => (
-            <option key={loc.id} value={loc.id}>
-              {loc.code} - {loc.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Field>
+        <FieldLabel htmlFor="location-parent">Parent Location</FieldLabel>
+        <Controller
+          name="parentId"
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value ?? 'none'}
+              onValueChange={(val) => field.onChange(val === 'none' ? '' : val)}
+            >
+              <SelectTrigger id="location-parent">
+                <SelectValue placeholder="Select parent location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None (Top Level)</SelectItem>
+                {availableParents.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id}>
+                    {loc.code} - {loc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </Field>
 
       {/* Form Action Buttons */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">

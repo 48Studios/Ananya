@@ -14,6 +14,15 @@ import {
   Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { EntityDataTable } from '@/components/ui/entity-data-table'
@@ -23,6 +32,7 @@ import { PermissionGuard } from '@/lib/auth/auth-context'
 import { usersApi } from '@/lib/api/users-api'
 import { rolesApi, RoleDto } from '@/lib/api/roles-api'
 import { UserProfileDto } from '@/lib/api/auth-api'
+
 
 export default function UsersListPage() {
   const [userList, setUserList] = React.useState<UserProfileDto[]>([])
@@ -325,83 +335,88 @@ export default function UsersListPage() {
               </div>
             )}
 
-            <form onSubmit={handleSaveUser} className="space-y-3 text-xs">
+            <form onSubmit={handleSaveUser} className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">First Name</label>
-                  <input
+                <Field>
+                  <FieldLabel htmlFor="user-firstname">First Name</FieldLabel>
+                  <Input
+                    id="user-firstname"
                     type="text"
                     required
                     value={formFirstName}
                     onChange={(e) => setFormFirstName(e.target.value)}
-                    className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground"
                   />
-                </div>
+                </Field>
 
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">Last Name</label>
-                  <input
+                <Field>
+                  <FieldLabel htmlFor="user-lastname">Last Name</FieldLabel>
+                  <Input
+                    id="user-lastname"
                     type="text"
                     required
                     value={formLastName}
                     onChange={(e) => setFormLastName(e.target.value)}
-                    className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground"
                   />
-                </div>
+                </Field>
               </div>
 
               {!editingUser && (
                 <>
-                  <div className="space-y-1">
-                    <label className="font-medium text-foreground">Work Email</label>
-                    <input
+                  <Field>
+                    <FieldLabel htmlFor="user-email">Work Email</FieldLabel>
+                    <Input
+                      id="user-email"
                       type="email"
                       required
                       value={formEmail}
                       onChange={(e) => setFormEmail(e.target.value)}
-                      className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground font-mono"
+                      className="font-mono"
                     />
-                  </div>
+                  </Field>
 
-                  <div className="space-y-1">
-                    <label className="font-medium text-foreground">Password</label>
-                    <input
+                  <Field>
+                    <FieldLabel htmlFor="user-password">Password</FieldLabel>
+                    <Input
+                      id="user-password"
                       type="password"
                       required
                       value={formPassword}
                       onChange={(e) => setFormPassword(e.target.value)}
-                      className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground"
                     />
-                  </div>
+                  </Field>
                 </>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">Department</label>
-                  <input
+                <Field>
+                  <FieldLabel htmlFor="user-dept">Department</FieldLabel>
+                  <Input
+                    id="user-dept"
                     type="text"
                     value={formDepartment}
                     onChange={(e) => setFormDepartment(e.target.value)}
-                    className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground"
                   />
-                </div>
+                </Field>
 
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">Assigned Role</label>
-                  <select
-                    value={formRoleId}
-                    onChange={(e) => setFormRoleId(e.target.value)}
-                    className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground"
+                <Field>
+                  <FieldLabel htmlFor="user-role">Assigned Role</FieldLabel>
+                  <Select
+                    value={formRoleId || 'NONE'}
+                    onValueChange={(val) => setFormRoleId(!val || val === 'NONE' ? '' : val)}
                   >
-                    <option value="">No Role</option>
-                    {roles.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <SelectTrigger id="user-role">
+                      <SelectValue placeholder="No Role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">No Role</SelectItem>
+                      {roles.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-border">
@@ -425,3 +440,4 @@ export default function UsersListPage() {
     </div>
   )
 }
+

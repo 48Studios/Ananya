@@ -18,6 +18,8 @@ import { useTheme } from 'next-themes'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { LoadingState } from '@/components/ui/loading-state'
 import { useAuth } from '@/lib/auth/auth-context'
 import { authApi, SessionDto } from '@/lib/api/auth-api'
@@ -159,45 +161,45 @@ export default function ProfilePage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="space-y-1">
-                <label className="text-muted-foreground font-medium">First Name</label>
-                <input
+              <Field>
+                <FieldLabel>First Name</FieldLabel>
+                <Input
                   type="text"
                   disabled
                   value={user.firstName}
-                  className="w-full px-3 py-2 bg-muted/40 border border-border rounded-lg text-foreground font-medium"
+                  className="bg-muted/40 font-medium"
                 />
-              </div>
+              </Field>
 
-              <div className="space-y-1">
-                <label className="text-muted-foreground font-medium">Last Name</label>
-                <input
+              <Field>
+                <FieldLabel>Last Name</FieldLabel>
+                <Input
                   type="text"
                   disabled
                   value={user.lastName}
-                  className="w-full px-3 py-2 bg-muted/40 border border-border rounded-lg text-foreground font-medium"
+                  className="bg-muted/40 font-medium"
                 />
-              </div>
+              </Field>
 
-              <div className="space-y-1">
-                <label className="text-muted-foreground font-medium">Work Email</label>
-                <input
+              <Field>
+                <FieldLabel>Work Email</FieldLabel>
+                <Input
                   type="email"
                   disabled
                   value={user.email}
-                  className="w-full px-3 py-2 bg-muted/40 border border-border rounded-lg text-foreground font-medium font-mono"
+                  className="bg-muted/40 font-medium font-mono"
                 />
-              </div>
+              </Field>
 
-              <div className="space-y-1">
-                <label className="text-muted-foreground font-medium">Department</label>
-                <input
+              <Field>
+                <FieldLabel>Department</FieldLabel>
+                <Input
                   type="text"
                   disabled
                   value={user.department || 'Operations'}
-                  className="w-full px-3 py-2 bg-muted/40 border border-border rounded-lg text-foreground font-medium"
+                  className="bg-muted/40 font-medium"
                 />
-              </div>
+              </Field>
             </div>
           </div>
 
@@ -228,39 +230,36 @@ export default function ProfilePage() {
             )}
 
             <form onSubmit={handleChangePassword} className="space-y-4 text-xs">
-              <div className="space-y-1">
-                <label className="font-medium text-foreground">Current Password</label>
-                <input
+              <Field>
+                <FieldLabel>Current Password</FieldLabel>
+                <Input
                   type="password"
                   required
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full px-3 py-2 bg-input/40 border border-border rounded-lg outline-none text-foreground"
                 />
-              </div>
+              </Field>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">New Password</label>
-                  <input
+                <Field>
+                  <FieldLabel>New Password</FieldLabel>
+                  <Input
                     type="password"
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-3 py-2 bg-input/40 border border-border rounded-lg outline-none text-foreground"
                   />
-                </div>
+                </Field>
 
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">Confirm New Password</label>
-                  <input
+                <Field>
+                  <FieldLabel>Confirm New Password</FieldLabel>
+                  <Input
                     type="password"
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-3 py-2 bg-input/40 border border-border rounded-lg outline-none text-foreground"
                   />
-                </div>
+                </Field>
               </div>
 
               <div className="flex justify-end pt-2">

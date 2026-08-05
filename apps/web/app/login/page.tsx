@@ -6,6 +6,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth/auth-context'
 import { ShieldCheck, Eye, EyeOff, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldLabel } from '@/components/ui/field'
+
 
 function LoginFormContent() {
   const router = useRouter()
@@ -85,59 +89,60 @@ function LoginFormContent() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">Email Address</label>
+            <Field>
+              <FieldLabel htmlFor="login-email">Email Address</FieldLabel>
               <div className="relative">
-                <Mail className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
-                <input
+                <Mail className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5 z-10" />
+                <Input
+                  id="login-email"
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@48studios.com"
-                  className="w-full h-10 pl-9 pr-3 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="pl-9 h-10 text-sm"
                 />
               </div>
-            </div>
+            </Field>
 
-            <div className="space-y-1">
+            <Field>
               <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-foreground">Password</label>
+                <FieldLabel htmlFor="login-password">Password</FieldLabel>
                 <Link href="/forgot-password" className="text-xs text-primary hover:underline font-medium">
                   Forgot password?
                 </Link>
               </div>
               <div className="relative">
-                <Lock className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
-                <input
+                <Lock className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5 z-10" />
+                <Input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full h-10 pl-9 pr-10 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="pl-9 pr-10 h-10 text-sm"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground z-10"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-            </div>
+            </Field>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded border-input text-primary focus:ring-primary"
-                />
-                <span>Remember me for 30 days</span>
-              </label>
-            </div>
+            <Field orientation="horizontal" className="w-auto items-center">
+              <Checkbox
+                id="remember-me"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(Boolean(checked))}
+              />
+              <FieldLabel htmlFor="remember-me" className="cursor-pointer text-xs font-normal text-muted-foreground">
+                Remember me for 30 days
+              </FieldLabel>
+            </Field>
 
             <Button type="submit" className="w-full h-10" disabled={loading}>
               {loading ? (

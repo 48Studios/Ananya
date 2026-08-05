@@ -16,11 +16,11 @@
 
 ## Current Vertical Slice
 
-**Authentication State Machine Refactor**
+**Form Component Architecture Refactor**
 
 ## Current Sprint Goal
 
-Refactor authentication lifecycle into 4 formal states (Unauthenticated, Authenticated No Membership, Authenticated Bootstrap Allowed, Authenticated Member). Ensure signup and invitation acceptance automatically authenticate users via the shared `AuthService.createSessionForUser` code path, eliminate post-signup login redirects, add `/auth/bootstrap-status` backend endpoint, implement `/welcome` view for authenticated non-members, update documentation ([docs/AUTHENTICATION.md](file:///Users/jrsarath/Documents/GitHub/ananya/docs/AUTHENTICATION.md)), and add Playwright E2E test suite (`tests/e2e/auth-state-machine.spec.ts`). Verify all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, `pnpm build`).
+Enforce a strict Zero Native Select Policy across Ananya ERP. Remove all custom/native select components (`native-select.tsx`). Standardize 100% of dropdown selections on official shadcn `Select` (`SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`) for small enumerations, and official shadcn `Combobox` (`Popover` + `Command`) for searchable entity selection. Update architectural documentation in [DESIGN.md](file:///Users/jrsarath/Documents/GitHub/ananya/DESIGN.md) and pass all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, `pnpm build`).
 
 ## Current Branch
 
@@ -28,7 +28,7 @@ Refactor authentication lifecycle into 4 formal states (Unauthenticated, Authent
 
 ## Current Status
 
-🟢 Authentication State Machine Refactor 100% Complete — Implemented 4-state authentication state machine. Registration, organization setup, and invitation acceptance share `createSessionForUser` and automatically authenticate users on the spot (never redirecting to `/login` after signup). Added `GET /auth/bootstrap-status` backend endpoint, `/welcome` screen for authenticated non-members, technical documentation ([docs/AUTHENTICATION.md](file:///Users/jrsarath/Documents/GitHub/ananya/docs/AUTHENTICATION.md)), and Playwright E2E tests (`tests/e2e/auth-state-machine.spec.ts`). Passed all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, and `pnpm build`).
+🟢 Form Component Architecture Refactor 100% Complete — Standardized all dropdown controls across Ananya ERP on official shadcn components. Removed `apps/web/components/ui/native-select.tsx`. Refactored `apps/web/app/settings/page.tsx` to use official shadcn `<Select>` for small enumerations (`Fiscal Year Start Month`). Installed official `Popover` and `Command` primitives for searchable entity selection. Documented selection policy in [DESIGN.md](file:///Users/jrsarath/Documents/GitHub/ananya/DESIGN.md) and passed all quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, and `pnpm build`).
 
 ---
 

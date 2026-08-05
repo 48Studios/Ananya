@@ -1,11 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { useForm, useFieldArray, SubmitHandler } from 'react-hook-form'
+import { useForm, useFieldArray, SubmitHandler, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2, Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   bomsApi,
   type BillOfMaterialsDto,
@@ -25,29 +34,17 @@ const bomLineSchema = z.object({
 const bomSchema = z
   .object({
     componentId: z.string().min(1, 'Finished product component selection is required'),
-    revision: z.string().min(1, 'Revision number is required'),
+    revision: z.string().min(1, 'Revision string is required').transform((val) => val.trim()),
     notes: z.string().optional().nullable(),
     lines: z.array(bomLineSchema).min(1, 'At least one component line item is required'),
   })
   .refine(
     (data) => {
-      // Check self-reference
-      return !data.lines.some((l) => l.componentId === data.componentId)
+      // Finished product cannot be present inside its own BOM line items
+      return !data.lines.some((line) => line.componentId === data.componentId)
     },
     {
-      message: 'Finished product cannot be listed as a component line item of its own BOM.',
-      path: ['lines'],
-    },
-  )
-  .refine(
-    (data) => {
-      // Check duplicate components
-      const ids = data.lines.map((l) => l.componentId).filter(Boolean)
-      const unique = new Set(ids)
-      return ids.length === unique.size
-    },
-    {
-      message: 'Duplicate component lines are not allowed in a single BOM.',
+      message: 'Finished product component cannot be listed as a sub-component in its own BOM.',
       path: ['lines'],
     },
   )
@@ -62,25 +59,16 @@ interface BomFormProps {
 
 export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
   const [components, setComponents] = React.useState<ComponentDto[]>([])
-  const [componentsMap, setComponentsMap] = React.useState<Record<string, ComponentDto>>({})
   const [serverError, setServerError] = React.useState<string | null>(null)
-  const [loadingComps, setLoadingComps] = React.useState(true)
-
   const isEdit = Boolean(initialData)
 
   React.useEffect(() => {
     componentsApi
       .getAll()
-      .then((comps) => {
-        setComponents(comps)
-        const map: Record<string, ComponentDto> = {}
-        for (const c of comps) map[c.id] = c
-        setComponentsMap(map)
+      .then(setComponents)
+      .catch(() => {
+        // Non-blocking load error
       })
-      .catch((err) => {
-        setServerError(err instanceof Error ? err.message : 'Failed to load component catalog')
-      })
-      .finally(() => setLoadingComps(false))
   }, [])
 
   const {
@@ -92,24 +80,19 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
     formState: { errors, isSubmitting },
   } = useForm<BomFormValues>({
     resolver: zodResolver(bomSchema),
-    defaultValues: initialData
-      ? {
-          componentId: initialData.componentId,
-          revision: initialData.revision,
-          notes: initialData.notes || '',
-          lines: initialData.lines.map((l) => ({
+    defaultValues: {
+      componentId: initialData?.componentId ?? '',
+      revision: initialData?.revision ?? 'v1.0',
+      notes: initialData?.notes ?? '',
+      lines: initialData?.lines
+        ? initialData.lines.map((l) => ({
             componentId: l.componentId,
             quantityPerUnit: l.quantityPerUnit,
             unitOfMeasure: l.unitOfMeasure,
             scrapFactorPercent: l.scrapFactorPercent,
-            notes: l.notes || '',
-          })),
-        }
-      : {
-          componentId: '',
-          revision: 'v1.0',
-          notes: '',
-          lines: [
+            notes: l.notes ?? '',
+          }))
+        : [
             {
               componentId: '',
               quantityPerUnit: 1,
@@ -118,7 +101,7 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
               notes: '',
             },
           ],
-        },
+    },
   })
 
   const { fields, append, remove } = useFieldArray({
@@ -126,16 +109,15 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
     name: 'lines',
   })
 
-  const handleLineComponentChange = (index: number, compId: string) => {
-    setValue(`lines.${index}.componentId`, compId)
-    const comp = componentsMap[compId]
-    if (comp) {
-      setValue(`lines.${index}.unitOfMeasure`, comp.unit || 'pcs')
+  const selectedFinishedProductId = watch('componentId')
+
+  const handleLineComponentChange = (index: number, componentId: string) => {
+    setValue(`lines.${index}.componentId`, componentId)
+    const selectedComp = components.find((c) => c.id === componentId)
+    if (selectedComp) {
+      setValue(`lines.${index}.unitOfMeasure`, selectedComp.unit)
     }
   }
-
-  const watchedLines = watch('lines')
-  const selectedFinishedProductId = watch('componentId')
 
   const onSubmit: SubmitHandler<BomFormValues> = async (values) => {
     setServerError(null)
@@ -145,9 +127,9 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
           notes: values.notes || null,
           lines: values.lines.map((l) => ({
             componentId: l.componentId,
-            quantityPerUnit: Number(l.quantityPerUnit),
+            quantityPerUnit: l.quantityPerUnit,
             unitOfMeasure: l.unitOfMeasure,
-            scrapFactorPercent: Number(l.scrapFactorPercent),
+            scrapFactorPercent: l.scrapFactorPercent,
             notes: l.notes || null,
           })),
         }
@@ -160,9 +142,9 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
           notes: values.notes || null,
           lines: values.lines.map((l) => ({
             componentId: l.componentId,
-            quantityPerUnit: Number(l.quantityPerUnit),
+            quantityPerUnit: l.quantityPerUnit,
             unitOfMeasure: l.unitOfMeasure,
-            scrapFactorPercent: Number(l.scrapFactorPercent),
+            scrapFactorPercent: l.scrapFactorPercent,
             notes: l.notes || null,
           })),
         }
@@ -173,18 +155,9 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
       if (err instanceof Error) {
         setServerError(err.message)
       } else {
-        setServerError('Failed to save Bill of Materials')
+        setServerError(isEdit ? 'Failed to update BOM' : 'Failed to create BOM')
       }
     }
-  }
-
-  if (loadingComps) {
-    return (
-      <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-        <Loader2 className="w-4 h-4 animate-spin text-primary" />
-        Loading components catalog...
-      </div>
-    )
   }
 
   return (
@@ -198,59 +171,65 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
 
       {/* Product & Revision */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="sm:col-span-2 space-y-1">
-          <label htmlFor="bom-product" className="text-xs font-medium text-foreground">
+        <Field className="sm:col-span-2">
+          <FieldLabel htmlFor="bom-product">
             Finished Product Component <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="bom-product"
-            disabled={isEdit}
-            {...register('componentId')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground disabled:opacity-60"
-          >
-            <option value="">Select finished product component...</option>
-            {components.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.sku} — {c.name} ({c.unit})
-              </option>
-            ))}
-          </select>
-          {errors.componentId && (
-            <p className="text-xs text-destructive">{errors.componentId.message}</p>
+          </FieldLabel>
+          <Controller
+            name="componentId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                disabled={isEdit}
+                value={field.value}
+                onValueChange={field.onChange}
+              >
+                <SelectTrigger id="bom-product">
+                  <SelectValue placeholder="Select finished product component..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {components.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.sku} — {c.name} ({c.unit})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.componentId?.message && (
+            <FieldError>{errors.componentId.message}</FieldError>
           )}
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="bom-revision" className="text-xs font-medium text-foreground">
+        <Field>
+          <FieldLabel htmlFor="bom-revision">
             Revision <span className="text-destructive">*</span>
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             id="bom-revision"
             type="text"
             placeholder="e.g. v1.0"
             disabled={isEdit}
             {...register('revision')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground font-mono disabled:opacity-60"
+            className="font-mono"
           />
-          {errors.revision && (
-            <p className="text-xs text-destructive">{errors.revision.message}</p>
+          {errors.revision?.message && (
+            <FieldError>{errors.revision.message}</FieldError>
           )}
-        </div>
+        </Field>
       </div>
 
       {/* Notes */}
-      <div className="space-y-1">
-        <label htmlFor="bom-notes" className="text-xs font-medium text-foreground">
-          BOM Notes / Specification Details
-        </label>
-        <input
+      <Field>
+        <FieldLabel htmlFor="bom-notes">BOM Notes / Specification Details</FieldLabel>
+        <Input
           id="bom-notes"
           type="text"
           placeholder="e.g. Standard production assembly BOM for batch batch-v1"
           {...register('notes')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
         />
-      </div>
+      </Field>
 
       {/* Dynamic Line Items Section */}
       <div className="space-y-3 pt-2 border-t border-border">
@@ -261,7 +240,7 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
           <Button
             type="button"
             variant="outline"
-            size="xs"
+            size="sm"
             onClick={() =>
               append({
                 componentId: '',
@@ -303,20 +282,32 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
                 <label className="text-[10px] font-medium text-muted-foreground">
                   Component Item
                 </label>
-                <select
-                  value={watchedLines[index]?.componentId || ''}
-                  onChange={(e) => handleLineComponentChange(index, e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs bg-card border border-border rounded outline-none focus:border-primary text-foreground"
-                >
-                  <option value="">Select component...</option>
-                  {components
-                    .filter((c) => c.id !== selectedFinishedProductId)
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.sku} — {c.name} ({c.unit})
-                      </option>
-                    ))}
-                </select>
+                <Controller
+                  name={`lines.${index}.componentId`}
+                  control={control}
+                  render={({ field: lineCompField }) => (
+                    <Select
+                      value={lineCompField.value}
+                      onValueChange={(val) => {
+                        lineCompField.onChange(val ?? '')
+                        handleLineComponentChange(index, val ?? '')
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select component..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {components
+                          .filter((c) => c.id !== selectedFinishedProductId)
+                          .map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.sku} — {c.name} ({c.unit})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
 
               {/* Quantities, Unit, Scrap % */}
@@ -325,12 +316,12 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
                   <label className="text-[10px] font-medium text-muted-foreground">
                     Qty / Finished Unit
                   </label>
-                  <input
+                  <Input
                     type="number"
                     step="0.0001"
                     min="0.0001"
                     {...register(`lines.${index}.quantityPerUnit`, { valueAsNumber: true })}
-                    className="w-full px-2 py-1.5 text-xs bg-card border border-border rounded outline-none focus:border-primary text-foreground font-mono font-bold"
+                    className="h-8 text-xs font-mono font-bold"
                   />
                 </div>
 
@@ -338,10 +329,10 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
                   <label className="text-[10px] font-medium text-muted-foreground">
                     Unit of Measure
                   </label>
-                  <input
+                  <Input
                     type="text"
                     {...register(`lines.${index}.unitOfMeasure`)}
-                    className="w-full px-2 py-1.5 text-xs bg-card border border-border rounded outline-none focus:border-primary text-foreground font-mono"
+                    className="h-8 text-xs font-mono"
                   />
                 </div>
 
@@ -349,23 +340,23 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
                   <label className="text-[10px] font-medium text-muted-foreground">
                     Scrap Factor %
                   </label>
-                  <input
+                  <Input
                     type="number"
                     step="0.1"
                     min="0"
                     {...register(`lines.${index}.scrapFactorPercent`, { valueAsNumber: true })}
-                    className="w-full px-2 py-1.5 text-xs bg-card border border-border rounded outline-none focus:border-primary text-foreground font-mono"
+                    className="h-8 text-xs font-mono"
                   />
                 </div>
               </div>
 
               {/* Line Notes */}
               <div className="pt-1">
-                <input
+                <Input
                   type="text"
                   placeholder="Line note (e.g. Apply thermal paste prior to assembly)"
                   {...register(`lines.${index}.notes`)}
-                  className="w-full px-2 py-1 text-[11px] bg-card border border-border rounded outline-none focus:border-primary text-foreground"
+                  className="h-7 text-[11px]"
                 />
               </div>
             </div>

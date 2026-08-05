@@ -1,11 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { useForm, SubmitHandler } from 'react-hook-form'
+import { useForm, SubmitHandler, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2, AlertCircle, Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   workOrdersApi,
   type WorkOrderDto,
@@ -40,9 +49,10 @@ export function WorkOrderForm({ initialData, onSuccess, onCancel }: WorkOrderFor
   const [components, setComponents] = React.useState<ComponentDto[]>([])
   const [availableBoms, setAvailableBoms] = React.useState<BillOfMaterialsDto[]>([])
   const [locations, setLocations] = React.useState<LocationDto[]>([])
-  const [componentsMap, setComponentsMap] = React.useState<Record<string, ComponentDto>>({})
+  const [componentsMap, setComponentsMap] = React.useState<Map<string, ComponentDto>>(
+    new Map(),
+  )
   const [serverError, setServerError] = React.useState<string | null>(null)
-  const [loadingRef, setLoadingRef] = React.useState(true)
   const [loadingBoms, setLoadingBoms] = React.useState(false)
 
   const isEdit = Boolean(initialData)
@@ -53,18 +63,18 @@ export function WorkOrderForm({ initialData, onSuccess, onCancel }: WorkOrderFor
         setComponents(comps)
         setLocations(locs)
 
-        const map: Record<string, ComponentDto> = {}
-        for (const c of comps) map[c.id] = c
+        const map = new Map<string, ComponentDto>()
+        for (const c of comps) map.set(c.id, c)
         setComponentsMap(map)
       })
-      .catch((err) => {
-        setServerError(err instanceof Error ? err.message : 'Failed to load reference catalogs')
+      .catch(() => {
+        // Non-blocking load error
       })
-      .finally(() => setLoadingRef(false))
   }, [])
 
   const {
     register,
+    control,
     handleSubmit,
     setValue,
     watch,
@@ -163,15 +173,6 @@ export function WorkOrderForm({ initialData, onSuccess, onCancel }: WorkOrderFor
     }
   }
 
-  if (loadingRef) {
-    return (
-      <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-        <Loader2 className="w-4 h-4 animate-spin text-primary" />
-        Loading components and location catalogs...
-      </div>
-    )
-  }
-
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {serverError && (
@@ -183,153 +184,179 @@ export function WorkOrderForm({ initialData, onSuccess, onCancel }: WorkOrderFor
 
       {/* Finished Product & BOM Selection */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label htmlFor="wo-product" className="text-xs font-medium text-foreground">
+        <Field>
+          <FieldLabel htmlFor="wo-product">
             Finished Product <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="wo-product"
-            disabled={isEdit}
-            {...register('componentId')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground disabled:opacity-60"
-          >
-            <option value="">Select finished product...</option>
-            {components.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.sku} — {c.name}
-              </option>
-            ))}
-          </select>
-          {errors.componentId && (
-            <p className="text-xs text-destructive">{errors.componentId.message}</p>
+          </FieldLabel>
+          <Controller
+            name="componentId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                disabled={isEdit}
+                value={field.value}
+                onValueChange={field.onChange}
+              >
+                <SelectTrigger id="wo-product">
+                  <SelectValue placeholder="Select finished product..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {components.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.sku} — {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.componentId?.message && (
+            <FieldError>{errors.componentId.message}</FieldError>
           )}
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="wo-bom" className="text-xs font-medium text-foreground">
+        <Field>
+          <FieldLabel htmlFor="wo-bom">
             BOM Specification Revision <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="wo-bom"
-            disabled={isEdit || loadingBoms || availableBoms.length === 0}
-            {...register('bomId')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground disabled:opacity-60 font-mono"
-          >
-            <option value="">
-              {loadingBoms
-                ? 'Loading BOMs...'
-                : availableBoms.length === 0
-                  ? 'No BOMs found for product'
-                  : 'Select BOM revision...'}
-            </option>
-            {availableBoms.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.revision} — Status: {b.status} ({b.lines.length} lines)
-              </option>
-            ))}
-          </select>
-          {errors.bomId && (
-            <p className="text-xs text-destructive">{errors.bomId.message}</p>
+          </FieldLabel>
+          <Controller
+            name="bomId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                disabled={isEdit || loadingBoms || availableBoms.length === 0}
+                value={field.value}
+                onValueChange={field.onChange}
+              >
+                <SelectTrigger id="wo-bom">
+                  <SelectValue
+                    placeholder={
+                      loadingBoms
+                        ? 'Loading BOMs...'
+                        : availableBoms.length === 0
+                          ? 'No BOMs found for product'
+                          : 'Select BOM revision...'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableBoms.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.revision} — Status: {b.status} ({b.lines.length} lines)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.bomId?.message && (
+            <FieldError>{errors.bomId.message}</FieldError>
           )}
-        </div>
+        </Field>
       </div>
 
       {/* Production Location & Quantity */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="sm:col-span-2 space-y-1">
-          <label htmlFor="wo-location" className="text-xs font-medium text-foreground">
+        <Field className="sm:col-span-2">
+          <FieldLabel htmlFor="wo-location">
             Target Production Location <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="wo-location"
-            {...register('locationId')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-          >
-            <option value="">Select production facility / warehouse...</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.code} — {loc.name}
-              </option>
-            ))}
-          </select>
-          {errors.locationId && (
-            <p className="text-xs text-destructive">{errors.locationId.message}</p>
+          </FieldLabel>
+          <Controller
+            name="locationId"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="wo-location">
+                  <SelectValue placeholder="Select production facility / warehouse..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.code} — {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.locationId?.message && (
+            <FieldError>{errors.locationId.message}</FieldError>
           )}
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="wo-qty" className="text-xs font-medium text-foreground">
+        <Field>
+          <FieldLabel htmlFor="wo-qty">
             Planned Quantity <span className="text-destructive">*</span>
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             id="wo-qty"
             type="number"
             min={1}
             {...register('quantityPlanned', { valueAsNumber: true })}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground font-mono font-bold"
+            className="font-mono font-bold"
           />
-          {errors.quantityPlanned && (
-            <p className="text-xs text-destructive">{errors.quantityPlanned.message}</p>
+          {errors.quantityPlanned?.message && (
+            <FieldError>{errors.quantityPlanned.message}</FieldError>
           )}
-        </div>
+        </Field>
       </div>
 
       {/* Priority & Schedule Dates */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="space-y-1">
-          <label htmlFor="wo-priority" className="text-xs font-medium text-foreground">
+        <Field>
+          <FieldLabel htmlFor="wo-priority">
             Job Priority <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="wo-priority"
-            {...register('priority')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-          >
-            <option value="LOW">LOW</option>
-            <option value="NORMAL">NORMAL</option>
-            <option value="HIGH">HIGH</option>
-            <option value="URGENT">URGENT</option>
-          </select>
-        </div>
+          </FieldLabel>
+          <Controller
+            name="priority"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="wo-priority">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">LOW</SelectItem>
+                  <SelectItem value="NORMAL">NORMAL</SelectItem>
+                  <SelectItem value="HIGH">HIGH</SelectItem>
+                  <SelectItem value="URGENT">URGENT</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="wo-start" className="text-xs font-medium text-foreground">
-            Planned Start Date
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="wo-start">Planned Start Date</FieldLabel>
+          <Input
             id="wo-start"
             type="date"
             {...register('startDate')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
+            className="font-mono"
           />
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="wo-end" className="text-xs font-medium text-foreground">
-            Planned Completion Date
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="wo-end">Planned Completion Date</FieldLabel>
+          <Input
             id="wo-end"
             type="date"
             {...register('endDate')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
+            className="font-mono"
           />
-        </div>
+        </Field>
       </div>
 
       {/* Notes */}
-      <div className="space-y-1">
-        <label htmlFor="wo-notes" className="text-xs font-medium text-foreground">
-          Work Order Instructions / Notes
-        </label>
-        <input
+      <Field>
+        <FieldLabel htmlFor="wo-notes">Work Order Instructions / Notes</FieldLabel>
+        <Input
           id="wo-notes"
           type="text"
           placeholder="e.g. Expedited customer production job for Batch WO-2026-A"
           {...register('notes')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
         />
-      </div>
+      </Field>
 
       {/* Live BOM Derived Material Requirements Preview */}
       {selectedBom && selectedBom.lines.length > 0 && (
@@ -346,7 +373,7 @@ export function WorkOrderForm({ initialData, onSuccess, onCancel }: WorkOrderFor
 
           <div className="max-h-36 overflow-y-auto space-y-1 text-xs">
             {selectedBom.lines.map((line) => {
-              const comp = componentsMap[line.componentId]
+              const comp = componentsMap.get(line.componentId)
               const grossQty =
                 plannedQty *
                 line.quantityPerUnit *
@@ -385,3 +412,4 @@ export function WorkOrderForm({ initialData, onSuccess, onCancel }: WorkOrderFor
     </form>
   )
 }
+

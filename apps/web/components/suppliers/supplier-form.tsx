@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   suppliersApi,
   type SupplierDto,
@@ -106,87 +108,76 @@ export function SupplierForm({
       )}
 
       {/* Code */}
-      <div className="space-y-1">
-        <label htmlFor="supplier-code" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="supplier-code">
           Supplier Code <span className="text-destructive">*</span>
-        </label>
-        <input
+        </FieldLabel>
+        <Input
           id="supplier-code"
           type="text"
           placeholder="e.g. SUP-ARROW-01"
           {...register('code')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground uppercase font-mono"
+          className="uppercase font-mono"
         />
-        {errors.code && (
-          <p className="text-xs text-destructive">{errors.code.message}</p>
-        )}
-      </div>
+        {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
+      </Field>
 
       {/* Name */}
-      <div className="space-y-1">
-        <label htmlFor="supplier-name" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="supplier-name">
           Supplier Name <span className="text-destructive">*</span>
-        </label>
-        <input
+        </FieldLabel>
+        <Input
           id="supplier-name"
           type="text"
           placeholder="e.g. Arrow Electronics Corp"
           {...register('name')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
         />
-        {errors.name && (
-          <p className="text-xs text-destructive">{errors.name.message}</p>
-        )}
-      </div>
+        {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
+      </Field>
 
       {/* Tax ID */}
-      <div className="space-y-1">
-        <label htmlFor="supplier-tax" className="text-xs font-medium text-foreground">
-          Tax ID / GST Number
-        </label>
-        <input
+      <Field>
+        <FieldLabel htmlFor="supplier-tax">Tax ID / GST Number</FieldLabel>
+        <Input
           id="supplier-tax"
           type="text"
           placeholder="e.g. US-987654321 / GSTIN1234"
           {...register('taxId')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground font-mono"
+          className="font-mono"
         />
-      </div>
+      </Field>
 
       <div className="grid grid-cols-2 gap-3">
         {/* Payment Terms */}
-        <div className="space-y-1">
-          <label htmlFor="supplier-terms" className="text-xs font-medium text-foreground">
+        <Field>
+          <FieldLabel htmlFor="supplier-terms">
             Payment Terms <span className="text-destructive">*</span>
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             id="supplier-terms"
             type="text"
             placeholder="e.g. NET30, NET60, COD"
             {...register('paymentTerms')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground uppercase font-mono"
+            className="uppercase font-mono"
           />
-          {errors.paymentTerms && (
-            <p className="text-xs text-destructive">{errors.paymentTerms.message}</p>
-          )}
-        </div>
+          {errors.paymentTerms?.message && <FieldError>{errors.paymentTerms.message}</FieldError>}
+        </Field>
 
         {/* Currency */}
-        <div className="space-y-1">
-          <label htmlFor="supplier-currency" className="text-xs font-medium text-foreground">
+        <Field>
+          <FieldLabel htmlFor="supplier-currency">
             Currency <span className="text-destructive">*</span>
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             id="supplier-currency"
             type="text"
             placeholder="e.g. USD, EUR, INR"
             {...register('currency')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground uppercase font-mono"
+            className="uppercase font-mono"
           />
-          {errors.currency && (
-            <p className="text-xs text-destructive">{errors.currency.message}</p>
-          )}
-        </div>
+          {errors.currency?.message && <FieldError>{errors.currency.message}</FieldError>}
+        </Field>
       </div>
 
       {/* Form Actions */}
@@ -202,3 +193,4 @@ export function SupplierForm({
     </form>
   )
 }
+

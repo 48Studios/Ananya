@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2, AlertCircle, CheckCircle2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import { workOrdersApi, type WorkOrderDto } from '@/lib/api/work-orders-api'
 
 const recordOutputSchema = z.object({
@@ -106,63 +108,49 @@ export function RecordOutputModal({
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1">
-            <label
-              htmlFor="produced-qty"
-              className="text-xs font-medium text-foreground"
-            >
+          <Field>
+            <FieldLabel htmlFor="produced-qty">
               Batch Yield Quantity (Units) <span className="text-destructive">*</span>
-            </label>
-            <input
+            </FieldLabel>
+            <Input
               id="produced-qty"
               type="number"
               min={1}
               {...register('producedQuantity', { valueAsNumber: true })}
-              className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground font-mono font-bold"
+              className="font-mono font-bold"
             />
-            {errors.producedQuantity && (
-              <p className="text-xs text-destructive">
-                {errors.producedQuantity.message}
-              </p>
+            {errors.producedQuantity?.message && (
+              <FieldError>{errors.producedQuantity.message}</FieldError>
             )}
-          </div>
+          </Field>
 
-          <div className="space-y-1">
-            <label
-              htmlFor="scrapped-qty"
-              className="text-xs font-medium text-foreground"
-            >
+          <Field>
+            <FieldLabel htmlFor="scrapped-qty">
               Scrapped Quantity (If Damaged)
-            </label>
-            <input
+            </FieldLabel>
+            <Input
               id="scrapped-qty"
               type="number"
               min={0}
               {...register('scrappedQuantity', { valueAsNumber: true })}
-              className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground font-mono"
+              className="font-mono"
             />
-            {errors.scrappedQuantity && (
-              <p className="text-xs text-destructive">
-                {errors.scrappedQuantity.message}
-              </p>
+            {errors.scrappedQuantity?.message && (
+              <FieldError>{errors.scrappedQuantity.message}</FieldError>
             )}
-          </div>
+          </Field>
 
-          <div className="space-y-1">
-            <label
-              htmlFor="run-notes"
-              className="text-xs font-medium text-foreground"
-            >
+          <Field>
+            <FieldLabel htmlFor="run-notes">
               Run Notes / Batch Code
-            </label>
-            <input
+            </FieldLabel>
+            <Input
               id="run-notes"
               type="text"
               placeholder="e.g. Morning Shift Run #2 completed"
               {...register('notes')}
-              className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
             />
-          </div>
+          </Field>
 
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
             <Button
@@ -186,3 +174,4 @@ export function RecordOutputModal({
     </div>
   )
 }
+

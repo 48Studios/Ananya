@@ -70,15 +70,26 @@ Every status badge in Ananya ERP must use the shared `<StatusBadge />` primitive
 
 ---
 
+# Selection Architecture & Zero Native Select Policy
+
+- **Zero Native Select Policy**: Native HTML `<select>` controls and custom native wrappers (`native-select.tsx`) are strictly PROHIBITED across the entire Ananya ERP platform.
+- **Approved Selection Architecture**:
+  1. **Small Enumerations (Status, Priority, Month, Currency, Timezone)**: Must use official shadcn `<Select>` (`Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`).
+  2. **Searchable Entity Selection (Components, Warehouses, Suppliers, Projects, Users, BOMs, Roles)**: Must use official shadcn `<Combobox>` pattern (`Popover` + `Command`).
+- **Rule 1 — Vendor Immutability**: All official shadcn primitives under `components/ui/` (`select.tsx`, `popover.tsx`, `command.tsx`, `input.tsx`, `label.tsx`, `textarea.tsx`, `checkbox.tsx`, `switch.tsx`, `field.tsx`, `button.tsx`) are IMMUTABLE vendor dependencies. Application code must compose, wrap, extend, or configure them—never patch or mutate vendor component files directly.
+- **Composition Standard**: All forms must compose `<Field>` &rarr; `<FieldLabel>` &rarr; `<Select>` / `<Combobox>` / `<Input />` / `<Textarea />` &rarr; `<FieldDescription>` / `<FieldError>`. Direct native HTML control elements are prohibited in application views.
+
+---
+
 # Form Architecture & Spacing Standards
 
 All forms, dialogs, drawers, and setup wizards must adhere to standard form spacing scale:
-- **Control Height**: `h-9` (`36px`) for standard controls; `h-8` (`32px`) for small; `h-10` (`40px`) for large input fields.
-- **Label → Input Spacing**: `mb-1.5` (`6px`)
-- **Input → Help Text Spacing**: `mt-1.5` (`6px`)
-- **Validation Error Message**: `mt-1 text-[11px] text-destructive` (`4px`)
-- **Field → Field Spacing**: `space-y-4` (`16px`)
-- **Section Spacing**: `space-y-6` (`24px`)
+- **Control Height**: `h-8` / `h-9` (`32px`/`36px`) standard inputs and selects matching button dimensions.
+- **Label → Input Spacing**: `mb-1.5` (`6px`) managed by `<FieldLabel />`.
+- **Input → Help Text Spacing**: `mt-1.5` (`6px`) managed by `<FieldDescription />`.
+- **Validation Error Message**: `mt-1 text-[11px] text-destructive` (`4px`) managed by `<FieldError />`.
+- **Field → Field Spacing**: `gap-4` / `space-y-4` (`16px`) inside `<FieldGroup />`.
+- **Section Spacing**: `space-y-6` (`24px`).
 
 ---
 

@@ -3,6 +3,15 @@
 import * as React from 'react'
 import { Filter, Calendar, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel } from '@/components/ui/field'
 
 export interface FilterState {
   startDate?: string
@@ -41,9 +50,6 @@ export function ReportFilters({
     })
   }
 
-  const inputClass =
-    'px-3 py-1.5 text-xs bg-input/40 border border-border rounded-md outline-none focus:border-primary text-foreground transition-colors'
-
   return (
     <div className="bg-card border border-border rounded-xl p-4 space-y-3 shadow-xs">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -64,66 +70,67 @@ export function ReportFilters({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         {/* Start Date */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+        <Field>
+          <FieldLabel className="text-[11px] text-muted-foreground flex items-center gap-1">
             <Calendar className="w-3 h-3" /> Start Date
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             type="date"
             value={filters.startDate || ''}
             onChange={(e) => onChange({ ...filters, startDate: e.target.value })}
-            className={inputClass + ' w-full'}
+            className="h-8 text-xs"
           />
-        </div>
+        </Field>
 
         {/* End Date */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+        <Field>
+          <FieldLabel className="text-[11px] text-muted-foreground flex items-center gap-1">
             <Calendar className="w-3 h-3" /> End Date
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             type="date"
             value={filters.endDate || ''}
             onChange={(e) => onChange({ ...filters, endDate: e.target.value })}
-            className={inputClass + ' w-full'}
+            className="h-8 text-xs"
           />
-        </div>
+        </Field>
 
         {/* Status Filter */}
         {showStatusFilter && (
-          <div className="space-y-1">
-            <label className="text-[11px] font-medium text-muted-foreground">
-              Status
-            </label>
-            <select
-              value={filters.status || ''}
-              onChange={(e) => onChange({ ...filters, status: e.target.value })}
-              className={inputClass + ' w-full'}
+          <Field>
+            <FieldLabel className="text-[11px] text-muted-foreground">Status</FieldLabel>
+            <Select
+              value={filters.status ?? 'ALL'}
+              onValueChange={(val) => onChange({ ...filters, status: !val || val === 'ALL' ? '' : val })}
             >
-              <option value="">All Statuses</option>
-              {statusOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Statuses</SelectItem>
+                {statusOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
         )}
 
         {/* Search */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-medium text-muted-foreground">
-            Search Term
-          </label>
-          <input
+        <Field>
+          <FieldLabel className="text-[11px] text-muted-foreground">Search Term</FieldLabel>
+          <Input
             type="text"
             placeholder="Search code, name, ref..."
             value={filters.search || ''}
             onChange={(e) => onChange({ ...filters, search: e.target.value })}
-            className={inputClass + ' w-full'}
+            className="h-8 text-xs"
           />
-        </div>
+        </Field>
       </div>
     </div>
   )
 }
+

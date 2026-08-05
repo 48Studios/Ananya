@@ -1,11 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   purchaseOrdersApi,
   type PurchaseOrderDto,
@@ -25,13 +34,13 @@ const poLineSchema = z.object({
 
 const poSchema = z.object({
   supplierId: z.string().min(1, 'Supplier is required'),
-  currency: z.string().min(1, 'Currency is required'),
+  currency: z.string().min(1, 'Currency is required').transform((val) => val.trim().toUpperCase()),
   expectedDeliveryDate: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   lines: z.array(poLineSchema).min(1, 'At least one line item is required'),
 })
 
-export type PoFormValues = z.infer<typeof poSchema>
+export type PurchaseOrderFormValues = z.infer<typeof poSchema>
 
 interface PurchaseOrderFormProps {
   initialData?: PurchaseOrderDto | null
@@ -51,35 +60,14 @@ export function PurchaseOrderForm({
 
   React.useEffect(() => {
     Promise.all([suppliersApi.getAll(), componentsApi.getAll()])
-      .then(([sups, comps]) => {
-        setSuppliers(sups)
-        setAvailableComponents(comps)
+      .then(([supData, compData]) => {
+        setSuppliers(supData)
+        setAvailableComponents(compData)
       })
       .catch(() => {
-        // Non-blocking lookup load
+        // Non-blocking load error
       })
   }, [])
-
-  const initialLines = React.useMemo(() => {
-    if (initialData?.lines && initialData.lines.length > 0) {
-      return initialData.lines.map((l) => ({
-        componentId: l.componentId,
-        vendorPartNumber: l.vendorPartNumber ?? '',
-        quantityOrdered: l.quantityOrdered,
-        unitPrice: l.unitPrice,
-        taxRate: l.taxRate,
-      }))
-    }
-    return [
-      {
-        componentId: '',
-        vendorPartNumber: '',
-        quantityOrdered: 1,
-        unitPrice: 0,
-        taxRate: 0,
-      },
-    ]
-  }, [initialData])
 
   const {
     register,
@@ -87,7 +75,7 @@ export function PurchaseOrderForm({
     handleSubmit,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<PoFormValues>({
+  } = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(poSchema),
     defaultValues: {
       supplierId: initialData?.supplierId ?? '',
@@ -96,7 +84,23 @@ export function PurchaseOrderForm({
         ? new Date(initialData.expectedDeliveryDate).toISOString().split('T')[0]
         : '',
       notes: initialData?.notes ?? '',
-      lines: initialLines,
+      lines: initialData?.lines
+        ? initialData.lines.map((l) => ({
+            componentId: l.componentId,
+            vendorPartNumber: l.vendorPartNumber ?? '',
+            quantityOrdered: l.quantityOrdered,
+            unitPrice: l.unitPrice,
+            taxRate: l.taxRate ?? 0,
+          }))
+        : [
+            {
+              componentId: '',
+              vendorPartNumber: '',
+              quantityOrdered: 1,
+              unitPrice: 0,
+              taxRate: 0,
+            },
+          ],
     },
   })
 
@@ -111,14 +115,15 @@ export function PurchaseOrderForm({
   const totals = React.useMemo(() => {
     let subtotal = 0
     let taxTotal = 0
-    if (watchedLines) {
+    if (watchedLines && Array.isArray(watchedLines)) {
       for (const line of watchedLines) {
         const qty = Number(line.quantityOrdered) || 0
         const price = Number(line.unitPrice) || 0
-        const tax = Number(line.taxRate) || 0
-        const base = qty * price
-        subtotal += base
-        taxTotal += base * (tax / 100)
+        const taxPct = Number(line.taxRate) || 0
+        const lineSubtotal = qty * price
+        const lineTax = lineSubtotal * (taxPct / 100)
+        subtotal += lineSubtotal
+        taxTotal += lineTax
       }
     }
     return {
@@ -128,21 +133,19 @@ export function PurchaseOrderForm({
     }
   }, [watchedLines])
 
-  const onSubmit = async (values: PoFormValues) => {
+  const onSubmit = async (values: PurchaseOrderFormValues) => {
     setServerError(null)
     try {
       if (isEditing && initialData) {
         const payload: UpdatePurchaseOrderPayload = {
+          expectedDeliveryDate: values.expectedDeliveryDate || null,
           notes: values.notes || null,
-          expectedDeliveryDate: values.expectedDeliveryDate
-            ? new Date(values.expectedDeliveryDate).toISOString()
-            : null,
           lines: values.lines.map((l) => ({
             componentId: l.componentId,
             vendorPartNumber: l.vendorPartNumber || null,
-            quantityOrdered: Number(l.quantityOrdered) || 1,
-            unitPrice: Number(l.unitPrice) || 0,
-            taxRate: Number(l.taxRate) || 0,
+            quantityOrdered: l.quantityOrdered,
+            unitPrice: l.unitPrice,
+            taxRate: l.taxRate,
           })),
         }
         const updated = await purchaseOrdersApi.update(initialData.id, payload)
@@ -151,16 +154,14 @@ export function PurchaseOrderForm({
         const payload: CreatePurchaseOrderPayload = {
           supplierId: values.supplierId,
           currency: values.currency,
+          expectedDeliveryDate: values.expectedDeliveryDate || null,
           notes: values.notes || null,
-          expectedDeliveryDate: values.expectedDeliveryDate
-            ? new Date(values.expectedDeliveryDate).toISOString()
-            : null,
           lines: values.lines.map((l) => ({
             componentId: l.componentId,
             vendorPartNumber: l.vendorPartNumber || null,
-            quantityOrdered: Number(l.quantityOrdered) || 1,
-            unitPrice: Number(l.unitPrice) || 0,
-            taxRate: Number(l.taxRate) || 0,
+            quantityOrdered: l.quantityOrdered,
+            unitPrice: l.unitPrice,
+            taxRate: l.taxRate,
           })),
         }
         const created = await purchaseOrdersApi.create(payload)
@@ -170,7 +171,7 @@ export function PurchaseOrderForm({
       if (err instanceof Error) {
         setServerError(err.message)
       } else {
-        setServerError(isEditing ? 'Failed to update Purchase Order' : 'Failed to create Purchase Order')
+        setServerError(isEditing ? 'Failed to update purchase order' : 'Failed to create purchase order')
       }
     }
   }
@@ -185,68 +186,72 @@ export function PurchaseOrderForm({
 
       {/* Supplier & Currency */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label htmlFor="po-supplier" className="text-xs font-medium text-foreground">
+        <Field>
+          <FieldLabel htmlFor="po-supplier">
             Supplier <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="po-supplier"
-            disabled={isEditing}
-            {...register('supplierId')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground disabled:opacity-60"
-          >
-            <option value="">Select Supplier...</option>
-            {suppliers.map((sup) => (
-              <option key={sup.id} value={sup.id}>
-                {sup.code} - {sup.name}
-              </option>
-            ))}
-          </select>
-          {errors.supplierId && (
-            <p className="text-xs text-destructive">{errors.supplierId.message}</p>
+          </FieldLabel>
+          <Controller
+            name="supplierId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                disabled={isEditing}
+                value={field.value}
+                onValueChange={field.onChange}
+              >
+                <SelectTrigger id="po-supplier">
+                  <SelectValue placeholder="Select Supplier..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers.map((sup) => (
+                    <SelectItem key={sup.id} value={sup.id}>
+                      {sup.code} - {sup.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.supplierId?.message && (
+            <FieldError>{errors.supplierId.message}</FieldError>
           )}
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="po-currency" className="text-xs font-medium text-foreground">
+        <Field>
+          <FieldLabel htmlFor="po-currency">
             Currency <span className="text-destructive">*</span>
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             id="po-currency"
             type="text"
             placeholder="e.g. USD"
             {...register('currency')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground uppercase font-mono"
+            className="uppercase font-mono"
           />
-        </div>
+        </Field>
       </div>
 
       {/* Expected Delivery Date & Notes */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label htmlFor="po-delivery-date" className="text-xs font-medium text-foreground">
-            Expected Delivery Date
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="po-delivery-date">Expected Delivery Date</FieldLabel>
+          <Input
             id="po-delivery-date"
             type="date"
             {...register('expectedDeliveryDate')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
+            className="font-mono"
           />
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="po-notes" className="text-xs font-medium text-foreground">
-            Notes / Reference
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="po-notes">Notes / Reference</FieldLabel>
+          <Input
             id="po-notes"
             type="text"
             placeholder="Order terms or PO notes..."
             {...register('notes')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
           />
-        </div>
+        </Field>
       </div>
 
       {/* Line Items Editor Section */}
@@ -274,10 +279,6 @@ export function PurchaseOrderForm({
           </Button>
         </div>
 
-        {errors.lines?.root && (
-          <p className="text-xs text-destructive">{errors.lines.root.message}</p>
-        )}
-
         <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
           {fields.map((field, index) => (
             <div
@@ -290,27 +291,37 @@ export function PurchaseOrderForm({
                   <label className="text-[10px] font-medium text-muted-foreground">
                     Component
                   </label>
-                  <select
-                    {...register(`lines.${index}.componentId`)}
-                    className="w-full px-2 py-1.5 text-xs bg-card border border-border rounded outline-none focus:border-primary text-foreground"
-                  >
-                    <option value="">Select component...</option>
-                    {availableComponents.map((comp) => (
-                      <option key={comp.id} value={comp.id}>
-                        {comp.sku} - {comp.name} ({comp.unit})
-                      </option>
-                    ))}
-                  </select>
+                  <Controller
+                    name={`lines.${index}.componentId`}
+                    control={control}
+                    render={({ field: compField }) => (
+                      <Select
+                        value={compField.value}
+                        onValueChange={compField.onChange}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Select component..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableComponents.map((comp) => (
+                            <SelectItem key={comp.id} value={comp.id}>
+                              {comp.sku} - {comp.name} ({comp.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </div>
 
                 {/* Qty */}
                 <div className="sm:col-span-2 space-y-1">
                   <label className="text-[10px] font-medium text-muted-foreground">Qty</label>
-                  <input
+                  <Input
                     type="number"
                     min={1}
                     {...register(`lines.${index}.quantityOrdered`, { valueAsNumber: true })}
-                    className="w-full px-2 py-1.5 text-xs bg-card border border-border rounded outline-none focus:border-primary text-foreground font-mono"
+                    className="h-8 text-xs font-mono"
                   />
                 </div>
 
@@ -319,24 +330,24 @@ export function PurchaseOrderForm({
                   <label className="text-[10px] font-medium text-muted-foreground">
                     Price ({watchedCurrency})
                   </label>
-                  <input
+                  <Input
                     type="number"
                     step="0.01"
                     min={0}
                     {...register(`lines.${index}.unitPrice`, { valueAsNumber: true })}
-                    className="w-full px-2 py-1.5 text-xs bg-card border border-border rounded outline-none focus:border-primary text-foreground font-mono"
+                    className="h-8 text-xs font-mono"
                   />
                 </div>
 
                 {/* Tax Rate % */}
                 <div className="sm:col-span-2 space-y-1">
                   <label className="text-[10px] font-medium text-muted-foreground">Tax %</label>
-                  <input
+                  <Input
                     type="number"
                     step="0.1"
                     min={0}
                     {...register(`lines.${index}.taxRate`, { valueAsNumber: true })}
-                    className="w-full px-2 py-1.5 text-xs bg-card border border-border rounded outline-none focus:border-primary text-foreground font-mono"
+                    className="h-8 text-xs font-mono"
                   />
                 </div>
 

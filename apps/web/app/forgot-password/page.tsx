@@ -4,6 +4,8 @@ import * as React from 'react'
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = React.useState('')
@@ -30,17 +32,17 @@ export default function ForgotPasswordPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-            <div className="space-y-1">
-              <label className="font-semibold text-foreground">Email Address</label>
-              <input
+            <Field>
+              <FieldLabel htmlFor="forgot-email">Email Address</FieldLabel>
+              <Input
+                id="forgot-email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@48studios.com"
-                className="w-full px-3 py-2 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
               />
-            </div>
+            </Field>
 
             <Button type="submit" className="w-full">
               Send Reset Link
@@ -58,3 +60,4 @@ export default function ForgotPasswordPage() {
     </div>
   )
 }
+

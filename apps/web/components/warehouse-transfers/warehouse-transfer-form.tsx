@@ -1,11 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { useForm, useFieldArray, SubmitHandler } from 'react-hook-form'
+import { useForm, useFieldArray, SubmitHandler, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2, AlertCircle, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   warehouseTransfersApi,
   type WarehouseTransferDto,
@@ -73,6 +82,7 @@ export function WarehouseTransferForm({
     register,
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<WarehouseTransferFormValues>({
     resolver: zodResolver(transferSchema),
@@ -107,6 +117,14 @@ export function WarehouseTransferForm({
     control,
     name: 'lines',
   })
+
+  const handleComponentChange = (idx: number, compId: string) => {
+    setValue(`lines.${idx}.componentId`, compId)
+    const comp = components.find((c) => c.id === compId)
+    if (comp) {
+      setValue(`lines.${idx}.unitOfMeasure`, comp.unit || 'pcs')
+    }
+  }
 
   const onSubmit: SubmitHandler<WarehouseTransferFormValues> = async (values) => {
     setServerError(null)
@@ -172,91 +190,82 @@ export function WarehouseTransferForm({
 
       {/* Source & Destination Locations */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label
-            htmlFor="transfer-source-loc"
-            className="text-xs font-medium text-foreground"
-          >
+        <Field>
+          <FieldLabel htmlFor="transfer-source-loc">
             Source Location <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="transfer-source-loc"
-            {...register('sourceLocationId')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-          >
-            <option value="">Select dispatch location...</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.code} — {loc.name}
-              </option>
-            ))}
-          </select>
-          {errors.sourceLocationId && (
-            <p className="text-xs text-destructive">
-              {errors.sourceLocationId.message}
-            </p>
+          </FieldLabel>
+          <Controller
+            name="sourceLocationId"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="transfer-source-loc">
+                  <SelectValue placeholder="Select dispatch location..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.code} — {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.sourceLocationId?.message && (
+            <FieldError>{errors.sourceLocationId.message}</FieldError>
           )}
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label
-            htmlFor="transfer-dest-loc"
-            className="text-xs font-medium text-foreground"
-          >
+        <Field>
+          <FieldLabel htmlFor="transfer-dest-loc">
             Destination Location <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="transfer-dest-loc"
-            {...register('destinationLocationId')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-          >
-            <option value="">Select receiving location...</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.code} — {loc.name}
-              </option>
-            ))}
-          </select>
-          {errors.destinationLocationId && (
-            <p className="text-xs text-destructive">
-              {errors.destinationLocationId.message}
-            </p>
+          </FieldLabel>
+          <Controller
+            name="destinationLocationId"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="transfer-dest-loc">
+                  <SelectValue placeholder="Select receiving location..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.code} — {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.destinationLocationId?.message && (
+            <FieldError>{errors.destinationLocationId.message}</FieldError>
           )}
-        </div>
+        </Field>
       </div>
 
       {/* Date & Notes */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label
-            htmlFor="transfer-date"
-            className="text-xs font-medium text-foreground"
-          >
-            Requested Date
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="transfer-date">Requested Date</FieldLabel>
+          <Input
             id="transfer-date"
             type="date"
             {...register('requestedDate')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
+            className="font-mono"
           />
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label
-            htmlFor="transfer-notes"
-            className="text-xs font-medium text-foreground"
-          >
-            Transfer Notes / Purpose
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="transfer-notes">Transfer Notes / Purpose</FieldLabel>
+          <Input
             id="transfer-notes"
             type="text"
             placeholder="e.g. Replenish main assembly floor stock"
             {...register('notes')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
           />
-        </div>
+        </Field>
       </div>
 
       {/* Component Line Items Section */}
@@ -292,18 +301,31 @@ export function WarehouseTransferForm({
                 <label className="text-[11px] font-medium text-muted-foreground">
                   Item #{idx + 1} Component <span className="text-destructive">*</span>
                 </label>
-                <select
-                  {...register(`lines.${idx}.componentId` as const)}
-                  className="w-full px-2.5 py-1.5 text-xs bg-input/40 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-                >
-                  <option value="">Select component...</option>
-                  {components.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.sku} — {c.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.lines?.[idx]?.componentId && (
+                <Controller
+                  name={`lines.${idx}.componentId` as const}
+                  control={control}
+                  render={({ field: compField }) => (
+                    <Select
+                      value={compField.value}
+                      onValueChange={(val) => {
+                        compField.onChange(val ?? '')
+                        handleComponentChange(idx, val ?? '')
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select component..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {components.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.sku} — {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.lines?.[idx]?.componentId?.message && (
                   <p className="text-[11px] text-destructive">
                     {errors.lines[idx]?.componentId?.message}
                   </p>
@@ -314,16 +336,16 @@ export function WarehouseTransferForm({
                 <label className="text-[11px] font-medium text-muted-foreground">
                   Quantity <span className="text-destructive">*</span>
                 </label>
-                <input
+                <Input
                   type="number"
                   step="any"
                   min={0.0001}
                   {...register(`lines.${idx}.quantity` as const, {
                     valueAsNumber: true,
                   })}
-                  className="w-full px-2.5 py-1.5 text-xs bg-input/40 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground font-mono font-bold"
+                  className="h-8 text-xs font-mono font-bold"
                 />
-                {errors.lines?.[idx]?.quantity && (
+                {errors.lines?.[idx]?.quantity?.message && (
                   <p className="text-[11px] text-destructive">
                     {errors.lines[idx]?.quantity?.message}
                   </p>
@@ -334,10 +356,10 @@ export function WarehouseTransferForm({
                 <label className="text-[11px] font-medium text-muted-foreground">
                   Unit
                 </label>
-                <input
+                <Input
                   type="text"
                   {...register(`lines.${idx}.unitOfMeasure` as const)}
-                  className="w-full px-2.5 py-1.5 text-xs bg-input/40 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground font-mono"
+                  className="h-8 text-xs font-mono"
                 />
               </div>
 
@@ -345,12 +367,12 @@ export function WarehouseTransferForm({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon"
                   disabled={fields.length === 1}
                   onClick={() => remove(idx)}
-                  className="text-destructive hover:bg-destructive/10"
+                  className="text-destructive hover:bg-destructive/10 h-8 w-8"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -379,3 +401,4 @@ export function WarehouseTransferForm({
     </form>
   )
 }
+

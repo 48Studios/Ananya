@@ -14,6 +14,14 @@ import {
 } from '@tanstack/react-table'
 import { Search, ArrowUpDown, ChevronLeft, ChevronRight, Inbox, Upload, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { ExportDialog } from '@/components/ui/export-dialog'
 import { ImportWizard } from '@/components/ui/import-wizard'
@@ -104,7 +112,7 @@ export function EntityDataTable<TData, TValue>({
           {/* Search Input */}
           <div className="relative flex-1 min-w-[200px] max-w-xs">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
+            <Input
               type="text"
               value={searchKey ? (table.getColumn(searchKey)?.getFilterValue() as string) ?? '' : globalFilter}
               onChange={(e) => {
@@ -116,7 +124,7 @@ export function EntityDataTable<TData, TValue>({
                 }
               }}
               placeholder={searchPlaceholder}
-              className="w-full pl-9 pr-3 py-1.5 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-foreground placeholder:text-muted-foreground"
+              className="pl-9 h-9 text-sm"
             />
           </div>
 
@@ -128,19 +136,23 @@ export function EntityDataTable<TData, TValue>({
             const filterValue = (column.getFilterValue() as string) ?? ''
 
             return (
-              <select
+              <Select
                 key={colId}
-                value={filterValue}
-                onChange={(e) => column.setFilterValue(e.target.value || undefined)}
-                className="px-3 py-1.5 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary text-foreground transition-colors"
+                value={filterValue || 'ALL'}
+                onValueChange={(val) => column.setFilterValue(val === 'ALL' ? undefined : val)}
               >
-                <option value="">All {filter.title}</option>
-                {filter.options.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-40 h-9 text-xs">
+                  <SelectValue placeholder={`All ${filter.title}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All {filter.title}</SelectItem>
+                  {filter.options.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )
           })}
         </div>

@@ -21,6 +21,14 @@ import {
   Filter,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ActivityEventDto, SecurityAuditLogDto } from '@/lib/api/activity-api'
 
 export function ActivityIcon({
@@ -194,14 +202,14 @@ export function ActivityFilters({
 
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 bg-card border border-border rounded-xl shadow-2xs mb-6">
-      <div className="relative flex-1">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input
+      <div className="relative flex-1 min-w-[200px]">
+        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Filter activity feed (entity, description, user)..."
-          className="w-full pl-9 pr-4 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary"
+          className="pl-9 text-xs"
         />
       </div>
 
@@ -210,32 +218,40 @@ export function ActivityFilters({
           <Filter className="w-3.5 h-3.5" />
           <span>Module:</span>
         </div>
-        <select
-          value={module}
-          onChange={(e) => setModule(e.target.value)}
-          className="px-2.5 py-1.5 bg-input/50 border border-border rounded-lg text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
+        <Select
+          value={module || 'ALL'}
+          onValueChange={(val) => setModule(!val || val === 'ALL' ? '' : val)}
         >
-          {modules.map((m) => (
-            <option key={m} value={m === 'All' ? '' : m}>
-              {m}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-36 h-8 text-xs">
+            <SelectValue placeholder="Module" />
+          </SelectTrigger>
+          <SelectContent>
+            {modules.map((m) => (
+              <SelectItem key={m} value={m === 'All' ? 'ALL' : m}>
+                {m}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0 ml-2">
           <span>Severity:</span>
         </div>
-        <select
-          value={severity}
-          onChange={(e) => setSeverity(e.target.value)}
-          className="px-2.5 py-1.5 bg-input/50 border border-border rounded-lg text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
+        <Select
+          value={severity || 'ALL'}
+          onValueChange={(val) => setSeverity(!val || val === 'ALL' ? '' : val)}
         >
-          {severities.map((s) => (
-            <option key={s} value={s === 'All' ? '' : s}>
-              {s}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-32 h-8 text-xs">
+            <SelectValue placeholder="Severity" />
+          </SelectTrigger>
+          <SelectContent>
+            {severities.map((s) => (
+              <SelectItem key={s} value={s === 'All' ? 'ALL' : s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   )

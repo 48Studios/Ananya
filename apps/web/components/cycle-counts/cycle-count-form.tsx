@@ -1,11 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { useForm, useFieldArray, SubmitHandler } from 'react-hook-form'
+import { useForm, useFieldArray, SubmitHandler, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2, AlertCircle, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   cycleCountsApi,
   type CycleCountDto,
@@ -64,6 +73,7 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
     register,
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CycleCountFormValues>({
     resolver: zodResolver(cycleCountSchema),
@@ -98,6 +108,14 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
     control,
     name: 'lines',
   })
+
+  const handleComponentChange = (idx: number, compId: string) => {
+    setValue(`lines.${idx}.componentId`, compId)
+    const comp = components.find((c) => c.id === compId)
+    if (comp) {
+      setValue(`lines.${idx}.unitOfMeasure`, comp.unit || 'pcs')
+    }
+  }
 
   const onSubmit: SubmitHandler<CycleCountFormValues> = async (values) => {
     setServerError(null)
@@ -163,79 +181,65 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
 
       {/* Location & Assigned User */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label
-            htmlFor="count-loc"
-            className="text-xs font-medium text-foreground"
-          >
+        <Field>
+          <FieldLabel htmlFor="count-loc">
             Counting Facility / Location <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="count-loc"
-            {...register('locationId')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-          >
-            <option value="">Select facility location...</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.code} — {loc.name}
-              </option>
-            ))}
-          </select>
-          {errors.locationId && (
-            <p className="text-xs text-destructive">{errors.locationId.message}</p>
+          </FieldLabel>
+          <Controller
+            name="locationId"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="count-loc">
+                  <SelectValue placeholder="Select facility location..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.code} — {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.locationId?.message && (
+            <FieldError>{errors.locationId.message}</FieldError>
           )}
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label
-            htmlFor="count-user"
-            className="text-xs font-medium text-foreground"
-          >
-            Assigned Counter / User
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="count-user">Assigned Counter / User</FieldLabel>
+          <Input
             id="count-user"
             type="text"
             placeholder="e.g. John Doe (Counter Lead)"
             {...register('assignedCounter')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
           />
-        </div>
+        </Field>
       </div>
 
       {/* Date & Notes */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label
-            htmlFor="count-date"
-            className="text-xs font-medium text-foreground"
-          >
-            Scheduled Count Date
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="count-date">Scheduled Count Date</FieldLabel>
+          <Input
             id="count-date"
             type="date"
             {...register('scheduledDate')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
+            className="font-mono"
           />
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label
-            htmlFor="count-notes"
-            className="text-xs font-medium text-foreground"
-          >
-            Count Notes / Audit Scope
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="count-notes">Count Notes / Audit Scope</FieldLabel>
+          <Input
             id="count-notes"
             type="text"
             placeholder="e.g. Monthly A-class component verification count"
             {...register('notes')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
           />
-        </div>
+        </Field>
       </div>
 
       {/* Line Items Manager */}
@@ -271,18 +275,31 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
                 <label className="text-[11px] font-medium text-muted-foreground">
                   Item #{idx + 1} Component <span className="text-destructive">*</span>
                 </label>
-                <select
-                  {...register(`lines.${idx}.componentId` as const)}
-                  className="w-full px-2.5 py-1.5 text-xs bg-input/40 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-                >
-                  <option value="">Select component...</option>
-                  {components.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.sku} — {c.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.lines?.[idx]?.componentId && (
+                <Controller
+                  name={`lines.${idx}.componentId` as const}
+                  control={control}
+                  render={({ field: compField }) => (
+                    <Select
+                      value={compField.value}
+                      onValueChange={(val) => {
+                        compField.onChange(val ?? '')
+                        handleComponentChange(idx, val ?? '')
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select component..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {components.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.sku} — {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.lines?.[idx]?.componentId?.message && (
                   <p className="text-[11px] text-destructive">
                     {errors.lines[idx]?.componentId?.message}
                   </p>
@@ -293,16 +310,16 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
                 <label className="text-[11px] font-medium text-muted-foreground">
                   Expected System Qty <span className="text-destructive">*</span>
                 </label>
-                <input
+                <Input
                   type="number"
                   step="any"
                   min={0}
                   {...register(`lines.${idx}.systemQuantity` as const, {
                     valueAsNumber: true,
                   })}
-                  className="w-full px-2.5 py-1.5 text-xs bg-input/40 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground font-mono font-bold"
+                  className="h-8 text-xs font-mono font-bold"
                 />
-                {errors.lines?.[idx]?.systemQuantity && (
+                {errors.lines?.[idx]?.systemQuantity?.message && (
                   <p className="text-[11px] text-destructive">
                     {errors.lines[idx]?.systemQuantity?.message}
                   </p>
@@ -313,10 +330,10 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
                 <label className="text-[11px] font-medium text-muted-foreground">
                   Unit
                 </label>
-                <input
+                <Input
                   type="text"
                   {...register(`lines.${idx}.unitOfMeasure` as const)}
-                  className="w-full px-2.5 py-1.5 text-xs bg-input/40 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground font-mono"
+                  className="h-8 text-xs font-mono"
                 />
               </div>
 
@@ -324,12 +341,12 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon"
                   disabled={fields.length === 1}
                   onClick={() => remove(idx)}
-                  className="text-destructive hover:bg-destructive/10"
+                  className="text-destructive hover:bg-destructive/10 h-8 w-8"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -358,3 +375,4 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
     </form>
   )
 }
+

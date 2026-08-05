@@ -9,6 +9,15 @@ import { NotificationCard } from '@/components/ui/notification-card'
 import { notificationsApi, NotificationDto } from '@/lib/api/notifications-api'
 import { Bell, CheckCheck, Filter, ShieldAlert, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel } from '@/components/ui/field'
 
 export default function NotificationCenterPage() {
   const [notifications, setNotifications] = React.useState<NotificationDto[]>([])
@@ -100,33 +109,36 @@ export default function NotificationCenterPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 bg-card border border-border rounded-xl shadow-2xs">
-        <div className="flex items-center gap-3 text-xs">
-          <label className="flex items-center gap-2 cursor-pointer font-medium text-foreground">
-            <input
-              type="checkbox"
-              checked={unreadOnly}
-              onChange={(e) => setUnreadOnly(e.target.checked)}
-              className="rounded text-primary focus:ring-primary"
-            />
-            <span>Unread Only ({unreadCount})</span>
-          </label>
-        </div>
+        <Field orientation="horizontal" className="w-auto items-center">
+          <Checkbox
+            id="unread-only"
+            checked={unreadOnly}
+            onCheckedChange={(checked) => setUnreadOnly(Boolean(checked))}
+          />
+          <FieldLabel htmlFor="unread-only" className="cursor-pointer text-xs font-medium text-foreground">
+            Unread Only ({unreadCount})
+          </FieldLabel>
+        </Field>
 
         <div className="flex items-center gap-2">
           <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-          <select
-            value={moduleFilter}
-            onChange={(e) => setModuleFilter(e.target.value)}
-            className="px-2.5 py-1.5 bg-input/50 border border-border rounded-lg text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
+          <Select
+            value={moduleFilter || 'ALL'}
+            onValueChange={(val) => setModuleFilter(!val || val === 'ALL' ? '' : val)}
           >
-            <option value="">All Modules</option>
-            <option value="Inventory">Inventory</option>
-            <option value="Procurement">Procurement</option>
-            <option value="Manufacturing">Manufacturing</option>
-            <option value="Projects">Projects</option>
-            <option value="Security">Security</option>
-            <option value="Documents">Documents</option>
-          </select>
+            <SelectTrigger className="h-8 text-xs w-[160px]">
+              <SelectValue placeholder="All Modules" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Modules</SelectItem>
+              <SelectItem value="Inventory">Inventory</SelectItem>
+              <SelectItem value="Procurement">Procurement</SelectItem>
+              <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+              <SelectItem value="Projects">Projects</SelectItem>
+              <SelectItem value="Security">Security</SelectItem>
+              <SelectItem value="Documents">Documents</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -149,3 +161,4 @@ export default function NotificationCenterPage() {
     </div>
   )
 }
+

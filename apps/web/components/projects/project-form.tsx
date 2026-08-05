@@ -3,6 +3,16 @@
 import * as React from 'react'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel } from '@/components/ui/field'
 import {
   projectsApi,
   type ProjectDto,
@@ -123,10 +133,6 @@ export function ProjectForm({ initialData, onSuccess, onCancel }: ProjectFormPro
     }
   }
 
-  const inputClass =
-    'w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground'
-  const labelClass = 'text-xs font-medium text-foreground'
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {serverError && (
@@ -137,133 +143,128 @@ export function ProjectForm({ initialData, onSuccess, onCancel }: ProjectFormPro
       )}
 
       {/* Name */}
-      <div className="space-y-1">
-        <label htmlFor="project-name" className={labelClass}>
+      <Field>
+        <FieldLabel htmlFor="project-name">
           Project Name <span className="text-destructive">*</span>
-        </label>
-        <input
+        </FieldLabel>
+        <Input
           id="project-name"
           type="text"
           placeholder="e.g. Customer Fitout — Building A"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className={inputClass}
         />
-      </div>
+      </Field>
 
       {/* Type & Priority */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label htmlFor="project-type" className={labelClass}>
-            Project Type
-          </label>
-          <select
-            id="project-type"
+        <Field>
+          <FieldLabel htmlFor="project-type">Project Type</FieldLabel>
+          <Select
             value={projectType}
-            onChange={(e) => setProjectType(e.target.value as ProjectType)}
-            className={inputClass}
+            onValueChange={(val) => setProjectType(val as ProjectType)}
           >
-            {PROJECT_TYPES.map((pt) => (
-              <option key={pt.value} value={pt.value}>
-                {pt.label}
-              </option>
-            ))}
-          </select>
-        </div>
+            <SelectTrigger id="project-type">
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              {PROJECT_TYPES.map((pt) => (
+                <SelectItem key={pt.value} value={pt.value}>
+                  {pt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="project-priority" className={labelClass}>
-            Priority
-          </label>
-          <select
-            id="project-priority"
+        <Field>
+          <FieldLabel htmlFor="project-priority">Priority</FieldLabel>
+          <Select
             value={priority}
-            onChange={(e) => setPriority(e.target.value as ProjectPriority)}
-            className={inputClass}
+            onValueChange={(val) => setPriority(val as ProjectPriority)}
           >
-            {PRIORITIES.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </div>
+            <SelectTrigger id="project-priority">
+              <SelectValue placeholder="Select priority" />
+            </SelectTrigger>
+            <SelectContent>
+              {PRIORITIES.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
       </div>
 
       {/* Project Manager & Owner */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label htmlFor="project-manager" className={labelClass}>
+        <Field>
+          <FieldLabel htmlFor="project-manager">
             Project Manager <span className="text-destructive">*</span>
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             id="project-manager"
             type="text"
             placeholder="e.g. Arun K"
             value={projectManager}
             onChange={(e) => setProjectManager(e.target.value)}
-            className={inputClass}
           />
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="project-owner" className={labelClass}>
-            Owner
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="project-owner">Owner</FieldLabel>
+          <Input
             id="project-owner"
             type="text"
             placeholder="e.g. Operations Lead"
             value={owner}
             onChange={(e) => setOwner(e.target.value)}
-            className={inputClass}
           />
-        </div>
+        </Field>
       </div>
 
       {/* Dates */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label htmlFor="project-start-date" className={labelClass}>
+        <Field>
+          <FieldLabel htmlFor="project-start-date">
             Start Date <span className="text-destructive">*</span>
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             id="project-start-date"
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className={inputClass}
+            className="font-mono"
           />
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="project-target-date" className={labelClass}>
+        <Field>
+          <FieldLabel htmlFor="project-target-date">
             Target Completion Date <span className="text-destructive">*</span>
-          </label>
-          <input
+          </FieldLabel>
+          <Input
             id="project-target-date"
             type="date"
             value={targetCompletionDate}
             onChange={(e) => setTargetCompletionDate(e.target.value)}
-            className={inputClass}
+            className="font-mono"
           />
-        </div>
+        </Field>
       </div>
 
       {/* Description */}
-      <div className="space-y-1">
-        <label htmlFor="project-description" className={labelClass}>
-          Description
-        </label>
-        <textarea
+      <Field>
+        <FieldLabel htmlFor="project-description">Description</FieldLabel>
+        <Textarea
           id="project-description"
           placeholder="Project scope, deliverables, or notes..."
           rows={3}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className={inputClass + ' resize-none'}
+          className="resize-none"
         />
-      </div>
+      </Field>
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
@@ -286,3 +287,4 @@ export function ProjectForm({ initialData, onSuccess, onCancel }: ProjectFormPro
     </form>
   )
 }
+

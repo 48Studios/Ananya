@@ -1,11 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { useForm, useFieldArray, SubmitHandler } from 'react-hook-form'
+import { useForm, useFieldArray, Controller, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2, Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   stockAdjustmentsApi,
   type StockAdjustmentDto,
@@ -151,58 +160,66 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
       )}
 
       {/* Storage Location */}
-      <div className="space-y-1">
-        <label htmlFor="adj-location" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="adj-location">
           Target Storage Location <span className="text-destructive">*</span>
-        </label>
-        <select
-          id="adj-location"
-          {...register('locationId')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-        >
-          <option value="">Select location...</option>
-          {locations.map((loc) => (
-            <option key={loc.id} value={loc.id}>
-              {loc.code} - {loc.name}
-            </option>
-          ))}
-        </select>
-        {errors.locationId && (
-          <p className="text-xs text-destructive">{errors.locationId.message}</p>
-        )}
-      </div>
+        </FieldLabel>
+        <Controller
+          name="locationId"
+          control={control}
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id="adj-location">
+                <SelectValue placeholder="Select location..." />
+              </SelectTrigger>
+              <SelectContent>
+                {locations.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id}>
+                    {loc.code} - {loc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {errors.locationId?.message && <FieldError>{errors.locationId.message}</FieldError>}
+      </Field>
 
       {/* Reason & Notes */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label htmlFor="adj-reason" className="text-xs font-medium text-foreground">
+        <Field>
+          <FieldLabel htmlFor="adj-reason">
             Adjustment Reason <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="adj-reason"
-            {...register('reason')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-          >
-            {STANDARD_REASONS.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </div>
+          </FieldLabel>
+          <Controller
+            name="reason"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="adj-reason">
+                  <SelectValue placeholder="Select reason..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {STANDARD_REASONS.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
 
-        <div className="space-y-1">
-          <label htmlFor="adj-notes" className="text-xs font-medium text-foreground">
-            Notes / Reference Details
-          </label>
-          <input
+        <Field>
+          <FieldLabel htmlFor="adj-notes">Notes / Reference Details</FieldLabel>
+          <Input
             id="adj-notes"
             type="text"
             placeholder="e.g. Approved during quarterly physical count"
             {...register('notes')}
-            className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
           />
-        </div>
+        </Field>
       </div>
 
       {/* Line Items Section */}
@@ -228,7 +245,7 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
           </Button>
         </div>
 
-        {errors.lines?.root && (
+        {errors.lines?.root?.message && (
           <p className="text-xs text-destructive">{errors.lines.root.message}</p>
         )}
 
@@ -254,49 +271,46 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
                 )}
 
                 {/* Component Select */}
-                <div className="space-y-1 pr-6">
-                  <label className="text-[10px] font-medium text-muted-foreground">
-                    Component
-                  </label>
-                  <select
-                    onChange={(e) => handleComponentSelect(index, e.target.value)}
+                <Field className="pr-6">
+                  <FieldLabel className="text-[10px]">Component</FieldLabel>
+                  <Select
                     value={watchedLines[index]?.componentId || ''}
-                    className="w-full px-2 py-1.5 text-xs bg-card border border-border rounded outline-none focus:border-primary text-foreground"
+                    onValueChange={(val) => handleComponentSelect(index, val ?? '')}
                   >
-                    <option value="">Select component...</option>
-                    {components.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.sku} — {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select component..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {components.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.sku} — {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
                 {/* Quantities & Preview Grid */}
                 <div className="grid grid-cols-3 gap-2 pt-1">
-                  <div>
-                    <label className="text-[10px] font-medium text-muted-foreground">
-                      Current Stock
-                    </label>
-                    <input
+                  <Field>
+                    <FieldLabel className="text-[10px]">Current Stock</FieldLabel>
+                    <Input
                       type="number"
                       min={0}
                       {...register(`lines.${index}.currentQuantity`, { valueAsNumber: true })}
-                      className="w-full px-2 py-1.5 text-xs bg-card border border-border rounded outline-none focus:border-primary text-foreground font-mono"
+                      className="h-8 text-xs font-mono"
                     />
-                  </div>
+                  </Field>
 
-                  <div>
-                    <label className="text-[10px] font-medium text-muted-foreground">
-                      Counted Stock
-                    </label>
-                    <input
+                  <Field>
+                    <FieldLabel className="text-[10px]">Counted Stock</FieldLabel>
+                    <Input
                       type="number"
                       min={0}
                       {...register(`lines.${index}.countedQuantity`, { valueAsNumber: true })}
-                      className="w-full px-2 py-1.5 text-xs bg-card border border-border rounded outline-none focus:border-primary text-foreground font-mono font-bold"
+                      className="h-8 text-xs font-mono font-bold"
                     />
-                  </div>
+                  </Field>
 
                   <div>
                     <label className="text-[10px] font-medium text-muted-foreground">
@@ -339,3 +353,4 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
     </form>
   )
 }
+

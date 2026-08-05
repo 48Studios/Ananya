@@ -23,6 +23,15 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -363,8 +372,6 @@ export default function ViewProjectPage() {
   const canAllocate = ['PLANNING', 'ACTIVE', 'ON_HOLD'].includes(project.status)
   const canIssueReturn = project.status === 'ACTIVE'
 
-  const inputClass =
-    'w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground'
 
   const renderMaterialForm = (
     title: string,
@@ -392,81 +399,83 @@ export default function ViewProjectPage() {
         )}
 
         <form onSubmit={onSubmit} className="space-y-3">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground">
+          <Field>
+            <FieldLabel htmlFor="mat-comp">
               Component <span className="text-destructive">*</span>
-            </label>
-            <select
-              value={matComponentId}
-              onChange={(e) => setMatComponentId(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Select component...</option>
-              {componentsList.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.sku} — {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
+            </FieldLabel>
+            <Select value={matComponentId} onValueChange={(val) => setMatComponentId(val ?? '')}>
+              <SelectTrigger id="mat-comp">
+                <SelectValue placeholder="Select component..." />
+              </SelectTrigger>
+              <SelectContent>
+                {componentsList.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.sku} — {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">
+            <Field>
+              <FieldLabel htmlFor="mat-loc">
                 Location <span className="text-destructive">*</span>
-              </label>
-              <select
-                value={matLocationId}
-                onChange={(e) => setMatLocationId(e.target.value)}
-                className={inputClass}
-              >
-                <option value="">Select location...</option>
-                {locationsList.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.code} — {l.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+              </FieldLabel>
+              <Select value={matLocationId} onValueChange={(val) => setMatLocationId(val ?? '')}>
+                <SelectTrigger id="mat-loc">
+                  <SelectValue placeholder="Select location..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {locationsList.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.code} — {l.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">
+            <Field>
+              <FieldLabel htmlFor="mat-qty">
                 Quantity <span className="text-destructive">*</span>
-              </label>
-              <input
+              </FieldLabel>
+              <Input
+                id="mat-qty"
                 type="number"
                 step="any"
                 min="0.0001"
                 value={matQuantity}
                 onChange={(e) => setMatQuantity(e.target.value)}
                 placeholder="0"
-                className={inputClass + ' font-mono font-bold'}
+                className="font-mono font-bold"
               />
-            </div>
+            </Field>
           </div>
 
           {showNotes && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-foreground">Unit</label>
-                <input
+              <Field>
+                <FieldLabel htmlFor="mat-unit">Unit</FieldLabel>
+                <Input
+                  id="mat-unit"
                   type="text"
                   value={matUnit}
                   onChange={(e) => setMatUnit(e.target.value)}
                   placeholder="pcs"
-                  className={inputClass + ' font-mono'}
+                  className="font-mono"
                 />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-foreground">Notes</label>
-                <input
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="mat-notes">Notes</FieldLabel>
+                <Input
+                  id="mat-notes"
                   type="text"
                   value={matNotes}
                   onChange={(e) => setMatNotes(e.target.value)}
                   placeholder="Optional notes"
-                  className={inputClass}
                 />
-              </div>
+              </Field>
             </div>
           )}
 

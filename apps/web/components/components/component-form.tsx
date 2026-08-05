@@ -1,11 +1,21 @@
 'use client'
 
 import * as React from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import {
   componentsApi,
   type ComponentDto,
@@ -57,6 +67,7 @@ export function ComponentForm({
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<ComponentFormValues>({
     resolver: zodResolver(componentSchema),
@@ -111,88 +122,87 @@ export function ComponentForm({
       )}
 
       {/* SKU */}
-      <div className="space-y-1">
-        <label htmlFor="component-sku" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="component-sku">
           SKU / Internal Part Number <span className="text-destructive">*</span>
-        </label>
-        <input
+        </FieldLabel>
+        <Input
           id="component-sku"
           type="text"
           placeholder="e.g. MCU-STM32F4-01"
           {...register('sku')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground font-mono"
+          className="font-mono"
         />
-        {errors.sku && (
-          <p className="text-xs text-destructive">{errors.sku.message}</p>
-        )}
-      </div>
+        {errors.sku?.message && <FieldError>{errors.sku.message}</FieldError>}
+      </Field>
 
       {/* Name */}
-      <div className="space-y-1">
-        <label htmlFor="component-name" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="component-name">
           Component Name <span className="text-destructive">*</span>
-        </label>
-        <input
+        </FieldLabel>
+        <Input
           id="component-name"
           type="text"
           placeholder="e.g. Microcontroller Unit 32-bit ARM Cortex-M4"
           {...register('name')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
         />
-        {errors.name && (
-          <p className="text-xs text-destructive">{errors.name.message}</p>
-        )}
-      </div>
+        {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
+      </Field>
 
       {/* Unit */}
-      <div className="space-y-1">
-        <label htmlFor="component-unit" className="text-xs font-medium text-foreground">
+      <Field>
+        <FieldLabel htmlFor="component-unit">
           Default Unit of Measure <span className="text-destructive">*</span>
-        </label>
-        <input
+        </FieldLabel>
+        <Input
           id="component-unit"
           type="text"
           placeholder="e.g. pcs, kg, m, box"
           {...register('unit')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground lowercase font-mono"
+          className="lowercase font-mono"
         />
-        {errors.unit && (
-          <p className="text-xs text-destructive">{errors.unit.message}</p>
-        )}
-      </div>
+        {errors.unit?.message && <FieldError>{errors.unit.message}</FieldError>}
+      </Field>
 
       {/* Description */}
-      <div className="space-y-1">
-        <label htmlFor="component-desc" className="text-xs font-medium text-foreground">
-          Description
-        </label>
-        <textarea
+      <Field>
+        <FieldLabel htmlFor="component-desc">Description</FieldLabel>
+        <Textarea
           id="component-desc"
           rows={3}
           placeholder="Detailed component specification..."
           {...register('description')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground resize-none"
+          className="resize-none"
         />
-      </div>
+      </Field>
 
       {/* Default Location */}
-      <div className="space-y-1">
-        <label htmlFor="component-location" className="text-xs font-medium text-foreground">
-          Default Storage Location
-        </label>
-        <select
-          id="component-location"
-          {...register('defaultLocationId')}
-          className="w-full px-3 py-2 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
-        >
-          <option value="">None / Unassigned</option>
-          {locations.map((loc) => (
-            <option key={loc.id} value={loc.id}>
-              {loc.code} - {loc.name} ({loc.kind})
-            </option>
-          ))}
-        </select>
-      </div>
+      <Field>
+        <FieldLabel htmlFor="component-location">Default Storage Location</FieldLabel>
+        <Controller
+          name="defaultLocationId"
+          control={control}
+          render={({ field }) => (
+            <Select
+              value={field.value ?? 'none'}
+              onValueChange={(val) => field.onChange(val === 'none' ? '' : val)}
+            >
+              <SelectTrigger id="component-location">
+                <SelectValue placeholder="None / Unassigned" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None / Unassigned</SelectItem>
+                {locations.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id}>
+                    {loc.code} - {loc.name} ({loc.kind})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </Field>
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
@@ -207,3 +217,4 @@ export function ComponentForm({
     </form>
   )
 }
+

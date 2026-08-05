@@ -4,6 +4,15 @@ import * as React from 'react'
 import { Zap, Plus, X, Loader2 } from 'lucide-react'
 import { notificationsApi } from '@/lib/api/notifications-api'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Field, FieldLabel } from '@/components/ui/field'
 
 export interface WorkflowBuilderProps {
   isOpen: boolean
@@ -83,30 +92,45 @@ export function WorkflowBuilder({
             />
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-foreground">Description</label>
-            <input
+          <Field>
+            <FieldLabel htmlFor="wf-name">
+              Workflow Rule Name <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="wf-name"
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Low Stock Alert & Buyer Assignment"
+            />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="wf-desc">Description</FieldLabel>
+            <Input
+              id="wf-desc"
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Automation rule purpose..."
-              className="w-full px-3 py-1.5 mt-1 bg-input border border-border rounded-md text-xs outline-none text-foreground focus:ring-1 focus:ring-primary"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="text-xs font-semibold text-foreground">Trigger Event</label>
-            <select
-              value={triggerType}
-              onChange={(e) => setTriggerType(e.target.value)}
-              className="w-full px-3 py-1.5 mt-1 bg-input border border-border rounded-md text-xs outline-none text-foreground focus:ring-1 focus:ring-primary"
-            >
-              <option value="INVENTORY_LOW">Inventory Below Reorder Level</option>
-              <option value="PO_SUBMITTED">Purchase Order Submitted (&gt; ₹100,000)</option>
-              <option value="IMPORT_COMPLETED">Bulk Import Job Completed</option>
-              <option value="WORK_ORDER_DELAYED">Work Order Production Delayed</option>
-            </select>
-          </div>
+          <Field>
+            <FieldLabel htmlFor="wf-trigger">Trigger Event</FieldLabel>
+            <Select value={triggerType} onValueChange={(val) => setTriggerType(val ?? '')}>
+              <SelectTrigger id="wf-trigger">
+                <SelectValue placeholder="Select trigger event..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="INVENTORY_LOW">Inventory Below Reorder Level</SelectItem>
+                <SelectItem value="PO_SUBMITTED">Purchase Order Submitted (&gt; ₹100,000)</SelectItem>
+                <SelectItem value="IMPORT_COMPLETED">Bulk Import Job Completed</SelectItem>
+                <SelectItem value="WORK_ORDER_DELAYED">Work Order Production Delayed</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
 
           {/* Conditions Section */}
           <div className="space-y-2 pt-2 border-t border-border">
@@ -124,7 +148,7 @@ export function WorkflowBuilder({
 
             {conditions.map((cond, idx) => (
               <div key={idx} className="flex items-center gap-2">
-                <input
+                <Input
                   type="text"
                   value={cond.field}
                   onChange={(e) => {
@@ -133,21 +157,25 @@ export function WorkflowBuilder({
                     setConditions(next)
                   }}
                   placeholder="field"
-                  className="w-1/3 px-2.5 py-1 bg-input border border-border rounded text-xs text-foreground outline-none"
+                  className="w-1/3 h-8 text-xs"
                 />
-                <select
+                <Select
                   value={cond.operator}
-                  onChange={(e) => {
+                  onValueChange={(val) => {
                     const next = [...conditions]
-                    next[idx]!.operator = e.target.value
+                    next[idx]!.operator = val ?? ''
                     setConditions(next)
                   }}
-                  className="w-1/3 px-2 py-1 bg-input border border-border rounded text-xs text-foreground outline-none"
                 >
-                  <option value="EQUALS">EQUALS</option>
-                  <option value="GREATER_THAN">GREATER THAN</option>
-                </select>
-                <input
+                  <SelectTrigger className="w-1/3 h-8 text-xs">
+                    <SelectValue placeholder="Operator" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EQUALS">EQUALS</SelectItem>
+                    <SelectItem value="GREATER_THAN">GREATER THAN</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
                   type="text"
                   value={cond.value}
                   onChange={(e) => {
@@ -156,7 +184,7 @@ export function WorkflowBuilder({
                     setConditions(next)
                   }}
                   placeholder="value"
-                  className="w-1/3 px-2.5 py-1 bg-input border border-border rounded text-xs text-foreground outline-none"
+                  className="w-1/3 h-8 text-xs"
                 />
               </div>
             ))}

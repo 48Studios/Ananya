@@ -24,6 +24,16 @@ import {
   Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select'
+import { Field, FieldLabel } from '@/components/ui/field'
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = React.useState<
@@ -112,44 +122,40 @@ export default function SettingsPage() {
         <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto">
           <button
             onClick={() => setActiveTab('organization')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              activeTab === 'organization'
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activeTab === 'organization'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-            }`}
+              }`}
           >
             <Building2 className="w-3.5 h-3.5" />
             Organization Profile
           </button>
           <button
             onClick={() => setActiveTab('system')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              activeTab === 'system'
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activeTab === 'system'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-            }`}
+              }`}
           >
             <Sliders className="w-3.5 h-3.5" />
             System Defaults
           </button>
           <button
             onClick={() => setActiveTab('numbering')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              activeTab === 'numbering'
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activeTab === 'numbering'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-            }`}
+              }`}
           >
             <Hash className="w-3.5 h-3.5" />
             Numbering Series
           </button>
           <button
             onClick={() => setActiveTab('flags')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              activeTab === 'flags'
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activeTab === 'flags'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-            }`}
+              }`}
           >
             <Flag className="w-3.5 h-3.5" />
             Feature Flags
@@ -171,51 +177,50 @@ export default function SettingsPage() {
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Company Name</label>
-                    <input
+                  <Field>
+                    <FieldLabel>Company Name</FieldLabel>
+                    <Input
                       type="text"
                       value={profile.companyName}
                       onChange={(e) => setProfile({ ...profile, companyName: e.target.value })}
-                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
                     />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Tax ID / GSTIN</label>
-                    <input
+                  </Field>
+
+                  <Field>
+                    <FieldLabel>Tax ID / GSTIN</FieldLabel>
+                    <Input
                       type="text"
                       value={profile.taxId || ''}
                       onChange={(e) => setProfile({ ...profile, taxId: e.target.value })}
-                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
                     />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Legal Address</label>
-                    <textarea
+                  </Field>
+
+                  <Field className="md:col-span-2">
+                    <FieldLabel>Legal Address</FieldLabel>
+                    <Textarea
                       rows={2}
                       value={profile.address || ''}
                       onChange={(e) => setProfile({ ...profile, address: e.target.value })}
-                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
                     />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Primary Email</label>
-                    <input
+                  </Field>
+
+                  <Field>
+                    <FieldLabel>Primary Email</FieldLabel>
+                    <Input
                       type="email"
                       value={profile.email || ''}
                       onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
                     />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Support Phone</label>
-                    <input
+                  </Field>
+
+                  <Field>
+                    <FieldLabel>Support Phone</FieldLabel>
+                    <Input
                       type="text"
                       value={profile.phone || ''}
                       onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
                     />
-                  </div>
+                  </Field>
                 </div>
 
                 <div className="flex justify-end pt-2">
@@ -235,45 +240,58 @@ export default function SettingsPage() {
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Base Currency</label>
-                    <input
+                  <Field>
+                    <FieldLabel>Base Currency</FieldLabel>
+                    <Input
                       type="text"
                       value={system.baseCurrency}
                       onChange={(e) => setSystem({ ...system, baseCurrency: e.target.value })}
-                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground font-mono"
+                      className="font-mono"
                     />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Default Warehouse ID</label>
-                    <input
+                  </Field>
+
+                  <Field>
+                    <FieldLabel>Default Warehouse ID</FieldLabel>
+                    <Input
                       type="text"
                       value={system.defaultWarehouseId || ''}
                       onChange={(e) => setSystem({ ...system, defaultWarehouseId: e.target.value })}
-                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground font-mono"
+                      className="font-mono"
                     />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Fiscal Year Start Month</label>
-                    <select
-                      value={system.fiscalYearStartMonth}
-                      onChange={(e) => setSystem({ ...system, fiscalYearStartMonth: parseInt(e.target.value) || 1 })}
-                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
+                  </Field>
+
+                  <Field>
+                    <FieldLabel>Fiscal Year Start Month</FieldLabel>
+                    <Select
+                      value={String(system.fiscalYearStartMonth)}
+                      onValueChange={(val) =>
+                        setSystem({
+                          ...system,
+                          fiscalYearStartMonth: val ? parseInt(val) || 1 : 1,
+                        })
+                      }
                     >
-                      <option value={1}>January</option>
-                      <option value={4}>April</option>
-                      <option value={10}>October</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">DateFormat</label>
-                    <input
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">January</SelectItem>
+                        <SelectItem value="4">April (Standard Q1)</SelectItem>
+                        <SelectItem value="7">July</SelectItem>
+                        <SelectItem value="10">October</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel>Date Format</FieldLabel>
+                    <Input
                       type="text"
                       value={system.dateFormat}
                       onChange={(e) => setSystem({ ...system, dateFormat: e.target.value })}
-                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground font-mono"
+                      className="font-mono"
                     />
-                  </div>
+                  </Field>
                 </div>
 
                 <div className="flex justify-end pt-2">

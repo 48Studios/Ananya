@@ -6,6 +6,9 @@ import Link from 'next/link'
 import { authApi, type UserInvitationDto } from '@/lib/api/auth-api'
 import { UserCheck, ArrowLeft, Loader2, CheckCircle2, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
+
 
 function JoinOrganizationContent() {
   const router = useRouter()
@@ -98,41 +101,41 @@ function JoinOrganizationContent() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-semibold text-foreground block mb-1">First Name</label>
-                <input
+              <Field>
+                <FieldLabel htmlFor="join-firstname">First Name</FieldLabel>
+                <Input
+                  id="join-firstname"
                   type="text"
                   required
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="John"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
                 />
-              </div>
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Last Name</label>
-                <input
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="join-lastname">Last Name</FieldLabel>
+                <Input
+                  id="join-lastname"
                   type="text"
                   required
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Doe"
-                  className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
                 />
-              </div>
+              </Field>
             </div>
 
-            <div>
-              <label className="font-semibold text-foreground block mb-1">Create Password</label>
-              <input
+            <Field>
+              <FieldLabel htmlFor="join-password">Create Password</FieldLabel>
+              <Input
+                id="join-password"
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
               />
-            </div>
+            </Field>
 
             <div className="flex items-center justify-between pt-4 border-t border-border">
               <Button type="button" variant="outline" size="sm" onClick={() => setInvitation(null)}>
@@ -156,17 +159,18 @@ function JoinOrganizationContent() {
           </form>
         ) : (
           <div className="space-y-4 text-xs">
-            <div>
-              <label className="font-semibold text-foreground block mb-1">Invitation Token</label>
-              <input
+            <Field>
+              <FieldLabel htmlFor="invite-token">Invitation Token</FieldLabel>
+              <Input
+                id="invite-token"
                 type="text"
                 required
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 placeholder="Paste invitation token here"
-                className="w-full h-9 px-3 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary font-mono text-foreground"
+                className="font-mono"
               />
-            </div>
+            </Field>
 
             <Button
               className="w-full h-9"
@@ -196,6 +200,7 @@ function JoinOrganizationContent() {
             </div>
           </div>
         )}
+
       </div>
     </div>
   )
