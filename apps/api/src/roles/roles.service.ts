@@ -13,7 +13,7 @@ import { SecurityAuditService } from '../security-audit/security-audit.service';
 
 @Injectable()
 export class RolesService implements OnModuleInit {
-  constructor(private readonly auditService: SecurityAuditService) {}
+  constructor(private readonly auditService: SecurityAuditService) { }
 
   async onModuleInit() {
     try {

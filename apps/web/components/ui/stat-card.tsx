@@ -7,7 +7,7 @@ export interface StatCardProps {
   title: string
   value: string | number
   subtitle?: string
-  icon?: React.ComponentType<{ className?: string }>
+  icon?: React.ComponentType<{ className?: string }> | React.ReactNode
   trend?: {
     value: string
     positive?: boolean
@@ -19,10 +19,17 @@ export function StatCard({
   title,
   value,
   subtitle,
-  icon: Icon,
+  icon,
   trend,
   className,
 }: StatCardProps) {
+  const renderIcon = () => {
+    if (!icon) return null
+    if (React.isValidElement(icon)) return icon
+    const IconComponent = icon as React.ComponentType<{ className?: string }>
+    return <IconComponent className="w-4 h-4" />
+  }
+
   return (
     <div
       className={cn(
@@ -34,9 +41,9 @@ export function StatCard({
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           {title}
         </p>
-        {Icon && (
+        {icon && (
           <div className="p-2 bg-muted/50 rounded-lg text-muted-foreground">
-            <Icon className="w-4 h-4" />
+            {renderIcon()}
           </div>
         )}
       </div>

@@ -25,8 +25,10 @@ export interface FilterOption {
 }
 
 export interface FilterConfig {
-  columnId: string
-  title: string
+  columnId?: string
+  id?: string
+  title?: string
+  label?: string
   options: FilterOption[]
 }
 
@@ -36,7 +38,9 @@ export interface EntityDataTableProps<TData, TValue> {
   searchKey?: string
   searchPlaceholder?: string
   filters?: FilterConfig[]
+  filterConfigs?: FilterConfig[]
   loading?: boolean
+  isLoading?: boolean
   emptyTitle?: string
   emptyMessage?: string
   actionButton?: React.ReactNode
@@ -50,13 +54,17 @@ export function EntityDataTable<TData, TValue>({
   searchKey,
   searchPlaceholder = 'Search...',
   filters,
+  filterConfigs,
   loading = false,
+  isLoading = false,
   emptyTitle = 'No data found',
   emptyMessage = 'No records match your criteria.',
   actionButton,
   entityType = 'Entity',
   onRefreshData,
 }: EntityDataTableProps<TData, TValue>) {
+  const activeFilters = filters || filterConfigs
+  const activeLoading = loading || isLoading
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = React.useState('')
@@ -113,14 +121,15 @@ export function EntityDataTable<TData, TValue>({
           </div>
 
           {/* Select Filters */}
-          {filters?.map((filter) => {
-            const column = table.getColumn(filter.columnId)
+          {activeFilters?.map((filter) => {
+            const colId = filter.columnId || filter.id || ''
+            const column = colId ? table.getColumn(colId) : undefined
             if (!column) return null
             const filterValue = (column.getFilterValue() as string) ?? ''
 
             return (
               <select
-                key={filter.columnId}
+                key={colId}
                 value={filterValue}
                 onChange={(e) => column.setFilterValue(e.target.value || undefined)}
                 className="px-3 py-1.5 text-sm bg-input/40 border border-border rounded-md outline-none focus:border-primary text-foreground transition-colors"
@@ -219,7 +228,7 @@ export function EntityDataTable<TData, TValue>({
               ))}
             </thead>
             <tbody className="divide-y divide-border">
-              {loading ? (
+              {activeLoading ? (
                 // Skeleton Rows
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={`skeleton-${idx}`} className="animate-pulse">
