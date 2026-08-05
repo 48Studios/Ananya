@@ -16,11 +16,11 @@
 
 ## Current Vertical Slice
 
-**Production Data Management Architecture Refactor**
+**Global Creatable Entity Selector Pattern**
 
 ## Current Sprint Goal
 
-Completely eliminate all CLI seed/clear/clean/reset scripts (`db:seed`, `db:clear`, `db:clean`, `db:reset`, `db:dev:*`) and developer data generators (`packages/database/src/dev/`). Establish web application as authoritative data management interface. Implement System Bootstrap for platform infrastructure ONLY (Roles, Permission Matrix, Series, Flags, Settings). Implement web-based Data Packs (`/settings/data-packs`) for Base Units, Categories, Core Logistics, and Demo Datasets processing through the production Import Framework (`ImportExportService`). Implement web-based Organization Reset under Danger Zone (`/settings/danger-zone`) with 3-step confirmation (Warning, `RESET MY ORGANIZATION` text input, password re-authentication, audit logging). Document architecture in [ARCHITECTURE.md](file:///Users/jrsarath/Documents/GitHub/ananya/ARCHITECTURE.md) and [docs/DATA_LIFECYCLE.md](file:///Users/jrsarath/Documents/GitHub/ananya/docs/DATA_LIFECYCLE.md), passing all monorepo quality gates.
+Establish standardized Creatable Entity Selector pattern across Ananya ERP. Replace free-text inputs for master entities (Unit of Measure, Category, Manufacturer, Supplier, Warehouse, Location, Customer, Project) with unified `<EntitySelector>` component. Implement live search combobox, inline creation via backend APIs, automatic selection, and RBAC permission checks. Pass all monorepo quality gates.
 
 ## Current Branch
 
@@ -28,7 +28,7 @@ Completely eliminate all CLI seed/clear/clean/reset scripts (`db:seed`, `db:clea
 
 ## Current Status
 
-🟢 Production Data Management Architecture Refactor 100% Complete — Deleted `packages/database/src/dev/` and removed all CLI seed/clear/reset scripts. Refactored `bootstrap.ts` for platform infrastructure ONLY. Implemented web-based Data Packs (`/settings/data-packs`) and Danger Zone Organization Reset (`/settings/danger-zone`) with multi-step confirmation and security audit logging. Updated `ARCHITECTURE.md` and `docs/DATA_LIFECYCLE.md`. Passed all monorepo quality gates.
+🟢 Global Creatable Entity Selector Pattern 100% Complete — Created `EntitySelector` component (`apps/web/components/ui/entity-selector.tsx`) and `unitsApi` client. Migrated forms to use `<EntitySelector entity="..." creatable />`. Enabled inline creation, auto-selection, and RBAC permission enforcement across all master entities. Passed all monorepo quality gates.
 
 ---
 
@@ -133,6 +133,7 @@ Completed work should immediately move into the **Completed** section.
 
 ## 2026-08-06
 
+- Complete Global Creatable Entity Selector Pattern (Implemented unified EntitySelector component apps/web/components/ui/entity-selector.tsx and unitsApi client. Replaced free-text inputs for Units of Measure, Categories, Manufacturers, Suppliers, Warehouses, Locations, Customers, and Projects with a searchable, creatable combobox. Enabled inline API creation with auto-selection and RBAC permission checks across all master entities. Updated DESIGN.md and PROJECT_STATUS.md)
 - Complete Production Data Management Architecture Refactor (Completely removed all CLI database seed, clear, clean, and reset scripts. Deleted packages/database/src/dev/. Refactored System Bootstrap to initialize platform infrastructure ONLY. Implemented web-based Data Packs Studio at /settings/data-packs for Base Units, Categories, Core Logistics, and Demo Datasets processing through the production Import Framework. Implemented web-based Organization Reset under Danger Zone at /settings/danger-zone with 3-step confirmation and security audit logging DATA_PACK_INSTALLED and ORGANIZATION_DATA_RESET. Updated ARCHITECTURE.md and docs/DATA_LIFECYCLE.md)
 
 ## 2026-08-01

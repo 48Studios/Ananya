@@ -8,21 +8,14 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { EntitySelector } from "@/components/ui/entity-selector";
 import {
   componentsApi,
   type ComponentDto,
   type CreateComponentPayload,
   type UpdateComponentPayload,
 } from "@/lib/api/components-api";
-import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 
 const componentSchema = z.object({
   sku: z
@@ -54,18 +47,8 @@ export function ComponentForm({
   onSuccess,
   onCancel,
 }: ComponentFormProps) {
-  const [locations, setLocations] = React.useState<LocationDto[]>([]);
   const [serverError, setServerError] = React.useState<string | null>(null);
   const isEditing = Boolean(initialData);
-
-  React.useEffect(() => {
-    locationsApi
-      .getAll()
-      .then(setLocations)
-      .catch(() => {
-        // Non-blocking location load error
-      });
-  }, []);
 
   const {
     register,
@@ -162,12 +145,18 @@ export function ComponentForm({
         <FieldLabel htmlFor="component-unit">
           Default Unit of Measure <span className="text-destructive">*</span>
         </FieldLabel>
-        <Input
-          id="component-unit"
-          type="text"
-          placeholder="e.g. pcs, kg, m, box"
-          {...register("unit")}
-          className="lowercase font-mono"
+        <Controller
+          name="unit"
+          control={control}
+          render={({ field }) => (
+            <EntitySelector
+              id="component-unit"
+              entity="unit"
+              value={field.value}
+              onChange={(val) => field.onChange(val)}
+              creatable
+            />
+          )}
         />
         {errors.unit?.message && <FieldError>{errors.unit.message}</FieldError>}
       </Field>
@@ -193,22 +182,13 @@ export function ComponentForm({
           name="defaultLocationId"
           control={control}
           render={({ field }) => (
-            <Select
-              value={field.value ?? "none"}
-              onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
-            >
-              <SelectTrigger id="component-location">
-                <SelectValue placeholder="None / Unassigned" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None / Unassigned</SelectItem>
-                {locations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.code} - {loc.name} ({loc.kind})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <EntitySelector
+              id="component-location"
+              entity="location"
+              value={field.value ?? ""}
+              onChange={(val) => field.onChange(val)}
+              creatable
+            />
           )}
         />
       </Field>

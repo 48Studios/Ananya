@@ -202,6 +202,21 @@ The content inside the card is the focus.
 
 ---
 
+# Global Creatable Entity Selector
+
+Master data must never be entered as arbitrary free text in forms.
+
+Wherever a user references a master entity (Unit of Measure, Category, Manufacturer, Supplier, Warehouse, Location, Customer, Project):
+
+- Use `<EntitySelector entity="..." creatable />`.
+- Never use standard `<Input>` or `<Textarea>` for master data references.
+- Combobox allows live search across existing records.
+- If no exact match exists, displays `➕ Create "<query>"`.
+- Selecting `Create` executes the backend API inline, refreshes options, and automatically selects the new record without page navigation.
+- Inline creation enforces RBAC permissions (e.g. `Units.Create`, `Categories.Create`).
+
+---
+
 # Visual Weight
 
 Reduce visual noise.
