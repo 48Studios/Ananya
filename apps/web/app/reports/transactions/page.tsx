@@ -23,6 +23,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { ReportFilters, FilterState } from '@/components/reports/report-filters'
 import { reportingApi, TransactionSummaryDto } from '@/lib/api/reporting-api'
 import { inventoryTransactionsApi, InventoryTransactionDto } from '@/lib/api/inventory-transactions-api'
+import { formatNumber, formatDate } from '@/lib/utils'
 
 export default function TransactionReportsPage() {
   const [summary, setSummary] = React.useState<TransactionSummaryDto | null>(null)
@@ -123,7 +124,7 @@ export default function TransactionReportsPage() {
         header: 'Recorded Date',
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground font-mono">
-            {new Date(row.original.createdAt).toLocaleString()}
+            {formatDate(row.original.createdAt)}
           </span>
         ),
       },
@@ -157,17 +158,17 @@ export default function TransactionReportsPage() {
   }
 
   const txTypeDonutData = [
-    { name: 'Receipts', value: summary.receiptCount, color: '#10b981' },
-    { name: 'Issues', value: summary.issueCount, color: '#0ea5e9' },
-    { name: 'Transfers', value: summary.transferCount, color: '#6366f1' },
-    { name: 'Adjustments', value: summary.adjustmentCount, color: '#f59e0b' },
+    { name: 'Receipts', value: summary.receiptCount ?? 0, color: '#10b981' },
+    { name: 'Issues', value: summary.issueCount ?? 0, color: '#0ea5e9' },
+    { name: 'Transfers', value: summary.transferCount ?? 0, color: '#6366f1' },
+    { name: 'Adjustments', value: summary.adjustmentCount ?? 0, color: '#f59e0b' },
   ]
 
   const txVolumeData = [
-    { name: 'Receipts', value: summary.receiptCount },
-    { name: 'Issues', value: summary.issueCount },
-    { name: 'Transfers', value: summary.transferCount },
-    { name: 'Adjustments', value: summary.adjustmentCount },
+    { name: 'Receipts', value: summary.receiptCount ?? 0 },
+    { name: 'Issues', value: summary.issueCount ?? 0 },
+    { name: 'Transfers', value: summary.transferCount ?? 0 },
+    { name: 'Adjustments', value: summary.adjustmentCount ?? 0 },
   ]
 
   return (
@@ -176,10 +177,6 @@ export default function TransactionReportsPage() {
       <PageHeader
         title="Transaction & Audit Reports"
         description="Immutable stock movement history, transaction type breakdown, and audit ledger logs."
-        breadcrumbs={[
-          { label: 'Reports', href: '/reports' },
-          { label: 'Transaction Reports' },
-        ]}
         actions={
           <Link href="/reports">
             <Button variant="outline" size="sm">
@@ -194,26 +191,26 @@ export default function TransactionReportsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Audit Transactions"
-          value={summary.totalTransactions}
+          value={formatNumber(summary.totalTransactions)}
           subtitle="Immutable ledger records"
           icon={ShieldCheck}
         />
         <StatCard
           title="Inbound Receipts"
-          value={summary.receiptCount}
+          value={formatNumber(summary.receiptCount)}
           subtitle="GRN and stock receipts"
           icon={ArrowDownLeft}
         />
         <StatCard
           title="Outbound Issues"
-          value={summary.issueCount}
+          value={formatNumber(summary.issueCount)}
           subtitle="Production and material issues"
           icon={ArrowUpRight}
         />
         <StatCard
           title="Transfers & Adjustments"
-          value={summary.transferCount + summary.adjustmentCount}
-          subtitle={`${summary.transferCount} transfers, ${summary.adjustmentCount} adjustments`}
+          value={formatNumber((summary.transferCount ?? 0) + (summary.adjustmentCount ?? 0))}
+          subtitle={`${formatNumber(summary.transferCount)} transfers, ${formatNumber(summary.adjustmentCount)} adjustments`}
           icon={ArrowRightLeft}
         />
       </div>

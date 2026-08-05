@@ -6,6 +6,8 @@ import { Bell, CheckCheck, Loader2 } from 'lucide-react'
 import { notificationsApi, NotificationDto } from '@/lib/api/notifications-api'
 import { NotificationCard } from '@/components/ui/notification-card'
 
+import { HeaderAction } from '@/components/ui/header-action'
+
 export function NotificationBell() {
   const [isOpen, setIsOpen] = React.useState(false)
   const [notifications, setNotifications] = React.useState<NotificationDto[]>([])
@@ -53,19 +55,22 @@ export function NotificationBell() {
 
   return (
     <div className="relative">
-      <button
-        type="button"
+      <HeaderAction
+        variant="outline"
+        size="icon"
+        active={isOpen}
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/40 transition-colors"
         aria-label="Notifications"
+        title="Notifications"
+        className="relative"
       >
-        <Bell className="w-4 h-4" />
+        <Bell className="size-3.5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 w-4 h-4 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
-            {unreadCount > 9 ? '9+' : unreadCount}
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow-xs animate-pulse">
+            {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
-      </button>
+      </HeaderAction>
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-card border border-border shadow-2xl rounded-xl z-50 overflow-hidden animate-in fade-in-0 slide-in-from-top-2 duration-150">

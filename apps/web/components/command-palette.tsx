@@ -65,15 +65,16 @@ const RECENT_SEARCHES_KEY = 'ananya_recent_searches'
 const RECENT_PAGES_KEY = 'ananya_recent_pages'
 
 const ALL_QUICK_ACTIONS = [
-  { title: 'Create Component', icon: Plus, href: '/components', category: 'Inventory', permission: 'Inventory.Create' },
+  { title: 'Create Component', icon: Plus, href: '/components/new', category: 'Inventory', permission: 'Inventory.Create' },
+  { title: 'Receive Stock', icon: ArrowDownLeft, href: '/goods-receipts/new', category: 'Inventory', permission: 'Inventory.Create' },
   { title: 'Create Supplier', icon: Plus, href: '/suppliers', category: 'Procurement', permission: 'PurchaseOrders.Create' },
-  { title: 'Create Purchase Order', icon: Plus, href: '/purchase-orders', category: 'Procurement', permission: 'PurchaseOrders.Create' },
+  { title: 'Create Purchase Order', icon: Plus, href: '/purchase-orders/new', category: 'Procurement', permission: 'PurchaseOrders.Create' },
+  { title: 'Create Bill of Materials (BOM)', icon: Plus, href: '/boms/new', category: 'Manufacturing', permission: 'WorkOrders.Manage' },
   { title: 'Create Work Order', icon: Plus, href: '/work-orders', category: 'Manufacturing', permission: 'WorkOrders.Manage' },
   { title: 'Create Project', icon: Plus, href: '/projects', category: 'Projects', permission: 'Projects.Manage' },
-  { title: 'Create Reservation', icon: Plus, href: '/reservations', category: 'Inventory', permission: 'Inventory.Reserve' },
-  { title: 'Open Analytics Hub', icon: FileText, href: '/reports', category: 'Reports', permission: 'Reports.Read' },
+  { title: 'Open Analytics Hub', icon: FileText, href: '/reports', category: 'Analytics', permission: 'Reporting.Read' },
   { title: 'Open User Directory', icon: UserCheck, href: '/users', category: 'Administration', permission: 'Administration.Users' },
-  { title: 'Open Workspace Settings', icon: Settings, href: '/settings', category: 'Administration', permission: 'Administration.Security' },
+  { title: 'Open Organization Settings', icon: Settings, href: '/settings', category: 'Administration', permission: 'Administration.Security' },
 ]
 
 export function CommandPalette() {

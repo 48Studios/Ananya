@@ -23,6 +23,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { ReportFilters, FilterState } from '@/components/reports/report-filters'
 import { reportingApi, ManufacturingSummaryDto } from '@/lib/api/reporting-api'
 import { workOrdersApi, WorkOrderDto } from '@/lib/api/work-orders-api'
+import { formatNumber, formatQuantity, formatDate } from '@/lib/utils'
 
 export default function ManufacturingReportsPage() {
   const [summary, setSummary] = React.useState<ManufacturingSummaryDto | null>(null)
@@ -115,7 +116,7 @@ export default function ManufacturingReportsPage() {
         header: 'Created',
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground font-mono">
-            {new Date(row.original.createdAt).toLocaleDateString()}
+            {formatDate(row.original.createdAt)}
           </span>
         ),
       },
@@ -149,9 +150,9 @@ export default function ManufacturingReportsPage() {
   }
 
   const woStatusData = [
-    { name: 'Active WOs', value: summary.activeWorkOrders, color: '#10b981' },
-    { name: 'Completed WOs', value: summary.completedWorkOrders, color: '#0ea5e9' },
-    { name: 'Other Status', value: Math.max(0, summary.totalWorkOrders - summary.activeWorkOrders - summary.completedWorkOrders), color: '#94a3b8' },
+    { name: 'Active WOs', value: summary.activeWorkOrders ?? 0, color: '#10b981' },
+    { name: 'Completed WOs', value: summary.completedWorkOrders ?? 0, color: '#0ea5e9' },
+    { name: 'Other Status', value: Math.max(0, (summary.totalWorkOrders ?? 0) - (summary.activeWorkOrders ?? 0) - (summary.completedWorkOrders ?? 0)), color: '#94a3b8' },
   ]
 
   const outputVsScrapData = [
@@ -165,10 +166,6 @@ export default function ManufacturingReportsPage() {
       <PageHeader
         title="Manufacturing Reports"
         description="Production execution, output yield, material consumption, and scrap analysis."
-        breadcrumbs={[
-          { label: 'Reports', href: '/reports' },
-          { label: 'Manufacturing Reports' },
-        ]}
         actions={
           <Link href="/reports">
             <Button variant="outline" size="sm">
@@ -183,26 +180,26 @@ export default function ManufacturingReportsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Work Orders"
-          value={summary.totalWorkOrders}
-          subtitle={`${summary.activeWorkOrders} in progress`}
+          value={formatNumber(summary.totalWorkOrders)}
+          subtitle={`${formatNumber(summary.activeWorkOrders)} in progress`}
           icon={Factory}
         />
         <StatCard
           title="Production Output"
-          value={`${summary.totalProductionOutput} units`}
+          value={formatQuantity(summary.totalProductionOutput, 'units')}
           subtitle="Completed finished goods"
           icon={CheckCircle2}
         />
         <StatCard
           title="Total Scrap Generated"
-          value={`${summary.totalScrapQuantity} units`}
+          value={formatQuantity(summary.totalScrapQuantity, 'units')}
           subtitle="Material scrap recorded"
           icon={AlertOctagon}
         />
         <StatCard
           title="Bill of Materials (BOM)"
-          value={summary.totalBoms}
-          subtitle={`${summary.activeBoms} active RELEASED BOMs`}
+          value={formatNumber(summary.totalBoms)}
+          subtitle={`${formatNumber(summary.activeBoms)} active RELEASED BOMs`}
           icon={FileSpreadsheet}
         />
       </div>

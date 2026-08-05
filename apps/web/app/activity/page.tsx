@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { DashboardLayout } from '@/components/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { LoadingState } from '@/components/ui/loading-state'
@@ -48,64 +47,58 @@ export default function ActivityCenterPage() {
   const procurementCount = events.filter((e) => e.module === 'Procurement').length
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <PageHeader
-          title="Activity Center"
-          description="Centralized timeline of operational activities, inventory transactions, and system updates."
-          breadcrumbs={[
-            { label: 'Dashboard', href: '/dashboard' },
-            { label: 'Activity Center', href: '/activity' },
-          ]}
+    <div className="space-y-6">
+      <PageHeader
+        title="Activity Center"
+        description="Centralized timeline of operational activities, inventory transactions, and system updates."
+      />
+
+      {/* KPI Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Operations Logged"
+          value={totalEvents.toString()}
+          subtitle="System activity feed"
+          icon={Activity}
         />
-
-        {/* KPI Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Operations Logged"
-            value={totalEvents.toString()}
-            subtitle="System activity feed"
-            icon={Activity}
-          />
-          <StatCard
-            title="High Severity Events"
-            value={criticalCount.toString()}
-            subtitle="Alerts & critical warnings"
-            icon={AlertTriangle}
-          />
-          <StatCard
-            title="Inventory Operations"
-            value={inventoryCount.toString()}
-            subtitle="Receipts, adjustments & transfers"
-            icon={Zap}
-          />
-          <StatCard
-            title="Procurement Activity"
-            value={procurementCount.toString()}
-            subtitle="Orders & supplier interactions"
-            icon={ShieldCheck}
-          />
-        </div>
-
-        {/* Filters */}
-        <ActivityFilters
-          module={module}
-          setModule={setModule}
-          severity={severity}
-          setSeverity={setSeverity}
-          search={search}
-          setSearch={setSearch}
+        <StatCard
+          title="High Severity Events"
+          value={criticalCount.toString()}
+          subtitle="Alerts & critical warnings"
+          icon={AlertTriangle}
         />
-
-        {/* Main Feed Content */}
-        {loading ? (
-          <LoadingState message="Loading Activity Stream... Aggregating operational logs across all bounded contexts." />
-        ) : error ? (
-          <ErrorState title="Error Loading Feed" message={error} onRetry={loadFeed} />
-        ) : (
-          <ActivityTimeline events={events} />
-        )}
+        <StatCard
+          title="Inventory Operations"
+          value={inventoryCount.toString()}
+          subtitle="Receipts, adjustments & transfers"
+          icon={Zap}
+        />
+        <StatCard
+          title="Procurement Activity"
+          value={procurementCount.toString()}
+          subtitle="Orders & supplier interactions"
+          icon={ShieldCheck}
+        />
       </div>
-    </DashboardLayout>
+
+      {/* Filters */}
+      <ActivityFilters
+        module={module}
+        setModule={setModule}
+        severity={severity}
+        setSeverity={setSeverity}
+        search={search}
+        setSearch={setSearch}
+      />
+
+      {/* Main Feed Content */}
+      {loading ? (
+        <LoadingState message="Loading Activity Stream... Aggregating operational logs across all bounded contexts." />
+      ) : error ? (
+        <ErrorState title="Error Loading Feed" message={error} onRetry={loadFeed} />
+      ) : (
+        <ActivityTimeline events={events} />
+      )}
+    </div>
   )
 }

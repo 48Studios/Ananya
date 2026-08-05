@@ -26,6 +26,7 @@ export interface ProcurementSummaryDto {
   totalSuppliers: number;
   totalGoodsReceipts: number;
   fulfilledSpend: number;
+  totalProcurementSpend?: number;
 }
 
 export interface ManufacturingSummaryDto {

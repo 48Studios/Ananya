@@ -22,17 +22,19 @@ export interface NavigationItem {
   id: string
   title: string
   href: string
+  exact?: boolean
   icon?: ReactNode
   badge?: string | number
   badgeVariant?: 'default' | 'secondary' | 'destructive' | 'outline'
   permissions?: string[]
+  featureFlag?: string
   children?: NavigationItem[]
 }
 
 export interface SidebarSection {
   id: string
   title: string
-  type: 'nav' | 'quick_stats' | 'quick_actions' | 'pinned' | 'settings'
+  type: 'nav' | 'quick_stats' | 'quick_actions' | 'pinned' | 'favorites' | 'recent' | 'settings'
   collapsible?: boolean
   items?: NavigationItem[]
   quickStats?: QuickStat[]

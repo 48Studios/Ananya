@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { DashboardLayout } from '@/components/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { LoadingState } from '@/components/ui/loading-state'
@@ -40,16 +39,11 @@ export default function WorkflowsPage() {
   const activeRules = workflows.filter((w) => w.isActive).length
 
   return (
-    <DashboardLayout>
-      <PermissionGuard permission="Administration.Security">
-        <div className="space-y-6">
+    <PermissionGuard permission="Administration.Security">
+      <div className="space-y-6">
         <PageHeader
           title="Workflow Automation"
           description="Configure event-driven trigger-condition-action automation rules across inventory, procurement, and manufacturing."
-          breadcrumbs={[
-            { label: 'Dashboard', href: '/dashboard' },
-            { label: 'Workflows', href: '/workflows' },
-          ]}
           actions={
             <Button size="sm" onClick={() => setIsBuilderOpen(true)}>
               <Plus className="w-3.5 h-3.5 mr-1.5" />
@@ -138,7 +132,6 @@ export default function WorkflowsPage() {
           onWorkflowCreated={loadWorkflows}
         />
       </div>
-      </PermissionGuard>
-    </DashboardLayout>
+    </PermissionGuard>
   )
 }

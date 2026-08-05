@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { DashboardLayout } from '@/components/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -95,194 +94,209 @@ export default function SettingsPage() {
   }
 
   return (
-    <DashboardLayout>
-      <PermissionGuard permission="Administration.Settings">
-        <div className="space-y-6">
-          <PageHeader
-            title="Organization & System Administration"
-            description="Centralized administrative control center for legal profile, currency, fiscal parameters, numbering series, and feature toggles."
-            breadcrumbs={[
-              { label: 'Dashboard', href: '/dashboard' },
-              { label: 'Administration Settings', href: '/settings' },
-            ]}
-          />
+    <PermissionGuard permission="Administration.Settings">
+      <div className="space-y-6">
+        <PageHeader
+          title="Administration & Settings"
+          description="Configure enterprise organization profile, system defaults, numbering series, and feature flags."
+        />
 
-          {/* Settings Tabs */}
-          <div className="flex border-b border-border gap-2 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setActiveTab('organization')}
-              className={`pb-2.5 px-3 flex items-center gap-1.5 border-b-2 transition-colors ${
-                activeTab === 'organization'
-                  ? 'border-primary text-primary font-bold'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Building2 className="w-4 h-4" />
-              Organization Profile
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('system')}
-              className={`pb-2.5 px-3 flex items-center gap-1.5 border-b-2 transition-colors ${
-                activeTab === 'system'
-                  ? 'border-primary text-primary font-bold'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Sliders className="w-4 h-4" />
-              System Defaults
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('numbering')}
-              className={`pb-2.5 px-3 flex items-center gap-1.5 border-b-2 transition-colors ${
-                activeTab === 'numbering'
-                  ? 'border-primary text-primary font-bold'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Hash className="w-4 h-4" />
-              Numbering Series
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('flags')}
-              className={`pb-2.5 px-3 flex items-center gap-1.5 border-b-2 transition-colors ${
-                activeTab === 'flags'
-                  ? 'border-primary text-primary font-bold'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Flag className="w-4 h-4" />
-              Feature Flags
-            </button>
+        {successMsg && (
+          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <span>{successMsg}</span>
           </div>
+        )}
 
-          {successMsg && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>{successMsg}</span>
-            </div>
-          )}
-
-          {loading ? (
-            <LoadingState message="Loading System Configuration..." />
-          ) : error ? (
-            <ErrorState title="Error Loading Settings" message={error} onRetry={loadData} />
-          ) : (
-            <div className="bg-card border border-border rounded-xl p-6 shadow-2xs">
-              {/* Organization Tab */}
-              {activeTab === 'organization' && profile && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-border">
-                    <h3 className="text-sm font-semibold text-foreground">Legal Company Profile</h3>
-                    <Button size="sm" onClick={handleSaveOrganization} disabled={saving}>
-                      {saving ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
-                      Save Profile
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <label className="font-semibold text-foreground">Company Name</label>
-                      <input
-                        type="text"
-                        value={profile.companyName}
-                        onChange={(e) => setProfile({ ...profile, companyName: e.target.value })}
-                        className="w-full px-3 py-1.5 mt-1 bg-input border border-border rounded-md outline-none text-foreground"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="font-semibold text-foreground">Legal Entity Name</label>
-                      <input
-                        type="text"
-                        value={profile.legalName}
-                        onChange={(e) => setProfile({ ...profile, legalName: e.target.value })}
-                        className="w-full px-3 py-1.5 mt-1 bg-input border border-border rounded-md outline-none text-foreground"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="font-semibold text-foreground">Tax ID / GSTIN</label>
-                      <input
-                        type="text"
-                        value={profile.taxId}
-                        onChange={(e) => setProfile({ ...profile, taxId: e.target.value })}
-                        className="w-full px-3 py-1.5 mt-1 bg-input border border-border rounded-md outline-none text-foreground font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="font-semibold text-foreground">Support Email</label>
-                      <input
-                        type="email"
-                        value={profile.email}
-                        onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                        className="w-full px-3 py-1.5 mt-1 bg-input border border-border rounded-md outline-none text-foreground"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* System Defaults Tab */}
-              {activeTab === 'system' && system && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-border">
-                    <h3 className="text-sm font-semibold text-foreground">Global System Defaults</h3>
-                    <Button size="sm" onClick={handleSaveSystem} disabled={saving}>
-                      {saving ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
-                      Save Defaults
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <label className="font-semibold text-foreground">Base Currency</label>
-                      <select
-                        value={system.baseCurrency}
-                        onChange={(e) => setSystem({ ...system, baseCurrency: e.target.value })}
-                        className="w-full px-3 py-1.5 mt-1 bg-input border border-border rounded-md outline-none text-foreground"
-                      >
-                        <option value="INR">INR (₹)</option>
-                        <option value="USD">USD ($)</option>
-                        <option value="EUR">EUR (€)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="font-semibold text-foreground">Date Format</label>
-                      <select
-                        value={system.dateFormat}
-                        onChange={(e) => setSystem({ ...system, dateFormat: e.target.value })}
-                        className="w-full px-3 py-1.5 mt-1 bg-input border border-border rounded-md outline-none text-foreground font-mono"
-                      >
-                        <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                        <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Numbering Series Tab */}
-              {activeTab === 'numbering' && (
-                <NumberingSeriesEditor seriesList={numbering} onSeriesUpdated={loadData} />
-              )}
-
-              {/* Feature Flags Tab */}
-              {activeTab === 'flags' && (
-                <FeatureFlagTable flags={flags} onFlagToggled={loadData} />
-              )}
-            </div>
-          )}
+        {/* Settings Navigation Tabs */}
+        <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('organization')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              activeTab === 'organization'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            Organization Profile
+          </button>
+          <button
+            onClick={() => setActiveTab('system')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              activeTab === 'system'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            }`}
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            System Defaults
+          </button>
+          <button
+            onClick={() => setActiveTab('numbering')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              activeTab === 'numbering'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            }`}
+          >
+            <Hash className="w-3.5 h-3.5" />
+            Numbering Series
+          </button>
+          <button
+            onClick={() => setActiveTab('flags')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              activeTab === 'flags'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            }`}
+          >
+            <Flag className="w-3.5 h-3.5" />
+            Feature Flags
+          </button>
         </div>
-      </PermissionGuard>
-    </DashboardLayout>
+
+        {/* Tab Contents */}
+        {loading ? (
+          <LoadingState message="Loading System Settings..." />
+        ) : error ? (
+          <ErrorState title="Error Loading Settings" message={error} onRetry={loadData} />
+        ) : (
+          <div className="space-y-6">
+            {/* Organization Tab */}
+            {activeTab === 'organization' && profile && (
+              <div className="p-6 bg-card border border-border rounded-xl space-y-4">
+                <h3 className="text-sm font-semibold text-foreground border-b border-border/40 pb-2">
+                  Organization Details
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Company Name</label>
+                    <input
+                      type="text"
+                      value={profile.companyName}
+                      onChange={(e) => setProfile({ ...profile, companyName: e.target.value })}
+                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Tax ID / GSTIN</label>
+                    <input
+                      type="text"
+                      value={profile.taxId || ''}
+                      onChange={(e) => setProfile({ ...profile, taxId: e.target.value })}
+                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Legal Address</label>
+                    <textarea
+                      rows={2}
+                      value={profile.address || ''}
+                      onChange={(e) => setProfile({ ...profile, address: e.target.value })}
+                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Primary Email</label>
+                    <input
+                      type="email"
+                      value={profile.email || ''}
+                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Support Phone</label>
+                    <input
+                      type="text"
+                      value={profile.phone || ''}
+                      onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button size="sm" onClick={handleSaveOrganization} disabled={saving}>
+                    {saving ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+                    Save Organization Profile
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* System Tab */}
+            {activeTab === 'system' && system && (
+              <div className="p-6 bg-card border border-border rounded-xl space-y-4">
+                <h3 className="text-sm font-semibold text-foreground border-b border-border/40 pb-2">
+                  System Defaults
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Base Currency</label>
+                    <input
+                      type="text"
+                      value={system.baseCurrency}
+                      onChange={(e) => setSystem({ ...system, baseCurrency: e.target.value })}
+                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Default Warehouse ID</label>
+                    <input
+                      type="text"
+                      value={system.defaultWarehouseId || ''}
+                      onChange={(e) => setSystem({ ...system, defaultWarehouseId: e.target.value })}
+                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Fiscal Year Start Month</label>
+                    <select
+                      value={system.fiscalYearStartMonth}
+                      onChange={(e) => setSystem({ ...system, fiscalYearStartMonth: parseInt(e.target.value) || 1 })}
+                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
+                    >
+                      <option value={1}>January</option>
+                      <option value={4}>April</option>
+                      <option value={10}>October</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">DateFormat</label>
+                    <input
+                      type="text"
+                      value={system.dateFormat}
+                      onChange={(e) => setSystem({ ...system, dateFormat: e.target.value })}
+                      className="w-full px-3 py-2 bg-input/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary text-foreground font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button size="sm" onClick={handleSaveSystem} disabled={saving}>
+                    {saving ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+                    Save System Defaults
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Numbering Series Tab */}
+            {activeTab === 'numbering' && (
+              <NumberingSeriesEditor seriesList={numbering} onSeriesUpdated={loadData} />
+            )}
+
+            {/* Feature Flags Tab */}
+            {activeTab === 'flags' && (
+              <FeatureFlagTable flags={flags} onFlagToggled={loadData} />
+            )}
+          </div>
+        )}
+      </div>
+    </PermissionGuard>
   )
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { DashboardLayout } from '@/components/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { LoadingState } from '@/components/ui/loading-state'
@@ -47,16 +46,11 @@ export default function AuditExplorerPage() {
   const adminLogs = logs.filter((l) => l.category === 'Administration' || l.category === 'Security').length
 
   return (
-    <DashboardLayout>
-      <PermissionGuard permission="Administration.Security">
-        <div className="space-y-6">
+    <PermissionGuard permission="Administration.Security">
+      <div className="space-y-6">
         <PageHeader
           title="Audit Explorer"
           description="Enterprise compliance audit log tracking system access, permission changes, and security events."
-          breadcrumbs={[
-            { label: 'Dashboard', href: '/dashboard' },
-            { label: 'Audit Explorer', href: '/audit' },
-          ]}
         />
 
         {/* Audit Metrics */}
@@ -120,7 +114,6 @@ export default function AuditExplorerPage() {
           <AuditTable logs={logs} />
         )}
       </div>
-      </PermissionGuard>
-    </DashboardLayout>
+    </PermissionGuard>
   )
 }

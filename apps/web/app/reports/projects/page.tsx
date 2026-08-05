@@ -23,6 +23,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { ReportFilters, FilterState } from '@/components/reports/report-filters'
 import { reportingApi, ProjectSummaryDto } from '@/lib/api/reporting-api'
 import { projectsApi, ProjectDto } from '@/lib/api/projects-api'
+import { formatNumber, formatQuantity, formatDate } from '@/lib/utils'
 
 export default function ProjectReportsPage() {
   const [summary, setSummary] = React.useState<ProjectSummaryDto | null>(null)
@@ -108,7 +109,7 @@ export default function ProjectReportsPage() {
         header: 'Material Lines',
         cell: ({ row }) => (
           <span className="font-mono text-xs font-bold text-foreground">
-            {row.original.materials.length} items
+            {row.original.materials?.length || 0} items
           </span>
         ),
       },
@@ -117,7 +118,7 @@ export default function ProjectReportsPage() {
         header: 'Created',
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground font-mono">
-            {new Date(row.original.createdAt).toLocaleDateString()}
+            {formatDate(row.original.createdAt)}
           </span>
         ),
       },
@@ -151,15 +152,15 @@ export default function ProjectReportsPage() {
   }
 
   const projectStatusData = [
-    { name: 'Active Projects', value: summary.activeProjects, color: '#8b5cf6' },
-    { name: 'Completed Projects', value: summary.completedProjects, color: '#10b981' },
-    { name: 'Planning / Other', value: Math.max(0, summary.totalProjects - summary.activeProjects - summary.completedProjects), color: '#94a3b8' },
+    { name: 'Active Projects', value: summary.activeProjects ?? 0, color: '#8b5cf6' },
+    { name: 'Completed Projects', value: summary.completedProjects ?? 0, color: '#10b981' },
+    { name: 'Planning / Other', value: Math.max(0, (summary.totalProjects ?? 0) - (summary.activeProjects ?? 0) - (summary.completedProjects ?? 0)), color: '#94a3b8' },
   ]
 
   const materialBalanceData = [
-    { name: 'Allocated', value: summary.totalAllocatedMaterials },
-    { name: 'Issued', value: summary.totalIssuedMaterials },
-    { name: 'Returned', value: summary.totalReturnedMaterials },
+    { name: 'Allocated', value: summary.totalAllocatedMaterials ?? 0 },
+    { name: 'Issued', value: summary.totalIssuedMaterials ?? 0 },
+    { name: 'Returned', value: summary.totalReturnedMaterials ?? 0 },
   ]
 
   return (
@@ -168,10 +169,6 @@ export default function ProjectReportsPage() {
       <PageHeader
         title="Project Reports"
         description="Project material tracking, job site inventory allocations, and consumption balances."
-        breadcrumbs={[
-          { label: 'Reports', href: '/reports' },
-          { label: 'Project Reports' },
-        ]}
         actions={
           <Link href="/reports">
             <Button variant="outline" size="sm">
@@ -186,25 +183,25 @@ export default function ProjectReportsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Projects"
-          value={summary.totalProjects}
-          subtitle={`${summary.activeProjects} active projects`}
+          value={formatNumber(summary.totalProjects)}
+          subtitle={`${formatNumber(summary.activeProjects)} active projects`}
           icon={FolderKanban}
         />
         <StatCard
           title="Allocated Materials"
-          value={`${summary.totalAllocatedMaterials} units`}
+          value={formatQuantity(summary.totalAllocatedMaterials, 'units')}
           subtitle="Reserved project stock"
           icon={Package}
         />
         <StatCard
           title="Issued Materials"
-          value={`${summary.totalIssuedMaterials} units`}
+          value={formatQuantity(summary.totalIssuedMaterials, 'units')}
           subtitle="Consumed at job sites"
           icon={Layers}
         />
         <StatCard
           title="Returned Materials"
-          value={`${summary.totalReturnedMaterials} units`}
+          value={formatQuantity(summary.totalReturnedMaterials, 'units')}
           subtitle="Returned to warehouse"
           icon={CheckCircle2}
         />

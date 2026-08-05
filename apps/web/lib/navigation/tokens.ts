@@ -24,5 +24,5 @@ export const NAV_TOKENS = {
   TREE_GUIDE_LINE: 'ml-3.5 pl-2 border-l border-sidebar-border/40',
 
   // Section Dividers
-  SECTION_DIVIDER: 'pt-2.5 mt-2.5 border-t border-sidebar-border/50',
+  SECTION_DIVIDER: 'py-2.5 mt-2.5 border-t border-sidebar-border/50',
 } as const

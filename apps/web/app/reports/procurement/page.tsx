@@ -23,6 +23,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { ReportFilters, FilterState } from '@/components/reports/report-filters'
 import { reportingApi, ProcurementSummaryDto } from '@/lib/api/reporting-api'
 import { purchaseOrdersApi, PurchaseOrderDto } from '@/lib/api/purchase-orders-api'
+import { formatCurrency, formatNumber, formatDate } from '@/lib/utils'
 
 export default function ProcurementReportsPage() {
   const [summary, setSummary] = React.useState<ProcurementSummaryDto | null>(null)
@@ -98,7 +99,7 @@ export default function ProcurementReportsPage() {
         header: 'Grand Total',
         cell: ({ row }) => (
           <span className="font-mono text-xs font-bold text-foreground">
-            ${row.original.grandTotal.toFixed(2)} {row.original.currency}
+            {formatCurrency(row.original.grandTotal, row.original.currency || 'INR')}
           </span>
         ),
       },
@@ -107,7 +108,7 @@ export default function ProcurementReportsPage() {
         header: 'Order Date',
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground font-mono">
-            {new Date(row.original.createdAt).toLocaleDateString()}
+            {formatDate(row.original.createdAt)}
           </span>
         ),
       },
@@ -141,16 +142,20 @@ export default function ProcurementReportsPage() {
   }
 
   const poStatusDonutData = [
-    { name: 'Active POs', value: summary.activePurchaseOrders, color: '#0ea5e9' },
-    { name: 'Draft POs', value: summary.draftPurchaseOrders, color: '#94a3b8' },
-    { name: 'Fulfilled Spend Units', value: summary.totalGoodsReceipts, color: '#10b981' },
+    { name: 'Active POs', value: summary.activePurchaseOrders ?? 0, color: '#0ea5e9' },
+    { name: 'Draft POs', value: summary.draftPurchaseOrders ?? 0, color: '#94a3b8' },
+    { name: 'Goods Receipts', value: summary.totalGoodsReceipts ?? 0, color: '#10b981' },
   ]
 
+  // Calculate real order totals by status for dynamic trend visualization
+  const fulfilledTotal = poList.filter(p => p.status === 'FULFILLED').reduce((acc, p) => acc + (p.grandTotal ?? 0), 0)
+  const issuedTotal = poList.filter(p => p.status === 'ISSUED' || p.status === 'PARTIALLY_RECEIVED').reduce((acc, p) => acc + (p.grandTotal ?? 0), 0)
+  const draftTotal = poList.filter(p => p.status === 'DRAFT' || p.status === 'SUBMITTED').reduce((acc, p) => acc + (p.grandTotal ?? 0), 0)
+
   const spendTrendData = [
-    { name: 'Week 1', value: 14500 },
-    { name: 'Week 2', value: 22000 },
-    { name: 'Week 3', value: 18400 },
-    { name: 'Week 4', value: summary.fulfilledSpend || 31200 },
+    { name: 'Draft / Submitted', value: Math.round(draftTotal) },
+    { name: 'Active Issued', value: Math.round(issuedTotal) },
+    { name: 'Fulfilled Spend', value: Math.round(fulfilledTotal || summary.fulfilledSpend || 0) },
   ]
 
   return (
@@ -159,10 +164,6 @@ export default function ProcurementReportsPage() {
       <PageHeader
         title="Procurement Reports"
         description="Purchase order breakdown, vendor spend performance, and goods receipt metrics."
-        breadcrumbs={[
-          { label: 'Reports', href: '/reports' },
-          { label: 'Procurement Reports' },
-        ]}
         actions={
           <Link href="/reports">
             <Button variant="outline" size="sm">
@@ -177,26 +178,25 @@ export default function ProcurementReportsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Purchase Orders"
-          value={summary.totalPurchaseOrders}
-          subtitle={`${summary.activePurchaseOrders} active POs`}
+          value={formatNumber(summary.totalPurchaseOrders)}
+          subtitle={`${formatNumber(summary.activePurchaseOrders)} active POs`}
           icon={ShoppingCart}
         />
         <StatCard
           title="Total Fulfilled Spend"
-          value={`$${summary.fulfilledSpend.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          value={formatCurrency(summary.fulfilledSpend ?? summary.totalProcurementSpend)}
           subtitle="Completed purchase orders"
           icon={DollarSign}
-          trend={{ value: '+5.2%', positive: true }}
         />
         <StatCard
           title="Active Suppliers"
-          value={summary.totalSuppliers}
+          value={formatNumber(summary.totalSuppliers)}
           subtitle="Registered vendors"
           icon={Truck}
         />
         <StatCard
           title="Goods Receipts (GRN)"
-          value={summary.totalGoodsReceipts}
+          value={formatNumber(summary.totalGoodsReceipts)}
           subtitle="Received shipments"
           icon={FileCheck}
         />

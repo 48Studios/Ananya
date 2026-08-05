@@ -5,17 +5,46 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useNavigation } from '../navigation-context'
 import { SidebarSection } from './sidebar-section'
 import { NAV_TOKENS } from '../tokens'
+import { NavigationItem, SidebarSection as SidebarSectionType } from '../types'
+import { useAuth } from '@/lib/auth/auth-context'
 import { cn } from '@/lib/utils'
 
 export function ContextSidebar({ onItemClick }: { onItemClick?: () => void }) {
-  const { currentModule, isSidebarCollapsed, toggleSidebarCollapse, pinnedItems } = useNavigation()
+  const {
+    currentModule,
+    currentModuleId,
+    isSidebarCollapsed,
+    toggleSidebarCollapse,
+    pinnedItems,
+    recentItems,
+  } = useNavigation()
+  const { hasPermission } = useAuth()
 
-  // Find index of first section that actually renders content in the current mode
-  const firstVisibleIndex = currentModule.sidebar.findIndex((section) => {
-    if (section.type === 'quick_stats') return !isSidebarCollapsed
-    if (section.type === 'quick_actions') return !isSidebarCollapsed && !!section.quickActions?.length
-    if (section.type === 'pinned') return !isSidebarCollapsed && pinnedItems.length > 0
-    if (section.type === 'nav') return !!section.items?.length
+  // Helper: check if a navigation item is visible given permissions
+  const isItemVisible = (item: NavigationItem): boolean => {
+    if (item.permissions && item.permissions.length > 0) {
+      if (!item.permissions.some((p) => hasPermission(p))) return false
+    }
+    if (item.children && item.children.length > 0) {
+      return item.children.some((child) => isItemVisible(child))
+    }
+    return true
+  }
+
+  // Filter sections to ONLY those that will render meaningful content
+  const visibleSections = currentModule.sidebar.filter((section: SidebarSectionType) => {
+    if (section.type === 'quick_stats') {
+      return !isSidebarCollapsed && ((section.quickStats && section.quickStats.length > 0) || ['inventory', 'procurement', 'manufacturing', 'projects', 'dashboard'].includes(currentModuleId))
+    }
+    if (section.type === 'quick_actions') {
+      return !isSidebarCollapsed && !!section.quickActions && section.quickActions.length > 0
+    }
+    if (section.type === 'favorites' || section.type === 'recent' || section.type === 'pinned') {
+      return !isSidebarCollapsed && (pinnedItems.length > 0 || recentItems.length > 0)
+    }
+    if (section.type === 'nav') {
+      return !!section.items && section.items.some((item) => isItemVisible(item))
+    }
     return true
   })
 
@@ -28,16 +57,15 @@ export function ContextSidebar({ onItemClick }: { onItemClick?: () => void }) {
           : NAV_TOKENS.SIDEBAR_EXPANDED_WIDTH
       )}
     >
-      {/* Sidebar Header: Clean module title & collapse button (no redundant module icon) */}
+      {/* Sidebar Header: Clean module title & collapse button */}
       <div
         className={cn(
           NAV_TOKENS.HEADER_HEIGHT,
-          'px-3.5 flex items-center shrink-0',
+          'px-3.5 flex items-center shrink-0 border-b border-sidebar-border/40',
           isSidebarCollapsed ? 'justify-center' : 'justify-between gap-2'
         )}
       >
         {isSidebarCollapsed ? (
-          /* Collapsed Header: Dedicated expand button only */
           <button
             type="button"
             onClick={toggleSidebarCollapse}
@@ -48,9 +76,8 @@ export function ContextSidebar({ onItemClick }: { onItemClick?: () => void }) {
             <ChevronRight className="size-4" />
           </button>
         ) : (
-          /* Expanded Header: Module title on left, Collapse button on right (no module icon) */
           <>
-            <h2 className="font-semibold text-lg text-sidebar-foreground truncate tracking-tight flex-1">
+            <h2 className="font-semibold text-base text-sidebar-foreground truncate tracking-tight flex-1">
               {currentModule.name}
             </h2>
 
@@ -69,21 +96,15 @@ export function ContextSidebar({ onItemClick }: { onItemClick?: () => void }) {
 
       {/* Sidebar Content Sections */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1">
-        {currentModule.sidebar.map((section, idx) => {
-          const prevSection = idx > 0 ? currentModule.sidebar[idx - 1] : null
-          const isAfterQuickStats = !isSidebarCollapsed && prevSection?.type === 'quick_stats'
-
-          return (
-            <SidebarSection
-              key={section.id}
-              section={section}
-              isCollapsed={isSidebarCollapsed}
-              isFirst={idx === firstVisibleIndex}
-              isAfterQuickStats={isAfterQuickStats}
-              onItemClick={onItemClick}
-            />
-          )
-        })}
+        {visibleSections.map((section, idx) => (
+          <SidebarSection
+            key={section.id}
+            section={section}
+            isCollapsed={isSidebarCollapsed}
+            isFirst={idx === 0}
+            onItemClick={onItemClick}
+          />
+        ))}
       </div>
     </aside>
   )

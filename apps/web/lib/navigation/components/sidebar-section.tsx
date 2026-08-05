@@ -6,7 +6,7 @@ import { SidebarItem } from './sidebar-item'
 import { SidebarAccordion } from './sidebar-accordion'
 import { SidebarQuickStats } from './sidebar-quick-stats'
 import { SidebarQuickActions } from './sidebar-quick-actions'
-import { SidebarPinnedItems } from './sidebar-pinned-items'
+import { SidebarFavoritesRecent } from './sidebar-favorites-recent'
 import { SectionHeader } from './sidebar-section-header'
 import { useNavigation } from '../navigation-context'
 import { NAV_TOKENS } from '../tokens'
@@ -16,7 +16,6 @@ interface SidebarSectionProps {
   section: SidebarSectionType
   isCollapsed: boolean
   isFirst?: boolean
-  isAfterQuickStats?: boolean
   onItemClick?: () => void
 }
 
@@ -24,29 +23,16 @@ export function SidebarSection({
   section,
   isCollapsed,
   isFirst = false,
-  isAfterQuickStats = false,
   onItemClick,
 }: SidebarSectionProps) {
-  const { pinnedItems, currentModuleId } = useNavigation()
+  const { currentModuleId } = useNavigation()
 
-  // In collapsed mode, quick_stats, quick_actions, and pinned sections return null.
-  // In expanded mode, empty pinned section (pinnedItems.length === 0) returns null.
-  const isContentHidden =
-    (section.type === 'quick_stats' && isCollapsed) ||
-    (section.type === 'quick_actions' && (isCollapsed || !section.quickActions?.length)) ||
-    (section.type === 'pinned' && (isCollapsed || pinnedItems.length === 0)) ||
-    (section.type === 'nav' && (!section.items || section.items.length === 0))
-
-  if (isContentHidden) {
-    return null
-  }
-
-  // Divider styling ABOVE section headings (only when not first visible section and not after quick_stats)
-  const dividerClass = !isFirst && !isAfterQuickStats ? NAV_TOKENS.SECTION_DIVIDER : ''
+  // Top divider is rendered ONLY when this is NOT the first visible section
+  const dividerClass = !isFirst ? NAV_TOKENS.SECTION_DIVIDER : ''
 
   if (section.type === 'quick_stats') {
     return (
-      <div className="pb-4 mb-2.5 border-b border-sidebar-border/50">
+      <div className={cn(dividerClass)}>
         {!isCollapsed && section.title && <SectionHeader title={section.title} />}
         <SidebarQuickStats stats={section.quickStats} moduleId={currentModuleId} isCollapsed={isCollapsed} />
       </div>
@@ -55,25 +41,34 @@ export function SidebarSection({
 
   if (section.type === 'quick_actions' && section.quickActions) {
     return (
-      <div className={cn(dividerClass, 'pb-2')}>
+      <div className={cn(dividerClass)}>
         {!isCollapsed && section.title && <SectionHeader title={section.title} />}
         <SidebarQuickActions actions={section.quickActions} isCollapsed={isCollapsed} />
       </div>
     )
   }
 
-  if (section.type === 'pinned') {
+  if (section.type === 'favorites' || section.type === 'recent' || section.type === 'pinned') {
     return (
-      <div className={dividerClass}>
-        <SidebarPinnedItems isCollapsed={isCollapsed} />
+      <div className={cn(dividerClass)}>
+        <SidebarFavoritesRecent isCollapsed={isCollapsed} />
       </div>
     )
   }
 
+  // Suppress section header if section has only 1 item and item title matches section title
+  const isSingleItemMatch =
+    section.items?.length === 1 &&
+    !!section.title &&
+    !!section.items[0]?.title &&
+    section.items[0].title.toLowerCase() === section.title.toLowerCase()
+
+  const showHeader = !isCollapsed && !!section.title && !isSingleItemMatch
+
   return (
     <div className={cn(dividerClass)}>
       {/* Standardized Shared Section Heading */}
-      {!isCollapsed && section.title && <SectionHeader title={section.title} />}
+      {showHeader && <SectionHeader title={section.title!} />}
 
       {/* Workspace Nav Items */}
       <div className={cn('px-1', NAV_TOKENS.TOP_ITEM_GAP)}>

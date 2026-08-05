@@ -23,6 +23,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { ReportFilters, FilterState } from '@/components/reports/report-filters'
 import { reportingApi, InventorySummaryDto } from '@/lib/api/reporting-api'
 import { componentsApi, ComponentDto } from '@/lib/api/components-api'
+import { formatNumber, formatQuantity, formatDate } from '@/lib/utils'
 
 export default function InventoryReportsPage() {
   const [summary, setSummary] = React.useState<InventorySummaryDto | null>(null)
@@ -126,7 +127,7 @@ export default function InventoryReportsPage() {
         header: 'Added Date',
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground font-mono">
-            {new Date(row.original.createdAt).toLocaleDateString()}
+            {formatDate(row.original.createdAt)}
           </span>
         ),
       },
@@ -160,15 +161,15 @@ export default function InventoryReportsPage() {
   }
 
   const locationChartData = [
-    { name: 'Main WH', value: 1250 },
-    { name: 'Assembly Floor', value: 680 },
-    { name: 'Overflow Bay', value: 340 },
-    { name: 'Quality Holding', value: 120 },
+    { name: 'Active SKUs', value: summary.activeComponents ?? 0 },
+    { name: 'Reserved Stock', value: summary.reservedQuantity ?? 0 },
+    { name: 'Adjustments', value: summary.totalAdjustments ?? 0 },
+    { name: 'Transfers', value: summary.totalTransfers ?? 0 },
   ]
 
   const statusDonutData = [
-    { name: 'Active Items', value: summary.activeComponents, color: '#10b981' },
-    { name: 'Inactive Items', value: summary.totalComponents - summary.activeComponents, color: '#64748b' },
+    { name: 'Active Items', value: summary.activeComponents ?? 0, color: '#10b981' },
+    { name: 'Inactive Items', value: Math.max(0, (summary.totalComponents ?? 0) - (summary.activeComponents ?? 0)), color: '#64748b' },
   ]
 
   return (
@@ -177,10 +178,6 @@ export default function InventoryReportsPage() {
       <PageHeader
         title="Inventory Reports"
         description="Comprehensive stock levels, storage location distributions, and component valuation."
-        breadcrumbs={[
-          { label: 'Reports', href: '/reports' },
-          { label: 'Inventory Reports' },
-        ]}
         actions={
           <Link href="/reports">
             <Button variant="outline" size="sm">
@@ -195,19 +192,19 @@ export default function InventoryReportsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Catalog Items"
-          value={summary.totalComponents}
-          subtitle={`${summary.activeComponents} active components`}
+          value={formatNumber(summary.totalComponents)}
+          subtitle={`${formatNumber(summary.activeComponents)} active components`}
           icon={Boxes}
         />
         <StatCard
           title="Storage Locations"
-          value={summary.activeLocations}
+          value={formatNumber(summary.activeLocations)}
           subtitle="Warehouse facilities"
           icon={MapPin}
         />
         <StatCard
           title="Reserved Inventory"
-          value={`${summary.reservedQuantity} units`}
+          value={formatQuantity(summary.reservedQuantity, 'units')}
           subtitle="Committed to WO/Projects"
           icon={Layers}
         />

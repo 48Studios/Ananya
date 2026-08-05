@@ -14,6 +14,7 @@ interface NavigationContextType {
   sidebarWidth: number
   expandedAccordions: Record<string, boolean>
   pinnedItems: string[]
+  recentItems: string[]
   isMobileOpen: boolean
   searchOpen: boolean
   selectModule: (moduleId: string) => void
@@ -22,6 +23,9 @@ interface NavigationContextType {
   toggleSidebarCollapse: () => void
   togglePinnedItem: (href: string) => void
   isItemPinned: (href: string) => boolean
+  toggleFavorite: (href: string) => void
+  isFavorite: (href: string) => boolean
+  clearRecents: () => void
   setIsMobileOpen: (open: boolean) => void
   setSearchOpen: (open: boolean) => void
 }
@@ -30,6 +34,7 @@ const STORAGE_KEYS = {
   COLLAPSED: 'ananya_sidebar_collapsed',
   ACCORDIONS: 'ananya_expanded_accordions',
   PINNED: 'ananya_pinned_items',
+  RECENTS: 'ananya_recent_items',
 }
 
 const NavigationContext = createContext<NavigationContextType | undefined>(undefined)
@@ -40,6 +45,7 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false)
   const [expandedAccordions, setExpandedAccordions] = useState<Record<string, boolean>>({})
   const [pinnedItems, setPinnedItems] = useState<string[]>([])
+  const [recentItems, setRecentItems] = useState<string[]>([])
   const [isMobileOpen, setIsMobileOpen] = useState<boolean>(false)
   const [searchOpen, setSearchOpen] = useState<boolean>(false)
 
@@ -60,14 +66,35 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
       if (savedPinned) {
         setPinnedItems(JSON.parse(savedPinned))
       }
+
+      const savedRecents = localStorage.getItem(STORAGE_KEYS.RECENTS)
+      if (savedRecents) {
+        setRecentItems(JSON.parse(savedRecents))
+      }
     } catch {
       // Ignore localStorage errors
     }
   }, [])
 
-  // Sync route changes to active module and auto-expand relevant accordions
+  // Sync route changes to active module, auto-expand relevant accordions, and track recent items
   useEffect(() => {
     const matchedModule = getModuleForPath(pathname)
+    setCurrentModuleId(matchedModule.id)
+
+    // Track recently visited ERP routes
+    const EXCLUDED_ROUTES = ['/login', '/forgot-password', '/reset-password', '/onboarding', '/setup', '/maintenance']
+    if (!EXCLUDED_ROUTES.includes(pathname)) {
+      setRecentItems((prev) => {
+        const filtered = prev.filter((item) => item !== pathname)
+        const next = [pathname, ...filtered].slice(0, 5)
+        try {
+          localStorage.setItem(STORAGE_KEYS.RECENTS, JSON.stringify(next))
+        } catch {
+          // ignore
+        }
+        return next
+      })
+    }
     setCurrentModuleId(matchedModule.id)
 
     // Auto expand accordion if child item matches active pathname
@@ -168,6 +195,15 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
     [pinnedItems]
   )
 
+  const clearRecents = useCallback(() => {
+    setRecentItems([])
+    try {
+      localStorage.removeItem(STORAGE_KEYS.RECENTS)
+    } catch {
+      // ignore
+    }
+  }, [])
+
   const sidebarWidth = isSidebarCollapsed ? 72 : 280
 
   return (
@@ -181,6 +217,7 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
         sidebarWidth,
         expandedAccordions,
         pinnedItems,
+        recentItems,
         isMobileOpen,
         searchOpen,
         selectModule,
@@ -189,6 +226,9 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
         toggleSidebarCollapse,
         togglePinnedItem,
         isItemPinned,
+        toggleFavorite: togglePinnedItem,
+        isFavorite: isItemPinned,
+        clearRecents,
         setIsMobileOpen,
         setSearchOpen,
       }}

@@ -42,9 +42,17 @@ function CommandDialog({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 pt-[15vh] px-4 animate-in fade-in-0 duration-150">
-      <div className="relative w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-        {children}
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 pt-[15vh] px-4 animate-in fade-in-0 duration-150"
+      onClick={() => onOpenChange(false)}
+    >
+      <div
+        className="relative w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
+          {children}
+        </Command>
       </div>
     </div>
   )

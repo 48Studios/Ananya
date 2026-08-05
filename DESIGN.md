@@ -415,6 +415,67 @@ Every interaction must support:
 
 ---
 
+---
+
+# Design Token System & Brand Specifications
+
+## Primary Brand Color
+
+The official primary brand color for Ananya ERP is **Dodger Blue**:
+
+- **Hex**: `#1E90FF`
+- **HSL**: `hsl(210, 100%, 56%)`
+
+Dodger Blue is the canonical primary accent used consistently across both Light and Dark themes for:
+- Primary actions & buttons
+- Active navigation items & rail indicators
+- Focus rings & keyboard focus outlines
+- Interactive selections, switches, radio buttons, and checkboxes
+- Analytics chart highlights
+- Command palette selection states
+
+---
+
+## Semantic Theme Tokens
+
+All UI components derive colors strictly from semantic CSS tokens defined in `apps/web/app/globals.css`:
+
+| Token | Light Theme | Dark Theme | Purpose |
+| :--- | :--- | :--- | :--- |
+| `--primary` | `#1E90FF` | `#1E90FF` | Primary brand color (Dodger Blue) |
+| `--primary-foreground` | `#FFFFFF` | `#FFFFFF` | Text on primary brand backgrounds |
+| `--secondary` | `#F1F5F9` | `#2D2D2D` | Muted background actions |
+| `--secondary-foreground` | `#0F172A` | `#FFFFFF` | Text on secondary backgrounds |
+| `--muted` | `#CBD5E1` | `#404040` | Secondary backgrounds & scrollbars |
+| `--muted-foreground` | `#64748b` | `#A0A0A0` | Subtitles, captions, disabled text |
+| `--accent` | `#1E90FF` | `#1E90FF` | Interactive highlights & hover states |
+| `--accent-foreground` | `#FFFFFF` | `#FFFFFF` | Text on accent backgrounds |
+| `--destructive` | `#DC2626` | `#FF4444` | High-risk/delete actions & alerts |
+| `--border` | `#E2E8F0` | `#2D2D2D` | Divider and card border lines |
+| `--input` | `#F1F5F9` | `#2D2D2D` | Form input backgrounds |
+| `--ring` | `#1E90FF` | `#1E90FF` | Focus rings & active selection borders |
+| `--sidebar` | `#FFFFFF` | `#0D0D0D` | Application navigation container |
+| `--sidebar-primary` | `#1E90FF` | `#1E90FF` | Active rail item & sidebar selection |
+
+---
+
+## Standardized Control & Button Dimensions
+
+Every interactive control follows standard desktop ERP dimensions for a comfortable, confident click target:
+
+- **Button Scale**:
+  - `default`: Height `36px` (`h-9`), Horizontal Padding `14px` (`px-3.5`), Gap `8px` (`gap-2`), Typography `text-xs font-medium`.
+  - `sm`: Height `32px` (`h-8`), Horizontal Padding `12px` (`px-3`), Gap `6px` (`gap-1.5`), Typography `text-xs`.
+  - `lg`: Height `40px` (`h-10`), Horizontal Padding `16px` (`px-4`), Gap `8px` (`gap-2`), Typography `text-sm font-semibold`.
+  - `icon-sm`: Square `32px x 32px` (`size-8`), Icon `14px` (`size-3.5`).
+  - `icon` (default): Square `36px x 36px` (`size-9`), Icon `16px` (`size-4`).
+  - `icon-lg`: Square `40px x 40px` (`size-10`), Icon `18px` (`size-4.5`).
+
+- **Form Control Scale**:
+  - Inputs, Selects, Comboboxes, and Switches match button height scale (`36px` default height) to achieve visual balance in toolbar rows and form layouts.
+
+---
+
 # Component Rules
 
 If shadcn/ui provides the component:
@@ -425,22 +486,7 @@ Do not recreate it.
 
 Compose existing primitives before creating new abstractions.
 
----
-
-# AI Design Rules
-
-Before implementing any UI:
-
-1. Read this document.
-2. Review the ShadcnSpace dashboard.
-3. Match its spacing and layout philosophy.
-4. Prefer whitespace over borders.
-5. Prefer typography over decoration.
-6. Prefer composition over custom components.
-7. Reuse before creating.
-8. Every new page must visually fit beside every existing page.
-9. If a page looks visually heavier than the reference dashboard, simplify it.
-10. If uncertain, choose the solution that is cleaner, quieter, and more consistent.
+Vendor files and third-party primitives remain untouched.
 
 ---
 
@@ -448,12 +494,8 @@ Before implementing any UI:
 
 A UI implementation is complete only when:
 
-- The page immediately feels like part of the same product.
-- Visual weight is low.
-- Information hierarchy is obvious.
-- Components are reused.
-- Tables feel like modern SaaS dashboards.
-- Forms are clean and predictable.
-- Light mode is polished.
-- Dark mode is polished.
+- Dodger Blue (`#1E90FF`) is used as the single primary brand color across Light and Dark themes.
+- Visual weight is low and information hierarchy is obvious.
+- Button sizes are comfortable, standardized, and visually balanced with form controls.
+- Light and Dark modes are fully polished and tokenized.
 - The page could reasonably exist alongside the ShadcnSpace dashboard without feeling out of place.

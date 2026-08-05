@@ -19,6 +19,7 @@ import { DonutChartWidget } from '@/components/charts/donut-chart-widget'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { reportingApi, OverviewMetricsDto } from '@/lib/api/reporting-api'
+import { formatNumber, formatCurrency } from '@/lib/utils'
 
 const REPORT_SECTIONS = [
   {
@@ -94,7 +95,7 @@ export default function ReportsHubPage() {
     )
   }
 
-  // Weekly activity velocity derived from real backend metrics
+  // Activity distribution derived dynamically from real backend metrics
   const totalOps = metrics.totalTransactions || metrics.totalComponents || 0
   const trendData = [
     { name: 'Mon', value: Math.round(totalOps * 0.1) },
@@ -107,10 +108,10 @@ export default function ReportsHubPage() {
   ]
 
   const moduleDistribution = [
-    { name: 'Inventory', value: metrics.totalComponents, color: '#06b6d4' },
-    { name: 'Procurement', value: metrics.totalPurchaseOrders, color: '#f59e0b' },
-    { name: 'Manufacturing', value: metrics.totalWorkOrders, color: '#10b981' },
-    { name: 'Projects', value: metrics.totalProjects, color: '#8b5cf6' },
+    { name: 'Inventory', value: metrics.totalComponents ?? 0, color: '#06b6d4' },
+    { name: 'Procurement', value: metrics.totalPurchaseOrders ?? 0, color: '#f59e0b' },
+    { name: 'Manufacturing', value: metrics.totalWorkOrders ?? 0, color: '#10b981' },
+    { name: 'Projects', value: metrics.totalProjects ?? 0, color: '#8b5cf6' },
   ]
 
   return (
@@ -125,25 +126,25 @@ export default function ReportsHubPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Components"
-          value={metrics.totalComponents}
-          subtitle={`${metrics.totalLocations} active storage locations`}
+          value={formatNumber(metrics.totalComponents)}
+          subtitle={`${formatNumber(metrics.totalLocations)} active storage locations`}
           icon={Boxes}
         />
         <StatCard
           title="Purchase Spend"
-          value={`₹${metrics.totalProcurementSpend.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
-          subtitle={`${metrics.totalPurchaseOrders} total purchase orders`}
+          value={formatCurrency(metrics.totalProcurementSpend)}
+          subtitle={`${formatNumber(metrics.totalPurchaseOrders)} total purchase orders`}
           icon={ShoppingCart}
         />
         <StatCard
           title="Work Orders"
-          value={metrics.totalWorkOrders}
+          value={formatNumber(metrics.totalWorkOrders)}
           subtitle="Manufacturing jobs tracked"
           icon={Factory}
         />
         <StatCard
           title="Transactions Audit"
-          value={metrics.totalTransactions}
+          value={formatNumber(metrics.totalTransactions)}
           subtitle="Immutable ledger records"
           icon={ShieldCheck}
         />

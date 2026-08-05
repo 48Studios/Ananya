@@ -13,15 +13,17 @@ import {
   X,
   Command,
   Scan,
+  Bell,
+  ShieldCheck,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useNavigation } from '../navigation-context'
-import { Button } from '@/components/ui/button'
 import { ScanDialog } from '@/components/barcodes/scan-dialog'
 import { NotificationBell } from '@/components/ui/notification-bell'
 import { useAuth } from '@/lib/auth/auth-context'
 import { cn } from '@/lib/utils'
 
+import { HeaderAction } from '@/components/ui/header-action'
 import { NAV_TOKENS } from '../tokens'
 
 export function TopHeader() {
@@ -42,7 +44,7 @@ export function TopHeader() {
     setMounted(true)
   }, [])
 
-  // Build breadcrumbs hierarchy
+  // Build semantic business breadcrumbs hierarchy
   const getBreadcrumbs = () => {
     const segments = activePath.split('/').filter(Boolean)
     if (segments.length === 0) {
@@ -51,6 +53,28 @@ export function TopHeader() {
 
     const items = [{ title: currentModule.name, href: currentModule.defaultRoute }]
 
+    // Check if activePath matches a item or child item in currentModule.sidebar
+    for (const section of currentModule.sidebar) {
+      if (!section.items) continue
+      for (const item of section.items) {
+        if (item.children) {
+          const matchingChild = item.children.find(
+            (c) => activePath === c.href || activePath.startsWith(c.href + '/')
+          )
+          if (matchingChild) {
+            items.push({ title: item.title, href: item.href })
+            items.push({ title: matchingChild.title, href: matchingChild.href })
+            return items
+          }
+        }
+        if (activePath === item.href || (item.href !== '/' && activePath.startsWith(item.href + '/'))) {
+          items.push({ title: item.title, href: item.href })
+          return items
+        }
+      }
+    }
+
+    // Fallback: URL segment formatting
     let currentHref = ''
     segments.forEach((seg, idx) => {
       currentHref += `/${seg}`
@@ -59,7 +83,6 @@ export function TopHeader() {
         .replace(/\b\w/g, (char) => char.toUpperCase())
 
       if (idx === 0 && currentHref === currentModule.defaultRoute) {
-        // Skip duplicate module root segment
         return
       }
 
@@ -75,20 +98,20 @@ export function TopHeader() {
   return (
     <header
       className={cn(
-        'sticky top-0 z-30 bg-card border-b border-border flex items-center px-4 lg:px-6 gap-3 select-none',
+        'sticky top-0 z-30 bg-card border-b border-border flex items-center px-4 lg:px-6 gap-2 select-none',
         NAV_TOKENS.HEADER_HEIGHT
       )}
     >
       {/* Mobile Drawer Trigger */}
-      <Button
-        variant="ghost"
-        size="icon-sm"
+      <HeaderAction
+        variant="outline"
+        size="icon"
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="md:hidden text-muted-foreground hover:text-foreground"
+        className="md:hidden"
         aria-label="Toggle Navigation Drawer"
       >
-        {isMobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
-      </Button>
+        {isMobileOpen ? <X className="size-3.5" /> : <Menu className="size-3.5" />}
+      </HeaderAction>
 
       {/* Left: Breadcrumbs & Page Title */}
       <div className="flex-1 min-w-0 flex items-center gap-2">
@@ -115,67 +138,69 @@ export function TopHeader() {
         </h1>
       </div>
 
-      {/* Global Command Palette Trigger Button */}
-      <button
-        type="button"
+      {/* Global Command Palette Trigger Button (Canonical Reference Footprint) */}
+      <HeaderAction
+        variant="outline"
+        size="default"
         onClick={() => setSearchOpen(true)}
-        className="flex items-center gap-2 bg-input/70 hover:bg-input text-muted-foreground hover:text-foreground text-xs rounded-lg px-3 py-1.5 transition-colors border border-border/60 w-48 sm:w-64"
+        className="w-48 sm:w-64 justify-start text-muted-foreground"
       >
-        <Search className="size-3.5 shrink-0" />
+        <Search className="size-3.5" />
         <span className="truncate flex-1 text-left">Search or type command...</span>
         <kbd className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
           <Command className="size-2.5" /> K
         </kbd>
-      </button>
+      </HeaderAction>
 
       {/* Barcode & QR Quick Scan Button */}
-      <Button
+      <HeaderAction
         variant="outline"
-        size="sm"
+        size="default"
         onClick={() => setIsScanOpen(true)}
-        className="hidden md:inline-flex items-center gap-1.5 text-xs text-foreground bg-input/40 hover:bg-input border-border/60"
+        className="inline-flex"
         title="Quick Barcode & QR Scan"
       >
         <Scan className="size-3.5 text-primary" />
-        <span>Scan</span>
-      </Button>
+        <span className="hidden sm:inline">Scan</span>
+      </HeaderAction>
 
       {/* Quick Scan Dialog */}
       <ScanDialog isOpen={isScanOpen} onClose={() => setIsScanOpen(false)} />
 
-      {/* Theme Toggle */}
-      <Button
-        variant="ghost"
-        size="icon-sm"
+      {/* Theme Toggle Header Control */}
+      <HeaderAction
+        variant="outline"
+        size="icon"
         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        className="text-foreground hover:bg-input"
         aria-label="Toggle theme"
+        title={mounted ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode` : 'Toggle theme'}
       >
         {mounted && theme === 'dark' ? (
-          <Sun className="size-4" />
+          <Sun className="size-3.5" />
         ) : (
-          <Moon className="size-4" />
+          <Moon className="size-3.5" />
         )}
-      </Button>
+      </HeaderAction>
 
       {/* Notifications Popover Bell */}
       <NotificationBell />
 
       {/* User Profile Menu */}
       <div className="relative">
-        <Button
-          variant="ghost"
-          size="icon-sm"
+        <HeaderAction
+          variant="outline"
+          size="icon"
+          active={isUserMenuOpen}
           onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-          className="text-foreground hover:bg-input rounded-full"
           aria-label="User Menu"
+          title={user ? `${user.firstName} ${user.lastName}` : 'User Account'}
         >
-          <User className="size-4" />
-        </Button>
+          <User className="size-3.5" />
+        </HeaderAction>
 
         {isUserMenuOpen && (
-          <div className="absolute right-0 mt-2 w-52 bg-popover border border-border rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in-50 duration-100">
-            <div className="px-4 py-3 border-b border-border">
+          <div className="absolute right-0 mt-2 w-56 bg-popover border border-border rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in-50 duration-100">
+            <div className="px-4 py-3 border-b border-border bg-muted/30">
               <p className="text-xs font-semibold text-popover-foreground">
                 {user ? `${user.firstName} ${user.lastName}` : 'User Account'}
               </p>
@@ -186,21 +211,50 @@ export function TopHeader() {
               )}
             </div>
 
-            <div className="py-1">
+            <div className="py-1 text-xs">
               <Link
                 href="/profile"
                 onClick={() => setIsUserMenuOpen(false)}
-                className="block px-4 py-2 text-xs text-popover-foreground hover:bg-input text-left transition-colors"
+                className="flex items-center gap-2.5 px-4 py-2 text-popover-foreground hover:bg-input text-left transition-colors"
               >
-                Profile & Security
+                <User className="size-3.5 text-muted-foreground" />
+                <span>My Profile</span>
               </Link>
               <Link
-                href="/settings"
+                href="/notifications"
                 onClick={() => setIsUserMenuOpen(false)}
-                className="block px-4 py-2 text-xs text-popover-foreground hover:bg-input text-left transition-colors"
+                className="flex items-center gap-2.5 px-4 py-2 text-popover-foreground hover:bg-input text-left transition-colors"
               >
-                General Settings
+                <Bell className="size-3.5 text-muted-foreground" />
+                <span>Notification Center</span>
               </Link>
+              <Link
+                href="/settings/security"
+                onClick={() => setIsUserMenuOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2 text-popover-foreground hover:bg-input text-left transition-colors"
+              >
+                <ShieldCheck className="size-3.5 text-muted-foreground" />
+                <span>Security Sessions</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setTheme(theme === 'dark' ? 'light' : 'dark')
+                }}
+                className="w-full flex items-center justify-between px-4 py-2 text-popover-foreground hover:bg-input text-left transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  {mounted && theme === 'dark' ? (
+                    <Sun className="size-3.5 text-amber-500" />
+                  ) : (
+                    <Moon className="size-3.5 text-indigo-400" />
+                  )}
+                  <span>Appearance Mode</span>
+                </div>
+                <span className="text-[10px] uppercase font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                  {theme}
+                </span>
+              </button>
             </div>
 
             <div className="border-t border-border py-1">
@@ -210,10 +264,10 @@ export function TopHeader() {
                   setIsUserMenuOpen(false)
                   logout()
                 }}
-                className="w-full px-4 py-2 text-xs text-destructive hover:bg-input text-left transition-colors flex items-center gap-2"
+                className="w-full px-4 py-2 text-xs text-destructive hover:bg-input text-left transition-colors flex items-center gap-2.5"
               >
                 <LogOut className="size-3.5" />
-                Sign Out
+                <span>Sign Out</span>
               </button>
             </div>
           </div>

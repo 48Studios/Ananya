@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { DashboardLayout } from '@/components/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { LoadingState } from '@/components/ui/loading-state'
@@ -65,94 +64,88 @@ export default function NotificationCenterPage() {
   const urgentCount = notifications.filter((n) => n.priority === 'URGENT' || n.priority === 'HIGH').length
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <PageHeader
-          title="Notification Center"
-          description="Centralized event-driven communication feed and user notification preferences across all ERP modules."
-          breadcrumbs={[
-            { label: 'Dashboard', href: '/dashboard' },
-            { label: 'Notifications', href: '/notifications' },
-          ]}
-          actions={
-            <Button size="sm" onClick={handleMarkAllRead} disabled={unreadCount === 0}>
-              <CheckCheck className="w-3.5 h-3.5 mr-1.5" />
-              Mark All Read
-            </Button>
-          }
+    <div className="space-y-6">
+      <PageHeader
+        title="Notification Center"
+        description="Centralized event-driven communication feed and user notification preferences across all ERP modules."
+        actions={
+          <Button size="sm" onClick={handleMarkAllRead} disabled={unreadCount === 0}>
+            <CheckCheck className="w-3.5 h-3.5 mr-1.5" />
+            Mark All Read
+          </Button>
+        }
+      />
+
+      {/* Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          title="Total Notifications"
+          value={totalCount.toString()}
+          subtitle="All received events"
+          icon={Bell}
         />
-
-        {/* Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard
-            title="Total Notifications"
-            value={totalCount.toString()}
-            subtitle="All received events"
-            icon={Bell}
-          />
-          <StatCard
-            title="Unread Messages"
-            value={unreadCount.toString()}
-            subtitle="Requires user attention"
-            icon={Zap}
-          />
-          <StatCard
-            title="High Priority Alerts"
-            value={urgentCount.toString()}
-            subtitle="Urgent & High severity"
-            icon={ShieldAlert}
-          />
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 bg-card border border-border rounded-xl shadow-2xs">
-          <div className="flex items-center gap-3 text-xs">
-            <label className="flex items-center gap-2 cursor-pointer font-medium text-foreground">
-              <input
-                type="checkbox"
-                checked={unreadOnly}
-                onChange={(e) => setUnreadOnly(e.target.checked)}
-                className="rounded text-primary focus:ring-primary"
-              />
-              <span>Unread Only ({unreadCount})</span>
-            </label>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-            <select
-              value={moduleFilter}
-              onChange={(e) => setModuleFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-input/50 border border-border rounded-lg text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">All Modules</option>
-              <option value="Inventory">Inventory</option>
-              <option value="Procurement">Procurement</option>
-              <option value="Manufacturing">Manufacturing</option>
-              <option value="Projects">Projects</option>
-              <option value="Security">Security</option>
-              <option value="Documents">Documents</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Notifications Feed */}
-        {loading ? (
-          <LoadingState message="Loading Notifications Feed..." />
-        ) : error ? (
-          <ErrorState title="Error Loading Feed" message={error} onRetry={loadNotifications} />
-        ) : filteredNotifications.length === 0 ? (
-          <div className="py-12 text-center border border-dashed border-border rounded-xl text-xs text-muted-foreground">
-            No notifications found for selected filters.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredNotifications.map((notif) => (
-              <NotificationCard key={notif.id} notification={notif} onMarkRead={handleMarkRead} />
-            ))}
-          </div>
-        )}
+        <StatCard
+          title="Unread Messages"
+          value={unreadCount.toString()}
+          subtitle="Requires user attention"
+          icon={Zap}
+        />
+        <StatCard
+          title="High Priority Alerts"
+          value={urgentCount.toString()}
+          subtitle="Urgent & High severity"
+          icon={ShieldAlert}
+        />
       </div>
-    </DashboardLayout>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 bg-card border border-border rounded-xl shadow-2xs">
+        <div className="flex items-center gap-3 text-xs">
+          <label className="flex items-center gap-2 cursor-pointer font-medium text-foreground">
+            <input
+              type="checkbox"
+              checked={unreadOnly}
+              onChange={(e) => setUnreadOnly(e.target.checked)}
+              className="rounded text-primary focus:ring-primary"
+            />
+            <span>Unread Only ({unreadCount})</span>
+          </label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+          <select
+            value={moduleFilter}
+            onChange={(e) => setModuleFilter(e.target.value)}
+            className="px-2.5 py-1.5 bg-input/50 border border-border rounded-lg text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="">All Modules</option>
+            <option value="Inventory">Inventory</option>
+            <option value="Procurement">Procurement</option>
+            <option value="Manufacturing">Manufacturing</option>
+            <option value="Projects">Projects</option>
+            <option value="Security">Security</option>
+            <option value="Documents">Documents</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Notifications Feed */}
+      {loading ? (
+        <LoadingState message="Loading Notifications Feed..." />
+      ) : error ? (
+        <ErrorState title="Error Loading Feed" message={error} onRetry={loadNotifications} />
+      ) : filteredNotifications.length === 0 ? (
+        <div className="py-12 text-center border border-dashed border-border rounded-xl text-xs text-muted-foreground">
+          No notifications found for selected filters.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredNotifications.map((notif) => (
+            <NotificationCard key={notif.id} notification={notif} onMarkRead={handleMarkRead} />
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

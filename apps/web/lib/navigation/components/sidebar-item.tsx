@@ -27,7 +27,10 @@ export function SidebarItem({
   const { activePath, isItemPinned, togglePinnedItem } = useNavigation()
   const { hasPermission } = useAuth()
 
-  const isActive = activePath === item.href || activePath.startsWith(item.href + '/')
+  const isExactRoute = item.exact || item.href === '/reports' || item.href === '/'
+  const isActive = isExactRoute
+    ? activePath === item.href
+    : activePath === item.href || activePath.startsWith(item.href + '/')
   const pinned = isItemPinned(item.href)
 
   const [isHovered, setIsHovered] = useState(false)
