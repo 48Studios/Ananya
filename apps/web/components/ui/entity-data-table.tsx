@@ -259,10 +259,13 @@ export function EntityDataTable<TData, TValue>({
                 // Empty State
                 <tr>
                   <td colSpan={columns.length} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center justify-center space-y-2">
+                    <div className="flex flex-col items-center justify-center space-y-3">
                       <Inbox className="w-8 h-8 text-muted-foreground/60" />
-                      <p className="text-base font-medium text-foreground">{emptyTitle}</p>
-                      <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+                      <div className="space-y-1">
+                        <p className="text-base font-medium text-foreground">{emptyTitle}</p>
+                        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+                      </div>
+                      {actionButton && <div className="pt-1">{actionButton}</div>}
                     </div>
                   </td>
                 </tr>

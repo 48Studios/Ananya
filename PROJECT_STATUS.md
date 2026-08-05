@@ -16,11 +16,11 @@
 
 ## Current Vertical Slice
 
-**UI Migration Completion Audit**
+**Authentication & Session Security Hardening Sprint**
 
 ## Current Sprint Goal
 
-Complete the 100% migration from legacy UI/stub placeholders onto the production-ready v0 design system across all 46 routes in the Ananya ERP web platform. Connect all views to canonical PageHeader, StatCard, EntityDataTable, filter controls, action bars, and backend APIs. Verify 0 migration banners remain, 0 lint warnings, 0 type errors, 100% unit tests passing, and clean production build output.
+Harden session management, global 401 response interceptors, multi-tab session synchronization via `BroadcastChannel`, and automated login redirects on expired sessions across Ananya ERP. Ensure global API client (`api-client.ts`) handles 401 Unauthorized responses by clearing local tokens and cookies, broadcasting session expired signals across browser tabs (`auth-context.tsx`), rendering a security alert banner on `/login?expired=true`, and adding Playwright E2E security tests (`session-security.spec.ts`). Verify all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, `pnpm build`).
 
 ## Current Branch
 
@@ -28,7 +28,7 @@ Complete the 100% migration from legacy UI/stub placeholders onto the production
 
 ## Current Status
 
-🟢 UI Migration Completion Audit 100% Complete — Performed repository-wide audit and replaced every remaining stub page ("queued for feature migration", "under construction", "coming soon") with interactive, production-ready ERP views connected to backend APIs. Verified 0 placeholder banners remain across all 46 web routes, standardized Dodger Blue (#1E90FF) design system tokens, passed all quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, and `pnpm build`).
+🟢 Authentication & Session Security Hardening 100% Complete — Implemented global 401 interceptor in `api-client.ts`, token/cookie purge, `BroadcastChannel` multi-tab logout synchronization in `auth-context.tsx`, session expiration banner on `/login?expired=true`, and Playwright E2E security test suite `session-security.spec.ts`. Passed all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, and `pnpm build`).
 
 ---
 

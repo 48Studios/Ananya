@@ -6,66 +6,53 @@ import { ShoppingCart, CheckCircle2 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { EntityDataTable } from '@/components/ui/entity-data-table'
-
-interface PlannedPurchaseOrder {
-  id: string
-  plannedPoNumber: string
-  supplierName: string
-  componentSku: string
-  componentName: string
-  quantityToOrder: number
-  releaseDate: string
-}
-
-const mockPlannedPo: PlannedPurchaseOrder[] = [
-  {
-    id: 'ppo-101',
-    plannedPoNumber: 'PPO-2026-081',
-    supplierName: 'Global Microelectronics Co.',
-    componentSku: 'COMP-1001',
-    componentName: 'Microcontroller Unit ARM Cortex-M4',
-    quantityToOrder: 100,
-    releaseDate: '2026-02-06',
-  },
-]
+import { mrpApi, type PlannedPurchaseOrderDto } from '@/lib/api/mrp-api'
 
 export default function MrpPurchasesPage() {
-  const [orders] = React.useState<PlannedPurchaseOrder[]>(mockPlannedPo)
+  const [orders, setOrders] = React.useState<PlannedPurchaseOrderDto[]>([])
+  const [loading, setLoading] = React.useState(true)
 
-  const columns: ColumnDef<PlannedPurchaseOrder>[] = [
+  React.useEffect(() => {
+    mrpApi.getPurchaseRecommendations()
+      .then((data) => setOrders(data || []))
+      .catch(() => setOrders([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const columns: ColumnDef<PlannedPurchaseOrderDto>[] = [
     {
       accessorKey: 'plannedPoNumber',
       header: 'Planned PO No.',
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
-          {row.original.plannedPoNumber}
+          {row.original.plannedPoNumber || '-'}
         </span>
       ),
     },
     {
       accessorKey: 'supplierName',
       header: 'Suggested Vendor',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.supplierName}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.supplierName || 'Primary Vendor'}</span>,
     },
     {
       accessorKey: 'componentSku',
       header: 'Component',
       cell: ({ row }) => (
         <div>
-          <p className="font-mono text-xs font-semibold text-foreground">{row.original.componentSku}</p>
-          <p className="text-[11px] text-muted-foreground">{row.original.componentName}</p>
+          <p className="font-mono text-xs font-semibold text-foreground">{row.original.componentSku || '-'}</p>
+          <p className="text-[11px] text-muted-foreground">{row.original.componentName || '-'}</p>
         </div>
       ),
     },
     {
       accessorKey: 'quantityToOrder',
       header: 'Order Qty',
-      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-semibold">{row.original.quantityToOrder} units</span>,
+      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-semibold">{row.original.quantityToOrder || 0} units</span>,
     },
     {
       accessorKey: 'releaseDate',
       header: 'Must Release By',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground font-mono">{row.original.releaseDate}</span>,
+      cell: ({ row }) => <span className="text-xs text-muted-foreground font-mono">{row.original.releaseDate || 'Asap'}</span>,
     },
   ]
 
@@ -80,17 +67,17 @@ export default function MrpPurchasesPage() {
         <StatCard
           title="Planned Purchase Orders"
           value={orders.length}
-          icon={<ShoppingCart className="w-4 h-4 text-primary" />}
+          icon={ShoppingCart}
         />
         <StatCard
           title="Action Needed"
-          value="Release by Feb 6"
-          icon={<CheckCircle2 className="w-4 h-4 text-amber-500" />}
+          value={`${orders.length} Suggestions`}
+          icon={CheckCircle2}
         />
         <StatCard
           title="Vendor Allocation"
-          value="1 Vendor Matched"
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          value="Matched to Approved Vendors"
+          icon={CheckCircle2}
         />
       </div>
 
@@ -98,6 +85,9 @@ export default function MrpPurchasesPage() {
         data={orders}
         columns={columns}
         searchPlaceholder="Search planned purchase orders..."
+        loading={loading}
+        emptyTitle="No Planned Purchase Orders"
+        emptyMessage="No component purchase orders currently required."
       />
     </div>
   )

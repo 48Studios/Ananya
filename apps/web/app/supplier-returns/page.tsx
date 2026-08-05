@@ -2,53 +2,33 @@
 
 import * as React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Undo2, Plus, CheckCircle2, Clock, DollarSign } from 'lucide-react'
+import { Undo2, Plus, CheckCircle2, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { EntityDataTable, type FilterConfig } from '@/components/ui/entity-data-table'
+import { supplierReturnsApi, type SupplierReturnDto } from '@/lib/api/supplier-returns-api'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
-interface SupplierReturn {
-  id: string
-  returnNumber: string
-  supplierName: string
-  poNumber: string
-  totalAmount: number
-  status: 'DRAFT' | 'DISPATCHED' | 'CREDITED'
-  returnDate: string
-}
-
-const mockReturns: SupplierReturn[] = [
-  {
-    id: 'sret-1',
-    returnNumber: 'SR-2026-001',
-    supplierName: 'Global Microelectronics Co.',
-    poNumber: 'PO-2026-042',
-    totalAmount: 14200,
-    status: 'CREDITED',
-    returnDate: '2026-01-28',
-  },
-  {
-    id: 'sret-2',
-    returnNumber: 'SR-2026-002',
-    supplierName: 'Precision Steel Alloys',
-    poNumber: 'PO-2026-059',
-    totalAmount: 8950,
-    status: 'DISPATCHED',
-    returnDate: '2026-02-02',
-  },
-]
-
 export default function SupplierReturnsPage() {
-  const [returns] = React.useState<SupplierReturn[]>(mockReturns)
+  const [returns, setReturns] = React.useState<SupplierReturnDto[]>([])
+  const [loading, setLoading] = React.useState(true)
 
-  const totalValue = returns.reduce((acc, r) => acc + r.totalAmount, 0)
+  React.useEffect(() => {
+    supplierReturnsApi.getAll()
+      .then((data) => setReturns(data || []))
+      .catch(() => setReturns([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const totalValue = React.useMemo(() => {
+    return returns.reduce((acc, r) => acc + (r?.totalAmount || 0), 0)
+  }, [returns])
 
   const filterConfigs: FilterConfig[] = [
     {
-      id: 'status',
-      label: 'Status',
+      columnId: 'status',
+      title: 'Status',
       options: [
         { label: 'Draft', value: 'DRAFT' },
         { label: 'Dispatched', value: 'DISPATCHED' },
@@ -57,32 +37,32 @@ export default function SupplierReturnsPage() {
     },
   ]
 
-  const columns: ColumnDef<SupplierReturn>[] = [
+  const columns: ColumnDef<SupplierReturnDto>[] = [
     {
       accessorKey: 'returnNumber',
       header: 'Return No.',
       cell: ({ row }) => (
         <span className="font-mono text-xs font-semibold text-primary">
-          {row.original.returnNumber}
+          {row.original.returnNumber || '-'}
         </span>
       ),
     },
     {
       accessorKey: 'supplierName',
       header: 'Supplier',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.supplierName}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.supplierName || 'Supplier'}</span>,
     },
     {
       accessorKey: 'poNumber',
       header: 'Ref PO',
-      cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.poNumber}</span>,
+      cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.poNumber || '-'}</span>,
     },
     {
       accessorKey: 'totalAmount',
       header: 'Return Value',
       cell: ({ row }) => (
         <span className="font-mono text-xs font-semibold text-foreground">
-          {formatCurrency(row.original.totalAmount)}
+          {formatCurrency(row.original.totalAmount || 0)}
         </span>
       ),
     },
@@ -99,24 +79,24 @@ export default function SupplierReturnsPage() {
           )
         }
         return (
-          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-            <Clock className="w-3 h-3 mr-1" /> {s}
+          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+            <Clock className="w-3 h-3 mr-1" /> {s || 'DRAFT'}
           </span>
         )
       },
     },
     {
       accessorKey: 'returnDate',
-      header: 'Return Date',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatDate(row.original.returnDate)}</span>,
+      header: 'Date',
+      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.returnDate ? formatDate(row.original.returnDate) : '-'}</span>,
     },
   ]
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Supplier Returns & Debit Notes"
-        description="Process vendor returns for rejected material, damaged shipments, and debit note reconciliations."
+        title="Supplier Returns & Debit Memos"
+        description="Process non-conforming vendor material returns, debit memo issuances, and credit receipts."
         actions={
           <Button size="sm">
             <Plus className="w-4 h-4 mr-1.5" />
@@ -127,27 +107,36 @@ export default function SupplierReturnsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          title="Total Returns"
+          title="Total Returns Filed"
           value={returns.length}
-          icon={<Undo2 className="w-4 h-4 text-primary" />}
+          icon={Undo2}
         />
         <StatCard
-          title="Total Return Value"
+          title="Return Valuation"
           value={formatCurrency(totalValue)}
-          icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
+          icon={CheckCircle2}
         />
         <StatCard
-          title="Pending Vendor Credit"
-          value={returns.filter((r) => r.status !== 'CREDITED').length}
-          icon={<Clock className="w-4 h-4 text-amber-500" />}
+          title="Credited Returns"
+          value={returns.filter((r) => r?.status === 'CREDITED').length}
+          icon={CheckCircle2}
         />
       </div>
 
       <EntityDataTable
         data={returns}
         columns={columns}
-        searchPlaceholder="Search vendor returns by number, supplier, or PO..."
+        searchPlaceholder="Search supplier returns by return number or supplier..."
+        loading={loading}
         filterConfigs={filterConfigs}
+        emptyTitle="No Supplier Returns Found"
+        emptyMessage="No supplier material returns recorded."
+        actionButton={
+          <Button size="sm">
+            <Plus className="w-4 h-4 mr-1.5" />
+            Create Supplier Return
+          </Button>
+        }
       />
     </div>
   )

@@ -12,6 +12,31 @@ export class ApiError extends Error {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 const TOKEN_KEY = 'ananya_auth_token';
 
+let onUnauthorizedHandler: (() => void) | null = null;
+
+export function registerUnauthorizedHandler(handler: () => void) {
+  onUnauthorizedHandler = handler;
+}
+
+export function clearStoredAuthToken(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(TOKEN_KEY);
+  if (typeof document !== 'undefined') {
+    document.cookie = 'ananya_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  }
+}
+
+export function broadcastAuthEvent(type: 'LOGOUT' | 'SESSION_EXPIRED'): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const channel = new BroadcastChannel('ananya_auth_channel');
+    channel.postMessage({ type, timestamp: Date.now() });
+    channel.close();
+  } catch {
+    // Fallback for environment where BroadcastChannel is unavailable
+  }
+}
+
 function getStoredToken(): string | null {
   if (typeof window === 'undefined') return null;
   let token = localStorage.getItem(TOKEN_KEY);
@@ -52,6 +77,20 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const message = Array.isArray(errorData.message)
       ? errorData.message.join(', ')
       : errorData.message || response.statusText || 'An unexpected API error occurred';
+
+    // Global 401 Unauthorized Interceptor
+    if (response.status === 401 && !endpoint.includes('/auth/login')) {
+      clearStoredAuthToken();
+      broadcastAuthEvent('SESSION_EXPIRED');
+
+      if (onUnauthorizedHandler) {
+        onUnauthorizedHandler();
+      }
+
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login?expired=true';
+      }
+    }
 
     throw new ApiError(response.status, message, errorData);
   }

@@ -292,6 +292,7 @@ export const navigationModules: NavigationModule[] = [
           { id: 'mfg-works', title: 'Work Orders', href: '/work-orders', icon: <Wrench className="w-4 h-4" /> },
           { id: 'mfg-consumption', title: 'Material Consumption', href: '/material-consumption', icon: <ListFilter className="w-4 h-4" /> },
           { id: 'mfg-finished', title: 'Finished Goods', href: '/finished-goods', icon: <BadgeCheck className="w-4 h-4" /> },
+          { id: 'mfg-maintenance', title: 'Equipment Maintenance', href: '/maintenance', icon: <Wrench className="w-4 h-4" /> },
           {
             id: 'mfg-mrp-group',
             title: 'MRP & Material Planning',

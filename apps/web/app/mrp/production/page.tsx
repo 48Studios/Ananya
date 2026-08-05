@@ -6,37 +6,26 @@ import { Factory, Play } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { EntityDataTable } from '@/components/ui/entity-data-table'
-
-interface PlannedProductionOrder {
-  id: string
-  plannedOrderNumber: string
-  assemblySku: string
-  assemblyName: string
-  suggestedQuantity: number
-  scheduledStartDate: string
-}
-
-const mockPlannedProd: PlannedProductionOrder[] = [
-  {
-    id: 'ppo-1',
-    plannedOrderNumber: 'PWO-2026-001',
-    assemblySku: 'ASY-MOTOR-5K',
-    assemblyName: 'Precision Spindle Subassembly',
-    suggestedQuantity: 15,
-    scheduledStartDate: '2026-02-12',
-  },
-]
+import { mrpApi, type PlannedProductionOrderDto } from '@/lib/api/mrp-api'
 
 export default function MrpProductionPage() {
-  const [orders] = React.useState<PlannedProductionOrder[]>(mockPlannedProd)
+  const [orders, setOrders] = React.useState<PlannedProductionOrderDto[]>([])
+  const [loading, setLoading] = React.useState(true)
 
-  const columns: ColumnDef<PlannedProductionOrder>[] = [
+  React.useEffect(() => {
+    mrpApi.getProductionRecommendations()
+      .then((data) => setOrders(data || []))
+      .catch(() => setOrders([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const columns: ColumnDef<PlannedProductionOrderDto>[] = [
     {
       accessorKey: 'plannedOrderNumber',
       header: 'Planned Order No.',
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
-          {row.original.plannedOrderNumber}
+          {row.original.plannedOrderNumber || '-'}
         </span>
       ),
     },
@@ -45,20 +34,20 @@ export default function MrpProductionPage() {
       header: 'Assembly SKU',
       cell: ({ row }) => (
         <div>
-          <p className="font-mono text-xs font-semibold text-foreground">{row.original.assemblySku}</p>
-          <p className="text-[11px] text-muted-foreground">{row.original.assemblyName}</p>
+          <p className="font-mono text-xs font-semibold text-foreground">{row.original.assemblySku || '-'}</p>
+          <p className="text-[11px] text-muted-foreground">{row.original.assemblyName || '-'}</p>
         </div>
       ),
     },
     {
       accessorKey: 'suggestedQuantity',
       header: 'Suggested Batch Qty',
-      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-semibold">{row.original.suggestedQuantity} units</span>,
+      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-semibold">{row.original.suggestedQuantity || 0} units</span>,
     },
     {
       accessorKey: 'scheduledStartDate',
       header: 'Scheduled Start',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.scheduledStartDate}</span>,
+      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.scheduledStartDate || 'Scheduled'}</span>,
     },
   ]
 
@@ -73,17 +62,17 @@ export default function MrpProductionPage() {
         <StatCard
           title="Planned Orders"
           value={orders.length}
-          icon={<Factory className="w-4 h-4 text-primary" />}
+          icon={Factory}
         />
         <StatCard
           title="Actionable Orders"
-          value="1 Ready to Release"
-          icon={<Play className="w-4 h-4 text-emerald-500" />}
+          value={`${orders.length} Orders`}
+          icon={Play}
         />
         <StatCard
           title="Capacity Verified"
-          value="100% Work Center Fit"
-          icon={<Play className="w-4 h-4 text-blue-500" />}
+          value="100% Fit"
+          icon={Play}
         />
       </div>
 
@@ -91,6 +80,9 @@ export default function MrpProductionPage() {
         data={orders}
         columns={columns}
         searchPlaceholder="Search planned production orders..."
+        loading={loading}
+        emptyTitle="No Planned Production Orders"
+        emptyMessage="No planned manufacturing orders currently required."
       />
     </div>
   )

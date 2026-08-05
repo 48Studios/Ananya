@@ -2,6 +2,11 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { authApi, UserProfileDto, PermissionGroup } from '../api/auth-api'
+import {
+  registerUnauthorizedHandler,
+  clearStoredAuthToken,
+  broadcastAuthEvent,
+} from '../api-client'
 
 interface AuthContextType {
   user: UserProfileDto | null
@@ -28,6 +33,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([])
   const [loading, setLoading] = useState(true)
 
+  const clearLocalAuthState = useCallback(() => {
+    clearStoredAuthToken()
+    setUser(null)
+    setToken(null)
+    setPermissions([])
+    setPermissionGroups([])
+    setLoading(false)
+  }, [])
+
   const refreshUser = useCallback(async () => {
     let savedToken = localStorage.getItem(TOKEN_KEY)
     if (!savedToken && typeof document !== 'undefined') {
@@ -36,10 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!savedToken) {
-      setUser(null)
-      setPermissions([])
-      setToken(null)
-      setLoading(false)
+      clearLocalAuthState()
       return
     }
 
@@ -49,27 +60,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(res.user)
       setPermissions(res.permissions || [])
       setPermissionGroups(res.permissionGroups || [])
-      // Ensure cookie and localStorage stay synchronized
       if (typeof document !== 'undefined') {
         document.cookie = `ananya_auth_token=${savedToken}; path=/; max-age=604800; SameSite=Lax`
       }
       localStorage.setItem(TOKEN_KEY, savedToken)
     } catch {
-      localStorage.removeItem(TOKEN_KEY)
-      if (typeof document !== 'undefined') {
-        document.cookie = 'ananya_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-      }
-      setUser(null)
-      setPermissions([])
-      setToken(null)
+      clearLocalAuthState()
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [clearLocalAuthState])
 
   useEffect(() => {
     refreshUser()
   }, [refreshUser])
+
+  // Register 401 unauthorized handler & multi-tab listeners
+  useEffect(() => {
+    registerUnauthorizedHandler(() => {
+      clearLocalAuthState()
+    })
+
+    // Multi-tab BroadcastChannel listener
+    let channel: BroadcastChannel | null = null
+    try {
+      channel = new BroadcastChannel('ananya_auth_channel')
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'LOGOUT' || event.data?.type === 'SESSION_EXPIRED') {
+          clearLocalAuthState()
+          if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+            window.location.href = '/login?expired=true'
+          }
+        }
+      }
+    } catch {
+      // BroadcastChannel fallback
+    }
+
+    // Storage event listener fallback for older browsers
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === TOKEN_KEY && !event.newValue) {
+        clearLocalAuthState()
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login?expired=true'
+        }
+      }
+    }
+
+    window.addEventListener('storage', handleStorage)
+
+    return () => {
+      if (channel) channel.close()
+      window.removeEventListener('storage', handleStorage)
+    }
+  }, [clearLocalAuthState])
 
   const login = async (email: string, password: string) => {
     const res = await authApi.login(email, password)
@@ -87,16 +131,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await authApi.logout()
     } catch {
-      // Ignore logout errors
+      // Ignore logout API errors
     } finally {
-      localStorage.removeItem(TOKEN_KEY)
-      if (typeof document !== 'undefined') {
-        document.cookie = 'ananya_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      clearLocalAuthState()
+      broadcastAuthEvent('LOGOUT')
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login'
       }
-      setToken(null)
-      setUser(null)
-      setPermissions([])
-      setPermissionGroups([])
     }
   }
 
@@ -146,32 +187,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
 }
 
-export interface PermissionGuardProps {
-  permission: string
-  children: React.ReactNode
-  fallback?: React.ReactNode
-}
-
-/**
- * PermissionGuard component.
- * Hides unauthorized actions/buttons (not merely disabling them).
- */
 export function PermissionGuard({
   permission,
   children,
   fallback = null,
-}: PermissionGuardProps) {
+}: {
+  permission: string
+  children: React.ReactNode
+  fallback?: React.ReactNode
+}) {
   const { hasPermission } = useAuth()
-
   if (!hasPermission(permission)) {
     return <>{fallback}</>
   }
-
   return <>{children}</>
 }

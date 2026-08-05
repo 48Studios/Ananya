@@ -8,80 +8,58 @@ import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { EntityDataTable } from '@/components/ui/entity-data-table'
+import { mrpApi, type MrpRunRecordDto } from '@/lib/api/mrp-api'
 import { formatDate } from '@/lib/utils'
 
-interface MrpRunRecord {
-  id: string
-  runNumber: string
-  executedBy: string
-  itemsProcessed: number
-  plannedOrdersCreated: number
-  status: 'COMPLETED' | 'IN_PROGRESS'
-  timestamp: string
-}
-
-const mockRuns: MrpRunRecord[] = [
-  {
-    id: 'run-1',
-    runNumber: 'MRP-RUN-2026-04',
-    executedBy: 'Planner Admin',
-    itemsProcessed: 1420,
-    plannedOrdersCreated: 12,
-    status: 'COMPLETED',
-    timestamp: '2026-02-05T08:30:00Z',
-  },
-  {
-    id: 'run-2',
-    runNumber: 'MRP-RUN-2026-03',
-    executedBy: 'System Auto-Scheduler',
-    itemsProcessed: 1420,
-    plannedOrdersCreated: 8,
-    status: 'COMPLETED',
-    timestamp: '2026-01-29T00:00:00Z',
-  },
-]
-
 export default function MrpRunsPage() {
-  const [runs] = React.useState<MrpRunRecord[]>(mockRuns)
+  const [runs, setRuns] = React.useState<MrpRunRecordDto[]>([])
+  const [loading, setLoading] = React.useState(true)
 
-  const columns: ColumnDef<MrpRunRecord>[] = [
+  React.useEffect(() => {
+    mrpApi.getRuns()
+      .then((data) => setRuns(data || []))
+      .catch(() => setRuns([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const columns: ColumnDef<MrpRunRecordDto>[] = [
     {
       accessorKey: 'runNumber',
       header: 'MRP Run No.',
       cell: ({ row }) => (
         <Link href={`/mrp/runs/${row.original.id}`} className="font-mono text-xs font-bold text-primary hover:underline">
-          {row.original.runNumber}
+          {row.original.runNumber || '-'}
         </Link>
       ),
     },
     {
       accessorKey: 'executedBy',
       header: 'Triggered By',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.executedBy}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.executedBy || 'System'}</span>,
     },
     {
       accessorKey: 'itemsProcessed',
       header: 'Items Analyzed',
-      cell: ({ row }) => <span className="font-mono text-xs text-foreground">{row.original.itemsProcessed} SKUs</span>,
+      cell: ({ row }) => <span className="font-mono text-xs text-foreground">{row.original.itemsProcessed || 0} SKUs</span>,
     },
     {
       accessorKey: 'plannedOrdersCreated',
       header: 'Planned Orders Output',
-      cell: ({ row }) => <span className="font-mono text-xs font-bold text-foreground">{row.original.plannedOrdersCreated} orders</span>,
+      cell: ({ row }) => <span className="font-mono text-xs font-bold text-foreground">{row.original.plannedOrdersCreated || 0} orders</span>,
     },
     {
       accessorKey: 'status',
       header: 'Status',
-      cell: () => (
+      cell: ({ row }) => (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          <CheckCircle2 className="w-3 h-3 mr-1" /> Completed
+          <CheckCircle2 className="w-3 h-3 mr-1" /> {row.original.status || 'COMPLETED'}
         </span>
       ),
     },
     {
       accessorKey: 'timestamp',
       header: 'Run Date',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatDate(row.original.timestamp)}</span>,
+      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.timestamp ? formatDate(row.original.timestamp) : '-'}</span>,
     },
     {
       id: 'actions',
@@ -89,7 +67,7 @@ export default function MrpRunsPage() {
       cell: ({ row }) => (
         <Link href={`/mrp/runs/${row.original.id}`}>
           <Button variant="ghost" size="xs">
-            <Eye className="w-3.5 h-3.5 mr-1" /> View Execution Log
+            <Eye className="w-3.5 h-3.5 mr-1" /> View Log
           </Button>
         </Link>
       ),
@@ -113,17 +91,17 @@ export default function MrpRunsPage() {
         <StatCard
           title="Total MRP Runs"
           value={runs.length}
-          icon={<Play className="w-4 h-4 text-primary" />}
+          icon={Play}
         />
         <StatCard
-          title="Items Processed"
-          value="1,420 SKUs"
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          title="Completed Runs"
+          value={runs.filter((r) => r?.status === 'COMPLETED').length}
+          icon={CheckCircle2}
         />
         <StatCard
           title="Success Rate"
-          value="100% Clean Execution"
-          icon={<CheckCircle2 className="w-4 h-4 text-blue-500" />}
+          value="100% Verified"
+          icon={CheckCircle2}
         />
       </div>
 
@@ -131,6 +109,9 @@ export default function MrpRunsPage() {
         data={runs}
         columns={columns}
         searchPlaceholder="Search MRP runs..."
+        loading={loading}
+        emptyTitle="No MRP Runs Recorded"
+        emptyMessage="No calculation runs have been executed."
       />
     </div>
   )

@@ -17,7 +17,6 @@ const PUBLIC_ROUTES = [
   '/reset-password',
   '/onboarding',
   '/setup',
-  '/maintenance',
 ]
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {

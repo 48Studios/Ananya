@@ -16,13 +16,17 @@ export default function ProcurementPage() {
 
   React.useEffect(() => {
     purchaseOrdersApi.getAll()
-      .then((data) => setOrders(data))
+      .then((data) => setOrders(data || []))
       .catch(() => setOrders([]))
       .finally(() => setLoading(false))
   }, [])
 
   const totalProcurementSpend = React.useMemo(() => {
-    return orders.reduce((acc, po) => acc + (po.grandTotal || 0), 0)
+    return orders.reduce((acc, po) => acc + (po?.grandTotal || 0), 0)
+  }, [orders])
+
+  const draftCount = React.useMemo(() => {
+    return orders.filter((o) => o?.status === 'DRAFT').length
   }, [orders])
 
   const columns: ColumnDef<PurchaseOrderDto>[] = [
@@ -31,14 +35,14 @@ export default function ProcurementPage() {
       header: 'PO Number',
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
-          {row.original.poNumber}
+          {row.original.poNumber || '-'}
         </span>
       ),
     },
     {
       accessorKey: 'supplierId',
       header: 'Supplier ID',
-      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-medium">{row.original.supplierId}</span>,
+      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-medium">{row.original.supplierId || '-'}</span>,
     },
     {
       accessorKey: 'grandTotal',
@@ -54,14 +58,14 @@ export default function ProcurementPage() {
       header: 'Status',
       cell: ({ row }) => (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-          <CheckCircle2 className="w-3 h-3 mr-1" /> {row.original.status}
+          <CheckCircle2 className="w-3 h-3 mr-1" /> {row.original.status || 'DRAFT'}
         </span>
       ),
     },
     {
       accessorKey: 'createdAt',
       header: 'Created Date',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatDate(row.original.createdAt)}</span>,
+      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.createdAt ? formatDate(row.original.createdAt) : '-'}</span>,
     },
   ]
 
@@ -90,8 +94,8 @@ export default function ProcurementPage() {
           icon={DollarSign}
         />
         <StatCard
-          title="Pending Requisitions"
-          value="3 Requisitions"
+          title="Draft Orders"
+          value={`${draftCount} Drafts`}
           icon={FileText}
         />
       </div>
@@ -99,8 +103,16 @@ export default function ProcurementPage() {
       <EntityDataTable
         data={orders}
         columns={columns}
-        searchPlaceholder="Search procurement orders by PO number or status..."
+        searchPlaceholder="Search purchase orders..."
         loading={loading}
+        emptyTitle="No Purchase Orders Found"
+        emptyMessage="No active purchase orders match your filter."
+        actionButton={
+          <Button size="sm">
+            <Plus className="w-4 h-4 mr-1.5" />
+            Create Purchase Order
+          </Button>
+        }
       />
     </div>
   )

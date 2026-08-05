@@ -6,61 +6,50 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard } from '@/components/ui/stat-card'
 import { EntityDataTable } from '@/components/ui/entity-data-table'
-
-interface MaterialShortage {
-  id: string
-  sku: string
-  componentName: string
-  requiredByDate: string
-  leadTimeDays: number
-  suggestedPoQuantity: number
-}
-
-const mockShortages: MaterialShortage[] = [
-  {
-    id: 'mat-1',
-    sku: 'COMP-1001',
-    componentName: 'Microcontroller Unit ARM Cortex-M4',
-    requiredByDate: '2026-02-20',
-    leadTimeDays: 14,
-    suggestedPoQuantity: 100,
-  },
-]
+import { mrpApi, type MaterialShortageDto } from '@/lib/api/mrp-api'
 
 export default function MrpMaterialsPage() {
-  const [shortages] = React.useState<MaterialShortage[]>(mockShortages)
+  const [shortages, setShortages] = React.useState<MaterialShortageDto[]>([])
+  const [loading, setLoading] = React.useState(true)
 
-  const columns: ColumnDef<MaterialShortage>[] = [
+  React.useEffect(() => {
+    mrpApi.getShortages()
+      .then((data) => setShortages(data || []))
+      .catch(() => setShortages([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const columns: ColumnDef<MaterialShortageDto>[] = [
     {
       accessorKey: 'sku',
       header: 'Shortage Component SKU',
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
-          {row.original.sku}
+          {row.original.sku || '-'}
         </span>
       ),
     },
     {
       accessorKey: 'componentName',
       header: 'Description',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.componentName}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.componentName || '-'}</span>,
     },
     {
       accessorKey: 'requiredByDate',
       header: 'Required By Date',
-      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-semibold">{row.original.requiredByDate}</span>,
+      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-semibold">{row.original.requiredByDate || 'Immediate'}</span>,
     },
     {
       accessorKey: 'leadTimeDays',
       header: 'Supplier Lead Time',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.leadTimeDays} days</span>,
+      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.leadTimeDays || 0} days</span>,
     },
     {
       accessorKey: 'suggestedPoQuantity',
       header: 'Suggested Reorder Qty',
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
-          {row.original.suggestedPoQuantity} units
+          {row.original.suggestedPoQuantity || 0} units
         </span>
       ),
     },
@@ -77,17 +66,17 @@ export default function MrpMaterialsPage() {
         <StatCard
           title="Component Shortages"
           value={shortages.length}
-          icon={<AlertTriangle className="w-4 h-4 text-amber-500" />}
+          icon={AlertTriangle}
         />
         <StatCard
           title="Critical Lead Horizon"
-          value="< 14 Days"
-          icon={<CheckCircle2 className="w-4 h-4 text-blue-500" />}
+          value="Calculated Dynamic"
+          icon={CheckCircle2}
         />
         <StatCard
           title="Reorder Actionable"
-          value="1 Pending PO"
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          value={`${shortages.length} Shortages`}
+          icon={CheckCircle2}
         />
       </div>
 
@@ -95,6 +84,9 @@ export default function MrpMaterialsPage() {
         data={shortages}
         columns={columns}
         searchPlaceholder="Search material shortages..."
+        loading={loading}
+        emptyTitle="No Material Shortages"
+        emptyMessage="All material demand is satisfied by available inventory and scheduled PO receipts."
       />
     </div>
   )

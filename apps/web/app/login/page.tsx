@@ -2,21 +2,25 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth/auth-context'
 import { ShieldCheck, Eye, EyeOff, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-export default function LoginPage() {
+function LoginFormContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { login } = useAuth()
+  const isExpired = searchParams?.get('expired') === 'true'
 
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [showPassword, setShowPassword] = React.useState(false)
   const [rememberMe, setRememberMe] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const [error, setError] = React.useState<string | null>(
+    isExpired ? 'Your session has expired. Please sign in again.' : null,
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,29 +63,30 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="text-xs text-muted-foreground font-mono flex items-center justify-between border-t border-border pt-4">
-          <span>© 2026 48 Studios. All rights reserved.</span>
-          <span>v1.0.0-RC1</span>
+        <div className="text-xs text-muted-foreground">
+          &copy; {new Date().getFullYear()} 48 Studios. All rights reserved. Version 1.0.0-RC1
         </div>
       </div>
 
-      {/* Right Login Form */}
-      <div className="flex flex-col justify-center items-center p-6 sm:p-12">
-        <div className="w-full max-w-sm space-y-6">
+      {/* Right Login Form Panel */}
+      <div className="flex items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-md space-y-8">
           <div className="space-y-2 text-center lg:text-left">
-            <h2 className="text-xl font-extrabold tracking-tight text-foreground">Sign in to your workspace</h2>
-            <p className="text-xs text-muted-foreground">Enter your enterprise credentials to access Ananya ERP</p>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Sign in to your workspace</h2>
+            <p className="text-sm text-muted-foreground">
+              Enter your enterprise credentials to access Ananya ERP.
+            </p>
           </div>
 
           {error && (
-            <div className="p-3 text-xs bg-destructive/10 border border-destructive/30 text-destructive rounded-xl">
+            <div className="p-3 text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1">
-              <label className="font-semibold text-foreground">Work Email</label>
+              <label className="text-xs font-medium text-foreground">Email Address</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
                 <input
@@ -89,16 +94,16 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@48studios.com"
-                  className="w-full pl-9 pr-3 py-2 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
+                  placeholder="admin@48studios.com"
+                  className="w-full h-10 pl-9 pr-3 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <label className="font-semibold text-foreground">Password</label>
-                <Link href="/forgot-password" className="text-[11px] text-primary hover:underline">
+                <label className="text-xs font-medium text-foreground">Password</label>
+                <Link href="/forgot-password" className="text-xs text-primary hover:underline font-medium">
                   Forgot password?
                 </Link>
               </div>
@@ -110,7 +115,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full pl-9 pr-10 py-2 bg-input border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground"
+                  className="w-full h-10 pl-9 pr-10 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <button
                   type="button"
@@ -123,35 +128,48 @@ export default function LoginPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded text-primary focus:ring-primary"
+                  className="rounded border-input text-primary focus:ring-primary"
                 />
-                <span className="text-xs text-muted-foreground font-medium">Remember this browser</span>
+                <span>Remember me for 30 days</span>
               </label>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-10" disabled={loading}>
               {loading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Authenticating...
+                </>
               ) : (
-                <ArrowRight className="w-4 h-4 mr-2" />
+                <>
+                  Sign In
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </>
               )}
-              Sign In
             </Button>
           </form>
 
-          <div className="text-center pt-4 border-t border-border text-xs text-muted-foreground">
-            First launch?{' '}
-            <Link href="/setup" className="text-primary font-semibold hover:underline">
-              Run Organization Setup Wizard →
+          <div className="text-center text-xs text-muted-foreground">
+            Need access to Ananya ERP?{' '}
+            <Link href="/onboarding" className="text-primary font-medium hover:underline">
+              Request workspace invitation
             </Link>
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <LoginFormContent />
+    </React.Suspense>
   )
 }

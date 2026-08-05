@@ -33,26 +33,6 @@ export class UsersService implements OnModuleInit {
 
   async ensureInitialAdminUser() {
     await this.rolesService.ensureSystemRoles();
-    const allRoles = await this.rolesService.findAll();
-    const adminRole = allRoles.find((r) => r.name === 'Administrator');
-
-    const [existingAdmin] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, 'jrsarath@48studios.internal'))
-      .limit(1);
-
-    if (!existingAdmin) {
-      await db.insert(users).values({
-        email: 'jrsarath@48studios.internal',
-        passwordHash: hashPassword('AdminPass123!'),
-        firstName: 'J.',
-        lastName: 'Sarath',
-        department: 'Operations',
-        roleId: adminRole?.id || null,
-        status: 'ACTIVE',
-      });
-    }
   }
 
   async findAll(search?: string, roleId?: string, status?: string) {
