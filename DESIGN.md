@@ -58,6 +58,39 @@ The user's data should always be the primary focus.
 
 ---
 
+# Canonical Status System & Indicators
+
+Every status badge in Ananya ERP must use the shared `<StatusBadge />` primitive ([status-badge.tsx](file:///Users/jrsarath/Documents/GitHub/ananya/apps/web/components/ui/status-badge.tsx)) with standard `w-3 h-3` icons, semantic HSL colors, and font-mono styling:
+
+- **Success (`ACTIVE`, `COMPLETED`, `SUCCESS`, `FULFILLED`, `APPROVED`, `RESOLVED`, `CREDITED`)**: Emerald background (`bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20`), `<CheckCircle2 className="w-3 h-3" />`.
+- **Warning (`PENDING`, `IN_REVIEW`, `ON_HOLD`, `PAUSED`, `OVERDUE`, `SHORTAGE`)**: Amber background (`bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20`), `<Clock className="w-3 h-3" />` / `<Pause className="w-3 h-3" />`.
+- **Error (`REJECTED`, `CANCELLED`, `FAILED`, `BLOCKED`, `UNPAID`)**: Destructive background (`bg-destructive/10 text-destructive border-destructive/20`), `<XCircle className="w-3 h-3" />`.
+- **Info (`SCHEDULED`, `SUBMITTED`, `OPEN`, `IN_PROGRESS`, `ISSUED`, `DISPATCHED`)**: Blue background (`bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20`), `<Clock className="w-3 h-3" />` / `<RefreshCw className="w-3 h-3" />`.
+- **Draft / Neutral (`DRAFT`, `INACTIVE`, `ARCHIVED`)**: Slate background (`bg-muted text-muted-foreground border-border`), `<FileText className="w-3 h-3" />` / `<Archive className="w-3 h-3" />`.
+
+---
+
+# Form Architecture & Spacing Standards
+
+All forms, dialogs, drawers, and setup wizards must adhere to standard form spacing scale:
+- **Control Height**: `h-9` (`36px`) for standard controls; `h-8` (`32px`) for small; `h-10` (`40px`) for large input fields.
+- **Label → Input Spacing**: `mb-1.5` (`6px`)
+- **Input → Help Text Spacing**: `mt-1.5` (`6px`)
+- **Validation Error Message**: `mt-1 text-[11px] text-destructive` (`4px`)
+- **Field → Field Spacing**: `space-y-4` (`16px`)
+- **Section Spacing**: `space-y-6` (`24px`)
+
+---
+
+# Organization Setup & Initial Administrator
+
+During organization setup:
+- Organization Name is required.
+- Optional fields (`legalName`, `supportPhone`, `address`, `website`, `country`, `primaryTimezone`, `baseCurrency`, `taxId`) persist `null`/empty values when omitted.
+- The initial root administrator created during setup automatically receives the system `Admin` role (`eq(roles.name, 'Admin')`) with full administrative privileges.
+
+---
+
 ## Whitespace Creates Hierarchy
 
 Prefer spacing over borders.

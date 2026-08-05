@@ -64,11 +64,13 @@ export class SetupOrganizationDto {
   @IsString()
   companyName!: string;
 
+  @IsOptional()
   @IsString()
-  legalName!: string;
+  legalName?: string;
 
+  @IsOptional()
   @IsString()
-  taxId!: string;
+  taxId?: string;
 
   @IsEmail()
   adminEmail!: string;
@@ -81,6 +83,22 @@ export class SetupOrganizationDto {
 
   @IsString()
   adminLastName!: string;
+
+  @IsOptional()
+  @IsString()
+  supportPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  website?: string;
+
+  @IsOptional()
+  @IsString()
+  country?: string;
 
   @IsOptional()
   @IsString()

@@ -87,8 +87,12 @@ export const authApi = {
 
   setupOrganization: (data: {
     companyName: string;
-    legalName: string;
-    taxId: string;
+    legalName?: string;
+    taxId?: string;
+    supportPhone?: string;
+    address?: string;
+    website?: string;
+    country?: string;
     adminEmail: string;
     adminPassword: string;
     adminFirstName: string;

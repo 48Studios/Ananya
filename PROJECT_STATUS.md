@@ -16,11 +16,11 @@
 
 ## Current Vertical Slice
 
-**Authentication & Session Security Hardening Sprint**
+**Authentication & Organization Onboarding Architecture Refactor**
 
 ## Current Sprint Goal
 
-Harden session management, global 401 response interceptors, multi-tab session synchronization via `BroadcastChannel`, and automated login redirects on expired sessions across Ananya ERP. Ensure global API client (`api-client.ts`) handles 401 Unauthorized responses by clearing local tokens and cookies, broadcasting session expired signals across browser tabs (`auth-context.tsx`), rendering a security alert banner on `/login?expired=true`, and adding Playwright E2E security tests (`session-security.spec.ts`). Verify all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, `pnpm build`).
+Refactor onboarding architecture to separate **Organization Creation** (no invitation required; user becomes Owner/Admin) from **Organization Membership** (requires invitation link/token). Update landing page (`/onboarding`), create organization wizard (`/onboarding/create`), join organization token verification (`/onboarding/join`), documentation ([docs/AUTHENTICATION.md](file:///Users/jrsarath/Documents/GitHub/ananya/docs/AUTHENTICATION.md)), and Playwright E2E test suite (`tests/e2e/onboarding.spec.ts`). Verify all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, `pnpm build`).
 
 ## Current Branch
 
@@ -28,7 +28,7 @@ Harden session management, global 401 response interceptors, multi-tab session s
 
 ## Current Status
 
-🟢 Authentication & Session Security Hardening 100% Complete — Implemented global 401 interceptor in `api-client.ts`, token/cookie purge, `BroadcastChannel` multi-tab logout synchronization in `auth-context.tsx`, session expiration banner on `/login?expired=true`, and Playwright E2E security test suite `session-security.spec.ts`. Passed all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, and `pnpm build`).
+🟢 Authentication & Organization Onboarding Architecture Refactor 100% Complete — Separated Organization Creation from Organization Membership. Implemented 3 onboarding choices on `/onboarding`, 2-step organization creation wizard on `/onboarding/create` (where user automatically becomes Organization Owner with system `Admin` role privileges), invitation verification on `/onboarding/join`, technical architecture documentation ([docs/AUTHENTICATION.md](file:///Users/jrsarath/Documents/GitHub/ananya/docs/AUTHENTICATION.md)), and Playwright E2E tests (`tests/e2e/onboarding.spec.ts`). Passed all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, and `pnpm build`).
 
 ---
 

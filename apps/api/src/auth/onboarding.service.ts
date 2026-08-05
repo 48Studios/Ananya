@@ -55,7 +55,8 @@ export class OnboardingService {
       const [adminRole] = await db
         .select()
         .from(roles)
-        .where(eq(roles.isSystem, true));
+        .where(eq(roles.name, 'Admin'))
+        .limit(1);
 
       // Create Root Admin User
       const [adminUser] = await db
@@ -77,20 +78,28 @@ export class OnboardingService {
           .update(organizationProfile)
           .set({
             companyName: dto.companyName,
-            legalName: dto.legalName,
-            taxId: dto.taxId,
+            legalName: dto.legalName || undefined,
+            taxId: dto.taxId || undefined,
             email: dto.adminEmail,
-            primaryTimezone: dto.primaryTimezone || 'Asia/Kolkata',
+            phone: dto.supportPhone || undefined,
+            address: dto.address || undefined,
+            website: dto.website || undefined,
+            country: dto.country || undefined,
+            primaryTimezone: dto.primaryTimezone || undefined,
             updatedAt: new Date(),
           })
           .where(eq(organizationProfile.id, existingProfile.id));
       } else {
         await db.insert(organizationProfile).values({
           companyName: dto.companyName,
-          legalName: dto.legalName,
-          taxId: dto.taxId,
+          legalName: dto.legalName || undefined,
+          taxId: dto.taxId || undefined,
           email: dto.adminEmail,
-          primaryTimezone: dto.primaryTimezone || 'Asia/Kolkata',
+          phone: dto.supportPhone || undefined,
+          address: dto.address || undefined,
+          website: dto.website || undefined,
+          country: dto.country || undefined,
+          primaryTimezone: dto.primaryTimezone || undefined,
         });
       }
 
