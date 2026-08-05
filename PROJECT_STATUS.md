@@ -16,11 +16,11 @@
 
 ## Current Vertical Slice
 
-**Authentication & Organization Onboarding Architecture Refactor**
+**Authentication State Machine Refactor**
 
 ## Current Sprint Goal
 
-Refactor onboarding architecture to separate **Organization Creation** (no invitation required; user becomes Owner/Admin) from **Organization Membership** (requires invitation link/token). Update landing page (`/onboarding`), create organization wizard (`/onboarding/create`), join organization token verification (`/onboarding/join`), documentation ([docs/AUTHENTICATION.md](file:///Users/jrsarath/Documents/GitHub/ananya/docs/AUTHENTICATION.md)), and Playwright E2E test suite (`tests/e2e/onboarding.spec.ts`). Verify all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, `pnpm build`).
+Refactor authentication lifecycle into 4 formal states (Unauthenticated, Authenticated No Membership, Authenticated Bootstrap Allowed, Authenticated Member). Ensure signup and invitation acceptance automatically authenticate users via the shared `AuthService.createSessionForUser` code path, eliminate post-signup login redirects, add `/auth/bootstrap-status` backend endpoint, implement `/welcome` view for authenticated non-members, update documentation ([docs/AUTHENTICATION.md](file:///Users/jrsarath/Documents/GitHub/ananya/docs/AUTHENTICATION.md)), and add Playwright E2E test suite (`tests/e2e/auth-state-machine.spec.ts`). Verify all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, `pnpm build`).
 
 ## Current Branch
 
@@ -28,7 +28,7 @@ Refactor onboarding architecture to separate **Organization Creation** (no invit
 
 ## Current Status
 
-🟢 Authentication & Organization Onboarding Architecture Refactor 100% Complete — Separated Organization Creation from Organization Membership. Implemented 3 onboarding choices on `/onboarding`, 2-step organization creation wizard on `/onboarding/create` (where user automatically becomes Organization Owner with system `Admin` role privileges), invitation verification on `/onboarding/join`, technical architecture documentation ([docs/AUTHENTICATION.md](file:///Users/jrsarath/Documents/GitHub/ananya/docs/AUTHENTICATION.md)), and Playwright E2E tests (`tests/e2e/onboarding.spec.ts`). Passed all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, and `pnpm build`).
+🟢 Authentication State Machine Refactor 100% Complete — Implemented 4-state authentication state machine. Registration, organization setup, and invitation acceptance share `createSessionForUser` and automatically authenticate users on the spot (never redirecting to `/login` after signup). Added `GET /auth/bootstrap-status` backend endpoint, `/welcome` screen for authenticated non-members, technical documentation ([docs/AUTHENTICATION.md](file:///Users/jrsarath/Documents/GitHub/ananya/docs/AUTHENTICATION.md)), and Playwright E2E tests (`tests/e2e/auth-state-machine.spec.ts`). Passed all monorepo quality gates (`pnpm check-types`, `pnpm lint` with 0 warnings, `pnpm test`, and `pnpm build`).
 
 ---
 

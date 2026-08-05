@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import * as crypto from 'crypto';
 import { db } from '@ananya/database';
 import {
@@ -155,7 +160,9 @@ export class OnboardingService {
         details: { companyName: dto.companyName, adminEmail: adminUser!.email },
       });
 
-      const sessionPayload = await this.authService.createSessionForUser(adminUser!.id);
+      const sessionPayload = await this.authService.createSessionForUser(
+        adminUser!.id,
+      );
 
       return {
         success: true,

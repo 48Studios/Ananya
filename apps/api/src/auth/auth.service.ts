@@ -74,7 +74,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials.');
     }
 
-    return this.createSessionForUser(userRecord.id, ipAddress, userAgent, dto.rememberMe);
+    return this.createSessionForUser(
+      userRecord.id,
+      ipAddress,
+      userAgent,
+      dto.rememberMe,
+    );
   }
 
   async createSessionForUser(

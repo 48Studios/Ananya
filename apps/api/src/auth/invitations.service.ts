@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import * as crypto from 'crypto';
 import { db } from '@ananya/database';
 import { userInvitations, users } from '@ananya/database/schema';
@@ -126,7 +131,9 @@ export class InvitationsService {
       details: { userId: user!.id, email: user!.email },
     });
 
-    const sessionPayload = await this.authService.createSessionForUser(user!.id);
+    const sessionPayload = await this.authService.createSessionForUser(
+      user!.id,
+    );
     return sessionPayload;
   }
 }
