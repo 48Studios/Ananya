@@ -122,7 +122,8 @@ export class Supplier {
   }
 
   public update(input: UpdateSupplierInput): Supplier {
-    const code = input.code !== undefined ? input.code.trim().toUpperCase() : this.code;
+    const code =
+      input.code !== undefined ? input.code.trim().toUpperCase() : this.code;
     const name = input.name !== undefined ? input.name.trim() : this.name;
 
     if (!code) {
@@ -136,13 +137,16 @@ export class Supplier {
       id: this.id,
       code,
       name,
-      taxId: input.taxId !== undefined ? input.taxId?.trim() ?? null : this.taxId,
+      taxId:
+        input.taxId !== undefined ? (input.taxId?.trim() ?? null) : this.taxId,
       paymentTerms:
         input.paymentTerms !== undefined
           ? input.paymentTerms.trim() || "NET30"
           : this.paymentTerms,
       currency:
-        input.currency !== undefined ? input.currency.trim() || "USD" : this.currency,
+        input.currency !== undefined
+          ? input.currency.trim() || "USD"
+          : this.currency,
       rating: this.rating,
       isActive: input.isActive !== undefined ? input.isActive : this.isActive,
       contacts: this.contacts,

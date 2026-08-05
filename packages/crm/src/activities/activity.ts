@@ -1,8 +1,8 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
-export type ActivityType = 'CALL' | 'MEETING' | 'EMAIL' | 'TASK' | 'DEMO';
+export type ActivityType = "CALL" | "MEETING" | "EMAIL" | "TASK" | "DEMO";
 
-export type ActivityStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+export type ActivityStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
 
 export interface ActivityProps {
   id: string;
@@ -56,8 +56,8 @@ export class Activity implements ActivityProps {
   }
 
   public static create(props: CreateActivityProps): Activity {
-    if (!props.subject || props.subject.trim() === '') {
-      throw new Error('Activity subject is required');
+    if (!props.subject || props.subject.trim() === "") {
+      throw new Error("Activity subject is required");
     }
 
     const now = new Date();
@@ -67,7 +67,7 @@ export class Activity implements ActivityProps {
       subject: props.subject.trim(),
       dueDate: props.dueDate,
       owner: props.owner,
-      status: 'SCHEDULED',
+      status: "SCHEDULED",
       relatedLeadId: props.relatedLeadId,
       relatedOpportunityId: props.relatedOpportunityId,
       relatedAccountId: props.relatedAccountId,
@@ -81,18 +81,18 @@ export class Activity implements ActivityProps {
   }
 
   public complete(): void {
-    if (this.status === 'CANCELLED') {
-      throw new Error('Cancelled activities cannot be completed');
+    if (this.status === "CANCELLED") {
+      throw new Error("Cancelled activities cannot be completed");
     }
-    this.status = 'COMPLETED';
+    this.status = "COMPLETED";
     this.updatedAt = new Date();
   }
 
   public cancel(): void {
-    if (this.status === 'COMPLETED') {
-      throw new Error('Completed activities cannot be cancelled');
+    if (this.status === "COMPLETED") {
+      throw new Error("Completed activities cannot be cancelled");
     }
-    this.status = 'CANCELLED';
+    this.status = "CANCELLED";
     this.updatedAt = new Date();
   }
 }

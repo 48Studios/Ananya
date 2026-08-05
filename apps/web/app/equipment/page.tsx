@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import MaintenancePage from '../maintenance/page'
+import MaintenancePage from "../maintenance/page";
 
 export default function EquipmentAliasPage() {
-  return <MaintenancePage />
+  return <MaintenancePage />;
 }

@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useRouter } from 'next/navigation'
+import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Scan,
   X,
@@ -13,202 +13,221 @@ import {
   RefreshCw,
   Search,
   Plus,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { barcodesApi, BarcodeLookupResult } from '@/lib/api/barcodes-api'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { barcodesApi, BarcodeLookupResult } from "@/lib/api/barcodes-api";
 
 // Declare native BarcodeDetector interface for browser compatibility
 interface NativeBarcodeDetector {
-  detect(image: HTMLVideoElement | HTMLCanvasElement | ImageBitmap): Promise<Array<{ rawValue: string; format: string }>>
+  detect(
+    image: HTMLVideoElement | HTMLCanvasElement | ImageBitmap,
+  ): Promise<Array<{ rawValue: string; format: string }>>;
 }
 
 declare global {
   interface Window {
     BarcodeDetector?: {
-      new (options?: { formats: string[] }): NativeBarcodeDetector
-      getSupportedFormats?(): Promise<string[]>
-    }
+      new (options?: { formats: string[] }): NativeBarcodeDetector;
+      getSupportedFormats?(): Promise<string[]>;
+    };
   }
 }
 
 export interface ScanDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  onScanSuccess?: (result: BarcodeLookupResult) => void
-  title?: string
-  description?: string
+  isOpen: boolean;
+  onClose: () => void;
+  onScanSuccess?: (result: BarcodeLookupResult) => void;
+  title?: string;
+  description?: string;
 }
 
 export function ScanDialog({
   isOpen,
   onClose,
   onScanSuccess,
-  title = 'Quick Barcode & QR Scan',
-  description = 'Scan any Code 128, Code 39, EAN-13, UPC, or QR Code using camera or hardware scanner.',
+  title = "Quick Barcode & QR Scan",
+  description = "Scan any Code 128, Code 39, EAN-13, UPC, or QR Code using camera or hardware scanner.",
 }: ScanDialogProps) {
-  const router = useRouter()
-  const inputRef = React.useRef<HTMLInputElement>(null)
-  const videoRef = React.useRef<HTMLVideoElement>(null)
-  const mediaStreamRef = React.useRef<MediaStream | null>(null)
-  const animationFrameRef = React.useRef<number | null>(null)
-  const lastScannedCodeRef = React.useRef<string>('')
-  const lastScanTimeRef = React.useRef<number>(0)
+  const router = useRouter();
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const mediaStreamRef = React.useRef<MediaStream | null>(null);
+  const animationFrameRef = React.useRef<number | null>(null);
+  const lastScannedCodeRef = React.useRef<string>("");
+  const lastScanTimeRef = React.useRef<number>(0);
 
-  const [inputCode, setInputCode] = React.useState('')
-  const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [result, setResult] = React.useState<BarcodeLookupResult | null>(null)
-  const [isCameraActive, setIsCameraActive] = React.useState(false)
-  const [cameraError, setCameraError] = React.useState<string | null>(null)
-  const [facingMode, setFacingMode] = React.useState<'environment' | 'user'>('environment')
-  const [scannedFormat, setScannedFormat] = React.useState<string | null>(null)
+  const [inputCode, setInputCode] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [result, setResult] = React.useState<BarcodeLookupResult | null>(null);
+  const [isCameraActive, setIsCameraActive] = React.useState(false);
+  const [cameraError, setCameraError] = React.useState<string | null>(null);
+  const [facingMode, setFacingMode] = React.useState<"environment" | "user">(
+    "environment",
+  );
+  const [scannedFormat, setScannedFormat] = React.useState<string | null>(null);
 
   // Stop camera tracks and release video stream cleanly
   const stopCameraStream = React.useCallback(() => {
     if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current)
-      animationFrameRef.current = null
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop())
-      mediaStreamRef.current = null
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
     }
     if (videoRef.current) {
-      videoRef.current.srcObject = null
+      videoRef.current.srcObject = null;
     }
-    setIsCameraActive(false)
-  }, [])
+    setIsCameraActive(false);
+  }, []);
 
   // Close dialog and clean up resources
   const handleClose = React.useCallback(() => {
-    stopCameraStream()
-    onClose()
-  }, [stopCameraStream, onClose])
+    stopCameraStream();
+    onClose();
+  }, [stopCameraStream, onClose]);
 
   // Execute barcode / QR code lookup via backend search infrastructure
   const executeLookup = React.useCallback(
     async (codeToLookup: string, formatDetected?: string) => {
-      const target = codeToLookup.trim()
-      if (!target) return
+      const target = codeToLookup.trim();
+      if (!target) return;
 
       // Cooldown prevention: Ignore duplicate scans within 1.5 seconds
-      const now = Date.now()
-      if (lastScannedCodeRef.current === target && now - lastScanTimeRef.current < 1500) {
-        return
+      const now = Date.now();
+      if (
+        lastScannedCodeRef.current === target &&
+        now - lastScanTimeRef.current < 1500
+      ) {
+        return;
       }
-      lastScannedCodeRef.current = target
-      lastScanTimeRef.current = now
+      lastScannedCodeRef.current = target;
+      lastScanTimeRef.current = now;
 
-      setLoading(true)
-      setError(null)
-      setResult(null)
+      setLoading(true);
+      setError(null);
+      setResult(null);
       if (formatDetected) {
-        setScannedFormat(formatDetected.toUpperCase())
+        setScannedFormat(formatDetected.toUpperCase());
       }
 
       try {
-        const res = await barcodesApi.lookup(target)
-        setResult(res)
+        const res = await barcodesApi.lookup(target);
+        setResult(res);
         if (onScanSuccess) {
-          onScanSuccess(res)
+          onScanSuccess(res);
         }
       } catch (err: unknown) {
         if (err instanceof Error) {
-          setError(err.message)
+          setError(err.message);
         } else {
-          setError(`No ERP entity matched scanned barcode "${target}".`)
+          setError(`No ERP entity matched scanned barcode "${target}".`);
         }
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     },
     [onScanSuccess],
-  )
+  );
 
   // Start real device camera stream
   const startCameraStream = React.useCallback(async () => {
-    setCameraError(null)
-    setError(null)
+    setCameraError(null);
+    setError(null);
 
-    if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      setCameraError('Camera access is not supported in this browser environment. Please use manual entry.')
-      return
+    if (
+      typeof window === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      setCameraError(
+        "Camera access is not supported in this browser environment. Please use manual entry.",
+      );
+      return;
     }
 
     try {
-      stopCameraStream()
+      stopCameraStream();
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: facingMode },
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
-      })
+      });
 
-      mediaStreamRef.current = stream
-      setIsCameraActive(true)
+      mediaStreamRef.current = stream;
+      setIsCameraActive(true);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (msg.includes('Permission denied') || msg.includes('NotAllowedError')) {
-        setCameraError('Camera permission denied. Please enable camera access in browser settings.')
+      const msg = err instanceof Error ? err.message : String(err);
+      if (
+        msg.includes("Permission denied") ||
+        msg.includes("NotAllowedError")
+      ) {
+        setCameraError(
+          "Camera permission denied. Please enable camera access in browser settings.",
+        );
       } else {
-        setCameraError('Unable to access device camera. Please check camera connection or use manual entry.')
+        setCameraError(
+          "Unable to access device camera. Please check camera connection or use manual entry.",
+        );
       }
-      setIsCameraActive(false)
+      setIsCameraActive(false);
     }
-  }, [facingMode, stopCameraStream])
+  }, [facingMode, stopCameraStream]);
 
   // Bind active media stream to video element when mounted
   React.useEffect(() => {
     if (isCameraActive && videoRef.current && mediaStreamRef.current) {
-      videoRef.current.srcObject = mediaStreamRef.current
+      videoRef.current.srcObject = mediaStreamRef.current;
       videoRef.current.play().catch(() => {
         // Ignore autoplay policy interruption if any
-      })
+      });
     }
-  }, [isCameraActive])
+  }, [isCameraActive]);
 
   // Continuous frame processing loop using native BarcodeDetector
   React.useEffect(() => {
-    if (!isCameraActive || !videoRef.current) return
+    if (!isCameraActive || !videoRef.current) return;
 
-    let isActive = true
-    let detector: NativeBarcodeDetector | null = null
+    let isActive = true;
+    let detector: NativeBarcodeDetector | null = null;
 
-    if (typeof window !== 'undefined' && window.BarcodeDetector) {
+    if (typeof window !== "undefined" && window.BarcodeDetector) {
       try {
         detector = new window.BarcodeDetector({
           formats: [
-            'code_128',
-            'code_39',
-            'ean_13',
-            'ean_8',
-            'upc_a',
-            'upc_e',
-            'qr_code',
-            'data_matrix',
+            "code_128",
+            "code_39",
+            "ean_13",
+            "ean_8",
+            "upc_a",
+            "upc_e",
+            "qr_code",
+            "data_matrix",
           ],
-        })
+        });
       } catch {
-        detector = null
+        detector = null;
       }
     }
 
     const processFrame = async () => {
       if (!isActive || !videoRef.current || videoRef.current.readyState < 2) {
         if (isActive) {
-          animationFrameRef.current = requestAnimationFrame(processFrame)
+          animationFrameRef.current = requestAnimationFrame(processFrame);
         }
-        return
+        return;
       }
 
       if (detector) {
         try {
-          const barcodes = await detector.detect(videoRef.current)
+          const barcodes = await detector.detect(videoRef.current);
           if (barcodes.length > 0 && barcodes[0]?.rawValue) {
-            const code = barcodes[0].rawValue
-            const fmt = barcodes[0].format || 'BARCODE'
-            executeLookup(code, fmt)
+            const code = barcodes[0].rawValue;
+            const fmt = barcodes[0].format || "BARCODE";
+            executeLookup(code, fmt);
           }
         } catch {
           // Ignore transient frame detection errors
@@ -219,103 +238,103 @@ export function ScanDialog({
         // Sample frames at ~10 FPS for optimal performance & CPU efficiency
         setTimeout(() => {
           if (isActive) {
-            animationFrameRef.current = requestAnimationFrame(processFrame)
+            animationFrameRef.current = requestAnimationFrame(processFrame);
           }
-        }, 100)
+        }, 100);
       }
-    }
+    };
 
-    animationFrameRef.current = requestAnimationFrame(processFrame)
+    animationFrameRef.current = requestAnimationFrame(processFrame);
 
     return () => {
-      isActive = false
+      isActive = false;
       if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
+        cancelAnimationFrame(animationFrameRef.current);
       }
-    }
-  }, [isCameraActive, executeLookup])
+    };
+  }, [isCameraActive, executeLookup]);
 
   // Reset dialog state when modal opens
   React.useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100)
-      setInputCode('')
-      setError(null)
-      setResult(null)
-      setCameraError(null)
-      setScannedFormat(null)
-      lastScannedCodeRef.current = ''
+      setTimeout(() => inputRef.current?.focus(), 100);
+      setInputCode("");
+      setError(null);
+      setResult(null);
+      setCameraError(null);
+      setScannedFormat(null);
+      lastScannedCodeRef.current = "";
     } else {
-      stopCameraStream()
+      stopCameraStream();
     }
-  }, [isOpen, stopCameraStream])
+  }, [isOpen, stopCameraStream]);
 
   // Clean up stream on unmount
   React.useEffect(() => {
     return () => {
-      stopCameraStream()
-    }
-  }, [stopCameraStream])
+      stopCameraStream();
+    };
+  }, [stopCameraStream]);
 
   // Buffer hardware HID barcode scanner keypresses
   React.useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) return;
 
-    let buffer = ''
-    let timeoutId: NodeJS.Timeout
+    let buffer = "";
+    let timeoutId: NodeJS.Timeout;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
         document.activeElement &&
         document.activeElement !== inputRef.current &&
-        ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)
+        ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)
       ) {
-        return
+        return;
       }
 
-      if (e.key === 'Enter') {
+      if (e.key === "Enter") {
         if (buffer.trim()) {
-          const scanned = buffer.trim()
-          buffer = ''
-          setInputCode(scanned)
-          executeLookup(scanned, 'HARDWARE_SCANNER')
+          const scanned = buffer.trim();
+          buffer = "";
+          setInputCode(scanned);
+          executeLookup(scanned, "HARDWARE_SCANNER");
         }
       } else if (e.key.length === 1) {
-        buffer += e.key
-        clearTimeout(timeoutId)
+        buffer += e.key;
+        clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
-          buffer = ''
-        }, 300)
+          buffer = "";
+        }, 300);
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      clearTimeout(timeoutId)
-    }
-  }, [isOpen, executeLookup])
+      window.removeEventListener("keydown", handleKeyDown);
+      clearTimeout(timeoutId);
+    };
+  }, [isOpen, executeLookup]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    executeLookup(inputCode, 'MANUAL_ENTRY')
-  }
+    e.preventDefault();
+    executeLookup(inputCode, "MANUAL_ENTRY");
+  };
 
   const handleNavigate = () => {
     if (result) {
-      handleClose()
-      router.push(result.targetUrl)
+      handleClose();
+      router.push(result.targetUrl);
     }
-  }
+  };
 
   const toggleCameraFacing = () => {
-    setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'))
+    setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
     if (isCameraActive) {
-      setTimeout(() => startCameraStream(), 100)
+      setTimeout(() => startCameraStream(), 100);
     }
-  }
+  };
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -327,7 +346,9 @@ export function ScanDialog({
               <Scan className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-foreground">{title}</h3>
+              <h3 className="text-base font-semibold text-foreground">
+                {title}
+              </h3>
               <p className="text-xs text-muted-foreground">{description}</p>
             </div>
           </div>
@@ -366,7 +387,11 @@ export function ScanDialog({
                 disabled={loading || !inputCode.trim()}
                 className="absolute right-1.5"
               >
-                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Lookup'}
+                {loading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  "Lookup"
+                )}
               </Button>
             </div>
           </div>
@@ -377,7 +402,9 @@ export function ScanDialog({
           <div className="flex items-center justify-between p-3 bg-muted/20 border border-border rounded-lg text-xs">
             <div className="flex items-center gap-2">
               <Camera className="w-4 h-4 text-primary" />
-              <span className="text-foreground font-medium">Device Camera Scanner</span>
+              <span className="text-foreground font-medium">
+                Device Camera Scanner
+              </span>
               {scannedFormat && (
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold">
                   {scannedFormat}
@@ -396,11 +423,11 @@ export function ScanDialog({
                 </Button>
               )}
               <Button
-                variant={isCameraActive ? 'outline' : 'default'}
+                variant={isCameraActive ? "outline" : "default"}
                 size="xs"
                 onClick={isCameraActive ? stopCameraStream : startCameraStream}
               >
-                {isCameraActive ? 'Stop Camera' : 'Activate Camera'}
+                {isCameraActive ? "Stop Camera" : "Activate Camera"}
               </Button>
             </div>
           </div>
@@ -447,7 +474,11 @@ export function ScanDialog({
               <Button
                 size="xs"
                 variant="outline"
-                onClick={() => router.push(`/components?search=${encodeURIComponent(inputCode)}`)}
+                onClick={() =>
+                  router.push(
+                    `/components?search=${encodeURIComponent(inputCode)}`,
+                  )
+                }
               >
                 <Search className="w-3 h-3 mr-1" />
                 Search Global Catalog
@@ -455,7 +486,11 @@ export function ScanDialog({
               <Button
                 size="xs"
                 variant="outline"
-                onClick={() => router.push(`/components/new?sku=${encodeURIComponent(inputCode)}`)}
+                onClick={() =>
+                  router.push(
+                    `/components/new?sku=${encodeURIComponent(inputCode)}`,
+                  )
+                }
               >
                 <Plus className="w-3 h-3 mr-1" />
                 Create Component with SKU
@@ -480,8 +515,12 @@ export function ScanDialog({
             </div>
 
             <div>
-              <h4 className="text-sm font-bold text-foreground">{result.name}</h4>
-              <p className="text-xs text-muted-foreground mt-0.5">{result.subtitle}</p>
+              <h4 className="text-sm font-bold text-foreground">
+                {result.name}
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {result.subtitle}
+              </p>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-emerald-500/20">
@@ -501,5 +540,5 @@ export function ScanDialog({
         </div>
       </div>
     </div>
-  )
+  );
 }

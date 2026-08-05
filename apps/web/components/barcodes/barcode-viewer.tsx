@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { BarcodeFormat } from '@/lib/api/barcodes-api'
+import * as React from "react";
+import { BarcodeFormat } from "@/lib/api/barcodes-api";
 
 export interface BarcodeViewerProps {
-  value: string
-  format?: BarcodeFormat
-  height?: number
-  showText?: boolean
-  className?: string
+  value: string;
+  format?: BarcodeFormat;
+  height?: number;
+  showText?: boolean;
+  className?: string;
 }
 
 /**
@@ -16,13 +16,13 @@ export interface BarcodeViewerProps {
  * Uses deterministic pattern encoding to guarantee zero external dependency rendering.
  */
 function encodeToBars(value: string, format: BarcodeFormat): boolean[] {
-  const bars: boolean[] = [true, false, true] // Start guard bar
-  const isEan = format === 'EAN13' || format === 'UPCA'
-  const barBit = isEan ? true : true
+  const bars: boolean[] = [true, false, true]; // Start guard bar
+  const isEan = format === "EAN13" || format === "UPCA";
+  const barBit = isEan ? true : true;
 
-  const str = value || '12345678'
+  const str = value || "12345678";
   for (let i = 0; i < str.length; i++) {
-    const code = str.charCodeAt(i)
+    const code = str.charCodeAt(i);
     // Deterministic bar-space encoding matrix based on character code & position
     const bits = [
       (code & 1) !== 0,
@@ -30,30 +30,35 @@ function encodeToBars(value: string, format: BarcodeFormat): boolean[] {
       (code & 4) === 0,
       (code & 8) !== 0,
       (code & 16) === 0,
-      (i % 2) === 0,
+      i % 2 === 0,
       barBit,
-    ]
-    bars.push(...bits)
-    bars.push(false) // Quiet space
+    ];
+    bars.push(...bits);
+    bars.push(false); // Quiet space
   }
 
-  bars.push(true, false, true, true) // Stop guard bar
-  return bars
+  bars.push(true, false, true, true); // Stop guard bar
+  return bars;
 }
 
 export function BarcodeViewer({
   value,
-  format = 'CODE128',
+  format = "CODE128",
   height = 50,
   showText = true,
-  className = '',
+  className = "",
 }: BarcodeViewerProps) {
-  const bars = React.useMemo(() => encodeToBars(value, format), [value, format])
-  const barWidth = 2
-  const svgWidth = bars.length * barWidth + 20
+  const bars = React.useMemo(
+    () => encodeToBars(value, format),
+    [value, format],
+  );
+  const barWidth = 2;
+  const svgWidth = bars.length * barWidth + 20;
 
   return (
-    <div className={`inline-flex flex-col items-center select-none ${className}`}>
+    <div
+      className={`inline-flex flex-col items-center select-none ${className}`}
+    >
       <svg
         width="100%"
         height={height}
@@ -77,9 +82,9 @@ export function BarcodeViewer({
       </svg>
       {showText && (
         <span className="font-mono text-[10px] tracking-widest text-foreground font-bold mt-0.5 uppercase">
-          {value || 'N/A'}
+          {value || "N/A"}
         </span>
       )}
     </div>
-  )
+  );
 }

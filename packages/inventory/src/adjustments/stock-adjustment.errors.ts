@@ -8,7 +8,9 @@ export class InvalidAdjustmentStatusError extends DomainError {
 }
 
 export class EmptyStockAdjustmentError extends DomainError {
-  constructor(message: string = "Stock adjustment must contain at least one line item.") {
+  constructor(
+    message: string = "Stock adjustment must contain at least one line item.",
+  ) {
     super(message);
     this.name = "EmptyStockAdjustmentError";
   }
@@ -16,7 +18,9 @@ export class EmptyStockAdjustmentError extends DomainError {
 
 export class NegativeCountedQuantityError extends DomainError {
   constructor(componentId: string, quantity: number) {
-    super(`Counted quantity cannot be negative (${quantity}) for component ${componentId}.`);
+    super(
+      `Counted quantity cannot be negative (${quantity}) for component ${componentId}.`,
+    );
     this.name = "NegativeCountedQuantityError";
   }
 }

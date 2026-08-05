@@ -1,5 +1,8 @@
 import { Supplier, type UpdateSupplierInput } from "./supplier";
-import { DuplicateSupplierCodeError, SupplierNotFoundError } from "./supplier.errors";
+import {
+  DuplicateSupplierCodeError,
+  SupplierNotFoundError,
+} from "./supplier.errors";
 import type { SupplierRepository } from "./supplier.repository";
 
 export class UpdateSupplier {

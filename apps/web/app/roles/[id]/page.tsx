@@ -1,80 +1,78 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import {
-  Shield,
-  ArrowLeft,
-  CheckCircle2,
-  Lock,
-  Users,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { LoadingState } from '@/components/ui/loading-state'
-import { ErrorState } from '@/components/ui/error-state'
-import { rolesApi, RoleDto } from '@/lib/api/roles-api'
-import { usersApi } from '@/lib/api/users-api'
-import { UserProfileDto } from '@/lib/api/auth-api'
+import * as React from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { Shield, ArrowLeft, CheckCircle2, Lock, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { rolesApi, RoleDto } from "@/lib/api/roles-api";
+import { usersApi } from "@/lib/api/users-api";
+import { UserProfileDto } from "@/lib/api/auth-api";
 
 export default function RoleDetailPage() {
-  const params = useParams()
-  const id = params.id as string
+  const params = useParams();
+  const id = params.id as string;
 
-  const [roleInfo, setRoleInfo] = React.useState<RoleDto | null>(null)
-  const [assignedUsers, setAssignedUsers] = React.useState<UserProfileDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [roleInfo, setRoleInfo] = React.useState<RoleDto | null>(null);
+  const [assignedUsers, setAssignedUsers] = React.useState<UserProfileDto[]>(
+    [],
+  );
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   const loadData = React.useCallback(async () => {
-    if (!id) return
-    setLoading(true)
-    setError(null)
+    if (!id) return;
+    setLoading(true);
+    setError(null);
     try {
       const [rData, uData] = await Promise.all([
         rolesApi.getById(id),
         usersApi.getAll({ roleId: id }).catch(() => []),
-      ])
-      setRoleInfo(rData)
-      setAssignedUsers(uData)
+      ]);
+      setRoleInfo(rData);
+      setAssignedUsers(uData);
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message)
-      else setError('Failed to load role details.')
+      if (err instanceof Error) setError(err.message);
+      else setError("Failed to load role details.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [id])
+  }, [id]);
 
   React.useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadData();
+  }, [loadData]);
 
   if (loading) {
-    return <LoadingState message="Fetching role specification..." />
+    return <LoadingState message="Fetching role specification..." />;
   }
 
   if (error || !roleInfo) {
     return (
       <ErrorState
         title="Role Policy Error"
-        message={error || 'Role definition not found.'}
+        message={error || "Role definition not found."}
         onRetry={loadData}
       />
-    )
+    );
   }
 
-  const isFullAccess = roleInfo.permissions?.includes('*')
+  const isFullAccess = roleInfo.permissions?.includes("*");
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
         title={roleInfo.name}
-        description={roleInfo.description || 'System-configured access control role.'}
+        description={
+          roleInfo.description || "System-configured access control role."
+        }
         breadcrumbs={[
-          { label: 'Roles', href: '/roles' },
+          { label: "Roles", href: "/roles" },
           { label: roleInfo.name },
         ]}
         actions={
@@ -91,13 +89,15 @@ export default function RoleDetailPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Role Type"
-          value={roleInfo.isSystem ? 'System Defined' : 'Custom Policy'}
-          subtitle={roleInfo.isSystem ? 'Protected role' : 'Editable role'}
+          value={roleInfo.isSystem ? "System Defined" : "Custom Policy"}
+          subtitle={roleInfo.isSystem ? "Protected role" : "Editable role"}
           icon={Lock}
         />
         <StatCard
           title="Granted Permissions"
-          value={isFullAccess ? 'Full Access (*)' : roleInfo.permissions?.length || 0}
+          value={
+            isFullAccess ? "Full Access (*)" : roleInfo.permissions?.length || 0
+          }
           subtitle="Authorized actions"
           icon={Shield}
         />
@@ -123,7 +123,10 @@ export default function RoleDetailPage() {
               Permission Set Matrix ({roleInfo.permissions?.length || 0})
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Actions permitted for users assigned to <span className="font-semibold text-foreground">{roleInfo.name}</span>
+              Actions permitted for users assigned to{" "}
+              <span className="font-semibold text-foreground">
+                {roleInfo.name}
+              </span>
             </p>
           </div>
 
@@ -131,10 +134,15 @@ export default function RoleDetailPage() {
             {isFullAccess ? (
               <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg text-xs text-purple-700 dark:text-purple-300 font-bold col-span-2 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-purple-500" />
-                <span>FULL SYSTEM ADMINISTRATOR ACCESS (*) — All permissions granted.</span>
+                <span>
+                  FULL SYSTEM ADMINISTRATOR ACCESS (*) — All permissions
+                  granted.
+                </span>
               </div>
             ) : roleInfo.permissions.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No permissions configured for this role.</p>
+              <p className="text-xs text-muted-foreground">
+                No permissions configured for this role.
+              </p>
             ) : (
               roleInfo.permissions.map((perm) => (
                 <div
@@ -142,7 +150,9 @@ export default function RoleDetailPage() {
                   className="p-2.5 bg-muted/20 border border-border rounded-lg flex items-center gap-2 text-xs"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5 text-sky-500 flex-shrink-0" />
-                  <span className="font-mono text-foreground font-semibold">{perm}</span>
+                  <span className="font-mono text-foreground font-semibold">
+                    {perm}
+                  </span>
                 </div>
               ))
             )}
@@ -175,7 +185,9 @@ export default function RoleDetailPage() {
                   <p className="font-bold text-foreground">
                     {u.firstName} {u.lastName}
                   </p>
-                  <p className="text-[11px] text-muted-foreground font-mono">{u.email}</p>
+                  <p className="text-[11px] text-muted-foreground font-mono">
+                    {u.email}
+                  </p>
                 </Link>
               ))
             )}
@@ -183,5 +195,5 @@ export default function RoleDetailPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
   X,
@@ -18,158 +18,167 @@ import {
   Unlock,
   PackageCheck,
   FileText,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable, type FilterConfig } from '@/components/ui/entity-data-table'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { ReservationForm } from '@/components/reservations/reservation-form'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ReservationForm } from "@/components/reservations/reservation-form";
 import {
   reservationsApi,
   type ReservationDto,
   type ReservationStatus,
   type ReservationType,
-} from '@/lib/api/reservations-api'
+} from "@/lib/api/reservations-api";
 
 function getStatusBadge(status: ReservationStatus) {
   switch (status) {
-    case 'FULFILLED':
+    case "FULFILLED":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
           <PackageCheck className="w-3 h-3 mr-1" />
           Fulfilled
         </span>
-      )
-    case 'RELEASED':
+      );
+    case "RELEASED":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-sky-500/10 text-sky-700 dark:text-sky-400 border border-sky-500/20">
           <Unlock className="w-3 h-3 mr-1" />
           Released
         </span>
-      )
-    case 'ACTIVE':
+      );
+    case "ACTIVE":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
           <Lock className="w-3 h-3 mr-1" />
           Active Hold
         </span>
-      )
-    case 'DRAFT':
+      );
+    case "DRAFT":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-slate-500/10 text-slate-700 dark:text-slate-400 border border-slate-500/20">
           <Clock className="w-3 h-3 mr-1" />
           Draft
         </span>
-      )
-    case 'EXPIRED':
+      );
+    case "EXPIRED":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
           <Clock className="w-3 h-3 mr-1" />
           Expired
         </span>
-      )
-    case 'CANCELLED':
+      );
+    case "CANCELLED":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-muted text-muted-foreground border border-border">
           <XCircle className="w-3 h-3 mr-1" />
           Cancelled
         </span>
-      )
+      );
   }
 }
 
 function getTypeBadge(type: ReservationType) {
   switch (type) {
-    case 'WORK_ORDER':
+    case "WORK_ORDER":
       return (
         <span className="font-mono text-xs font-bold text-foreground bg-purple-500/10 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded border border-purple-500/20">
           Work Order
         </span>
-      )
-    case 'PROJECT':
+      );
+    case "PROJECT":
       return (
         <span className="font-mono text-xs font-bold text-foreground bg-blue-500/10 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded border border-blue-500/20">
           Project Stock
         </span>
-      )
-    case 'PURCHASE_REQUEST':
+      );
+    case "PURCHASE_REQUEST":
       return (
         <span className="font-mono text-xs font-bold text-foreground bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">
           Purchase Req
         </span>
-      )
-    case 'SALES_ORDER':
+      );
+    case "SALES_ORDER":
       return (
         <span className="font-mono text-xs font-bold text-foreground bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">
           Sales Order
         </span>
-      )
+      );
   }
 }
 
 export default function ReservationsPage() {
-  const [reservations, setReservations] = React.useState<ReservationDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [reservations, setReservations] = React.useState<ReservationDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [editingReservation, setEditingReservation] = React.useState<ReservationDto | null>(null)
-  const [deletingReservation, setDeletingReservation] = React.useState<ReservationDto | null>(null)
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null)
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingReservation, setEditingReservation] =
+    React.useState<ReservationDto | null>(null);
+  const [deletingReservation, setDeletingReservation] =
+    React.useState<ReservationDto | null>(null);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
 
   const fetchReservations = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const resData = await reservationsApi.getAll()
-      setReservations(resData)
+      const resData = await reservationsApi.getAll();
+      setReservations(resData);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message)
+        setError(err.message);
       } else {
-        setError('Failed to fetch Inventory Reservations list')
+        setError("Failed to fetch Inventory Reservations list");
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    fetchReservations()
-  }, [fetchReservations])
+    fetchReservations();
+  }, [fetchReservations]);
 
   const activeCount = React.useMemo(
-    () => reservations.filter((r) => r.status === 'ACTIVE').length,
+    () => reservations.filter((r) => r.status === "ACTIVE").length,
     [reservations],
-  )
+  );
   const fulfilledCount = React.useMemo(
-    () => reservations.filter((r) => r.status === 'FULFILLED').length,
+    () => reservations.filter((r) => r.status === "FULFILLED").length,
     [reservations],
-  )
+  );
   const releasedCount = React.useMemo(
-    () => reservations.filter((r) => r.status === 'RELEASED').length,
+    () => reservations.filter((r) => r.status === "RELEASED").length,
     [reservations],
-  )
+  );
 
   const handleDeleteConfirm = async () => {
-    if (!deletingReservation) return
+    if (!deletingReservation) return;
     try {
-      await reservationsApi.delete(deletingReservation.id)
-      setToastMessage(`Reservation "${deletingReservation.reservationNumber}" deleted.`)
-      setDeletingReservation(null)
-      setTimeout(() => setToastMessage(null), 4000)
-      fetchReservations()
+      await reservationsApi.delete(deletingReservation.id);
+      setToastMessage(
+        `Reservation "${deletingReservation.reservationNumber}" deleted.`,
+      );
+      setDeletingReservation(null);
+      setTimeout(() => setToastMessage(null), 4000);
+      fetchReservations();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete reservation')
+      setError(
+        err instanceof Error ? err.message : "Failed to delete reservation",
+      );
     }
-  }
+  };
 
   const columns = React.useMemo<ColumnDef<ReservationDto>[]>(
     () => [
       {
-        accessorKey: 'reservationNumber',
-        header: 'Reservation #',
+        accessorKey: "reservationNumber",
+        header: "Reservation #",
         cell: ({ row }) => (
           <Link
             href={`/reservations/${row.original.id}`}
@@ -180,22 +189,22 @@ export default function ReservationsPage() {
         ),
       },
       {
-        accessorKey: 'reservationType',
-        header: 'Type',
+        accessorKey: "reservationType",
+        header: "Type",
         cell: ({ row }) => getTypeBadge(row.original.reservationType),
       },
       {
-        accessorKey: 'referenceDocument',
-        header: 'Reference Doc',
+        accessorKey: "referenceDocument",
+        header: "Reference Doc",
         cell: ({ row }) => (
           <span className="font-mono text-xs text-foreground font-medium">
-            {row.original.referenceDocument || '—'}
+            {row.original.referenceDocument || "—"}
           </span>
         ),
       },
       {
-        accessorKey: 'reservedBy',
-        header: 'Reserved By',
+        accessorKey: "reservedBy",
+        header: "Reserved By",
         cell: ({ row }) => (
           <span className="text-xs text-foreground flex items-center gap-1">
             <User className="w-3 h-3 text-muted-foreground" />
@@ -204,8 +213,8 @@ export default function ReservationsPage() {
         ),
       },
       {
-        id: 'lineCount',
-        header: 'Reserved Lines',
+        id: "lineCount",
+        header: "Reserved Lines",
         cell: ({ row }) => (
           <span className="font-mono text-xs text-foreground font-bold">
             {row.original.lines.length} items
@@ -213,40 +222,45 @@ export default function ReservationsPage() {
         ),
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
+        accessorKey: "status",
+        header: "Status",
         cell: ({ row }) => getStatusBadge(row.original.status),
       },
       {
-        accessorKey: 'expiresAt',
-        header: 'Expiration Date',
+        accessorKey: "expiresAt",
+        header: "Expiration Date",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground font-mono">
             {row.original.expiresAt
               ? new Date(row.original.expiresAt).toLocaleDateString()
-              : 'No expiry'}
+              : "No expiry"}
           </span>
         ),
       },
       {
-        id: 'actions',
-        header: 'Actions',
+        id: "actions",
+        header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/reservations/${row.original.id}`}>
-              <Button variant="ghost" size="icon-xs" title="View reservation details">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                title="View reservation details"
+              >
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
             </Link>
-            {(row.original.status === 'DRAFT' || row.original.status === 'ACTIVE') && (
+            {(row.original.status === "DRAFT" ||
+              row.original.status === "ACTIVE") && (
               <>
                 <Button
                   variant="ghost"
                   size="icon-xs"
                   title="Edit reservation"
                   onClick={() => {
-                    setEditingReservation(row.original)
-                    setIsFormOpen(true)
+                    setEditingReservation(row.original);
+                    setIsFormOpen(true);
                   }}
                 >
                   <Pencil className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -266,43 +280,45 @@ export default function ReservationsPage() {
       },
     ],
     [],
-  )
+  );
 
   const filterConfigs: FilterConfig[] = React.useMemo(
     () => [
       {
-        columnId: 'status',
-        title: 'Status',
+        columnId: "status",
+        title: "Status",
         options: [
-          { label: 'Active Lock', value: 'ACTIVE' },
-          { label: 'Fulfilled & Consumed', value: 'FULFILLED' },
-          { label: 'Released', value: 'RELEASED' },
-          { label: 'Draft', value: 'DRAFT' },
-          { label: 'Expired', value: 'EXPIRED' },
-          { label: 'Cancelled', value: 'CANCELLED' },
+          { label: "Active Lock", value: "ACTIVE" },
+          { label: "Fulfilled & Consumed", value: "FULFILLED" },
+          { label: "Released", value: "RELEASED" },
+          { label: "Draft", value: "DRAFT" },
+          { label: "Expired", value: "EXPIRED" },
+          { label: "Cancelled", value: "CANCELLED" },
         ],
       },
       {
-        columnId: 'reservationType',
-        title: 'Type',
+        columnId: "reservationType",
+        title: "Type",
         options: [
-          { label: 'Work Order', value: 'WORK_ORDER' },
-          { label: 'Project Stock', value: 'PROJECT' },
-          { label: 'Purchase Request', value: 'PURCHASE_REQUEST' },
-          { label: 'Sales Order', value: 'SALES_ORDER' },
+          { label: "Work Order", value: "WORK_ORDER" },
+          { label: "Project Stock", value: "PROJECT" },
+          { label: "Purchase Request", value: "PURCHASE_REQUEST" },
+          { label: "Sales Order", value: "SALES_ORDER" },
         ],
       },
     ],
     [],
-  )
+  );
 
   const handleFormSuccess = (saved: ReservationDto) => {
-    setToastMessage(`Inventory Reservation "${saved.reservationNumber}" saved.`)
-    setIsFormOpen(false)
-    setEditingReservation(null)
-    setTimeout(() => setToastMessage(null), 4000)
-    fetchReservations()
-  }
+    setToastMessage(
+      `Inventory Reservation "${saved.reservationNumber}" saved.`,
+    );
+    setIsFormOpen(false);
+    setEditingReservation(null);
+    setTimeout(() => setToastMessage(null), 4000);
+    fetchReservations();
+  };
 
   return (
     <div className="space-y-6">
@@ -314,8 +330,8 @@ export default function ReservationsPage() {
           <Button
             size="sm"
             onClick={() => {
-              setEditingReservation(null)
-              setIsFormOpen(true)
+              setEditingReservation(null);
+              setIsFormOpen(true);
             }}
           >
             <Plus className="w-4 h-4 mr-1.5" />
@@ -378,12 +394,14 @@ export default function ReservationsPage() {
           <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h2 className="text-lg font-semibold text-foreground">
-                {editingReservation ? 'Edit Reservation Lock' : 'Create Inventory Reservation'}
+                {editingReservation
+                  ? "Edit Reservation Lock"
+                  : "Create Inventory Reservation"}
               </h2>
               <button
                 onClick={() => {
-                  setIsFormOpen(false)
-                  setEditingReservation(null)
+                  setIsFormOpen(false);
+                  setEditingReservation(null);
                 }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -394,8 +412,8 @@ export default function ReservationsPage() {
               initialData={editingReservation}
               onSuccess={handleFormSuccess}
               onCancel={() => {
-                setIsFormOpen(false)
-                setEditingReservation(null)
+                setIsFormOpen(false);
+                setEditingReservation(null);
               }}
             />
           </div>
@@ -425,5 +443,5 @@ export default function ReservationsPage() {
         emptyMessage="Get started by creating your first stock hold reservation for work orders or projects."
       />
     </div>
-  )
+  );
 }

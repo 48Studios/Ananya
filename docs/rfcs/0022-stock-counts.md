@@ -107,8 +107,8 @@ export interface StockCountRepository {
 
 ```
 [DRAFT] -> [ASSIGNED] -> [COUNTING] -> [SUBMITTED] -> [APPROVED] -> [POSTED]
-   |                                                                  
-   +-----------------------------> [CANCELLED]                        
+   |
+   +-----------------------------> [CANCELLED]
 ```
 
 ---

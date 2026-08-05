@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface NotificationDto {
   id: string;
@@ -42,13 +42,15 @@ export interface WorkflowRuleDto {
 
 export const notificationsApi = {
   getUserNotifications: (userId?: string): Promise<NotificationDto[]> => {
-    const query = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+    const query = userId ? `?userId=${encodeURIComponent(userId)}` : "";
     return apiClient.get<NotificationDto[]>(`/notifications${query}`);
   },
 
   getUnreadCount: (userId?: string): Promise<{ unread: number }> => {
-    const query = userId ? `?userId=${encodeURIComponent(userId)}` : '';
-    return apiClient.get<{ unread: number }>(`/notifications/unread-count${query}`);
+    const query = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+    return apiClient.get<{ unread: number }>(
+      `/notifications/unread-count${query}`,
+    );
   },
 
   markAsRead: (id: string): Promise<NotificationDto> => {
@@ -56,20 +58,31 @@ export const notificationsApi = {
   },
 
   markAllAsRead: (userId?: string): Promise<{ success: boolean }> => {
-    const query = userId ? `?userId=${encodeURIComponent(userId)}` : '';
-    return apiClient.post<{ success: boolean }>(`/notifications/read-all${query}`, {});
+    const query = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+    return apiClient.post<{ success: boolean }>(
+      `/notifications/read-all${query}`,
+      {},
+    );
   },
 
   getPreferences: (userId: string): Promise<NotificationPreferenceDto> => {
-    return apiClient.get<NotificationPreferenceDto>(`/notifications/preferences?userId=${encodeURIComponent(userId)}`);
+    return apiClient.get<NotificationPreferenceDto>(
+      `/notifications/preferences?userId=${encodeURIComponent(userId)}`,
+    );
   },
 
-  updatePreferences: (userId: string, data: Partial<NotificationPreferenceDto>): Promise<NotificationPreferenceDto> => {
-    return apiClient.put<NotificationPreferenceDto>(`/notifications/preferences?userId=${encodeURIComponent(userId)}`, data);
+  updatePreferences: (
+    userId: string,
+    data: Partial<NotificationPreferenceDto>,
+  ): Promise<NotificationPreferenceDto> => {
+    return apiClient.put<NotificationPreferenceDto>(
+      `/notifications/preferences?userId=${encodeURIComponent(userId)}`,
+      data,
+    );
   },
 
   getWorkflows: (): Promise<WorkflowRuleDto[]> => {
-    return apiClient.get<WorkflowRuleDto[]>('/workflows');
+    return apiClient.get<WorkflowRuleDto[]>("/workflows");
   },
 
   createWorkflow: (data: {
@@ -77,13 +90,22 @@ export const notificationsApi = {
     description?: string;
     triggerType: string;
     conditionsJson: Array<{ field: string; operator: string; value: unknown }>;
-    actionsJson: Array<{ actionType: string; payload: Record<string, unknown> }>;
+    actionsJson: Array<{
+      actionType: string;
+      payload: Record<string, unknown>;
+    }>;
     isActive?: boolean;
   }): Promise<WorkflowRuleDto> => {
-    return apiClient.post<WorkflowRuleDto>('/workflows', data);
+    return apiClient.post<WorkflowRuleDto>("/workflows", data);
   },
 
-  evaluateTriggers: (triggerType: string, contextData: Record<string, unknown>): Promise<{ evaluatedRulesCount: number }> => {
-    return apiClient.post<{ evaluatedRulesCount: number }>('/workflows/evaluate', { triggerType, contextData });
+  evaluateTriggers: (
+    triggerType: string,
+    contextData: Record<string, unknown>,
+  ): Promise<{ evaluatedRulesCount: number }> => {
+    return apiClient.post<{ evaluatedRulesCount: number }>(
+      "/workflows/evaluate",
+      { triggerType, contextData },
+    );
   },
 };

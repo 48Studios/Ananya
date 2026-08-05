@@ -1,6 +1,7 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
-export type QuotationStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'EXPIRED' | 'CANCELLED';
+export type QuotationStatus =
+  "DRAFT" | "SENT" | "ACCEPTED" | "EXPIRED" | "CANCELLED";
 
 export interface QuotationLineProps {
   id: string;
@@ -72,9 +73,9 @@ export class Quotation {
       id: ObjectId.generate().value,
       quoteNumber: input.quoteNumber.toUpperCase(),
       customerId: input.customerId,
-      currency: input.currency || 'USD',
+      currency: input.currency || "USD",
       validUntil: input.validUntil || defaultValidUntil,
-      status: 'DRAFT',
+      status: "DRAFT",
       lines: [],
       createdAt: now,
       updatedAt: now,
@@ -90,14 +91,14 @@ export class Quotation {
   }
 
   addLine(input: AddQuotationLineInput): QuotationLineProps {
-    if (this.status !== 'DRAFT') {
-      throw new Error('Can only add line items to a DRAFT quotation.');
+    if (this.status !== "DRAFT") {
+      throw new Error("Can only add line items to a DRAFT quotation.");
     }
     if (input.quantity <= 0) {
-      throw new Error('Quotation line quantity must be greater than zero.');
+      throw new Error("Quotation line quantity must be greater than zero.");
     }
     if (input.unitPrice < 0) {
-      throw new Error('Quotation line unit price cannot be negative.');
+      throw new Error("Quotation line unit price cannot be negative.");
     }
 
     const discount = input.discount || 0;
@@ -122,34 +123,34 @@ export class Quotation {
   }
 
   send(): void {
-    if (this.status !== 'DRAFT') {
-      throw new Error('Only DRAFT quotations can be sent.');
+    if (this.status !== "DRAFT") {
+      throw new Error("Only DRAFT quotations can be sent.");
     }
     if (this.lines.length === 0) {
-      throw new Error('Cannot send a quotation without line items.');
+      throw new Error("Cannot send a quotation without line items.");
     }
-    this.status = 'SENT';
+    this.status = "SENT";
     this.updatedAt = new Date();
   }
 
   accept(): void {
-    if (this.status !== 'SENT') {
-      throw new Error('Only SENT quotations can be accepted.');
+    if (this.status !== "SENT") {
+      throw new Error("Only SENT quotations can be accepted.");
     }
     if (new Date() > this.validUntil) {
-      this.status = 'EXPIRED';
+      this.status = "EXPIRED";
       this.updatedAt = new Date();
-      throw new Error('Quotation has expired and cannot be accepted.');
+      throw new Error("Quotation has expired and cannot be accepted.");
     }
-    this.status = 'ACCEPTED';
+    this.status = "ACCEPTED";
     this.updatedAt = new Date();
   }
 
   cancel(): void {
-    if (this.status === 'ACCEPTED') {
-      throw new Error('Cannot cancel an ACCEPTED quotation.');
+    if (this.status === "ACCEPTED") {
+      throw new Error("Cannot cancel an ACCEPTED quotation.");
     }
-    this.status = 'CANCELLED';
+    this.status = "CANCELLED";
     this.updatedAt = new Date();
   }
 }

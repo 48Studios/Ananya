@@ -1,11 +1,7 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export type InvoiceStatus =
-  | 'DRAFT'
-  | 'POSTED'
-  | 'PARTIALLY_PAID'
-  | 'PAID'
-  | 'CANCELLED';
+  "DRAFT" | "POSTED" | "PARTIALLY_PAID" | "PAID" | "CANCELLED";
 
 export interface ReceivableInvoiceProps {
   id: string;
@@ -55,7 +51,7 @@ export class ReceivableInvoice implements ReceivableInvoiceProps {
 
   public static create(props: CreateReceivableInvoiceProps): ReceivableInvoice {
     if (props.amount <= 0) {
-      throw new Error('Receivable invoice amount must be greater than zero');
+      throw new Error("Receivable invoice amount must be greater than zero");
     }
 
     const now = new Date();
@@ -67,7 +63,7 @@ export class ReceivableInvoice implements ReceivableInvoiceProps {
       dueDate: props.dueDate,
       amount: props.amount,
       balance: props.amount,
-      status: 'DRAFT',
+      status: "DRAFT",
       createdAt: now,
       updatedAt: now,
     });
@@ -78,21 +74,21 @@ export class ReceivableInvoice implements ReceivableInvoiceProps {
   }
 
   public post(): void {
-    if (this.status !== 'DRAFT') {
+    if (this.status !== "DRAFT") {
       throw new Error(`Cannot post invoice in status ${this.status}`);
     }
-    this.status = 'POSTED';
+    this.status = "POSTED";
     this.updatedAt = new Date();
   }
 
   public applyPayment(paymentAmount: number): void {
-    if (this.status !== 'POSTED' && this.status !== 'PARTIALLY_PAID') {
+    if (this.status !== "POSTED" && this.status !== "PARTIALLY_PAID") {
       throw new Error(
         `Cannot apply payment to invoice in status ${this.status}`,
       );
     }
     if (paymentAmount <= 0) {
-      throw new Error('Payment amount must be greater than zero');
+      throw new Error("Payment amount must be greater than zero");
     }
     if (paymentAmount > this.balance) {
       throw new Error(
@@ -101,15 +97,15 @@ export class ReceivableInvoice implements ReceivableInvoiceProps {
     }
 
     this.balance -= paymentAmount;
-    this.status = this.balance === 0 ? 'PAID' : 'PARTIALLY_PAID';
+    this.status = this.balance === 0 ? "PAID" : "PARTIALLY_PAID";
     this.updatedAt = new Date();
   }
 
   public cancel(): void {
-    if (this.status === 'PAID') {
-      throw new Error('Paid receivable invoices cannot be cancelled');
+    if (this.status === "PAID") {
+      throw new Error("Paid receivable invoices cannot be cancelled");
     }
-    this.status = 'CANCELLED';
+    this.status = "CANCELLED";
     this.updatedAt = new Date();
   }
 }

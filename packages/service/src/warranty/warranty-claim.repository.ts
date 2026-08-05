@@ -1,4 +1,4 @@
-import { WarrantyClaim, WarrantyDecision } from './warranty-claim';
+import { WarrantyClaim, WarrantyDecision } from "./warranty-claim";
 
 export interface FindManyWarrantyClaimsOptions {
   customerId?: string;

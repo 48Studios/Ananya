@@ -1,4 +1,9 @@
-import { Project, ProjectStatus, ProjectType, ProjectPriority } from './project';
+import {
+  Project,
+  ProjectStatus,
+  ProjectType,
+  ProjectPriority,
+} from "./project";
 
 export interface FindManyProjectsOptions {
   status?: ProjectStatus;

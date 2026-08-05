@@ -1,4 +1,4 @@
-import { Activity, ActivityType, ActivityStatus } from './activity';
+import { Activity, ActivityType, ActivityStatus } from "./activity";
 
 export interface FindManyActivitiesOptions {
   type?: ActivityType;

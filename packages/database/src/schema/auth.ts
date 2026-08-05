@@ -27,7 +27,7 @@ export const roles = pgTable(
   (table) => [
     uniqueIndex("roles_name_unique").on(table.name),
     index("roles_is_system_idx").on(table.isSystem),
-  ]
+  ],
 );
 
 export const users = pgTable(
@@ -39,7 +39,9 @@ export const users = pgTable(
     firstName: varchar("first_name", { length: 100 }).notNull(),
     lastName: varchar("last_name", { length: 100 }).notNull(),
     department: varchar("department", { length: 100 }),
-    roleId: uuid("role_id").references(() => roles.id, { onDelete: "set null" }),
+    roleId: uuid("role_id").references(() => roles.id, {
+      onDelete: "set null",
+    }),
     secondaryRoleIds: jsonb("secondary_role_ids").default([]),
     status: varchar("status", { length: 32 }).notNull().default("ACTIVE"),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
@@ -54,7 +56,7 @@ export const users = pgTable(
     uniqueIndex("users_email_unique").on(table.email),
     index("users_role_id_idx").on(table.roleId),
     index("users_status_idx").on(table.status),
-  ]
+  ],
 );
 
 export const userSessions = pgTable(
@@ -81,7 +83,7 @@ export const userSessions = pgTable(
     uniqueIndex("user_sessions_token_unique").on(table.token),
     index("user_sessions_user_id_idx").on(table.userId),
     index("user_sessions_is_revoked_idx").on(table.isRevoked),
-  ]
+  ],
 );
 
 export const passwordResetTokens = pgTable(
@@ -101,14 +103,16 @@ export const passwordResetTokens = pgTable(
   (table) => [
     uniqueIndex("password_reset_tokens_token_unique").on(table.token),
     index("password_reset_tokens_user_id_idx").on(table.userId),
-  ]
+  ],
 );
 
 export const securityAuditLogs = pgTable(
   "security_audit_logs",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     userEmail: varchar("user_email", { length: 255 }),
     action: varchar("action", { length: 100 }).notNull(),
     category: varchar("category", { length: 50 }).notNull(),
@@ -123,7 +127,7 @@ export const securityAuditLogs = pgTable(
     index("security_audit_logs_action_idx").on(table.action),
     index("security_audit_logs_category_idx").on(table.category),
     index("security_audit_logs_created_at_idx").on(table.createdAt),
-  ]
+  ],
 );
 
 export const userInvitations = pgTable(
@@ -136,7 +140,9 @@ export const userInvitations = pgTable(
     token: varchar("token", { length: 255 }).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     status: varchar("status", { length: 32 }).notNull().default("PENDING"), // 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'REVOKED'
-    invitedById: uuid("invited_by_id").references(() => users.id, { onDelete: "set null" }),
+    invitedById: uuid("invited_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -145,21 +151,20 @@ export const userInvitations = pgTable(
     uniqueIndex("user_invitations_token_unique").on(table.token),
     index("user_invitations_email_idx").on(table.email),
     index("user_invitations_status_idx").on(table.status),
-  ]
+  ],
 );
 
-export const organizationSetupStatus = pgTable(
-  "organization_setup_status",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    isCompleted: boolean("is_completed").notNull().default(false),
-    completedAt: timestamp("completed_at", { withTimezone: true }),
-    completedById: uuid("completed_by_id").references(() => users.id, { onDelete: "set null" }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  }
-);
+export const organizationSetupStatus = pgTable("organization_setup_status", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  isCompleted: boolean("is_completed").notNull().default(false),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  completedById: uuid("completed_by_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 
 export type Role = typeof roles.$inferSelect;
 export type NewRole = typeof roles.$inferInsert;
@@ -177,5 +182,5 @@ export type SecurityAuditLog = typeof securityAuditLogs.$inferSelect;
 export type NewSecurityAuditLog = typeof securityAuditLogs.$inferInsert;
 
 export type UserInvitation = typeof userInvitations.$inferSelect;
-export type OrganizationSetupStatus = typeof organizationSetupStatus.$inferSelect;
-
+export type OrganizationSetupStatus =
+  typeof organizationSetupStatus.$inferSelect;

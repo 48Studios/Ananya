@@ -1,36 +1,52 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { DollarSign, Plus, CheckCircle2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DollarSign, Plus, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface PaymentVoucher {
-  id: string
-  paymentNumber: string
-  partyName: string
-  type: 'RECEIPT' | 'PAYMENT'
-  amount: number
-  method: 'BANK_TRANSFER' | 'CHECK' | 'WIRE'
-  paymentDate: string
+  id: string;
+  paymentNumber: string;
+  partyName: string;
+  type: "RECEIPT" | "PAYMENT";
+  amount: number;
+  method: "BANK_TRANSFER" | "CHECK" | "WIRE";
+  paymentDate: string;
 }
 
 const mockPayments: PaymentVoucher[] = [
-  { id: 'pay-1', paymentNumber: 'PAY-2026-101', partyName: 'AeroTech Systems', type: 'RECEIPT', amount: 48500, method: 'WIRE', paymentDate: '2026-02-04' },
-  { id: 'pay-2', paymentNumber: 'PAY-2026-102', partyName: 'Precision Steel Alloys', type: 'PAYMENT', amount: 12900, method: 'BANK_TRANSFER', paymentDate: '2026-02-02' },
-]
+  {
+    id: "pay-1",
+    paymentNumber: "PAY-2026-101",
+    partyName: "AeroTech Systems",
+    type: "RECEIPT",
+    amount: 48500,
+    method: "WIRE",
+    paymentDate: "2026-02-04",
+  },
+  {
+    id: "pay-2",
+    paymentNumber: "PAY-2026-102",
+    partyName: "Precision Steel Alloys",
+    type: "PAYMENT",
+    amount: 12900,
+    method: "BANK_TRANSFER",
+    paymentDate: "2026-02-02",
+  },
+];
 
 export default function PaymentsPage() {
-  const [payments] = React.useState<PaymentVoucher[]>(mockPayments)
+  const [payments] = React.useState<PaymentVoucher[]>(mockPayments);
 
   const columns: ColumnDef<PaymentVoucher>[] = [
     {
-      accessorKey: 'paymentNumber',
-      header: 'Payment Voucher No.',
+      accessorKey: "paymentNumber",
+      header: "Payment Voucher No.",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
           {row.original.paymentNumber}
@@ -38,31 +54,35 @@ export default function PaymentsPage() {
       ),
     },
     {
-      accessorKey: 'partyName',
-      header: 'Customer / Supplier Party',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.partyName}</span>,
+      accessorKey: "partyName",
+      header: "Customer / Supplier Party",
+      cell: ({ row }) => (
+        <span className="font-medium text-foreground">
+          {row.original.partyName}
+        </span>
+      ),
     },
     {
-      accessorKey: 'type',
-      header: 'Voucher Type',
+      accessorKey: "type",
+      header: "Voucher Type",
       cell: ({ row }) => {
-        const isReceipt = row.original.type === 'RECEIPT'
+        const isReceipt = row.original.type === "RECEIPT";
         return (
           <span
             className={`font-mono text-xs px-2 py-0.5 rounded font-semibold border ${
               isReceipt
-                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
             }`}
           >
-            {isReceipt ? 'Customer Receipt' : 'Vendor Payment'}
+            {isReceipt ? "Customer Receipt" : "Vendor Payment"}
           </span>
-        )
+        );
       },
     },
     {
-      accessorKey: 'amount',
-      header: 'Payment Amount',
+      accessorKey: "amount",
+      header: "Payment Amount",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
           {formatCurrency(row.original.amount)}
@@ -70,16 +90,24 @@ export default function PaymentsPage() {
       ),
     },
     {
-      accessorKey: 'method',
-      header: 'Payment Method',
-      cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.method}</span>,
+      accessorKey: "method",
+      header: "Payment Method",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.method}
+        </span>
+      ),
     },
     {
-      accessorKey: 'paymentDate',
-      header: 'Payment Date',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatDate(row.original.paymentDate)}</span>,
+      accessorKey: "paymentDate",
+      header: "Payment Date",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {formatDate(row.original.paymentDate)}
+        </span>
+      ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -118,5 +146,5 @@ export default function PaymentsPage() {
         searchPlaceholder="Search payments by voucher # or party..."
       />
     </div>
-  )
+  );
 }

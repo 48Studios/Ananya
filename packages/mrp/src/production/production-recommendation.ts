@@ -1,8 +1,5 @@
 export type ProductionRecommendationStatus =
-  | 'PENDING'
-  | 'ACCEPTED'
-  | 'REJECTED'
-  | 'IMPLEMENTED';
+  "PENDING" | "ACCEPTED" | "REJECTED" | "IMPLEMENTED";
 
 export interface CreateProductionRecommendationProps {
   planningRunId: string;
@@ -29,7 +26,7 @@ export interface RehydrateProductionRecommendationProps {
 export class InvalidProductionRecommendationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'InvalidProductionRecommendationError';
+    this.name = "InvalidProductionRecommendationError";
   }
 }
 
@@ -62,17 +59,21 @@ export class ProductionRecommendation {
     props: CreateProductionRecommendationProps,
   ): ProductionRecommendation {
     if (!props.planningRunId || props.planningRunId.trim().length === 0) {
-      throw new InvalidProductionRecommendationError('Planning run ID is required.');
+      throw new InvalidProductionRecommendationError(
+        "Planning run ID is required.",
+      );
     }
     if (!props.productId || props.productId.trim().length === 0) {
-      throw new InvalidProductionRecommendationError('Product ID is required.');
+      throw new InvalidProductionRecommendationError("Product ID is required.");
     }
     if (props.suggestedQuantity <= 0) {
-      throw new InvalidProductionRecommendationError('Suggested quantity must be greater than zero.');
+      throw new InvalidProductionRecommendationError(
+        "Suggested quantity must be greater than zero.",
+      );
     }
     if (props.suggestedStart > props.suggestedCompletion) {
       throw new InvalidProductionRecommendationError(
-        'Suggested start date cannot be after completion date.',
+        "Suggested start date cannot be after completion date.",
       );
     }
 
@@ -85,7 +86,7 @@ export class ProductionRecommendation {
       suggestedStart: props.suggestedStart,
       suggestedCompletion: props.suggestedCompletion,
       manufacturingRoute: props.manufacturingRoute,
-      status: 'PENDING',
+      status: "PENDING",
       createdAt: now,
       updatedAt: now,
     });
@@ -134,32 +135,32 @@ export class ProductionRecommendation {
   }
 
   public accept(): void {
-    if (this._status !== 'PENDING') {
+    if (this._status !== "PENDING") {
       throw new InvalidProductionRecommendationError(
         `Cannot accept recommendation in status ${this._status}.`,
       );
     }
-    this._status = 'ACCEPTED';
+    this._status = "ACCEPTED";
     this._updatedAt = new Date();
   }
 
   public reject(): void {
-    if (this._status !== 'PENDING') {
+    if (this._status !== "PENDING") {
       throw new InvalidProductionRecommendationError(
         `Cannot reject recommendation in status ${this._status}.`,
       );
     }
-    this._status = 'REJECTED';
+    this._status = "REJECTED";
     this._updatedAt = new Date();
   }
 
   public markImplemented(): void {
-    if (this._status !== 'ACCEPTED') {
+    if (this._status !== "ACCEPTED") {
       throw new InvalidProductionRecommendationError(
         `Cannot implement recommendation in status ${this._status}.`,
       );
     }
-    this._status = 'IMPLEMENTED';
+    this._status = "IMPLEMENTED";
     this._updatedAt = new Date();
   }
 }

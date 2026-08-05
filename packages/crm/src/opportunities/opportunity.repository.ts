@@ -1,4 +1,4 @@
-import { Opportunity, OpportunityStage } from './opportunity';
+import { Opportunity, OpportunityStage } from "./opportunity";
 
 export interface FindManyOpportunitiesOptions {
   crmAccountId?: string;

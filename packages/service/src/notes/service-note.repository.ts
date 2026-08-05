@@ -1,4 +1,4 @@
-import { ServiceNote } from './service-note';
+import { ServiceNote } from "./service-note";
 
 export interface FindManyServiceNotesOptions {
   serviceRequestId?: string;

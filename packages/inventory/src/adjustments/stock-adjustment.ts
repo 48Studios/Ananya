@@ -100,7 +100,10 @@ export class StockAdjustment {
 
     for (const lineInput of input.lines) {
       if (lineInput.countedQuantity < 0) {
-        throw new NegativeCountedQuantityError(lineInput.componentId, lineInput.countedQuantity);
+        throw new NegativeCountedQuantityError(
+          lineInput.componentId,
+          lineInput.countedQuantity,
+        );
       }
 
       const lineId = ObjectId.generate().value;
@@ -125,7 +128,7 @@ export class StockAdjustment {
   public approve(approvedBy: string): void {
     if (this.status !== "PENDING") {
       throw new InvalidAdjustmentStatusError(
-        `Cannot approve stock adjustment in ${this.status} status.`
+        `Cannot approve stock adjustment in ${this.status} status.`,
       );
     }
 
@@ -138,7 +141,7 @@ export class StockAdjustment {
   public cancel(): void {
     if (this.status !== "PENDING") {
       throw new InvalidAdjustmentStatusError(
-        `Cannot cancel stock adjustment in ${this.status} status.`
+        `Cannot cancel stock adjustment in ${this.status} status.`,
       );
     }
 

@@ -1,2 +1,2 @@
-export * from './receivable-invoice';
-export * from './receivable-invoice.repository';
+export * from "./receivable-invoice";
+export * from "./receivable-invoice.repository";

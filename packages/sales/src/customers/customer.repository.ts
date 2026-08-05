@@ -1,4 +1,4 @@
-import { Customer, CustomerStatus } from './customer';
+import { Customer, CustomerStatus } from "./customer";
 
 export interface FindManyCustomersOptions {
   status?: CustomerStatus;

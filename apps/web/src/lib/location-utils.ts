@@ -1,4 +1,4 @@
-import type { Location } from '@ananya/inventory';
+import type { Location } from "@ananya/inventory";
 
 /**
  * Builds a human-readable location path from a list of locations and a location ID.
@@ -6,9 +6,9 @@ import type { Location } from '@ananya/inventory';
  */
 export function formatLocationPath(
   locations: Location[],
-  locationId?: string | null
+  locationId?: string | null,
 ): string[] {
-  if (!locationId) return ['Unassigned'];
+  if (!locationId) return ["Unassigned"];
 
   const locationMap = new Map<string, Location>();
   locations.forEach((loc) => locationMap.set(loc.id, loc));
@@ -28,7 +28,7 @@ export function formatLocationPath(
     }
   }
 
-  return path.length > 0 ? path : ['Unknown Location'];
+  return path.length > 0 ? path : ["Unknown Location"];
 }
 
 /**
@@ -36,7 +36,7 @@ export function formatLocationPath(
  */
 export function formatLocationPathString(
   locations: Location[],
-  locationId?: string | null
+  locationId?: string | null,
 ): string {
-  return formatLocationPath(locations, locationId).join(' › ');
+  return formatLocationPath(locations, locationId).join(" › ");
 }

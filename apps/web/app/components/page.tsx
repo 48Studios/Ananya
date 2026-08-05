@@ -1,98 +1,117 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Plus, X, Eye, Edit3, Trash2, Package, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable, type FilterConfig } from '@/components/ui/entity-data-table'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { ComponentForm } from '@/components/components/component-form'
-import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
-import { locationsApi, type LocationDto } from '@/lib/api/locations-api'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  Plus,
+  X,
+  Eye,
+  Edit3,
+  Trash2,
+  Package,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ComponentForm } from "@/components/components/component-form";
+import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
+import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 
 export default function ComponentsPage() {
-  const [components, setComponents] = React.useState<ComponentDto[]>([])
-  const [locations, setLocations] = React.useState<LocationDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [editingComponent, setEditingComponent] = React.useState<ComponentDto | null>(null)
-  const [deletingComponent, setDeletingComponent] = React.useState<ComponentDto | null>(null)
-  const [deleteLoading, setDeleteLoading] = React.useState(false)
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null)
-  const [apiAlert, setApiAlert] = React.useState<string | null>(null)
+  const [components, setComponents] = React.useState<ComponentDto[]>([]);
+  const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingComponent, setEditingComponent] =
+    React.useState<ComponentDto | null>(null);
+  const [deletingComponent, setDeletingComponent] =
+    React.useState<ComponentDto | null>(null);
+  const [deleteLoading, setDeleteLoading] = React.useState(false);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  const [apiAlert, setApiAlert] = React.useState<string | null>(null);
 
   const fetchData = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const [comps, locs] = await Promise.all([
         componentsApi.getAll(),
         locationsApi.getAll().catch(() => []),
-      ])
-      setComponents(comps)
-      setLocations(locs)
+      ]);
+      setComponents(comps);
+      setLocations(locs);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message)
+        setError(err.message);
       } else {
-        setError('Failed to fetch components from API')
+        setError("Failed to fetch components from API");
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchData();
+  }, [fetchData]);
 
   const locationMap = React.useMemo(() => {
-    const map = new Map<string, string>()
+    const map = new Map<string, string>();
     for (const loc of locations) {
-      map.set(loc.id, loc.code)
+      map.set(loc.id, loc.code);
     }
-    return map
-  }, [locations])
+    return map;
+  }, [locations]);
 
   const activeCount = React.useMemo(
     () => components.filter((c) => c.isActive).length,
     [components],
-  )
+  );
   const uniqueUnitsCount = React.useMemo(
     () => new Set(components.map((c) => c.unit.toLowerCase())).size,
     [components],
-  )
+  );
 
   const handleDeleteConfirm = async () => {
-    if (!deletingComponent) return
-    setDeleteLoading(true)
-    setApiAlert(null)
+    if (!deletingComponent) return;
+    setDeleteLoading(true);
+    setApiAlert(null);
     try {
-      await componentsApi.delete(deletingComponent.id)
-      setComponents((prev) => prev.filter((c) => c.id !== deletingComponent.id))
-      setToastMessage(`Component "${deletingComponent.sku}" deleted successfully.`)
-      setTimeout(() => setToastMessage(null), 4000)
-      setDeletingComponent(null)
+      await componentsApi.delete(deletingComponent.id);
+      setComponents((prev) =>
+        prev.filter((c) => c.id !== deletingComponent.id),
+      );
+      setToastMessage(
+        `Component "${deletingComponent.sku}" deleted successfully.`,
+      );
+      setTimeout(() => setToastMessage(null), 4000);
+      setDeletingComponent(null);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setApiAlert(err.message)
+        setApiAlert(err.message);
       } else {
-        setApiAlert('Failed to delete component')
+        setApiAlert("Failed to delete component");
       }
     } finally {
-      setDeleteLoading(false)
+      setDeleteLoading(false);
     }
-  }
+  };
 
   const columns = React.useMemo<ColumnDef<ComponentDto>[]>(
     () => [
       {
-        accessorKey: 'sku',
-        header: 'SKU / Part No.',
+        accessorKey: "sku",
+        header: "SKU / Part No.",
         cell: ({ row }) => (
           <Link
             href={`/components/${row.original.id}`}
@@ -103,8 +122,8 @@ export default function ComponentsPage() {
         ),
       },
       {
-        accessorKey: 'name',
-        header: 'Component Name',
+        accessorKey: "name",
+        header: "Component Name",
         cell: ({ row }) => (
           <Link
             href={`/components/${row.original.id}`}
@@ -115,17 +134,17 @@ export default function ComponentsPage() {
         ),
       },
       {
-        accessorKey: 'description',
-        header: 'Description',
+        accessorKey: "description",
+        header: "Description",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground truncate max-w-xs block">
-            {row.original.description || '—'}
+            {row.original.description || "—"}
           </span>
         ),
       },
       {
-        accessorKey: 'unit',
-        header: 'Unit',
+        accessorKey: "unit",
+        header: "Unit",
         cell: ({ row }) => (
           <span className="font-mono text-xs uppercase px-2 py-0.5 border border-border rounded bg-card text-foreground">
             {row.original.unit}
@@ -133,12 +152,15 @@ export default function ComponentsPage() {
         ),
       },
       {
-        accessorKey: 'defaultLocationId',
-        header: 'Default Storage',
+        accessorKey: "defaultLocationId",
+        header: "Default Storage",
         cell: ({ row }) => {
-          const locId = row.original.defaultLocationId
-          if (!locId) return <span className="text-xs text-muted-foreground italic">—</span>
-          const locCode = locationMap.get(locId)
+          const locId = row.original.defaultLocationId;
+          if (!locId)
+            return (
+              <span className="text-xs text-muted-foreground italic">—</span>
+            );
+          const locCode = locationMap.get(locId);
           return locCode ? (
             <Link
               href={`/locations/${locId}`}
@@ -148,27 +170,27 @@ export default function ComponentsPage() {
             </Link>
           ) : (
             <span className="text-xs text-muted-foreground">Assigned</span>
-          )
+          );
         },
       },
       {
-        accessorKey: 'isActive',
-        header: 'Status',
+        accessorKey: "isActive",
+        header: "Status",
         cell: ({ row }) => (
           <span
             className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
               row.original.isActive
-                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                : 'bg-muted text-muted-foreground'
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "bg-muted text-muted-foreground"
             }`}
           >
-            {row.original.isActive ? 'Active' : 'Inactive'}
+            {row.original.isActive ? "Active" : "Inactive"}
           </span>
         ),
       },
       {
-        id: 'actions',
-        header: 'Actions',
+        id: "actions",
+        header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/components/${row.original.id}`}>
@@ -181,8 +203,8 @@ export default function ComponentsPage() {
               size="icon-xs"
               title="Edit component"
               onClick={() => {
-                setEditingComponent(row.original)
-                setIsFormOpen(true)
+                setEditingComponent(row.original);
+                setIsFormOpen(true);
               }}
             >
               <Edit3 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -192,8 +214,8 @@ export default function ComponentsPage() {
               size="icon-xs"
               title="Delete component"
               onClick={() => {
-                setApiAlert(null)
-                setDeletingComponent(row.original)
+                setApiAlert(null);
+                setDeletingComponent(row.original);
               }}
             >
               <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
@@ -203,33 +225,37 @@ export default function ComponentsPage() {
       },
     ],
     [locationMap],
-  )
+  );
 
   const filterConfigs: FilterConfig[] = [
     {
-      columnId: 'isActive',
-      title: 'Status',
+      columnId: "isActive",
+      title: "Status",
       options: [
-        { label: 'Active', value: 'true' },
-        { label: 'Inactive', value: 'false' },
+        { label: "Active", value: "true" },
+        { label: "Inactive", value: "false" },
       ],
     },
-  ]
+  ];
 
   const handleFormSuccess = (savedComponent: ComponentDto) => {
     if (editingComponent) {
       setComponents((prev) =>
         prev.map((c) => (c.id === savedComponent.id ? savedComponent : c)),
-      )
-      setToastMessage(`Component "${savedComponent.sku}" updated successfully.`)
+      );
+      setToastMessage(
+        `Component "${savedComponent.sku}" updated successfully.`,
+      );
     } else {
-      setComponents((prev) => [savedComponent, ...prev])
-      setToastMessage(`Component "${savedComponent.sku}" created successfully.`)
+      setComponents((prev) => [savedComponent, ...prev]);
+      setToastMessage(
+        `Component "${savedComponent.sku}" created successfully.`,
+      );
     }
-    setIsFormOpen(false)
-    setEditingComponent(null)
-    setTimeout(() => setToastMessage(null), 4000)
-  }
+    setIsFormOpen(false);
+    setEditingComponent(null);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   return (
     <div className="space-y-6">
@@ -241,8 +267,8 @@ export default function ComponentsPage() {
           <Button
             size="sm"
             onClick={() => {
-              setEditingComponent(null)
-              setIsFormOpen(true)
+              setEditingComponent(null);
+              setIsFormOpen(true);
             }}
           >
             <Plus className="w-4 h-4 mr-1.5" />
@@ -307,12 +333,12 @@ export default function ComponentsPage() {
           <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h2 className="text-lg font-semibold text-foreground">
-                {editingComponent ? 'Edit Component' : 'Create New Component'}
+                {editingComponent ? "Edit Component" : "Create New Component"}
               </h2>
               <button
                 onClick={() => {
-                  setIsFormOpen(false)
-                  setEditingComponent(null)
+                  setIsFormOpen(false);
+                  setEditingComponent(null);
                 }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -323,8 +349,8 @@ export default function ComponentsPage() {
               initialData={editingComponent}
               onSuccess={handleFormSuccess}
               onCancel={() => {
-                setIsFormOpen(false)
-                setEditingComponent(null)
+                setIsFormOpen(false);
+                setEditingComponent(null);
               }}
             />
           </div>
@@ -355,5 +381,5 @@ export default function ComponentsPage() {
         emptyMessage="Get started by adding your first inventory component."
       />
     </div>
-  )
+  );
 }

@@ -90,8 +90,12 @@ This RFC defines the **Production Order** aggregate and manufacturing work-order
 ```typescript
 export interface ProductionOrderRepository {
   findById(id: string): Promise<ProductionOrder | null>;
-  findByProductionNumber(productionNumber: string): Promise<ProductionOrder | null>;
-  findMany(options?: FindManyProductionOrdersOptions): Promise<ProductionOrder[]>;
+  findByProductionNumber(
+    productionNumber: string,
+  ): Promise<ProductionOrder | null>;
+  findMany(
+    options?: FindManyProductionOrdersOptions,
+  ): Promise<ProductionOrder[]>;
   save(order: ProductionOrder): Promise<void>;
   generateNextProductionNumber(): Promise<string>;
 }

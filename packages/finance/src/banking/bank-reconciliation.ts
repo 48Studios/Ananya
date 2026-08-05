@@ -1,6 +1,6 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
-export type ReconciliationStatus = 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type ReconciliationStatus = "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
 export interface BankTransactionProps {
   id: string;
@@ -72,7 +72,7 @@ export class BankReconciliation implements BankReconciliationProps {
       statementDate: props.statementDate,
       openingBalance: props.openingBalance,
       closingBalance: props.closingBalance,
-      status: 'IN_PROGRESS',
+      status: "IN_PROGRESS",
       transactions: [],
       createdAt: now,
       updatedAt: now,
@@ -83,12 +83,10 @@ export class BankReconciliation implements BankReconciliationProps {
     return new BankReconciliation(props);
   }
 
-  public addTransaction(
-    props: AddBankTransactionProps,
-  ): BankTransactionProps {
-    if (this.status !== 'IN_PROGRESS') {
+  public addTransaction(props: AddBankTransactionProps): BankTransactionProps {
+    if (this.status !== "IN_PROGRESS") {
       throw new Error(
-        'Transactions can only be added to IN_PROGRESS reconciliations',
+        "Transactions can only be added to IN_PROGRESS reconciliations",
       );
     }
     const now = new Date();
@@ -108,8 +106,8 @@ export class BankReconciliation implements BankReconciliationProps {
   }
 
   public matchTransaction(transactionId: string, paymentId: string): void {
-    if (this.status !== 'IN_PROGRESS') {
-      throw new Error('Can only match transactions when IN_PROGRESS');
+    if (this.status !== "IN_PROGRESS") {
+      throw new Error("Can only match transactions when IN_PROGRESS");
     }
     const tx = this.transactions.find((t) => t.id === transactionId);
     if (!tx) {
@@ -122,7 +120,7 @@ export class BankReconciliation implements BankReconciliationProps {
   }
 
   public complete(): void {
-    if (this.status !== 'IN_PROGRESS') {
+    if (this.status !== "IN_PROGRESS") {
       throw new Error(
         `Cannot complete reconciliation in status ${this.status}`,
       );
@@ -133,7 +131,7 @@ export class BankReconciliation implements BankReconciliationProps {
         `Cannot complete reconciliation with ${unmatchedCount} unmatched transactions`,
       );
     }
-    this.status = 'COMPLETED';
+    this.status = "COMPLETED";
     this.updatedAt = new Date();
   }
 }

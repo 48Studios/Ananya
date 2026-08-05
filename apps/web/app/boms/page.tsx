@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
   X,
@@ -17,144 +17,163 @@ import {
   Trash2,
   AlertCircle,
   RefreshCw,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable, type FilterConfig } from '@/components/ui/entity-data-table'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { BomForm } from '@/components/boms/bom-form'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { BomForm } from "@/components/boms/bom-form";
 import {
   bomsApi,
   type BillOfMaterialsDto,
   type BomStatus,
-} from '@/lib/api/boms-api'
-import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
+} from "@/lib/api/boms-api";
+import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 
 function getStatusBadge(status: BomStatus) {
   switch (status) {
-    case 'RELEASED':
+    case "RELEASED":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
           <CheckCircle2 className="w-3 h-3 mr-1" />
           Released
         </span>
-      )
-    case 'DRAFT':
+      );
+    case "DRAFT":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
           <Clock className="w-3 h-3 mr-1" />
           Draft
         </span>
-      )
-    case 'OBSOLETE':
+      );
+    case "OBSOLETE":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-muted text-muted-foreground border border-border">
           <XCircle className="w-3 h-3 mr-1" />
           Obsolete
         </span>
-      )
+      );
   }
 }
 
 export default function BomsPage() {
-  const [boms, setBoms] = React.useState<BillOfMaterialsDto[]>([])
-  const [componentsMap, setComponentsMap] = React.useState<Record<string, ComponentDto>>({})
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [boms, setBoms] = React.useState<BillOfMaterialsDto[]>([]);
+  const [componentsMap, setComponentsMap] = React.useState<
+    Record<string, ComponentDto>
+  >({});
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [editingBom, setEditingBom] = React.useState<BillOfMaterialsDto | null>(null)
-  const [deletingBom, setDeletingBom] = React.useState<BillOfMaterialsDto | null>(null)
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null)
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingBom, setEditingBom] = React.useState<BillOfMaterialsDto | null>(
+    null,
+  );
+  const [deletingBom, setDeletingBom] =
+    React.useState<BillOfMaterialsDto | null>(null);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
 
   const fetchBoms = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const [bomData, comps] = await Promise.all([
         bomsApi.getAll(),
         componentsApi.getAll().catch(() => []),
-      ])
-      setBoms(bomData)
+      ]);
+      setBoms(bomData);
 
-      const map: Record<string, ComponentDto> = {}
-      for (const c of comps) map[c.id] = c
-      setComponentsMap(map)
+      const map: Record<string, ComponentDto> = {};
+      for (const c of comps) map[c.id] = c;
+      setComponentsMap(map);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message)
+        setError(err.message);
       } else {
-        setError('Failed to fetch Bill of Materials list')
+        setError("Failed to fetch Bill of Materials list");
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    fetchBoms()
-  }, [fetchBoms])
+    fetchBoms();
+  }, [fetchBoms]);
 
   const activeReleasedCount = React.useMemo(
-    () => boms.filter((b) => b.status === 'RELEASED').length,
+    () => boms.filter((b) => b.status === "RELEASED").length,
     [boms],
-  )
+  );
   const draftCount = React.useMemo(
-    () => boms.filter((b) => b.status === 'DRAFT').length,
+    () => boms.filter((b) => b.status === "DRAFT").length,
     [boms],
-  )
+  );
   const obsoleteCount = React.useMemo(
-    () => boms.filter((b) => b.status === 'OBSOLETE').length,
+    () => boms.filter((b) => b.status === "OBSOLETE").length,
     [boms],
-  )
+  );
 
-  const handleDuplicate = React.useCallback(async (bom: BillOfMaterialsDto) => {
-    try {
-      const dup = await bomsApi.duplicate(bom.id)
-      setToastMessage(`Duplicated revision ${dup.revision} created as Draft.`)
-      setTimeout(() => setToastMessage(null), 4000)
-      fetchBoms()
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to duplicate BOM')
-    }
-  }, [fetchBoms])
+  const handleDuplicate = React.useCallback(
+    async (bom: BillOfMaterialsDto) => {
+      try {
+        const dup = await bomsApi.duplicate(bom.id);
+        setToastMessage(
+          `Duplicated revision ${dup.revision} created as Draft.`,
+        );
+        setTimeout(() => setToastMessage(null), 4000);
+        fetchBoms();
+      } catch (err: unknown) {
+        setError(
+          err instanceof Error ? err.message : "Failed to duplicate BOM",
+        );
+      }
+    },
+    [fetchBoms],
+  );
 
   const handleDeleteConfirm = async () => {
-    if (!deletingBom) return
+    if (!deletingBom) return;
     try {
-      await bomsApi.delete(deletingBom.id)
-      setToastMessage(`BOM revision "${deletingBom.revision}" deleted.`)
-      setDeletingBom(null)
-      setTimeout(() => setToastMessage(null), 4000)
-      fetchBoms()
+      await bomsApi.delete(deletingBom.id);
+      setToastMessage(`BOM revision "${deletingBom.revision}" deleted.`);
+      setDeletingBom(null);
+      setTimeout(() => setToastMessage(null), 4000);
+      fetchBoms();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete BOM')
+      setError(err instanceof Error ? err.message : "Failed to delete BOM");
     }
-  }
+  };
 
   const columns = React.useMemo<ColumnDef<BillOfMaterialsDto>[]>(
     () => [
       {
-        accessorKey: 'componentId',
-        header: 'Finished Product',
+        accessorKey: "componentId",
+        header: "Finished Product",
         cell: ({ row }) => {
-          const comp = componentsMap[row.original.componentId]
+          const comp = componentsMap[row.original.componentId];
           return (
             <Link
               href={`/boms/${row.original.id}`}
               className="text-xs font-semibold text-foreground hover:underline flex items-center gap-1.5"
             >
               <Boxes className="w-3.5 h-3.5 text-muted-foreground" />
-              {comp ? comp.name : row.original.componentId.slice(0, 8)}{' '}
-              {comp && <span className="font-mono text-muted-foreground text-[11px]">({comp.sku})</span>}
+              {comp ? comp.name : row.original.componentId.slice(0, 8)}{" "}
+              {comp && (
+                <span className="font-mono text-muted-foreground text-[11px]">
+                  ({comp.sku})
+                </span>
+              )}
             </Link>
-          )
+          );
         },
       },
       {
-        accessorKey: 'revision',
-        header: 'Revision',
+        accessorKey: "revision",
+        header: "Revision",
         cell: ({ row }) => (
           <span className="font-mono text-xs font-bold text-foreground bg-muted/50 px-2 py-0.5 rounded">
             {row.original.revision}
@@ -162,8 +181,8 @@ export default function BomsPage() {
         ),
       },
       {
-        accessorKey: 'lines',
-        header: 'Component Lines',
+        accessorKey: "lines",
+        header: "Component Lines",
         cell: ({ row }) => (
           <span className="font-mono text-xs font-medium text-foreground">
             {row.original.lines.length} components
@@ -171,13 +190,13 @@ export default function BomsPage() {
         ),
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
+        accessorKey: "status",
+        header: "Status",
         cell: ({ row }) => getStatusBadge(row.original.status),
       },
       {
-        accessorKey: 'createdAt',
-        header: 'Date Created',
+        accessorKey: "createdAt",
+        header: "Date Created",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
             {new Date(row.original.createdAt).toLocaleDateString()}
@@ -185,8 +204,8 @@ export default function BomsPage() {
         ),
       },
       {
-        id: 'actions',
-        header: 'Actions',
+        id: "actions",
+        header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/boms/${row.original.id}`}>
@@ -202,15 +221,15 @@ export default function BomsPage() {
             >
               <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
             </Button>
-            {row.original.status === 'DRAFT' && (
+            {row.original.status === "DRAFT" && (
               <>
                 <Button
                   variant="ghost"
                   size="icon-xs"
                   title="Edit draft"
                   onClick={() => {
-                    setEditingBom(row.original)
-                    setIsFormOpen(true)
+                    setEditingBom(row.original);
+                    setIsFormOpen(true);
                   }}
                 >
                   <Pencil className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -230,27 +249,27 @@ export default function BomsPage() {
       },
     ],
     [componentsMap, handleDuplicate],
-  )
+  );
 
   const filterConfigs: FilterConfig[] = [
     {
-      columnId: 'status',
-      title: 'Status',
+      columnId: "status",
+      title: "Status",
       options: [
-        { label: 'Released (Active)', value: 'RELEASED' },
-        { label: 'Draft', value: 'DRAFT' },
-        { label: 'Obsolete', value: 'OBSOLETE' },
+        { label: "Released (Active)", value: "RELEASED" },
+        { label: "Draft", value: "DRAFT" },
+        { label: "Obsolete", value: "OBSOLETE" },
       ],
     },
-  ]
+  ];
 
   const handleFormSuccess = (savedBom: BillOfMaterialsDto) => {
-    setToastMessage(`BOM revision "${savedBom.revision}" saved successfully.`)
-    setIsFormOpen(false)
-    setEditingBom(null)
-    setTimeout(() => setToastMessage(null), 4000)
-    fetchBoms()
-  }
+    setToastMessage(`BOM revision "${savedBom.revision}" saved successfully.`);
+    setIsFormOpen(false);
+    setEditingBom(null);
+    setTimeout(() => setToastMessage(null), 4000);
+    fetchBoms();
+  };
 
   return (
     <div className="space-y-6">
@@ -262,8 +281,8 @@ export default function BomsPage() {
           <Button
             size="sm"
             onClick={() => {
-              setEditingBom(null)
-              setIsFormOpen(true)
+              setEditingBom(null);
+              setIsFormOpen(true);
             }}
           >
             <Plus className="w-4 h-4 mr-1.5" />
@@ -326,12 +345,12 @@ export default function BomsPage() {
           <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h2 className="text-lg font-semibold text-foreground">
-                {editingBom ? 'Edit Draft BOM' : 'Create Bill of Materials'}
+                {editingBom ? "Edit Draft BOM" : "Create Bill of Materials"}
               </h2>
               <button
                 onClick={() => {
-                  setIsFormOpen(false)
-                  setEditingBom(null)
+                  setIsFormOpen(false);
+                  setEditingBom(null);
                 }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -342,8 +361,8 @@ export default function BomsPage() {
               initialData={editingBom}
               onSuccess={handleFormSuccess}
               onCancel={() => {
-                setIsFormOpen(false)
-                setEditingBom(null)
+                setIsFormOpen(false);
+                setEditingBom(null);
               }}
             />
           </div>
@@ -373,5 +392,5 @@ export default function BomsPage() {
         emptyMessage="Get started by creating your first manufacturing assembly specification."
       />
     </div>
-  )
+  );
 }

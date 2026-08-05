@@ -1,22 +1,22 @@
-'use client'
+"use client";
 
-import React from 'react'
-import { SidebarSection as SidebarSectionType } from '../types'
-import { SidebarItem } from './sidebar-item'
-import { SidebarAccordion } from './sidebar-accordion'
-import { SidebarQuickStats } from './sidebar-quick-stats'
-import { SidebarQuickActions } from './sidebar-quick-actions'
-import { SidebarFavoritesRecent } from './sidebar-favorites-recent'
-import { SectionHeader } from './sidebar-section-header'
-import { useNavigation } from '../navigation-context'
-import { NAV_TOKENS } from '../tokens'
-import { cn } from '@/lib/utils'
+import React from "react";
+import { SidebarSection as SidebarSectionType } from "../types";
+import { SidebarItem } from "./sidebar-item";
+import { SidebarAccordion } from "./sidebar-accordion";
+import { SidebarQuickStats } from "./sidebar-quick-stats";
+import { SidebarQuickActions } from "./sidebar-quick-actions";
+import { SidebarFavoritesRecent } from "./sidebar-favorites-recent";
+import { SectionHeader } from "./sidebar-section-header";
+import { useNavigation } from "../navigation-context";
+import { NAV_TOKENS } from "../tokens";
+import { cn } from "@/lib/utils";
 
 interface SidebarSectionProps {
-  section: SidebarSectionType
-  isCollapsed: boolean
-  isFirst?: boolean
-  onItemClick?: () => void
+  section: SidebarSectionType;
+  isCollapsed: boolean;
+  isFirst?: boolean;
+  onItemClick?: () => void;
 }
 
 export function SidebarSection({
@@ -25,35 +25,50 @@ export function SidebarSection({
   isFirst = false,
   onItemClick,
 }: SidebarSectionProps) {
-  const { currentModuleId } = useNavigation()
+  const { currentModuleId } = useNavigation();
 
   // Top divider is rendered ONLY when this is NOT the first visible section
-  const dividerClass = !isFirst ? NAV_TOKENS.SECTION_DIVIDER : ''
+  const dividerClass = !isFirst ? NAV_TOKENS.SECTION_DIVIDER : "";
 
-  if (section.type === 'quick_stats') {
+  if (section.type === "quick_stats") {
     return (
       <div className={cn(dividerClass)}>
-        {!isCollapsed && section.title && <SectionHeader title={section.title} />}
-        <SidebarQuickStats stats={section.quickStats} moduleId={currentModuleId} isCollapsed={isCollapsed} />
+        {!isCollapsed && section.title && (
+          <SectionHeader title={section.title} />
+        )}
+        <SidebarQuickStats
+          stats={section.quickStats}
+          moduleId={currentModuleId}
+          isCollapsed={isCollapsed}
+        />
       </div>
-    )
+    );
   }
 
-  if (section.type === 'quick_actions' && section.quickActions) {
+  if (section.type === "quick_actions" && section.quickActions) {
     return (
       <div className={cn(dividerClass)}>
-        {!isCollapsed && section.title && <SectionHeader title={section.title} />}
-        <SidebarQuickActions actions={section.quickActions} isCollapsed={isCollapsed} />
+        {!isCollapsed && section.title && (
+          <SectionHeader title={section.title} />
+        )}
+        <SidebarQuickActions
+          actions={section.quickActions}
+          isCollapsed={isCollapsed}
+        />
       </div>
-    )
+    );
   }
 
-  if (section.type === 'favorites' || section.type === 'recent' || section.type === 'pinned') {
+  if (
+    section.type === "favorites" ||
+    section.type === "recent" ||
+    section.type === "pinned"
+  ) {
     return (
       <div className={cn(dividerClass)}>
         <SidebarFavoritesRecent isCollapsed={isCollapsed} />
       </div>
-    )
+    );
   }
 
   // Suppress section header if section has only 1 item and item title matches section title
@@ -61,9 +76,9 @@ export function SidebarSection({
     section.items?.length === 1 &&
     !!section.title &&
     !!section.items[0]?.title &&
-    section.items[0].title.toLowerCase() === section.title.toLowerCase()
+    section.items[0].title.toLowerCase() === section.title.toLowerCase();
 
-  const showHeader = !isCollapsed && !!section.title && !isSingleItemMatch
+  const showHeader = !isCollapsed && !!section.title && !isSingleItemMatch;
 
   return (
     <div className={cn(dividerClass)}>
@@ -71,7 +86,7 @@ export function SidebarSection({
       {showHeader && <SectionHeader title={section.title!} />}
 
       {/* Workspace Nav Items */}
-      <div className={cn('px-1', NAV_TOKENS.TOP_ITEM_GAP)}>
+      <div className={cn("px-1", NAV_TOKENS.TOP_ITEM_GAP)}>
         {section.items?.map((item) => {
           if (item.children && item.children.length > 0) {
             return (
@@ -82,7 +97,7 @@ export function SidebarSection({
                 level={1}
                 onItemClick={onItemClick}
               />
-            )
+            );
           }
 
           return (
@@ -93,9 +108,9 @@ export function SidebarSection({
               level={1}
               onItemClick={onItemClick}
             />
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }

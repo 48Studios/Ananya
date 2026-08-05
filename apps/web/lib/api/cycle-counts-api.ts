@@ -1,12 +1,7 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export type CycleCountStatus =
-  | 'DRAFT'
-  | 'ASSIGNED'
-  | 'COUNTING'
-  | 'REVIEW'
-  | 'APPROVED'
-  | 'CANCELLED';
+  "DRAFT" | "ASSIGNED" | "COUNTING" | "REVIEW" | "APPROVED" | "CANCELLED";
 
 export interface CycleCountLineDto {
   id: string;
@@ -88,14 +83,14 @@ export interface FindManyCycleCountsOptions {
 export const cycleCountsApi = {
   getAll: (options?: FindManyCycleCountsOptions): Promise<CycleCountDto[]> => {
     const params = new URLSearchParams();
-    if (options?.locationId) params.append('locationId', options.locationId);
-    if (options?.status) params.append('status', options.status);
+    if (options?.locationId) params.append("locationId", options.locationId);
+    if (options?.status) params.append("status", options.status);
     if (options?.assignedCounter)
-      params.append('assignedCounter', options.assignedCounter);
-    if (options?.search) params.append('search', options.search);
+      params.append("assignedCounter", options.assignedCounter);
+    if (options?.search) params.append("search", options.search);
 
     const queryString = params.toString();
-    const url = queryString ? `/cycle-counts?${queryString}` : '/cycle-counts';
+    const url = queryString ? `/cycle-counts?${queryString}` : "/cycle-counts";
     return apiClient.get<CycleCountDto[]>(url);
   },
   getById: (id: string): Promise<CycleCountDto> =>
@@ -104,7 +99,7 @@ export const cycleCountsApi = {
     apiClient.get<DiscrepancySummaryDto>(`/cycle-counts/${id}/summary`),
   create: (payload: CreateCycleCountPayload): Promise<CycleCountDto> =>
     apiClient.post<CycleCountDto, CreateCycleCountPayload>(
-      '/cycle-counts',
+      "/cycle-counts",
       payload,
     ),
   update: (
@@ -132,10 +127,10 @@ export const cycleCountsApi = {
     id: string,
     counts: PhysicalCountEntryPayload[],
   ): Promise<CycleCountDto> =>
-    apiClient.post<
-      CycleCountDto,
-      { counts: PhysicalCountEntryPayload[] }
-    >(`/cycle-counts/${id}/record-counts`, { counts }),
+    apiClient.post<CycleCountDto, { counts: PhysicalCountEntryPayload[] }>(
+      `/cycle-counts/${id}/record-counts`,
+      { counts },
+    ),
   approve: (id: string, approvedBy?: string): Promise<CycleCountDto> =>
     apiClient.post<CycleCountDto, { approvedBy?: string }>(
       `/cycle-counts/${id}/approve`,

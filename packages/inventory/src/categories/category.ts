@@ -87,9 +87,11 @@ export class Category {
    * Updates category parameters maintaining domain invariants.
    */
   public update(input: UpdateCategoryInput): Category {
-    const code = input.code !== undefined ? input.code.trim().toUpperCase() : this.code;
+    const code =
+      input.code !== undefined ? input.code.trim().toUpperCase() : this.code;
     const name = input.name !== undefined ? input.name.trim() : this.name;
-    const parentId = input.parentId !== undefined ? input.parentId : this.parentId;
+    const parentId =
+      input.parentId !== undefined ? input.parentId : this.parentId;
 
     if (!code) {
       throw new InvalidCategoryCodeError("Category code is required");
@@ -107,7 +109,8 @@ export class Category {
       id: this.id,
       code,
       name,
-      description: input.description !== undefined ? input.description : this.description,
+      description:
+        input.description !== undefined ? input.description : this.description,
       parentId,
       isActive: input.isActive !== undefined ? input.isActive : this.isActive,
       createdAt: this.createdAt,

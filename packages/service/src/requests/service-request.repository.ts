@@ -3,7 +3,7 @@ import {
   ServiceRequestStatus,
   ServicePriority,
   ServiceCategory,
-} from './service-request';
+} from "./service-request";
 
 export interface FindManyServiceRequestsOptions {
   status?: ServiceRequestStatus;

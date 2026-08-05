@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { X, Download, Eye, FileCheck } from 'lucide-react'
-import { DocumentDto } from '@/lib/api/documents-api'
-import { Button } from '@/components/ui/button'
+import * as React from "react";
+import { X, Download, Eye, FileCheck } from "lucide-react";
+import { DocumentDto } from "@/lib/api/documents-api";
+import { Button } from "@/components/ui/button";
 
 export interface DocumentViewerProps {
-  isOpen: boolean
-  onClose: () => void
-  document: DocumentDto | null
+  isOpen: boolean;
+  onClose: () => void;
+  document: DocumentDto | null;
 }
 
 export function DocumentViewer({
@@ -16,11 +16,13 @@ export function DocumentViewer({
   onClose,
   document,
 }: DocumentViewerProps) {
-  if (!isOpen || !document) return null
+  if (!isOpen || !document) return null;
 
-  const isImage = document.mimeType.startsWith('image/')
-  const isPdf = document.mimeType === 'application/pdf'
-  const isText = document.mimeType.startsWith('text/') || document.mimeType === 'application/json'
+  const isImage = document.mimeType.startsWith("image/");
+  const isPdf = document.mimeType === "application/pdf";
+  const isText =
+    document.mimeType.startsWith("text/") ||
+    document.mimeType === "application/json";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 pt-10 px-4 animate-in fade-in-0 duration-150">
@@ -30,21 +32,33 @@ export function DocumentViewer({
           <div className="flex items-center gap-2 overflow-hidden">
             <Eye className="w-5 h-5 text-primary shrink-0" />
             <div className="truncate">
-              <h3 className="text-sm font-semibold text-foreground truncate">{document.title}</h3>
+              <h3 className="text-sm font-semibold text-foreground truncate">
+                {document.title}
+              </h3>
               <p className="text-[11px] text-muted-foreground">
-                {document.fileName} • v{document.currentVersion} • {(document.sizeBytes / 1024).toFixed(1)} KB
+                {document.fileName} • v{document.currentVersion} •{" "}
+                {(document.sizeBytes / 1024).toFixed(1)} KB
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <a href={document.fileUrl} download={document.fileName} target="_blank" rel="noreferrer">
+            <a
+              href={document.fileUrl}
+              download={document.fileName}
+              target="_blank"
+              rel="noreferrer"
+            >
               <Button variant="outline" size="sm" className="text-xs">
                 <Download className="w-3.5 h-3.5 mr-1" />
                 Download
               </Button>
             </a>
-            <button type="button" onClick={onClose} className="p-1.5 text-muted-foreground hover:text-foreground">
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 text-muted-foreground hover:text-foreground"
+            >
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -68,15 +82,20 @@ export function DocumentViewer({
           ) : isText ? (
             <div className="w-full h-full bg-card border border-border p-4 rounded-lg font-mono text-xs overflow-auto text-foreground">
               <p className="text-muted-foreground mb-2">{`// Text preview mode for ${document.fileName}`}</p>
-              <pre className="whitespace-pre-wrap font-sans text-xs">Preview content ready for download.</pre>
+              <pre className="whitespace-pre-wrap font-sans text-xs">
+                Preview content ready for download.
+              </pre>
             </div>
           ) : (
             <div className="text-center p-8 space-y-3">
               <FileCheck className="w-12 h-12 text-primary mx-auto opacity-70" />
               <div>
-                <h4 className="text-sm font-semibold text-foreground">CAD / Binary Document File</h4>
+                <h4 className="text-sm font-semibold text-foreground">
+                  CAD / Binary Document File
+                </h4>
                 <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-                  Direct inline rendering is unavailable for {document.mimeType}. Click download to inspect in local desktop software.
+                  Direct inline rendering is unavailable for {document.mimeType}
+                  . Click download to inspect in local desktop software.
                 </p>
               </div>
               <a href={document.fileUrl} download={document.fileName}>
@@ -90,5 +109,5 @@ export function DocumentViewer({
         </div>
       </div>
     </div>
-  )
+  );
 }

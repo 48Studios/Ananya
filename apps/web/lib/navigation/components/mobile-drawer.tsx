@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import React from 'react'
-import { X } from 'lucide-react'
-import { useNavigation } from '../navigation-context'
-import { NavigationRail } from './navigation-rail'
-import { ContextSidebar } from './context-sidebar'
-import { Button } from '@/components/ui/button'
+import React from "react";
+import { X } from "lucide-react";
+import { useNavigation } from "../navigation-context";
+import { NavigationRail } from "./navigation-rail";
+import { ContextSidebar } from "./context-sidebar";
+import { Button } from "@/components/ui/button";
 
 export function MobileDrawer() {
-  const { isMobileOpen, setIsMobileOpen } = useNavigation()
+  const { isMobileOpen, setIsMobileOpen } = useNavigation();
 
-  if (!isMobileOpen) return null
+  if (!isMobileOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 md:hidden flex">
@@ -36,5 +36,5 @@ export function MobileDrawer() {
         </Button>
       </div>
     </div>
-  )
+  );
 }

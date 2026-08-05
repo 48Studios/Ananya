@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface RoleDto {
   id: string;
@@ -23,12 +23,13 @@ export interface UpdateRolePayload {
 }
 
 export const rolesApi = {
-  getAll: (): Promise<RoleDto[]> => apiClient.get<RoleDto[]>('/roles'),
+  getAll: (): Promise<RoleDto[]> => apiClient.get<RoleDto[]>("/roles"),
 
-  getById: (id: string): Promise<RoleDto> => apiClient.get<RoleDto>(`/roles/${id}`),
+  getById: (id: string): Promise<RoleDto> =>
+    apiClient.get<RoleDto>(`/roles/${id}`),
 
   create: (payload: CreateRolePayload): Promise<RoleDto> =>
-    apiClient.post<RoleDto, CreateRolePayload>('/roles', payload),
+    apiClient.post<RoleDto, CreateRolePayload>("/roles", payload),
 
   update: (id: string, payload: UpdateRolePayload): Promise<RoleDto> =>
     apiClient.put<RoleDto, UpdateRolePayload>(`/roles/${id}`, payload),

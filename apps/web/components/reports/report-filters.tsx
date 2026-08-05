@@ -1,34 +1,34 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { Filter, Calendar, RotateCcw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import * as React from "react";
+import { Filter, Calendar, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel } from '@/components/ui/field'
+} from "@/components/ui/select";
+import { Field, FieldLabel } from "@/components/ui/field";
 
 export interface FilterState {
-  startDate?: string
-  endDate?: string
-  locationId?: string
-  componentId?: string
-  supplierId?: string
-  categoryId?: string
-  status?: string
-  search?: string
+  startDate?: string;
+  endDate?: string;
+  locationId?: string;
+  componentId?: string;
+  supplierId?: string;
+  categoryId?: string;
+  status?: string;
+  search?: string;
 }
 
 export interface ReportFiltersProps {
-  filters: FilterState
-  onChange: (newFilters: FilterState) => void
-  showStatusFilter?: boolean
-  statusOptions?: { label: string; value: string }[]
+  filters: FilterState;
+  onChange: (newFilters: FilterState) => void;
+  showStatusFilter?: boolean;
+  statusOptions?: { label: string; value: string }[];
 }
 
 export function ReportFilters({
@@ -39,16 +39,16 @@ export function ReportFilters({
 }: ReportFiltersProps) {
   const handleReset = () => {
     onChange({
-      startDate: '',
-      endDate: '',
-      locationId: '',
-      componentId: '',
-      supplierId: '',
-      categoryId: '',
-      status: '',
-      search: '',
-    })
-  }
+      startDate: "",
+      endDate: "",
+      locationId: "",
+      componentId: "",
+      supplierId: "",
+      categoryId: "",
+      status: "",
+      search: "",
+    });
+  };
 
   return (
     <div className="bg-card border border-border rounded-xl p-4 space-y-3 shadow-xs">
@@ -76,8 +76,10 @@ export function ReportFilters({
           </FieldLabel>
           <Input
             type="date"
-            value={filters.startDate || ''}
-            onChange={(e) => onChange({ ...filters, startDate: e.target.value })}
+            value={filters.startDate || ""}
+            onChange={(e) =>
+              onChange({ ...filters, startDate: e.target.value })
+            }
             className="h-8 text-xs"
           />
         </Field>
@@ -89,7 +91,7 @@ export function ReportFilters({
           </FieldLabel>
           <Input
             type="date"
-            value={filters.endDate || ''}
+            value={filters.endDate || ""}
             onChange={(e) => onChange({ ...filters, endDate: e.target.value })}
             className="h-8 text-xs"
           />
@@ -98,10 +100,17 @@ export function ReportFilters({
         {/* Status Filter */}
         {showStatusFilter && (
           <Field>
-            <FieldLabel className="text-[11px] text-muted-foreground">Status</FieldLabel>
+            <FieldLabel className="text-[11px] text-muted-foreground">
+              Status
+            </FieldLabel>
             <Select
-              value={filters.status ?? 'ALL'}
-              onValueChange={(val) => onChange({ ...filters, status: !val || val === 'ALL' ? '' : val })}
+              value={filters.status ?? "ALL"}
+              onValueChange={(val) =>
+                onChange({
+                  ...filters,
+                  status: !val || val === "ALL" ? "" : val,
+                })
+              }
             >
               <SelectTrigger className="h-8 text-xs">
                 <SelectValue placeholder="All Statuses" />
@@ -120,17 +129,18 @@ export function ReportFilters({
 
         {/* Search */}
         <Field>
-          <FieldLabel className="text-[11px] text-muted-foreground">Search Term</FieldLabel>
+          <FieldLabel className="text-[11px] text-muted-foreground">
+            Search Term
+          </FieldLabel>
           <Input
             type="text"
             placeholder="Search code, name, ref..."
-            value={filters.search || ''}
+            value={filters.search || ""}
             onChange={(e) => onChange({ ...filters, search: e.target.value })}
             className="h-8 text-xs"
           />
         </Field>
       </div>
     </div>
-  )
+  );
 }
-

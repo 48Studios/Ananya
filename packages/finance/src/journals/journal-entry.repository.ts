@@ -1,4 +1,4 @@
-import { JournalEntry, JournalStatus } from './journal-entry';
+import { JournalEntry, JournalStatus } from "./journal-entry";
 
 export interface FindManyJournalEntriesOptions {
   status?: JournalStatus;

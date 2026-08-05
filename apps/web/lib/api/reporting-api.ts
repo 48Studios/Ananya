@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface OverviewMetricsDto {
   totalComponents: number;
@@ -58,15 +58,15 @@ export interface TransactionSummaryDto {
 
 export const reportingApi = {
   getOverview: (): Promise<OverviewMetricsDto> =>
-    apiClient.get<OverviewMetricsDto>('/reporting/overview'),
+    apiClient.get<OverviewMetricsDto>("/reporting/overview"),
   getInventorySummary: (): Promise<InventorySummaryDto> =>
-    apiClient.get<InventorySummaryDto>('/reporting/inventory-summary'),
+    apiClient.get<InventorySummaryDto>("/reporting/inventory-summary"),
   getProcurementSummary: (): Promise<ProcurementSummaryDto> =>
-    apiClient.get<ProcurementSummaryDto>('/reporting/procurement-summary'),
+    apiClient.get<ProcurementSummaryDto>("/reporting/procurement-summary"),
   getManufacturingSummary: (): Promise<ManufacturingSummaryDto> =>
-    apiClient.get<ManufacturingSummaryDto>('/reporting/manufacturing-summary'),
+    apiClient.get<ManufacturingSummaryDto>("/reporting/manufacturing-summary"),
   getProjectSummary: (): Promise<ProjectSummaryDto> =>
-    apiClient.get<ProjectSummaryDto>('/reporting/project-summary'),
+    apiClient.get<ProjectSummaryDto>("/reporting/project-summary"),
   getTransactionSummary: (): Promise<TransactionSummaryDto> =>
-    apiClient.get<TransactionSummaryDto>('/reporting/transaction-summary'),
+    apiClient.get<TransactionSummaryDto>("/reporting/transaction-summary"),
 };

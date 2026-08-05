@@ -1,2 +1,2 @@
-export * from './warranty-claim';
-export * from './warranty-claim.repository';
+export * from "./warranty-claim";
+export * from "./warranty-claim.repository";

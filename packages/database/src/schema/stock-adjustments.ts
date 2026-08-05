@@ -22,7 +22,9 @@ export const stockAdjustments = pgTable(
     status: varchar("status", { length: 32 }).notNull().default("PENDING"),
     reason: varchar("reason", { length: 256 }).notNull(),
     notes: text("notes"),
-    createdBy: varchar("created_by", { length: 128 }).notNull().default("SYSTEM"),
+    createdBy: varchar("created_by", { length: 128 })
+      .notNull()
+      .default("SYSTEM"),
     approvedBy: varchar("approved_by", { length: 128 }),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -52,7 +54,9 @@ export const stockAdjustmentLines = pgTable(
     currentQuantity: integer("current_quantity").notNull().default(0),
     countedQuantity: integer("counted_quantity").notNull().default(0),
     difference: integer("difference").notNull().default(0),
-    unitOfMeasure: varchar("unit_of_measure", { length: 32 }).notNull().default("pcs"),
+    unitOfMeasure: varchar("unit_of_measure", { length: 32 })
+      .notNull()
+      .default("pcs"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -68,5 +72,7 @@ export const stockAdjustmentLines = pgTable(
 
 export type StockAdjustmentRecord = typeof stockAdjustments.$inferSelect;
 export type NewStockAdjustmentRecord = typeof stockAdjustments.$inferInsert;
-export type StockAdjustmentLineRecord = typeof stockAdjustmentLines.$inferSelect;
-export type NewStockAdjustmentLineRecord = typeof stockAdjustmentLines.$inferInsert;
+export type StockAdjustmentLineRecord =
+  typeof stockAdjustmentLines.$inferSelect;
+export type NewStockAdjustmentLineRecord =
+  typeof stockAdjustmentLines.$inferInsert;

@@ -1,13 +1,9 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export type TaskStatus =
-  | 'TODO'
-  | 'IN_PROGRESS'
-  | 'BLOCKED'
-  | 'DONE'
-  | 'CANCELLED';
+  "TODO" | "IN_PROGRESS" | "BLOCKED" | "DONE" | "CANCELLED";
 
-export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
 export interface TaskAssignmentProps {
   id: string;
@@ -74,14 +70,14 @@ export class Task implements TaskProps {
   }
 
   public static create(props: CreateTaskProps): Task {
-    if (!props.title || props.title.trim() === '') {
-      throw new Error('Task title is required');
+    if (!props.title || props.title.trim() === "") {
+      throw new Error("Task title is required");
     }
-    if (!props.projectId || props.projectId.trim() === '') {
-      throw new Error('Task requires a valid projectId');
+    if (!props.projectId || props.projectId.trim() === "") {
+      throw new Error("Task requires a valid projectId");
     }
     if (props.estimatedHours < 0) {
-      throw new Error('Estimated hours cannot be negative');
+      throw new Error("Estimated hours cannot be negative");
     }
 
     const now = new Date();
@@ -106,8 +102,8 @@ export class Task implements TaskProps {
       assignedUser: props.assignedUser,
       estimatedHours: props.estimatedHours,
       actualHours: 0,
-      priority: props.priority || 'MEDIUM',
-      status: 'TODO',
+      priority: props.priority || "MEDIUM",
+      status: "TODO",
       assignments,
       createdAt: now,
       updatedAt: now,
@@ -119,7 +115,7 @@ export class Task implements TaskProps {
   }
 
   public assign(userId: string): void {
-    if (this.status === 'DONE' || this.status === 'CANCELLED') {
+    if (this.status === "DONE" || this.status === "CANCELLED") {
       throw new Error(`Cannot assign user to task in status ${this.status}`);
     }
     this.assignedUser = userId;
@@ -133,43 +129,43 @@ export class Task implements TaskProps {
   }
 
   public start(): void {
-    if (this.status === 'DONE' || this.status === 'CANCELLED') {
+    if (this.status === "DONE" || this.status === "CANCELLED") {
       throw new Error(`Cannot start task in status ${this.status}`);
     }
-    this.status = 'IN_PROGRESS';
+    this.status = "IN_PROGRESS";
     this.updatedAt = new Date();
   }
 
   public block(): void {
-    if (this.status !== 'IN_PROGRESS' && this.status !== 'TODO') {
+    if (this.status !== "IN_PROGRESS" && this.status !== "TODO") {
       throw new Error(`Cannot block task in status ${this.status}`);
     }
-    this.status = 'BLOCKED';
+    this.status = "BLOCKED";
     this.updatedAt = new Date();
   }
 
   public complete(): void {
-    if (this.status === 'CANCELLED') {
-      throw new Error('Cancelled tasks cannot be completed');
+    if (this.status === "CANCELLED") {
+      throw new Error("Cancelled tasks cannot be completed");
     }
-    this.status = 'DONE';
+    this.status = "DONE";
     this.updatedAt = new Date();
   }
 
   public cancel(): void {
-    if (this.status === 'DONE') {
-      throw new Error('Completed tasks cannot be cancelled');
+    if (this.status === "DONE") {
+      throw new Error("Completed tasks cannot be cancelled");
     }
-    this.status = 'CANCELLED';
+    this.status = "CANCELLED";
     this.updatedAt = new Date();
   }
 
   public addActualHours(hours: number): void {
-    if (this.status === 'DONE' || this.status === 'CANCELLED') {
+    if (this.status === "DONE" || this.status === "CANCELLED") {
       throw new Error(`Cannot log hours against task in status ${this.status}`);
     }
     if (hours <= 0) {
-      throw new Error('Hours logged must be positive');
+      throw new Error("Hours logged must be positive");
     }
     this.actualHours += hours;
     this.updatedAt = new Date();

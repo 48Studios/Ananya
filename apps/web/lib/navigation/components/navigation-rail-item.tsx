@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import React from 'react'
-import Link from 'next/link'
-import { cn } from '@/lib/utils'
-import { NavigationModule } from '../types'
+import React from "react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { NavigationModule } from "../types";
 
 interface NavigationRailItemProps {
-  module: NavigationModule
-  isActive: boolean
-  onClick: () => void
+  module: NavigationModule;
+  isActive: boolean;
+  onClick: () => void;
 }
 
 export function NavigationRailItem({
@@ -23,10 +23,10 @@ export function NavigationRailItem({
         onClick={onClick}
         aria-label={module.name}
         className={cn(
-          'relative flex items-center justify-center size-10 rounded-lg transition-colors duration-150 ease-out outline-none focus-visible:ring-2 focus-visible:ring-ring/50 shrink-0',
+          "relative flex items-center justify-center size-10 rounded-lg transition-colors duration-150 ease-out outline-none focus-visible:ring-2 focus-visible:ring-ring/50 shrink-0",
           isActive
-            ? 'bg-sidebar-primary text-sidebar-primary-foreground font-semibold shadow-2xs'
-            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+            ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold shadow-2xs"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         )}
       >
         <div className="size-5 flex items-center justify-center shrink-0">
@@ -37,8 +37,8 @@ export function NavigationRailItem({
       {/* Active Left Indicator Pill - Smooth opacity fade without layout shift */}
       <div
         className={cn(
-          'absolute left-0 top-1/2 -translate-y-1/2 w-0.9 h-5 bg-sidebar-primary rounded-r-full transition-opacity duration-150 ease-out pointer-events-none',
-          isActive ? 'opacity-100' : 'opacity-0'
+          "absolute left-0 top-1/2 -translate-y-1/2 w-0.9 h-5 bg-sidebar-primary rounded-r-full transition-opacity duration-150 ease-out pointer-events-none",
+          isActive ? "opacity-100" : "opacity-0",
         )}
       />
 
@@ -47,5 +47,5 @@ export function NavigationRailItem({
         {module.name}
       </div>
     </div>
-  )
+  );
 }

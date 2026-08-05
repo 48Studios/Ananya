@@ -1,8 +1,5 @@
 export type RequirementSource =
-  | 'SALES_ORDER'
-  | 'MANUFACTURING'
-  | 'PROJECT'
-  | 'FORECAST';
+  "SALES_ORDER" | "MANUFACTURING" | "PROJECT" | "FORECAST";
 
 export interface CreateMaterialRequirementProps {
   planningRunId: string;
@@ -32,7 +29,7 @@ export interface RehydrateMaterialRequirementProps {
 export class InvalidMaterialRequirementError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'InvalidMaterialRequirementError';
+    this.name = "InvalidMaterialRequirementError";
   }
 }
 
@@ -67,16 +64,21 @@ export class MaterialRequirement {
     props: CreateMaterialRequirementProps,
   ): MaterialRequirement {
     if (!props.planningRunId || props.planningRunId.trim().length === 0) {
-      throw new InvalidMaterialRequirementError('Planning run ID is required.');
+      throw new InvalidMaterialRequirementError("Planning run ID is required.");
     }
     if (!props.componentId || props.componentId.trim().length === 0) {
-      throw new InvalidMaterialRequirementError('Component ID is required.');
+      throw new InvalidMaterialRequirementError("Component ID is required.");
     }
     if (props.requiredQuantity <= 0) {
-      throw new InvalidMaterialRequirementError('Required quantity must be greater than zero.');
+      throw new InvalidMaterialRequirementError(
+        "Required quantity must be greater than zero.",
+      );
     }
 
-    const netAvailable = Math.max(0, props.availableQuantity - props.reservedQuantity);
+    const netAvailable = Math.max(
+      0,
+      props.availableQuantity - props.reservedQuantity,
+    );
     const shortage = Math.max(0, props.requiredQuantity - netAvailable);
 
     return new MaterialRequirement({

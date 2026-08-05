@@ -19,12 +19,16 @@ export class ThreeWayMatcher {
     let varianceReason: "PRICE" | "QUANTITY" | undefined;
 
     for (const invLine of invoice.lines) {
-      const poLine = po.lines.find((l) => l.componentId === invLine.componentId);
+      const poLine = po.lines.find(
+        (l) => l.componentId === invLine.componentId,
+      );
 
       if (!poLine) {
         isMatch = false;
         varianceReason = "PRICE";
-        details.push(`Component ${invLine.componentId} billed on invoice does not exist on PO.`);
+        details.push(
+          `Component ${invLine.componentId} billed on invoice does not exist on PO.`,
+        );
         continue;
       }
 
@@ -39,7 +43,9 @@ export class ThreeWayMatcher {
 
       // Calculate total received across goods receipts
       const totalReceived = goodsReceipts.reduce((sum, gr) => {
-        const grLines = gr.lines.filter((l) => l.componentId === invLine.componentId);
+        const grLines = gr.lines.filter(
+          (l) => l.componentId === invLine.componentId,
+        );
         return sum + grLines.reduce((s, l) => s + l.quantityReceived, 0);
       }, 0);
 

@@ -1,8 +1,8 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
-export type CustomerStatus = 'DRAFT' | 'ACTIVE' | 'SUSPENDED' | 'ARCHIVED';
-export type CreditStatus = 'OK' | 'ON_HOLD' | 'CREDIT_EXCEEDED';
-export type AddressType = 'BILLING' | 'SHIPPING' | 'BOTH';
+export type CustomerStatus = "DRAFT" | "ACTIVE" | "SUSPENDED" | "ARCHIVED";
+export type CreditStatus = "OK" | "ON_HOLD" | "CREDIT_EXCEEDED";
+export type AddressType = "BILLING" | "SHIPPING" | "BOTH";
 
 export interface CustomerContactProps {
   id: string;
@@ -96,9 +96,9 @@ export class Customer {
       email: input.email.trim(),
       phone: input.phone ?? null,
       taxId: input.taxId ?? null,
-      currency: input.currency || 'USD',
-      status: 'DRAFT',
-      creditStatus: 'OK',
+      currency: input.currency || "USD",
+      status: "DRAFT",
+      creditStatus: "OK",
       contacts: [],
       addresses: [],
       createdAt: now,
@@ -111,20 +111,20 @@ export class Customer {
   }
 
   activate(): void {
-    if (this.status === 'ARCHIVED') {
-      throw new Error('Cannot activate an archived customer account.');
+    if (this.status === "ARCHIVED") {
+      throw new Error("Cannot activate an archived customer account.");
     }
-    this.status = 'ACTIVE';
+    this.status = "ACTIVE";
     this.updatedAt = new Date();
   }
 
   suspend(): void {
-    this.status = 'SUSPENDED';
+    this.status = "SUSPENDED";
     this.updatedAt = new Date();
   }
 
   archive(): void {
-    this.status = 'ARCHIVED';
+    this.status = "ARCHIVED";
     this.updatedAt = new Date();
   }
 

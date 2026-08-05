@@ -34,11 +34,9 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
     "db:setup": "pnpm build && node dist/setup/setup.js",
+    "db:bootstrap": "pnpm build && node dist/bootstrap/bootstrap.js",
     "db:studio": "drizzle-kit studio",
     "db:check": "drizzle-kit check",
-    "db:seed": "pnpm build && node dist/seed/seed.js",
-    "db:clear": "pnpm build && node dist/seed/clear.js",
-    "db:clean": "pnpm db:clear",
     "check-types": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },

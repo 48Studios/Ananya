@@ -1,4 +1,4 @@
-import { TimeEntry, TimeEntryStatus } from './time-entry';
+import { TimeEntry, TimeEntryStatus } from "./time-entry";
 
 export interface FindManyTimeEntriesOptions {
   userId?: string;

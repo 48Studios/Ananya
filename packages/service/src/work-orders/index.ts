@@ -1,2 +1,2 @@
-export * from './work-order';
-export * from './work-order.repository';
+export * from "./work-order";
+export * from "./work-order.repository";

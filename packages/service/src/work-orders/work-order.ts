@@ -1,14 +1,9 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export type WorkOrderStatus =
-  | 'CREATED'
-  | 'ASSIGNED'
-  | 'IN_PROGRESS'
-  | 'PAUSED'
-  | 'COMPLETED'
-  | 'CANCELLED';
+  "CREATED" | "ASSIGNED" | "IN_PROGRESS" | "PAUSED" | "COMPLETED" | "CANCELLED";
 
-export type WorkOrderPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type WorkOrderPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
 export interface WorkOrderProps {
   id: string;
@@ -65,14 +60,14 @@ export class WorkOrder implements WorkOrderProps {
   }
 
   public static create(props: CreateWorkOrderProps): WorkOrder {
-    if (!props.serviceRequestId || props.serviceRequestId.trim() === '') {
-      throw new Error('Work Order requires a valid serviceRequestId');
+    if (!props.serviceRequestId || props.serviceRequestId.trim() === "") {
+      throw new Error("Work Order requires a valid serviceRequestId");
     }
-    if (!props.title || props.title.trim() === '') {
-      throw new Error('Work Order title is required');
+    if (!props.title || props.title.trim() === "") {
+      throw new Error("Work Order title is required");
     }
     if (props.plannedHours < 0) {
-      throw new Error('Planned hours cannot be negative');
+      throw new Error("Planned hours cannot be negative");
     }
 
     const now = new Date();
@@ -85,8 +80,8 @@ export class WorkOrder implements WorkOrderProps {
       description: props.description?.trim(),
       plannedHours: props.plannedHours,
       actualHours: 0,
-      priority: props.priority || 'MEDIUM',
-      status: props.assignedTechnician ? 'ASSIGNED' : 'CREATED',
+      priority: props.priority || "MEDIUM",
+      status: props.assignedTechnician ? "ASSIGNED" : "CREATED",
       createdAt: now,
       updatedAt: now,
     });
@@ -97,54 +92,56 @@ export class WorkOrder implements WorkOrderProps {
   }
 
   public assign(technician: string): void {
-    if (this.status === 'COMPLETED' || this.status === 'CANCELLED') {
+    if (this.status === "COMPLETED" || this.status === "CANCELLED") {
       throw new Error(`Cannot assign work order in status ${this.status}`);
     }
     this.assignedTechnician = technician;
-    this.status = 'ASSIGNED';
+    this.status = "ASSIGNED";
     this.updatedAt = new Date();
   }
 
   public start(): void {
-    if (this.status === 'COMPLETED' || this.status === 'CANCELLED') {
+    if (this.status === "COMPLETED" || this.status === "CANCELLED") {
       throw new Error(`Cannot start work order in status ${this.status}`);
     }
-    this.status = 'IN_PROGRESS';
+    this.status = "IN_PROGRESS";
     this.updatedAt = new Date();
   }
 
   public pause(): void {
-    if (this.status !== 'IN_PROGRESS') {
+    if (this.status !== "IN_PROGRESS") {
       throw new Error(`Only work orders IN_PROGRESS can be paused`);
     }
-    this.status = 'PAUSED';
+    this.status = "PAUSED";
     this.updatedAt = new Date();
   }
 
   public logHours(hours: number): void {
-    if (this.status === 'COMPLETED' || this.status === 'CANCELLED') {
-      throw new Error(`Cannot log hours against work order in status ${this.status}`);
+    if (this.status === "COMPLETED" || this.status === "CANCELLED") {
+      throw new Error(
+        `Cannot log hours against work order in status ${this.status}`,
+      );
     }
     if (hours <= 0) {
-      throw new Error('Hours logged must be positive');
+      throw new Error("Hours logged must be positive");
     }
     this.actualHours += hours;
     this.updatedAt = new Date();
   }
 
   public complete(): void {
-    if (this.status === 'CANCELLED') {
-      throw new Error('Cancelled work orders cannot be completed');
+    if (this.status === "CANCELLED") {
+      throw new Error("Cancelled work orders cannot be completed");
     }
-    this.status = 'COMPLETED';
+    this.status = "COMPLETED";
     this.updatedAt = new Date();
   }
 
   public cancel(): void {
-    if (this.status === 'COMPLETED') {
-      throw new Error('Completed work orders cannot be cancelled');
+    if (this.status === "COMPLETED") {
+      throw new Error("Completed work orders cannot be cancelled");
     }
-    this.status = 'CANCELLED';
+    this.status = "CANCELLED";
     this.updatedAt = new Date();
   }
 }

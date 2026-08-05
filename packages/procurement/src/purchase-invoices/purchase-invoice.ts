@@ -1,19 +1,10 @@
 import { ObjectId } from "@ananya/core";
 
 export type PurchaseInvoiceStatus =
-  | "DRAFT"
-  | "MATCHED"
-  | "VARIANCE_HOLD"
-  | "APPROVED"
-  | "PAID"
-  | "CANCELLED";
+  "DRAFT" | "MATCHED" | "VARIANCE_HOLD" | "APPROVED" | "PAID" | "CANCELLED";
 
 export type ThreeWayMatchStatus =
-  | "PENDING"
-  | "MATCHED"
-  | "PRICE_VARIANCE"
-  | "QUANTITY_VARIANCE"
-  | "APPROVED";
+  "PENDING" | "MATCHED" | "PRICE_VARIANCE" | "QUANTITY_VARIANCE" | "APPROVED";
 
 export interface PurchaseInvoiceLineProps {
   id: string;
@@ -138,7 +129,8 @@ export class PurchaseInvoice {
       this.matchStatus = "MATCHED";
     } else {
       this.status = "VARIANCE_HOLD";
-      this.matchStatus = reason === "PRICE" ? "PRICE_VARIANCE" : "QUANTITY_VARIANCE";
+      this.matchStatus =
+        reason === "PRICE" ? "PRICE_VARIANCE" : "QUANTITY_VARIANCE";
     }
     this.updatedAt = new Date();
   }

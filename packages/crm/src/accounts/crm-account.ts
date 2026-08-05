@@ -1,11 +1,7 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export type ContactRole =
-  | 'DECISION_MAKER'
-  | 'EVALUATOR'
-  | 'EXECUTIVE'
-  | 'TECHNICAL_BUYER'
-  | 'OTHER';
+  "DECISION_MAKER" | "EVALUATOR" | "EXECUTIVE" | "TECHNICAL_BUYER" | "OTHER";
 
 export interface ContactProps {
   id: string;
@@ -76,8 +72,8 @@ export class CrmAccount implements CrmAccountProps {
   }
 
   public static create(props: CreateCrmAccountProps): CrmAccount {
-    if (!props.companyName || props.companyName.trim() === '') {
-      throw new Error('CRM Account company name is required');
+    if (!props.companyName || props.companyName.trim() === "") {
+      throw new Error("CRM Account company name is required");
     }
 
     const now = new Date();
@@ -101,10 +97,10 @@ export class CrmAccount implements CrmAccountProps {
 
   public addContact(props: AddContactProps): ContactProps {
     if (this.isArchived) {
-      throw new Error('Cannot add contacts to an archived CRM Account');
+      throw new Error("Cannot add contacts to an archived CRM Account");
     }
     if (!props.firstName || !props.lastName || !props.email) {
-      throw new Error('Contact firstName, lastName, and email are required');
+      throw new Error("Contact firstName, lastName, and email are required");
     }
 
     const now = new Date();
@@ -123,7 +119,7 @@ export class CrmAccount implements CrmAccountProps {
       lastName: props.lastName.trim(),
       email: props.email.trim(),
       phone: props.phone?.trim(),
-      role: props.role || 'OTHER',
+      role: props.role || "OTHER",
       isPrimary,
       createdAt: now,
       updatedAt: now,

@@ -1,49 +1,62 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Clock, Plus, CheckCircle2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { timeEntriesApi, type TimeEntryDto } from '@/lib/api/time-entries-api'
-import { formatDate } from '@/lib/utils'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Clock, Plus, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { timeEntriesApi, type TimeEntryDto } from "@/lib/api/time-entries-api";
+import { formatDate } from "@/lib/utils";
 
 export default function TimePage() {
-  const [logs, setLogs] = React.useState<TimeEntryDto[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const [logs, setLogs] = React.useState<TimeEntryDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    timeEntriesApi.getAll()
+    timeEntriesApi
+      .getAll()
       .then((data) => setLogs(data || []))
       .catch(() => setLogs([]))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
   const totalHours = React.useMemo(() => {
-    return logs.reduce((acc, l) => acc + (l?.hoursLogged || 0), 0)
-  }, [logs])
+    return logs.reduce((acc, l) => acc + (l?.hoursLogged || 0), 0);
+  }, [logs]);
 
   const columns: ColumnDef<TimeEntryDto>[] = [
     {
-      accessorKey: 'employeeName',
-      header: 'Employee Name',
-      cell: ({ row }) => <span className="font-semibold text-xs text-primary">{row.original.employeeName || 'Staff'}</span>,
+      accessorKey: "employeeName",
+      header: "Employee Name",
+      cell: ({ row }) => (
+        <span className="font-semibold text-xs text-primary">
+          {row.original.employeeName || "Staff"}
+        </span>
+      ),
     },
     {
-      accessorKey: 'workOrderRef',
-      header: 'Ref Order / Ticket',
-      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-medium">{row.original.workOrderRef || '-'}</span>,
+      accessorKey: "workOrderRef",
+      header: "Ref Order / Ticket",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-foreground font-medium">
+          {row.original.workOrderRef || "-"}
+        </span>
+      ),
     },
     {
-      accessorKey: 'taskDescription',
-      header: 'Work Completed',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.taskDescription || '-'}</span>,
+      accessorKey: "taskDescription",
+      header: "Work Completed",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {row.original.taskDescription || "-"}
+        </span>
+      ),
     },
     {
-      accessorKey: 'hoursLogged',
-      header: 'Logged Hours',
+      accessorKey: "hoursLogged",
+      header: "Logged Hours",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
           {row.original.hoursLogged || 0} hrs
@@ -51,11 +64,15 @@ export default function TimePage() {
       ),
     },
     {
-      accessorKey: 'workDate',
-      header: 'Date',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.workDate ? formatDate(row.original.workDate) : '-'}</span>,
+      accessorKey: "workDate",
+      header: "Date",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {row.original.workDate ? formatDate(row.original.workDate) : "-"}
+        </span>
+      ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -103,5 +120,5 @@ export default function TimePage() {
         }
       />
     </div>
-  )
+  );
 }

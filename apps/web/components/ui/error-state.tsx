@@ -1,18 +1,18 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { AlertCircle, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import * as React from "react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export interface ErrorStateProps {
-  title?: string
-  message?: string
-  onRetry?: () => void
+  title?: string;
+  message?: string;
+  onRetry?: () => void;
 }
 
 export function ErrorState({
-  title = 'An error occurred',
-  message = 'Failed to load content from server.',
+  title = "An error occurred",
+  message = "Failed to load content from server.",
   onRetry,
 }: ErrorStateProps) {
   return (
@@ -31,5 +31,5 @@ export function ErrorState({
         </div>
       )}
     </div>
-  )
+  );
 }

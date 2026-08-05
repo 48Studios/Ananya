@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { preferencesApi } from '@/lib/api/preferences-api'
-import { BookmarkPlus, X, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import * as React from "react";
+import { preferencesApi } from "@/lib/api/preferences-api";
+import { BookmarkPlus, X, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export interface SavedViewDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  module: string
-  currentFilters?: Record<string, unknown>
-  onViewSaved?: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  module: string;
+  currentFilters?: Record<string, unknown>;
+  onViewSaved?: () => void;
 }
 
 export function SavedViewDialog({
@@ -20,30 +20,30 @@ export function SavedViewDialog({
   currentFilters = {},
   onViewSaved,
 }: SavedViewDialogProps) {
-  const [name, setName] = React.useState('')
-  const [isDefault, setIsDefault] = React.useState(false)
-  const [loading, setLoading] = React.useState(false)
+  const [name, setName] = React.useState("");
+  const [isDefault, setIsDefault] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const handleSave = async () => {
-    if (!name.trim()) return
-    setLoading(true)
+    if (!name.trim()) return;
+    setLoading(true);
     try {
       await preferencesApi.createSavedView({
         module,
         name,
         filtersJson: currentFilters,
         isDefault,
-      })
-      if (onViewSaved) onViewSaved()
-      onClose()
+      });
+      if (onViewSaved) onViewSaved();
+      onClose();
     } catch {
       // ignore
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pt-10 px-4 animate-in fade-in-0 duration-150">
@@ -51,16 +51,24 @@ export function SavedViewDialog({
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div className="flex items-center gap-2">
             <BookmarkPlus className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-foreground">Save Custom View Preset</h2>
+            <h2 className="text-base font-semibold text-foreground">
+              Save Custom View Preset
+            </h2>
           </div>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-semibold text-foreground">View Preset Name</label>
+            <label className="text-xs font-semibold text-foreground">
+              View Preset Name
+            </label>
             <input
               type="text"
               value={name}
@@ -82,15 +90,26 @@ export function SavedViewDialog({
         </div>
 
         <div className="flex justify-end gap-2 pt-3 border-t border-border">
-          <Button variant="outline" size="sm" onClick={onClose} disabled={loading}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClose}
+            disabled={loading}
+          >
             Cancel
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={loading || !name.trim()}>
-            {loading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : null}
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={loading || !name.trim()}
+          >
+            {loading ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            ) : null}
             Save View Preset
           </Button>
         </div>
       </div>
     </div>
-  )
+  );
 }

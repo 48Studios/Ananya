@@ -1,8 +1,7 @@
 import { ObjectId } from "@ananya/core";
 
 export type TraceabilityEventType =
-  | "MATERIAL_CONSUMED"
-  | "FINISHED_GOODS_PRODUCED";
+  "MATERIAL_CONSUMED" | "FINISHED_GOODS_PRODUCED";
 
 export interface ManufacturingTraceabilityProps {
   id: string;

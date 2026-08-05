@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   Shield,
   ShieldPlus,
@@ -11,122 +11,127 @@ import {
   Trash2,
   X,
   Loader2,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { LoadingState } from '@/components/ui/loading-state'
-import { ErrorState } from '@/components/ui/error-state'
-import { PermissionGuard } from '@/lib/auth/auth-context'
-import { rolesApi, RoleDto } from '@/lib/api/roles-api'
-import { authApi, PermissionGroup } from '@/lib/api/auth-api'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PermissionGuard } from "@/lib/auth/auth-context";
+import { rolesApi, RoleDto } from "@/lib/api/roles-api";
+import { authApi, PermissionGroup } from "@/lib/api/auth-api";
 
 export default function RolesListPage() {
-  const [roleList, setRoleList] = React.useState<RoleDto[]>([])
-  const [permGroups, setPermGroups] = React.useState<PermissionGroup[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [roleList, setRoleList] = React.useState<RoleDto[]>([]);
+  const [permGroups, setPermGroups] = React.useState<PermissionGroup[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   // Dialog State
-  const [isModalOpen, setIsModalOpen] = React.useState(false)
-  const [editingRole, setEditingRole] = React.useState<RoleDto | null>(null)
-  const [formName, setFormName] = React.useState('')
-  const [formDescription, setFormDescription] = React.useState('')
-  const [selectedPermissions, setSelectedPermissions] = React.useState<string[]>([])
-  const [formSubmitting, setFormSubmitting] = React.useState(false)
-  const [formError, setFormError] = React.useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [editingRole, setEditingRole] = React.useState<RoleDto | null>(null);
+  const [formName, setFormName] = React.useState("");
+  const [formDescription, setFormDescription] = React.useState("");
+  const [selectedPermissions, setSelectedPermissions] = React.useState<
+    string[]
+  >([]);
+  const [formSubmitting, setFormSubmitting] = React.useState(false);
+  const [formError, setFormError] = React.useState<string | null>(null);
 
   const loadData = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const [rData, meData] = await Promise.all([
         rolesApi.getAll(),
         authApi.getMe().catch(() => null),
-      ])
-      setRoleList(rData)
+      ]);
+      setRoleList(rData);
       if (meData?.permissionGroups) {
-        setPermGroups(meData.permissionGroups)
+        setPermGroups(meData.permissionGroups);
       }
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message)
-      else setError('Failed to load system roles.')
+      if (err instanceof Error) setError(err.message);
+      else setError("Failed to load system roles.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadData();
+  }, [loadData]);
 
   const handleOpenCreateModal = () => {
-    setEditingRole(null)
-    setFormName('')
-    setFormDescription('')
-    setSelectedPermissions([])
-    setFormError(null)
-    setIsModalOpen(true)
-  }
+    setEditingRole(null);
+    setFormName("");
+    setFormDescription("");
+    setSelectedPermissions([]);
+    setFormError(null);
+    setIsModalOpen(true);
+  };
 
   const handleOpenEditModal = React.useCallback((r: RoleDto) => {
-    setEditingRole(r)
-    setFormName(r.name)
-    setFormDescription(r.description || '')
-    setSelectedPermissions(r.permissions || [])
-    setFormError(null)
-    setIsModalOpen(true)
-  }, [])
+    setEditingRole(r);
+    setFormName(r.name);
+    setFormDescription(r.description || "");
+    setSelectedPermissions(r.permissions || []);
+    setFormError(null);
+    setIsModalOpen(true);
+  }, []);
 
   const handleTogglePermission = (code: string) => {
     setSelectedPermissions((prev) =>
       prev.includes(code) ? prev.filter((p) => p !== code) : [...prev, code],
-    )
-  }
+    );
+  };
 
   const handleSaveRole = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setFormSubmitting(true)
-    setFormError(null)
+    e.preventDefault();
+    setFormSubmitting(true);
+    setFormError(null);
     try {
       if (editingRole) {
         await rolesApi.update(editingRole.id, {
           name: editingRole.isSystem ? undefined : formName,
           description: formDescription,
           permissions: selectedPermissions,
-        })
+        });
       } else {
         await rolesApi.create({
           name: formName,
           description: formDescription,
           permissions: selectedPermissions,
-        })
+        });
       }
-      setIsModalOpen(false)
-      await loadData()
+      setIsModalOpen(false);
+      await loadData();
     } catch (err: unknown) {
-      if (err instanceof Error) setFormError(err.message)
-      else setFormError('Failed to save role.')
+      if (err instanceof Error) setFormError(err.message);
+      else setFormError("Failed to save role.");
     } finally {
-      setFormSubmitting(false)
+      setFormSubmitting(false);
     }
-  }
+  };
 
-  const handleDeleteRole = React.useCallback(async (id: string) => {
-    try {
-      await rolesApi.delete(id)
-      await loadData()
-    } catch {
-      // Ignore
-    }
-  }, [loadData])
+  const handleDeleteRole = React.useCallback(
+    async (id: string) => {
+      try {
+        await rolesApi.delete(id);
+        await loadData();
+      } catch {
+        // Ignore
+      }
+    },
+    [loadData],
+  );
 
   const columns = React.useMemo<ColumnDef<RoleDto>[]>(
     () => [
       {
-        accessorKey: 'name',
-        header: 'Role Name',
+        accessorKey: "name",
+        header: "Role Name",
         cell: ({ row }) => (
           <Link
             href={`/roles/${row.original.id}`}
@@ -138,43 +143,43 @@ export default function RolesListPage() {
         ),
       },
       {
-        accessorKey: 'description',
-        header: 'Description',
+        accessorKey: "description",
+        header: "Description",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
-            {row.original.description || 'No description provided.'}
+            {row.original.description || "No description provided."}
           </span>
         ),
       },
       {
-        accessorKey: 'isSystem',
-        header: 'Role Type',
+        accessorKey: "isSystem",
+        header: "Role Type",
         cell: ({ row }) => (
           <span
             className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full ${
               row.original.isSystem
-                ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20'
-                : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20'
+                ? "bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20"
+                : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
             }`}
           >
-            {row.original.isSystem ? 'System Defined' : 'Custom Policy'}
+            {row.original.isSystem ? "System Defined" : "Custom Policy"}
           </span>
         ),
       },
       {
-        accessorKey: 'permissions',
-        header: 'Permissions Count',
+        accessorKey: "permissions",
+        header: "Permissions Count",
         cell: ({ row }) => (
           <span className="font-mono text-xs font-bold text-foreground">
-            {row.original.permissions?.includes('*')
-              ? 'All Permissions (*)'
+            {row.original.permissions?.includes("*")
+              ? "All Permissions (*)"
               : `${row.original.permissions?.length || 0} permissions`}
           </span>
         ),
       },
       {
-        id: 'actions',
-        header: 'Actions',
+        id: "actions",
+        header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <PermissionGuard permission="Administration.Roles">
@@ -201,10 +206,10 @@ export default function RolesListPage() {
       },
     ],
     [handleOpenEditModal, handleDeleteRole],
-  )
+  );
 
   if (loading) {
-    return <LoadingState message="Loading system roles and permissions..." />
+    return <LoadingState message="Loading system roles and permissions..." />;
   }
 
   if (error) {
@@ -214,11 +219,11 @@ export default function RolesListPage() {
         message={error}
         onRetry={loadData}
       />
-    )
+    );
   }
 
-  const systemCount = roleList.filter((r) => r.isSystem).length
-  const customCount = roleList.filter((r) => !r.isSystem).length
+  const systemCount = roleList.filter((r) => r.isSystem).length;
+  const customCount = roleList.filter((r) => !r.isSystem).length;
 
   return (
     <div className="space-y-6">
@@ -286,7 +291,9 @@ export default function RolesListPage() {
           <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl p-6 space-y-4 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
               <h3 className="text-base font-semibold text-foreground">
-                {editingRole ? `Edit Role: ${editingRole.name}` : 'Create Custom Role'}
+                {editingRole
+                  ? `Edit Role: ${editingRole.name}`
+                  : "Create Custom Role"}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -302,10 +309,15 @@ export default function RolesListPage() {
               </div>
             )}
 
-            <form onSubmit={handleSaveRole} className="space-y-4 flex-1 overflow-y-auto pr-1 text-xs">
+            <form
+              onSubmit={handleSaveRole}
+              className="space-y-4 flex-1 overflow-y-auto pr-1 text-xs"
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-medium text-foreground">Role Name</label>
+                  <label className="font-medium text-foreground">
+                    Role Name
+                  </label>
                   <input
                     type="text"
                     required
@@ -317,7 +329,9 @@ export default function RolesListPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-medium text-foreground">Description</label>
+                  <label className="font-medium text-foreground">
+                    Description
+                  </label>
                   <input
                     type="text"
                     value={formDescription}
@@ -330,7 +344,8 @@ export default function RolesListPage() {
               {/* Permission Matrix Selection */}
               <div className="space-y-3 pt-2">
                 <label className="font-semibold text-foreground block">
-                  Select Granted Permissions ({selectedPermissions.length} selected)
+                  Select Granted Permissions ({selectedPermissions.length}{" "}
+                  selected)
                 </label>
 
                 {permGroups.map((group) => (
@@ -343,10 +358,11 @@ export default function RolesListPage() {
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {group.permissions.map((p) => {
-                        const code = typeof p === 'string' ? p : p.code
-                        const name = typeof p === 'string' ? p : p.name
-                        const description = typeof p === 'string' ? '' : p.description
-                        const isChecked = selectedPermissions.includes(code)
+                        const code = typeof p === "string" ? p : p.code;
+                        const name = typeof p === "string" ? p : p.name;
+                        const description =
+                          typeof p === "string" ? "" : p.description;
+                        const isChecked = selectedPermissions.includes(code);
                         return (
                           <label
                             key={code}
@@ -359,11 +375,17 @@ export default function RolesListPage() {
                               className="mt-0.5 rounded border-border"
                             />
                             <div>
-                              <p className="font-semibold text-foreground">{name}</p>
-                              {description && <p className="text-[10px] text-muted-foreground">{description}</p>}
+                              <p className="font-semibold text-foreground">
+                                {name}
+                              </p>
+                              {description && (
+                                <p className="text-[10px] text-muted-foreground">
+                                  {description}
+                                </p>
+                              )}
                             </div>
                           </label>
-                        )
+                        );
                       })}
                     </div>
                   </div>
@@ -380,8 +402,10 @@ export default function RolesListPage() {
                   Cancel
                 </Button>
                 <Button size="sm" type="submit" disabled={formSubmitting}>
-                  {formSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-                  {editingRole ? 'Save Changes' : 'Create Role'}
+                  {formSubmitting && (
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  )}
+                  {editingRole ? "Save Changes" : "Create Role"}
                 </Button>
               </div>
             </form>
@@ -389,5 +413,5 @@ export default function RolesListPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

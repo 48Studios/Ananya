@@ -1,74 +1,98 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Plus, X, Eye, Package, Building2, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable, type FilterConfig } from '@/components/ui/entity-data-table'
-import { GoodsReceiptForm } from '@/components/goods-receipts/gr-form'
-import { goodsReceiptsApi, type GoodsReceiptDto } from '@/lib/api/goods-receipts-api'
-import { purchaseOrdersApi, type PurchaseOrderDto } from '@/lib/api/purchase-orders-api'
-import { suppliersApi, type SupplierDto } from '@/lib/api/suppliers-api'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  Plus,
+  X,
+  Eye,
+  Package,
+  Building2,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
+import { GoodsReceiptForm } from "@/components/goods-receipts/gr-form";
+import {
+  goodsReceiptsApi,
+  type GoodsReceiptDto,
+} from "@/lib/api/goods-receipts-api";
+import {
+  purchaseOrdersApi,
+  type PurchaseOrderDto,
+} from "@/lib/api/purchase-orders-api";
+import { suppliersApi, type SupplierDto } from "@/lib/api/suppliers-api";
 
 export default function GoodsReceiptsPage() {
-  const [receipts, setReceipts] = React.useState<GoodsReceiptDto[]>([])
-  const [purchaseOrdersMap, setPurchaseOrdersMap] = React.useState<Record<string, PurchaseOrderDto>>({})
-  const [suppliersMap, setSuppliersMap] = React.useState<Record<string, SupplierDto>>({})
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null)
+  const [receipts, setReceipts] = React.useState<GoodsReceiptDto[]>([]);
+  const [purchaseOrdersMap, setPurchaseOrdersMap] = React.useState<
+    Record<string, PurchaseOrderDto>
+  >({});
+  const [suppliersMap, setSuppliersMap] = React.useState<
+    Record<string, SupplierDto>
+  >({});
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
 
   const fetchReceipts = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const [grs, pos, sups] = await Promise.all([
         goodsReceiptsApi.getAll(),
         purchaseOrdersApi.getAll().catch(() => []),
         suppliersApi.getAll().catch(() => []),
-      ])
-      setReceipts(grs)
+      ]);
+      setReceipts(grs);
 
-      const poMap: Record<string, PurchaseOrderDto> = {}
-      for (const p of pos) poMap[p.id] = p
-      setPurchaseOrdersMap(poMap)
+      const poMap: Record<string, PurchaseOrderDto> = {};
+      for (const p of pos) poMap[p.id] = p;
+      setPurchaseOrdersMap(poMap);
 
-      const supMap: Record<string, SupplierDto> = {}
-      for (const s of sups) supMap[s.id] = s
-      setSuppliersMap(supMap)
+      const supMap: Record<string, SupplierDto> = {};
+      for (const s of sups) supMap[s.id] = s;
+      setSuppliersMap(supMap);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message)
+        setError(err.message);
       } else {
-        setError('Failed to fetch Goods Receipts')
+        setError("Failed to fetch Goods Receipts");
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    fetchReceipts()
-  }, [fetchReceipts])
+    fetchReceipts();
+  }, [fetchReceipts]);
 
   const totalQtyReceivedOverall = React.useMemo(
     () =>
       receipts.reduce(
-        (acc, gr) => acc + gr.lines.reduce((lAcc, line) => lAcc + line.quantityReceived, 0),
+        (acc, gr) =>
+          acc +
+          gr.lines.reduce((lAcc, line) => lAcc + line.quantityReceived, 0),
         0,
       ),
     [receipts],
-  )
+  );
 
   const columns = React.useMemo<ColumnDef<GoodsReceiptDto>[]>(
     () => [
       {
-        accessorKey: 'grNumber',
-        header: 'GRN Number',
+        accessorKey: "grNumber",
+        header: "GRN Number",
         cell: ({ row }) => (
           <Link
             href={`/goods-receipts/${row.original.id}`}
@@ -79,10 +103,10 @@ export default function GoodsReceiptsPage() {
         ),
       },
       {
-        accessorKey: 'purchaseOrderId',
-        header: 'Purchase Order',
+        accessorKey: "purchaseOrderId",
+        header: "Purchase Order",
         cell: ({ row }) => {
-          const po = purchaseOrdersMap[row.original.purchaseOrderId]
+          const po = purchaseOrdersMap[row.original.purchaseOrderId];
           return (
             <Link
               href={`/purchase-orders/${row.original.purchaseOrderId}`}
@@ -90,41 +114,48 @@ export default function GoodsReceiptsPage() {
             >
               {po ? po.poNumber : row.original.purchaseOrderId.slice(0, 8)}
             </Link>
-          )
+          );
         },
       },
       {
-        accessorKey: 'supplierId',
-        header: 'Supplier',
+        accessorKey: "supplierId",
+        header: "Supplier",
         cell: ({ row }) => {
-          const sup = suppliersMap[row.original.supplierId]
+          const sup = suppliersMap[row.original.supplierId];
           return (
             <span className="font-medium text-foreground">
               {sup ? sup.name : row.original.supplierId.slice(0, 8)}
             </span>
-          )
+          );
         },
       },
       {
-        accessorKey: 'packingSlipNumber',
-        header: 'Packing Slip #',
+        accessorKey: "packingSlipNumber",
+        header: "Packing Slip #",
         cell: ({ row }) => (
           <span className="font-mono text-xs text-muted-foreground uppercase">
-            {row.original.packingSlipNumber || '—'}
+            {row.original.packingSlipNumber || "—"}
           </span>
         ),
       },
       {
-        accessorKey: 'lines',
-        header: 'Qty Received',
+        accessorKey: "lines",
+        header: "Qty Received",
         cell: ({ row }) => {
-          const sum = row.original.lines.reduce((acc, l) => acc + l.quantityReceived, 0)
-          return <span className="font-mono text-xs font-bold text-foreground">{sum} units</span>
+          const sum = row.original.lines.reduce(
+            (acc, l) => acc + l.quantityReceived,
+            0,
+          );
+          return (
+            <span className="font-mono text-xs font-bold text-foreground">
+              {sum} units
+            </span>
+          );
         },
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
+        accessorKey: "status",
+        header: "Status",
         cell: ({ row }) => (
           <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
             {row.original.status}
@@ -132,8 +163,8 @@ export default function GoodsReceiptsPage() {
         ),
       },
       {
-        accessorKey: 'receivedAt',
-        header: 'Receipt Date',
+        accessorKey: "receivedAt",
+        header: "Receipt Date",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
             {new Date(row.original.receivedAt).toLocaleDateString()}
@@ -141,8 +172,8 @@ export default function GoodsReceiptsPage() {
         ),
       },
       {
-        id: 'actions',
-        header: 'Actions',
+        id: "actions",
+        header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/goods-receipts/${row.original.id}`}>
@@ -155,26 +186,28 @@ export default function GoodsReceiptsPage() {
       },
     ],
     [purchaseOrdersMap, suppliersMap],
-  )
+  );
 
   const filterConfigs: FilterConfig[] = [
     {
-      columnId: 'status',
-      title: 'Status',
+      columnId: "status",
+      title: "Status",
       options: [
-        { label: 'Completed', value: 'COMPLETED' },
-        { label: 'Draft', value: 'DRAFT' },
+        { label: "Completed", value: "COMPLETED" },
+        { label: "Draft", value: "DRAFT" },
       ],
     },
-  ]
+  ];
 
   const handleFormSuccess = (savedGr: GoodsReceiptDto) => {
-    setReceipts((prev) => [savedGr, ...prev])
-    setToastMessage(`Goods Receipt "${savedGr.grNumber}" posted successfully. Stock incremented.`)
-    setIsFormOpen(false)
-    setTimeout(() => setToastMessage(null), 4000)
-    fetchReceipts()
-  }
+    setReceipts((prev) => [savedGr, ...prev]);
+    setToastMessage(
+      `Goods Receipt "${savedGr.grNumber}" posted successfully. Stock incremented.`,
+    );
+    setIsFormOpen(false);
+    setTimeout(() => setToastMessage(null), 4000);
+    fetchReceipts();
+  };
 
   return (
     <div className="space-y-6">
@@ -200,7 +233,7 @@ export default function GoodsReceiptsPage() {
         />
         <StatCard
           title="Completed Receipts"
-          value={receipts.filter((r) => r.status === 'COMPLETED').length}
+          value={receipts.filter((r) => r.status === "COMPLETED").length}
           subtitle="Inventory ledger posted"
           icon={Package}
         />
@@ -268,5 +301,5 @@ export default function GoodsReceiptsPage() {
         emptyMessage="Get started by processing your first physical inventory receipt."
       />
     </div>
-  )
+  );
 }

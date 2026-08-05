@@ -1,4 +1,4 @@
-export type MessageSeverity = 'INFO' | 'WARNING' | 'ERROR';
+export type MessageSeverity = "INFO" | "WARNING" | "ERROR";
 
 export interface CreatePlanningMessageProps {
   planningRunId: string;
@@ -17,7 +17,7 @@ export interface RehydratePlanningMessageProps {
 export class InvalidPlanningMessageError extends Error {
   constructor(msg: string) {
     super(msg);
-    this.name = 'InvalidPlanningMessageError';
+    this.name = "InvalidPlanningMessageError";
   }
 }
 
@@ -38,10 +38,10 @@ export class PlanningMessage {
 
   public static create(props: CreatePlanningMessageProps): PlanningMessage {
     if (!props.planningRunId || props.planningRunId.trim().length === 0) {
-      throw new InvalidPlanningMessageError('Planning run ID is required.');
+      throw new InvalidPlanningMessageError("Planning run ID is required.");
     }
     if (!props.message || props.message.trim().length === 0) {
-      throw new InvalidPlanningMessageError('Log message text is required.');
+      throw new InvalidPlanningMessageError("Log message text is required.");
     }
 
     return new PlanningMessage({
@@ -53,7 +53,9 @@ export class PlanningMessage {
     });
   }
 
-  public static rehydrate(props: RehydratePlanningMessageProps): PlanningMessage {
+  public static rehydrate(
+    props: RehydratePlanningMessageProps,
+  ): PlanningMessage {
     return new PlanningMessage(props);
   }
 

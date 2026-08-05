@@ -1,80 +1,104 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Plus, X, Eye, Edit3, Trash2, Factory, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable, type FilterConfig } from '@/components/ui/entity-data-table'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { ManufacturerForm } from '@/components/manufacturers/manufacturer-form'
-import { manufacturersApi, type ManufacturerDto } from '@/lib/api/manufacturers-api'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  Plus,
+  X,
+  Eye,
+  Edit3,
+  Trash2,
+  Factory,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ManufacturerForm } from "@/components/manufacturers/manufacturer-form";
+import {
+  manufacturersApi,
+  type ManufacturerDto,
+} from "@/lib/api/manufacturers-api";
 
 export default function ManufacturersPage() {
-  const [manufacturers, setManufacturers] = React.useState<ManufacturerDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [editingManufacturer, setEditingManufacturer] = React.useState<ManufacturerDto | null>(null)
-  const [deletingManufacturer, setDeletingManufacturer] = React.useState<ManufacturerDto | null>(null)
-  const [deleteLoading, setDeleteLoading] = React.useState(false)
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null)
-  const [apiAlert, setApiAlert] = React.useState<string | null>(null)
+  const [manufacturers, setManufacturers] = React.useState<ManufacturerDto[]>(
+    [],
+  );
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingManufacturer, setEditingManufacturer] =
+    React.useState<ManufacturerDto | null>(null);
+  const [deletingManufacturer, setDeletingManufacturer] =
+    React.useState<ManufacturerDto | null>(null);
+  const [deleteLoading, setDeleteLoading] = React.useState(false);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  const [apiAlert, setApiAlert] = React.useState<string | null>(null);
 
   const fetchManufacturers = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const data = await manufacturersApi.getAll()
-      setManufacturers(data)
+      const data = await manufacturersApi.getAll();
+      setManufacturers(data);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message)
+        setError(err.message);
       } else {
-        setError('Failed to fetch manufacturers from API')
+        setError("Failed to fetch manufacturers from API");
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    fetchManufacturers()
-  }, [fetchManufacturers])
+    fetchManufacturers();
+  }, [fetchManufacturers]);
 
   const activeCount = React.useMemo(
     () => manufacturers.filter((m) => m.isActive).length,
     [manufacturers],
-  )
+  );
 
   const handleDeleteConfirm = async () => {
-    if (!deletingManufacturer) return
-    setDeleteLoading(true)
-    setApiAlert(null)
+    if (!deletingManufacturer) return;
+    setDeleteLoading(true);
+    setApiAlert(null);
     try {
-      await manufacturersApi.delete(deletingManufacturer.id)
-      setManufacturers((prev) => prev.filter((m) => m.id !== deletingManufacturer.id))
-      setToastMessage(`Manufacturer "${deletingManufacturer.code}" deleted successfully.`)
-      setTimeout(() => setToastMessage(null), 4000)
-      setDeletingManufacturer(null)
+      await manufacturersApi.delete(deletingManufacturer.id);
+      setManufacturers((prev) =>
+        prev.filter((m) => m.id !== deletingManufacturer.id),
+      );
+      setToastMessage(
+        `Manufacturer "${deletingManufacturer.code}" deleted successfully.`,
+      );
+      setTimeout(() => setToastMessage(null), 4000);
+      setDeletingManufacturer(null);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setApiAlert(err.message)
+        setApiAlert(err.message);
       } else {
-        setApiAlert('Failed to delete manufacturer')
+        setApiAlert("Failed to delete manufacturer");
       }
     } finally {
-      setDeleteLoading(false)
+      setDeleteLoading(false);
     }
-  }
+  };
 
   const columns = React.useMemo<ColumnDef<ManufacturerDto>[]>(
     () => [
       {
-        accessorKey: 'code',
-        header: 'Code',
+        accessorKey: "code",
+        header: "Code",
         cell: ({ row }) => (
           <Link
             href={`/manufacturers/${row.original.id}`}
@@ -85,8 +109,8 @@ export default function ManufacturersPage() {
         ),
       },
       {
-        accessorKey: 'name',
-        header: 'Manufacturer Name',
+        accessorKey: "name",
+        header: "Manufacturer Name",
         cell: ({ row }) => (
           <Link
             href={`/manufacturers/${row.original.id}`}
@@ -97,23 +121,23 @@ export default function ManufacturersPage() {
         ),
       },
       {
-        accessorKey: 'isActive',
-        header: 'Status',
+        accessorKey: "isActive",
+        header: "Status",
         cell: ({ row }) => (
           <span
             className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
               row.original.isActive
-                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                : 'bg-muted text-muted-foreground'
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "bg-muted text-muted-foreground"
             }`}
           >
-            {row.original.isActive ? 'Active' : 'Inactive'}
+            {row.original.isActive ? "Active" : "Inactive"}
           </span>
         ),
       },
       {
-        accessorKey: 'createdAt',
-        header: 'Created At',
+        accessorKey: "createdAt",
+        header: "Created At",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
             {new Date(row.original.createdAt).toLocaleDateString()}
@@ -121,8 +145,8 @@ export default function ManufacturersPage() {
         ),
       },
       {
-        id: 'actions',
-        header: 'Actions',
+        id: "actions",
+        header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/manufacturers/${row.original.id}`}>
@@ -135,8 +159,8 @@ export default function ManufacturersPage() {
               size="icon-xs"
               title="Edit manufacturer"
               onClick={() => {
-                setEditingManufacturer(row.original)
-                setIsFormOpen(true)
+                setEditingManufacturer(row.original);
+                setIsFormOpen(true);
               }}
             >
               <Edit3 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -146,8 +170,8 @@ export default function ManufacturersPage() {
               size="icon-xs"
               title="Delete manufacturer"
               onClick={() => {
-                setApiAlert(null)
-                setDeletingManufacturer(row.original)
+                setApiAlert(null);
+                setDeletingManufacturer(row.original);
               }}
             >
               <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
@@ -157,33 +181,39 @@ export default function ManufacturersPage() {
       },
     ],
     [],
-  )
+  );
 
   const filterConfigs: FilterConfig[] = [
     {
-      columnId: 'isActive',
-      title: 'Status',
+      columnId: "isActive",
+      title: "Status",
       options: [
-        { label: 'Active', value: 'true' },
-        { label: 'Inactive', value: 'false' },
+        { label: "Active", value: "true" },
+        { label: "Inactive", value: "false" },
       ],
     },
-  ]
+  ];
 
   const handleFormSuccess = (savedManufacturer: ManufacturerDto) => {
     if (editingManufacturer) {
       setManufacturers((prev) =>
-        prev.map((m) => (m.id === savedManufacturer.id ? savedManufacturer : m)),
-      )
-      setToastMessage(`Manufacturer "${savedManufacturer.code}" updated successfully.`)
+        prev.map((m) =>
+          m.id === savedManufacturer.id ? savedManufacturer : m,
+        ),
+      );
+      setToastMessage(
+        `Manufacturer "${savedManufacturer.code}" updated successfully.`,
+      );
     } else {
-      setManufacturers((prev) => [savedManufacturer, ...prev])
-      setToastMessage(`Manufacturer "${savedManufacturer.code}" created successfully.`)
+      setManufacturers((prev) => [savedManufacturer, ...prev]);
+      setToastMessage(
+        `Manufacturer "${savedManufacturer.code}" created successfully.`,
+      );
     }
-    setIsFormOpen(false)
-    setEditingManufacturer(null)
-    setTimeout(() => setToastMessage(null), 4000)
-  }
+    setIsFormOpen(false);
+    setEditingManufacturer(null);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   return (
     <div className="space-y-6">
@@ -195,8 +225,8 @@ export default function ManufacturersPage() {
           <Button
             size="sm"
             onClick={() => {
-              setEditingManufacturer(null)
-              setIsFormOpen(true)
+              setEditingManufacturer(null);
+              setIsFormOpen(true);
             }}
           >
             <Plus className="w-4 h-4 mr-1.5" />
@@ -255,12 +285,14 @@ export default function ManufacturersPage() {
           <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h2 className="text-lg font-semibold text-foreground">
-                {editingManufacturer ? 'Edit Manufacturer' : 'Create New Manufacturer'}
+                {editingManufacturer
+                  ? "Edit Manufacturer"
+                  : "Create New Manufacturer"}
               </h2>
               <button
                 onClick={() => {
-                  setIsFormOpen(false)
-                  setEditingManufacturer(null)
+                  setIsFormOpen(false);
+                  setEditingManufacturer(null);
                 }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -271,8 +303,8 @@ export default function ManufacturersPage() {
               initialData={editingManufacturer}
               onSuccess={handleFormSuccess}
               onCancel={() => {
-                setIsFormOpen(false)
-                setEditingManufacturer(null)
+                setIsFormOpen(false);
+                setEditingManufacturer(null);
               }}
             />
           </div>
@@ -303,5 +335,5 @@ export default function ManufacturersPage() {
         emptyMessage="Get started by creating your first manufacturer record."
       />
     </div>
-  )
+  );
 }

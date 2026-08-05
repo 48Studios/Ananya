@@ -1,66 +1,79 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm, useFieldArray, SubmitHandler, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Plus, Trash2, Loader2, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import * as React from "react";
+import {
+  useForm,
+  useFieldArray,
+  SubmitHandler,
+  Controller,
+} from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+} from "@/components/ui/select";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   bomsApi,
   type BillOfMaterialsDto,
   type CreateBomPayload,
   type UpdateBomPayload,
-} from '@/lib/api/boms-api'
-import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
+} from "@/lib/api/boms-api";
+import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 
 const bomLineSchema = z.object({
-  componentId: z.string().min(1, 'Component selection is required'),
-  quantityPerUnit: z.number().min(0.0001, 'Quantity must be greater than zero'),
-  unitOfMeasure: z.string().min(1, 'Unit is required'),
-  scrapFactorPercent: z.number().min(0, 'Scrap % must be non-negative'),
+  componentId: z.string().min(1, "Component selection is required"),
+  quantityPerUnit: z.number().min(0.0001, "Quantity must be greater than zero"),
+  unitOfMeasure: z.string().min(1, "Unit is required"),
+  scrapFactorPercent: z.number().min(0, "Scrap % must be non-negative"),
   notes: z.string().optional().nullable(),
-})
+});
 
 const bomSchema = z
   .object({
-    componentId: z.string().min(1, 'Finished product component selection is required'),
-    revision: z.string().min(1, 'Revision string is required').transform((val) => val.trim()),
+    componentId: z
+      .string()
+      .min(1, "Finished product component selection is required"),
+    revision: z
+      .string()
+      .min(1, "Revision string is required")
+      .transform((val) => val.trim()),
     notes: z.string().optional().nullable(),
-    lines: z.array(bomLineSchema).min(1, 'At least one component line item is required'),
+    lines: z
+      .array(bomLineSchema)
+      .min(1, "At least one component line item is required"),
   })
   .refine(
     (data) => {
       // Finished product cannot be present inside its own BOM line items
-      return !data.lines.some((line) => line.componentId === data.componentId)
+      return !data.lines.some((line) => line.componentId === data.componentId);
     },
     {
-      message: 'Finished product component cannot be listed as a sub-component in its own BOM.',
-      path: ['lines'],
+      message:
+        "Finished product component cannot be listed as a sub-component in its own BOM.",
+      path: ["lines"],
     },
-  )
+  );
 
-export type BomFormValues = z.infer<typeof bomSchema>
+export type BomFormValues = z.infer<typeof bomSchema>;
 
 interface BomFormProps {
-  initialData?: BillOfMaterialsDto | null
-  onSuccess: (savedBom: BillOfMaterialsDto) => void
-  onCancel: () => void
+  initialData?: BillOfMaterialsDto | null;
+  onSuccess: (savedBom: BillOfMaterialsDto) => void;
+  onCancel: () => void;
 }
 
 export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
-  const [components, setComponents] = React.useState<ComponentDto[]>([])
-  const [serverError, setServerError] = React.useState<string | null>(null)
-  const isEdit = Boolean(initialData)
+  const [components, setComponents] = React.useState<ComponentDto[]>([]);
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const isEdit = Boolean(initialData);
 
   React.useEffect(() => {
     componentsApi
@@ -68,8 +81,8 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
       .then(setComponents)
       .catch(() => {
         // Non-blocking load error
-      })
-  }, [])
+      });
+  }, []);
 
   const {
     register,
@@ -81,46 +94,46 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
   } = useForm<BomFormValues>({
     resolver: zodResolver(bomSchema),
     defaultValues: {
-      componentId: initialData?.componentId ?? '',
-      revision: initialData?.revision ?? 'v1.0',
-      notes: initialData?.notes ?? '',
+      componentId: initialData?.componentId ?? "",
+      revision: initialData?.revision ?? "v1.0",
+      notes: initialData?.notes ?? "",
       lines: initialData?.lines
         ? initialData.lines.map((l) => ({
             componentId: l.componentId,
             quantityPerUnit: l.quantityPerUnit,
             unitOfMeasure: l.unitOfMeasure,
             scrapFactorPercent: l.scrapFactorPercent,
-            notes: l.notes ?? '',
+            notes: l.notes ?? "",
           }))
         : [
             {
-              componentId: '',
+              componentId: "",
               quantityPerUnit: 1,
-              unitOfMeasure: 'pcs',
+              unitOfMeasure: "pcs",
               scrapFactorPercent: 0,
-              notes: '',
+              notes: "",
             },
           ],
     },
-  })
+  });
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'lines',
-  })
+    name: "lines",
+  });
 
-  const selectedFinishedProductId = watch('componentId')
+  const selectedFinishedProductId = watch("componentId");
 
   const handleLineComponentChange = (index: number, componentId: string) => {
-    setValue(`lines.${index}.componentId`, componentId)
-    const selectedComp = components.find((c) => c.id === componentId)
+    setValue(`lines.${index}.componentId`, componentId);
+    const selectedComp = components.find((c) => c.id === componentId);
     if (selectedComp) {
-      setValue(`lines.${index}.unitOfMeasure`, selectedComp.unit)
+      setValue(`lines.${index}.unitOfMeasure`, selectedComp.unit);
     }
-  }
+  };
 
   const onSubmit: SubmitHandler<BomFormValues> = async (values) => {
-    setServerError(null)
+    setServerError(null);
     try {
       if (isEdit && initialData) {
         const payload: UpdateBomPayload = {
@@ -132,9 +145,9 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
             scrapFactorPercent: l.scrapFactorPercent,
             notes: l.notes || null,
           })),
-        }
-        const updated = await bomsApi.update(initialData.id, payload)
-        onSuccess(updated)
+        };
+        const updated = await bomsApi.update(initialData.id, payload);
+        onSuccess(updated);
       } else {
         const payload: CreateBomPayload = {
           componentId: values.componentId,
@@ -147,18 +160,20 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
             scrapFactorPercent: l.scrapFactorPercent,
             notes: l.notes || null,
           })),
-        }
-        const created = await bomsApi.create(payload)
-        onSuccess(created)
+        };
+        const created = await bomsApi.create(payload);
+        onSuccess(created);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError(isEdit ? 'Failed to update BOM' : 'Failed to create BOM')
+        setServerError(
+          isEdit ? "Failed to update BOM" : "Failed to create BOM",
+        );
       }
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -173,7 +188,8 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Field className="sm:col-span-2">
           <FieldLabel htmlFor="bom-product">
-            Finished Product Component <span className="text-destructive">*</span>
+            Finished Product Component{" "}
+            <span className="text-destructive">*</span>
           </FieldLabel>
           <Controller
             name="componentId"
@@ -211,7 +227,7 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
             type="text"
             placeholder="e.g. v1.0"
             disabled={isEdit}
-            {...register('revision')}
+            {...register("revision")}
             className="font-mono"
           />
           {errors.revision?.message && (
@@ -222,12 +238,14 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
 
       {/* Notes */}
       <Field>
-        <FieldLabel htmlFor="bom-notes">BOM Notes / Specification Details</FieldLabel>
+        <FieldLabel htmlFor="bom-notes">
+          BOM Notes / Specification Details
+        </FieldLabel>
         <Input
           id="bom-notes"
           type="text"
           placeholder="e.g. Standard production assembly BOM for batch batch-v1"
-          {...register('notes')}
+          {...register("notes")}
         />
       </Field>
 
@@ -235,7 +253,8 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
       <div className="space-y-3 pt-2 border-t border-border">
         <div className="flex items-center justify-between">
           <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
-            Required Component Line Items <span className="text-destructive">*</span>
+            Required Component Line Items{" "}
+            <span className="text-destructive">*</span>
           </label>
           <Button
             type="button"
@@ -243,11 +262,11 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
             size="sm"
             onClick={() =>
               append({
-                componentId: '',
+                componentId: "",
                 quantityPerUnit: 1,
-                unitOfMeasure: 'pcs',
+                unitOfMeasure: "pcs",
                 scrapFactorPercent: 0,
-                notes: '',
+                notes: "",
               })
             }
           >
@@ -255,7 +274,7 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
           </Button>
         </div>
 
-        {errors.lines && typeof errors.lines.message === 'string' && (
+        {errors.lines && typeof errors.lines.message === "string" && (
           <div className="p-2.5 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
             {errors.lines.message}
           </div>
@@ -289,8 +308,8 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
                     <Select
                       value={lineCompField.value}
                       onValueChange={(val) => {
-                        lineCompField.onChange(val ?? '')
-                        handleLineComponentChange(index, val ?? '')
+                        lineCompField.onChange(val ?? "");
+                        handleLineComponentChange(index, val ?? "");
                       }}
                     >
                       <SelectTrigger className="h-8 text-xs">
@@ -320,7 +339,9 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
                     type="number"
                     step="0.0001"
                     min="0.0001"
-                    {...register(`lines.${index}.quantityPerUnit`, { valueAsNumber: true })}
+                    {...register(`lines.${index}.quantityPerUnit`, {
+                      valueAsNumber: true,
+                    })}
                     className="h-8 text-xs font-mono font-bold"
                   />
                 </div>
@@ -344,7 +365,9 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
                     type="number"
                     step="0.1"
                     min="0"
-                    {...register(`lines.${index}.scrapFactorPercent`, { valueAsNumber: true })}
+                    {...register(`lines.${index}.scrapFactorPercent`, {
+                      valueAsNumber: true,
+                    })}
                     className="h-8 text-xs font-mono"
                   />
                 </div>
@@ -366,14 +389,22 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-          {isEdit ? 'Save Changes' : 'Create Bill of Materials'}
+          {isSubmitting && (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          )}
+          {isEdit ? "Save Changes" : "Create Bill of Materials"}
         </Button>
       </div>
     </form>
-  )
+  );
 }

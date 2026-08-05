@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
+import * as React from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Edit3,
   Trash2,
@@ -16,156 +16,166 @@ import {
   FileText,
   CheckCircle2,
   Package,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { LoadingState } from '@/components/ui/loading-state'
-import { ErrorState } from '@/components/ui/error-state'
-import { PurchaseOrderForm } from '@/components/purchase-orders/po-form'
-import { purchaseOrdersApi, type PurchaseOrderDto, type PurchaseOrderStatus } from '@/lib/api/purchase-orders-api'
-import { suppliersApi, type SupplierDto } from '@/lib/api/suppliers-api'
-import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PurchaseOrderForm } from "@/components/purchase-orders/po-form";
+import {
+  purchaseOrdersApi,
+  type PurchaseOrderDto,
+  type PurchaseOrderStatus,
+} from "@/lib/api/purchase-orders-api";
+import { suppliersApi, type SupplierDto } from "@/lib/api/suppliers-api";
+import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 
 const statusSteps: PurchaseOrderStatus[] = [
-  'DRAFT',
-  'SUBMITTED',
-  'APPROVED',
-  'ISSUED',
-  'PARTIALLY_RECEIVED',
-  'FULFILLED',
-]
+  "DRAFT",
+  "SUBMITTED",
+  "APPROVED",
+  "ISSUED",
+  "PARTIALLY_RECEIVED",
+  "FULFILLED",
+];
 
 export default function ViewPurchaseOrderPage() {
-  const params = useParams()
-  const router = useRouter()
-  const id = params?.id as string
+  const params = useParams();
+  const router = useRouter();
+  const id = params?.id as string;
 
-  const [po, setPo] = React.useState<PurchaseOrderDto | null>(null)
-  const [supplier, setSupplier] = React.useState<SupplierDto | null>(null)
-  const [componentMap, setComponentMap] = React.useState<Record<string, ComponentDto>>({})
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [isEditOpen, setIsEditOpen] = React.useState(false)
-  const [isDeleteOpen, setIsDeleteOpen] = React.useState(false)
-  const [isCancelOpen, setIsCancelOpen] = React.useState(false)
-  const [actionLoading, setActionLoading] = React.useState(false)
-  const [apiError, setApiError] = React.useState<string | null>(null)
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null)
+  const [po, setPo] = React.useState<PurchaseOrderDto | null>(null);
+  const [supplier, setSupplier] = React.useState<SupplierDto | null>(null);
+  const [componentMap, setComponentMap] = React.useState<
+    Record<string, ComponentDto>
+  >({});
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [isEditOpen, setIsEditOpen] = React.useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
+  const [isCancelOpen, setIsCancelOpen] = React.useState(false);
+  const [actionLoading, setActionLoading] = React.useState(false);
+  const [apiError, setApiError] = React.useState<string | null>(null);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
 
   const fetchData = React.useCallback(async () => {
-    if (!id) return
-    setLoading(true)
-    setError(null)
+    if (!id) return;
+    setLoading(true);
+    setError(null);
     try {
-      const data = await purchaseOrdersApi.getById(id)
-      setPo(data)
+      const data = await purchaseOrdersApi.getById(id);
+      setPo(data);
 
       const [supData, comps] = await Promise.all([
         suppliersApi.getById(data.supplierId).catch(() => null),
         componentsApi.getAll().catch(() => []),
-      ])
+      ]);
 
-      if (supData) setSupplier(supData)
-      const map: Record<string, ComponentDto> = {}
+      if (supData) setSupplier(supData);
+      const map: Record<string, ComponentDto> = {};
       for (const c of comps) {
-        map[c.id] = c
+        map[c.id] = c;
       }
-      setComponentMap(map)
+      setComponentMap(map);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message)
+        setError(err.message);
       } else {
-        setError('Failed to load purchase order details')
+        setError("Failed to load purchase order details");
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [id])
+  }, [id]);
 
   React.useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchData();
+  }, [fetchData]);
 
   const handleSubmit = async () => {
-    if (!id) return
-    setActionLoading(true)
-    setApiError(null)
+    if (!id) return;
+    setActionLoading(true);
+    setApiError(null);
     try {
-      const updated = await purchaseOrdersApi.submit(id)
-      setPo(updated)
-      setToastMessage(`Purchase Order ${updated.poNumber} submitted successfully.`)
-      setTimeout(() => setToastMessage(null), 4000)
+      const updated = await purchaseOrdersApi.submit(id);
+      setPo(updated);
+      setToastMessage(
+        `Purchase Order ${updated.poNumber} submitted successfully.`,
+      );
+      setTimeout(() => setToastMessage(null), 4000);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setApiError(err.message)
+        setApiError(err.message);
       } else {
-        setApiError('Failed to submit purchase order')
+        setApiError("Failed to submit purchase order");
       }
     } finally {
-      setActionLoading(false)
+      setActionLoading(false);
     }
-  }
+  };
 
   const handleCancel = async () => {
-    if (!id) return
-    setActionLoading(true)
-    setApiError(null)
+    if (!id) return;
+    setActionLoading(true);
+    setApiError(null);
     try {
-      const updated = await purchaseOrdersApi.cancel(id)
-      setPo(updated)
-      setIsCancelOpen(false)
-      setToastMessage(`Purchase Order ${updated.poNumber} cancelled.`)
-      setTimeout(() => setToastMessage(null), 4000)
+      const updated = await purchaseOrdersApi.cancel(id);
+      setPo(updated);
+      setIsCancelOpen(false);
+      setToastMessage(`Purchase Order ${updated.poNumber} cancelled.`);
+      setTimeout(() => setToastMessage(null), 4000);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setApiError(err.message)
+        setApiError(err.message);
       } else {
-        setApiError('Failed to cancel purchase order')
+        setApiError("Failed to cancel purchase order");
       }
     } finally {
-      setActionLoading(false)
+      setActionLoading(false);
     }
-  }
+  };
 
   const handleDelete = async () => {
-    if (!id) return
-    setActionLoading(true)
-    setApiError(null)
+    if (!id) return;
+    setActionLoading(true);
+    setApiError(null);
     try {
-      await purchaseOrdersApi.delete(id)
-      router.push('/purchase-orders')
+      await purchaseOrdersApi.delete(id);
+      router.push("/purchase-orders");
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setApiError(err.message)
+        setApiError(err.message);
       } else {
-        setApiError('Failed to delete purchase order')
+        setApiError("Failed to delete purchase order");
       }
     } finally {
-      setActionLoading(false)
+      setActionLoading(false);
     }
-  }
+  };
 
   if (loading) {
-    return <LoadingState message="Loading purchase order details..." />
+    return <LoadingState message="Loading purchase order details..." />;
   }
 
   if (error || !po) {
     return (
       <ErrorState
         title="Purchase Order Not Found"
-        message={error || 'The requested purchase order record does not exist.'}
+        message={error || "The requested purchase order record does not exist."}
         onRetry={fetchData}
       />
-    )
+    );
   }
 
-  const currentStepIndex = statusSteps.indexOf(po.status)
-  const isDraft = po.status === 'DRAFT'
-  const isCancelled = po.status === 'CANCELLED'
-  const canCancel = !['FULFILLED', 'CANCELLED', 'PARTIALLY_RECEIVED'].includes(po.status)
-  const canDelete = ['DRAFT', 'CANCELLED'].includes(po.status)
+  const currentStepIndex = statusSteps.indexOf(po.status);
+  const isDraft = po.status === "DRAFT";
+  const isCancelled = po.status === "CANCELLED";
+  const canCancel = !["FULFILLED", "CANCELLED", "PARTIALLY_RECEIVED"].includes(
+    po.status,
+  );
+  const canDelete = ["DRAFT", "CANCELLED"].includes(po.status);
 
   return (
     <div className="space-y-6 print:space-y-4">
@@ -174,12 +184,16 @@ export default function ViewPurchaseOrderPage() {
         title={po.poNumber}
         description={`Supplier: ${supplier?.name || po.supplierId}`}
         breadcrumbs={[
-          { label: 'Purchase Orders', href: '/purchase-orders' },
+          { label: "Purchase Orders", href: "/purchase-orders" },
           { label: po.poNumber },
         ]}
         actions={
           <div className="flex items-center gap-2 print:hidden">
-            <Button variant="outline" size="sm" onClick={() => router.push('/purchase-orders')}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push("/purchase-orders")}
+            >
               <ArrowLeft className="w-4 h-4 mr-1.5" />
               Back
             </Button>
@@ -200,7 +214,11 @@ export default function ViewPurchaseOrderPage() {
                   <Send className="w-4 h-4 mr-1.5" />
                   Submit PO
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditOpen(true)}
+                >
                   <Edit3 className="w-4 h-4 mr-1.5" />
                   Edit
                 </Button>
@@ -212,8 +230,8 @@ export default function ViewPurchaseOrderPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setApiError(null)
-                  setIsCancelOpen(true)
+                  setApiError(null);
+                  setIsCancelOpen(true);
                 }}
               >
                 <Ban className="w-4 h-4 mr-1.5 text-amber-500" />
@@ -226,8 +244,8 @@ export default function ViewPurchaseOrderPage() {
                 variant="destructive"
                 size="sm"
                 onClick={() => {
-                  setApiError(null)
-                  setIsDeleteOpen(true)
+                  setApiError(null);
+                  setIsDeleteOpen(true);
                 }}
               >
                 <Trash2 className="w-4 h-4 mr-1.5" />
@@ -265,22 +283,22 @@ export default function ViewPurchaseOrderPage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {statusSteps.map((step, idx) => {
-              const isPassed = currentStepIndex >= idx
-              const isCurrent = currentStepIndex === idx
+              const isPassed = currentStepIndex >= idx;
+              const isCurrent = currentStepIndex === idx;
               return (
                 <div
                   key={step}
                   className={`p-2.5 rounded-lg text-center text-xs font-medium border transition-all ${
                     isCurrent
-                      ? 'bg-primary text-primary-foreground border-primary shadow-xs font-bold'
+                      ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold"
                       : isPassed
-                      ? 'bg-primary/10 text-primary border-primary/20'
-                      : 'bg-muted/30 text-muted-foreground border-border'
+                        ? "bg-primary/10 text-primary border-primary/20"
+                        : "bg-muted/30 text-muted-foreground border-border"
                   }`}
                 >
-                  {step.replace('_', ' ')}
+                  {step.replace("_", " ")}
                 </div>
-              )
+              );
             })}
           </div>
         )}
@@ -303,7 +321,7 @@ export default function ViewPurchaseOrderPage() {
         <StatCard
           title="Supplier"
           value={supplier?.code || po.supplierId.slice(0, 8)}
-          subtitle={supplier?.name || 'Vendor record'}
+          subtitle={supplier?.name || "Vendor record"}
           icon={Building2}
         />
         <StatCard
@@ -311,7 +329,7 @@ export default function ViewPurchaseOrderPage() {
           value={
             po.expectedDeliveryDate
               ? new Date(po.expectedDeliveryDate).toLocaleDateString()
-              : 'Unscheduled'
+              : "Unscheduled"
           }
           subtitle="Fulfillment target"
           icon={Calendar}
@@ -323,7 +341,9 @@ export default function ViewPurchaseOrderPage() {
         {/* Header Metadata Info */}
         <div className="md:col-span-2 bg-card border border-border rounded-xl p-6 space-y-6 shadow-xs">
           <div>
-            <h3 className="text-base font-semibold text-foreground">Purchase Order Details</h3>
+            <h3 className="text-base font-semibold text-foreground">
+              Purchase Order Details
+            </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Commercial parameters and supplier references.
             </p>
@@ -331,26 +351,30 @@ export default function ViewPurchaseOrderPage() {
 
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
             <div>
-              <dt className="text-xs font-medium text-muted-foreground">PO Number</dt>
+              <dt className="text-xs font-medium text-muted-foreground">
+                PO Number
+              </dt>
               <dd className="mt-1 font-mono text-xs font-bold text-foreground bg-muted/40 px-2 py-1 rounded inline-block uppercase">
                 {po.poNumber}
               </dd>
             </div>
 
             <div>
-              <dt className="text-xs font-medium text-muted-foreground">Status</dt>
+              <dt className="text-xs font-medium text-muted-foreground">
+                Status
+              </dt>
               <dd className="mt-1">
                 <span
                   className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${
-                    po.status === 'DRAFT'
-                      ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
-                      : po.status === 'SUBMITTED'
-                      ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20'
-                      : po.status === 'FULFILLED'
-                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
-                      : po.status === 'CANCELLED'
-                      ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
-                      : 'bg-muted text-muted-foreground'
+                    po.status === "DRAFT"
+                      ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+                      : po.status === "SUBMITTED"
+                        ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
+                        : po.status === "FULFILLED"
+                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                          : po.status === "CANCELLED"
+                            ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20"
+                            : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {po.status}
@@ -359,10 +383,15 @@ export default function ViewPurchaseOrderPage() {
             </div>
 
             <div>
-              <dt className="text-xs font-medium text-muted-foreground">Supplier Name</dt>
+              <dt className="text-xs font-medium text-muted-foreground">
+                Supplier Name
+              </dt>
               <dd className="mt-1 text-sm font-medium text-foreground">
                 {supplier ? (
-                  <Link href={`/suppliers/${supplier.id}`} className="hover:underline">
+                  <Link
+                    href={`/suppliers/${supplier.id}`}
+                    className="hover:underline"
+                  >
                     {supplier.name} ({supplier.code})
                   </Link>
                 ) : (
@@ -372,23 +401,33 @@ export default function ViewPurchaseOrderPage() {
             </div>
 
             <div>
-              <dt className="text-xs font-medium text-muted-foreground">Currency</dt>
-              <dd className="mt-1 font-mono text-xs text-foreground uppercase">{po.currency}</dd>
-            </div>
-
-            <div>
-              <dt className="text-xs font-medium text-muted-foreground">Issued Date</dt>
-              <dd className="mt-1 text-xs text-foreground">
-                {po.issuedAt ? new Date(po.issuedAt).toLocaleString() : 'Not issued yet'}
+              <dt className="text-xs font-medium text-muted-foreground">
+                Currency
+              </dt>
+              <dd className="mt-1 font-mono text-xs text-foreground uppercase">
+                {po.currency}
               </dd>
             </div>
 
             <div>
-              <dt className="text-xs font-medium text-muted-foreground">Expected Delivery</dt>
+              <dt className="text-xs font-medium text-muted-foreground">
+                Issued Date
+              </dt>
+              <dd className="mt-1 text-xs text-foreground">
+                {po.issuedAt
+                  ? new Date(po.issuedAt).toLocaleString()
+                  : "Not issued yet"}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground">
+                Expected Delivery
+              </dt>
               <dd className="mt-1 text-xs text-foreground">
                 {po.expectedDeliveryDate
                   ? new Date(po.expectedDeliveryDate).toLocaleDateString()
-                  : '—'}
+                  : "—"}
               </dd>
             </div>
           </dl>
@@ -412,7 +451,9 @@ export default function ViewPurchaseOrderPage() {
 
         {/* Totals Financial Summary Card */}
         <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
-          <h3 className="text-base font-semibold text-foreground">Financial Summary</h3>
+          <h3 className="text-base font-semibold text-foreground">
+            Financial Summary
+          </h3>
           <div className="space-y-3 font-mono text-sm">
             <div className="flex justify-between items-center pb-2 border-b border-border text-muted-foreground">
               <span>Subtotal:</span>
@@ -459,17 +500,22 @@ export default function ViewPurchaseOrderPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {po.lines.map((line, idx) => {
-                  const comp = componentMap[line.componentId]
+                  const comp = componentMap[line.componentId];
                   return (
-                    <tr key={line.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="p-3 text-muted-foreground font-mono">{idx + 1}</td>
+                    <tr
+                      key={line.id}
+                      className="hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="p-3 text-muted-foreground font-mono">
+                        {idx + 1}
+                      </td>
                       <td className="p-3">
                         {comp ? (
                           <Link
                             href={`/components/${comp.id}`}
                             className="font-medium text-foreground hover:underline"
                           >
-                            {comp.name}{' '}
+                            {comp.name}{" "}
                             <span className="font-mono text-muted-foreground text-[11px]">
                               ({comp.sku})
                             </span>
@@ -479,9 +525,11 @@ export default function ViewPurchaseOrderPage() {
                         )}
                       </td>
                       <td className="p-3 font-mono text-muted-foreground">
-                        {line.vendorPartNumber || '—'}
+                        {line.vendorPartNumber || "—"}
                       </td>
-                      <td className="p-3 text-right font-mono font-medium">{line.quantityOrdered}</td>
+                      <td className="p-3 text-right font-mono font-medium">
+                        {line.quantityOrdered}
+                      </td>
                       <td className="p-3 text-right font-mono text-muted-foreground">
                         {line.quantityReceived}
                       </td>
@@ -495,13 +543,15 @@ export default function ViewPurchaseOrderPage() {
                         {po.currency} {line.lineTotal.toFixed(2)}
                       </td>
                     </tr>
-                  )
+                  );
                 })}
               </tbody>
             </table>
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground italic">No line items in this purchase order.</p>
+          <p className="text-xs text-muted-foreground italic">
+            No line items in this purchase order.
+          </p>
         )}
       </div>
 
@@ -517,10 +567,12 @@ export default function ViewPurchaseOrderPage() {
             <PurchaseOrderForm
               initialData={po}
               onSuccess={(updated) => {
-                setPo(updated)
-                setIsEditOpen(false)
-                setToastMessage(`Purchase Order ${updated.poNumber} updated successfully.`)
-                setTimeout(() => setToastMessage(null), 4000)
+                setPo(updated);
+                setIsEditOpen(false);
+                setToastMessage(
+                  `Purchase Order ${updated.poNumber} updated successfully.`,
+                );
+                setTimeout(() => setToastMessage(null), 4000);
               }}
               onCancel={() => setIsEditOpen(false)}
             />
@@ -552,5 +604,5 @@ export default function ViewPurchaseOrderPage() {
         onCancel={() => setIsDeleteOpen(false)}
       />
     </div>
-  )
+  );
 }

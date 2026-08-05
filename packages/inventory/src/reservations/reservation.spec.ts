@@ -43,7 +43,9 @@ describe("Reservation aggregate", () => {
     res.fulfill();
     expect(res.status).toBe(ReservationStatus.Fulfilled);
 
-    expect(() => res.cancel()).toThrow("Completed or released reservation is immutable.");
+    expect(() => res.cancel()).toThrow(
+      "Completed or released reservation is immutable.",
+    );
   });
 
   it("should throw error when adding zero quantity line", () => {

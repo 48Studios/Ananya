@@ -1,4 +1,4 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export interface NoteProps {
   id: string;
@@ -45,8 +45,8 @@ export class Note implements NoteProps {
   }
 
   public static create(props: CreateNoteProps): Note {
-    if (!props.body || props.body.trim() === '') {
-      throw new Error('Note body cannot be empty');
+    if (!props.body || props.body.trim() === "") {
+      throw new Error("Note body cannot be empty");
     }
     if (
       !props.leadId &&
@@ -54,7 +54,7 @@ export class Note implements NoteProps {
       !props.opportunityId &&
       !props.activityId
     ) {
-      throw new Error('Note must be attached to at least one CRM entity');
+      throw new Error("Note must be attached to at least one CRM entity");
     }
 
     const now = new Date();

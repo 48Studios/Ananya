@@ -1,9 +1,15 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import { Building2, UserPlus, LogIn, ShieldCheck, ArrowRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import * as React from "react";
+import Link from "next/link";
+import {
+  Building2,
+  UserPlus,
+  LogIn,
+  ShieldCheck,
+  ArrowRight,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function OnboardingLandingPage() {
   return (
@@ -15,15 +21,22 @@ export default function OnboardingLandingPage() {
             A
           </div>
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-foreground">Welcome to Ananya ERP</h1>
-            <p className="text-xs text-muted-foreground font-mono">48 Studios Enterprise Platform</p>
+            <h1 className="text-xl font-extrabold tracking-tight text-foreground">
+              Welcome to Ananya ERP
+            </h1>
+            <p className="text-xs text-muted-foreground font-mono">
+              48 Studios Enterprise Platform
+            </p>
           </div>
         </div>
 
         <div className="space-y-2">
-          <h2 className="text-lg font-bold text-foreground">Choose your onboarding option</h2>
+          <h2 className="text-lg font-bold text-foreground">
+            Choose your onboarding option
+          </h2>
           <p className="text-xs text-muted-foreground">
-            Create a brand new enterprise organization or join an existing workspace with an invitation.
+            Create a brand new enterprise organization or join an existing
+            workspace with an invitation.
           </p>
         </div>
 
@@ -42,7 +55,8 @@ export default function OnboardingLandingPage() {
                 Create New Organization
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Initialize a new company workspace. You will automatically become the Organization Owner with full administrative controls.
+                Initialize a new company workspace. You will automatically
+                become the Organization Owner with full administrative controls.
               </p>
             </div>
             <div className="flex items-center text-xs font-semibold text-primary pt-2">
@@ -64,7 +78,8 @@ export default function OnboardingLandingPage() {
                 Join Existing Organization
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Have an invitation token from your administrator? Join an established company workspace.
+                Have an invitation token from your administrator? Join an
+                established company workspace.
               </p>
             </div>
             <div className="flex items-center text-xs font-semibold text-foreground pt-2">
@@ -89,5 +104,5 @@ export default function OnboardingLandingPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

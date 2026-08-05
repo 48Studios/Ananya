@@ -1,4 +1,4 @@
-import { Quotation, QuotationStatus } from './quotation';
+import { Quotation, QuotationStatus } from "./quotation";
 
 export interface FindManyQuotationsOptions {
   customerId?: string;

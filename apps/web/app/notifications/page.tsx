@@ -1,76 +1,80 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { LoadingState } from '@/components/ui/loading-state'
-import { ErrorState } from '@/components/ui/error-state'
-import { NotificationCard } from '@/components/ui/notification-card'
-import { notificationsApi, NotificationDto } from '@/lib/api/notifications-api'
-import { Bell, CheckCheck, Filter, ShieldAlert, Zap } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
+import * as React from "react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { NotificationCard } from "@/components/ui/notification-card";
+import { notificationsApi, NotificationDto } from "@/lib/api/notifications-api";
+import { Bell, CheckCheck, Filter, ShieldAlert, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel } from '@/components/ui/field'
+} from "@/components/ui/select";
+import { Field, FieldLabel } from "@/components/ui/field";
 
 export default function NotificationCenterPage() {
-  const [notifications, setNotifications] = React.useState<NotificationDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [moduleFilter, setModuleFilter] = React.useState<string>('')
-  const [unreadOnly, setUnreadOnly] = React.useState<boolean>(false)
+  const [notifications, setNotifications] = React.useState<NotificationDto[]>(
+    [],
+  );
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [moduleFilter, setModuleFilter] = React.useState<string>("");
+  const [unreadOnly, setUnreadOnly] = React.useState<boolean>(false);
 
   const loadNotifications = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const data = await notificationsApi.getUserNotifications()
-      setNotifications(data)
+      const data = await notificationsApi.getUserNotifications();
+      setNotifications(data);
     } catch {
-      setError('Failed to load notifications feed.')
-      setNotifications([])
+      setError("Failed to load notifications feed.");
+      setNotifications([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    loadNotifications()
-  }, [loadNotifications])
+    loadNotifications();
+  }, [loadNotifications]);
 
   const handleMarkRead = async (id: string) => {
     try {
-      await notificationsApi.markAsRead(id)
-      await loadNotifications()
+      await notificationsApi.markAsRead(id);
+      await loadNotifications();
     } catch {
       // ignore
     }
-  }
+  };
 
   const handleMarkAllRead = async () => {
     try {
-      await notificationsApi.markAllAsRead()
-      await loadNotifications()
+      await notificationsApi.markAllAsRead();
+      await loadNotifications();
     } catch {
       // ignore
     }
-  }
+  };
 
   const filteredNotifications = notifications.filter((n) => {
-    if (unreadOnly && n.isRead) return false
-    if (moduleFilter && n.module !== moduleFilter) return false
-    return true
-  })
+    if (unreadOnly && n.isRead) return false;
+    if (moduleFilter && n.module !== moduleFilter) return false;
+    return true;
+  });
 
-  const totalCount = notifications.length
-  const unreadCount = notifications.filter((n) => !n.isRead).length
-  const urgentCount = notifications.filter((n) => n.priority === 'URGENT' || n.priority === 'HIGH').length
+  const totalCount = notifications.length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const urgentCount = notifications.filter(
+    (n) => n.priority === "URGENT" || n.priority === "HIGH",
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -78,7 +82,11 @@ export default function NotificationCenterPage() {
         title="Notification Center"
         description="Centralized event-driven communication feed and user notification preferences across all ERP modules."
         actions={
-          <Button size="sm" onClick={handleMarkAllRead} disabled={unreadCount === 0}>
+          <Button
+            size="sm"
+            onClick={handleMarkAllRead}
+            disabled={unreadCount === 0}
+          >
             <CheckCheck className="w-3.5 h-3.5 mr-1.5" />
             Mark All Read
           </Button>
@@ -115,7 +123,10 @@ export default function NotificationCenterPage() {
             checked={unreadOnly}
             onCheckedChange={(checked) => setUnreadOnly(Boolean(checked))}
           />
-          <FieldLabel htmlFor="unread-only" className="cursor-pointer text-xs font-medium text-foreground">
+          <FieldLabel
+            htmlFor="unread-only"
+            className="cursor-pointer text-xs font-medium text-foreground"
+          >
             Unread Only ({unreadCount})
           </FieldLabel>
         </Field>
@@ -123,8 +134,10 @@ export default function NotificationCenterPage() {
         <div className="flex items-center gap-2">
           <Filter className="w-3.5 h-3.5 text-muted-foreground" />
           <Select
-            value={moduleFilter || 'ALL'}
-            onValueChange={(val) => setModuleFilter(!val || val === 'ALL' ? '' : val)}
+            value={moduleFilter || "ALL"}
+            onValueChange={(val) =>
+              setModuleFilter(!val || val === "ALL" ? "" : val)
+            }
           >
             <SelectTrigger className="h-8 text-xs w-[160px]">
               <SelectValue placeholder="All Modules" />
@@ -146,7 +159,11 @@ export default function NotificationCenterPage() {
       {loading ? (
         <LoadingState message="Loading Notifications Feed..." />
       ) : error ? (
-        <ErrorState title="Error Loading Feed" message={error} onRetry={loadNotifications} />
+        <ErrorState
+          title="Error Loading Feed"
+          message={error}
+          onRetry={loadNotifications}
+        />
       ) : filteredNotifications.length === 0 ? (
         <div className="py-12 text-center border border-dashed border-border rounded-xl text-xs text-muted-foreground">
           No notifications found for selected filters.
@@ -154,11 +171,14 @@ export default function NotificationCenterPage() {
       ) : (
         <div className="space-y-3">
           {filteredNotifications.map((notif) => (
-            <NotificationCard key={notif.id} notification={notif} onMarkRead={handleMarkRead} />
+            <NotificationCard
+              key={notif.id}
+              notification={notif}
+              onMarkRead={handleMarkRead}
+            />
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }
-

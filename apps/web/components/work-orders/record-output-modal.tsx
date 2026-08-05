@@ -1,33 +1,33 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm, SubmitHandler } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2, AlertCircle, CheckCircle2, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
-import { workOrdersApi, type WorkOrderDto } from '@/lib/api/work-orders-api'
+import * as React from "react";
+import { useForm, SubmitHandler } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2, AlertCircle, CheckCircle2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { workOrdersApi, type WorkOrderDto } from "@/lib/api/work-orders-api";
 
 const recordOutputSchema = z.object({
   producedQuantity: z
     .number()
-    .min(1, 'Produced quantity must be at least 1 unit'),
+    .min(1, "Produced quantity must be at least 1 unit"),
   scrappedQuantity: z
     .number()
-    .min(0, 'Scrapped quantity cannot be negative')
+    .min(0, "Scrapped quantity cannot be negative")
     .optional(),
   notes: z.string().optional(),
-})
+});
 
-export type RecordOutputFormValues = z.infer<typeof recordOutputSchema>
+export type RecordOutputFormValues = z.infer<typeof recordOutputSchema>;
 
 interface RecordOutputModalProps {
-  isOpen: boolean
-  workOrder: WorkOrderDto
-  onSuccess: (updated: WorkOrderDto) => void
-  onClose: () => void
+  isOpen: boolean;
+  workOrder: WorkOrderDto;
+  onSuccess: (updated: WorkOrderDto) => void;
+  onClose: () => void;
 }
 
 export function RecordOutputModal({
@@ -36,12 +36,12 @@ export function RecordOutputModal({
   onSuccess,
   onClose,
 }: RecordOutputModalProps) {
-  const [serverError, setServerError] = React.useState<string | null>(null)
+  const [serverError, setServerError] = React.useState<string | null>(null);
 
   const remainingUnits = Math.max(
     0,
     workOrder.quantityPlanned - workOrder.quantityCompleted,
-  )
+  );
 
   const {
     register,
@@ -52,14 +52,14 @@ export function RecordOutputModal({
     defaultValues: {
       producedQuantity: remainingUnits > 0 ? remainingUnits : 1,
       scrappedQuantity: 0,
-      notes: '',
+      notes: "",
     },
-  })
+  });
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const onSubmit: SubmitHandler<RecordOutputFormValues> = async (values) => {
-    setServerError(null)
+    setServerError(null);
     try {
       const updated = await workOrdersApi.recordPartialOutput(workOrder.id, {
         producedQuantity: Number(values.producedQuantity),
@@ -67,16 +67,16 @@ export function RecordOutputModal({
           ? Number(values.scrappedQuantity)
           : 0,
         notes: values.notes || undefined,
-      })
-      onSuccess(updated)
+      });
+      onSuccess(updated);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError('Failed to record production output batch')
+        setServerError("Failed to record production output batch");
       }
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -97,7 +97,12 @@ export function RecordOutputModal({
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Work Order <span className="font-mono font-bold text-foreground">{workOrder.productionNumber}</span> — {remainingUnits} units remaining out of {workOrder.quantityPlanned} planned.
+          Work Order{" "}
+          <span className="font-mono font-bold text-foreground">
+            {workOrder.productionNumber}
+          </span>{" "}
+          — {remainingUnits} units remaining out of {workOrder.quantityPlanned}{" "}
+          planned.
         </p>
 
         {serverError && (
@@ -110,13 +115,14 @@ export function RecordOutputModal({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Field>
             <FieldLabel htmlFor="produced-qty">
-              Batch Yield Quantity (Units) <span className="text-destructive">*</span>
+              Batch Yield Quantity (Units){" "}
+              <span className="text-destructive">*</span>
             </FieldLabel>
             <Input
               id="produced-qty"
               type="number"
               min={1}
-              {...register('producedQuantity', { valueAsNumber: true })}
+              {...register("producedQuantity", { valueAsNumber: true })}
               className="font-mono font-bold"
             />
             {errors.producedQuantity?.message && (
@@ -132,7 +138,7 @@ export function RecordOutputModal({
               id="scrapped-qty"
               type="number"
               min={0}
-              {...register('scrappedQuantity', { valueAsNumber: true })}
+              {...register("scrappedQuantity", { valueAsNumber: true })}
               className="font-mono"
             />
             {errors.scrappedQuantity?.message && (
@@ -141,14 +147,12 @@ export function RecordOutputModal({
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="run-notes">
-              Run Notes / Batch Code
-            </FieldLabel>
+            <FieldLabel htmlFor="run-notes">Run Notes / Batch Code</FieldLabel>
             <Input
               id="run-notes"
               type="text"
               placeholder="e.g. Morning Shift Run #2 completed"
-              {...register('notes')}
+              {...register("notes")}
             />
           </Field>
 
@@ -172,6 +176,5 @@ export function RecordOutputModal({
         </form>
       </div>
     </div>
-  )
+  );
 }
-

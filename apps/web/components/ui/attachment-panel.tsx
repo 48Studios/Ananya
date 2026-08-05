@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import * as React from 'react'
+import * as React from "react";
 import {
   Eye,
   Download,
@@ -9,49 +9,55 @@ import {
   Shield,
   Loader2,
   FileCheck,
-} from 'lucide-react'
-import { documentsApi, DocumentDto } from '@/lib/api/documents-api'
-import { Button } from '@/components/ui/button'
-import { FileUploader } from '@/components/ui/file-uploader'
-import { DocumentViewer } from '@/components/ui/document-viewer'
-import { VersionHistoryDialog } from '@/components/ui/version-history-dialog'
+} from "lucide-react";
+import { documentsApi, DocumentDto } from "@/lib/api/documents-api";
+import { Button } from "@/components/ui/button";
+import { FileUploader } from "@/components/ui/file-uploader";
+import { DocumentViewer } from "@/components/ui/document-viewer";
+import { VersionHistoryDialog } from "@/components/ui/version-history-dialog";
 
 export interface AttachmentPanelProps {
-  entityType: string
-  entityId: string
+  entityType: string;
+  entityId: string;
 }
 
-export function AttachmentPanel({ entityType, entityId }: AttachmentPanelProps) {
-  const [docList, setDocList] = React.useState<DocumentDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [viewDocument, setViewDocument] = React.useState<DocumentDto | null>(null)
-  const [historyDocument, setHistoryDocument] = React.useState<DocumentDto | null>(null)
+export function AttachmentPanel({
+  entityType,
+  entityId,
+}: AttachmentPanelProps) {
+  const [docList, setDocList] = React.useState<DocumentDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [viewDocument, setViewDocument] = React.useState<DocumentDto | null>(
+    null,
+  );
+  const [historyDocument, setHistoryDocument] =
+    React.useState<DocumentDto | null>(null);
 
   const loadDocuments = React.useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const data = await documentsApi.getEntityDocuments(entityType, entityId)
-      setDocList(data)
+      const data = await documentsApi.getEntityDocuments(entityType, entityId);
+      setDocList(data);
     } catch {
-      setDocList([])
+      setDocList([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [entityType, entityId])
+  }, [entityType, entityId]);
 
   React.useEffect(() => {
-    loadDocuments()
-  }, [loadDocuments])
+    loadDocuments();
+  }, [loadDocuments]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this document?')) return
+    if (!confirm("Are you sure you want to delete this document?")) return;
     try {
-      await documentsApi.deleteDocument(id)
-      await loadDocuments()
+      await documentsApi.deleteDocument(id);
+      await loadDocuments();
     } catch {
       // ignore
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -75,7 +81,8 @@ export function AttachmentPanel({ entityType, entityId }: AttachmentPanelProps) 
           </div>
         ) : docList.length === 0 ? (
           <div className="py-8 text-center border border-dashed border-border rounded-xl text-xs text-muted-foreground">
-            No document attachments found for this entity. Drag & drop files above to attach.
+            No document attachments found for this entity. Drag & drop files
+            above to attach.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -90,8 +97,12 @@ export function AttachmentPanel({ entityType, entityId }: AttachmentPanelProps) 
                       <FileCheck className="w-5 h-5" />
                     </div>
                     <div className="truncate">
-                      <h4 className="text-xs font-semibold text-foreground truncate">{doc.title}</h4>
-                      <p className="text-[11px] text-muted-foreground truncate">{doc.fileName}</p>
+                      <h4 className="text-xs font-semibold text-foreground truncate">
+                        {doc.title}
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {doc.fileName}
+                      </p>
                     </div>
                   </div>
 
@@ -104,7 +115,10 @@ export function AttachmentPanel({ entityType, entityId }: AttachmentPanelProps) 
                 </div>
 
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground border-t border-border pt-2.5">
-                  <span>v{doc.currentVersion} • {(doc.sizeBytes / 1024).toFixed(1)} KB</span>
+                  <span>
+                    v{doc.currentVersion} • {(doc.sizeBytes / 1024).toFixed(1)}{" "}
+                    KB
+                  </span>
                   <span>{new Date(doc.createdAt).toLocaleDateString()}</span>
                 </div>
 
@@ -131,7 +145,11 @@ export function AttachmentPanel({ entityType, entityId }: AttachmentPanelProps) 
                   </Button>
 
                   <a href={doc.fileUrl} download={doc.fileName}>
-                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                    >
                       <Download className="w-3.5 h-3.5 mr-1" />
                       Download
                     </Button>
@@ -167,5 +185,5 @@ export function AttachmentPanel({ entityType, entityId }: AttachmentPanelProps) 
         onVersionAdded={loadDocuments}
       />
     </div>
-  )
+  );
 }

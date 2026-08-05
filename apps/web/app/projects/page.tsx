@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
   X,
@@ -17,143 +17,148 @@ import {
   Play,
   Pause,
   Archive,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable, type FilterConfig } from '@/components/ui/entity-data-table'
-import { ProjectForm } from '@/components/projects/project-form'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
+import { ProjectForm } from "@/components/projects/project-form";
 import {
   projectsApi,
   type ProjectDto,
   type ProjectStatus,
   type ProjectPriority,
-} from '@/lib/api/projects-api'
+} from "@/lib/api/projects-api";
 
 function getStatusBadge(status: ProjectStatus) {
   switch (status) {
-    case 'PLANNING':
+    case "PLANNING":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-slate-500/10 text-slate-700 dark:text-slate-400 border border-slate-500/20">
           <Clock className="w-3 h-3 mr-1" />
           Planning
         </span>
-      )
-    case 'ACTIVE':
+      );
+    case "ACTIVE":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
           <Play className="w-3 h-3 mr-1" />
           Active
         </span>
-      )
-    case 'ON_HOLD':
+      );
+    case "ON_HOLD":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
           <Pause className="w-3 h-3 mr-1" />
           On Hold
         </span>
-      )
-    case 'COMPLETED':
+      );
+    case "COMPLETED":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
           <CheckCircle2 className="w-3 h-3 mr-1" />
           Completed
         </span>
-      )
-    case 'ARCHIVED':
+      );
+    case "ARCHIVED":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-muted text-muted-foreground border border-border">
           <Archive className="w-3 h-3 mr-1" />
           Archived
         </span>
-      )
-    case 'CANCELLED':
+      );
+    case "CANCELLED":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-muted text-muted-foreground border border-border">
           <XCircle className="w-3 h-3 mr-1" />
           Cancelled
         </span>
-      )
+      );
   }
 }
 
 function getPriorityBadge(priority: ProjectPriority) {
   switch (priority) {
-    case 'URGENT':
+    case "URGENT":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
           Urgent
         </span>
-      )
-    case 'HIGH':
+      );
+    case "HIGH":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
           High
         </span>
-      )
-    case 'MEDIUM':
+      );
+    case "MEDIUM":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
           Medium
         </span>
-      )
-    case 'LOW':
+      );
+    case "LOW":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-slate-500/10 text-slate-700 dark:text-slate-400 border border-slate-500/20">
           Low
         </span>
-      )
+      );
   }
 }
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = React.useState<ProjectDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [projects, setProjects] = React.useState<ProjectDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [editingProject, setEditingProject] = React.useState<ProjectDto | null>(null)
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null)
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingProject, setEditingProject] = React.useState<ProjectDto | null>(
+    null,
+  );
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
 
   const fetchProjects = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const data = await projectsApi.getAll()
-      setProjects(data)
+      const data = await projectsApi.getAll();
+      setProjects(data);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message)
+        setError(err.message);
       } else {
-        setError('Failed to fetch Projects')
+        setError("Failed to fetch Projects");
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    fetchProjects()
-  }, [fetchProjects])
+    fetchProjects();
+  }, [fetchProjects]);
 
   const activeCount = React.useMemo(
-    () => projects.filter((p) => p.status === 'ACTIVE').length,
+    () => projects.filter((p) => p.status === "ACTIVE").length,
     [projects],
-  )
+  );
   const planningCount = React.useMemo(
-    () => projects.filter((p) => p.status === 'PLANNING').length,
+    () => projects.filter((p) => p.status === "PLANNING").length,
     [projects],
-  )
+  );
   const completedCount = React.useMemo(
-    () => projects.filter((p) => p.status === 'COMPLETED').length,
+    () => projects.filter((p) => p.status === "COMPLETED").length,
     [projects],
-  )
+  );
 
   const columns = React.useMemo<ColumnDef<ProjectDto>[]>(
     () => [
       {
-        accessorKey: 'projectNumber',
-        header: 'Project #',
+        accessorKey: "projectNumber",
+        header: "Project #",
         cell: ({ row }) => (
           <Link
             href={`/projects/${row.original.id}`}
@@ -164,8 +169,8 @@ export default function ProjectsPage() {
         ),
       },
       {
-        accessorKey: 'name',
-        header: 'Project Name',
+        accessorKey: "name",
+        header: "Project Name",
         cell: ({ row }) => (
           <div className="space-y-0.5">
             <span className="text-xs font-medium text-foreground">
@@ -180,17 +185,17 @@ export default function ProjectsPage() {
         ),
       },
       {
-        accessorKey: 'projectType',
-        header: 'Type',
+        accessorKey: "projectType",
+        header: "Type",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground capitalize">
-            {row.original.projectType.replace(/_/g, ' ').toLowerCase()}
+            {row.original.projectType.replace(/_/g, " ").toLowerCase()}
           </span>
         ),
       },
       {
-        accessorKey: 'projectManager',
-        header: 'Manager',
+        accessorKey: "projectManager",
+        header: "Manager",
         cell: ({ row }) => (
           <span className="text-xs font-medium text-foreground">
             {row.original.projectManager}
@@ -198,18 +203,18 @@ export default function ProjectsPage() {
         ),
       },
       {
-        accessorKey: 'priority',
-        header: 'Priority',
+        accessorKey: "priority",
+        header: "Priority",
         cell: ({ row }) => getPriorityBadge(row.original.priority),
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
+        accessorKey: "status",
+        header: "Status",
         cell: ({ row }) => getStatusBadge(row.original.status),
       },
       {
-        id: 'materials',
-        header: 'Materials',
+        id: "materials",
+        header: "Materials",
         cell: ({ row }) => (
           <span className="font-mono text-xs text-foreground font-bold">
             {row.original.materials.length} items
@@ -217,8 +222,8 @@ export default function ProjectsPage() {
         ),
       },
       {
-        accessorKey: 'createdAt',
-        header: 'Created',
+        accessorKey: "createdAt",
+        header: "Created",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
             {new Date(row.original.createdAt).toLocaleDateString()}
@@ -226,8 +231,8 @@ export default function ProjectsPage() {
         ),
       },
       {
-        id: 'actions',
-        header: 'Actions',
+        id: "actions",
+        header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/projects/${row.original.id}`}>
@@ -235,14 +240,16 @@ export default function ProjectsPage() {
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
             </Link>
-            {(row.original.status === 'PLANNING' || row.original.status === 'ACTIVE' || row.original.status === 'ON_HOLD') && (
+            {(row.original.status === "PLANNING" ||
+              row.original.status === "ACTIVE" ||
+              row.original.status === "ON_HOLD") && (
               <Button
                 variant="ghost"
                 size="icon-xs"
                 title="Edit project"
                 onClick={() => {
-                  setEditingProject(row.original)
-                  setIsFormOpen(true)
+                  setEditingProject(row.original);
+                  setIsFormOpen(true);
                 }}
               >
                 <Pencil className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -253,55 +260,55 @@ export default function ProjectsPage() {
       },
     ],
     [],
-  )
+  );
 
   const filterConfigs: FilterConfig[] = React.useMemo(
     () => [
       {
-        columnId: 'status',
-        title: 'Status',
+        columnId: "status",
+        title: "Status",
         options: [
-          { label: 'Planning', value: 'PLANNING' },
-          { label: 'Active', value: 'ACTIVE' },
-          { label: 'On Hold', value: 'ON_HOLD' },
-          { label: 'Completed', value: 'COMPLETED' },
-          { label: 'Archived', value: 'ARCHIVED' },
-          { label: 'Cancelled', value: 'CANCELLED' },
+          { label: "Planning", value: "PLANNING" },
+          { label: "Active", value: "ACTIVE" },
+          { label: "On Hold", value: "ON_HOLD" },
+          { label: "Completed", value: "COMPLETED" },
+          { label: "Archived", value: "ARCHIVED" },
+          { label: "Cancelled", value: "CANCELLED" },
         ],
       },
       {
-        columnId: 'priority',
-        title: 'Priority',
+        columnId: "priority",
+        title: "Priority",
         options: [
-          { label: 'Urgent', value: 'URGENT' },
-          { label: 'High', value: 'HIGH' },
-          { label: 'Medium', value: 'MEDIUM' },
-          { label: 'Low', value: 'LOW' },
+          { label: "Urgent", value: "URGENT" },
+          { label: "High", value: "HIGH" },
+          { label: "Medium", value: "MEDIUM" },
+          { label: "Low", value: "LOW" },
         ],
       },
       {
-        columnId: 'projectType',
-        title: 'Type',
+        columnId: "projectType",
+        title: "Type",
         options: [
-          { label: 'Customer', value: 'CUSTOMER' },
-          { label: 'Internal', value: 'INTERNAL' },
-          { label: 'R&D', value: 'R_AND_D' },
-          { label: 'Prototype', value: 'PROTOTYPE' },
-          { label: 'Installation', value: 'INSTALLATION' },
-          { label: 'Manufacturing', value: 'MANUFACTURING_INITIATIVE' },
+          { label: "Customer", value: "CUSTOMER" },
+          { label: "Internal", value: "INTERNAL" },
+          { label: "R&D", value: "R_AND_D" },
+          { label: "Prototype", value: "PROTOTYPE" },
+          { label: "Installation", value: "INSTALLATION" },
+          { label: "Manufacturing", value: "MANUFACTURING_INITIATIVE" },
         ],
       },
     ],
     [],
-  )
+  );
 
   const handleFormSuccess = (saved: ProjectDto) => {
-    setToastMessage(`Project "${saved.projectNumber}" saved.`)
-    setIsFormOpen(false)
-    setEditingProject(null)
-    setTimeout(() => setToastMessage(null), 4000)
-    fetchProjects()
-  }
+    setToastMessage(`Project "${saved.projectNumber}" saved.`);
+    setIsFormOpen(false);
+    setEditingProject(null);
+    setTimeout(() => setToastMessage(null), 4000);
+    fetchProjects();
+  };
 
   return (
     <div className="space-y-6">
@@ -313,8 +320,8 @@ export default function ProjectsPage() {
           <Button
             size="sm"
             onClick={() => {
-              setEditingProject(null)
-              setIsFormOpen(true)
+              setEditingProject(null);
+              setIsFormOpen(true);
             }}
           >
             <Plus className="w-4 h-4 mr-1.5" />
@@ -377,12 +384,12 @@ export default function ProjectsPage() {
           <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h2 className="text-lg font-semibold text-foreground">
-                {editingProject ? 'Edit Project' : 'Create Project'}
+                {editingProject ? "Edit Project" : "Create Project"}
               </h2>
               <button
                 onClick={() => {
-                  setIsFormOpen(false)
-                  setEditingProject(null)
+                  setIsFormOpen(false);
+                  setEditingProject(null);
                 }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -393,8 +400,8 @@ export default function ProjectsPage() {
               initialData={editingProject}
               onSuccess={handleFormSuccess}
               onCancel={() => {
-                setIsFormOpen(false)
-                setEditingProject(null)
+                setIsFormOpen(false);
+                setEditingProject(null);
               }}
             />
           </div>
@@ -413,5 +420,5 @@ export default function ProjectsPage() {
         emptyMessage="Get started by creating your first project to manage materials and milestones."
       />
     </div>
-  )
+  );
 }

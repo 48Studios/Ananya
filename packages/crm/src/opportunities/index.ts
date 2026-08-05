@@ -1,2 +1,2 @@
-export * from './opportunity';
-export * from './opportunity.repository';
+export * from "./opportunity";
+export * from "./opportunity.repository";

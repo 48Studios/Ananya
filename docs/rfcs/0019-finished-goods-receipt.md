@@ -84,7 +84,9 @@ This RFC defines the **Finished Goods Receipt** aggregate in the Manufacturing B
 ```typescript
 export interface FinishedGoodsReceiptRepository {
   findById(id: string): Promise<FinishedGoodsReceipt | null>;
-  findByProductionOrderId(productionOrderId: string): Promise<FinishedGoodsReceipt[]>;
+  findByProductionOrderId(
+    productionOrderId: string,
+  ): Promise<FinishedGoodsReceipt[]>;
   findMany(options?: FindManyFgrsOptions): Promise<FinishedGoodsReceipt[]>;
   save(fgr: FinishedGoodsReceipt): Promise<void>;
   generateNextFgrNumber(): Promise<string>;

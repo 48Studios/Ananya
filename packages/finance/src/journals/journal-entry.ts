@@ -1,6 +1,6 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
-export type JournalStatus = 'DRAFT' | 'POSTED' | 'REVERSED' | 'VOID';
+export type JournalStatus = "DRAFT" | "POSTED" | "REVERSED" | "VOID";
 
 export interface JournalEntryLineProps {
   id: string;
@@ -63,11 +63,11 @@ export class JournalEntry implements JournalEntryProps {
   }
 
   public static create(props: CreateJournalEntryProps): JournalEntry {
-    if (!props.journalNumber || props.journalNumber.trim() === '') {
-      throw new Error('Journal number is required');
+    if (!props.journalNumber || props.journalNumber.trim() === "") {
+      throw new Error("Journal number is required");
     }
-    if (!props.description || props.description.trim() === '') {
-      throw new Error('Journal description is required');
+    if (!props.description || props.description.trim() === "") {
+      throw new Error("Journal description is required");
     }
 
     const now = new Date();
@@ -77,7 +77,7 @@ export class JournalEntry implements JournalEntryProps {
       date: props.date || now,
       description: props.description.trim(),
       reference: props.reference,
-      status: 'DRAFT',
+      status: "DRAFT",
       lines: [],
       createdAt: now,
       updatedAt: now,
@@ -89,14 +89,16 @@ export class JournalEntry implements JournalEntryProps {
   }
 
   public addLine(props: AddJournalLineProps): JournalEntryLineProps {
-    if (this.status !== 'DRAFT') {
-      throw new Error('Lines can only be added to DRAFT journal entries');
+    if (this.status !== "DRAFT") {
+      throw new Error("Lines can only be added to DRAFT journal entries");
     }
     if (props.debit < 0 || props.credit < 0) {
-      throw new Error('Debit and Credit amounts cannot be negative');
+      throw new Error("Debit and Credit amounts cannot be negative");
     }
     if (props.debit === 0 && props.credit === 0) {
-      throw new Error('Line must have either a positive debit or credit amount');
+      throw new Error(
+        "Line must have either a positive debit or credit amount",
+      );
     }
 
     const now = new Date();
@@ -116,11 +118,11 @@ export class JournalEntry implements JournalEntryProps {
   }
 
   public post(): void {
-    if (this.status !== 'DRAFT') {
+    if (this.status !== "DRAFT") {
       throw new Error(`Cannot post journal entry in status ${this.status}`);
     }
     if (this.lines.length < 2) {
-      throw new Error('Journal entry must contain at least 2 lines to post');
+      throw new Error("Journal entry must contain at least 2 lines to post");
     }
 
     const totalDebits = this.lines.reduce((sum, l) => sum + l.debit, 0);
@@ -133,23 +135,23 @@ export class JournalEntry implements JournalEntryProps {
       );
     }
 
-    this.status = 'POSTED';
+    this.status = "POSTED";
     this.updatedAt = new Date();
   }
 
   public reverse(): void {
-    if (this.status !== 'POSTED') {
-      throw new Error('Only POSTED journal entries can be reversed');
+    if (this.status !== "POSTED") {
+      throw new Error("Only POSTED journal entries can be reversed");
     }
-    this.status = 'REVERSED';
+    this.status = "REVERSED";
     this.updatedAt = new Date();
   }
 
   public void(): void {
-    if (this.status !== 'DRAFT') {
-      throw new Error('Only DRAFT journal entries can be voided');
+    if (this.status !== "DRAFT") {
+      throw new Error("Only DRAFT journal entries can be voided");
     }
-    this.status = 'VOID';
+    this.status = "VOID";
     this.updatedAt = new Date();
   }
 }

@@ -1,4 +1,4 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 export class DashboardPage {
   readonly page: Page;
@@ -11,12 +11,12 @@ export class DashboardPage {
     this.page = page;
     this.heading = page.locator('h1:has-text("Dashboard")');
     this.customizeButton = page.locator('button:has-text("Customize")');
-    this.widgetGrid = page.locator('.grid');
+    this.widgetGrid = page.locator(".grid");
     this.commandPaletteTrigger = page.locator('button:has-text("Search")');
   }
 
   async goto() {
-    await this.page.goto('/dashboard');
+    await this.page.goto("/dashboard");
   }
 
   async expectLoaded() {

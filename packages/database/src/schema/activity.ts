@@ -19,7 +19,9 @@ export const activityEvents = pgTable(
     entityId: varchar("entity_id", { length: 128 }).notNull(),
     entityTitle: varchar("entity_title", { length: 255 }),
     description: text("description").notNull(),
-    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     userName: varchar("user_name", { length: 128 }),
     userEmail: varchar("user_email", { length: 255 }),
     status: varchar("status", { length: 32 }).notNull().default("SUCCESS"),
@@ -38,7 +40,7 @@ export const activityEvents = pgTable(
     index("activity_events_user_id_idx").on(table.userId),
     index("activity_events_event_type_idx").on(table.eventType),
     index("activity_events_created_at_idx").on(table.createdAt),
-  ]
+  ],
 );
 
 export type ActivityEventRecord = typeof activityEvents.$inferSelect;

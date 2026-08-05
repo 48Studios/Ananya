@@ -7,11 +7,7 @@ import {
 } from "./transfer.errors";
 
 export type TransferStatus =
-  | "DRAFT"
-  | "SUBMITTED"
-  | "DISPATCHED"
-  | "RECEIVED"
-  | "CANCELLED";
+  "DRAFT" | "SUBMITTED" | "DISPATCHED" | "RECEIVED" | "CANCELLED";
 
 export interface WarehouseTransferLineProps {
   id: string;
@@ -100,9 +96,7 @@ export class WarehouseTransfer {
     this.updatedAt = props.updatedAt;
   }
 
-  public static create(
-    input: CreateWarehouseTransferInput,
-  ): WarehouseTransfer {
+  public static create(input: CreateWarehouseTransferInput): WarehouseTransfer {
     if (input.sourceLocationId === input.destinationLocationId) {
       throw new IdenticalTransferLocationsError();
     }
@@ -184,10 +178,7 @@ export class WarehouseTransfer {
 
   public submit(): void {
     if (this.status !== "DRAFT") {
-      throw new InvalidTransferStatusTransitionError(
-        this.status,
-        "SUBMITTED",
-      );
+      throw new InvalidTransferStatusTransitionError(this.status, "SUBMITTED");
     }
     if (this.lines.length === 0) {
       throw new InvalidTransferQuantityError(
@@ -200,10 +191,7 @@ export class WarehouseTransfer {
 
   public dispatch(): void {
     if (this.status !== "SUBMITTED" && this.status !== "DRAFT") {
-      throw new InvalidTransferStatusTransitionError(
-        this.status,
-        "DISPATCHED",
-      );
+      throw new InvalidTransferStatusTransitionError(this.status, "DISPATCHED");
     }
     this.status = "DISPATCHED";
     this.dispatchedAt = new Date();
@@ -212,10 +200,7 @@ export class WarehouseTransfer {
 
   public receive(): void {
     if (this.status !== "DISPATCHED" && this.status !== "SUBMITTED") {
-      throw new InvalidTransferStatusTransitionError(
-        this.status,
-        "RECEIVED",
-      );
+      throw new InvalidTransferStatusTransitionError(this.status, "RECEIVED");
     }
     this.status = "RECEIVED";
     this.receivedAt = new Date();

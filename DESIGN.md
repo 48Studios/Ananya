@@ -84,6 +84,7 @@ Every status badge in Ananya ERP must use the shared `<StatusBadge />` primitive
 # Form Architecture & Spacing Standards
 
 All forms, dialogs, drawers, and setup wizards must adhere to standard form spacing scale:
+
 - **Control Height**: `h-8` / `h-9` (`32px`/`36px`) standard inputs and selects matching button dimensions.
 - **Label → Input Spacing**: `mb-1.5` (`6px`) managed by `<FieldLabel />`.
 - **Input → Help Text Spacing**: `mt-1.5` (`6px`) managed by `<FieldDescription />`.
@@ -96,9 +97,11 @@ All forms, dialogs, drawers, and setup wizards must adhere to standard form spac
 # Organization Setup & Initial Administrator
 
 During organization setup:
+
 - Organization Name is required.
 - Optional fields (`legalName`, `supportPhone`, `address`, `website`, `country`, `primaryTimezone`, `baseCurrency`, `taxId`) persist `null`/empty values when omitted.
 - The initial root administrator created during setup automatically receives the system `Admin` role (`eq(roles.name, 'Admin')`) with full administrative privileges.
+- **Data Migration & Initial Bulk Load**: Business data initialization MUST be performed exclusively through the official Data Migration Framework (Import Wizard & Import API) using standardized CSV/Excel templates. Production initialization NEVER uses database seed scripts.
 
 ---
 
@@ -471,6 +474,7 @@ The official primary brand color for Ananya ERP is **Dodger Blue**:
 - **HSL**: `hsl(210, 100%, 56%)`
 
 Dodger Blue is the canonical primary accent used consistently across both Light and Dark themes for:
+
 - Primary actions & buttons
 - Active navigation items & rail indicators
 - Focus rings & keyboard focus outlines
@@ -484,22 +488,22 @@ Dodger Blue is the canonical primary accent used consistently across both Light 
 
 All UI components derive colors strictly from semantic CSS tokens defined in `apps/web/app/globals.css`:
 
-| Token | Light Theme | Dark Theme | Purpose |
-| :--- | :--- | :--- | :--- |
-| `--primary` | `#1E90FF` | `#1E90FF` | Primary brand color (Dodger Blue) |
-| `--primary-foreground` | `#FFFFFF` | `#FFFFFF` | Text on primary brand backgrounds |
-| `--secondary` | `#F1F5F9` | `#2D2D2D` | Muted background actions |
-| `--secondary-foreground` | `#0F172A` | `#FFFFFF` | Text on secondary backgrounds |
-| `--muted` | `#CBD5E1` | `#404040` | Secondary backgrounds & scrollbars |
-| `--muted-foreground` | `#64748b` | `#A0A0A0` | Subtitles, captions, disabled text |
-| `--accent` | `#1E90FF` | `#1E90FF` | Interactive highlights & hover states |
-| `--accent-foreground` | `#FFFFFF` | `#FFFFFF` | Text on accent backgrounds |
-| `--destructive` | `#DC2626` | `#FF4444` | High-risk/delete actions & alerts |
-| `--border` | `#E2E8F0` | `#2D2D2D` | Divider and card border lines |
-| `--input` | `#F1F5F9` | `#2D2D2D` | Form input backgrounds |
-| `--ring` | `#1E90FF` | `#1E90FF` | Focus rings & active selection borders |
-| `--sidebar` | `#FFFFFF` | `#0D0D0D` | Application navigation container |
-| `--sidebar-primary` | `#1E90FF` | `#1E90FF` | Active rail item & sidebar selection |
+| Token                    | Light Theme | Dark Theme | Purpose                                |
+| :----------------------- | :---------- | :--------- | :------------------------------------- |
+| `--primary`              | `#1E90FF`   | `#1E90FF`  | Primary brand color (Dodger Blue)      |
+| `--primary-foreground`   | `#FFFFFF`   | `#FFFFFF`  | Text on primary brand backgrounds      |
+| `--secondary`            | `#F1F5F9`   | `#2D2D2D`  | Muted background actions               |
+| `--secondary-foreground` | `#0F172A`   | `#FFFFFF`  | Text on secondary backgrounds          |
+| `--muted`                | `#CBD5E1`   | `#404040`  | Secondary backgrounds & scrollbars     |
+| `--muted-foreground`     | `#64748b`   | `#A0A0A0`  | Subtitles, captions, disabled text     |
+| `--accent`               | `#1E90FF`   | `#1E90FF`  | Interactive highlights & hover states  |
+| `--accent-foreground`    | `#FFFFFF`   | `#FFFFFF`  | Text on accent backgrounds             |
+| `--destructive`          | `#DC2626`   | `#FF4444`  | High-risk/delete actions & alerts      |
+| `--border`               | `#E2E8F0`   | `#2D2D2D`  | Divider and card border lines          |
+| `--input`                | `#F1F5F9`   | `#2D2D2D`  | Form input backgrounds                 |
+| `--ring`                 | `#1E90FF`   | `#1E90FF`  | Focus rings & active selection borders |
+| `--sidebar`              | `#FFFFFF`   | `#0D0D0D`  | Application navigation container       |
+| `--sidebar-primary`      | `#1E90FF`   | `#1E90FF`  | Active rail item & sidebar selection   |
 
 ---
 

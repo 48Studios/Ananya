@@ -1,21 +1,18 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export type ReturnStatus =
-  | 'DRAFT'
-  | 'APPROVED'
-  | 'RECEIVED'
-  | 'INSPECTED'
-  | 'RESTOCKED'
-  | 'REJECTED'
-  | 'CLOSED';
+  | "DRAFT"
+  | "APPROVED"
+  | "RECEIVED"
+  | "INSPECTED"
+  | "RESTOCKED"
+  | "REJECTED"
+  | "CLOSED";
 
 export type ReturnReason =
-  | 'DEFECTIVE'
-  | 'WRONG_ITEM'
-  | 'DAMAGED_IN_TRANSIT'
-  | 'EXCESS_ORDER';
+  "DEFECTIVE" | "WRONG_ITEM" | "DAMAGED_IN_TRANSIT" | "EXCESS_ORDER";
 
-export type ReturnDisposition = 'RESTOCK' | 'SCRAP' | 'VENDOR_RETURN';
+export type ReturnDisposition = "RESTOCK" | "SCRAP" | "VENDOR_RETURN";
 
 export interface CustomerReturnLineProps {
   id: string;
@@ -85,7 +82,7 @@ export class CustomerReturn {
       returnNumber: input.returnNumber.toUpperCase(),
       customerId: input.customerId,
       salesOrderId: input.salesOrderId,
-      status: 'DRAFT',
+      status: "DRAFT",
       notes: input.notes ?? null,
       lines: [],
       createdAt: now,
@@ -98,11 +95,11 @@ export class CustomerReturn {
   }
 
   addLine(input: AddReturnLineInput): CustomerReturnLineProps {
-    if (this.status !== 'DRAFT') {
-      throw new Error('Can only add lines to DRAFT customer return documents.');
+    if (this.status !== "DRAFT") {
+      throw new Error("Can only add lines to DRAFT customer return documents.");
     }
     if (input.quantity <= 0) {
-      throw new Error('Return line quantity must be greater than zero.');
+      throw new Error("Return line quantity must be greater than zero.");
     }
 
     const now = new Date();
@@ -122,27 +119,29 @@ export class CustomerReturn {
   }
 
   approve(): void {
-    if (this.status !== 'DRAFT') {
-      throw new Error('Only DRAFT return requests can be approved.');
+    if (this.status !== "DRAFT") {
+      throw new Error("Only DRAFT return requests can be approved.");
     }
     if (this.lines.length === 0) {
-      throw new Error('Cannot approve return without line items.');
+      throw new Error("Cannot approve return without line items.");
     }
-    this.status = 'APPROVED';
+    this.status = "APPROVED";
     this.updatedAt = new Date();
   }
 
   receive(): void {
-    if (this.status !== 'APPROVED') {
-      throw new Error('Only APPROVED return requests can be received by Warehouse.');
+    if (this.status !== "APPROVED") {
+      throw new Error(
+        "Only APPROVED return requests can be received by Warehouse.",
+      );
     }
-    this.status = 'RECEIVED';
+    this.status = "RECEIVED";
     this.updatedAt = new Date();
   }
 
   inspect(dispositions: Record<string, ReturnDisposition>): void {
-    if (this.status !== 'RECEIVED') {
-      throw new Error('Only RECEIVED returns can be inspected.');
+    if (this.status !== "RECEIVED") {
+      throw new Error("Only RECEIVED returns can be inspected.");
     }
     this.lines.forEach((l) => {
       if (dispositions[l.id]) {
@@ -150,34 +149,31 @@ export class CustomerReturn {
         l.updatedAt = new Date();
       }
     });
-    this.status = 'INSPECTED';
+    this.status = "INSPECTED";
     this.updatedAt = new Date();
   }
 
   restock(): void {
-    if (this.status !== 'INSPECTED') {
-      throw new Error('Only INSPECTED returns can be restocked.');
+    if (this.status !== "INSPECTED") {
+      throw new Error("Only INSPECTED returns can be restocked.");
     }
-    this.status = 'RESTOCKED';
+    this.status = "RESTOCKED";
     this.updatedAt = new Date();
   }
 
   reject(): void {
-    if (this.status !== 'INSPECTED' && this.status !== 'RECEIVED') {
-      throw new Error('Return cannot be rejected in current state.');
+    if (this.status !== "INSPECTED" && this.status !== "RECEIVED") {
+      throw new Error("Return cannot be rejected in current state.");
     }
-    this.status = 'REJECTED';
+    this.status = "REJECTED";
     this.updatedAt = new Date();
   }
 
   close(): void {
-    if (
-      this.status !== 'RESTOCKED' &&
-      this.status !== 'REJECTED'
-    ) {
-      throw new Error('Return must be RESTOCKED or REJECTED before closing.');
+    if (this.status !== "RESTOCKED" && this.status !== "REJECTED") {
+      throw new Error("Return must be RESTOCKED or REJECTED before closing.");
     }
-    this.status = 'CLOSED';
+    this.status = "CLOSED";
     this.updatedAt = new Date();
   }
 }

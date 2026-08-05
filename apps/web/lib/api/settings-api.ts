@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface OrganizationProfileDto {
   id: string;
@@ -53,38 +53,67 @@ export interface FeatureFlagDto {
 
 export const settingsApi = {
   getOrganizationProfile: (): Promise<OrganizationProfileDto> => {
-    return apiClient.get<OrganizationProfileDto>('/settings/organization');
+    return apiClient.get<OrganizationProfileDto>("/settings/organization");
   },
 
-  updateOrganizationProfile: (data: Partial<OrganizationProfileDto>): Promise<OrganizationProfileDto> => {
-    return apiClient.put<OrganizationProfileDto>('/settings/organization', data);
+  updateOrganizationProfile: (
+    data: Partial<OrganizationProfileDto>,
+  ): Promise<OrganizationProfileDto> => {
+    return apiClient.put<OrganizationProfileDto>(
+      "/settings/organization",
+      data,
+    );
   },
 
   getSystemSettings: (): Promise<SystemSettingsDto> => {
-    return apiClient.get<SystemSettingsDto>('/settings/system');
+    return apiClient.get<SystemSettingsDto>("/settings/system");
   },
 
-  updateSystemSettings: (data: Partial<SystemSettingsDto>): Promise<SystemSettingsDto> => {
-    return apiClient.put<SystemSettingsDto>('/settings/system', data);
+  updateSystemSettings: (
+    data: Partial<SystemSettingsDto>,
+  ): Promise<SystemSettingsDto> => {
+    return apiClient.put<SystemSettingsDto>("/settings/system", data);
   },
 
   getNumberingSeries: (): Promise<NumberingSeriesDto[]> => {
-    return apiClient.get<NumberingSeriesDto[]>('/settings/numbering');
+    return apiClient.get<NumberingSeriesDto[]>("/settings/numbering");
   },
 
-  updateNumberingSeries: (data: Partial<NumberingSeriesDto>): Promise<NumberingSeriesDto> => {
-    return apiClient.put<NumberingSeriesDto>('/settings/numbering', data);
+  updateNumberingSeries: (
+    data: Partial<NumberingSeriesDto>,
+  ): Promise<NumberingSeriesDto> => {
+    return apiClient.put<NumberingSeriesDto>("/settings/numbering", data);
   },
 
   generateDocumentCode: (entityType: string): Promise<string> => {
-    return apiClient.post<string>(`/settings/numbering/generate/${encodeURIComponent(entityType)}`, {});
+    return apiClient.post<string>(
+      `/settings/numbering/generate/${encodeURIComponent(entityType)}`,
+      {},
+    );
   },
 
   getFeatureFlags: (): Promise<FeatureFlagDto[]> => {
-    return apiClient.get<FeatureFlagDto[]>('/settings/feature-flags');
+    return apiClient.get<FeatureFlagDto[]>("/settings/feature-flags");
   },
 
-  toggleFeatureFlag: (key: string, isEnabled: boolean): Promise<FeatureFlagDto> => {
-    return apiClient.post<FeatureFlagDto>('/settings/feature-flags', { key, isEnabled });
+  toggleFeatureFlag: (
+    key: string,
+    isEnabled: boolean,
+  ): Promise<FeatureFlagDto> => {
+    return apiClient.post<FeatureFlagDto>("/settings/feature-flags", {
+      key,
+      isEnabled,
+    });
+  },
+
+  resetOrganizationData: (data: {
+    confirmText: string;
+    passwordConfirm: string;
+  }): Promise<{ success: boolean; message: string; resetAt: string }> => {
+    return apiClient.post<{
+      success: boolean;
+      message: string;
+      resetAt: string;
+    }>("/settings/organization/reset", data);
   },
 };

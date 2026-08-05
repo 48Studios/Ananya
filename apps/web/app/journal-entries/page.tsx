@@ -1,55 +1,55 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { FileText, Plus, CheckCircle2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { FileText, Plus, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface JournalVoucher {
-  id: string
-  voucherNumber: string
-  description: string
-  debitTotal: number
-  creditTotal: number
-  createdBy: string
-  status: 'POSTED' | 'DRAFT'
-  postingDate: string
+  id: string;
+  voucherNumber: string;
+  description: string;
+  debitTotal: number;
+  creditTotal: number;
+  createdBy: string;
+  status: "POSTED" | "DRAFT";
+  postingDate: string;
 }
 
 const mockVouchers: JournalVoucher[] = [
   {
-    id: 'jv-1',
-    voucherNumber: 'JV-2026-091',
-    description: 'Accrued Payroll Expense Allocation - Jan 2026',
+    id: "jv-1",
+    voucherNumber: "JV-2026-091",
+    description: "Accrued Payroll Expense Allocation - Jan 2026",
     debitTotal: 45000,
     creditTotal: 45000,
-    createdBy: 'Finance Officer',
-    status: 'POSTED',
-    postingDate: '2026-01-31',
+    createdBy: "Finance Officer",
+    status: "POSTED",
+    postingDate: "2026-01-31",
   },
   {
-    id: 'jv-2',
-    voucherNumber: 'JV-2026-092',
-    description: 'Quarterly Equipment Depreciation Adjustment',
+    id: "jv-2",
+    voucherNumber: "JV-2026-092",
+    description: "Quarterly Equipment Depreciation Adjustment",
     debitTotal: 12500,
     creditTotal: 12500,
-    createdBy: 'Chief Accountant',
-    status: 'POSTED',
-    postingDate: '2026-02-01',
+    createdBy: "Chief Accountant",
+    status: "POSTED",
+    postingDate: "2026-02-01",
   },
-]
+];
 
 export default function JournalEntriesPage() {
-  const [vouchers] = React.useState<JournalVoucher[]>(mockVouchers)
+  const [vouchers] = React.useState<JournalVoucher[]>(mockVouchers);
 
   const columns: ColumnDef<JournalVoucher>[] = [
     {
-      accessorKey: 'voucherNumber',
-      header: 'Voucher Ref',
+      accessorKey: "voucherNumber",
+      header: "Voucher Ref",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
           {row.original.voucherNumber}
@@ -57,13 +57,17 @@ export default function JournalEntriesPage() {
       ),
     },
     {
-      accessorKey: 'description',
-      header: 'Journal Description',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.description}</span>,
+      accessorKey: "description",
+      header: "Journal Description",
+      cell: ({ row }) => (
+        <span className="font-medium text-foreground">
+          {row.original.description}
+        </span>
+      ),
     },
     {
-      accessorKey: 'debitTotal',
-      header: 'DR / CR Amount',
+      accessorKey: "debitTotal",
+      header: "DR / CR Amount",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
           {formatCurrency(row.original.debitTotal)}
@@ -71,13 +75,17 @@ export default function JournalEntriesPage() {
       ),
     },
     {
-      accessorKey: 'createdBy',
-      header: 'Posted By',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.createdBy}</span>,
+      accessorKey: "createdBy",
+      header: "Posted By",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {row.original.createdBy}
+        </span>
+      ),
     },
     {
-      accessorKey: 'status',
-      header: 'Status',
+      accessorKey: "status",
+      header: "Status",
       cell: () => (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
           <CheckCircle2 className="w-3 h-3 mr-1" /> Posted
@@ -85,11 +93,15 @@ export default function JournalEntriesPage() {
       ),
     },
     {
-      accessorKey: 'postingDate',
-      header: 'Posting Date',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatDate(row.original.postingDate)}</span>,
+      accessorKey: "postingDate",
+      header: "Posting Date",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {formatDate(row.original.postingDate)}
+        </span>
+      ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -128,5 +140,5 @@ export default function JournalEntriesPage() {
         searchPlaceholder="Search journal vouchers by number or description..."
       />
     </div>
-  )
+  );
 }

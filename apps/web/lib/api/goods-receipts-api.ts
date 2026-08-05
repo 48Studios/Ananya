@@ -1,6 +1,6 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
-export type GoodsReceiptStatus = 'DRAFT' | 'COMPLETED' | 'CANCELLED';
+export type GoodsReceiptStatus = "DRAFT" | "COMPLETED" | "CANCELLED";
 
 export interface GoodsReceiptLineDto {
   id: string;
@@ -57,17 +57,26 @@ export interface FindManyGrOptions {
 export const goodsReceiptsApi = {
   getAll: (options?: FindManyGrOptions): Promise<GoodsReceiptDto[]> => {
     const params = new URLSearchParams();
-    if (options?.purchaseOrderId) params.append('purchaseOrderId', options.purchaseOrderId);
-    if (options?.supplierId) params.append('supplierId', options.supplierId);
+    if (options?.purchaseOrderId)
+      params.append("purchaseOrderId", options.purchaseOrderId);
+    if (options?.supplierId) params.append("supplierId", options.supplierId);
 
     const queryString = params.toString();
-    const url = queryString ? `/goods-receipts?${queryString}` : '/goods-receipts';
+    const url = queryString
+      ? `/goods-receipts?${queryString}`
+      : "/goods-receipts";
     return apiClient.get<GoodsReceiptDto[]>(url);
   },
   getById: (id: string): Promise<GoodsReceiptDto> =>
     apiClient.get<GoodsReceiptDto>(`/goods-receipts/${id}`),
   create: (payload: CreateGoodsReceiptPayload): Promise<GoodsReceiptDto> =>
-    apiClient.post<GoodsReceiptDto, CreateGoodsReceiptPayload>('/goods-receipts', payload),
+    apiClient.post<GoodsReceiptDto, CreateGoodsReceiptPayload>(
+      "/goods-receipts",
+      payload,
+    ),
   postReceipt: (id: string): Promise<GoodsReceiptDto> =>
-    apiClient.post<GoodsReceiptDto, Record<string, never>>(`/goods-receipts/${id}/post`, {}),
+    apiClient.post<GoodsReceiptDto, Record<string, never>>(
+      `/goods-receipts/${id}/post`,
+      {},
+    ),
 };

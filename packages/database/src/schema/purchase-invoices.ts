@@ -18,7 +18,9 @@ export const purchaseInvoices = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     invoiceNumber: varchar("invoice_number", { length: 64 }).notNull(),
-    vendorInvoiceNumber: varchar("vendor_invoice_number", { length: 128 }).notNull(),
+    vendorInvoiceNumber: varchar("vendor_invoice_number", {
+      length: 128,
+    }).notNull(),
     supplierId: uuid("supplier_id")
       .notNull()
       .references(() => suppliers.id),
@@ -27,11 +29,19 @@ export const purchaseInvoices = pgTable(
       .references(() => purchaseOrders.id),
     goodsReceiptId: uuid("goods_receipt_id").references(() => goodsReceipts.id),
     status: varchar("status", { length: 32 }).notNull().default("DRAFT"),
-    matchStatus: varchar("match_status", { length: 32 }).notNull().default("PENDING"),
-    totalAmount: decimal("total_amount", { precision: 14, scale: 4 }).notNull().default("0.0000"),
+    matchStatus: varchar("match_status", { length: 32 })
+      .notNull()
+      .default("PENDING"),
+    totalAmount: decimal("total_amount", { precision: 14, scale: 4 })
+      .notNull()
+      .default("0.0000"),
     dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     uniqueIndex("purchase_invoices_number_unique").on(table.invoiceNumber),
@@ -51,10 +61,18 @@ export const purchaseInvoiceLines = pgTable(
       .notNull()
       .references(() => components.id),
     quantityBilled: integer("quantity_billed").notNull().default(1),
-    unitPrice: decimal("unit_price", { precision: 12, scale: 4 }).notNull().default("0.0000"),
-    lineTotal: decimal("line_total", { precision: 14, scale: 4 }).notNull().default("0.0000"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    unitPrice: decimal("unit_price", { precision: 12, scale: 4 })
+      .notNull()
+      .default("0.0000"),
+    lineTotal: decimal("line_total", { precision: 14, scale: 4 })
+      .notNull()
+      .default("0.0000"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     index("purchase_invoice_lines_invoice_id_idx").on(table.purchaseInvoiceId),
@@ -64,5 +82,7 @@ export const purchaseInvoiceLines = pgTable(
 
 export type PurchaseInvoiceRecord = typeof purchaseInvoices.$inferSelect;
 export type NewPurchaseInvoiceRecord = typeof purchaseInvoices.$inferInsert;
-export type PurchaseInvoiceLineRecord = typeof purchaseInvoiceLines.$inferSelect;
-export type NewPurchaseInvoiceLineRecord = typeof purchaseInvoiceLines.$inferInsert;
+export type PurchaseInvoiceLineRecord =
+  typeof purchaseInvoiceLines.$inferSelect;
+export type NewPurchaseInvoiceLineRecord =
+  typeof purchaseInvoiceLines.$inferInsert;

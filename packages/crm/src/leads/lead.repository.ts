@@ -1,4 +1,4 @@
-import { Lead, LeadStatus, LeadSource } from './lead';
+import { Lead, LeadStatus, LeadSource } from "./lead";
 
 export interface FindManyLeadsOptions {
   status?: LeadStatus;

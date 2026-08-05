@@ -2,7 +2,7 @@
 
 **Target Platform**: Ananya ERP (`@ananya/web` & `@ananya/api`)  
 **Sprint**: RC1 Stabilization Sprint — Major Architectural Milestone  
-**Status**: Implemented & Production Ready  
+**Status**: Implemented & Production Ready
 
 ---
 
@@ -41,10 +41,12 @@ Ananya ERP is an enterprise operations system designed for high-density workflow
 ## 3. Detailed Module Breakdown & Submenu Trees
 
 ### 3.1 🏠 Dashboard (`dashboard`)
+
 - **Route**: `/`
 - **Scope**: Platform landing page, high-level operational metrics, activity feed, pinned shortcuts.
 
 ### 3.2 📦 Inventory Workspace (`inventory`)
+
 - **Default Route**: `/inventory`
 - **Permissions**: `Inventory.Read`
 - **Quick Actions**: `New Component` (`/components/new`), `Receive Stock` (`/goods-receipts/new`), `Issue Stock` (`/transactions/new`), `Transfer Stock` (`/warehouse-transfers/new`)
@@ -60,6 +62,7 @@ Ananya ERP is an enterprise operations system designed for high-density workflow
   - `Master Data` (`/categories` — Submenu: Categories, Manufacturers, Units of Measure)
 
 ### 3.3 🛒 Procurement Workspace (`procurement`)
+
 - **Default Route**: `/procurement`
 - **Permissions**: `Procurement.Read`
 - **Quick Actions**: `Create Purchase Order` (`/purchase-orders/new`)
@@ -72,6 +75,7 @@ Ananya ERP is an enterprise operations system designed for high-density workflow
   - `Master Data` (`/suppliers` — Submenu: Suppliers Directory)
 
 ### 3.4 🏭 Manufacturing Workspace (`manufacturing`)
+
 - **Default Route**: `/manufacturing`
 - **Permissions**: `Manufacturing.Read`
 - **Quick Actions**: `New BOM` (`/boms/new`)
@@ -85,6 +89,7 @@ Ananya ERP is an enterprise operations system designed for high-density workflow
   - `MRP & Material Planning` (`/mrp` — Submenu: Planning Overview, Planning Runs, Material Shortages, Purchase Recommendations, Production Recommendations, Capacity Planning)
 
 ### 3.5 📁 Projects & Services Workspace (`projects`)
+
 - **Default Route**: `/projects`
 - **Permissions**: `Projects.Read`
 - **Workspace Navigation Tree**:
@@ -97,6 +102,7 @@ Ananya ERP is an enterprise operations system designed for high-density workflow
   - `RMA Returns` (`/rma`)
 
 ### 3.6 📊 Analytics Destination (`analytics`)
+
 - **Default Route**: `/reports`
 - **Permissions**: `Reporting.Read`
 - **Workspace Navigation Tree**:
@@ -108,6 +114,7 @@ Ananya ERP is an enterprise operations system designed for high-density workflow
   - `Transaction Reports` (`/reports/transactions`)
 
 ### 3.7 ⚙ Administration Hub (`settings`)
+
 - **Default Route**: `/settings`
 - **Permissions**: `Administration.Security`
 - **Workspace Navigation Tree**:

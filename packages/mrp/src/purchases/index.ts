@@ -1,2 +1,2 @@
-export * from './purchase-recommendation';
-export * from './purchase-recommendation.repository';
+export * from "./purchase-recommendation";
+export * from "./purchase-recommendation.repository";

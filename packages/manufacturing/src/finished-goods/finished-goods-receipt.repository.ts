@@ -9,9 +9,7 @@ export interface FinishedGoodsReceiptRepository {
   findByProductionOrderId(
     productionOrderId: string,
   ): Promise<FinishedGoodsReceipt[]>;
-  findMany(
-    options?: FindManyFgrsOptions,
-  ): Promise<FinishedGoodsReceipt[]>;
+  findMany(options?: FindManyFgrsOptions): Promise<FinishedGoodsReceipt[]>;
   save(fgr: FinishedGoodsReceipt): Promise<void>;
   generateNextFgrNumber(): Promise<string>;
 }

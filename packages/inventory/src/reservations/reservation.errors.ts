@@ -8,11 +8,7 @@ export class InvalidReservationQuantityError extends DomainError {
 }
 
 export class InsufficientAvailableInventoryError extends DomainError {
-  constructor(
-    componentId: string,
-    requested: number,
-    available: number,
-  ) {
+  constructor(componentId: string, requested: number, available: number) {
     super(
       `Cannot reserve ${requested} units for component ${componentId}. Available inventory is only ${available}.`,
     );

@@ -149,10 +149,7 @@ export class StockCount {
 
   public approve(): void {
     if (this.status !== "SUBMITTED") {
-      throw new InvalidStockCountStatusTransitionError(
-        this.status,
-        "APPROVED",
-      );
+      throw new InvalidStockCountStatusTransitionError(this.status, "APPROVED");
     }
     this.status = "APPROVED";
     this.updatedAt = new Date();

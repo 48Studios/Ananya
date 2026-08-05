@@ -30,7 +30,9 @@ export class SupplierNotFoundError extends DomainError {
 
 export class SupplierHasPurchaseOrdersError extends DomainError {
   constructor(id: string) {
-    super(`Cannot delete supplier '${id}' because active purchase orders or transactions reference it.`);
+    super(
+      `Cannot delete supplier '${id}' because active purchase orders or transactions reference it.`,
+    );
     this.name = "SupplierHasPurchaseOrdersError";
   }
 }

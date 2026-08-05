@@ -1,5 +1,8 @@
 import { Category, type CreateCategoryInput } from "./category";
-import { CategoryCodeAlreadyExistsError, CategoryNotFoundError } from "./category.errors";
+import {
+  CategoryCodeAlreadyExistsError,
+  CategoryNotFoundError,
+} from "./category.errors";
 import type { CategoryRepository } from "./category.repository";
 
 export class CreateCategory {

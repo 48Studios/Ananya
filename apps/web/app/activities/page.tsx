@@ -1,44 +1,64 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Activity, ShieldCheck } from 'lucide-react'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { formatDate } from '@/lib/utils'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Activity, ShieldCheck } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { formatDate } from "@/lib/utils";
 
 interface SystemActivityLog {
-  id: string
-  action: string
-  user: string
-  entityType: string
-  entityId: string
-  timestamp: string
+  id: string;
+  action: string;
+  user: string;
+  entityType: string;
+  entityId: string;
+  timestamp: string;
 }
 
 const mockActivities: SystemActivityLog[] = [
-  { id: 'act-1', action: 'Created Work Order', user: 'Operator Dev', entityType: 'WORK_ORDER', entityId: 'WO-2026-001', timestamp: '2026-02-05T09:12:00Z' },
-  { id: 'act-2', action: 'Approved Purchase Order', user: 'Procurement Admin', entityType: 'PURCHASE_ORDER', entityId: 'PO-2026-042', timestamp: '2026-02-04T16:45:00Z' },
-]
+  {
+    id: "act-1",
+    action: "Created Work Order",
+    user: "Operator Dev",
+    entityType: "WORK_ORDER",
+    entityId: "WO-2026-001",
+    timestamp: "2026-02-05T09:12:00Z",
+  },
+  {
+    id: "act-2",
+    action: "Approved Purchase Order",
+    user: "Procurement Admin",
+    entityType: "PURCHASE_ORDER",
+    entityId: "PO-2026-042",
+    timestamp: "2026-02-04T16:45:00Z",
+  },
+];
 
 export default function ActivitiesPage() {
-  const [logs] = React.useState<SystemActivityLog[]>(mockActivities)
+  const [logs] = React.useState<SystemActivityLog[]>(mockActivities);
 
   const columns: ColumnDef<SystemActivityLog>[] = [
     {
-      accessorKey: 'action',
-      header: 'Operation Action',
-      cell: ({ row }) => <span className="font-semibold text-xs text-primary">{row.original.action}</span>,
+      accessorKey: "action",
+      header: "Operation Action",
+      cell: ({ row }) => (
+        <span className="font-semibold text-xs text-primary">
+          {row.original.action}
+        </span>
+      ),
     },
     {
-      accessorKey: 'user',
-      header: 'Executed By',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.user}</span>,
+      accessorKey: "user",
+      header: "Executed By",
+      cell: ({ row }) => (
+        <span className="font-medium text-foreground">{row.original.user}</span>
+      ),
     },
     {
-      accessorKey: 'entityType',
-      header: 'Target Module',
+      accessorKey: "entityType",
+      header: "Target Module",
       cell: ({ row }) => (
         <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
           {row.original.entityType}
@@ -46,16 +66,24 @@ export default function ActivitiesPage() {
       ),
     },
     {
-      accessorKey: 'entityId',
-      header: 'Entity Ref ID',
-      cell: ({ row }) => <span className="font-mono text-xs text-foreground">{row.original.entityId}</span>,
+      accessorKey: "entityId",
+      header: "Entity Ref ID",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-foreground">
+          {row.original.entityId}
+        </span>
+      ),
     },
     {
-      accessorKey: 'timestamp',
-      header: 'Timestamp',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatDate(row.original.timestamp)}</span>,
+      accessorKey: "timestamp",
+      header: "Timestamp",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {formatDate(row.original.timestamp)}
+        </span>
+      ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -88,5 +116,5 @@ export default function ActivitiesPage() {
         searchPlaceholder="Search activity logs by action, user, or entity..."
       />
     </div>
-  )
+  );
 }

@@ -1,137 +1,166 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Plus, X, Eye, Edit3, Trash2, Send, Ban, ShoppingBag, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable, type FilterConfig } from '@/components/ui/entity-data-table'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { PurchaseOrderForm } from '@/components/purchase-orders/po-form'
-import { purchaseOrdersApi, type PurchaseOrderDto } from '@/lib/api/purchase-orders-api'
-import { suppliersApi, type SupplierDto } from '@/lib/api/suppliers-api'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  Plus,
+  X,
+  Eye,
+  Edit3,
+  Trash2,
+  Send,
+  Ban,
+  ShoppingBag,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PurchaseOrderForm } from "@/components/purchase-orders/po-form";
+import {
+  purchaseOrdersApi,
+  type PurchaseOrderDto,
+} from "@/lib/api/purchase-orders-api";
+import { suppliersApi, type SupplierDto } from "@/lib/api/suppliers-api";
 
 export default function PurchaseOrdersPage() {
-  const [orders, setOrders] = React.useState<PurchaseOrderDto[]>([])
-  const [suppliersMap, setSuppliersMap] = React.useState<Record<string, SupplierDto>>({})
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [editingPo, setEditingPo] = React.useState<PurchaseOrderDto | null>(null)
-  const [deletingPo, setDeletingPo] = React.useState<PurchaseOrderDto | null>(null)
-  const [cancellingPo, setCancellingPo] = React.useState<PurchaseOrderDto | null>(null)
-  const [actionLoading, setActionLoading] = React.useState(false)
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null)
-  const [apiAlert, setApiAlert] = React.useState<string | null>(null)
+  const [orders, setOrders] = React.useState<PurchaseOrderDto[]>([]);
+  const [suppliersMap, setSuppliersMap] = React.useState<
+    Record<string, SupplierDto>
+  >({});
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingPo, setEditingPo] = React.useState<PurchaseOrderDto | null>(
+    null,
+  );
+  const [deletingPo, setDeletingPo] = React.useState<PurchaseOrderDto | null>(
+    null,
+  );
+  const [cancellingPo, setCancellingPo] =
+    React.useState<PurchaseOrderDto | null>(null);
+  const [actionLoading, setActionLoading] = React.useState(false);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  const [apiAlert, setApiAlert] = React.useState<string | null>(null);
 
   const fetchOrders = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const [pos, sups] = await Promise.all([
         purchaseOrdersApi.getAll(),
         suppliersApi.getAll().catch(() => []),
-      ])
-      setOrders(pos)
+      ]);
+      setOrders(pos);
 
-      const supMap: Record<string, SupplierDto> = {}
+      const supMap: Record<string, SupplierDto> = {};
       for (const s of sups) {
-        supMap[s.id] = s
+        supMap[s.id] = s;
       }
-      setSuppliersMap(supMap)
+      setSuppliersMap(supMap);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message)
+        setError(err.message);
       } else {
-        setError('Failed to fetch purchase orders')
+        setError("Failed to fetch purchase orders");
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    fetchOrders()
-  }, [fetchOrders])
+    fetchOrders();
+  }, [fetchOrders]);
 
   const draftCount = React.useMemo(
-    () => orders.filter((o) => o.status === 'DRAFT').length,
+    () => orders.filter((o) => o.status === "DRAFT").length,
     [orders],
-  )
+  );
   const submittedCount = React.useMemo(
-    () => orders.filter((o) => o.status === 'SUBMITTED').length,
+    () => orders.filter((o) => o.status === "SUBMITTED").length,
     [orders],
-  )
+  );
   const fulfilledCount = React.useMemo(
-    () => orders.filter((o) => o.status === 'FULFILLED').length,
+    () => orders.filter((o) => o.status === "FULFILLED").length,
     [orders],
-  )
+  );
 
   const handleSubmitPo = async (po: PurchaseOrderDto) => {
-    setApiAlert(null)
+    setApiAlert(null);
     try {
-      const updated = await purchaseOrdersApi.submit(po.id)
-      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)))
-      setToastMessage(`Purchase Order "${po.poNumber}" submitted successfully.`)
-      setTimeout(() => setToastMessage(null), 4000)
+      const updated = await purchaseOrdersApi.submit(po.id);
+      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      setToastMessage(
+        `Purchase Order "${po.poNumber}" submitted successfully.`,
+      );
+      setTimeout(() => setToastMessage(null), 4000);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setApiAlert(err.message)
+        setApiAlert(err.message);
       } else {
-        setApiAlert('Failed to submit purchase order')
+        setApiAlert("Failed to submit purchase order");
       }
     }
-  }
+  };
 
   const handleCancelConfirm = async () => {
-    if (!cancellingPo) return
-    setActionLoading(true)
-    setApiAlert(null)
+    if (!cancellingPo) return;
+    setActionLoading(true);
+    setApiAlert(null);
     try {
-      const updated = await purchaseOrdersApi.cancel(cancellingPo.id)
-      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)))
-      setToastMessage(`Purchase Order "${cancellingPo.poNumber}" cancelled.`)
-      setTimeout(() => setToastMessage(null), 4000)
-      setCancellingPo(null)
+      const updated = await purchaseOrdersApi.cancel(cancellingPo.id);
+      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      setToastMessage(`Purchase Order "${cancellingPo.poNumber}" cancelled.`);
+      setTimeout(() => setToastMessage(null), 4000);
+      setCancellingPo(null);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setApiAlert(err.message)
+        setApiAlert(err.message);
       } else {
-        setApiAlert('Failed to cancel purchase order')
+        setApiAlert("Failed to cancel purchase order");
       }
     } finally {
-      setActionLoading(false)
+      setActionLoading(false);
     }
-  }
+  };
 
   const handleDeleteConfirm = async () => {
-    if (!deletingPo) return
-    setActionLoading(true)
-    setApiAlert(null)
+    if (!deletingPo) return;
+    setActionLoading(true);
+    setApiAlert(null);
     try {
-      await purchaseOrdersApi.delete(deletingPo.id)
-      setOrders((prev) => prev.filter((o) => o.id !== deletingPo.id))
-      setToastMessage(`Purchase Order "${deletingPo.poNumber}" deleted successfully.`)
-      setTimeout(() => setToastMessage(null), 4000)
-      setDeletingPo(null)
+      await purchaseOrdersApi.delete(deletingPo.id);
+      setOrders((prev) => prev.filter((o) => o.id !== deletingPo.id));
+      setToastMessage(
+        `Purchase Order "${deletingPo.poNumber}" deleted successfully.`,
+      );
+      setTimeout(() => setToastMessage(null), 4000);
+      setDeletingPo(null);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setApiAlert(err.message)
+        setApiAlert(err.message);
       } else {
-        setApiAlert('Failed to delete purchase order')
+        setApiAlert("Failed to delete purchase order");
       }
     } finally {
-      setActionLoading(false)
+      setActionLoading(false);
     }
-  }
+  };
 
   const columns = React.useMemo<ColumnDef<PurchaseOrderDto>[]>(
     () => [
       {
-        accessorKey: 'poNumber',
-        header: 'PO Number',
+        accessorKey: "poNumber",
+        header: "PO Number",
         cell: ({ row }) => (
           <Link
             href={`/purchase-orders/${row.original.id}`}
@@ -142,32 +171,32 @@ export default function PurchaseOrdersPage() {
         ),
       },
       {
-        accessorKey: 'supplierId',
-        header: 'Supplier',
+        accessorKey: "supplierId",
+        header: "Supplier",
         cell: ({ row }) => {
-          const sup = suppliersMap[row.original.supplierId]
+          const sup = suppliersMap[row.original.supplierId];
           return (
             <span className="font-medium text-foreground">
               {sup ? sup.name : row.original.supplierId.slice(0, 8)}
             </span>
-          )
+          );
         },
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
+        accessorKey: "status",
+        header: "Status",
         cell: ({ row }) => (
           <span
             className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-              row.original.status === 'DRAFT'
-                ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
-                : row.original.status === 'SUBMITTED'
-                ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20'
-                : row.original.status === 'FULFILLED'
-                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
-                : row.original.status === 'CANCELLED'
-                ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
-                : 'bg-muted text-muted-foreground'
+              row.original.status === "DRAFT"
+                ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+                : row.original.status === "SUBMITTED"
+                  ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
+                  : row.original.status === "FULFILLED"
+                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                    : row.original.status === "CANCELLED"
+                      ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20"
+                      : "bg-muted text-muted-foreground"
             }`}
           >
             {row.original.status}
@@ -175,8 +204,8 @@ export default function PurchaseOrdersPage() {
         ),
       },
       {
-        accessorKey: 'grandTotal',
-        header: 'Grand Total',
+        accessorKey: "grandTotal",
+        header: "Grand Total",
         cell: ({ row }) => (
           <span className="font-mono text-xs font-semibold text-foreground">
             {row.original.currency} {row.original.grandTotal.toFixed(2)}
@@ -184,19 +213,19 @@ export default function PurchaseOrdersPage() {
         ),
       },
       {
-        accessorKey: 'expectedDeliveryDate',
-        header: 'Expected Delivery',
+        accessorKey: "expectedDeliveryDate",
+        header: "Expected Delivery",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
             {row.original.expectedDeliveryDate
               ? new Date(row.original.expectedDeliveryDate).toLocaleDateString()
-              : '—'}
+              : "—"}
           </span>
         ),
       },
       {
-        accessorKey: 'createdAt',
-        header: 'Order Date',
+        accessorKey: "createdAt",
+        header: "Order Date",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
             {new Date(row.original.createdAt).toLocaleDateString()}
@@ -204,13 +233,17 @@ export default function PurchaseOrdersPage() {
         ),
       },
       {
-        id: 'actions',
-        header: 'Actions',
+        id: "actions",
+        header: "Actions",
         cell: ({ row }) => {
-          const po = row.original
-          const isDraft = po.status === 'DRAFT'
-          const canCancel = !['FULFILLED', 'CANCELLED', 'PARTIALLY_RECEIVED'].includes(po.status)
-          const canDelete = ['DRAFT', 'CANCELLED'].includes(po.status)
+          const po = row.original;
+          const isDraft = po.status === "DRAFT";
+          const canCancel = ![
+            "FULFILLED",
+            "CANCELLED",
+            "PARTIALLY_RECEIVED",
+          ].includes(po.status);
+          const canDelete = ["DRAFT", "CANCELLED"].includes(po.status);
 
           return (
             <div className="flex items-center justify-end gap-1">
@@ -235,8 +268,8 @@ export default function PurchaseOrdersPage() {
                     size="icon-xs"
                     title="Edit draft PO"
                     onClick={() => {
-                      setEditingPo(po)
-                      setIsFormOpen(true)
+                      setEditingPo(po);
+                      setIsFormOpen(true);
                     }}
                   >
                     <Edit3 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -261,48 +294,52 @@ export default function PurchaseOrdersPage() {
                   size="icon-xs"
                   title="Delete PO"
                   onClick={() => {
-                    setApiAlert(null)
-                    setDeletingPo(po)
+                    setApiAlert(null);
+                    setDeletingPo(po);
                   }}
                 >
                   <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
                 </Button>
               )}
             </div>
-          )
+          );
         },
       },
     ],
     [suppliersMap],
-  )
+  );
 
   const filterConfigs: FilterConfig[] = [
     {
-      columnId: 'status',
-      title: 'Status',
+      columnId: "status",
+      title: "Status",
       options: [
-        { label: 'Draft', value: 'DRAFT' },
-        { label: 'Submitted', value: 'SUBMITTED' },
-        { label: 'Approved', value: 'APPROVED' },
-        { label: 'Issued', value: 'ISSUED' },
-        { label: 'Fulfilled', value: 'FULFILLED' },
-        { label: 'Cancelled', value: 'CANCELLED' },
+        { label: "Draft", value: "DRAFT" },
+        { label: "Submitted", value: "SUBMITTED" },
+        { label: "Approved", value: "APPROVED" },
+        { label: "Issued", value: "ISSUED" },
+        { label: "Fulfilled", value: "FULFILLED" },
+        { label: "Cancelled", value: "CANCELLED" },
       ],
     },
-  ]
+  ];
 
   const handleFormSuccess = (savedPo: PurchaseOrderDto) => {
     if (editingPo) {
-      setOrders((prev) => prev.map((o) => (o.id === savedPo.id ? savedPo : o)))
-      setToastMessage(`Purchase Order "${savedPo.poNumber}" updated successfully.`)
+      setOrders((prev) => prev.map((o) => (o.id === savedPo.id ? savedPo : o)));
+      setToastMessage(
+        `Purchase Order "${savedPo.poNumber}" updated successfully.`,
+      );
     } else {
-      setOrders((prev) => [savedPo, ...prev])
-      setToastMessage(`Purchase Order "${savedPo.poNumber}" created successfully.`)
+      setOrders((prev) => [savedPo, ...prev]);
+      setToastMessage(
+        `Purchase Order "${savedPo.poNumber}" created successfully.`,
+      );
     }
-    setIsFormOpen(false)
-    setEditingPo(null)
-    setTimeout(() => setToastMessage(null), 4000)
-  }
+    setIsFormOpen(false);
+    setEditingPo(null);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   return (
     <div className="space-y-6">
@@ -314,8 +351,8 @@ export default function PurchaseOrdersPage() {
           <Button
             size="sm"
             onClick={() => {
-              setEditingPo(null)
-              setIsFormOpen(true)
+              setEditingPo(null);
+              setIsFormOpen(true);
             }}
           >
             <Plus className="w-4 h-4 mr-1.5" />
@@ -386,12 +423,12 @@ export default function PurchaseOrdersPage() {
           <div className="w-full max-w-xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h2 className="text-lg font-semibold text-foreground">
-                {editingPo ? 'Edit Purchase Order' : 'Create Purchase Order'}
+                {editingPo ? "Edit Purchase Order" : "Create Purchase Order"}
               </h2>
               <button
                 onClick={() => {
-                  setIsFormOpen(false)
-                  setEditingPo(null)
+                  setIsFormOpen(false);
+                  setEditingPo(null);
                 }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -402,8 +439,8 @@ export default function PurchaseOrdersPage() {
               initialData={editingPo}
               onSuccess={handleFormSuccess}
               onCancel={() => {
-                setIsFormOpen(false)
-                setEditingPo(null)
+                setIsFormOpen(false);
+                setEditingPo(null);
               }}
             />
           </div>
@@ -446,5 +483,5 @@ export default function PurchaseOrdersPage() {
         emptyMessage="Get started by creating your first purchase order."
       />
     </div>
-  )
+  );
 }

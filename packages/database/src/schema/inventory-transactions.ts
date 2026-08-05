@@ -74,4 +74,5 @@ export const inventoryTransactions = pgTable(
 );
 
 export type InventoryTransactionRow = typeof inventoryTransactions.$inferSelect;
-export type NewInventoryTransactionRow = typeof inventoryTransactions.$inferInsert;
+export type NewInventoryTransactionRow =
+  typeof inventoryTransactions.$inferInsert;

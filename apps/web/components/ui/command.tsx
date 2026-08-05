@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { Command as CommandPrimitive } from 'cmdk'
-import { Search } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import * as React from "react";
+import { Command as CommandPrimitive } from "cmdk";
+import { Search } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function Command({
   className,
@@ -12,12 +12,12 @@ function Command({
   return (
     <CommandPrimitive
       className={cn(
-        'flex h-full w-full flex-col overflow-hidden rounded-xl bg-popover text-popover-foreground',
+        "flex h-full w-full flex-col overflow-hidden rounded-xl bg-popover text-popover-foreground",
         className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 function CommandDialog({
@@ -25,21 +25,21 @@ function CommandDialog({
   onOpenChange,
   children,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  children: React.ReactNode
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
 }) {
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && open) {
-        onOpenChange(false)
+      if (e.key === "Escape" && open) {
+        onOpenChange(false);
       }
-    }
-    document.addEventListener('keydown', down)
-    return () => document.removeEventListener('keydown', down)
-  }, [open, onOpenChange])
+    };
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, [open, onOpenChange]);
 
-  if (!open) return null
+  if (!open) return null;
 
   return (
     <div
@@ -55,7 +55,7 @@ function CommandDialog({
         </Command>
       </div>
     </div>
-  )
+  );
 }
 
 function CommandInput({
@@ -67,13 +67,13 @@ function CommandInput({
       <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
       <CommandPrimitive.Input
         className={cn(
-          'flex h-10 w-full rounded-md bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+          "flex h-10 w-full rounded-md bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
           className,
         )}
         {...props}
       />
     </div>
-  )
+  );
 }
 
 function CommandList({
@@ -82,10 +82,13 @@ function CommandList({
 }: React.ComponentProps<typeof CommandPrimitive.List>) {
   return (
     <CommandPrimitive.List
-      className={cn('max-h-[350px] overflow-y-auto overflow-x-hidden p-2', className)}
+      className={cn(
+        "max-h-[350px] overflow-y-auto overflow-x-hidden p-2",
+        className,
+      )}
       {...props}
     />
-  )
+  );
 }
 
 function CommandEmpty({
@@ -94,10 +97,13 @@ function CommandEmpty({
 }: React.ComponentProps<typeof CommandPrimitive.Empty>) {
   return (
     <CommandPrimitive.Empty
-      className={cn('py-6 text-center text-xs text-muted-foreground', className)}
+      className={cn(
+        "py-6 text-center text-xs text-muted-foreground",
+        className,
+      )}
       {...props}
     />
-  )
+  );
 }
 
 function CommandGroup({
@@ -107,12 +113,12 @@ function CommandGroup({
   return (
     <CommandPrimitive.Group
       className={cn(
-        'overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider',
+        "overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider",
         className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 function CommandSeparator({
@@ -121,10 +127,10 @@ function CommandSeparator({
 }: React.ComponentProps<typeof CommandPrimitive.Separator>) {
   return (
     <CommandPrimitive.Separator
-      className={cn('-mx-1 h-px bg-border', className)}
+      className={cn("-mx-1 h-px bg-border", className)}
       {...props}
     />
-  )
+  );
 }
 
 function CommandItem({
@@ -134,12 +140,12 @@ function CommandItem({
   return (
     <CommandPrimitive.Item
       className={cn(
-        'relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-xs outline-none data-[disabled=true]:pointer-events-none data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:opacity-50 transition-colors',
+        "relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-xs outline-none data-[disabled=true]:pointer-events-none data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:opacity-50 transition-colors",
         className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 function CommandShortcut({
@@ -149,12 +155,12 @@ function CommandShortcut({
   return (
     <span
       className={cn(
-        'ml-auto text-[10px] tracking-widest text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded border border-border',
+        "ml-auto text-[10px] tracking-widest text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded border border-border",
         className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 export {
@@ -167,4 +173,4 @@ export {
   CommandItem,
   CommandShortcut,
   CommandSeparator,
-}
+};

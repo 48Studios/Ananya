@@ -6,12 +6,7 @@ import {
 } from "./cycle-count.errors";
 
 export type CycleCountStatus =
-  | "DRAFT"
-  | "ASSIGNED"
-  | "COUNTING"
-  | "REVIEW"
-  | "APPROVED"
-  | "CANCELLED";
+  "DRAFT" | "ASSIGNED" | "COUNTING" | "REVIEW" | "APPROVED" | "CANCELLED";
 
 export interface CycleCountLineProps {
   id: string;
@@ -146,7 +141,8 @@ export class CycleCount {
     const lineId = ObjectId.generate().value;
     const now = new Date();
     const counted = input.countedQuantity ?? input.systemQuantity;
-    const variance = Math.round((counted - input.systemQuantity) * 10000) / 10000;
+    const variance =
+      Math.round((counted - input.systemQuantity) * 10000) / 10000;
 
     this.lines.push({
       id: lineId,
@@ -204,7 +200,11 @@ export class CycleCount {
   }
 
   public recordPhysicalCounts(counts: RecordPhysicalCountInput[]): void {
-    if (this.status !== "COUNTING" && this.status !== "ASSIGNED" && this.status !== "DRAFT") {
+    if (
+      this.status !== "COUNTING" &&
+      this.status !== "ASSIGNED" &&
+      this.status !== "DRAFT"
+    ) {
       throw new InvalidCycleCountStatusTransitionError(this.status, "REVIEW");
     }
 

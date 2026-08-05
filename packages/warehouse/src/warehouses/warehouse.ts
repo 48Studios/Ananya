@@ -5,11 +5,7 @@ import {
 } from "./warehouse.errors";
 
 export type BinPurpose =
-  | "RECEIVING"
-  | "STORAGE"
-  | "PRODUCTION"
-  | "SHIPPING"
-  | "QUALITY_HOLD";
+  "RECEIVING" | "STORAGE" | "PRODUCTION" | "SHIPPING" | "QUALITY_HOLD";
 
 export interface WarehouseBinProps {
   id: string;

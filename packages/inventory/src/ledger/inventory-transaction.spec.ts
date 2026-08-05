@@ -50,6 +50,8 @@ describe("InventoryTransaction aggregate", () => {
         transactionType: TransactionType.Transfer,
         createdBy: "user-1",
       }),
-    ).toThrow("Source and destination locations cannot be identical for transfer");
+    ).toThrow(
+      "Source and destination locations cannot be identical for transfer",
+    );
   });
 });

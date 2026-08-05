@@ -1,2 +1,2 @@
-export * from './material-requirement';
-export * from './material-requirement.repository';
+export * from "./material-requirement";
+export * from "./material-requirement.repository";

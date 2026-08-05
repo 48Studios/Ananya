@@ -1,46 +1,46 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+import * as React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   suppliersApi,
   type SupplierDto,
   type CreateSupplierPayload,
   type UpdateSupplierPayload,
-} from '@/lib/api/suppliers-api'
+} from "@/lib/api/suppliers-api";
 
 const supplierSchema = z.object({
   code: z
     .string()
-    .min(1, 'Supplier code is required')
+    .min(1, "Supplier code is required")
     .transform((val) => val.trim().toUpperCase()),
   name: z
     .string()
-    .min(1, 'Supplier name is required')
+    .min(1, "Supplier name is required")
     .transform((val) => val.trim()),
   taxId: z.string().optional().nullable(),
   paymentTerms: z
     .string()
-    .min(1, 'Payment terms are required')
+    .min(1, "Payment terms are required")
     .transform((val) => val.trim().toUpperCase()),
   currency: z
     .string()
-    .min(1, 'Currency code is required')
+    .min(1, "Currency code is required")
     .transform((val) => val.trim().toUpperCase()),
-})
+});
 
-export type SupplierFormValues = z.infer<typeof supplierSchema>
+export type SupplierFormValues = z.infer<typeof supplierSchema>;
 
 interface SupplierFormProps {
-  initialData?: SupplierDto | null
-  onSuccess: (savedSupplier: SupplierDto) => void
-  onCancel: () => void
+  initialData?: SupplierDto | null;
+  onSuccess: (savedSupplier: SupplierDto) => void;
+  onCancel: () => void;
 }
 
 export function SupplierForm({
@@ -48,8 +48,8 @@ export function SupplierForm({
   onSuccess,
   onCancel,
 }: SupplierFormProps) {
-  const [serverError, setServerError] = React.useState<string | null>(null)
-  const isEditing = Boolean(initialData)
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const isEditing = Boolean(initialData);
 
   const {
     register,
@@ -58,16 +58,16 @@ export function SupplierForm({
   } = useForm<SupplierFormValues>({
     resolver: zodResolver(supplierSchema),
     defaultValues: {
-      code: initialData?.code ?? '',
-      name: initialData?.name ?? '',
-      taxId: initialData?.taxId ?? '',
-      paymentTerms: initialData?.paymentTerms ?? 'NET30',
-      currency: initialData?.currency ?? 'USD',
+      code: initialData?.code ?? "",
+      name: initialData?.name ?? "",
+      taxId: initialData?.taxId ?? "",
+      paymentTerms: initialData?.paymentTerms ?? "NET30",
+      currency: initialData?.currency ?? "USD",
     },
-  })
+  });
 
   const onSubmit = async (values: SupplierFormValues) => {
-    setServerError(null)
+    setServerError(null);
     try {
       if (isEditing && initialData) {
         const payload: UpdateSupplierPayload = {
@@ -76,9 +76,9 @@ export function SupplierForm({
           taxId: values.taxId || null,
           paymentTerms: values.paymentTerms,
           currency: values.currency,
-        }
-        const updated = await suppliersApi.update(initialData.id, payload)
-        onSuccess(updated)
+        };
+        const updated = await suppliersApi.update(initialData.id, payload);
+        onSuccess(updated);
       } else {
         const payload: CreateSupplierPayload = {
           code: values.code,
@@ -86,18 +86,20 @@ export function SupplierForm({
           taxId: values.taxId || null,
           paymentTerms: values.paymentTerms,
           currency: values.currency,
-        }
-        const created = await suppliersApi.create(payload)
-        onSuccess(created)
+        };
+        const created = await suppliersApi.create(payload);
+        onSuccess(created);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError(isEditing ? 'Failed to update supplier' : 'Failed to create supplier')
+        setServerError(
+          isEditing ? "Failed to update supplier" : "Failed to create supplier",
+        );
       }
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -116,7 +118,7 @@ export function SupplierForm({
           id="supplier-code"
           type="text"
           placeholder="e.g. SUP-ARROW-01"
-          {...register('code')}
+          {...register("code")}
           className="uppercase font-mono"
         />
         {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
@@ -131,7 +133,7 @@ export function SupplierForm({
           id="supplier-name"
           type="text"
           placeholder="e.g. Arrow Electronics Corp"
-          {...register('name')}
+          {...register("name")}
         />
         {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
       </Field>
@@ -143,7 +145,7 @@ export function SupplierForm({
           id="supplier-tax"
           type="text"
           placeholder="e.g. US-987654321 / GSTIN1234"
-          {...register('taxId')}
+          {...register("taxId")}
           className="font-mono"
         />
       </Field>
@@ -158,10 +160,12 @@ export function SupplierForm({
             id="supplier-terms"
             type="text"
             placeholder="e.g. NET30, NET60, COD"
-            {...register('paymentTerms')}
+            {...register("paymentTerms")}
             className="uppercase font-mono"
           />
-          {errors.paymentTerms?.message && <FieldError>{errors.paymentTerms.message}</FieldError>}
+          {errors.paymentTerms?.message && (
+            <FieldError>{errors.paymentTerms.message}</FieldError>
+          )}
         </Field>
 
         {/* Currency */}
@@ -173,24 +177,33 @@ export function SupplierForm({
             id="supplier-currency"
             type="text"
             placeholder="e.g. USD, EUR, INR"
-            {...register('currency')}
+            {...register("currency")}
             className="uppercase font-mono"
           />
-          {errors.currency?.message && <FieldError>{errors.currency.message}</FieldError>}
+          {errors.currency?.message && (
+            <FieldError>{errors.currency.message}</FieldError>
+          )}
         </Field>
       </div>
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-          {isEditing ? 'Save Changes' : 'Create Supplier'}
+          {isSubmitting && (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          )}
+          {isEditing ? "Save Changes" : "Create Supplier"}
         </Button>
       </div>
     </form>
-  )
+  );
 }
-

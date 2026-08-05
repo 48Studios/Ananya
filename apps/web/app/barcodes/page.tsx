@@ -1,80 +1,83 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import {
-  Scan,
-  Printer,
-  Boxes,
-  MapPin,
-  QrCode,
-  Sparkles,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import * as React from "react";
+import { Scan, Printer, Boxes, MapPin, QrCode, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { LabelPreview, LabelTemplate } from '@/components/barcodes/label-preview'
-import { ScanDialog } from '@/components/barcodes/scan-dialog'
-import { BatchPrintDialog } from '@/components/barcodes/batch-print-dialog'
-import { BarcodeFormat, LabelData, EntityType } from '@/lib/api/barcodes-api'
-import { componentsApi, ComponentDto } from '@/lib/api/components-api'
-import { locationsApi, LocationDto } from '@/lib/api/locations-api'
+} from "@/components/ui/select";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  LabelPreview,
+  LabelTemplate,
+} from "@/components/barcodes/label-preview";
+import { ScanDialog } from "@/components/barcodes/scan-dialog";
+import { BatchPrintDialog } from "@/components/barcodes/batch-print-dialog";
+import { BarcodeFormat, LabelData, EntityType } from "@/lib/api/barcodes-api";
+import { componentsApi, ComponentDto } from "@/lib/api/components-api";
+import { locationsApi, LocationDto } from "@/lib/api/locations-api";
 
 export default function BarcodesHubPage() {
-  const [components, setComponents] = React.useState<ComponentDto[]>([])
-  const [locations, setLocations] = React.useState<LocationDto[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const [components, setComponents] = React.useState<ComponentDto[]>([]);
+  const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
-  const [isScanOpen, setIsScanOpen] = React.useState(false)
-  const [isBatchOpen, setIsBatchOpen] = React.useState(false)
-  const [batchEntityType, setBatchEntityType] = React.useState<EntityType>('COMPONENT')
-  const [batchEntityIds, setBatchEntityIds] = React.useState<string[]>([])
+  const [isScanOpen, setIsScanOpen] = React.useState(false);
+  const [isBatchOpen, setIsBatchOpen] = React.useState(false);
+  const [batchEntityType, setBatchEntityType] =
+    React.useState<EntityType>("COMPONENT");
+  const [batchEntityIds, setBatchEntityIds] = React.useState<string[]>([]);
 
   // Generator State
-  const [sampleCode, setSampleCode] = React.useState('ANANYA-INV-2026')
-  const [sampleQr, setSampleQr] = React.useState('ANANYA:V1:COMPONENT:demo-id-123')
-  const [format, setFormat] = React.useState<BarcodeFormat>('CODE128')
-  const [template, setTemplate] = React.useState<LabelTemplate>('STANDARD')
+  const [sampleCode, setSampleCode] = React.useState("ANANYA-INV-2026");
+  const [sampleQr, setSampleQr] = React.useState(
+    "ANANYA:V1:COMPONENT:demo-id-123",
+  );
+  const [format, setFormat] = React.useState<BarcodeFormat>("CODE128");
+  const [template, setTemplate] = React.useState<LabelTemplate>("STANDARD");
 
   React.useEffect(() => {
-    Promise.all([componentsApi.getAll().catch(() => []), locationsApi.getAll().catch(() => [])])
+    Promise.all([
+      componentsApi.getAll().catch(() => []),
+      locationsApi.getAll().catch(() => []),
+    ])
       .then(([comps, locs]) => {
-        setComponents(comps)
-        setLocations(locs)
+        setComponents(comps);
+        setLocations(locs);
       })
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
-  const activeComponent = components[0]
+  const activeComponent = components[0];
 
   const sampleLabel: LabelData = {
-    id: activeComponent?.id || 'sys-preview',
-    entityType: 'COMPONENT',
-    primaryCode: sampleCode || activeComponent?.sku || 'INV-ITEM-001',
-    qrPayload: sampleQr || `ANANYA:V1:COMPONENT:${activeComponent?.id || 'sys-preview'}`,
-    title: activeComponent?.name || 'Inventory Item Label',
-    subtitle: `SKU: ${activeComponent?.sku || 'N/A'} | Location: ${locations[0]?.name || 'Unassigned'}`,
-  }
+    id: activeComponent?.id || "sys-preview",
+    entityType: "COMPONENT",
+    primaryCode: sampleCode || activeComponent?.sku || "INV-ITEM-001",
+    qrPayload:
+      sampleQr || `ANANYA:V1:COMPONENT:${activeComponent?.id || "sys-preview"}`,
+    title: activeComponent?.name || "Inventory Item Label",
+    subtitle: `SKU: ${activeComponent?.sku || "N/A"} | Location: ${locations[0]?.name || "Unassigned"}`,
+  };
 
   const handleOpenBatchComponents = () => {
-    setBatchEntityType('COMPONENT')
-    setBatchEntityIds(components.slice(0, 10).map((c) => c.id))
-    setIsBatchOpen(true)
-  }
+    setBatchEntityType("COMPONENT");
+    setBatchEntityIds(components.slice(0, 10).map((c) => c.id));
+    setIsBatchOpen(true);
+  };
 
   const handleOpenBatchLocations = () => {
-    setBatchEntityType('LOCATION')
-    setBatchEntityIds(locations.slice(0, 10).map((l) => l.id))
-    setIsBatchOpen(true)
-  }
+    setBatchEntityType("LOCATION");
+    setBatchEntityIds(locations.slice(0, 10).map((l) => l.id));
+    setIsBatchOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -84,7 +87,11 @@ export default function BarcodesHubPage() {
         description="Barcode generation, versioned QR code payloads, hardware scanner lookup, and printable label templates."
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsScanOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsScanOpen(true)}
+            >
               <Scan className="w-4 h-4 mr-1.5" />
               Quick Scan
             </Button>
@@ -133,7 +140,8 @@ export default function BarcodesHubPage() {
               Barcode & QR Generator Studio
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Input custom codes and configure label formats for instant vector preview.
+              Input custom codes and configure label formats for instant vector
+              preview.
             </p>
           </div>
 
@@ -149,7 +157,9 @@ export default function BarcodesHubPage() {
             </Field>
 
             <Field>
-              <FieldLabel className="text-xs">Structured QR Payload Input</FieldLabel>
+              <FieldLabel className="text-xs">
+                Structured QR Payload Input
+              </FieldLabel>
               <Input
                 type="text"
                 value={sampleQr}
@@ -169,8 +179,12 @@ export default function BarcodesHubPage() {
                     <SelectValue placeholder="Select format" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="CODE128">Code 128 (High Density)</SelectItem>
-                    <SelectItem value="CODE39">Code 39 (Alphanumeric)</SelectItem>
+                    <SelectItem value="CODE128">
+                      Code 128 (High Density)
+                    </SelectItem>
+                    <SelectItem value="CODE39">
+                      Code 39 (Alphanumeric)
+                    </SelectItem>
                     <SelectItem value="EAN13">EAN-13 (13 Digits)</SelectItem>
                     <SelectItem value="UPCA">UPC-A (12 Digits)</SelectItem>
                   </SelectContent>
@@ -187,9 +201,15 @@ export default function BarcodesHubPage() {
                     <SelectValue placeholder="Select template" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="STANDARD">Standard (2&quot; x 4&quot;)</SelectItem>
-                    <SelectItem value="COMPACT">Compact (1&quot; x 2&quot;)</SelectItem>
-                    <SelectItem value="DETAILED">Detailed (3&quot; x 4&quot;)</SelectItem>
+                    <SelectItem value="STANDARD">
+                      Standard (2&quot; x 4&quot;)
+                    </SelectItem>
+                    <SelectItem value="COMPACT">
+                      Compact (1&quot; x 2&quot;)
+                    </SelectItem>
+                    <SelectItem value="DETAILED">
+                      Detailed (3&quot; x 4&quot;)
+                    </SelectItem>
                     <SelectItem value="SHELF_BIN">Shelf Bin Tag</SelectItem>
                   </SelectContent>
                 </Select>
@@ -214,7 +234,11 @@ export default function BarcodesHubPage() {
             Live Label Template Preview
           </span>
           <div className="p-4 bg-muted/20 border border-border rounded-xl flex items-center justify-center w-full">
-            <LabelPreview label={sampleLabel} template={template} format={format} />
+            <LabelPreview
+              label={sampleLabel}
+              template={template}
+              format={format}
+            />
           </div>
         </div>
       </div>
@@ -227,7 +251,8 @@ export default function BarcodesHubPage() {
               Batch Label Printing Studio
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Generate printable barcode label queues for entire catalog categories or storage sections.
+              Generate printable barcode label queues for entire catalog
+              categories or storage sections.
             </p>
           </div>
         </div>
@@ -241,7 +266,8 @@ export default function BarcodesHubPage() {
               </h4>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Batch print barcodes and QR tags for all registered components in inventory.
+              Batch print barcodes and QR tags for all registered components in
+              inventory.
             </p>
             <Button
               variant="outline"
@@ -262,7 +288,8 @@ export default function BarcodesHubPage() {
               </h4>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Batch print shelf, bin, and drawer tags for all facility storage locations.
+              Batch print shelf, bin, and drawer tags for all facility storage
+              locations.
             </p>
             <Button
               variant="outline"
@@ -288,6 +315,5 @@ export default function BarcodesHubPage() {
         entityIds={batchEntityIds}
       />
     </div>
-  )
+  );
 }
-

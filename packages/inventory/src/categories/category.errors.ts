@@ -32,12 +32,16 @@ export class CategoryCannotBeOwnParentError extends DomainError {
 
 export class CategoryHasChildrenError extends DomainError {
   constructor(id: string) {
-    super(`Cannot delete category '${id}' because it contains child subcategories.`);
+    super(
+      `Cannot delete category '${id}' because it contains child subcategories.`,
+    );
   }
 }
 
 export class CategoryReferencedByComponentsError extends DomainError {
   constructor(id: string) {
-    super(`Cannot delete category '${id}' because it is referenced by active inventory components.`);
+    super(
+      `Cannot delete category '${id}' because it is referenced by active inventory components.`,
+    );
   }
 }

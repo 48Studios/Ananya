@@ -53,4 +53,3 @@ export class CannotParentToSelfError extends DomainError {
     super(`Location '${id}' cannot be set as its own parent.`);
   }
 }
-

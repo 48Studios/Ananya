@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
   X,
@@ -18,132 +18,141 @@ import {
   AlertCircle,
   RefreshCw,
   ArrowRight,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable, type FilterConfig } from '@/components/ui/entity-data-table'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { WarehouseTransferForm } from '@/components/warehouse-transfers/warehouse-transfer-form'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { WarehouseTransferForm } from "@/components/warehouse-transfers/warehouse-transfer-form";
 import {
   warehouseTransfersApi,
   type WarehouseTransferDto,
   type WarehouseTransferStatus,
-} from '@/lib/api/warehouse-transfers-api'
-import { locationsApi, type LocationDto } from '@/lib/api/locations-api'
+} from "@/lib/api/warehouse-transfers-api";
+import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 
 function getStatusBadge(status: WarehouseTransferStatus) {
   switch (status) {
-    case 'RECEIVED':
+    case "RECEIVED":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
           <CheckCircle2 className="w-3 h-3 mr-1" />
           Received
         </span>
-      )
-    case 'DISPATCHED':
+      );
+    case "DISPATCHED":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
           <Truck className="w-3 h-3 mr-1" />
           In Transit
         </span>
-      )
-    case 'SUBMITTED':
+      );
+    case "SUBMITTED":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
           <Send className="w-3 h-3 mr-1" />
           Submitted
         </span>
-      )
-    case 'DRAFT':
+      );
+    case "DRAFT":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-slate-500/10 text-slate-700 dark:text-slate-400 border border-slate-500/20">
           <Clock className="w-3 h-3 mr-1" />
           Draft
         </span>
-      )
-    case 'CANCELLED':
+      );
+    case "CANCELLED":
       return (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-muted text-muted-foreground border border-border">
           <XCircle className="w-3 h-3 mr-1" />
           Cancelled
         </span>
-      )
+      );
   }
 }
 
 export default function WarehouseTransfersPage() {
-  const [transfers, setTransfers] = React.useState<WarehouseTransferDto[]>([])
-  const [locationsMap, setLocationsMap] = React.useState<Record<string, LocationDto>>({})
-  const [locationsList, setLocationsList] = React.useState<LocationDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [transfers, setTransfers] = React.useState<WarehouseTransferDto[]>([]);
+  const [locationsMap, setLocationsMap] = React.useState<
+    Record<string, LocationDto>
+  >({});
+  const [locationsList, setLocationsList] = React.useState<LocationDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [editingTransfer, setEditingTransfer] = React.useState<WarehouseTransferDto | null>(null)
-  const [deletingTransfer, setDeletingTransfer] = React.useState<WarehouseTransferDto | null>(null)
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null)
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingTransfer, setEditingTransfer] =
+    React.useState<WarehouseTransferDto | null>(null);
+  const [deletingTransfer, setDeletingTransfer] =
+    React.useState<WarehouseTransferDto | null>(null);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
 
   const fetchTransfers = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const [transfersData, locs] = await Promise.all([
         warehouseTransfersApi.getAll(),
         locationsApi.getAll().catch(() => []),
-      ])
-      setTransfers(transfersData)
-      setLocationsList(locs)
+      ]);
+      setTransfers(transfersData);
+      setLocationsList(locs);
 
-      const locMap: Record<string, LocationDto> = {}
-      for (const l of locs) locMap[l.id] = l
-      setLocationsMap(locMap)
+      const locMap: Record<string, LocationDto> = {};
+      for (const l of locs) locMap[l.id] = l;
+      setLocationsMap(locMap);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message)
+        setError(err.message);
       } else {
-        setError('Failed to fetch Warehouse Transfers list')
+        setError("Failed to fetch Warehouse Transfers list");
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    fetchTransfers()
-  }, [fetchTransfers])
+    fetchTransfers();
+  }, [fetchTransfers]);
 
   const submittedCount = React.useMemo(
-    () => transfers.filter((t) => t.status === 'SUBMITTED').length,
+    () => transfers.filter((t) => t.status === "SUBMITTED").length,
     [transfers],
-  )
+  );
   const inTransitCount = React.useMemo(
-    () => transfers.filter((t) => t.status === 'DISPATCHED').length,
+    () => transfers.filter((t) => t.status === "DISPATCHED").length,
     [transfers],
-  )
+  );
   const receivedCount = React.useMemo(
-    () => transfers.filter((t) => t.status === 'RECEIVED').length,
+    () => transfers.filter((t) => t.status === "RECEIVED").length,
     [transfers],
-  )
+  );
 
   const handleDeleteConfirm = async () => {
-    if (!deletingTransfer) return
+    if (!deletingTransfer) return;
     try {
-      await warehouseTransfersApi.delete(deletingTransfer.id)
-      setToastMessage(`Transfer "${deletingTransfer.transferNumber}" deleted.`)
-      setDeletingTransfer(null)
-      setTimeout(() => setToastMessage(null), 4000)
-      fetchTransfers()
+      await warehouseTransfersApi.delete(deletingTransfer.id);
+      setToastMessage(`Transfer "${deletingTransfer.transferNumber}" deleted.`);
+      setDeletingTransfer(null);
+      setTimeout(() => setToastMessage(null), 4000);
+      fetchTransfers();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete transfer')
+      setError(
+        err instanceof Error ? err.message : "Failed to delete transfer",
+      );
     }
-  }
+  };
 
   const columns = React.useMemo<ColumnDef<WarehouseTransferDto>[]>(
     () => [
       {
-        accessorKey: 'transferNumber',
-        header: 'Transfer #',
+        accessorKey: "transferNumber",
+        header: "Transfer #",
         cell: ({ row }) => (
           <Link
             href={`/warehouse-transfers/${row.original.id}`}
@@ -154,36 +163,46 @@ export default function WarehouseTransfersPage() {
         ),
       },
       {
-        accessorKey: 'sourceLocationId',
-        header: 'Source Location',
+        accessorKey: "sourceLocationId",
+        header: "Source Location",
         cell: ({ row }) => {
-          const loc = locationsMap[row.original.sourceLocationId]
+          const loc = locationsMap[row.original.sourceLocationId];
           return (
             <span className="text-xs font-medium text-foreground flex items-center gap-1">
               <MapPin className="w-3 h-3 text-muted-foreground" />
-              {loc ? loc.name : row.original.sourceLocationId.slice(0, 8)}{' '}
-              {loc && <span className="font-mono text-muted-foreground text-[11px]">({loc.code})</span>}
+              {loc ? loc.name : row.original.sourceLocationId.slice(0, 8)}{" "}
+              {loc && (
+                <span className="font-mono text-muted-foreground text-[11px]">
+                  ({loc.code})
+                </span>
+              )}
             </span>
-          )
+          );
         },
       },
       {
-        accessorKey: 'destinationLocationId',
-        header: 'Destination Location',
+        accessorKey: "destinationLocationId",
+        header: "Destination Location",
         cell: ({ row }) => {
-          const loc = locationsMap[row.original.destinationLocationId]
+          const loc = locationsMap[row.original.destinationLocationId];
           return (
             <span className="text-xs font-medium text-foreground flex items-center gap-1">
               <ArrowRight className="w-3 h-3 text-muted-foreground" />
-              {loc ? loc.name : row.original.destinationLocationId.slice(0, 8)}{' '}
-              {loc && <span className="font-mono text-muted-foreground text-[11px]">({loc.code})</span>}
+              {loc
+                ? loc.name
+                : row.original.destinationLocationId.slice(0, 8)}{" "}
+              {loc && (
+                <span className="font-mono text-muted-foreground text-[11px]">
+                  ({loc.code})
+                </span>
+              )}
             </span>
-          )
+          );
         },
       },
       {
-        id: 'lineCount',
-        header: 'Line Items',
+        id: "lineCount",
+        header: "Line Items",
         cell: ({ row }) => (
           <span className="font-mono text-xs text-foreground font-bold">
             {row.original.lines.length} items
@@ -191,13 +210,13 @@ export default function WarehouseTransfersPage() {
         ),
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
+        accessorKey: "status",
+        header: "Status",
         cell: ({ row }) => getStatusBadge(row.original.status),
       },
       {
-        accessorKey: 'createdAt',
-        header: 'Date Created',
+        accessorKey: "createdAt",
+        header: "Date Created",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
             {new Date(row.original.createdAt).toLocaleDateString()}
@@ -205,24 +224,28 @@ export default function WarehouseTransfersPage() {
         ),
       },
       {
-        id: 'actions',
-        header: 'Actions',
+        id: "actions",
+        header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/warehouse-transfers/${row.original.id}`}>
-              <Button variant="ghost" size="icon-xs" title="View transfer details">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                title="View transfer details"
+              >
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
             </Link>
-            {row.original.status === 'DRAFT' && (
+            {row.original.status === "DRAFT" && (
               <>
                 <Button
                   variant="ghost"
                   size="icon-xs"
                   title="Edit draft"
                   onClick={() => {
-                    setEditingTransfer(row.original)
-                    setIsFormOpen(true)
+                    setEditingTransfer(row.original);
+                    setIsFormOpen(true);
                   }}
                 >
                   <Pencil className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -242,32 +265,32 @@ export default function WarehouseTransfersPage() {
       },
     ],
     [locationsMap],
-  )
+  );
 
   const filterConfigs: FilterConfig[] = React.useMemo(
     () => [
       {
-        columnId: 'status',
-        title: 'Status',
+        columnId: "status",
+        title: "Status",
         options: [
-          { label: 'Draft', value: 'DRAFT' },
-          { label: 'Submitted', value: 'SUBMITTED' },
-          { label: 'Dispatched (In Transit)', value: 'DISPATCHED' },
-          { label: 'Received & Completed', value: 'RECEIVED' },
-          { label: 'Cancelled', value: 'CANCELLED' },
+          { label: "Draft", value: "DRAFT" },
+          { label: "Submitted", value: "SUBMITTED" },
+          { label: "Dispatched (In Transit)", value: "DISPATCHED" },
+          { label: "Received & Completed", value: "RECEIVED" },
+          { label: "Cancelled", value: "CANCELLED" },
         ],
       },
       {
-        columnId: 'sourceLocationId',
-        title: 'Source Location',
+        columnId: "sourceLocationId",
+        title: "Source Location",
         options: locationsList.map((loc) => ({
           label: `${loc.code} — ${loc.name}`,
           value: loc.id,
         })),
       },
       {
-        columnId: 'destinationLocationId',
-        title: 'Destination Location',
+        columnId: "destinationLocationId",
+        title: "Destination Location",
         options: locationsList.map((loc) => ({
           label: `${loc.code} — ${loc.name}`,
           value: loc.id,
@@ -275,15 +298,17 @@ export default function WarehouseTransfersPage() {
       },
     ],
     [locationsList],
-  )
+  );
 
   const handleFormSuccess = (savedTransfer: WarehouseTransferDto) => {
-    setToastMessage(`Warehouse Transfer "${savedTransfer.transferNumber}" saved.`)
-    setIsFormOpen(false)
-    setEditingTransfer(null)
-    setTimeout(() => setToastMessage(null), 4000)
-    fetchTransfers()
-  }
+    setToastMessage(
+      `Warehouse Transfer "${savedTransfer.transferNumber}" saved.`,
+    );
+    setIsFormOpen(false);
+    setEditingTransfer(null);
+    setTimeout(() => setToastMessage(null), 4000);
+    fetchTransfers();
+  };
 
   return (
     <div className="space-y-6">
@@ -295,8 +320,8 @@ export default function WarehouseTransfersPage() {
           <Button
             size="sm"
             onClick={() => {
-              setEditingTransfer(null)
-              setIsFormOpen(true)
+              setEditingTransfer(null);
+              setIsFormOpen(true);
             }}
           >
             <Plus className="w-4 h-4 mr-1.5" />
@@ -359,12 +384,14 @@ export default function WarehouseTransfersPage() {
           <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h2 className="text-lg font-semibold text-foreground">
-                {editingTransfer ? 'Edit Draft Transfer' : 'Create Warehouse Transfer'}
+                {editingTransfer
+                  ? "Edit Draft Transfer"
+                  : "Create Warehouse Transfer"}
               </h2>
               <button
                 onClick={() => {
-                  setIsFormOpen(false)
-                  setEditingTransfer(null)
+                  setIsFormOpen(false);
+                  setEditingTransfer(null);
                 }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -375,8 +402,8 @@ export default function WarehouseTransfersPage() {
               initialData={editingTransfer}
               onSuccess={handleFormSuccess}
               onCancel={() => {
-                setIsFormOpen(false)
-                setEditingTransfer(null)
+                setIsFormOpen(false);
+                setEditingTransfer(null);
               }}
             />
           </div>
@@ -406,5 +433,5 @@ export default function WarehouseTransfersPage() {
         emptyMessage="Get started by creating your first inter-location inventory transfer."
       />
     </div>
-  )
+  );
 }

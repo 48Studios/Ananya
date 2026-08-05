@@ -1,17 +1,20 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { StatCard, StatCardProps } from '@/components/ui/stat-card'
-import { AreaChartWidget, AreaChartDataItem } from '@/components/charts/area-chart-widget'
+import * as React from "react";
+import { StatCard, StatCardProps } from "@/components/ui/stat-card";
+import {
+  AreaChartWidget,
+  AreaChartDataItem,
+} from "@/components/charts/area-chart-widget";
 
 export interface TrendCardProps extends StatCardProps {
-  sparklineData?: AreaChartDataItem[]
-  sparklineColor?: string
+  sparklineData?: AreaChartDataItem[];
+  sparklineColor?: string;
 }
 
 export function TrendCard({
   sparklineData,
-  sparklineColor = '#0ea5e9',
+  sparklineColor = "#0ea5e9",
   ...statProps
 }: TrendCardProps) {
   return (
@@ -27,5 +30,5 @@ export function TrendCard({
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import { Payment, PaymentType, PaymentStatus } from './payment';
+import { Payment, PaymentType, PaymentStatus } from "./payment";
 
 export interface FindManyPaymentsOptions {
   paymentType?: PaymentType;

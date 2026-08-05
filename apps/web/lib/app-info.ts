@@ -1,52 +1,58 @@
-import packageJson from '../package.json'
+import packageJson from "../package.json";
 
 export interface AppInfo {
-  name: string
-  version: string
+  name: string;
+  version: string;
   organization: {
-    name: string
-    url: string
-  }
+    name: string;
+    url: string;
+  };
   repository: {
-    name: string
-    url: string
-  }
-  environment: string
-  commitSha?: string
-  buildDate?: string
+    name: string;
+    url: string;
+  };
+  environment: string;
+  commitSha?: string;
+  buildDate?: string;
 }
 
 export function getAppInfo(): AppInfo {
-  const version = process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version || '0.1.0'
-  
-  const rawEnv = (process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || 'development').toLowerCase()
-  const environment = rawEnv === 'production' 
-    ? 'Production' 
-    : rawEnv === 'staging' 
-    ? 'Staging' 
-    : rawEnv === 'preview'
-    ? 'Preview'
-    : 'Development'
+  const version =
+    process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version || "0.1.0";
+
+  const rawEnv = (
+    process.env.NEXT_PUBLIC_APP_ENV ||
+    process.env.NODE_ENV ||
+    "development"
+  ).toLowerCase();
+  const environment =
+    rawEnv === "production"
+      ? "Production"
+      : rawEnv === "staging"
+        ? "Staging"
+        : rawEnv === "preview"
+          ? "Preview"
+          : "Development";
 
   const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA
     ? process.env.NEXT_PUBLIC_COMMIT_SHA.slice(0, 7)
-    : undefined
+    : undefined;
 
-  const buildDate = process.env.NEXT_PUBLIC_BUILD_DATE
+  const buildDate = process.env.NEXT_PUBLIC_BUILD_DATE;
 
   return {
-    name: 'Ananya',
+    name: "Ananya",
     version,
     organization: {
-      name: '48 Studios',
-      url: 'https://48studios.in',
+      name: "48 Studios",
+      url: "https://48studios.in",
     },
     repository: {
-      name: 'GitHub',
-      url: 'https://github.com/jrsarath/Ananya',
+      name: "GitHub",
+      url: "https://github.com/jrsarath/Ananya",
     },
     environment,
     commitSha,
     buildDate,
-  }
+  };
 }

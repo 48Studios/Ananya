@@ -1,32 +1,34 @@
-'use client'
+"use client";
 
-import React from 'react'
-import Link from 'next/link'
-import { Pin, X } from 'lucide-react'
-import { useNavigation } from '../navigation-context'
-import { SectionHeader } from './sidebar-section-header'
-import { cn } from '@/lib/utils'
+import React from "react";
+import Link from "next/link";
+import { Pin, X } from "lucide-react";
+import { useNavigation } from "../navigation-context";
+import { SectionHeader } from "./sidebar-section-header";
+import { cn } from "@/lib/utils";
 
 interface SidebarPinnedItemsProps {
-  isCollapsed: boolean
+  isCollapsed: boolean;
 }
 
 export function SidebarPinnedItems({ isCollapsed }: SidebarPinnedItemsProps) {
-  const { pinnedItems, togglePinnedItem, activePath, modules } = useNavigation()
+  const { pinnedItems, togglePinnedItem, activePath, modules } =
+    useNavigation();
 
   // Completely omit when collapsed or when no items are pinned
-  if (isCollapsed || pinnedItems.length === 0) return null
+  if (isCollapsed || pinnedItems.length === 0) return null;
 
   // Map pinned Href to title/icon from module config
   const getPinnedItemDetails = (href: string) => {
     for (const mod of modules) {
       for (const section of mod.sidebar) {
-        if (!section.items) continue
+        if (!section.items) continue;
         for (const item of section.items) {
-          if (item.href === href) return { title: item.title, icon: item.icon }
+          if (item.href === href) return { title: item.title, icon: item.icon };
           if (item.children) {
             for (const child of item.children) {
-              if (child.href === href) return { title: child.title, icon: child.icon }
+              if (child.href === href)
+                return { title: child.title, icon: child.icon };
             }
           }
         }
@@ -34,11 +36,14 @@ export function SidebarPinnedItems({ isCollapsed }: SidebarPinnedItemsProps) {
     }
     // Fallback: derive title from href
     const title = href
-      .replace(/^\//, '')
-      .replace(/-/g, ' ')
-      .replace(/\b\w/g, (c) => c.toUpperCase())
-    return { title: title || 'Home', icon: <Pin className="size-3.5 text-amber-500" /> }
-  }
+      .replace(/^\//, "")
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+    return {
+      title: title || "Home",
+      icon: <Pin className="size-3.5 text-amber-500" />,
+    };
+  };
 
   return (
     <div className="space-y-1">
@@ -53,8 +58,8 @@ export function SidebarPinnedItems({ isCollapsed }: SidebarPinnedItemsProps) {
 
       <div className="space-y-0.5 px-1">
         {pinnedItems.map((href) => {
-          const details = getPinnedItemDetails(href)
-          const isActive = activePath === href
+          const details = getPinnedItemDetails(href);
+          const isActive = activePath === href;
           return (
             <div
               key={href}
@@ -63,10 +68,10 @@ export function SidebarPinnedItems({ isCollapsed }: SidebarPinnedItemsProps) {
               <Link
                 href={href}
                 className={cn(
-                  'flex items-center gap-2.5 min-w-0 font-medium truncate flex-1',
+                  "flex items-center gap-2.5 min-w-0 font-medium truncate flex-1",
                   isActive
-                    ? 'text-sidebar-primary font-semibold'
-                    : 'text-sidebar-foreground/85'
+                    ? "text-sidebar-primary font-semibold"
+                    : "text-sidebar-foreground/85",
                 )}
               >
                 <span className="shrink-0 size-4 flex items-center justify-center text-amber-500">
@@ -84,9 +89,9 @@ export function SidebarPinnedItems({ isCollapsed }: SidebarPinnedItemsProps) {
                 <X className="size-3" />
               </button>
             </div>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }

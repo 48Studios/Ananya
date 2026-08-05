@@ -1,44 +1,47 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import * as React from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+} from "@/components/ui/select";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   locationsApi,
   type LocationDto,
   type CreateLocationPayload,
   type UpdateLocationPayload,
-} from '@/lib/api/locations-api'
+} from "@/lib/api/locations-api";
 
 const locationSchema = z.object({
   code: z
     .string()
-    .min(1, 'Location code is required')
+    .min(1, "Location code is required")
     .transform((val) => val.trim().toUpperCase()),
-  name: z.string().min(1, 'Location name is required').transform((val) => val.trim()),
-  kind: z.string().min(1, 'Location kind is required'),
+  name: z
+    .string()
+    .min(1, "Location name is required")
+    .transform((val) => val.trim()),
+  kind: z.string().min(1, "Location kind is required"),
   parentId: z.string().optional().nullable(),
-})
+});
 
-export type LocationFormValues = z.infer<typeof locationSchema>
+export type LocationFormValues = z.infer<typeof locationSchema>;
 
 interface LocationFormProps {
-  initialData?: LocationDto | null
-  locations?: LocationDto[]
-  onSuccess: (savedLocation: LocationDto) => void
-  onCancel: () => void
+  initialData?: LocationDto | null;
+  locations?: LocationDto[];
+  onSuccess: (savedLocation: LocationDto) => void;
+  onCancel: () => void;
 }
 
 export function LocationForm({
@@ -47,13 +50,13 @@ export function LocationForm({
   onSuccess,
   onCancel,
 }: LocationFormProps) {
-  const [serverError, setServerError] = React.useState<string | null>(null)
-  const isEditing = Boolean(initialData)
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const isEditing = Boolean(initialData);
 
   const availableParents = React.useMemo(() => {
-    if (!initialData) return locations
-    return locations.filter((loc) => loc.id !== initialData.id)
-  }, [locations, initialData])
+    if (!initialData) return locations;
+    return locations.filter((loc) => loc.id !== initialData.id);
+  }, [locations, initialData]);
 
   const {
     register,
@@ -63,15 +66,15 @@ export function LocationForm({
   } = useForm<LocationFormValues>({
     resolver: zodResolver(locationSchema),
     defaultValues: {
-      code: initialData?.code ?? '',
-      name: initialData?.name ?? '',
-      kind: initialData?.kind ?? 'warehouse',
-      parentId: initialData?.parentId ?? '',
+      code: initialData?.code ?? "",
+      name: initialData?.name ?? "",
+      kind: initialData?.kind ?? "warehouse",
+      parentId: initialData?.parentId ?? "",
     },
-  })
+  });
 
   const onSubmit = async (values: LocationFormValues) => {
-    setServerError(null)
+    setServerError(null);
     try {
       if (isEditing && initialData) {
         const payload: UpdateLocationPayload = {
@@ -79,27 +82,29 @@ export function LocationForm({
           name: values.name,
           kind: values.kind,
           parentId: values.parentId || null,
-        }
-        const updated = await locationsApi.update(initialData.id, payload)
-        onSuccess(updated)
+        };
+        const updated = await locationsApi.update(initialData.id, payload);
+        onSuccess(updated);
       } else {
         const payload: CreateLocationPayload = {
           code: values.code,
           name: values.name,
           kind: values.kind,
           parentId: values.parentId || null,
-        }
-        const created = await locationsApi.create(payload)
-        onSuccess(created)
+        };
+        const created = await locationsApi.create(payload);
+        onSuccess(created);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError(isEditing ? 'Failed to update location' : 'Failed to create location')
+        setServerError(
+          isEditing ? "Failed to update location" : "Failed to create location",
+        );
       }
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -118,7 +123,7 @@ export function LocationForm({
           id="location-code"
           type="text"
           placeholder="e.g. WH-A-01"
-          {...register('code')}
+          {...register("code")}
           className="uppercase"
         />
         {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
@@ -133,7 +138,7 @@ export function LocationForm({
           id="location-name"
           type="text"
           placeholder="e.g. Main Warehouse Row A"
-          {...register('name')}
+          {...register("name")}
         />
         {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
       </Field>
@@ -172,8 +177,8 @@ export function LocationForm({
           control={control}
           render={({ field }) => (
             <Select
-              value={field.value ?? 'none'}
-              onValueChange={(val) => field.onChange(val === 'none' ? '' : val)}
+              value={field.value ?? "none"}
+              onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
             >
               <SelectTrigger id="location-parent">
                 <SelectValue placeholder="Select parent location" />
@@ -193,14 +198,22 @@ export function LocationForm({
 
       {/* Form Action Buttons */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-          {isEditing ? 'Save Changes' : 'Create Location'}
+          {isSubmitting && (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          )}
+          {isEditing ? "Save Changes" : "Create Location"}
         </Button>
       </div>
     </form>
-  )
+  );
 }

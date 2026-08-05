@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   ShoppingCart,
   Truck,
@@ -10,71 +10,83 @@ import {
   FileCheck,
   ArrowLeft,
   ExternalLink,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { ChartCard } from '@/components/charts/chart-card'
-import { AreaChartWidget } from '@/components/charts/area-chart-widget'
-import { DonutChartWidget } from '@/components/charts/donut-chart-widget'
-import { LoadingState } from '@/components/ui/loading-state'
-import { ErrorState } from '@/components/ui/error-state'
-import { ReportFilters, FilterState } from '@/components/reports/report-filters'
-import { reportingApi, ProcurementSummaryDto } from '@/lib/api/reporting-api'
-import { purchaseOrdersApi, PurchaseOrderDto } from '@/lib/api/purchase-orders-api'
-import { formatCurrency, formatNumber, formatDate } from '@/lib/utils'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { ChartCard } from "@/components/charts/chart-card";
+import { AreaChartWidget } from "@/components/charts/area-chart-widget";
+import { DonutChartWidget } from "@/components/charts/donut-chart-widget";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import {
+  ReportFilters,
+  FilterState,
+} from "@/components/reports/report-filters";
+import { reportingApi, ProcurementSummaryDto } from "@/lib/api/reporting-api";
+import {
+  purchaseOrdersApi,
+  PurchaseOrderDto,
+} from "@/lib/api/purchase-orders-api";
+import { formatCurrency, formatNumber, formatDate } from "@/lib/utils";
 
 export default function ProcurementReportsPage() {
-  const [summary, setSummary] = React.useState<ProcurementSummaryDto | null>(null)
-  const [poList, setPoList] = React.useState<PurchaseOrderDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [summary, setSummary] = React.useState<ProcurementSummaryDto | null>(
+    null,
+  );
+  const [poList, setPoList] = React.useState<PurchaseOrderDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   const [filters, setFilters] = React.useState<FilterState>({
-    status: '',
-    search: '',
-  })
+    status: "",
+    search: "",
+  });
 
   const loadData = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const [sumData, poData] = await Promise.all([
         reportingApi.getProcurementSummary(),
         purchaseOrdersApi.getAll(),
-      ])
-      setSummary(sumData)
-      setPoList(poData)
+      ]);
+      setSummary(sumData);
+      setPoList(poData);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load procurement report data')
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load procurement report data",
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadData();
+  }, [loadData]);
 
   const filteredOrders = React.useMemo(() => {
     return poList.filter((po) => {
-      if (filters.status && po.status !== filters.status) return false
+      if (filters.status && po.status !== filters.status) return false;
       if (filters.search) {
-        const query = filters.search.toLowerCase()
-        const matchPo = po.poNumber.toLowerCase().includes(query)
-        const matchSupplier = po.supplierId.toLowerCase().includes(query)
-        if (!matchPo && !matchSupplier) return false
+        const query = filters.search.toLowerCase();
+        const matchPo = po.poNumber.toLowerCase().includes(query);
+        const matchSupplier = po.supplierId.toLowerCase().includes(query);
+        if (!matchPo && !matchSupplier) return false;
       }
-      return true
-    })
-  }, [poList, filters])
+      return true;
+    });
+  }, [poList, filters]);
 
   const columns = React.useMemo<ColumnDef<PurchaseOrderDto>[]>(
     () => [
       {
-        accessorKey: 'poNumber',
-        header: 'PO #',
+        accessorKey: "poNumber",
+        header: "PO #",
         cell: ({ row }) => (
           <Link
             href={`/purchase-orders/${row.original.id}`}
@@ -86,8 +98,8 @@ export default function ProcurementReportsPage() {
         ),
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
+        accessorKey: "status",
+        header: "Status",
         cell: ({ row }) => (
           <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
             {row.original.status}
@@ -95,17 +107,20 @@ export default function ProcurementReportsPage() {
         ),
       },
       {
-        accessorKey: 'grandTotal',
-        header: 'Grand Total',
+        accessorKey: "grandTotal",
+        header: "Grand Total",
         cell: ({ row }) => (
           <span className="font-mono text-xs font-bold text-foreground">
-            {formatCurrency(row.original.grandTotal, row.original.currency || 'INR')}
+            {formatCurrency(
+              row.original.grandTotal,
+              row.original.currency || "INR",
+            )}
           </span>
         ),
       },
       {
-        accessorKey: 'createdAt',
-        header: 'Order Date',
+        accessorKey: "createdAt",
+        header: "Order Date",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground font-mono">
             {formatDate(row.original.createdAt)}
@@ -113,8 +128,8 @@ export default function ProcurementReportsPage() {
         ),
       },
       {
-        id: 'actions',
-        header: 'Action',
+        id: "actions",
+        header: "Action",
         cell: ({ row }) => (
           <Link href={`/purchase-orders/${row.original.id}`}>
             <Button variant="ghost" size="xs">
@@ -125,38 +140,59 @@ export default function ProcurementReportsPage() {
       },
     ],
     [],
-  )
+  );
 
   if (loading) {
-    return <LoadingState message="Aggregating Procurement reports..." />
+    return <LoadingState message="Aggregating Procurement reports..." />;
   }
 
   if (error || !summary) {
     return (
       <ErrorState
         title="Procurement Report Error"
-        message={error || 'Unable to load purchasing analytics.'}
+        message={error || "Unable to load purchasing analytics."}
         onRetry={loadData}
       />
-    )
+    );
   }
 
   const poStatusDonutData = [
-    { name: 'Active POs', value: summary.activePurchaseOrders ?? 0, color: '#0ea5e9' },
-    { name: 'Draft POs', value: summary.draftPurchaseOrders ?? 0, color: '#94a3b8' },
-    { name: 'Goods Receipts', value: summary.totalGoodsReceipts ?? 0, color: '#10b981' },
-  ]
+    {
+      name: "Active POs",
+      value: summary.activePurchaseOrders ?? 0,
+      color: "#0ea5e9",
+    },
+    {
+      name: "Draft POs",
+      value: summary.draftPurchaseOrders ?? 0,
+      color: "#94a3b8",
+    },
+    {
+      name: "Goods Receipts",
+      value: summary.totalGoodsReceipts ?? 0,
+      color: "#10b981",
+    },
+  ];
 
   // Calculate real order totals by status for dynamic trend visualization
-  const fulfilledTotal = poList.filter(p => p.status === 'FULFILLED').reduce((acc, p) => acc + (p.grandTotal ?? 0), 0)
-  const issuedTotal = poList.filter(p => p.status === 'ISSUED' || p.status === 'PARTIALLY_RECEIVED').reduce((acc, p) => acc + (p.grandTotal ?? 0), 0)
-  const draftTotal = poList.filter(p => p.status === 'DRAFT' || p.status === 'SUBMITTED').reduce((acc, p) => acc + (p.grandTotal ?? 0), 0)
+  const fulfilledTotal = poList
+    .filter((p) => p.status === "FULFILLED")
+    .reduce((acc, p) => acc + (p.grandTotal ?? 0), 0);
+  const issuedTotal = poList
+    .filter((p) => p.status === "ISSUED" || p.status === "PARTIALLY_RECEIVED")
+    .reduce((acc, p) => acc + (p.grandTotal ?? 0), 0);
+  const draftTotal = poList
+    .filter((p) => p.status === "DRAFT" || p.status === "SUBMITTED")
+    .reduce((acc, p) => acc + (p.grandTotal ?? 0), 0);
 
   const spendTrendData = [
-    { name: 'Draft / Submitted', value: Math.round(draftTotal) },
-    { name: 'Active Issued', value: Math.round(issuedTotal) },
-    { name: 'Fulfilled Spend', value: Math.round(fulfilledTotal || summary.fulfilledSpend || 0) },
-  ]
+    { name: "Draft / Submitted", value: Math.round(draftTotal) },
+    { name: "Active Issued", value: Math.round(issuedTotal) },
+    {
+      name: "Fulfilled Spend",
+      value: Math.round(fulfilledTotal || summary.fulfilledSpend || 0),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -184,7 +220,9 @@ export default function ProcurementReportsPage() {
         />
         <StatCard
           title="Total Fulfilled Spend"
-          value={formatCurrency(summary.fulfilledSpend ?? summary.totalProcurementSpend)}
+          value={formatCurrency(
+            summary.fulfilledSpend ?? summary.totalProcurementSpend,
+          )}
           subtitle="Completed purchase orders"
           icon={DollarSign}
         />
@@ -209,7 +247,11 @@ export default function ProcurementReportsPage() {
             title="Monthly Purchasing Spend Trend"
             subtitle="Cumulative spend on fulfilled purchase orders"
           >
-            <AreaChartWidget data={spendTrendData} color="#f59e0b" height={220} />
+            <AreaChartWidget
+              data={spendTrendData}
+              color="#f59e0b"
+              height={220}
+            />
           </ChartCard>
         </div>
 
@@ -229,12 +271,12 @@ export default function ProcurementReportsPage() {
         onChange={setFilters}
         showStatusFilter
         statusOptions={[
-          { label: 'Draft', value: 'DRAFT' },
-          { label: 'Submitted', value: 'SUBMITTED' },
-          { label: 'Approved', value: 'APPROVED' },
-          { label: 'Issued', value: 'ISSUED' },
-          { label: 'Partially Received', value: 'PARTIALLY_RECEIVED' },
-          { label: 'Fulfilled', value: 'FULFILLED' },
+          { label: "Draft", value: "DRAFT" },
+          { label: "Submitted", value: "SUBMITTED" },
+          { label: "Approved", value: "APPROVED" },
+          { label: "Issued", value: "ISSUED" },
+          { label: "Partially Received", value: "PARTIALLY_RECEIVED" },
+          { label: "Fulfilled", value: "FULFILLED" },
         ]}
       />
 
@@ -254,5 +296,5 @@ export default function ProcurementReportsPage() {
         />
       </div>
     </div>
-  )
+  );
 }

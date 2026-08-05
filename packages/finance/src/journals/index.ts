@@ -1,2 +1,2 @@
-export * from './journal-entry';
-export * from './journal-entry.repository';
+export * from "./journal-entry";
+export * from "./journal-entry.repository";

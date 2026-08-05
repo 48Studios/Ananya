@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   Users,
   UserPlus,
@@ -12,96 +12,97 @@ import {
   ExternalLink,
   X,
   Loader2,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { LoadingState } from '@/components/ui/loading-state'
-import { ErrorState } from '@/components/ui/error-state'
-import { PermissionGuard } from '@/lib/auth/auth-context'
-import { usersApi } from '@/lib/api/users-api'
-import { rolesApi, RoleDto } from '@/lib/api/roles-api'
-import { UserProfileDto } from '@/lib/api/auth-api'
-
+} from "@/components/ui/select";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PermissionGuard } from "@/lib/auth/auth-context";
+import { usersApi } from "@/lib/api/users-api";
+import { rolesApi, RoleDto } from "@/lib/api/roles-api";
+import { UserProfileDto } from "@/lib/api/auth-api";
 
 export default function UsersListPage() {
-  const [userList, setUserList] = React.useState<UserProfileDto[]>([])
-  const [roles, setRoles] = React.useState<RoleDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [userList, setUserList] = React.useState<UserProfileDto[]>([]);
+  const [roles, setRoles] = React.useState<RoleDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   // Dialog State
-  const [isModalOpen, setIsModalOpen] = React.useState(false)
-  const [editingUser, setEditingUser] = React.useState<UserProfileDto | null>(null)
-  const [formEmail, setFormEmail] = React.useState('')
-  const [formPassword, setFormPassword] = React.useState('')
-  const [formFirstName, setFormFirstName] = React.useState('')
-  const [formLastName, setFormLastName] = React.useState('')
-  const [formDepartment, setFormDepartment] = React.useState('Operations')
-  const [formRoleId, setFormRoleId] = React.useState('')
-  const [formSubmitting, setFormSubmitting] = React.useState(false)
-  const [formError, setFormError] = React.useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [editingUser, setEditingUser] = React.useState<UserProfileDto | null>(
+    null,
+  );
+  const [formEmail, setFormEmail] = React.useState("");
+  const [formPassword, setFormPassword] = React.useState("");
+  const [formFirstName, setFormFirstName] = React.useState("");
+  const [formLastName, setFormLastName] = React.useState("");
+  const [formDepartment, setFormDepartment] = React.useState("Operations");
+  const [formRoleId, setFormRoleId] = React.useState("");
+  const [formSubmitting, setFormSubmitting] = React.useState(false);
+  const [formError, setFormError] = React.useState<string | null>(null);
 
   const loadData = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const [uData, rData] = await Promise.all([
         usersApi.getAll(),
         rolesApi.getAll(),
-      ])
-      setUserList(uData)
-      setRoles(rData)
+      ]);
+      setUserList(uData);
+      setRoles(rData);
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message)
-      else setError('Failed to load user accounts.')
+      if (err instanceof Error) setError(err.message);
+      else setError("Failed to load user accounts.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadData();
+  }, [loadData]);
 
   const handleOpenCreateModal = () => {
-    setEditingUser(null)
-    setFormEmail('')
-    setFormPassword('')
-    setFormFirstName('')
-    setFormLastName('')
-    setFormDepartment('Operations')
-    setFormRoleId(roles[0]?.id || '')
-    setFormError(null)
-    setIsModalOpen(true)
-  }
+    setEditingUser(null);
+    setFormEmail("");
+    setFormPassword("");
+    setFormFirstName("");
+    setFormLastName("");
+    setFormDepartment("Operations");
+    setFormRoleId(roles[0]?.id || "");
+    setFormError(null);
+    setIsModalOpen(true);
+  };
 
   const handleOpenEditModal = React.useCallback((u: UserProfileDto) => {
-    setEditingUser(u)
-    setFormEmail(u.email)
-    setFormPassword('')
-    setFormFirstName(u.firstName)
-    setFormLastName(u.lastName)
-    setFormDepartment(u.department || '')
-    setFormRoleId(u.roleId || '')
-    setFormError(null)
-    setIsModalOpen(true)
-  }, [])
+    setEditingUser(u);
+    setFormEmail(u.email);
+    setFormPassword("");
+    setFormFirstName(u.firstName);
+    setFormLastName(u.lastName);
+    setFormDepartment(u.department || "");
+    setFormRoleId(u.roleId || "");
+    setFormError(null);
+    setIsModalOpen(true);
+  }, []);
 
   const handleSaveUser = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setFormSubmitting(true)
-    setFormError(null)
+    e.preventDefault();
+    setFormSubmitting(true);
+    setFormError(null);
     try {
       if (editingUser) {
         await usersApi.update(editingUser.id, {
@@ -109,7 +110,7 @@ export default function UsersListPage() {
           lastName: formLastName,
           department: formDepartment,
           roleId: formRoleId,
-        })
+        });
       } else {
         await usersApi.create({
           email: formEmail,
@@ -118,36 +119,39 @@ export default function UsersListPage() {
           lastName: formLastName,
           department: formDepartment,
           roleId: formRoleId,
-        })
+        });
       }
-      setIsModalOpen(false)
-      await loadData()
+      setIsModalOpen(false);
+      await loadData();
     } catch (err: unknown) {
-      if (err instanceof Error) setFormError(err.message)
-      else setFormError('Failed to save user.')
+      if (err instanceof Error) setFormError(err.message);
+      else setFormError("Failed to save user.");
     } finally {
-      setFormSubmitting(false)
+      setFormSubmitting(false);
     }
-  }
+  };
 
-  const handleToggleStatus = React.useCallback(async (u: UserProfileDto) => {
-    try {
-      if (u.status === 'ACTIVE') {
-        await usersApi.disable(u.id)
-      } else {
-        await usersApi.activate(u.id)
+  const handleToggleStatus = React.useCallback(
+    async (u: UserProfileDto) => {
+      try {
+        if (u.status === "ACTIVE") {
+          await usersApi.disable(u.id);
+        } else {
+          await usersApi.activate(u.id);
+        }
+        await loadData();
+      } catch {
+        // Ignore
       }
-      await loadData()
-    } catch {
-      // Ignore
-    }
-  }, [loadData])
+    },
+    [loadData],
+  );
 
   const columns = React.useMemo<ColumnDef<UserProfileDto>[]>(
     () => [
       {
-        accessorKey: 'name',
-        header: 'User Name',
+        accessorKey: "name",
+        header: "User Name",
         cell: ({ row }) => (
           <Link
             href={`/users/${row.original.id}`}
@@ -159,8 +163,8 @@ export default function UsersListPage() {
         ),
       },
       {
-        accessorKey: 'email',
-        header: 'Email Address',
+        accessorKey: "email",
+        header: "Email Address",
         cell: ({ row }) => (
           <span className="font-mono text-xs text-muted-foreground">
             {row.original.email}
@@ -168,8 +172,8 @@ export default function UsersListPage() {
         ),
       },
       {
-        accessorKey: 'roleName',
-        header: 'Role',
+        accessorKey: "roleName",
+        header: "Role",
         cell: ({ row }) => (
           <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-sky-500/10 text-sky-700 dark:text-sky-400 border border-sky-500/20">
             {row.original.roleName}
@@ -177,35 +181,35 @@ export default function UsersListPage() {
         ),
       },
       {
-        accessorKey: 'department',
-        header: 'Department',
+        accessorKey: "department",
+        header: "Department",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
-            {row.original.department || 'General'}
+            {row.original.department || "General"}
           </span>
         ),
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
+        accessorKey: "status",
+        header: "Status",
         cell: ({ row }) => {
-          const isActive = row.original.status === 'ACTIVE'
+          const isActive = row.original.status === "ACTIVE";
           return (
             <span
               className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full ${
                 isActive
-                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
-                  : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                  : "bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20"
               }`}
             >
               {row.original.status}
             </span>
-          )
+          );
         },
       },
       {
-        id: 'actions',
-        header: 'Actions',
+        id: "actions",
+        header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <PermissionGuard permission="Administration.Users">
@@ -221,12 +225,12 @@ export default function UsersListPage() {
                 size="xs"
                 onClick={() => handleToggleStatus(row.original)}
                 className={
-                  row.original.status === 'ACTIVE'
-                    ? 'text-rose-600 dark:text-rose-400 hover:text-rose-700'
-                    : 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700'
+                  row.original.status === "ACTIVE"
+                    ? "text-rose-600 dark:text-rose-400 hover:text-rose-700"
+                    : "text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
                 }
               >
-                {row.original.status === 'ACTIVE' ? 'Disable' : 'Activate'}
+                {row.original.status === "ACTIVE" ? "Disable" : "Activate"}
               </Button>
             </PermissionGuard>
           </div>
@@ -234,10 +238,10 @@ export default function UsersListPage() {
       },
     ],
     [handleOpenEditModal, handleToggleStatus],
-  )
+  );
 
   if (loading) {
-    return <LoadingState message="Loading system user directory..." />
+    return <LoadingState message="Loading system user directory..." />;
   }
 
   if (error) {
@@ -247,11 +251,11 @@ export default function UsersListPage() {
         message={error}
         onRetry={loadData}
       />
-    )
+    );
   }
 
-  const activeCount = userList.filter((u) => u.status === 'ACTIVE').length
-  const disabledCount = userList.filter((u) => u.status === 'DISABLED').length
+  const activeCount = userList.filter((u) => u.status === "ACTIVE").length;
+  const disabledCount = userList.filter((u) => u.status === "DISABLED").length;
 
   return (
     <div className="space-y-6">
@@ -319,7 +323,7 @@ export default function UsersListPage() {
           <div className="w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-base font-semibold text-foreground">
-                {editingUser ? 'Edit User Account' : 'Create New User Account'}
+                {editingUser ? "Edit User Account" : "Create New User Account"}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -401,8 +405,10 @@ export default function UsersListPage() {
                 <Field>
                   <FieldLabel htmlFor="user-role">Assigned Role</FieldLabel>
                   <Select
-                    value={formRoleId || 'NONE'}
-                    onValueChange={(val) => setFormRoleId(!val || val === 'NONE' ? '' : val)}
+                    value={formRoleId || "NONE"}
+                    onValueChange={(val) =>
+                      setFormRoleId(!val || val === "NONE" ? "" : val)
+                    }
                   >
                     <SelectTrigger id="user-role">
                       <SelectValue placeholder="No Role" />
@@ -429,8 +435,10 @@ export default function UsersListPage() {
                   Cancel
                 </Button>
                 <Button size="sm" type="submit" disabled={formSubmitting}>
-                  {formSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-                  {editingUser ? 'Save User' : 'Create User'}
+                  {formSubmitting && (
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  )}
+                  {editingUser ? "Save User" : "Create User"}
                 </Button>
               </div>
             </form>
@@ -438,6 +446,5 @@ export default function UsersListPage() {
         </div>
       )}
     </div>
-  )
+  );
 }
-

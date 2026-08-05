@@ -8,10 +8,7 @@ export enum ReservationStatus {
 }
 
 export type ReservationType =
-  | "WORK_ORDER"
-  | "PROJECT"
-  | "PURCHASE_REQUEST"
-  | "SALES_ORDER";
+  "WORK_ORDER" | "PROJECT" | "PURCHASE_REQUEST" | "SALES_ORDER";
 
 export interface ReservationLineProps {
   id: string;

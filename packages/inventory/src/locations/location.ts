@@ -108,9 +108,11 @@ export class Location {
    * Updates existing Location aggregate parameters maintaining invariants.
    */
   public update(input: UpdateLocationInput): Location {
-    const code = input.code !== undefined ? input.code.trim().toUpperCase() : this.code;
+    const code =
+      input.code !== undefined ? input.code.trim().toUpperCase() : this.code;
     const name = input.name !== undefined ? input.name.trim() : this.name;
-    const kind = input.kind !== undefined ? input.kind.trim().toLowerCase() : this.kind;
+    const kind =
+      input.kind !== undefined ? input.kind.trim().toLowerCase() : this.kind;
 
     if (!code) {
       throw new InvalidLocationCodeError("Location code is required");

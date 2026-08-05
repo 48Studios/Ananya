@@ -1,51 +1,54 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm, useFieldArray, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Plus, Trash2, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import * as React from "react";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+} from "@/components/ui/select";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   purchaseOrdersApi,
   type PurchaseOrderDto,
   type CreatePurchaseOrderPayload,
   type UpdatePurchaseOrderPayload,
-} from '@/lib/api/purchase-orders-api'
-import { suppliersApi, type SupplierDto } from '@/lib/api/suppliers-api'
-import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
+} from "@/lib/api/purchase-orders-api";
+import { suppliersApi, type SupplierDto } from "@/lib/api/suppliers-api";
+import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 
 const poLineSchema = z.object({
-  componentId: z.string().min(1, 'Component is required'),
+  componentId: z.string().min(1, "Component is required"),
   vendorPartNumber: z.string().optional().nullable(),
-  quantityOrdered: z.number().min(1, 'Quantity must be at least 1'),
-  unitPrice: z.number().min(0, 'Unit price cannot be negative'),
-  taxRate: z.number().min(0, 'Tax rate cannot be negative'),
-})
+  quantityOrdered: z.number().min(1, "Quantity must be at least 1"),
+  unitPrice: z.number().min(0, "Unit price cannot be negative"),
+  taxRate: z.number().min(0, "Tax rate cannot be negative"),
+});
 
 const poSchema = z.object({
-  supplierId: z.string().min(1, 'Supplier is required'),
-  currency: z.string().min(1, 'Currency is required').transform((val) => val.trim().toUpperCase()),
+  supplierId: z.string().min(1, "Supplier is required"),
+  currency: z
+    .string()
+    .min(1, "Currency is required")
+    .transform((val) => val.trim().toUpperCase()),
   expectedDeliveryDate: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
-  lines: z.array(poLineSchema).min(1, 'At least one line item is required'),
-})
+  lines: z.array(poLineSchema).min(1, "At least one line item is required"),
+});
 
-export type PurchaseOrderFormValues = z.infer<typeof poSchema>
+export type PurchaseOrderFormValues = z.infer<typeof poSchema>;
 
 interface PurchaseOrderFormProps {
-  initialData?: PurchaseOrderDto | null
-  onSuccess: (savedPo: PurchaseOrderDto) => void
-  onCancel: () => void
+  initialData?: PurchaseOrderDto | null;
+  onSuccess: (savedPo: PurchaseOrderDto) => void;
+  onCancel: () => void;
 }
 
 export function PurchaseOrderForm({
@@ -53,21 +56,23 @@ export function PurchaseOrderForm({
   onSuccess,
   onCancel,
 }: PurchaseOrderFormProps) {
-  const [suppliers, setSuppliers] = React.useState<SupplierDto[]>([])
-  const [availableComponents, setAvailableComponents] = React.useState<ComponentDto[]>([])
-  const [serverError, setServerError] = React.useState<string | null>(null)
-  const isEditing = Boolean(initialData)
+  const [suppliers, setSuppliers] = React.useState<SupplierDto[]>([]);
+  const [availableComponents, setAvailableComponents] = React.useState<
+    ComponentDto[]
+  >([]);
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const isEditing = Boolean(initialData);
 
   React.useEffect(() => {
     Promise.all([suppliersApi.getAll(), componentsApi.getAll()])
       .then(([supData, compData]) => {
-        setSuppliers(supData)
-        setAvailableComponents(compData)
+        setSuppliers(supData);
+        setAvailableComponents(compData);
       })
       .catch(() => {
         // Non-blocking load error
-      })
-  }, [])
+      });
+  }, []);
 
   const {
     register,
@@ -78,63 +83,63 @@ export function PurchaseOrderForm({
   } = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(poSchema),
     defaultValues: {
-      supplierId: initialData?.supplierId ?? '',
-      currency: initialData?.currency ?? 'USD',
+      supplierId: initialData?.supplierId ?? "",
+      currency: initialData?.currency ?? "USD",
       expectedDeliveryDate: initialData?.expectedDeliveryDate
-        ? new Date(initialData.expectedDeliveryDate).toISOString().split('T')[0]
-        : '',
-      notes: initialData?.notes ?? '',
+        ? new Date(initialData.expectedDeliveryDate).toISOString().split("T")[0]
+        : "",
+      notes: initialData?.notes ?? "",
       lines: initialData?.lines
         ? initialData.lines.map((l) => ({
             componentId: l.componentId,
-            vendorPartNumber: l.vendorPartNumber ?? '',
+            vendorPartNumber: l.vendorPartNumber ?? "",
             quantityOrdered: l.quantityOrdered,
             unitPrice: l.unitPrice,
             taxRate: l.taxRate ?? 0,
           }))
         : [
             {
-              componentId: '',
-              vendorPartNumber: '',
+              componentId: "",
+              vendorPartNumber: "",
               quantityOrdered: 1,
               unitPrice: 0,
               taxRate: 0,
             },
           ],
     },
-  })
+  });
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'lines',
-  })
+    name: "lines",
+  });
 
-  const watchedLines = watch('lines')
-  const watchedCurrency = watch('currency') || 'USD'
+  const watchedLines = watch("lines");
+  const watchedCurrency = watch("currency") || "USD";
 
   const totals = React.useMemo(() => {
-    let subtotal = 0
-    let taxTotal = 0
+    let subtotal = 0;
+    let taxTotal = 0;
     if (watchedLines && Array.isArray(watchedLines)) {
       for (const line of watchedLines) {
-        const qty = Number(line.quantityOrdered) || 0
-        const price = Number(line.unitPrice) || 0
-        const taxPct = Number(line.taxRate) || 0
-        const lineSubtotal = qty * price
-        const lineTax = lineSubtotal * (taxPct / 100)
-        subtotal += lineSubtotal
-        taxTotal += lineTax
+        const qty = Number(line.quantityOrdered) || 0;
+        const price = Number(line.unitPrice) || 0;
+        const taxPct = Number(line.taxRate) || 0;
+        const lineSubtotal = qty * price;
+        const lineTax = lineSubtotal * (taxPct / 100);
+        subtotal += lineSubtotal;
+        taxTotal += lineTax;
       }
     }
     return {
       subtotal,
       taxTotal,
       grandTotal: subtotal + taxTotal,
-    }
-  }, [watchedLines])
+    };
+  }, [watchedLines]);
 
   const onSubmit = async (values: PurchaseOrderFormValues) => {
-    setServerError(null)
+    setServerError(null);
     try {
       if (isEditing && initialData) {
         const payload: UpdatePurchaseOrderPayload = {
@@ -147,9 +152,9 @@ export function PurchaseOrderForm({
             unitPrice: l.unitPrice,
             taxRate: l.taxRate,
           })),
-        }
-        const updated = await purchaseOrdersApi.update(initialData.id, payload)
-        onSuccess(updated)
+        };
+        const updated = await purchaseOrdersApi.update(initialData.id, payload);
+        onSuccess(updated);
       } else {
         const payload: CreatePurchaseOrderPayload = {
           supplierId: values.supplierId,
@@ -163,18 +168,22 @@ export function PurchaseOrderForm({
             unitPrice: l.unitPrice,
             taxRate: l.taxRate,
           })),
-        }
-        const created = await purchaseOrdersApi.create(payload)
-        onSuccess(created)
+        };
+        const created = await purchaseOrdersApi.create(payload);
+        onSuccess(created);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError(isEditing ? 'Failed to update purchase order' : 'Failed to create purchase order')
+        setServerError(
+          isEditing
+            ? "Failed to update purchase order"
+            : "Failed to create purchase order",
+        );
       }
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -225,7 +234,7 @@ export function PurchaseOrderForm({
             id="po-currency"
             type="text"
             placeholder="e.g. USD"
-            {...register('currency')}
+            {...register("currency")}
             className="uppercase font-mono"
           />
         </Field>
@@ -234,11 +243,13 @@ export function PurchaseOrderForm({
       {/* Expected Delivery Date & Notes */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field>
-          <FieldLabel htmlFor="po-delivery-date">Expected Delivery Date</FieldLabel>
+          <FieldLabel htmlFor="po-delivery-date">
+            Expected Delivery Date
+          </FieldLabel>
           <Input
             id="po-delivery-date"
             type="date"
-            {...register('expectedDeliveryDate')}
+            {...register("expectedDeliveryDate")}
             className="font-mono"
           />
         </Field>
@@ -249,7 +260,7 @@ export function PurchaseOrderForm({
             id="po-notes"
             type="text"
             placeholder="Order terms or PO notes..."
-            {...register('notes')}
+            {...register("notes")}
           />
         </Field>
       </div>
@@ -266,8 +277,8 @@ export function PurchaseOrderForm({
             size="xs"
             onClick={() =>
               append({
-                componentId: '',
-                vendorPartNumber: '',
+                componentId: "",
+                vendorPartNumber: "",
                 quantityOrdered: 1,
                 unitPrice: 0,
                 taxRate: 0,
@@ -316,11 +327,15 @@ export function PurchaseOrderForm({
 
                 {/* Qty */}
                 <div className="sm:col-span-2 space-y-1">
-                  <label className="text-[10px] font-medium text-muted-foreground">Qty</label>
+                  <label className="text-[10px] font-medium text-muted-foreground">
+                    Qty
+                  </label>
                   <Input
                     type="number"
                     min={1}
-                    {...register(`lines.${index}.quantityOrdered`, { valueAsNumber: true })}
+                    {...register(`lines.${index}.quantityOrdered`, {
+                      valueAsNumber: true,
+                    })}
                     className="h-8 text-xs font-mono"
                   />
                 </div>
@@ -334,19 +349,25 @@ export function PurchaseOrderForm({
                     type="number"
                     step="0.01"
                     min={0}
-                    {...register(`lines.${index}.unitPrice`, { valueAsNumber: true })}
+                    {...register(`lines.${index}.unitPrice`, {
+                      valueAsNumber: true,
+                    })}
                     className="h-8 text-xs font-mono"
                   />
                 </div>
 
                 {/* Tax Rate % */}
                 <div className="sm:col-span-2 space-y-1">
-                  <label className="text-[10px] font-medium text-muted-foreground">Tax %</label>
+                  <label className="text-[10px] font-medium text-muted-foreground">
+                    Tax %
+                  </label>
                   <Input
                     type="number"
                     step="0.1"
                     min={0}
-                    {...register(`lines.${index}.taxRate`, { valueAsNumber: true })}
+                    {...register(`lines.${index}.taxRate`, {
+                      valueAsNumber: true,
+                    })}
                     className="h-8 text-xs font-mono"
                   />
                 </div>
@@ -392,14 +413,22 @@ export function PurchaseOrderForm({
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-          {isEditing ? 'Save Changes' : 'Create Purchase Order'}
+          {isSubmitting && (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          )}
+          {isEditing ? "Save Changes" : "Create Purchase Order"}
         </Button>
       </div>
     </form>
-  )
+  );
 }

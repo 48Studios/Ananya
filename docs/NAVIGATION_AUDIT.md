@@ -74,6 +74,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
 ## 3. Module Inventory
 
 ### 3.1 Overview & Dashboard Module (`dashboard`)
+
 - **Top-Level Route**: `/`
 - **Icon**: `LayoutDashboard`
 - **Required Permission**: None (Authenticated User)
@@ -83,6 +84,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Overview` (`/`): Master dashboard grid with KPI cards, activity feed, and widget grid.
 
 ### 3.2 Inventory Module (`inventory`)
+
 - **Top-Level Route**: `/inventory`
 - **Icon**: `Boxes`
 - **Required Permission**: `Inventory.Read`
@@ -103,6 +105,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
     - `Cycle Counts` (`/cycle-counts`): Periodic ABC cycle counts.
 
 ### 3.3 Procurement Module (`procurement`)
+
 - **Top-Level Route**: `/procurement`
 - **Icon**: `Truck`
 - **Required Permission**: `Procurement.Read`
@@ -116,6 +119,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Purchase Invoices` (`/purchase-invoices`): Vendor invoice matching.
 
 ### 3.4 Manufacturing Module (`manufacturing`)
+
 - **Top-Level Route**: `/manufacturing`
 - **Icon**: `Factory`
 - **Required Permission**: `Manufacturing.Read`
@@ -129,6 +133,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Finished Goods` (`/finished-goods`): Production completion & FG receipt.
 
 ### 3.5 Sales Module (`sales`)
+
 - **Top-Level Route**: `/sales`
 - **Icon**: `ShoppingCart`
 - **Required Permission**: `Sales.Read`
@@ -141,6 +146,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Customer Returns` (`/customer-returns`): Credit notes and RMA returns.
 
 ### 3.6 Warehouse & Logistics Module (`warehouse`)
+
 - **Top-Level Route**: `/warehouse`
 - **Icon**: `Warehouse`
 - **Required Permission**: `Warehouse.Read`
@@ -152,6 +158,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Storage Policies` (`/warehouse-policies`): Putaway and picking rules (FIFO/LIFO/FEFO).
 
 ### 3.7 Finance Module (`finance`)
+
 - **Top-Level Route**: `/finance`
 - **Icon**: `Landmark`
 - **Required Permission**: `Finance.Read`
@@ -166,6 +173,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Bank Reconciliation` (`/bank-reconciliation`): Statement matching.
 
 ### 3.8 CRM Module (`crm`)
+
 - **Top-Level Route**: `/crm`
 - **Icon**: `Users`
 - **Required Permission**: `CRM.Read`
@@ -177,6 +185,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Activities` (`/activities`): Calls, tasks, and meeting logs.
 
 ### 3.9 Projects & Service Module (`projects`)
+
 - **Top-Level Route**: `/projects`
 - **Icon**: `FolderKanban`
 - **Required Permission**: `Projects.Read`
@@ -190,6 +199,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Maintenance` (`/maintenance`): Equipment maintenance jobs.
 
 ### 3.10 MRP & Planning Module (`mrp`)
+
 - **Top-Level Route**: `/mrp`
 - **Icon**: `RotateCcw`
 - **Required Permission**: `MRP.Read`
@@ -202,6 +212,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Capacity Planning` (`/mrp/capacity`): Work center capacity utilization.
 
 ### 3.11 Traceability Module (`traceability`)
+
 - **Top-Level Route**: `/batches`
 - **Icon**: `FileText`
 - **Required Permission**: `Inventory.Read`
@@ -212,6 +223,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Demand Projections` (`/projections`): Stock depletion forecasting.
 
 ### 3.12 Reporting & Analytics Module (`reports`)
+
 - **Top-Level Route**: `/reports`
 - **Icon**: `BarChart3`
 - **Required Permission**: `Reporting.Read`
@@ -224,6 +236,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Transaction Reports` (`/reports/transactions`): Stock ledger movement analysis.
 
 ### 3.13 Administration & Settings Module (`settings`)
+
 - **Top-Level Route**: `/settings`
 - **Icon**: `Settings`
 - **Required Permission**: `Administration.Security` / `Administration.Users`
@@ -239,6 +252,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Security Audit Log` (`/settings/security`): Authentication security log.
 
 ### 3.14 Hidden / Unlinked / Auxiliary Routes
+
 These routes do not appear in the primary navigation tree but form essential detail views, creation forms, or authentication flows:
 
 - **Authentication & Setup**: `/login`, `/forgot-password`, `/reset-password`, `/onboarding`, `/setup`
@@ -373,23 +387,24 @@ Ananya ERP System Shell
 
 ## 5. Architectural Statistics
 
-| Metric Category | Count | Detail Notes |
-| :--- | :--- | :--- |
-| **Total Top-Level Rail Modules** | **13** | Dashboard, Inventory, Procurement, Manufacturing, Sales, Warehouse, Finance, CRM, Projects, MRP, Traceability, Reports, Settings |
-| **Total Context Sidebar Sections** | **34** | Quick Stats, Quick Actions, Pinned, Master Data, Operations, Audits, Workspace Nav |
-| **Total Submenu Entries** | **78** | Navigation links rendered across all sidebars |
-| **Maximum Submenu Depth** | **2** | Top module -> Accordion group (e.g. Master Data) -> Submenu item (e.g. Components) |
-| **Total Distinct App Routes** | **84** | Includes list, detail, creation, reporting, and settings pages |
-| **Total Detail & Form Pages (`[id]`, `new`)** | **22** | Form routes e.g. `/components/new`, `/purchase-orders/[id]`, `/boms/[id]` |
-| **Total Settings & Admin Pages** | **12** | Administration hub pages (`/settings`, `/users`, `/roles`, `/audit`, etc.) |
-| **Total Public / Hidden Routes** | **5** | `/login`, `/forgot-password`, `/reset-password`, `/onboarding`, `/setup` |
-| **Total Permission-Guarded Pages** | **78** | Evaluated via `hasPermission()` and edge middleware |
+| Metric Category                               | Count  | Detail Notes                                                                                                                     |
+| :-------------------------------------------- | :----- | :------------------------------------------------------------------------------------------------------------------------------- |
+| **Total Top-Level Rail Modules**              | **13** | Dashboard, Inventory, Procurement, Manufacturing, Sales, Warehouse, Finance, CRM, Projects, MRP, Traceability, Reports, Settings |
+| **Total Context Sidebar Sections**            | **34** | Quick Stats, Quick Actions, Pinned, Master Data, Operations, Audits, Workspace Nav                                               |
+| **Total Submenu Entries**                     | **78** | Navigation links rendered across all sidebars                                                                                    |
+| **Maximum Submenu Depth**                     | **2**  | Top module -> Accordion group (e.g. Master Data) -> Submenu item (e.g. Components)                                               |
+| **Total Distinct App Routes**                 | **84** | Includes list, detail, creation, reporting, and settings pages                                                                   |
+| **Total Detail & Form Pages (`[id]`, `new`)** | **22** | Form routes e.g. `/components/new`, `/purchase-orders/[id]`, `/boms/[id]`                                                        |
+| **Total Settings & Admin Pages**              | **12** | Administration hub pages (`/settings`, `/users`, `/roles`, `/audit`, etc.)                                                       |
+| **Total Public / Hidden Routes**              | **5**  | `/login`, `/forgot-password`, `/reset-password`, `/onboarding`, `/setup`                                                         |
+| **Total Permission-Guarded Pages**            | **78** | Evaluated via `hasPermission()` and edge middleware                                                                              |
 
 ---
 
 ## 6. Navigation Usage & Pattern Analysis
 
 ### 6.1 Submenu Distribution Analysis
+
 - **Large Submenu Groups** (6+ items):
   - `Finance` (8 items): Chart of Accounts, Journals, AR, AP, Payments, Banks, Recon, Overview.
   - `Settings` (9 items): General, Notifications, Workflows, Activity, Audit, Profile, Users, Roles, Security.
@@ -413,7 +428,7 @@ Ananya ERP System Shell
    - `Ledger Transactions` & `Stock Adjustments` appear under **Inventory Operations** (`/transactions`, `/stock-adjustments`).
    - `Internal Transfers` appears under **Warehouse & Logistics** (`/warehouse-transfers`).
    - `Transfer Stock` action appears in **Inventory Quick Actions**.
-   - *Issue*: Stock movement is fragmented between Inventory and Warehouse modules.
+   - _Issue_: Stock movement is fragmented between Inventory and Warehouse modules.
 3. **Work Orders vs Production Orders**:
    - `Production Orders` (`/production-orders`) and `Work Orders` (`/work-orders`) both exist under **Manufacturing**.
    - `Maintenance` jobs (`/maintenance`) under **Projects & Service** also execute work-order-like routines.
@@ -421,7 +436,7 @@ Ananya ERP System Shell
    - `Accounts` under **CRM** (`/accounts`) represents B2B Client Organizations.
    - `Chart of Accounts` under **Finance** (`/chart-of-accounts`) represents Accounting GL Accounts.
    - `Bank Accounts` under **Finance** (`/bank-accounts`) represents Treasury Accounts.
-   - *Issue*: Homonymous terminology ("Accounts") creates confusion in search and navigation.
+   - _Issue_: Homonymous terminology ("Accounts") creates confusion in search and navigation.
 5. **Audits & Logging**:
    - `Audit Explorer` (`/audit`) appears in **Settings**.
    - `Activity Center` (`/activity`) appears in **Settings**.
@@ -466,44 +481,44 @@ Ananya ERP System Shell
 
 ## 8. Business Domain Categorization
 
-| Module / Route | Bounded Context Category | Primary Entity Type | Data Flow Dependency |
-| :--- | :--- | :--- | :--- |
-| **`/` (Dashboard)** | Dashboard | Overview Aggregates | Reads all modules |
-| **`/components`** | Master Data / Inventory | Component Catalog | Base material reference |
-| **`/categories`** | Master Data / Inventory | Category Hierarchy | Component taxonomy |
-| **`/manufacturers`** | Master Data / Inventory | Manufacturer Directory | Approved vendor lists |
-| **`/locations`** | Master Data / Warehouse | Storage Location | Component stock position |
-| **`/transactions`** | Inventory Operations | Stock Ledger Event | Immutable audit log |
-| **`/stock-adjustments`** | Inventory Operations | Stock Reconciliation | Balance mutation |
-| **`/barcodes`** | Utilities / Inventory | Label Generation | Barcode print job |
-| **`/stock-counts`** | Inventory Operations | Physical Count | Audit reconciliation |
-| **`/cycle-counts`** | Inventory Operations | ABC Cycle Count | Audit reconciliation |
-| **`/suppliers`** | Procurement / Master Data | Vendor Record | Purchase order target |
-| **`/purchase-orders`** | Procurement Operations | Purchase Order | Triggers goods receipt |
-| **`/goods-receipts`** | Procurement Operations | Goods Receipt | Mutates inventory balance |
-| **`/supplier-returns`** | Procurement Operations | Return Debit Note | Decrements inventory |
-| **`/purchase-invoices`** | Procurement / Finance | Vendor Invoice | AP voucher creation |
-| **`/boms`** | Manufacturing / Master Data | Bill of Materials | Work order requirement |
-| **`/production-orders`** | Manufacturing Operations | Production Order | Master schedule job |
-| **`/work-orders`** | Manufacturing Operations | Work Order Job | Shop floor execution |
-| **`/material-consumption`** | Manufacturing Operations | Issue Voucher | Consumes inventory |
-| **`/finished-goods`** | Manufacturing Operations | Receipt Voucher | Produces stock |
-| **`/customers`** | Sales / Master Data | Customer Record | Sales order target |
-| **`/quotations`** | Sales Operations | Sales Quote | Precedes sales order |
-| **`/sales-orders`** | Sales Operations | Sales Order | Triggers fulfillment |
-| **`/fulfillment`** | Sales Operations | Shipment Dispatch | Decrements inventory |
-| **`/warehouses`** | Warehouse / Master Data | Storage Facility | Location container |
-| **`/warehouse-bins`** | Warehouse / Master Data | Storage Bin | Micro-location |
-| **`/warehouse-transfers`** | Warehouse Operations | Inter-Bin Transfer | Location mutation |
-| **`/chart-of-accounts`** | Finance / Master Data | GL Account | Accounting baseline |
-| **`/journal-entries`** | Finance Operations | Journal Voucher | Double-entry posting |
-| **`/projects`** | Projects / Operations | Project Record | Material & labor container |
-| **`/mrp/runs`** | MRP / Planning | Planning Calculation | Generates PO & WO recs |
-| **`/reports`** | Reporting | Analytics Summary | Cross-domain reporting |
-| **`/settings`** | Administration | System Settings | Platform configuration |
-| **`/users`** | Security / Administration | User Account | Identity & authentication |
-| **`/roles`** | Security / Administration | RBAC Role | Access control matrix |
-| **`/audit`** | Security / Administration | System Audit Event | Security compliance log |
+| Module / Route              | Bounded Context Category    | Primary Entity Type    | Data Flow Dependency       |
+| :-------------------------- | :-------------------------- | :--------------------- | :------------------------- |
+| **`/` (Dashboard)**         | Dashboard                   | Overview Aggregates    | Reads all modules          |
+| **`/components`**           | Master Data / Inventory     | Component Catalog      | Base material reference    |
+| **`/categories`**           | Master Data / Inventory     | Category Hierarchy     | Component taxonomy         |
+| **`/manufacturers`**        | Master Data / Inventory     | Manufacturer Directory | Approved vendor lists      |
+| **`/locations`**            | Master Data / Warehouse     | Storage Location       | Component stock position   |
+| **`/transactions`**         | Inventory Operations        | Stock Ledger Event     | Immutable audit log        |
+| **`/stock-adjustments`**    | Inventory Operations        | Stock Reconciliation   | Balance mutation           |
+| **`/barcodes`**             | Utilities / Inventory       | Label Generation       | Barcode print job          |
+| **`/stock-counts`**         | Inventory Operations        | Physical Count         | Audit reconciliation       |
+| **`/cycle-counts`**         | Inventory Operations        | ABC Cycle Count        | Audit reconciliation       |
+| **`/suppliers`**            | Procurement / Master Data   | Vendor Record          | Purchase order target      |
+| **`/purchase-orders`**      | Procurement Operations      | Purchase Order         | Triggers goods receipt     |
+| **`/goods-receipts`**       | Procurement Operations      | Goods Receipt          | Mutates inventory balance  |
+| **`/supplier-returns`**     | Procurement Operations      | Return Debit Note      | Decrements inventory       |
+| **`/purchase-invoices`**    | Procurement / Finance       | Vendor Invoice         | AP voucher creation        |
+| **`/boms`**                 | Manufacturing / Master Data | Bill of Materials      | Work order requirement     |
+| **`/production-orders`**    | Manufacturing Operations    | Production Order       | Master schedule job        |
+| **`/work-orders`**          | Manufacturing Operations    | Work Order Job         | Shop floor execution       |
+| **`/material-consumption`** | Manufacturing Operations    | Issue Voucher          | Consumes inventory         |
+| **`/finished-goods`**       | Manufacturing Operations    | Receipt Voucher        | Produces stock             |
+| **`/customers`**            | Sales / Master Data         | Customer Record        | Sales order target         |
+| **`/quotations`**           | Sales Operations            | Sales Quote            | Precedes sales order       |
+| **`/sales-orders`**         | Sales Operations            | Sales Order            | Triggers fulfillment       |
+| **`/fulfillment`**          | Sales Operations            | Shipment Dispatch      | Decrements inventory       |
+| **`/warehouses`**           | Warehouse / Master Data     | Storage Facility       | Location container         |
+| **`/warehouse-bins`**       | Warehouse / Master Data     | Storage Bin            | Micro-location             |
+| **`/warehouse-transfers`**  | Warehouse Operations        | Inter-Bin Transfer     | Location mutation          |
+| **`/chart-of-accounts`**    | Finance / Master Data       | GL Account             | Accounting baseline        |
+| **`/journal-entries`**      | Finance Operations          | Journal Voucher        | Double-entry posting       |
+| **`/projects`**             | Projects / Operations       | Project Record         | Material & labor container |
+| **`/mrp/runs`**             | MRP / Planning              | Planning Calculation   | Generates PO & WO recs     |
+| **`/reports`**              | Reporting                   | Analytics Summary      | Cross-domain reporting     |
+| **`/settings`**             | Administration              | System Settings        | Platform configuration     |
+| **`/users`**                | Security / Administration   | User Account           | Identity & authentication  |
+| **`/roles`**                | Security / Administration   | RBAC Role              | Access control matrix      |
+| **`/audit`**                | Security / Administration   | System Audit Event     | Security compliance log    |
 
 ---
 
@@ -517,7 +532,7 @@ graph TD
     Components[Component Catalog] --> PO
     PO --> GoodsReceipt[Goods Receipts]
     GoodsReceipt --> StockLedger[Inventory Transactions & Balances]
-    
+
     Components --> BOM[Bill of Materials]
     BOM --> WorkOrder[Work Orders]
     StockLedger --> WorkOrder
@@ -571,7 +586,7 @@ graph TD
      - Storage Location master under Inventory.
      - Warehouse master under Warehouse.
      - GL Account master under Finance.
-   - *Impact*: Users struggle to locate master setup tables.
+   - _Impact_: Users struggle to locate master setup tables.
 4. **Nesting Concealment**:
    - Essential daily tools like `Stock Adjustments` or `Cycle Counts` are buried under `Master Data` or `Audits & Counts` accordion groups inside the inventory sidebar.
 
@@ -579,7 +594,7 @@ graph TD
 
 ## 12. Strategic Recommendations for Future IA Redesign
 
-*(Note: These recommendations are for planning purposes only and are NOT implemented in this turn.)*
+_(Note: These recommendations are for planning purposes only and are NOT implemented in this turn.)_
 
 ### 12.1 Module Consolidation (13 Modules -> 5 Core Domains)
 
@@ -597,9 +612,11 @@ To eliminate left rail scrolling and streamline context switches, group the 13 t
    - Items: Financial Ledger, Reports Hub, System Administration, Users & Roles.
 
 ### 12.2 Structural Separation of Operational vs. Setup Views
+
 - Separate daily **Transactional Workflows** (PO creation, Stock receipt, WO execution) from **System Administration & Master Setup** (Chart of Accounts, Storage Policies, RBAC Roles, Workflow Rules).
 
 ### 12.3 Quick Access & Favorites Bar
+
 - Expand the `Pinned` section in `ContextSidebar` into a global "Favorites & Recent Pages" widget in the top header or command palette (`⌘K`), allowing users to jump directly to frequent items regardless of active module context.
 
 ---

@@ -1,13 +1,9 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
-export type LeadStatus = 'NEW' | 'QUALIFIED' | 'DISQUALIFIED' | 'CONVERTED';
+export type LeadStatus = "NEW" | "QUALIFIED" | "DISQUALIFIED" | "CONVERTED";
 
 export type LeadSource =
-  | 'WEBSITE'
-  | 'REFERRAL'
-  | 'TRADE_SHOW'
-  | 'COLD_OUTREACH'
-  | 'INBOUND_PHONE';
+  "WEBSITE" | "REFERRAL" | "TRADE_SHOW" | "COLD_OUTREACH" | "INBOUND_PHONE";
 
 export interface LeadProps {
   id: string;
@@ -71,11 +67,11 @@ export class Lead implements LeadProps {
   }
 
   public static create(props: CreateLeadProps): Lead {
-    if (!props.name || props.name.trim() === '') {
-      throw new Error('Lead name is required');
+    if (!props.name || props.name.trim() === "") {
+      throw new Error("Lead name is required");
     }
-    if (!props.company || props.company.trim() === '') {
-      throw new Error('Lead company is required');
+    if (!props.company || props.company.trim() === "") {
+      throw new Error("Lead company is required");
     }
 
     const now = new Date();
@@ -86,10 +82,10 @@ export class Lead implements LeadProps {
       company: props.company.trim(),
       email: props.email?.trim(),
       phone: props.phone?.trim(),
-      source: props.source || 'WEBSITE',
+      source: props.source || "WEBSITE",
       industry: props.industry?.trim(),
       owner: props.owner,
-      status: 'NEW',
+      status: "NEW",
       createdAt: now,
       updatedAt: now,
     });
@@ -100,35 +96,41 @@ export class Lead implements LeadProps {
   }
 
   public assignOwner(newOwner: string): void {
-    if (this.status === 'CONVERTED' || this.status === 'DISQUALIFIED') {
-      throw new Error(`Cannot reassign owner for lead in status ${this.status}`);
+    if (this.status === "CONVERTED" || this.status === "DISQUALIFIED") {
+      throw new Error(
+        `Cannot reassign owner for lead in status ${this.status}`,
+      );
     }
     this.owner = newOwner;
     this.updatedAt = new Date();
   }
 
   public qualify(): void {
-    if (this.status !== 'NEW') {
-      throw new Error(`Only NEW leads can be qualified (current: ${this.status})`);
+    if (this.status !== "NEW") {
+      throw new Error(
+        `Only NEW leads can be qualified (current: ${this.status})`,
+      );
     }
-    this.status = 'QUALIFIED';
+    this.status = "QUALIFIED";
     this.updatedAt = new Date();
   }
 
   public disqualify(reason: string): void {
-    if (this.status === 'CONVERTED') {
-      throw new Error('Converted leads cannot be disqualified');
+    if (this.status === "CONVERTED") {
+      throw new Error("Converted leads cannot be disqualified");
     }
-    this.status = 'DISQUALIFIED';
+    this.status = "DISQUALIFIED";
     this.disqualificationReason = reason;
     this.updatedAt = new Date();
   }
 
   public convert(convertedAccountId: string): void {
-    if (this.status !== 'QUALIFIED') {
-      throw new Error('Only QUALIFIED leads can be converted into CRM Accounts');
+    if (this.status !== "QUALIFIED") {
+      throw new Error(
+        "Only QUALIFIED leads can be converted into CRM Accounts",
+      );
     }
-    this.status = 'CONVERTED';
+    this.status = "CONVERTED";
     this.convertedAccountId = convertedAccountId;
     this.updatedAt = new Date();
   }

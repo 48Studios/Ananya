@@ -1,47 +1,69 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Landmark, Plus, CheckCircle2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { formatCurrency } from '@/lib/utils'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Landmark, Plus, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { formatCurrency } from "@/lib/utils";
 
 interface BankAccount {
-  id: string
-  bankName: string
-  accountNumberMasked: string
-  accountType: 'CHECKING' | 'SAVINGS' | 'MONEY_MARKET'
-  currentBalance: number
-  reconciledStatus: boolean
+  id: string;
+  bankName: string;
+  accountNumberMasked: string;
+  accountType: "CHECKING" | "SAVINGS" | "MONEY_MARKET";
+  currentBalance: number;
+  reconciledStatus: boolean;
 }
 
 const mockBankAccounts: BankAccount[] = [
-  { id: 'b-1', bankName: 'HDFC Corporate Commercial Bank', accountNumberMasked: '•••• •••• 9812', accountType: 'CHECKING', currentBalance: 345000, reconciledStatus: true },
-  { id: 'b-2', bankName: 'State Bank Industrial Reserve', accountNumberMasked: '•••• •••• 4410', accountType: 'SAVINGS', currentBalance: 140000, reconciledStatus: true },
-]
+  {
+    id: "b-1",
+    bankName: "HDFC Corporate Commercial Bank",
+    accountNumberMasked: "•••• •••• 9812",
+    accountType: "CHECKING",
+    currentBalance: 345000,
+    reconciledStatus: true,
+  },
+  {
+    id: "b-2",
+    bankName: "State Bank Industrial Reserve",
+    accountNumberMasked: "•••• •••• 4410",
+    accountType: "SAVINGS",
+    currentBalance: 140000,
+    reconciledStatus: true,
+  },
+];
 
 export default function BankAccountsPage() {
-  const [accounts] = React.useState<BankAccount[]>(mockBankAccounts)
+  const [accounts] = React.useState<BankAccount[]>(mockBankAccounts);
 
-  const totalCash = accounts.reduce((acc, a) => acc + a.currentBalance, 0)
+  const totalCash = accounts.reduce((acc, a) => acc + a.currentBalance, 0);
 
   const columns: ColumnDef<BankAccount>[] = [
     {
-      accessorKey: 'bankName',
-      header: 'Banking Institution',
-      cell: ({ row }) => <span className="font-semibold text-xs text-primary">{row.original.bankName}</span>,
+      accessorKey: "bankName",
+      header: "Banking Institution",
+      cell: ({ row }) => (
+        <span className="font-semibold text-xs text-primary">
+          {row.original.bankName}
+        </span>
+      ),
     },
     {
-      accessorKey: 'accountNumberMasked',
-      header: 'Account Number',
-      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-semibold">{row.original.accountNumberMasked}</span>,
+      accessorKey: "accountNumberMasked",
+      header: "Account Number",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-foreground font-semibold">
+          {row.original.accountNumberMasked}
+        </span>
+      ),
     },
     {
-      accessorKey: 'accountType',
-      header: 'Account Type',
+      accessorKey: "accountType",
+      header: "Account Type",
       cell: ({ row }) => (
         <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
           {row.original.accountType}
@@ -49,8 +71,8 @@ export default function BankAccountsPage() {
       ),
     },
     {
-      accessorKey: 'currentBalance',
-      header: 'Cleared Bank Balance',
+      accessorKey: "currentBalance",
+      header: "Cleared Bank Balance",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
           {formatCurrency(row.original.currentBalance)}
@@ -58,15 +80,15 @@ export default function BankAccountsPage() {
       ),
     },
     {
-      accessorKey: 'reconciledStatus',
-      header: 'Reconciliation',
+      accessorKey: "reconciledStatus",
+      header: "Reconciliation",
       cell: () => (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
           <CheckCircle2 className="w-3 h-3 mr-1" /> Reconciled
         </span>
       ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -105,5 +127,5 @@ export default function BankAccountsPage() {
         searchPlaceholder="Search bank accounts..."
       />
     </div>
-  )
+  );
 }

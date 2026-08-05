@@ -1,19 +1,12 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export type PaymentType =
-  | 'CUSTOMER_PAYMENT'
-  | 'SUPPLIER_PAYMENT'
-  | 'INTERNAL_TRANSFER'
-  | 'REFUND';
+  "CUSTOMER_PAYMENT" | "SUPPLIER_PAYMENT" | "INTERNAL_TRANSFER" | "REFUND";
 
 export type PaymentMethod =
-  | 'WIRE_TRANSFER'
-  | 'CHECK'
-  | 'CREDIT_CARD'
-  | 'CASH'
-  | 'ACH';
+  "WIRE_TRANSFER" | "CHECK" | "CREDIT_CARD" | "CASH" | "ACH";
 
-export type PaymentStatus = 'DRAFT' | 'POSTED' | 'RECONCILED' | 'CANCELLED';
+export type PaymentStatus = "DRAFT" | "POSTED" | "RECONCILED" | "CANCELLED";
 
 export interface PaymentProps {
   id: string;
@@ -64,7 +57,7 @@ export class Payment implements PaymentProps {
 
   public static create(props: CreatePaymentProps): Payment {
     if (props.amount <= 0) {
-      throw new Error('Payment amount must be greater than zero');
+      throw new Error("Payment amount must be greater than zero");
     }
 
     const now = new Date();
@@ -76,7 +69,7 @@ export class Payment implements PaymentProps {
       amount: props.amount,
       reference: props.reference,
       bankAccountId: props.bankAccountId,
-      status: 'DRAFT',
+      status: "DRAFT",
       createdAt: now,
       updatedAt: now,
     });
@@ -87,26 +80,26 @@ export class Payment implements PaymentProps {
   }
 
   public post(): void {
-    if (this.status !== 'DRAFT') {
+    if (this.status !== "DRAFT") {
       throw new Error(`Cannot post payment in status ${this.status}`);
     }
-    this.status = 'POSTED';
+    this.status = "POSTED";
     this.updatedAt = new Date();
   }
 
   public markReconciled(): void {
-    if (this.status !== 'POSTED') {
+    if (this.status !== "POSTED") {
       throw new Error(`Only POSTED payments can be marked reconciled`);
     }
-    this.status = 'RECONCILED';
+    this.status = "RECONCILED";
     this.updatedAt = new Date();
   }
 
   public cancel(): void {
-    if (this.status === 'RECONCILED') {
-      throw new Error('Reconciled payments cannot be cancelled');
+    if (this.status === "RECONCILED") {
+      throw new Error("Reconciled payments cannot be cancelled");
     }
-    this.status = 'CANCELLED';
+    this.status = "CANCELLED";
     this.updatedAt = new Date();
   }
 }

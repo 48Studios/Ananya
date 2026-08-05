@@ -1,40 +1,70 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Landmark, TrendingUp, CheckCircle2 } from 'lucide-react'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { formatCurrency } from '@/lib/utils'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Landmark, TrendingUp, CheckCircle2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { formatCurrency } from "@/lib/utils";
 
 interface FinanceSummaryCategory {
-  id: string
-  accountCategory: string
-  accountType: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
-  totalBalance: number
-  activeAccountsCount: number
+  id: string;
+  accountCategory: string;
+  accountType: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
+  totalBalance: number;
+  activeAccountsCount: number;
 }
 
 const mockFinanceCategories: FinanceSummaryCategory[] = [
-  { id: 'f-1', accountCategory: 'Current Cash & Bank Reserves', accountType: 'ASSET', totalBalance: 485000, activeAccountsCount: 4 },
-  { id: 'f-2', accountCategory: 'Accounts Receivable (Customer Balances)', accountType: 'ASSET', totalBalance: 124500, activeAccountsCount: 12 },
-  { id: 'f-3', accountCategory: 'Accounts Payable (Vendor Liabilities)', accountType: 'LIABILITY', totalBalance: 68400, activeAccountsCount: 8 },
-  { id: 'f-4', accountCategory: 'Operating Revenue YTD', accountType: 'REVENUE', totalBalance: 890000, activeAccountsCount: 5 },
-]
+  {
+    id: "f-1",
+    accountCategory: "Current Cash & Bank Reserves",
+    accountType: "ASSET",
+    totalBalance: 485000,
+    activeAccountsCount: 4,
+  },
+  {
+    id: "f-2",
+    accountCategory: "Accounts Receivable (Customer Balances)",
+    accountType: "ASSET",
+    totalBalance: 124500,
+    activeAccountsCount: 12,
+  },
+  {
+    id: "f-3",
+    accountCategory: "Accounts Payable (Vendor Liabilities)",
+    accountType: "LIABILITY",
+    totalBalance: 68400,
+    activeAccountsCount: 8,
+  },
+  {
+    id: "f-4",
+    accountCategory: "Operating Revenue YTD",
+    accountType: "REVENUE",
+    totalBalance: 890000,
+    activeAccountsCount: 5,
+  },
+];
 
 export default function FinancePage() {
-  const [categories] = React.useState<FinanceSummaryCategory[]>(mockFinanceCategories)
+  const [categories] = React.useState<FinanceSummaryCategory[]>(
+    mockFinanceCategories,
+  );
 
   const columns: ColumnDef<FinanceSummaryCategory>[] = [
     {
-      accessorKey: 'accountCategory',
-      header: 'GL Category',
-      cell: ({ row }) => <span className="font-semibold text-xs text-primary">{row.original.accountCategory}</span>,
+      accessorKey: "accountCategory",
+      header: "GL Category",
+      cell: ({ row }) => (
+        <span className="font-semibold text-xs text-primary">
+          {row.original.accountCategory}
+        </span>
+      ),
     },
     {
-      accessorKey: 'accountType',
-      header: 'Category Type',
+      accessorKey: "accountType",
+      header: "Category Type",
       cell: ({ row }) => (
         <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
           {row.original.accountType}
@@ -42,20 +72,24 @@ export default function FinancePage() {
       ),
     },
     {
-      accessorKey: 'activeAccountsCount',
-      header: 'Ledger Accounts',
-      cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.activeAccountsCount} accounts</span>,
+      accessorKey: "activeAccountsCount",
+      header: "Ledger Accounts",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.activeAccountsCount} accounts
+        </span>
+      ),
     },
     {
-      accessorKey: 'totalBalance',
-      header: 'Category Balance',
+      accessorKey: "totalBalance",
+      header: "Category Balance",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
           {formatCurrency(row.original.totalBalance)}
         </span>
       ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -88,5 +122,5 @@ export default function FinancePage() {
         searchPlaceholder="Search finance categories..."
       />
     </div>
-  )
+  );
 }

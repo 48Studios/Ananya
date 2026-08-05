@@ -2,11 +2,7 @@ import { ObjectId } from "@ananya/core";
 import { InvalidSupplierReturnStatusError } from "./supplier-return.errors";
 
 export type SupplierReturnStatus =
-  | "DRAFT"
-  | "APPROVED"
-  | "DISPATCHED"
-  | "COMPLETED"
-  | "CANCELLED";
+  "DRAFT" | "APPROVED" | "DISPATCHED" | "COMPLETED" | "CANCELLED";
 
 export interface SupplierReturnLineProps {
   id: string;
@@ -100,7 +96,9 @@ export class SupplierReturn {
 
   public addLine(input: AddSupplierReturnLineInput): void {
     if (this.status !== "DRAFT") {
-      throw new InvalidSupplierReturnStatusError("Cannot modify lines of non-DRAFT return.");
+      throw new InvalidSupplierReturnStatusError(
+        "Cannot modify lines of non-DRAFT return.",
+      );
     }
 
     const lineId = ObjectId.generate().value;
@@ -126,7 +124,9 @@ export class SupplierReturn {
 
   public approve(rmaNumber?: string): void {
     if (this.status !== "DRAFT") {
-      throw new InvalidSupplierReturnStatusError("Return must be DRAFT to approve.");
+      throw new InvalidSupplierReturnStatusError(
+        "Return must be DRAFT to approve.",
+      );
     }
     if (rmaNumber) {
       this.rmaNumber = rmaNumber.trim();
@@ -137,7 +137,9 @@ export class SupplierReturn {
 
   public dispatch(): void {
     if (this.status !== "APPROVED") {
-      throw new InvalidSupplierReturnStatusError("Return must be APPROVED before dispatch.");
+      throw new InvalidSupplierReturnStatusError(
+        "Return must be APPROVED before dispatch.",
+      );
     }
     this.status = "DISPATCHED";
     this.dispatchedAt = new Date();

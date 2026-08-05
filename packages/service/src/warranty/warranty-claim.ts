@@ -1,11 +1,7 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export type WarrantyDecision =
-  | 'SUBMITTED'
-  | 'UNDER_REVIEW'
-  | 'APPROVED'
-  | 'REJECTED'
-  | 'EXPIRED';
+  "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "EXPIRED";
 
 export interface WarrantyClaimProps {
   id: string;
@@ -62,14 +58,14 @@ export class WarrantyClaim implements WarrantyClaimProps {
   }
 
   public static create(props: CreateWarrantyClaimProps): WarrantyClaim {
-    if (!props.customerId || props.customerId.trim() === '') {
-      throw new Error('Warranty claim requires a valid customerId');
+    if (!props.customerId || props.customerId.trim() === "") {
+      throw new Error("Warranty claim requires a valid customerId");
     }
-    if (!props.productId || props.productId.trim() === '') {
-      throw new Error('Warranty claim requires a valid productId');
+    if (!props.productId || props.productId.trim() === "") {
+      throw new Error("Warranty claim requires a valid productId");
     }
     if (props.expiryDate < props.purchaseDate) {
-      throw new Error('Warranty expiry date cannot be before purchase date');
+      throw new Error("Warranty expiry date cannot be before purchase date");
     }
 
     const now = new Date();
@@ -83,7 +79,7 @@ export class WarrantyClaim implements WarrantyClaimProps {
       purchaseDate: props.purchaseDate,
       expiryDate: props.expiryDate,
       claimReason: props.claimReason.trim(),
-      decision: isExpired ? 'EXPIRED' : 'SUBMITTED',
+      decision: isExpired ? "EXPIRED" : "SUBMITTED",
       createdAt: now,
       updatedAt: now,
     });
@@ -94,27 +90,27 @@ export class WarrantyClaim implements WarrantyClaimProps {
   }
 
   public review(): void {
-    if (this.decision === 'EXPIRED') {
-      throw new Error('Expired warranty claims cannot be reviewed');
+    if (this.decision === "EXPIRED") {
+      throw new Error("Expired warranty claims cannot be reviewed");
     }
-    this.decision = 'UNDER_REVIEW';
+    this.decision = "UNDER_REVIEW";
     this.updatedAt = new Date();
   }
 
   public approve(notes?: string): void {
-    if (this.decision === 'EXPIRED') {
-      throw new Error('Expired warranty claims cannot be approved');
+    if (this.decision === "EXPIRED") {
+      throw new Error("Expired warranty claims cannot be approved");
     }
-    this.decision = 'APPROVED';
+    this.decision = "APPROVED";
     this.decisionNotes = notes?.trim();
     this.updatedAt = new Date();
   }
 
   public reject(notes?: string): void {
-    if (this.decision === 'APPROVED') {
-      throw new Error('Approved warranty claims cannot be rejected');
+    if (this.decision === "APPROVED") {
+      throw new Error("Approved warranty claims cannot be rejected");
     }
-    this.decision = 'REJECTED';
+    this.decision = "REJECTED";
     this.decisionNotes = notes?.trim();
     this.updatedAt = new Date();
   }

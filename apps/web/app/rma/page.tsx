@@ -1,66 +1,82 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { RotateCcw, Plus, CheckCircle2, Clock } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { rmaRequestsApi, type RmaRequestDto } from '@/lib/api/rma-requests-api'
-import { formatDate } from '@/lib/utils'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { RotateCcw, Plus, CheckCircle2, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { rmaRequestsApi, type RmaRequestDto } from "@/lib/api/rma-requests-api";
+import { formatDate } from "@/lib/utils";
 
 export default function RmaPage() {
-  const [requests, setRequests] = React.useState<RmaRequestDto[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const [requests, setRequests] = React.useState<RmaRequestDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    rmaRequestsApi.getAll()
+    rmaRequestsApi
+      .getAll()
       .then((data) => setRequests(data || []))
       .catch(() => setRequests([]))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
   const columns: ColumnDef<RmaRequestDto>[] = [
     {
-      accessorKey: 'rmaNumber',
-      header: 'RMA Number',
+      accessorKey: "rmaNumber",
+      header: "RMA Number",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
-          {row.original.rmaNumber || '-'}
+          {row.original.rmaNumber || "-"}
         </span>
       ),
     },
     {
-      accessorKey: 'customerName',
-      header: 'Customer & Order',
+      accessorKey: "customerName",
+      header: "Customer & Order",
       cell: ({ row }) => (
         <div>
-          <p className="font-medium text-xs text-foreground">{row.original.customerName || 'Customer'}</p>
-          <p className="font-mono text-[11px] text-muted-foreground">{row.original.salesOrderNumber || '-'}</p>
+          <p className="font-medium text-xs text-foreground">
+            {row.original.customerName || "Customer"}
+          </p>
+          <p className="font-mono text-[11px] text-muted-foreground">
+            {row.original.salesOrderNumber || "-"}
+          </p>
         </div>
       ),
     },
     {
-      accessorKey: 'reason',
-      header: 'Return Reason',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.reason || '-'}</span>,
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
+      accessorKey: "reason",
+      header: "Return Reason",
       cell: ({ row }) => (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-          <Clock className="w-3 h-3 mr-1" /> {row.original.status || 'SUBMITTED'}
+        <span className="text-xs text-muted-foreground">
+          {row.original.reason || "-"}
         </span>
       ),
     },
     {
-      accessorKey: 'createdDate',
-      header: 'Created Date',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.createdDate ? formatDate(row.original.createdDate) : '-'}</span>,
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+          <Clock className="w-3 h-3 mr-1" />{" "}
+          {row.original.status || "SUBMITTED"}
+        </span>
+      ),
     },
-  ]
+    {
+      accessorKey: "createdDate",
+      header: "Created Date",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {row.original.createdDate
+            ? formatDate(row.original.createdDate)
+            : "-"}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -83,14 +99,10 @@ export default function RmaPage() {
         />
         <StatCard
           title="Received & Inspected"
-          value={requests.filter((r) => r?.status === 'INSPECTED').length}
+          value={requests.filter((r) => r?.status === "INSPECTED").length}
           icon={CheckCircle2}
         />
-        <StatCard
-          title="Turnaround Time"
-          value="< 48 Hours"
-          icon={Clock}
-        />
+        <StatCard title="Turnaround Time" value="< 48 Hours" icon={Clock} />
       </div>
 
       <EntityDataTable
@@ -108,5 +120,5 @@ export default function RmaPage() {
         }
       />
     </div>
-  )
+  );
 }

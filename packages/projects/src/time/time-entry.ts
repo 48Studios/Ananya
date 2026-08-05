@@ -1,6 +1,6 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
-export type TimeEntryStatus = 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+export type TimeEntryStatus = "SUBMITTED" | "APPROVED" | "REJECTED";
 
 export interface TimeEntryProps {
   id: string;
@@ -49,14 +49,16 @@ export class TimeEntry implements TimeEntryProps {
   }
 
   public static create(props: CreateTimeEntryProps): TimeEntry {
-    if (!props.userId || props.userId.trim() === '') {
-      throw new Error('Time entry requires a valid userId');
+    if (!props.userId || props.userId.trim() === "") {
+      throw new Error("Time entry requires a valid userId");
     }
-    if (!props.taskId || props.taskId.trim() === '') {
-      throw new Error('Time entry requires a valid taskId');
+    if (!props.taskId || props.taskId.trim() === "") {
+      throw new Error("Time entry requires a valid taskId");
     }
     if (props.hours <= 0 || props.hours > 24) {
-      throw new Error('Hours logged must be greater than 0 and at most 24 per entry');
+      throw new Error(
+        "Hours logged must be greater than 0 and at most 24 per entry",
+      );
     }
 
     const now = new Date();
@@ -67,7 +69,7 @@ export class TimeEntry implements TimeEntryProps {
       date: props.date,
       hours: props.hours,
       description: props.description?.trim(),
-      status: 'SUBMITTED',
+      status: "SUBMITTED",
       createdAt: now,
       updatedAt: now,
     });
@@ -78,19 +80,19 @@ export class TimeEntry implements TimeEntryProps {
   }
 
   public approve(approverId: string): void {
-    if (this.status === 'APPROVED') {
-      throw new Error('Time entry is already approved');
+    if (this.status === "APPROVED") {
+      throw new Error("Time entry is already approved");
     }
-    this.status = 'APPROVED';
+    this.status = "APPROVED";
     this.approvedBy = approverId;
     this.updatedAt = new Date();
   }
 
   public reject(): void {
-    if (this.status === 'APPROVED') {
-      throw new Error('Approved time entries cannot be rejected');
+    if (this.status === "APPROVED") {
+      throw new Error("Approved time entries cannot be rejected");
     }
-    this.status = 'REJECTED';
+    this.status = "REJECTED";
     this.updatedAt = new Date();
   }
 }

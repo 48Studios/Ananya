@@ -2,7 +2,7 @@ import {
   MaintenanceSchedule,
   MaintenanceStatus,
   ServiceFrequency,
-} from './maintenance-schedule';
+} from "./maintenance-schedule";
 
 export interface FindManyMaintenanceSchedulesOptions {
   customerId?: string;

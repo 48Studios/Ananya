@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface LocationDto {
   id: string;
@@ -30,11 +30,17 @@ export interface UpdateLocationPayload {
 }
 
 export const locationsApi = {
-  getAll: (): Promise<LocationDto[]> => apiClient.get<LocationDto[]>('/locations'),
-  getById: (id: string): Promise<LocationDto> => apiClient.get<LocationDto>(`/locations/${id}`),
+  getAll: (): Promise<LocationDto[]> =>
+    apiClient.get<LocationDto[]>("/locations"),
+  getById: (id: string): Promise<LocationDto> =>
+    apiClient.get<LocationDto>(`/locations/${id}`),
   create: (payload: CreateLocationPayload): Promise<LocationDto> =>
-    apiClient.post<LocationDto, CreateLocationPayload>('/locations', payload),
+    apiClient.post<LocationDto, CreateLocationPayload>("/locations", payload),
   update: (id: string, payload: UpdateLocationPayload): Promise<LocationDto> =>
-    apiClient.put<LocationDto, UpdateLocationPayload>(`/locations/${id}`, payload),
-  delete: (id: string): Promise<void> => apiClient.delete<void>(`/locations/${id}`),
+    apiClient.put<LocationDto, UpdateLocationPayload>(
+      `/locations/${id}`,
+      payload,
+    ),
+  delete: (id: string): Promise<void> =>
+    apiClient.delete<void>(`/locations/${id}`),
 };

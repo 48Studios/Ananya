@@ -1,4 +1,4 @@
-import { Account, AccountType } from './account';
+import { Account, AccountType } from "./account";
 
 export interface FindManyAccountsOptions {
   accountType?: AccountType;

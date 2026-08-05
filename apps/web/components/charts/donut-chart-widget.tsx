@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import * as React from 'react'
+import * as React from "react";
 import {
   ResponsiveContainer,
   PieChart,
@@ -8,31 +8,31 @@ import {
   Cell,
   Tooltip,
   Legend,
-} from 'recharts'
+} from "recharts";
 
 export interface DonutChartDataItem {
-  name: string
-  value: number
-  color?: string
+  name: string;
+  value: number;
+  color?: string;
 }
 
 export interface DonutChartWidgetProps {
-  data: DonutChartDataItem[]
-  height?: number
-  innerRadius?: number
-  outerRadius?: number
+  data: DonutChartDataItem[];
+  height?: number;
+  innerRadius?: number;
+  outerRadius?: number;
 }
 
 const DEFAULT_COLORS = [
-  '#06b6d4',
-  '#0ea5e9',
-  '#3b82f6',
-  '#6366f1',
-  '#8b5cf6',
-  '#ec4899',
-  '#10b981',
-  '#f59e0b',
-]
+  "#06b6d4",
+  "#0ea5e9",
+  "#3b82f6",
+  "#6366f1",
+  "#8b5cf6",
+  "#ec4899",
+  "#10b981",
+  "#f59e0b",
+];
 
 export function DonutChartWidget({
   data,
@@ -45,11 +45,11 @@ export function DonutChartWidget({
       <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
         No distribution data available
       </div>
-    )
+    );
   }
 
   return (
-    <div style={{ width: '100%', height }}>
+    <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -64,7 +64,9 @@ export function DonutChartWidget({
             {data.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={entry.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]}
+                fill={
+                  entry.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]
+                }
                 stroke="var(--card)"
                 strokeWidth={2}
               />
@@ -72,12 +74,12 @@ export function DonutChartWidget({
           </Pie>
           <Tooltip
             contentStyle={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)',
-              borderRadius: '8px',
-              color: 'var(--foreground)',
-              fontSize: '12px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              backgroundColor: "var(--card)",
+              borderColor: "var(--border)",
+              borderRadius: "8px",
+              color: "var(--foreground)",
+              fontSize: "12px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             }}
           />
           <Legend
@@ -91,5 +93,5 @@ export function DonutChartWidget({
         </PieChart>
       </ResponsiveContainer>
     </div>
-  )
+  );
 }

@@ -1,40 +1,65 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { TrendingUp, CheckCircle2 } from 'lucide-react'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { formatCurrency } from '@/lib/utils'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { TrendingUp, CheckCircle2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { formatCurrency } from "@/lib/utils";
 
 interface CashFlowProjection {
-  id: string
-  period: string
-  projectedInflow: number
-  projectedOutflow: number
-  netCashFlow: number
-  endingLiquidityReserve: number
+  id: string;
+  period: string;
+  projectedInflow: number;
+  projectedOutflow: number;
+  netCashFlow: number;
+  endingLiquidityReserve: number;
 }
 
 const mockProjections: CashFlowProjection[] = [
-  { id: 'p-1', period: 'February 2026', projectedInflow: 245000, projectedOutflow: 180000, netCashFlow: 65000, endingLiquidityReserve: 550000 },
-  { id: 'p-2', period: 'March 2026', projectedInflow: 310000, projectedOutflow: 210000, netCashFlow: 100000, endingLiquidityReserve: 650000 },
-  { id: 'p-3', period: 'April 2026', projectedInflow: 280000, projectedOutflow: 195000, netCashFlow: 85000, endingLiquidityReserve: 735000 },
-]
+  {
+    id: "p-1",
+    period: "February 2026",
+    projectedInflow: 245000,
+    projectedOutflow: 180000,
+    netCashFlow: 65000,
+    endingLiquidityReserve: 550000,
+  },
+  {
+    id: "p-2",
+    period: "March 2026",
+    projectedInflow: 310000,
+    projectedOutflow: 210000,
+    netCashFlow: 100000,
+    endingLiquidityReserve: 650000,
+  },
+  {
+    id: "p-3",
+    period: "April 2026",
+    projectedInflow: 280000,
+    projectedOutflow: 195000,
+    netCashFlow: 85000,
+    endingLiquidityReserve: 735000,
+  },
+];
 
 export default function ProjectionsPage() {
-  const [projections] = React.useState<CashFlowProjection[]>(mockProjections)
+  const [projections] = React.useState<CashFlowProjection[]>(mockProjections);
 
   const columns: ColumnDef<CashFlowProjection>[] = [
     {
-      accessorKey: 'period',
-      header: 'Forecast Month',
-      cell: ({ row }) => <span className="font-semibold text-xs text-primary">{row.original.period}</span>,
+      accessorKey: "period",
+      header: "Forecast Month",
+      cell: ({ row }) => (
+        <span className="font-semibold text-xs text-primary">
+          {row.original.period}
+        </span>
+      ),
     },
     {
-      accessorKey: 'projectedInflow',
-      header: 'Projected Revenue Inflow',
+      accessorKey: "projectedInflow",
+      header: "Projected Revenue Inflow",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400">
           +{formatCurrency(row.original.projectedInflow)}
@@ -42,8 +67,8 @@ export default function ProjectionsPage() {
       ),
     },
     {
-      accessorKey: 'projectedOutflow',
-      header: 'Projected Expense Outflow',
+      accessorKey: "projectedOutflow",
+      header: "Projected Expense Outflow",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-semibold text-amber-600 dark:text-amber-400">
           -{formatCurrency(row.original.projectedOutflow)}
@@ -51,8 +76,8 @@ export default function ProjectionsPage() {
       ),
     },
     {
-      accessorKey: 'netCashFlow',
-      header: 'Net Monthly Cash Flow',
+      accessorKey: "netCashFlow",
+      header: "Net Monthly Cash Flow",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
           +{formatCurrency(row.original.netCashFlow)}
@@ -60,15 +85,15 @@ export default function ProjectionsPage() {
       ),
     },
     {
-      accessorKey: 'endingLiquidityReserve',
-      header: 'Ending Reserve Balance',
+      accessorKey: "endingLiquidityReserve",
+      header: "Ending Reserve Balance",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
           {formatCurrency(row.original.endingLiquidityReserve)}
         </span>
       ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -101,5 +126,5 @@ export default function ProjectionsPage() {
         searchPlaceholder="Search projection periods..."
       />
     </div>
-  )
+  );
 }

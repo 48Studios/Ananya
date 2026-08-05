@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface ActivityEventDto {
   id: string;
@@ -40,18 +40,26 @@ export const activityApi = {
     limit?: number;
   }): Promise<ActivityEventDto[]> => {
     const searchParams = new URLSearchParams();
-    if (params?.module) searchParams.append('module', params.module);
-    if (params?.eventType) searchParams.append('eventType', params.eventType);
-    if (params?.entityType) searchParams.append('entityType', params.entityType);
-    if (params?.severity) searchParams.append('severity', params.severity);
-    if (params?.search) searchParams.append('search', params.search);
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.module) searchParams.append("module", params.module);
+    if (params?.eventType) searchParams.append("eventType", params.eventType);
+    if (params?.entityType)
+      searchParams.append("entityType", params.entityType);
+    if (params?.severity) searchParams.append("severity", params.severity);
+    if (params?.search) searchParams.append("search", params.search);
+    if (params?.limit) searchParams.append("limit", params.limit.toString());
     const query = searchParams.toString();
-    return apiClient.get<ActivityEventDto[]>(`/activity${query ? `?${query}` : ''}`);
+    return apiClient.get<ActivityEventDto[]>(
+      `/activity${query ? `?${query}` : ""}`,
+    );
   },
 
-  getEntityEvents: (entityType: string, entityId: string): Promise<ActivityEventDto[]> => {
-    return apiClient.get<ActivityEventDto[]>(`/activity/entity/${entityType}/${entityId}`);
+  getEntityEvents: (
+    entityType: string,
+    entityId: string,
+  ): Promise<ActivityEventDto[]> => {
+    return apiClient.get<ActivityEventDto[]>(
+      `/activity/entity/${entityType}/${entityId}`,
+    );
   },
 
   getUserEvents: (userId: string): Promise<ActivityEventDto[]> => {
@@ -65,15 +73,17 @@ export const activityApi = {
     limit?: number;
   }): Promise<SecurityAuditLogDto[]> => {
     const searchParams = new URLSearchParams();
-    if (params?.module) searchParams.append('module', params.module);
-    if (params?.userId) searchParams.append('userId', params.userId);
-    if (params?.search) searchParams.append('search', params.search);
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.module) searchParams.append("module", params.module);
+    if (params?.userId) searchParams.append("userId", params.userId);
+    if (params?.search) searchParams.append("search", params.search);
+    if (params?.limit) searchParams.append("limit", params.limit.toString());
     const query = searchParams.toString();
-    return apiClient.get<SecurityAuditLogDto[]>(`/activity/audit${query ? `?${query}` : ''}`);
+    return apiClient.get<SecurityAuditLogDto[]>(
+      `/activity/audit${query ? `?${query}` : ""}`,
+    );
   },
 
   createEvent: (dto: Partial<ActivityEventDto>): Promise<ActivityEventDto> => {
-    return apiClient.post<ActivityEventDto>('/activity', dto);
+    return apiClient.post<ActivityEventDto>("/activity", dto);
   },
 };

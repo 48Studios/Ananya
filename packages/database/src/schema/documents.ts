@@ -27,7 +27,9 @@ export const documents = pgTable(
     currentVersion: integer("current_version").notNull().default(1),
     tags: jsonb("tags").$type<string[]>().default([]),
     isConfidential: boolean("is_confidential").notNull().default(false),
-    uploadedById: uuid("uploaded_by_id").references(() => users.id, { onDelete: "set null" }),
+    uploadedById: uuid("uploaded_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -36,9 +38,12 @@ export const documents = pgTable(
       .defaultNow(),
   },
   (table) => [
-    index("documents_entity_type_entity_id_idx").on(table.entityType, table.entityId),
+    index("documents_entity_type_entity_id_idx").on(
+      table.entityType,
+      table.entityId,
+    ),
     index("documents_uploaded_by_id_idx").on(table.uploadedById),
-  ]
+  ],
 );
 
 export const documentVersions = pgTable(
@@ -55,7 +60,9 @@ export const documentVersions = pgTable(
     mimeType: varchar("mime_type", { length: 128 }).notNull(),
     sizeBytes: integer("size_bytes").notNull().default(0),
     changelog: text("changelog"),
-    uploadedById: uuid("uploaded_by_id").references(() => users.id, { onDelete: "set null" }),
+    uploadedById: uuid("uploaded_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -63,7 +70,7 @@ export const documentVersions = pgTable(
   (table) => [
     index("document_versions_document_id_idx").on(table.documentId),
     index("document_versions_version_number_idx").on(table.versionNumber),
-  ]
+  ],
 );
 
 export type DocumentRecord = typeof documents.$inferSelect;

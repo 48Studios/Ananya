@@ -1,13 +1,13 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export type SalesOrderStatus =
-  | 'DRAFT'
-  | 'APPROVED'
-  | 'RELEASED'
-  | 'ALLOCATED'
-  | 'PARTIALLY_FULFILLED'
-  | 'COMPLETED'
-  | 'CANCELLED';
+  | "DRAFT"
+  | "APPROVED"
+  | "RELEASED"
+  | "ALLOCATED"
+  | "PARTIALLY_FULFILLED"
+  | "COMPLETED"
+  | "CANCELLED";
 
 export interface SalesOrderLineProps {
   id: string;
@@ -86,7 +86,7 @@ export class SalesOrder {
       customerId: input.customerId,
       orderDate: input.orderDate || now,
       requiredDate: input.requiredDate ?? null,
-      status: 'DRAFT',
+      status: "DRAFT",
       quotationId: input.quotationId ?? null,
       lines: [],
       createdAt: now,
@@ -103,14 +103,14 @@ export class SalesOrder {
   }
 
   addLine(input: AddSalesOrderLineInput): SalesOrderLineProps {
-    if (this.status !== 'DRAFT') {
-      throw new Error('Can only add lines to a DRAFT sales order.');
+    if (this.status !== "DRAFT") {
+      throw new Error("Can only add lines to a DRAFT sales order.");
     }
     if (input.quantity <= 0) {
-      throw new Error('Sales order line quantity must be greater than zero.');
+      throw new Error("Sales order line quantity must be greater than zero.");
     }
     if (input.unitPrice < 0) {
-      throw new Error('Sales order line unit price cannot be negative.');
+      throw new Error("Sales order line unit price cannot be negative.");
     }
 
     const discount = input.discount || 0;
@@ -140,21 +140,23 @@ export class SalesOrder {
   }
 
   approve(): void {
-    if (this.status !== 'DRAFT') {
-      throw new Error('Only DRAFT sales orders can be approved.');
+    if (this.status !== "DRAFT") {
+      throw new Error("Only DRAFT sales orders can be approved.");
     }
     if (this.lines.length === 0) {
-      throw new Error('Cannot approve a sales order without line items.');
+      throw new Error("Cannot approve a sales order without line items.");
     }
-    this.status = 'APPROVED';
+    this.status = "APPROVED";
     this.updatedAt = new Date();
   }
 
   release(): void {
-    if (this.status !== 'APPROVED') {
-      throw new Error('Only APPROVED sales orders can be released for fulfillment.');
+    if (this.status !== "APPROVED") {
+      throw new Error(
+        "Only APPROVED sales orders can be released for fulfillment.",
+      );
     }
-    this.status = 'RELEASED';
+    this.status = "RELEASED";
     this.updatedAt = new Date();
   }
 
@@ -169,23 +171,21 @@ export class SalesOrder {
     const allFulfilled = this.lines.every(
       (l) => l.fulfilledQuantity >= l.quantity,
     );
-    const anyFulfilled = this.lines.some(
-      (l) => l.fulfilledQuantity > 0,
-    );
+    const anyFulfilled = this.lines.some((l) => l.fulfilledQuantity > 0);
 
     if (allFulfilled) {
-      this.status = 'COMPLETED';
+      this.status = "COMPLETED";
     } else if (anyFulfilled) {
-      this.status = 'PARTIALLY_FULFILLED';
+      this.status = "PARTIALLY_FULFILLED";
     }
     this.updatedAt = new Date();
   }
 
   cancel(): void {
-    if (this.status === 'COMPLETED') {
-      throw new Error('Cannot cancel a COMPLETED sales order.');
+    if (this.status === "COMPLETED") {
+      throw new Error("Cannot cancel a COMPLETED sales order.");
     }
-    this.status = 'CANCELLED';
+    this.status = "CANCELLED";
     this.updatedAt = new Date();
   }
 }

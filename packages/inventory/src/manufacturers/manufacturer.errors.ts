@@ -26,6 +26,8 @@ export class InvalidManufacturerNameError extends DomainError {
 
 export class ManufacturerReferencedByComponentsError extends DomainError {
   constructor(id: string) {
-    super(`Cannot delete manufacturer '${id}' because it is referenced by active inventory components.`);
+    super(
+      `Cannot delete manufacturer '${id}' because it is referenced by active inventory components.`,
+    );
   }
 }

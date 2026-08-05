@@ -1,22 +1,22 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { Inbox } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import * as React from "react";
+import { Inbox } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export interface EmptyStateProps {
-  title?: string
-  description?: string
-  icon?: React.ComponentType<{ className?: string }>
+  title?: string;
+  description?: string;
+  icon?: React.ComponentType<{ className?: string }>;
   action?: {
-    label: string
-    onClick: () => void
-  }
+    label: string;
+    onClick: () => void;
+  };
 }
 
 export function EmptyState({
-  title = 'No records found',
-  description = 'There are no entries to display at this moment.',
+  title = "No records found",
+  description = "There are no entries to display at this moment.",
   icon: Icon = Inbox,
   action,
 }: EmptyStateProps) {
@@ -37,5 +37,5 @@ export function EmptyState({
         </div>
       )}
     </div>
-  )
+  );
 }

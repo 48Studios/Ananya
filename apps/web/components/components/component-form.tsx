@@ -1,49 +1,52 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import * as React from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+} from "@/components/ui/select";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   componentsApi,
   type ComponentDto,
   type CreateComponentPayload,
   type UpdateComponentPayload,
-} from '@/lib/api/components-api'
-import { locationsApi, type LocationDto } from '@/lib/api/locations-api'
+} from "@/lib/api/components-api";
+import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 
 const componentSchema = z.object({
   sku: z
     .string()
-    .min(1, 'SKU is required')
+    .min(1, "SKU is required")
     .transform((val) => val.trim().toLowerCase()),
-  name: z.string().min(1, 'Component name is required').transform((val) => val.trim()),
+  name: z
+    .string()
+    .min(1, "Component name is required")
+    .transform((val) => val.trim()),
   description: z.string().optional().nullable(),
   unit: z
     .string()
-    .min(1, 'Unit of measure is required')
+    .min(1, "Unit of measure is required")
     .transform((val) => val.trim().toLowerCase()),
   defaultLocationId: z.string().optional().nullable(),
-})
+});
 
-export type ComponentFormValues = z.infer<typeof componentSchema>
+export type ComponentFormValues = z.infer<typeof componentSchema>;
 
 interface ComponentFormProps {
-  initialData?: ComponentDto | null
-  onSuccess: (savedComponent: ComponentDto) => void
-  onCancel: () => void
+  initialData?: ComponentDto | null;
+  onSuccess: (savedComponent: ComponentDto) => void;
+  onCancel: () => void;
 }
 
 export function ComponentForm({
@@ -51,9 +54,9 @@ export function ComponentForm({
   onSuccess,
   onCancel,
 }: ComponentFormProps) {
-  const [locations, setLocations] = React.useState<LocationDto[]>([])
-  const [serverError, setServerError] = React.useState<string | null>(null)
-  const isEditing = Boolean(initialData)
+  const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const isEditing = Boolean(initialData);
 
   React.useEffect(() => {
     locationsApi
@@ -61,8 +64,8 @@ export function ComponentForm({
       .then(setLocations)
       .catch(() => {
         // Non-blocking location load error
-      })
-  }, [])
+      });
+  }, []);
 
   const {
     register,
@@ -72,16 +75,16 @@ export function ComponentForm({
   } = useForm<ComponentFormValues>({
     resolver: zodResolver(componentSchema),
     defaultValues: {
-      sku: initialData?.sku ?? '',
-      name: initialData?.name ?? '',
-      description: initialData?.description ?? '',
-      unit: initialData?.unit ?? 'pcs',
-      defaultLocationId: initialData?.defaultLocationId ?? '',
+      sku: initialData?.sku ?? "",
+      name: initialData?.name ?? "",
+      description: initialData?.description ?? "",
+      unit: initialData?.unit ?? "pcs",
+      defaultLocationId: initialData?.defaultLocationId ?? "",
     },
-  })
+  });
 
   const onSubmit = async (values: ComponentFormValues) => {
-    setServerError(null)
+    setServerError(null);
     try {
       if (isEditing && initialData) {
         const payload: UpdateComponentPayload = {
@@ -90,9 +93,9 @@ export function ComponentForm({
           description: values.description || null,
           unit: values.unit,
           defaultLocationId: values.defaultLocationId || null,
-        }
-        const updated = await componentsApi.update(initialData.id, payload)
-        onSuccess(updated)
+        };
+        const updated = await componentsApi.update(initialData.id, payload);
+        onSuccess(updated);
       } else {
         const payload: CreateComponentPayload = {
           sku: values.sku,
@@ -100,18 +103,22 @@ export function ComponentForm({
           description: values.description || null,
           unit: values.unit,
           defaultLocationId: values.defaultLocationId || null,
-        }
-        const created = await componentsApi.create(payload)
-        onSuccess(created)
+        };
+        const created = await componentsApi.create(payload);
+        onSuccess(created);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError(isEditing ? 'Failed to update component' : 'Failed to create component')
+        setServerError(
+          isEditing
+            ? "Failed to update component"
+            : "Failed to create component",
+        );
       }
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -130,7 +137,7 @@ export function ComponentForm({
           id="component-sku"
           type="text"
           placeholder="e.g. MCU-STM32F4-01"
-          {...register('sku')}
+          {...register("sku")}
           className="font-mono"
         />
         {errors.sku?.message && <FieldError>{errors.sku.message}</FieldError>}
@@ -145,7 +152,7 @@ export function ComponentForm({
           id="component-name"
           type="text"
           placeholder="e.g. Microcontroller Unit 32-bit ARM Cortex-M4"
-          {...register('name')}
+          {...register("name")}
         />
         {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
       </Field>
@@ -159,7 +166,7 @@ export function ComponentForm({
           id="component-unit"
           type="text"
           placeholder="e.g. pcs, kg, m, box"
-          {...register('unit')}
+          {...register("unit")}
           className="lowercase font-mono"
         />
         {errors.unit?.message && <FieldError>{errors.unit.message}</FieldError>}
@@ -172,21 +179,23 @@ export function ComponentForm({
           id="component-desc"
           rows={3}
           placeholder="Detailed component specification..."
-          {...register('description')}
+          {...register("description")}
           className="resize-none"
         />
       </Field>
 
       {/* Default Location */}
       <Field>
-        <FieldLabel htmlFor="component-location">Default Storage Location</FieldLabel>
+        <FieldLabel htmlFor="component-location">
+          Default Storage Location
+        </FieldLabel>
         <Controller
           name="defaultLocationId"
           control={control}
           render={({ field }) => (
             <Select
-              value={field.value ?? 'none'}
-              onValueChange={(val) => field.onChange(val === 'none' ? '' : val)}
+              value={field.value ?? "none"}
+              onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
             >
               <SelectTrigger id="component-location">
                 <SelectValue placeholder="None / Unassigned" />
@@ -206,15 +215,22 @@ export function ComponentForm({
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-          {isEditing ? 'Save Changes' : 'Create Component'}
+          {isSubmitting && (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          )}
+          {isEditing ? "Save Changes" : "Create Component"}
         </Button>
       </div>
     </form>
-  )
+  );
 }
-

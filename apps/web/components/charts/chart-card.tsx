@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { cn } from '@/lib/utils'
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 export interface ChartCardProps {
-  title: string
-  subtitle?: string
-  action?: React.ReactNode
-  children: React.ReactNode
-  className?: string
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
 }
 
 export function ChartCard({
@@ -21,7 +21,7 @@ export function ChartCard({
   return (
     <div
       className={cn(
-        'bg-card border border-border rounded-xl p-5 shadow-xs transition-colors',
+        "bg-card border border-border rounded-xl p-5 shadow-xs transition-colors",
         className,
       )}
     >
@@ -40,5 +40,5 @@ export function ChartCard({
         {children}
       </div>
     </div>
-  )
+  );
 }

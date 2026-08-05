@@ -113,3 +113,11 @@ export class ToggleFeatureFlagDto {
   @IsBoolean()
   isEnabled!: boolean;
 }
+
+export class ResetOrganizationDto {
+  @IsString()
+  confirmText!: string;
+
+  @IsString()
+  passwordConfirm!: string;
+}

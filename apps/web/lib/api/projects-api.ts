@@ -1,31 +1,26 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export type ProjectStatus =
-  | 'PLANNING'
-  | 'ACTIVE'
-  | 'ON_HOLD'
-  | 'COMPLETED'
-  | 'ARCHIVED'
-  | 'CANCELLED';
+  "PLANNING" | "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED" | "CANCELLED";
 
 export type ProjectType =
-  | 'CUSTOMER'
-  | 'INTERNAL'
-  | 'R_AND_D'
-  | 'PROTOTYPE'
-  | 'INSTALLATION'
-  | 'MANUFACTURING_INITIATIVE';
+  | "CUSTOMER"
+  | "INTERNAL"
+  | "R_AND_D"
+  | "PROTOTYPE"
+  | "INSTALLATION"
+  | "MANUFACTURING_INITIATIVE";
 
-export type ProjectPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-export type MilestoneStatus = 'OPEN' | 'COMPLETED';
+export type ProjectPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+export type MilestoneStatus = "OPEN" | "COMPLETED";
 
 export type ProjectActivityType =
-  | 'CREATED'
-  | 'STATUS_CHANGED'
-  | 'MATERIAL_ALLOCATED'
-  | 'MATERIAL_ISSUED'
-  | 'MATERIAL_RETURNED'
-  | 'ARCHIVED';
+  | "CREATED"
+  | "STATUS_CHANGED"
+  | "MATERIAL_ALLOCATED"
+  | "MATERIAL_ISSUED"
+  | "MATERIAL_RETURNED"
+  | "ARCHIVED";
 
 export interface ProjectMaterialDto {
   id: string;
@@ -150,15 +145,17 @@ export interface FindManyProjectsOptions {
 export const projectsApi = {
   getAll: (options?: FindManyProjectsOptions): Promise<ProjectDto[]> => {
     const params = new URLSearchParams();
-    if (options?.status) params.append('status', options.status);
-    if (options?.priority) params.append('priority', options.priority);
-    if (options?.customerId) params.append('customerId', options.customerId);
-    if (options?.salesOrderId) params.append('salesOrderId', options.salesOrderId);
-    if (options?.projectManager) params.append('projectManager', options.projectManager);
-    if (options?.search) params.append('search', options.search);
+    if (options?.status) params.append("status", options.status);
+    if (options?.priority) params.append("priority", options.priority);
+    if (options?.customerId) params.append("customerId", options.customerId);
+    if (options?.salesOrderId)
+      params.append("salesOrderId", options.salesOrderId);
+    if (options?.projectManager)
+      params.append("projectManager", options.projectManager);
+    if (options?.search) params.append("search", options.search);
 
     const queryString = params.toString();
-    const url = queryString ? `/projects?${queryString}` : '/projects';
+    const url = queryString ? `/projects?${queryString}` : "/projects";
     return apiClient.get<ProjectDto[]>(url);
   },
 
@@ -166,27 +163,45 @@ export const projectsApi = {
     apiClient.get<ProjectDto>(`/projects/${id}`),
 
   create: (payload: CreateProjectPayload): Promise<ProjectDto> =>
-    apiClient.post<ProjectDto, CreateProjectPayload>('/projects', payload),
+    apiClient.post<ProjectDto, CreateProjectPayload>("/projects", payload),
 
   update: (id: string, payload: UpdateProjectPayload): Promise<ProjectDto> =>
     apiClient.put<ProjectDto, UpdateProjectPayload>(`/projects/${id}`, payload),
 
   start: (id: string): Promise<ProjectDto> =>
-    apiClient.post<ProjectDto, Record<string, never>>(`/projects/${id}/start`, {}),
+    apiClient.post<ProjectDto, Record<string, never>>(
+      `/projects/${id}/start`,
+      {},
+    ),
 
   pause: (id: string): Promise<ProjectDto> =>
-    apiClient.post<ProjectDto, Record<string, never>>(`/projects/${id}/pause`, {}),
+    apiClient.post<ProjectDto, Record<string, never>>(
+      `/projects/${id}/pause`,
+      {},
+    ),
 
   complete: (id: string): Promise<ProjectDto> =>
-    apiClient.post<ProjectDto, Record<string, never>>(`/projects/${id}/complete`, {}),
+    apiClient.post<ProjectDto, Record<string, never>>(
+      `/projects/${id}/complete`,
+      {},
+    ),
 
   archive: (id: string): Promise<ProjectDto> =>
-    apiClient.post<ProjectDto, Record<string, never>>(`/projects/${id}/archive`, {}),
+    apiClient.post<ProjectDto, Record<string, never>>(
+      `/projects/${id}/archive`,
+      {},
+    ),
 
   cancel: (id: string): Promise<ProjectDto> =>
-    apiClient.post<ProjectDto, Record<string, never>>(`/projects/${id}/cancel`, {}),
+    apiClient.post<ProjectDto, Record<string, never>>(
+      `/projects/${id}/cancel`,
+      {},
+    ),
 
-  addMilestone: (id: string, payload: AddMilestonePayload): Promise<MilestoneDto> =>
+  addMilestone: (
+    id: string,
+    payload: AddMilestonePayload,
+  ): Promise<MilestoneDto> =>
     apiClient.post<MilestoneDto, AddMilestonePayload>(
       `/projects/${id}/milestones`,
       payload,
@@ -198,19 +213,28 @@ export const projectsApi = {
       {},
     ),
 
-  allocateMaterial: (id: string, payload: AllocateMaterialPayload): Promise<ProjectDto> =>
+  allocateMaterial: (
+    id: string,
+    payload: AllocateMaterialPayload,
+  ): Promise<ProjectDto> =>
     apiClient.post<ProjectDto, AllocateMaterialPayload>(
       `/projects/${id}/materials/allocate`,
       payload,
     ),
 
-  issueMaterial: (id: string, payload: IssueMaterialPayload): Promise<ProjectDto> =>
+  issueMaterial: (
+    id: string,
+    payload: IssueMaterialPayload,
+  ): Promise<ProjectDto> =>
     apiClient.post<ProjectDto, IssueMaterialPayload>(
       `/projects/${id}/materials/issue`,
       payload,
     ),
 
-  returnMaterial: (id: string, payload: ReturnMaterialPayload): Promise<ProjectDto> =>
+  returnMaterial: (
+    id: string,
+    payload: ReturnMaterialPayload,
+  ): Promise<ProjectDto> =>
     apiClient.post<ProjectDto, ReturnMaterialPayload>(
       `/projects/${id}/materials/return`,
       payload,

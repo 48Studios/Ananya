@@ -1,4 +1,4 @@
-import { PayableInvoice, PayableStatus } from './payable-invoice';
+import { PayableInvoice, PayableStatus } from "./payable-invoice";
 
 export interface FindManyPayablesOptions {
   supplierId?: string;

@@ -1,38 +1,38 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm, useFieldArray, SubmitHandler } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2, AlertCircle, ClipboardCheck, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import * as React from "react";
+import { useForm, useFieldArray, SubmitHandler } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2, AlertCircle, ClipboardCheck, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   cycleCountsApi,
   type CycleCountDto,
   type PhysicalCountEntryPayload,
-} from '@/lib/api/cycle-counts-api'
-import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
+} from "@/lib/api/cycle-counts-api";
+import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 
 const lineCountSchema = z.object({
   lineId: z.string(),
   componentId: z.string(),
   systemQuantity: z.number(),
-  countedQuantity: z.number().min(0, 'Counted quantity cannot be negative'),
+  countedQuantity: z.number().min(0, "Counted quantity cannot be negative"),
   unitOfMeasure: z.string(),
   notes: z.string().optional(),
-})
+});
 
 const recordCountsSchema = z.object({
   counts: z.array(lineCountSchema),
-})
+});
 
-export type RecordCountsFormValues = z.infer<typeof recordCountsSchema>
+export type RecordCountsFormValues = z.infer<typeof recordCountsSchema>;
 
 interface RecordCountsModalProps {
-  isOpen: boolean
-  cycleCount: CycleCountDto
-  onSuccess: (updated: CycleCountDto) => void
-  onClose: () => void
+  isOpen: boolean;
+  cycleCount: CycleCountDto;
+  onSuccess: (updated: CycleCountDto) => void;
+  onClose: () => void;
 }
 
 export function RecordCountsModal({
@@ -41,19 +41,21 @@ export function RecordCountsModal({
   onSuccess,
   onClose,
 }: RecordCountsModalProps) {
-  const [componentsMap, setComponentsMap] = React.useState<Record<string, ComponentDto>>({})
-  const [serverError, setServerError] = React.useState<string | null>(null)
+  const [componentsMap, setComponentsMap] = React.useState<
+    Record<string, ComponentDto>
+  >({});
+  const [serverError, setServerError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     componentsApi
       .getAll()
       .then((comps) => {
-        const map: Record<string, ComponentDto> = {}
-        for (const c of comps) map[c.id] = c
-        setComponentsMap(map)
+        const map: Record<string, ComponentDto> = {};
+        for (const c of comps) map[c.id] = c;
+        setComponentsMap(map);
       })
-      .catch(() => null)
-  }, [])
+      .catch(() => null);
+  }, []);
 
   const {
     register,
@@ -70,38 +72,41 @@ export function RecordCountsModal({
         systemQuantity: l.systemQuantity,
         countedQuantity: l.countedQuantity,
         unitOfMeasure: l.unitOfMeasure,
-        notes: l.notes || '',
+        notes: l.notes || "",
       })),
     },
-  })
+  });
 
   const { fields } = useFieldArray({
     control,
-    name: 'counts',
-  })
+    name: "counts",
+  });
 
-  const watchedCounts = watch('counts')
+  const watchedCounts = watch("counts");
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const onSubmit: SubmitHandler<RecordCountsFormValues> = async (values) => {
-    setServerError(null)
+    setServerError(null);
     try {
       const payload: PhysicalCountEntryPayload[] = values.counts.map((c) => ({
         lineId: c.lineId,
         countedQuantity: Number(c.countedQuantity),
         notes: c.notes || undefined,
-      }))
-      const updated = await cycleCountsApi.recordPhysicalCounts(cycleCount.id, payload)
-      onSuccess(updated)
+      }));
+      const updated = await cycleCountsApi.recordPhysicalCounts(
+        cycleCount.id,
+        payload,
+      );
+      onSuccess(updated);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError('Failed to record physical counts')
+        setServerError("Failed to record physical counts");
       }
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -122,7 +127,8 @@ export function RecordCountsModal({
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Enter actual physical quantities verified on the warehouse floor. System quantity is read-only.
+          Enter actual physical quantities verified on the warehouse floor.
+          System quantity is read-only.
         </p>
 
         {serverError && (
@@ -135,9 +141,12 @@ export function RecordCountsModal({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
             {fields.map((field, idx) => {
-              const comp = componentsMap[field.componentId]
-              const currentCounted = watchedCounts?.[idx]?.countedQuantity ?? field.countedQuantity
-              const variance = Math.round((currentCounted - field.systemQuantity) * 1000) / 1000
+              const comp = componentsMap[field.componentId];
+              const currentCounted =
+                watchedCounts?.[idx]?.countedQuantity ?? field.countedQuantity;
+              const variance =
+                Math.round((currentCounted - field.systemQuantity) * 1000) /
+                1000;
 
               return (
                 <div
@@ -203,7 +212,7 @@ export function RecordCountsModal({
                     )}
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
 
@@ -227,5 +236,5 @@ export function RecordCountsModal({
         </form>
       </div>
     </div>
-  )
+  );
 }

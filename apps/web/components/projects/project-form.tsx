@@ -1,18 +1,18 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { Loader2, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import * as React from "react";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel } from '@/components/ui/field'
+} from "@/components/ui/select";
+import { Field, FieldLabel } from "@/components/ui/field";
 import {
   projectsApi,
   type ProjectDto,
@@ -20,80 +20,86 @@ import {
   type UpdateProjectPayload,
   type ProjectType,
   type ProjectPriority,
-} from '@/lib/api/projects-api'
+} from "@/lib/api/projects-api";
 
 const PROJECT_TYPES: { label: string; value: ProjectType }[] = [
-  { label: 'Customer Project', value: 'CUSTOMER' },
-  { label: 'Internal Project', value: 'INTERNAL' },
-  { label: 'R&D', value: 'R_AND_D' },
-  { label: 'Prototype', value: 'PROTOTYPE' },
-  { label: 'Installation', value: 'INSTALLATION' },
-  { label: 'Manufacturing Initiative', value: 'MANUFACTURING_INITIATIVE' },
-]
+  { label: "Customer Project", value: "CUSTOMER" },
+  { label: "Internal Project", value: "INTERNAL" },
+  { label: "R&D", value: "R_AND_D" },
+  { label: "Prototype", value: "PROTOTYPE" },
+  { label: "Installation", value: "INSTALLATION" },
+  { label: "Manufacturing Initiative", value: "MANUFACTURING_INITIATIVE" },
+];
 
 const PRIORITIES: { label: string; value: ProjectPriority }[] = [
-  { label: 'Low', value: 'LOW' },
-  { label: 'Medium', value: 'MEDIUM' },
-  { label: 'High', value: 'HIGH' },
-  { label: 'Urgent', value: 'URGENT' },
-]
+  { label: "Low", value: "LOW" },
+  { label: "Medium", value: "MEDIUM" },
+  { label: "High", value: "HIGH" },
+  { label: "Urgent", value: "URGENT" },
+];
 
 interface ProjectFormProps {
-  initialData?: ProjectDto | null
-  onSuccess: (saved: ProjectDto) => void
-  onCancel: () => void
+  initialData?: ProjectDto | null;
+  onSuccess: (saved: ProjectDto) => void;
+  onCancel: () => void;
 }
 
-export function ProjectForm({ initialData, onSuccess, onCancel }: ProjectFormProps) {
-  const isEdit = Boolean(initialData)
-  const [serverError, setServerError] = React.useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
+export function ProjectForm({
+  initialData,
+  onSuccess,
+  onCancel,
+}: ProjectFormProps) {
+  const isEdit = Boolean(initialData);
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const [name, setName] = React.useState(initialData?.name || '')
+  const [name, setName] = React.useState(initialData?.name || "");
   const [projectType, setProjectType] = React.useState<ProjectType>(
-    initialData?.projectType || 'INTERNAL',
-  )
-  const [description, setDescription] = React.useState(initialData?.description || '')
+    initialData?.projectType || "INTERNAL",
+  );
+  const [description, setDescription] = React.useState(
+    initialData?.description || "",
+  );
   const [projectManager, setProjectManager] = React.useState(
-    initialData?.projectManager || '',
-  )
-  const [owner, setOwner] = React.useState(initialData?.owner || '')
+    initialData?.projectManager || "",
+  );
+  const [owner, setOwner] = React.useState(initialData?.owner || "");
   const [startDate, setStartDate] = React.useState(
     initialData?.startDate
-      ? new Date(initialData.startDate).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0],
-  )
+      ? new Date(initialData.startDate).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0],
+  );
   const [targetCompletionDate, setTargetCompletionDate] = React.useState(
     initialData?.targetCompletionDate
-      ? new Date(initialData.targetCompletionDate).toISOString().split('T')[0]
-      : '',
-  )
+      ? new Date(initialData.targetCompletionDate).toISOString().split("T")[0]
+      : "",
+  );
   const [priority, setPriority] = React.useState<ProjectPriority>(
-    initialData?.priority || 'MEDIUM',
-  )
+    initialData?.priority || "MEDIUM",
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setServerError(null)
+    e.preventDefault();
+    setServerError(null);
 
     if (!name.trim()) {
-      setServerError('Project name is required')
-      return
+      setServerError("Project name is required");
+      return;
     }
     if (!projectManager.trim()) {
-      setServerError('Project manager is required')
-      return
+      setServerError("Project manager is required");
+      return;
     }
     if (!startDate) {
-      setServerError('Start date is required')
-      return
+      setServerError("Start date is required");
+      return;
     }
     if (!targetCompletionDate) {
-      setServerError('Target completion date is required')
-      return
+      setServerError("Target completion date is required");
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
       if (isEdit && initialData) {
         const payload: UpdateProjectPayload = {
@@ -105,9 +111,9 @@ export function ProjectForm({ initialData, onSuccess, onCancel }: ProjectFormPro
           startDate,
           targetCompletionDate,
           priority,
-        }
-        const updated = await projectsApi.update(initialData.id, payload)
-        onSuccess(updated)
+        };
+        const updated = await projectsApi.update(initialData.id, payload);
+        onSuccess(updated);
       } else {
         const payload: CreateProjectPayload = {
           name: name.trim(),
@@ -118,20 +124,20 @@ export function ProjectForm({ initialData, onSuccess, onCancel }: ProjectFormPro
           startDate,
           targetCompletionDate,
           priority,
-        }
-        const created = await projectsApi.create(payload)
-        onSuccess(created)
+        };
+        const created = await projectsApi.create(payload);
+        onSuccess(created);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError('Failed to save project')
+        setServerError("Failed to save project");
       }
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -281,10 +287,9 @@ export function ProjectForm({ initialData, onSuccess, onCancel }: ProjectFormPro
           {isSubmitting && (
             <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
           )}
-          {isEdit ? 'Save Changes' : 'Create Project'}
+          {isEdit ? "Save Changes" : "Create Project"}
         </Button>
       </div>
     </form>
-  )
+  );
 }
-

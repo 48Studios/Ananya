@@ -145,12 +145,15 @@ export class PurchaseOrder {
       throw new InvalidPoStatusTransitionError(this.status, "EDIT_LINES");
     }
     if (input.quantityOrdered <= 0) {
-      throw new InvalidPoLineQuantityError("Quantity ordered must be strictly greater than 0.");
+      throw new InvalidPoLineQuantityError(
+        "Quantity ordered must be strictly greater than 0.",
+      );
     }
 
     const lineId = ObjectId.generate().value;
     const taxRate = input.taxRate ?? 0;
-    const lineTotal = input.unitPrice * input.quantityOrdered * (1 + taxRate / 100);
+    const lineTotal =
+      input.unitPrice * input.quantityOrdered * (1 + taxRate / 100);
 
     const line: PurchaseOrderLineProps = {
       id: lineId,
@@ -199,7 +202,9 @@ export class PurchaseOrder {
   }
 
   public cancel(): void {
-    if (["FULFILLED", "CANCELLED", "PARTIALLY_RECEIVED"].includes(this.status)) {
+    if (
+      ["FULFILLED", "CANCELLED", "PARTIALLY_RECEIVED"].includes(this.status)
+    ) {
       throw new InvalidPoStatusTransitionError(this.status, "CANCELLED");
     }
     this.status = "CANCELLED";

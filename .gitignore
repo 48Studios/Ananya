@@ -44,3 +44,5 @@ Thumbs.db
 
 #others
 .turbo
+/test-results
+/playwright-report

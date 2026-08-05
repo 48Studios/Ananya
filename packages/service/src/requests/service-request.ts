@@ -1,23 +1,19 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export type ServiceRequestStatus =
-  | 'OPEN'
-  | 'ASSIGNED'
-  | 'DIAGNOSING'
-  | 'WAITING_PARTS'
-  | 'REPAIRING'
-  | 'COMPLETED'
-  | 'CLOSED'
-  | 'CANCELLED';
+  | "OPEN"
+  | "ASSIGNED"
+  | "DIAGNOSING"
+  | "WAITING_PARTS"
+  | "REPAIRING"
+  | "COMPLETED"
+  | "CLOSED"
+  | "CANCELLED";
 
-export type ServicePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type ServicePriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
 export type ServiceCategory =
-  | 'HARDWARE'
-  | 'SOFTWARE'
-  | 'MAINTENANCE'
-  | 'INSTALLATION'
-  | 'INSPECTION';
+  "HARDWARE" | "SOFTWARE" | "MAINTENANCE" | "INSTALLATION" | "INSPECTION";
 
 export interface ServiceRequestProps {
   id: string;
@@ -89,11 +85,11 @@ export class ServiceRequest implements ServiceRequestProps {
   }
 
   public static create(props: CreateServiceRequestProps): ServiceRequest {
-    if (!props.customerId || props.customerId.trim() === '') {
-      throw new Error('Service Request requires a valid customerId');
+    if (!props.customerId || props.customerId.trim() === "") {
+      throw new Error("Service Request requires a valid customerId");
     }
-    if (!props.title || props.title.trim() === '') {
-      throw new Error('Service Request title is required');
+    if (!props.title || props.title.trim() === "") {
+      throw new Error("Service Request title is required");
     }
 
     const now = new Date();
@@ -107,9 +103,9 @@ export class ServiceRequest implements ServiceRequestProps {
       serialNumber: props.serialNumber,
       title: props.title.trim(),
       description: props.description?.trim(),
-      priority: props.priority || 'MEDIUM',
+      priority: props.priority || "MEDIUM",
       category: props.category,
-      status: 'OPEN',
+      status: "OPEN",
       createdAt: now,
       updatedAt: now,
     });
@@ -120,60 +116,68 @@ export class ServiceRequest implements ServiceRequestProps {
   }
 
   public assign(technician: string): void {
-    if (this.status === 'CLOSED' || this.status === 'CANCELLED') {
-      throw new Error(`Cannot assign technician to request in status ${this.status}`);
+    if (this.status === "CLOSED" || this.status === "CANCELLED") {
+      throw new Error(
+        `Cannot assign technician to request in status ${this.status}`,
+      );
     }
     this.assignedTechnician = technician;
-    this.status = 'ASSIGNED';
+    this.status = "ASSIGNED";
     this.updatedAt = new Date();
   }
 
   public diagnose(notes: string): void {
-    if (this.status === 'CLOSED' || this.status === 'CANCELLED') {
-      throw new Error(`Cannot record diagnosis on request in status ${this.status}`);
+    if (this.status === "CLOSED" || this.status === "CANCELLED") {
+      throw new Error(
+        `Cannot record diagnosis on request in status ${this.status}`,
+      );
     }
     this.diagnosticNotes = notes.trim();
-    this.status = 'DIAGNOSING';
+    this.status = "DIAGNOSING";
     this.updatedAt = new Date();
   }
 
   public setWaitingParts(): void {
-    if (this.status === 'CLOSED' || this.status === 'CANCELLED') {
-      throw new Error(`Cannot set waiting parts on request in status ${this.status}`);
+    if (this.status === "CLOSED" || this.status === "CANCELLED") {
+      throw new Error(
+        `Cannot set waiting parts on request in status ${this.status}`,
+      );
     }
-    this.status = 'WAITING_PARTS';
+    this.status = "WAITING_PARTS";
     this.updatedAt = new Date();
   }
 
   public startRepair(): void {
-    if (this.status === 'CLOSED' || this.status === 'CANCELLED') {
-      throw new Error(`Cannot start repair on request in status ${this.status}`);
+    if (this.status === "CLOSED" || this.status === "CANCELLED") {
+      throw new Error(
+        `Cannot start repair on request in status ${this.status}`,
+      );
     }
-    this.status = 'REPAIRING';
+    this.status = "REPAIRING";
     this.updatedAt = new Date();
   }
 
   public complete(): void {
-    if (this.status === 'CANCELLED' || this.status === 'CLOSED') {
+    if (this.status === "CANCELLED" || this.status === "CLOSED") {
       throw new Error(`Cannot complete request in status ${this.status}`);
     }
-    this.status = 'COMPLETED';
+    this.status = "COMPLETED";
     this.updatedAt = new Date();
   }
 
   public close(): void {
-    if (this.status === 'CANCELLED') {
-      throw new Error('Cancelled service requests cannot be closed');
+    if (this.status === "CANCELLED") {
+      throw new Error("Cancelled service requests cannot be closed");
     }
-    this.status = 'CLOSED';
+    this.status = "CLOSED";
     this.updatedAt = new Date();
   }
 
   public cancel(): void {
-    if (this.status === 'CLOSED') {
-      throw new Error('Closed service requests cannot be cancelled');
+    if (this.status === "CLOSED") {
+      throw new Error("Closed service requests cannot be cancelled");
     }
-    this.status = 'CANCELLED';
+    this.status = "CANCELLED";
     this.updatedAt = new Date();
   }
 }

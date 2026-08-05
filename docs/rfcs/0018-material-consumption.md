@@ -84,8 +84,12 @@ This RFC defines the **Material Consumption** aggregate in the Manufacturing Bou
 ```typescript
 export interface MaterialConsumptionRepository {
   findById(id: string): Promise<MaterialConsumption | null>;
-  findByProductionOrderId(productionOrderId: string): Promise<MaterialConsumption[]>;
-  findMany(options?: FindManyConsumptionsOptions): Promise<MaterialConsumption[]>;
+  findByProductionOrderId(
+    productionOrderId: string,
+  ): Promise<MaterialConsumption[]>;
+  findMany(
+    options?: FindManyConsumptionsOptions,
+  ): Promise<MaterialConsumption[]>;
   save(consumption: MaterialConsumption): Promise<void>;
   generateNextConsumptionNumber(): Promise<string>;
 }

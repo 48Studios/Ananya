@@ -12,7 +12,9 @@ export interface FindManyReservationsOptions {
 
 export interface ReservationRepository {
   findById(id: string): Promise<Reservation | null>;
-  findByReservationNumber(reservationNumber: string): Promise<Reservation | null>;
+  findByReservationNumber(
+    reservationNumber: string,
+  ): Promise<Reservation | null>;
   findMany(options?: FindManyReservationsOptions): Promise<Reservation[]>;
   findActiveByComponentAndLocation(
     componentId: string,

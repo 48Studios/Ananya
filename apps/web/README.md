@@ -37,7 +37,9 @@ components/
 ### Core Components
 
 #### DashboardLayout
+
 Reusable wrapper that provides:
+
 - Sidebar navigation
 - Sticky header
 - Main content area with max-width
@@ -46,19 +48,17 @@ Reusable wrapper that provides:
 Every page should use this component:
 
 ```tsx
-import { DashboardLayout } from '@/components/dashboard-layout'
+import { DashboardLayout } from "@/components/dashboard-layout";
 
 export default function Page() {
-  return (
-    <DashboardLayout>
-      {/* Your content here */}
-    </DashboardLayout>
-  )
+  return <DashboardLayout>{/* Your content here */}</DashboardLayout>;
 }
 ```
 
 #### Sidebar
+
 Features:
+
 - Compact mode (auto-collapses on desktop)
 - Nested navigation with expand/collapse
 - Active indicator on current route
@@ -67,7 +67,9 @@ Features:
 - Smooth animations
 
 #### Header
+
 Contains:
+
 - Dynamic breadcrumb from current route
 - Global search input
 - Theme toggle (Light/Dark)
@@ -75,7 +77,9 @@ Contains:
 - User menu dropdown
 
 #### Footer
+
 Displays:
+
 - Copyright and version info
 - Environment status
 
@@ -84,6 +88,7 @@ Displays:
 ### Color Palette
 
 **Light Mode:**
+
 - Background: `#fafaf8` (warm white)
 - Foreground: `#1a1a18` (dark gray)
 - Primary: `#1a1a18` (black)
@@ -91,6 +96,7 @@ Displays:
 - Borders: `#e8e8e6` (light gray)
 
 **Dark Mode:**
+
 - Background: `#0f0f0e` (near black)
 - Foreground: `#fafaf8` (off white)
 - Primary: `#fafaf8` (white)
@@ -133,9 +139,9 @@ pnpm dev
 3. Wrap content in `DashboardLayout`:
 
 ```tsx
-'use client'
+"use client";
 
-import { DashboardLayout } from '@/components/dashboard-layout'
+import { DashboardLayout } from "@/components/dashboard-layout";
 
 export default function FeaturePage() {
   return (
@@ -145,7 +151,7 @@ export default function FeaturePage() {
         {/* Your content */}
       </div>
     </DashboardLayout>
-  )
+  );
 }
 ```
 
@@ -176,16 +182,16 @@ Edit `components/sidebar.tsx` and add to the `navItems` array:
 The app uses `next-themes` for seamless theme switching:
 
 ```tsx
-import { useTheme } from 'next-themes'
+import { useTheme } from "next-themes";
 
 export function MyComponent() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme } = useTheme();
 
   return (
-    <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+    <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
       Toggle Theme
     </button>
-  )
+  );
 }
 ```
 
@@ -250,6 +256,7 @@ For complex state: Consider Context API or external state management
 ## 🧪 Testing
 
 Recommended testing stack:
+
 - **Jest** for unit tests
 - **Playwright** for e2e tests
 - **React Testing Library** for component tests

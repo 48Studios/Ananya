@@ -1,2 +1,2 @@
-export * from './rma-request';
-export * from './rma-request.repository';
+export * from "./rma-request";
+export * from "./rma-request.repository";

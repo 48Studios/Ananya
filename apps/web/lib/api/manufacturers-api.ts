@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface ManufacturerDto {
   id: string;
@@ -21,12 +21,23 @@ export interface UpdateManufacturerPayload {
 }
 
 export const manufacturersApi = {
-  getAll: (): Promise<ManufacturerDto[]> => apiClient.get<ManufacturerDto[]>('/manufacturers'),
+  getAll: (): Promise<ManufacturerDto[]> =>
+    apiClient.get<ManufacturerDto[]>("/manufacturers"),
   getById: (id: string): Promise<ManufacturerDto> =>
     apiClient.get<ManufacturerDto>(`/manufacturers/${id}`),
   create: (payload: CreateManufacturerPayload): Promise<ManufacturerDto> =>
-    apiClient.post<ManufacturerDto, CreateManufacturerPayload>('/manufacturers', payload),
-  update: (id: string, payload: UpdateManufacturerPayload): Promise<ManufacturerDto> =>
-    apiClient.put<ManufacturerDto, UpdateManufacturerPayload>(`/manufacturers/${id}`, payload),
-  delete: (id: string): Promise<void> => apiClient.delete<void>(`/manufacturers/${id}`),
+    apiClient.post<ManufacturerDto, CreateManufacturerPayload>(
+      "/manufacturers",
+      payload,
+    ),
+  update: (
+    id: string,
+    payload: UpdateManufacturerPayload,
+  ): Promise<ManufacturerDto> =>
+    apiClient.put<ManufacturerDto, UpdateManufacturerPayload>(
+      `/manufacturers/${id}`,
+      payload,
+    ),
+  delete: (id: string): Promise<void> =>
+    apiClient.delete<void>(`/manufacturers/${id}`),
 };

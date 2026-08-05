@@ -113,7 +113,8 @@ export class Component {
    * Updates component properties maintaining invariants.
    */
   public update(input: UpdateComponentInput): Component {
-    const sku = input.sku !== undefined ? input.sku.trim().toLowerCase() : this.sku;
+    const sku =
+      input.sku !== undefined ? input.sku.trim().toLowerCase() : this.sku;
     const name = input.name !== undefined ? input.name.trim() : this.name;
     const unit = input.unit !== undefined ? input.unit.trim() : this.unit;
 
@@ -133,10 +134,20 @@ export class Component {
       id: this.id,
       sku,
       name,
-      description: input.description !== undefined ? (input.description?.trim() ?? null) : this.description,
-      manufacturerId: input.manufacturerId !== undefined ? input.manufacturerId : this.manufacturerId,
-      categoryId: input.categoryId !== undefined ? input.categoryId : this.categoryId,
-      defaultLocationId: input.defaultLocationId !== undefined ? input.defaultLocationId : this.defaultLocationId,
+      description:
+        input.description !== undefined
+          ? (input.description?.trim() ?? null)
+          : this.description,
+      manufacturerId:
+        input.manufacturerId !== undefined
+          ? input.manufacturerId
+          : this.manufacturerId,
+      categoryId:
+        input.categoryId !== undefined ? input.categoryId : this.categoryId,
+      defaultLocationId:
+        input.defaultLocationId !== undefined
+          ? input.defaultLocationId
+          : this.defaultLocationId,
       unit,
       isActive: input.isActive !== undefined ? input.isActive : this.isActive,
       createdAt: this.createdAt,

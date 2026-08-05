@@ -1,39 +1,49 @@
-'use client'
+"use client";
 
-import React from 'react'
-import Link from 'next/link'
-import { ShieldCheck, User } from 'lucide-react'
-import { useNavigation } from '../navigation-context'
-import { useAuth } from '@/lib/auth/auth-context'
-import { NavigationRailItem } from './navigation-rail-item'
-import { NAV_TOKENS } from '../tokens'
-import { cn } from '@/lib/utils'
+import React from "react";
+import Link from "next/link";
+import { ShieldCheck, User } from "lucide-react";
+import { useNavigation } from "../navigation-context";
+import { useAuth } from "@/lib/auth/auth-context";
+import { NavigationRailItem } from "./navigation-rail-item";
+import { NAV_TOKENS } from "../tokens";
+import { cn } from "@/lib/utils";
 
 export function NavigationRail() {
-  const { modules, currentModuleId, selectModule } = useNavigation()
-  const { user, hasPermission } = useAuth()
+  const { modules, currentModuleId, selectModule } = useNavigation();
+  const { user, hasPermission } = useAuth();
 
   // Filter modules based on user permissions
   const visibleModules = modules.filter(
-    (m) => !m.permissions || m.permissions.length === 0 || m.permissions.some((p) => hasPermission(p))
-  )
+    (m) =>
+      !m.permissions ||
+      m.permissions.length === 0 ||
+      m.permissions.some((p) => hasPermission(p)),
+  );
 
   // Filter main business modules vs system settings
-  const businessModules = visibleModules.filter((m) => m.id !== 'settings')
-  const settingsModule = visibleModules.find((m) => m.id === 'settings')
+  const businessModules = visibleModules.filter((m) => m.id !== "settings");
+  const settingsModule = visibleModules.find((m) => m.id === "settings");
 
-  const displayName = user ? `${user.firstName} ${user.lastName}` : 'User Account'
+  const displayName = user
+    ? `${user.firstName} ${user.lastName}`
+    : "User Account";
 
   return (
     <aside
       className={cn(
         NAV_TOKENS.RAIL_WIDTH,
-        'h-screen bg-sidebar border-r border-sidebar-border flex flex-col justify-between items-center py-0 select-none z-30 shrink-0'
+        "h-screen bg-sidebar border-r border-sidebar-border flex flex-col justify-between items-center py-0 select-none z-30 shrink-0",
       )}
     >
       {/* Top Section: App Brand Logo aligned with shared header height token */}
       <div className="flex flex-col items-center justify-center w-full shrink-0">
-        <div className={cn(NAV_TOKENS.HEADER_HEIGHT, 'flex items-center justify-center w-full')}>
+        <div
+          className={cn(
+            NAV_TOKENS.HEADER_HEIGHT,
+            "flex items-center justify-center w-full",
+          )}
+        >
           <Link
             href="/"
             className="flex items-center justify-center size-9 rounded-xl bg-sidebar-primary text-sidebar-primary-foreground hover:opacity-90 transition-opacity outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
@@ -47,7 +57,7 @@ export function NavigationRail() {
       {/* Middle Section: Module Rail Items */}
       <nav className="flex-1 w-full overflow-y-auto overflow-x-hidden py-2 space-y-1 scrollbar-none flex flex-col items-center">
         {businessModules.map((module) => {
-          const isActive = currentModuleId === module.id
+          const isActive = currentModuleId === module.id;
           return (
             <NavigationRailItem
               key={module.id}
@@ -55,7 +65,7 @@ export function NavigationRail() {
               isActive={isActive}
               onClick={() => selectModule(module.id)}
             />
-          )
+          );
         })}
       </nav>
 
@@ -64,8 +74,8 @@ export function NavigationRail() {
         {settingsModule && (
           <NavigationRailItem
             module={settingsModule}
-            isActive={currentModuleId === 'settings'}
-            onClick={() => selectModule('settings')}
+            isActive={currentModuleId === "settings"}
+            onClick={() => selectModule("settings")}
           />
         )}
 
@@ -83,5 +93,5 @@ export function NavigationRail() {
         </div>
       </div>
     </aside>
-  )
+  );
 }

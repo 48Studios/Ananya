@@ -1,2 +1,2 @@
-export * from './fulfillment-request';
-export * from './fulfillment-request.repository';
+export * from "./fulfillment-request";
+export * from "./fulfillment-request.repository";

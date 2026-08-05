@@ -23,13 +23,21 @@ export const supplierReturns = pgTable(
     supplierId: uuid("supplier_id")
       .notNull()
       .references(() => suppliers.id),
-    purchaseOrderId: uuid("purchase_order_id").references(() => purchaseOrders.id),
+    purchaseOrderId: uuid("purchase_order_id").references(
+      () => purchaseOrders.id,
+    ),
     rmaNumber: varchar("rma_number", { length: 128 }),
     status: varchar("status", { length: 32 }).notNull().default("DRAFT"),
-    totalAmount: decimal("total_amount", { precision: 14, scale: 4 }).notNull().default("0.0000"),
+    totalAmount: decimal("total_amount", { precision: 14, scale: 4 })
+      .notNull()
+      .default("0.0000"),
     dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     uniqueIndex("supplier_returns_number_unique").on(table.returnNumber),
@@ -52,15 +60,21 @@ export const supplierReturnLines = pgTable(
       .notNull()
       .references(() => locations.id),
     quantityReturned: integer("quantity_returned").notNull().default(1),
-    unitPrice: decimal("unit_price", { precision: 12, scale: 4 }).notNull().default("0.0000"),
+    unitPrice: decimal("unit_price", { precision: 12, scale: 4 })
+      .notNull()
+      .default("0.0000"),
     reason: text("reason").notNull(),
     batchNumber: varchar("batch_number", { length: 128 }),
     serialNumbers: jsonb("serial_numbers")
       .$type<string[]>()
       .notNull()
       .default([]),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     index("supplier_return_lines_return_id_idx").on(table.supplierReturnId),
@@ -72,4 +86,5 @@ export const supplierReturnLines = pgTable(
 export type SupplierReturnRecord = typeof supplierReturns.$inferSelect;
 export type NewSupplierReturnRecord = typeof supplierReturns.$inferInsert;
 export type SupplierReturnLineRecord = typeof supplierReturnLines.$inferSelect;
-export type NewSupplierReturnLineRecord = typeof supplierReturnLines.$inferInsert;
+export type NewSupplierReturnLineRecord =
+  typeof supplierReturnLines.$inferInsert;

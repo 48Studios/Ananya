@@ -1,11 +1,7 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export type AccountType =
-  | 'ASSET'
-  | 'LIABILITY'
-  | 'EQUITY'
-  | 'REVENUE'
-  | 'EXPENSE';
+  "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
 
 export interface AccountProps {
   id: string;
@@ -51,11 +47,11 @@ export class Account implements AccountProps {
   }
 
   public static create(props: CreateAccountProps): Account {
-    if (!props.accountNumber || props.accountNumber.trim() === '') {
-      throw new Error('Account number is required');
+    if (!props.accountNumber || props.accountNumber.trim() === "") {
+      throw new Error("Account number is required");
     }
-    if (!props.name || props.name.trim() === '') {
-      throw new Error('Account name is required');
+    if (!props.name || props.name.trim() === "") {
+      throw new Error("Account name is required");
     }
 
     const now = new Date();
@@ -65,7 +61,7 @@ export class Account implements AccountProps {
       name: props.name.trim(),
       accountType: props.accountType,
       parentAccountId: props.parentAccountId,
-      currency: props.currency || 'USD',
+      currency: props.currency || "USD",
       isActive: true,
       createdAt: now,
       updatedAt: now,

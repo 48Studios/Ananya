@@ -72,7 +72,10 @@ export class Reservation {
   }
 
   public addLine(input: CreateReservationLineInput): void {
-    if (this._status !== ReservationStatus.Active && this._status !== ReservationStatus.Draft) {
+    if (
+      this._status !== ReservationStatus.Active &&
+      this._status !== ReservationStatus.Draft
+    ) {
       throw new ImmutableReservationError();
     }
     if (input.reservedQuantity <= 0) {
@@ -105,7 +108,10 @@ export class Reservation {
     notes?: string | null;
     expiresAt?: Date | null;
   }): void {
-    if (this._status !== ReservationStatus.Active && this._status !== ReservationStatus.Draft) {
+    if (
+      this._status !== ReservationStatus.Active &&
+      this._status !== ReservationStatus.Draft
+    ) {
       throw new ImmutableReservationError();
     }
 
@@ -124,7 +130,9 @@ export class Reservation {
 
   public activate(): void {
     if (this._status !== ReservationStatus.Draft) {
-      throw new InvalidReservationStatusError("Only draft reservations can be activated.");
+      throw new InvalidReservationStatusError(
+        "Only draft reservations can be activated.",
+      );
     }
     this._status = ReservationStatus.Active;
     this.updatedAt = new Date();

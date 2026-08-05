@@ -1,47 +1,47 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import * as React from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+} from "@/components/ui/select";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   categoriesApi,
   type CategoryDto,
   type CreateCategoryPayload,
   type UpdateCategoryPayload,
-} from '@/lib/api/categories-api'
+} from "@/lib/api/categories-api";
 
 const categorySchema = z.object({
   code: z
     .string()
-    .min(1, 'Category code is required')
+    .min(1, "Category code is required")
     .transform((val) => val.trim().toUpperCase()),
   name: z
     .string()
-    .min(1, 'Category name is required')
+    .min(1, "Category name is required")
     .transform((val) => val.trim()),
   description: z.string().optional().nullable(),
   parentId: z.string().optional().nullable(),
-})
+});
 
-export type CategoryFormValues = z.infer<typeof categorySchema>
+export type CategoryFormValues = z.infer<typeof categorySchema>;
 
 interface CategoryFormProps {
-  initialData?: CategoryDto | null
-  onSuccess: (savedCategory: CategoryDto) => void
-  onCancel: () => void
+  initialData?: CategoryDto | null;
+  onSuccess: (savedCategory: CategoryDto) => void;
+  onCancel: () => void;
 }
 
 export function CategoryForm({
@@ -49,9 +49,9 @@ export function CategoryForm({
   onSuccess,
   onCancel,
 }: CategoryFormProps) {
-  const [allCategories, setAllCategories] = React.useState<CategoryDto[]>([])
-  const [serverError, setServerError] = React.useState<string | null>(null)
-  const isEditing = Boolean(initialData)
+  const [allCategories, setAllCategories] = React.useState<CategoryDto[]>([]);
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const isEditing = Boolean(initialData);
 
   React.useEffect(() => {
     categoriesApi
@@ -59,15 +59,15 @@ export function CategoryForm({
       .then((cats) => {
         // Exclude self from parent options if editing
         if (initialData) {
-          setAllCategories(cats.filter((c) => c.id !== initialData.id))
+          setAllCategories(cats.filter((c) => c.id !== initialData.id));
         } else {
-          setAllCategories(cats)
+          setAllCategories(cats);
         }
       })
       .catch(() => {
         // Non-blocking category load error
-      })
-  }, [initialData])
+      });
+  }, [initialData]);
 
   const {
     register,
@@ -77,15 +77,15 @@ export function CategoryForm({
   } = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
     defaultValues: {
-      code: initialData?.code ?? '',
-      name: initialData?.name ?? '',
-      description: initialData?.description ?? '',
-      parentId: initialData?.parentId ?? '',
+      code: initialData?.code ?? "",
+      name: initialData?.name ?? "",
+      description: initialData?.description ?? "",
+      parentId: initialData?.parentId ?? "",
     },
-  })
+  });
 
   const onSubmit = async (values: CategoryFormValues) => {
-    setServerError(null)
+    setServerError(null);
     try {
       if (isEditing && initialData) {
         const payload: UpdateCategoryPayload = {
@@ -93,27 +93,29 @@ export function CategoryForm({
           name: values.name,
           description: values.description || null,
           parentId: values.parentId || null,
-        }
-        const updated = await categoriesApi.update(initialData.id, payload)
-        onSuccess(updated)
+        };
+        const updated = await categoriesApi.update(initialData.id, payload);
+        onSuccess(updated);
       } else {
         const payload: CreateCategoryPayload = {
           code: values.code,
           name: values.name,
           description: values.description || null,
           parentId: values.parentId || null,
-        }
-        const created = await categoriesApi.create(payload)
-        onSuccess(created)
+        };
+        const created = await categoriesApi.create(payload);
+        onSuccess(created);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError(isEditing ? 'Failed to update category' : 'Failed to create category')
+        setServerError(
+          isEditing ? "Failed to update category" : "Failed to create category",
+        );
       }
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -132,7 +134,7 @@ export function CategoryForm({
           id="category-code"
           type="text"
           placeholder="e.g. CAT-ACTIVE-COMP"
-          {...register('code')}
+          {...register("code")}
           className="uppercase font-mono"
         />
         {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
@@ -147,7 +149,7 @@ export function CategoryForm({
           id="category-name"
           type="text"
           placeholder="e.g. Active Electronic Components"
-          {...register('name')}
+          {...register("name")}
         />
         {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
       </Field>
@@ -160,14 +162,16 @@ export function CategoryForm({
           control={control}
           render={({ field }) => (
             <Select
-              value={field.value ?? 'none'}
-              onValueChange={(val) => field.onChange(val === 'none' ? '' : val)}
+              value={field.value ?? "none"}
+              onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
             >
               <SelectTrigger id="category-parent">
                 <SelectValue placeholder="Select parent category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None (Top-Level Root Category)</SelectItem>
+                <SelectItem value="none">
+                  None (Top-Level Root Category)
+                </SelectItem>
                 {allCategories.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>
                     {cat.code} - {cat.name}
@@ -186,22 +190,29 @@ export function CategoryForm({
           id="category-desc"
           rows={3}
           placeholder="Detailed categorization description..."
-          {...register('description')}
+          {...register("description")}
           className="resize-none"
         />
       </Field>
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-          {isEditing ? 'Save Changes' : 'Create Category'}
+          {isSubmitting && (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          )}
+          {isEditing ? "Save Changes" : "Create Category"}
         </Button>
       </div>
     </form>
-  )
+  );
 }
-

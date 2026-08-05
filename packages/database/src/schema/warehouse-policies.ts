@@ -18,9 +18,7 @@ export const warehousePolicies = pgTable(
     allowNegativeInventory: boolean("allow_negative_inventory")
       .notNull()
       .default(false),
-    enforceBinCapacity: boolean("enforce_bin_capacity")
-      .notNull()
-      .default(true),
+    enforceBinCapacity: boolean("enforce_bin_capacity").notNull().default(true),
     directedPutaway: boolean("directed_putaway").notNull().default(false),
     directedPicking: boolean("directed_picking").notNull().default(false),
     defaultReceivingBinId: uuid("default_receiving_bin_id").references(

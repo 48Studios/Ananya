@@ -21,7 +21,7 @@ export interface RehydrateCapacityPlanProps {
 export class InvalidCapacityPlanError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'InvalidCapacityPlanError';
+    this.name = "InvalidCapacityPlanError";
   }
 }
 
@@ -50,20 +50,24 @@ export class CapacityPlan {
 
   public static create(props: CreateCapacityPlanProps): CapacityPlan {
     if (!props.planningRunId || props.planningRunId.trim().length === 0) {
-      throw new InvalidCapacityPlanError('Planning run ID is required.');
+      throw new InvalidCapacityPlanError("Planning run ID is required.");
     }
     if (!props.workCenterId || props.workCenterId.trim().length === 0) {
-      throw new InvalidCapacityPlanError('Work center ID is required.');
+      throw new InvalidCapacityPlanError("Work center ID is required.");
     }
     if (!props.workCenterName || props.workCenterName.trim().length === 0) {
-      throw new InvalidCapacityPlanError('Work center name is required.');
+      throw new InvalidCapacityPlanError("Work center name is required.");
     }
     if (props.availableCapacityHours <= 0) {
-      throw new InvalidCapacityPlanError('Available capacity must be greater than zero hours.');
+      throw new InvalidCapacityPlanError(
+        "Available capacity must be greater than zero hours.",
+      );
     }
 
-    const util = (props.plannedCapacityHours / props.availableCapacityHours) * 100;
-    const overloaded = props.plannedCapacityHours > props.availableCapacityHours;
+    const util =
+      (props.plannedCapacityHours / props.availableCapacityHours) * 100;
+    const overloaded =
+      props.plannedCapacityHours > props.availableCapacityHours;
 
     return new CapacityPlan({
       id: crypto.randomUUID(),

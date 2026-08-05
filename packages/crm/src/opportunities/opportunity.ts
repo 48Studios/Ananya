@@ -1,12 +1,7 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export type OpportunityStage =
-  | 'PROSPECTING'
-  | 'QUALIFICATION'
-  | 'PROPOSAL'
-  | 'NEGOTIATION'
-  | 'WON'
-  | 'LOST';
+  "PROSPECTING" | "QUALIFICATION" | "PROPOSAL" | "NEGOTIATION" | "WON" | "LOST";
 
 export interface OpportunityProps {
   id: string;
@@ -63,14 +58,14 @@ export class Opportunity implements OpportunityProps {
   }
 
   public static create(props: CreateOpportunityProps): Opportunity {
-    if (!props.name || props.name.trim() === '') {
-      throw new Error('Opportunity name is required');
+    if (!props.name || props.name.trim() === "") {
+      throw new Error("Opportunity name is required");
     }
-    if (!props.crmAccountId || props.crmAccountId.trim() === '') {
-      throw new Error('Opportunity requires a valid CRM Account ID');
+    if (!props.crmAccountId || props.crmAccountId.trim() === "") {
+      throw new Error("Opportunity requires a valid CRM Account ID");
     }
     if (props.estimatedValue < 0) {
-      throw new Error('Estimated value cannot be negative');
+      throw new Error("Estimated value cannot be negative");
     }
 
     const now = new Date();
@@ -83,7 +78,7 @@ export class Opportunity implements OpportunityProps {
       estimatedValue: props.estimatedValue,
       expectedCloseDate: props.expectedCloseDate,
       probability: props.probability ?? 20,
-      stage: 'PROSPECTING',
+      stage: "PROSPECTING",
       createdAt: now,
       updatedAt: now,
     });
@@ -94,30 +89,32 @@ export class Opportunity implements OpportunityProps {
   }
 
   public advanceStage(nextStage: OpportunityStage): void {
-    if (this.stage === 'WON' || this.stage === 'LOST') {
-      throw new Error(`Closed opportunities in stage ${this.stage} cannot advance stage`);
+    if (this.stage === "WON" || this.stage === "LOST") {
+      throw new Error(
+        `Closed opportunities in stage ${this.stage} cannot advance stage`,
+      );
     }
     this.stage = nextStage;
-    if (nextStage === 'QUALIFICATION') this.probability = 40;
-    if (nextStage === 'PROPOSAL') this.probability = 60;
-    if (nextStage === 'NEGOTIATION') this.probability = 80;
+    if (nextStage === "QUALIFICATION") this.probability = 40;
+    if (nextStage === "PROPOSAL") this.probability = 60;
+    if (nextStage === "NEGOTIATION") this.probability = 80;
     this.updatedAt = new Date();
   }
 
   public closeWon(): void {
-    if (this.stage === 'LOST') {
-      throw new Error('Lost opportunities cannot be marked Won');
+    if (this.stage === "LOST") {
+      throw new Error("Lost opportunities cannot be marked Won");
     }
-    this.stage = 'WON';
+    this.stage = "WON";
     this.probability = 100;
     this.updatedAt = new Date();
   }
 
   public closeLost(reason: string): void {
-    if (this.stage === 'WON') {
-      throw new Error('Won opportunities cannot be marked Lost');
+    if (this.stage === "WON") {
+      throw new Error("Won opportunities cannot be marked Lost");
     }
-    this.stage = 'LOST';
+    this.stage = "LOST";
     this.probability = 0;
     this.lostReason = reason;
     this.updatedAt = new Date();

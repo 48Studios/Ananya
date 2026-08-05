@@ -10,9 +10,7 @@ export interface ManufacturingTraceabilityRepository {
   findByConsumedComponentId(
     componentId: string,
   ): Promise<ManufacturingTraceability[]>;
-  findByBatchNumber(
-    batchNumber: string,
-  ): Promise<ManufacturingTraceability[]>;
+  findByBatchNumber(batchNumber: string): Promise<ManufacturingTraceability[]>;
   findBySerialNumber(
     serialNumber: string,
   ): Promise<ManufacturingTraceability[]>;

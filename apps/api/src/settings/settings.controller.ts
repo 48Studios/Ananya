@@ -1,15 +1,29 @@
-import { Controller, Get, Post, Put, Patch, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Body,
+  Param,
+  Req,
+} from '@nestjs/common';
 import { SettingsService } from './settings.service';
+import { OrganizationResetService } from './organization-reset.service';
 import {
   UpdateOrganizationProfileDto,
   UpdateSystemSettingsDto,
   UpdateNumberingSeriesDto,
   ToggleFeatureFlagDto,
+  ResetOrganizationDto,
 } from './dtos';
 
 @Controller('settings')
 export class SettingsController {
-  constructor(private readonly service: SettingsService) {}
+  constructor(
+    private readonly service: SettingsService,
+    private readonly resetService: OrganizationResetService,
+  ) {}
 
   @Get('organization')
   getOrganizationProfile() {
@@ -19,6 +33,15 @@ export class SettingsController {
   @Put('organization')
   updateOrganizationProfile(@Body() dto: UpdateOrganizationProfileDto) {
     return this.service.updateOrganizationProfile(dto);
+  }
+
+  @Post('organization/reset')
+  resetOrganizationData(
+    @Body() dto: ResetOrganizationDto,
+    @Req() req: { user?: { id: string } },
+  ) {
+    const userId = req.user?.id || 'system';
+    return this.resetService.resetOrganizationData(dto, userId);
   }
 
   @Get('system')

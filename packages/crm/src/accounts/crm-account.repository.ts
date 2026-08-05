@@ -1,4 +1,4 @@
-import { CrmAccount } from './crm-account';
+import { CrmAccount } from "./crm-account";
 
 export interface FindManyCrmAccountsOptions {
   isArchived?: boolean;

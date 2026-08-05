@@ -1,4 +1,4 @@
-import { MaterialRequirement, RequirementSource } from './material-requirement';
+import { MaterialRequirement, RequirementSource } from "./material-requirement";
 
 export interface FindManyMaterialRequirementsOptions {
   planningRunId?: string;

@@ -1,58 +1,66 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { ShieldCheck, Plus, CheckCircle2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ShieldCheck, Plus, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
 
 interface WarehousePolicy {
-  id: string
-  policyName: string
-  warehouseName: string
-  pickingRule: 'FIFO' | 'FEFO' | 'LIFO' | 'ZONE_BASED'
-  putawayRule: 'FAST_MOVING_FRONT' | 'VOLUME_MATCHED' | 'DIRECT_TO_BIN'
-  isActive: boolean
+  id: string;
+  policyName: string;
+  warehouseName: string;
+  pickingRule: "FIFO" | "FEFO" | "LIFO" | "ZONE_BASED";
+  putawayRule: "FAST_MOVING_FRONT" | "VOLUME_MATCHED" | "DIRECT_TO_BIN";
+  isActive: boolean;
 }
 
 const mockPolicies: WarehousePolicy[] = [
   {
-    id: 'pol-1',
-    policyName: 'Electronics FIFO Picking Policy',
-    warehouseName: 'Main Assembly WH',
-    pickingRule: 'FIFO',
-    putawayRule: 'FAST_MOVING_FRONT',
+    id: "pol-1",
+    policyName: "Electronics FIFO Picking Policy",
+    warehouseName: "Main Assembly WH",
+    pickingRule: "FIFO",
+    putawayRule: "FAST_MOVING_FRONT",
     isActive: true,
   },
   {
-    id: 'pol-2',
-    policyName: 'Chemical & Paste FEFO Expiry Rule',
-    warehouseName: 'Raw Materials WH',
-    pickingRule: 'FEFO',
-    putawayRule: 'VOLUME_MATCHED',
+    id: "pol-2",
+    policyName: "Chemical & Paste FEFO Expiry Rule",
+    warehouseName: "Raw Materials WH",
+    pickingRule: "FEFO",
+    putawayRule: "VOLUME_MATCHED",
     isActive: true,
   },
-]
+];
 
 export default function WarehousePoliciesPage() {
-  const [policies] = React.useState<WarehousePolicy[]>(mockPolicies)
+  const [policies] = React.useState<WarehousePolicy[]>(mockPolicies);
 
   const columns: ColumnDef<WarehousePolicy>[] = [
     {
-      accessorKey: 'policyName',
-      header: 'Policy Rule Name',
-      cell: ({ row }) => <span className="font-semibold text-xs text-primary">{row.original.policyName}</span>,
+      accessorKey: "policyName",
+      header: "Policy Rule Name",
+      cell: ({ row }) => (
+        <span className="font-semibold text-xs text-primary">
+          {row.original.policyName}
+        </span>
+      ),
     },
     {
-      accessorKey: 'warehouseName',
-      header: 'Applies to Facility',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.warehouseName}</span>,
+      accessorKey: "warehouseName",
+      header: "Applies to Facility",
+      cell: ({ row }) => (
+        <span className="font-medium text-foreground">
+          {row.original.warehouseName}
+        </span>
+      ),
     },
     {
-      accessorKey: 'pickingRule',
-      header: 'Picking Strategy',
+      accessorKey: "pickingRule",
+      header: "Picking Strategy",
       cell: ({ row }) => (
         <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
           {row.original.pickingRule}
@@ -60,8 +68,8 @@ export default function WarehousePoliciesPage() {
       ),
     },
     {
-      accessorKey: 'putawayRule',
-      header: 'Putaway Strategy',
+      accessorKey: "putawayRule",
+      header: "Putaway Strategy",
       cell: ({ row }) => (
         <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
           {row.original.putawayRule}
@@ -69,15 +77,15 @@ export default function WarehousePoliciesPage() {
       ),
     },
     {
-      accessorKey: 'isActive',
-      header: 'Status',
+      accessorKey: "isActive",
+      header: "Status",
       cell: () => (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
           <CheckCircle2 className="w-3 h-3 mr-1" /> Active Policy
         </span>
       ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -116,5 +124,5 @@ export default function WarehousePoliciesPage() {
         searchPlaceholder="Search policies by name, picking strategy, or facility..."
       />
     </div>
-  )
+  );
 }

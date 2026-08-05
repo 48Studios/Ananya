@@ -16,6 +16,7 @@ This document defines the authentication model, organization creation workflows,
 ## 2. Onboarding Scenarios
 
 ### Scenario 1 — Create a New Organization (Primary Flow)
+
 - **Route**: `/onboarding/create`
 - **Flow**:
   1. **User Account Credentials**: First Name, Last Name, Email, Password.
@@ -23,6 +24,7 @@ This document defines the authentication model, organization creation workflows,
   3. **Initialization & Login**: Automatically creates the organization profile, inserts the root user as `Owner`, creates a valid session token, and redirects to `/dashboard`.
 
 ### Scenario 2 — Join an Existing Organization
+
 - **Route**: `/onboarding/join` or `/onboarding/join?token=<TOKEN>`
 - **Flow**:
   1. **Token Validation**: Validates invitation token status (must be active, non-expired, unrevoked, and unaccepted).
@@ -30,6 +32,7 @@ This document defines the authentication model, organization creation workflows,
   3. **Credential Setup**: User creates password and completes name profile to join the workspace (`POST /auth/invitations/accept`).
 
 ### Scenario 3 — Existing User Sign In
+
 - **Route**: `/login`
 - **Flow**:
   1. Authenticates email and password (`POST /auth/login`).

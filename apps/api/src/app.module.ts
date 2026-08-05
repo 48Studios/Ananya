@@ -73,6 +73,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SettingsModule } from './settings/settings.module';
 import { PreferencesModule } from './preferences/preferences.module';
+import { DataPacksModule } from './data-packs/data-packs.module';
 
 @Module({
   imports: [
@@ -149,6 +150,7 @@ import { PreferencesModule } from './preferences/preferences.module';
     NotificationsModule,
     SettingsModule,
     PreferencesModule,
+    DataPacksModule,
   ],
   controllers: [AppController],
 })

@@ -1,37 +1,43 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm, SubmitHandler, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2, AlertCircle, AlertTriangle, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import * as React from "react";
+import { useForm, SubmitHandler, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2, AlertCircle, AlertTriangle, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
-import { workOrdersApi, type WorkOrderDto, type MaterialRequirementDetailDto } from '@/lib/api/work-orders-api'
-import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
+} from "@/components/ui/select";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import {
+  workOrdersApi,
+  type WorkOrderDto,
+  type MaterialRequirementDetailDto,
+} from "@/lib/api/work-orders-api";
+import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 
 const recordScrapSchema = z.object({
-  componentId: z.string().min(1, 'Please select a component or finished product'),
-  quantity: z.number().min(0.0001, 'Quantity must be greater than zero'),
-  reason: z.string().min(2, 'Reason is required for scrap recording'),
-})
+  componentId: z
+    .string()
+    .min(1, "Please select a component or finished product"),
+  quantity: z.number().min(0.0001, "Quantity must be greater than zero"),
+  reason: z.string().min(2, "Reason is required for scrap recording"),
+});
 
-export type RecordScrapFormValues = z.infer<typeof recordScrapSchema>
+export type RecordScrapFormValues = z.infer<typeof recordScrapSchema>;
 
 interface RecordScrapModalProps {
-  isOpen: boolean
-  workOrder: WorkOrderDto
-  materials: MaterialRequirementDetailDto[]
-  onSuccess: (updated: WorkOrderDto) => void
-  onClose: () => void
+  isOpen: boolean;
+  workOrder: WorkOrderDto;
+  materials: MaterialRequirementDetailDto[];
+  onSuccess: (updated: WorkOrderDto) => void;
+  onClose: () => void;
 }
 
 export function RecordScrapModal({
@@ -41,21 +47,21 @@ export function RecordScrapModal({
   onSuccess,
   onClose,
 }: RecordScrapModalProps) {
-  const [componentsMap, setComponentsMap] = React.useState<Map<string, ComponentDto>>(
-    new Map(),
-  )
-  const [serverError, setServerError] = React.useState<string | null>(null)
+  const [componentsMap, setComponentsMap] = React.useState<
+    Map<string, ComponentDto>
+  >(new Map());
+  const [serverError, setServerError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     componentsApi
       .getAll()
       .then((comps) => {
-        const map = new Map<string, ComponentDto>()
-        for (const c of comps) map.set(c.id, c)
-        setComponentsMap(map)
+        const map = new Map<string, ComponentDto>();
+        for (const c of comps) map.set(c.id, c);
+        setComponentsMap(map);
       })
-      .catch(() => null)
-  }, [])
+      .catch(() => null);
+  }, []);
 
   const {
     register,
@@ -67,29 +73,29 @@ export function RecordScrapModal({
     defaultValues: {
       componentId: workOrder.componentId,
       quantity: 1,
-      reason: 'Material defect during production assembly',
+      reason: "Material defect during production assembly",
     },
-  })
+  });
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const onSubmit: SubmitHandler<RecordScrapFormValues> = async (values) => {
-    setServerError(null)
+    setServerError(null);
     try {
       const updated = await workOrdersApi.recordScrap(workOrder.id, {
         componentId: values.componentId,
         quantity: Number(values.quantity),
         reason: values.reason,
-      })
-      onSuccess(updated)
+      });
+      onSuccess(updated);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError('Failed to record scrap')
+        setServerError("Failed to record scrap");
       }
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -110,7 +116,12 @@ export function RecordScrapModal({
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Record damaged raw material components or finished goods for Work Order <span className="font-mono font-bold text-foreground">{workOrder.productionNumber}</span>.
+          Record damaged raw material components or finished goods for Work
+          Order{" "}
+          <span className="font-mono font-bold text-foreground">
+            {workOrder.productionNumber}
+          </span>
+          .
         </p>
 
         {serverError && (
@@ -135,11 +146,15 @@ export function RecordScrapModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={workOrder.componentId}>
-                      Finished Product — {componentsMap.get(workOrder.componentId)?.name || 'Finished Product'}
+                      Finished Product —{" "}
+                      {componentsMap.get(workOrder.componentId)?.name ||
+                        "Finished Product"}
                     </SelectItem>
                     {materials.map((m) => (
                       <SelectItem key={m.componentId} value={m.componentId}>
-                        Raw Material — {componentsMap.get(m.componentId)?.name || m.componentId}
+                        Raw Material —{" "}
+                        {componentsMap.get(m.componentId)?.name ||
+                          m.componentId}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -160,7 +175,7 @@ export function RecordScrapModal({
               type="number"
               step="any"
               min={0.0001}
-              {...register('quantity', { valueAsNumber: true })}
+              {...register("quantity", { valueAsNumber: true })}
               className="font-mono font-bold"
             />
             {errors.quantity?.message && (
@@ -170,13 +185,14 @@ export function RecordScrapModal({
 
           <Field>
             <FieldLabel htmlFor="scrap-reason">
-              Scrap Reason / Defect Category <span className="text-destructive">*</span>
+              Scrap Reason / Defect Category{" "}
+              <span className="text-destructive">*</span>
             </FieldLabel>
             <Input
               id="scrap-reason"
               type="text"
               placeholder="e.g. Component cracked during assembly line stress test"
-              {...register('reason')}
+              {...register("reason")}
             />
             {errors.reason?.message && (
               <FieldError>{errors.reason.message}</FieldError>
@@ -193,7 +209,12 @@ export function RecordScrapModal({
             >
               Cancel
             </Button>
-            <Button type="submit" variant="destructive" size="sm" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              variant="destructive"
+              size="sm"
+              disabled={isSubmitting}
+            >
               {isSubmitting && (
                 <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
               )}
@@ -203,6 +224,5 @@ export function RecordScrapModal({
         </form>
       </div>
     </div>
-  )
+  );
 }
-

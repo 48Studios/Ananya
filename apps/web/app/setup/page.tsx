@@ -1,46 +1,45 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useRouter } from 'next/navigation'
-import { authApi } from '@/lib/api/auth-api'
-import { Building2, CheckCircle2, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { authApi } from "@/lib/api/auth-api";
+import { Building2, CheckCircle2, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel } from '@/components/ui/field'
-
+} from "@/components/ui/select";
+import { Field, FieldLabel } from "@/components/ui/field";
 
 export default function OrganizationSetupPage() {
-  const router = useRouter()
-  const [step, setStep] = React.useState<1 | 2>(1)
-  const [companyName, setCompanyName] = React.useState('')
-  const [legalName, setLegalName] = React.useState('')
-  const [taxId, setTaxId] = React.useState('')
-  const [supportPhone, setSupportPhone] = React.useState('')
-  const [address, setAddress] = React.useState('')
-  const [website, setWebsite] = React.useState('')
-  const [country, setCountry] = React.useState('India')
-  const [primaryTimezone, setPrimaryTimezone] = React.useState('Asia/Kolkata')
-  const [baseCurrency, setBaseCurrency] = React.useState('INR')
+  const router = useRouter();
+  const [step, setStep] = React.useState<1 | 2>(1);
+  const [companyName, setCompanyName] = React.useState("");
+  const [legalName, setLegalName] = React.useState("");
+  const [taxId, setTaxId] = React.useState("");
+  const [supportPhone, setSupportPhone] = React.useState("");
+  const [address, setAddress] = React.useState("");
+  const [website, setWebsite] = React.useState("");
+  const [country, setCountry] = React.useState("India");
+  const [primaryTimezone, setPrimaryTimezone] = React.useState("Asia/Kolkata");
+  const [baseCurrency, setBaseCurrency] = React.useState("INR");
 
-  const [adminEmail, setAdminEmail] = React.useState('')
-  const [adminPassword, setAdminPassword] = React.useState('')
-  const [adminFirstName, setAdminFirstName] = React.useState('')
-  const [adminLastName, setAdminLastName] = React.useState('')
+  const [adminEmail, setAdminEmail] = React.useState("");
+  const [adminPassword, setAdminPassword] = React.useState("");
+  const [adminFirstName, setAdminFirstName] = React.useState("");
+  const [adminLastName, setAdminLastName] = React.useState("");
 
-  const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const handleFinishSetup = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
     try {
       await authApi.setupOrganization({
         companyName,
@@ -56,14 +55,14 @@ export default function OrganizationSetupPage() {
         adminFirstName,
         adminLastName,
         baseCurrency,
-      })
-      router.push('/login')
+      });
+      router.push("/login");
     } catch {
-      setError('Setup failed or organization already initialized.')
+      setError("Setup failed or organization already initialized.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-background text-foreground">
@@ -74,12 +73,16 @@ export default function OrganizationSetupPage() {
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-foreground">Organization Setup Wizard</h2>
-              <p className="text-xs text-muted-foreground">Step {step} of 2 — First-time ERP initialization</p>
+              <h2 className="text-base font-bold text-foreground">
+                Organization Setup Wizard
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Step {step} of 2 — First-time ERP initialization
+              </p>
             </div>
           </div>
           <span className="px-2 py-0.5 text-[10px] font-bold bg-primary/10 text-primary rounded font-mono">
-            {step === 1 ? '50%' : '100%'}
+            {step === 1 ? "50%" : "100%"}
           </span>
         </div>
 
@@ -107,7 +110,9 @@ export default function OrganizationSetupPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <Field>
-                <FieldLabel htmlFor="setup-legal">Legal Entity Name (Optional)</FieldLabel>
+                <FieldLabel htmlFor="setup-legal">
+                  Legal Entity Name (Optional)
+                </FieldLabel>
                 <Input
                   id="setup-legal"
                   type="text"
@@ -117,7 +122,9 @@ export default function OrganizationSetupPage() {
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="setup-tax">GST / Tax ID (Optional)</FieldLabel>
+                <FieldLabel htmlFor="setup-tax">
+                  GST / Tax ID (Optional)
+                </FieldLabel>
                 <Input
                   id="setup-tax"
                   type="text"
@@ -130,7 +137,9 @@ export default function OrganizationSetupPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <Field>
-                <FieldLabel htmlFor="setup-phone">Support Phone (Optional)</FieldLabel>
+                <FieldLabel htmlFor="setup-phone">
+                  Support Phone (Optional)
+                </FieldLabel>
                 <Input
                   id="setup-phone"
                   type="text"
@@ -140,7 +149,9 @@ export default function OrganizationSetupPage() {
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="setup-url">Website URL (Optional)</FieldLabel>
+                <FieldLabel htmlFor="setup-url">
+                  Website URL (Optional)
+                </FieldLabel>
                 <Input
                   id="setup-url"
                   type="url"
@@ -152,7 +163,9 @@ export default function OrganizationSetupPage() {
             </div>
 
             <Field>
-              <FieldLabel htmlFor="setup-address">HQ Operating Address (Optional)</FieldLabel>
+              <FieldLabel htmlFor="setup-address">
+                HQ Operating Address (Optional)
+              </FieldLabel>
               <Input
                 id="setup-address"
                 type="text"
@@ -183,7 +196,10 @@ export default function OrganizationSetupPage() {
               </Field>
               <Field>
                 <FieldLabel htmlFor="setup-currency">Base Currency</FieldLabel>
-                <Select value={baseCurrency} onValueChange={(val) => setBaseCurrency(val ?? '')}>
+                <Select
+                  value={baseCurrency}
+                  onValueChange={(val) => setBaseCurrency(val ?? "")}
+                >
                   <SelectTrigger id="setup-currency">
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
@@ -206,9 +222,13 @@ export default function OrganizationSetupPage() {
         ) : (
           <form onSubmit={handleFinishSetup} className="space-y-4 text-xs">
             <div className="p-3 bg-muted/40 rounded-lg space-y-1">
-              <p className="font-semibold text-foreground">Root Administrator Credentials</p>
+              <p className="font-semibold text-foreground">
+                Root Administrator Credentials
+              </p>
               <p className="text-[11px] text-muted-foreground">
-                This account receives full administrative system privileges (`Admin` role) to configure security, roles, and enterprise users.
+                This account receives full administrative system privileges
+                (`Admin` role) to configure security, roles, and enterprise
+                users.
               </p>
             </div>
 
@@ -262,7 +282,13 @@ export default function OrganizationSetupPage() {
             </Field>
 
             <div className="flex items-center justify-between pt-4">
-              <Button type="button" variant="outline" size="sm" onClick={() => setStep(1)} disabled={loading}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setStep(1)}
+                disabled={loading}
+              >
                 &larr; Back
               </Button>
               <Button type="submit" size="sm" disabled={loading}>
@@ -283,5 +309,5 @@ export default function OrganizationSetupPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

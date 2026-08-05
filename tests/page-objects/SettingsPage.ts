@@ -1,4 +1,4 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 export class SettingsPage {
   readonly page: Page;
@@ -12,7 +12,7 @@ export class SettingsPage {
   }
 
   async goto() {
-    await this.page.goto('/settings');
+    await this.page.goto("/settings");
   }
 
   async expectLoaded() {

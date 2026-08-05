@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import AccountsPage from '../accounts/page'
+import AccountsPage from "../accounts/page";
 
 export default function ChartOfAccountsPage() {
-  return <AccountsPage />
+  return <AccountsPage />;
 }

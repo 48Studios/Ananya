@@ -22,14 +22,26 @@ export const purchaseOrders = pgTable(
       .references(() => suppliers.id),
     status: varchar("status", { length: 32 }).notNull().default("DRAFT"),
     currency: varchar("currency", { length: 3 }).notNull().default("USD"),
-    subtotal: decimal("subtotal", { precision: 14, scale: 4 }).notNull().default("0.0000"),
-    taxTotal: decimal("tax_total", { precision: 14, scale: 4 }).notNull().default("0.0000"),
-    grandTotal: decimal("grand_total", { precision: 14, scale: 4 }).notNull().default("0.0000"),
+    subtotal: decimal("subtotal", { precision: 14, scale: 4 })
+      .notNull()
+      .default("0.0000"),
+    taxTotal: decimal("tax_total", { precision: 14, scale: 4 })
+      .notNull()
+      .default("0.0000"),
+    grandTotal: decimal("grand_total", { precision: 14, scale: 4 })
+      .notNull()
+      .default("0.0000"),
     notes: text("notes"),
     issuedAt: timestamp("issued_at", { withTimezone: true }),
-    expectedDeliveryDate: timestamp("expected_delivery_date", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    expectedDeliveryDate: timestamp("expected_delivery_date", {
+      withTimezone: true,
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     uniqueIndex("purchase_orders_po_number_unique").on(table.poNumber),
@@ -49,13 +61,23 @@ export const purchaseOrderLines = pgTable(
       .notNull()
       .references(() => components.id),
     vendorPartNumber: varchar("vendor_part_number", { length: 128 }),
-    unitPrice: decimal("unit_price", { precision: 12, scale: 4 }).notNull().default("0.0000"),
+    unitPrice: decimal("unit_price", { precision: 12, scale: 4 })
+      .notNull()
+      .default("0.0000"),
     quantityOrdered: integer("quantity_ordered").notNull().default(1),
     quantityReceived: integer("quantity_received").notNull().default(0),
-    taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).notNull().default("0.00"),
-    lineTotal: decimal("line_total", { precision: 14, scale: 4 }).notNull().default("0.0000"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    taxRate: decimal("tax_rate", { precision: 5, scale: 2 })
+      .notNull()
+      .default("0.00"),
+    lineTotal: decimal("line_total", { precision: 14, scale: 4 })
+      .notNull()
+      .default("0.0000"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     index("purchase_order_lines_po_id_idx").on(table.purchaseOrderId),

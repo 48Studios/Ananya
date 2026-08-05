@@ -1,8 +1,8 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
-export type MaintenanceStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+export type MaintenanceStatus = "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED";
 
-export type ServiceFrequency = 'MONTHLY' | 'QUARTERLY' | 'BIANNUAL' | 'ANNUAL';
+export type ServiceFrequency = "MONTHLY" | "QUARTERLY" | "BIANNUAL" | "ANNUAL";
 
 export interface MaintenanceScheduleProps {
   id: string;
@@ -62,11 +62,11 @@ export class MaintenanceSchedule implements MaintenanceScheduleProps {
   public static create(
     props: CreateMaintenanceScheduleProps,
   ): MaintenanceSchedule {
-    if (!props.customerId || props.customerId.trim() === '') {
-      throw new Error('Maintenance schedule requires a valid customerId');
+    if (!props.customerId || props.customerId.trim() === "") {
+      throw new Error("Maintenance schedule requires a valid customerId");
     }
-    if (!props.assetName || props.assetName.trim() === '') {
-      throw new Error('Maintenance asset name is required');
+    if (!props.assetName || props.assetName.trim() === "") {
+      throw new Error("Maintenance asset name is required");
     }
 
     const now = new Date();
@@ -79,49 +79,51 @@ export class MaintenanceSchedule implements MaintenanceScheduleProps {
       frequency: props.frequency,
       nextVisitDate: props.nextVisitDate,
       assignedTechnician: props.assignedTechnician,
-      status: 'ACTIVE',
+      status: "ACTIVE",
       notes: props.notes?.trim(),
       createdAt: now,
       updatedAt: now,
     });
   }
 
-  public static rehydrate(props: MaintenanceScheduleProps): MaintenanceSchedule {
+  public static rehydrate(
+    props: MaintenanceScheduleProps,
+  ): MaintenanceSchedule {
     return new MaintenanceSchedule(props);
   }
 
   public pause(): void {
-    if (this.status !== 'ACTIVE') {
+    if (this.status !== "ACTIVE") {
       throw new Error(`Only ACTIVE schedules can be paused`);
     }
-    this.status = 'PAUSED';
+    this.status = "PAUSED";
     this.updatedAt = new Date();
   }
 
   public resume(): void {
-    if (this.status !== 'PAUSED') {
+    if (this.status !== "PAUSED") {
       throw new Error(`Only PAUSED schedules can be resumed`);
     }
-    this.status = 'ACTIVE';
+    this.status = "ACTIVE";
     this.updatedAt = new Date();
   }
 
   public completeVisit(): void {
-    if (this.status !== 'ACTIVE') {
+    if (this.status !== "ACTIVE") {
       throw new Error(`Only ACTIVE maintenance schedules can complete visits`);
     }
     const nextDate = new Date(this.nextVisitDate);
     switch (this.frequency) {
-      case 'MONTHLY':
+      case "MONTHLY":
         nextDate.setMonth(nextDate.getMonth() + 1);
         break;
-      case 'QUARTERLY':
+      case "QUARTERLY":
         nextDate.setMonth(nextDate.getMonth() + 3);
         break;
-      case 'BIANNUAL':
+      case "BIANNUAL":
         nextDate.setMonth(nextDate.getMonth() + 6);
         break;
-      case 'ANNUAL':
+      case "ANNUAL":
         nextDate.setFullYear(nextDate.getFullYear() + 1);
         break;
     }
@@ -130,18 +132,18 @@ export class MaintenanceSchedule implements MaintenanceScheduleProps {
   }
 
   public completePlan(): void {
-    if (this.status === 'CANCELLED') {
-      throw new Error('Cancelled schedules cannot be completed');
+    if (this.status === "CANCELLED") {
+      throw new Error("Cancelled schedules cannot be completed");
     }
-    this.status = 'COMPLETED';
+    this.status = "COMPLETED";
     this.updatedAt = new Date();
   }
 
   public cancel(): void {
-    if (this.status === 'COMPLETED') {
-      throw new Error('Completed schedules cannot be cancelled');
+    if (this.status === "COMPLETED") {
+      throw new Error("Completed schedules cannot be cancelled");
     }
-    this.status = 'CANCELLED';
+    this.status = "CANCELLED";
     this.updatedAt = new Date();
   }
 }

@@ -1,70 +1,85 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Boxes, Plus, CheckCircle2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { materialConsumptionApi, type MaterialConsumptionDto } from '@/lib/api/material-consumption-api'
-import { formatDate } from '@/lib/utils'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Boxes, Plus, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import {
+  materialConsumptionApi,
+  type MaterialConsumptionDto,
+} from "@/lib/api/material-consumption-api";
+import { formatDate } from "@/lib/utils";
 
 export default function MaterialConsumptionPage() {
-  const [consumptions, setConsumptions] = React.useState<MaterialConsumptionDto[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const [consumptions, setConsumptions] = React.useState<
+    MaterialConsumptionDto[]
+  >([]);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    materialConsumptionApi.getAll()
+    materialConsumptionApi
+      .getAll()
       .then((data) => setConsumptions(data || []))
       .catch(() => setConsumptions([]))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
   const columns: ColumnDef<MaterialConsumptionDto>[] = [
     {
-      accessorKey: 'workOrderNumber',
-      header: 'Work Order No.',
+      accessorKey: "workOrderNumber",
+      header: "Work Order No.",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
-          {row.original.workOrderNumber || '-'}
+          {row.original.workOrderNumber || "-"}
         </span>
       ),
     },
     {
-      accessorKey: 'componentSku',
-      header: 'Component SKU',
+      accessorKey: "componentSku",
+      header: "Component SKU",
       cell: ({ row }) => (
         <div>
-          <p className="font-mono text-xs font-semibold text-foreground">{row.original.componentSku || '-'}</p>
-          <p className="text-[11px] text-muted-foreground">{row.original.componentName || '-'}</p>
+          <p className="font-mono text-xs font-semibold text-foreground">
+            {row.original.componentSku || "-"}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {row.original.componentName || "-"}
+          </p>
         </div>
       ),
     },
     {
-      accessorKey: 'quantityConsumed',
-      header: 'Quantity Consumed',
+      accessorKey: "quantityConsumed",
+      header: "Quantity Consumed",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
-          {row.original.quantityConsumed || 0} {row.original.unitOfMeasure || 'pcs'}
+          {row.original.quantityConsumed || 0}{" "}
+          {row.original.unitOfMeasure || "pcs"}
         </span>
       ),
     },
     {
-      accessorKey: 'consumedBy',
-      header: 'Operator',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.consumedBy || 'System'}</span>,
-    },
-    {
-      accessorKey: 'consumedAt',
-      header: 'Timestamp',
+      accessorKey: "consumedBy",
+      header: "Operator",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {row.original.consumedAt ? formatDate(row.original.consumedAt) : '-'}
+          {row.original.consumedBy || "System"}
         </span>
       ),
     },
-  ]
+    {
+      accessorKey: "consumedAt",
+      header: "Timestamp",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {row.original.consumedAt ? formatDate(row.original.consumedAt) : "-"}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -106,5 +121,5 @@ export default function MaterialConsumptionPage() {
         emptyMessage="No material consumption records match your filter."
       />
     </div>
-  )
+  );
 }

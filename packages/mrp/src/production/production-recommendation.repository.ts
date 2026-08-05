@@ -1,7 +1,7 @@
 import {
   ProductionRecommendation,
   ProductionRecommendationStatus,
-} from './production-recommendation';
+} from "./production-recommendation";
 
 export interface FindManyProductionRecommendationsOptions {
   planningRunId?: string;

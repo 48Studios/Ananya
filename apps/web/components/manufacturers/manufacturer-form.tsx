@@ -1,37 +1,37 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+import * as React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   manufacturersApi,
   type ManufacturerDto,
   type CreateManufacturerPayload,
   type UpdateManufacturerPayload,
-} from '@/lib/api/manufacturers-api'
+} from "@/lib/api/manufacturers-api";
 
 const manufacturerSchema = z.object({
   code: z
     .string()
-    .min(1, 'Manufacturer code is required')
+    .min(1, "Manufacturer code is required")
     .transform((val) => val.trim().toUpperCase()),
   name: z
     .string()
-    .min(1, 'Manufacturer name is required')
+    .min(1, "Manufacturer name is required")
     .transform((val) => val.trim()),
-})
+});
 
-export type ManufacturerFormValues = z.infer<typeof manufacturerSchema>
+export type ManufacturerFormValues = z.infer<typeof manufacturerSchema>;
 
 interface ManufacturerFormProps {
-  initialData?: ManufacturerDto | null
-  onSuccess: (savedManufacturer: ManufacturerDto) => void
-  onCancel: () => void
+  initialData?: ManufacturerDto | null;
+  onSuccess: (savedManufacturer: ManufacturerDto) => void;
+  onCancel: () => void;
 }
 
 export function ManufacturerForm({
@@ -39,8 +39,8 @@ export function ManufacturerForm({
   onSuccess,
   onCancel,
 }: ManufacturerFormProps) {
-  const [serverError, setServerError] = React.useState<string | null>(null)
-  const isEditing = Boolean(initialData)
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const isEditing = Boolean(initialData);
 
   const {
     register,
@@ -49,39 +49,41 @@ export function ManufacturerForm({
   } = useForm<ManufacturerFormValues>({
     resolver: zodResolver(manufacturerSchema),
     defaultValues: {
-      code: initialData?.code ?? '',
-      name: initialData?.name ?? '',
+      code: initialData?.code ?? "",
+      name: initialData?.name ?? "",
     },
-  })
+  });
 
   const onSubmit = async (values: ManufacturerFormValues) => {
-    setServerError(null)
+    setServerError(null);
     try {
       if (isEditing && initialData) {
         const payload: UpdateManufacturerPayload = {
           code: values.code,
           name: values.name,
-        }
-        const updated = await manufacturersApi.update(initialData.id, payload)
-        onSuccess(updated)
+        };
+        const updated = await manufacturersApi.update(initialData.id, payload);
+        onSuccess(updated);
       } else {
         const payload: CreateManufacturerPayload = {
           code: values.code,
           name: values.name,
-        }
-        const created = await manufacturersApi.create(payload)
-        onSuccess(created)
+        };
+        const created = await manufacturersApi.create(payload);
+        onSuccess(created);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
         setServerError(
-          isEditing ? 'Failed to update manufacturer' : 'Failed to create manufacturer',
-        )
+          isEditing
+            ? "Failed to update manufacturer"
+            : "Failed to create manufacturer",
+        );
       }
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -100,7 +102,7 @@ export function ManufacturerForm({
           id="mfr-code"
           type="text"
           placeholder="e.g. MFR-ST-MICRO"
-          {...register('code')}
+          {...register("code")}
           className="uppercase font-mono"
         />
         {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
@@ -115,7 +117,7 @@ export function ManufacturerForm({
           id="mfr-name"
           type="text"
           placeholder="e.g. STMicroelectronics N.V."
-          {...register('name')}
+          {...register("name")}
         />
         {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
       </Field>
@@ -132,11 +134,12 @@ export function ManufacturerForm({
           Cancel
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-          {isEditing ? 'Save Changes' : 'Create Manufacturer'}
+          {isSubmitting && (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          )}
+          {isEditing ? "Save Changes" : "Create Manufacturer"}
         </Button>
       </div>
     </form>
-  )
+  );
 }
-

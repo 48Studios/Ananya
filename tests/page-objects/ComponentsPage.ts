@@ -1,4 +1,4 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 export class ComponentsPage {
   readonly page: Page;
@@ -9,12 +9,12 @@ export class ComponentsPage {
   constructor(page: Page) {
     this.page = page;
     this.heading = page.locator('h1:has-text("Components")');
-    this.tableRows = page.locator('tbody tr');
+    this.tableRows = page.locator("tbody tr");
     this.searchInput = page.locator('input[placeholder*="Search"]');
   }
 
   async goto() {
-    await this.page.goto('/components');
+    await this.page.goto("/components");
   }
 
   async expectLoaded() {

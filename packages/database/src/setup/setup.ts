@@ -2,7 +2,7 @@ import path from "path";
 import { Client } from "pg";
 import { db, pool } from "../index";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { runSeed } from "../seed/seed";
+import { runBootstrap } from "../bootstrap/bootstrap";
 
 async function ensureDatabaseExists() {
   const connectionString = process.env.DATABASE_URL;
@@ -21,11 +21,13 @@ async function ensureDatabaseExists() {
 
     const res = await client.query(
       "SELECT 1 FROM pg_database WHERE datname = $1",
-      [dbName]
+      [dbName],
     );
 
     if (res.rowCount === 0) {
-      console.log(`📦 Database "${dbName}" does not exist. Creating database...`);
+      console.log(
+        `📦 Database "${dbName}" does not exist. Creating database...`,
+      );
       await client.query(`CREATE DATABASE "${dbName.replace(/"/g, '""')}"`);
       console.log(`✅ Database "${dbName}" created successfully.`);
     }
@@ -47,10 +49,12 @@ export async function runSetup() {
     await migrate(db, { migrationsFolder });
     console.log("✅ Database schema migrations applied successfully.");
 
-    console.log("🌱 Executing database seed...");
-    await runSeed();
+    console.log("⚡ Executing platform system bootstrap...");
+    await runBootstrap();
 
-    console.log("🎉 Database setup complete! Schema migrated and initial data seeded.");
+    console.log(
+      "🎉 Database setup complete! Schema migrated and platform infrastructure bootstrapped.",
+    );
   } catch (error) {
     console.error("❌ Database setup failed:", error);
     process.exit(1);

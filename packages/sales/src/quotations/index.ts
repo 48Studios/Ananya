@@ -1,2 +1,2 @@
-export * from './quotation';
-export * from './quotation.repository';
+export * from "./quotation";
+export * from "./quotation.repository";

@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface CategoryDto {
   id: string;
@@ -27,11 +27,17 @@ export interface UpdateCategoryPayload {
 }
 
 export const categoriesApi = {
-  getAll: (): Promise<CategoryDto[]> => apiClient.get<CategoryDto[]>('/categories'),
-  getById: (id: string): Promise<CategoryDto> => apiClient.get<CategoryDto>(`/categories/${id}`),
+  getAll: (): Promise<CategoryDto[]> =>
+    apiClient.get<CategoryDto[]>("/categories"),
+  getById: (id: string): Promise<CategoryDto> =>
+    apiClient.get<CategoryDto>(`/categories/${id}`),
   create: (payload: CreateCategoryPayload): Promise<CategoryDto> =>
-    apiClient.post<CategoryDto, CreateCategoryPayload>('/categories', payload),
+    apiClient.post<CategoryDto, CreateCategoryPayload>("/categories", payload),
   update: (id: string, payload: UpdateCategoryPayload): Promise<CategoryDto> =>
-    apiClient.put<CategoryDto, UpdateCategoryPayload>(`/categories/${id}`, payload),
-  delete: (id: string): Promise<void> => apiClient.delete<void>(`/categories/${id}`),
+    apiClient.put<CategoryDto, UpdateCategoryPayload>(
+      `/categories/${id}`,
+      payload,
+    ),
+  delete: (id: string): Promise<void> =>
+    apiClient.delete<void>(`/categories/${id}`),
 };

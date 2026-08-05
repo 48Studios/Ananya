@@ -7,12 +7,8 @@ export interface FindManyBomsOptions {
 
 export interface BillOfMaterialsRepository {
   findById(id: string): Promise<BillOfMaterials | null>;
-  findActiveByComponentId(
-    componentId: string,
-  ): Promise<BillOfMaterials | null>;
-  findRevisionsByComponentId(
-    componentId: string,
-  ): Promise<BillOfMaterials[]>;
+  findActiveByComponentId(componentId: string): Promise<BillOfMaterials | null>;
+  findRevisionsByComponentId(componentId: string): Promise<BillOfMaterials[]>;
   findMany(options?: FindManyBomsOptions): Promise<BillOfMaterials[]>;
   save(bom: BillOfMaterials): Promise<void>;
   delete(id: string): Promise<void>;

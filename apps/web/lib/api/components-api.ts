@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface ComponentDto {
   id: string;
@@ -36,11 +36,23 @@ export interface UpdateComponentPayload {
 }
 
 export const componentsApi = {
-  getAll: (): Promise<ComponentDto[]> => apiClient.get<ComponentDto[]>('/components'),
-  getById: (id: string): Promise<ComponentDto> => apiClient.get<ComponentDto>(`/components/${id}`),
+  getAll: (): Promise<ComponentDto[]> =>
+    apiClient.get<ComponentDto[]>("/components"),
+  getById: (id: string): Promise<ComponentDto> =>
+    apiClient.get<ComponentDto>(`/components/${id}`),
   create: (payload: CreateComponentPayload): Promise<ComponentDto> =>
-    apiClient.post<ComponentDto, CreateComponentPayload>('/components', payload),
-  update: (id: string, payload: UpdateComponentPayload): Promise<ComponentDto> =>
-    apiClient.put<ComponentDto, UpdateComponentPayload>(`/components/${id}`, payload),
-  delete: (id: string): Promise<void> => apiClient.delete<void>(`/components/${id}`),
+    apiClient.post<ComponentDto, CreateComponentPayload>(
+      "/components",
+      payload,
+    ),
+  update: (
+    id: string,
+    payload: UpdateComponentPayload,
+  ): Promise<ComponentDto> =>
+    apiClient.put<ComponentDto, UpdateComponentPayload>(
+      `/components/${id}`,
+      payload,
+    ),
+  delete: (id: string): Promise<void> =>
+    apiClient.delete<void>(`/components/${id}`),
 };

@@ -1,7 +1,7 @@
 import {
   PurchaseRecommendation,
   PurchaseRecommendationStatus,
-} from './purchase-recommendation';
+} from "./purchase-recommendation";
 
 export interface FindManyPurchaseRecommendationsOptions {
   planningRunId?: string;

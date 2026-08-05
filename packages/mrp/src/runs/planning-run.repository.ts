@@ -1,4 +1,4 @@
-import { PlanningRun, PlanningRunStatus } from './planning-run';
+import { PlanningRun, PlanningRunStatus } from "./planning-run";
 
 export interface FindManyPlanningRunsOptions {
   status?: PlanningRunStatus;

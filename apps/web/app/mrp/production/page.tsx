@@ -1,55 +1,68 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Factory, Play } from 'lucide-react'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { mrpApi, type PlannedProductionOrderDto } from '@/lib/api/mrp-api'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Factory, Play } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { mrpApi, type PlannedProductionOrderDto } from "@/lib/api/mrp-api";
 
 export default function MrpProductionPage() {
-  const [orders, setOrders] = React.useState<PlannedProductionOrderDto[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const [orders, setOrders] = React.useState<PlannedProductionOrderDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    mrpApi.getProductionRecommendations()
+    mrpApi
+      .getProductionRecommendations()
       .then((data) => setOrders(data || []))
       .catch(() => setOrders([]))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
   const columns: ColumnDef<PlannedProductionOrderDto>[] = [
     {
-      accessorKey: 'plannedOrderNumber',
-      header: 'Planned Order No.',
+      accessorKey: "plannedOrderNumber",
+      header: "Planned Order No.",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
-          {row.original.plannedOrderNumber || '-'}
+          {row.original.plannedOrderNumber || "-"}
         </span>
       ),
     },
     {
-      accessorKey: 'assemblySku',
-      header: 'Assembly SKU',
+      accessorKey: "assemblySku",
+      header: "Assembly SKU",
       cell: ({ row }) => (
         <div>
-          <p className="font-mono text-xs font-semibold text-foreground">{row.original.assemblySku || '-'}</p>
-          <p className="text-[11px] text-muted-foreground">{row.original.assemblyName || '-'}</p>
+          <p className="font-mono text-xs font-semibold text-foreground">
+            {row.original.assemblySku || "-"}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {row.original.assemblyName || "-"}
+          </p>
         </div>
       ),
     },
     {
-      accessorKey: 'suggestedQuantity',
-      header: 'Suggested Batch Qty',
-      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-semibold">{row.original.suggestedQuantity || 0} units</span>,
+      accessorKey: "suggestedQuantity",
+      header: "Suggested Batch Qty",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-foreground font-semibold">
+          {row.original.suggestedQuantity || 0} units
+        </span>
+      ),
     },
     {
-      accessorKey: 'scheduledStartDate',
-      header: 'Scheduled Start',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.scheduledStartDate || 'Scheduled'}</span>,
+      accessorKey: "scheduledStartDate",
+      header: "Scheduled Start",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {row.original.scheduledStartDate || "Scheduled"}
+        </span>
+      ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -59,21 +72,13 @@ export default function MrpProductionPage() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          title="Planned Orders"
-          value={orders.length}
-          icon={Factory}
-        />
+        <StatCard title="Planned Orders" value={orders.length} icon={Factory} />
         <StatCard
           title="Actionable Orders"
           value={`${orders.length} Orders`}
           icon={Play}
         />
-        <StatCard
-          title="Capacity Verified"
-          value="100% Fit"
-          icon={Play}
-        />
+        <StatCard title="Capacity Verified" value="100% Fit" icon={Play} />
       </div>
 
       <EntityDataTable
@@ -85,5 +90,5 @@ export default function MrpProductionPage() {
         emptyMessage="No planned manufacturing orders currently required."
       />
     </div>
-  )
+  );
 }

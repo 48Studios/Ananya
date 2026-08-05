@@ -1,60 +1,77 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { ShoppingCart, CheckCircle2 } from 'lucide-react'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { mrpApi, type PlannedPurchaseOrderDto } from '@/lib/api/mrp-api'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ShoppingCart, CheckCircle2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { mrpApi, type PlannedPurchaseOrderDto } from "@/lib/api/mrp-api";
 
 export default function MrpPurchasesPage() {
-  const [orders, setOrders] = React.useState<PlannedPurchaseOrderDto[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const [orders, setOrders] = React.useState<PlannedPurchaseOrderDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    mrpApi.getPurchaseRecommendations()
+    mrpApi
+      .getPurchaseRecommendations()
       .then((data) => setOrders(data || []))
       .catch(() => setOrders([]))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
   const columns: ColumnDef<PlannedPurchaseOrderDto>[] = [
     {
-      accessorKey: 'plannedPoNumber',
-      header: 'Planned PO No.',
+      accessorKey: "plannedPoNumber",
+      header: "Planned PO No.",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
-          {row.original.plannedPoNumber || '-'}
+          {row.original.plannedPoNumber || "-"}
         </span>
       ),
     },
     {
-      accessorKey: 'supplierName',
-      header: 'Suggested Vendor',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.supplierName || 'Primary Vendor'}</span>,
+      accessorKey: "supplierName",
+      header: "Suggested Vendor",
+      cell: ({ row }) => (
+        <span className="font-medium text-foreground">
+          {row.original.supplierName || "Primary Vendor"}
+        </span>
+      ),
     },
     {
-      accessorKey: 'componentSku',
-      header: 'Component',
+      accessorKey: "componentSku",
+      header: "Component",
       cell: ({ row }) => (
         <div>
-          <p className="font-mono text-xs font-semibold text-foreground">{row.original.componentSku || '-'}</p>
-          <p className="text-[11px] text-muted-foreground">{row.original.componentName || '-'}</p>
+          <p className="font-mono text-xs font-semibold text-foreground">
+            {row.original.componentSku || "-"}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {row.original.componentName || "-"}
+          </p>
         </div>
       ),
     },
     {
-      accessorKey: 'quantityToOrder',
-      header: 'Order Qty',
-      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-semibold">{row.original.quantityToOrder || 0} units</span>,
+      accessorKey: "quantityToOrder",
+      header: "Order Qty",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-foreground font-semibold">
+          {row.original.quantityToOrder || 0} units
+        </span>
+      ),
     },
     {
-      accessorKey: 'releaseDate',
-      header: 'Must Release By',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground font-mono">{row.original.releaseDate || 'Asap'}</span>,
+      accessorKey: "releaseDate",
+      header: "Must Release By",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground font-mono">
+          {row.original.releaseDate || "Asap"}
+        </span>
+      ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -90,5 +107,5 @@ export default function MrpPurchasesPage() {
         emptyMessage="No component purchase orders currently required."
       />
     </div>
-  )
+  );
 }

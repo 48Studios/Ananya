@@ -1,29 +1,36 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Warehouse as WarehouseIcon, Plus, CheckCircle2, MapPin, Boxes } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { locationsApi, type LocationDto } from '@/lib/api/locations-api'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  Warehouse as WarehouseIcon,
+  Plus,
+  CheckCircle2,
+  MapPin,
+  Boxes,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 
 export default function WarehousePage() {
-  const [locations, setLocations] = React.useState<LocationDto[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    locationsApi.getAll()
+    locationsApi
+      .getAll()
       .then((data: LocationDto[]) => setLocations(data))
       .catch(() => setLocations([]))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
   const columns: ColumnDef<LocationDto>[] = [
     {
-      accessorKey: 'code',
-      header: 'Warehouse / Location Code',
+      accessorKey: "code",
+      header: "Warehouse / Location Code",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
           {row.original.code}
@@ -31,22 +38,24 @@ export default function WarehousePage() {
       ),
     },
     {
-      accessorKey: 'name',
-      header: 'Location Name',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.name}</span>,
+      accessorKey: "name",
+      header: "Location Name",
+      cell: ({ row }) => (
+        <span className="font-medium text-foreground">{row.original.name}</span>
+      ),
     },
     {
-      accessorKey: 'kind',
-      header: 'Storage Type',
+      accessorKey: "kind",
+      header: "Storage Type",
       cell: ({ row }) => (
         <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-          {row.original.kind || 'Warehouse Location'}
+          {row.original.kind || "Warehouse Location"}
         </span>
       ),
     },
     {
-      accessorKey: 'name',
-      header: 'Facility Name',
+      accessorKey: "name",
+      header: "Facility Name",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground flex items-center gap-1">
           <MapPin className="w-3 h-3 text-muted-foreground flex-shrink-0" />
@@ -54,7 +63,7 @@ export default function WarehousePage() {
         </span>
       ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -94,5 +103,5 @@ export default function WarehousePage() {
         loading={loading}
       />
     </div>
-  )
+  );
 }

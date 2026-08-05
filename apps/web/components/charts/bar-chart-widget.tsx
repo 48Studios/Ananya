@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import * as React from 'react'
+import * as React from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -9,43 +9,47 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-} from 'recharts'
+} from "recharts";
 
 export interface BarChartDataItem {
-  name: string
-  value: number
-  [key: string]: string | number
+  name: string;
+  value: number;
+  [key: string]: string | number;
 }
 
 export interface BarChartWidgetProps {
-  data: BarChartDataItem[]
-  dataKey?: string
-  height?: number
-  color?: string
+  data: BarChartDataItem[];
+  dataKey?: string;
+  height?: number;
+  color?: string;
 }
 
 export function BarChartWidget({
   data,
-  dataKey = 'value',
+  dataKey = "value",
   height = 240,
-  color = '#3b82f6',
+  color = "#3b82f6",
 }: BarChartWidgetProps) {
   if (!data || data.length === 0) {
     return (
       <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
         No data available for bar chart
       </div>
-    )
+    );
   }
 
   return (
-    <div style={{ width: '100%', height }}>
+    <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
           margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.5} />
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="var(--border)"
+            opacity={0.5}
+          />
           <XAxis
             dataKey="name"
             stroke="var(--muted-foreground)"
@@ -61,12 +65,12 @@ export function BarChartWidget({
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)',
-              borderRadius: '8px',
-              color: 'var(--foreground)',
-              fontSize: '12px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              backgroundColor: "var(--card)",
+              borderColor: "var(--border)",
+              borderRadius: "8px",
+              color: "var(--foreground)",
+              fontSize: "12px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             }}
           />
           <Bar
@@ -78,5 +82,5 @@ export function BarChartWidget({
         </BarChart>
       </ResponsiveContainer>
     </div>
-  )
+  );
 }

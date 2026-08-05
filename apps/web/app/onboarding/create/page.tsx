@@ -1,67 +1,79 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { authApi } from '@/lib/api/auth-api'
-import { Building2, CheckCircle2, ArrowRight, ArrowLeft, Loader2, ShieldCheck } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { authApi } from "@/lib/api/auth-api";
+import {
+  Building2,
+  CheckCircle2,
+  ArrowRight,
+  ArrowLeft,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel } from '@/components/ui/field'
+} from "@/components/ui/select";
+import { Field, FieldLabel } from "@/components/ui/field";
 
 export default function CreateOrganizationPage() {
-  const router = useRouter()
-  const [step, setStep] = React.useState<1 | 2>(1)
+  const router = useRouter();
+  const [step, setStep] = React.useState<1 | 2>(1);
 
   // Step 1: Account Information
-  const [adminFirstName, setAdminFirstName] = React.useState('')
-  const [adminLastName, setAdminLastName] = React.useState('')
-  const [adminEmail, setAdminEmail] = React.useState('')
-  const [adminPassword, setAdminPassword] = React.useState('')
+  const [adminFirstName, setAdminFirstName] = React.useState("");
+  const [adminLastName, setAdminLastName] = React.useState("");
+  const [adminEmail, setAdminEmail] = React.useState("");
+  const [adminPassword, setAdminPassword] = React.useState("");
 
   // Step 2: Organization Details
-  const [companyName, setCompanyName] = React.useState('')
-  const [legalName, setLegalName] = React.useState('')
-  const [taxId, setTaxId] = React.useState('')
-  const [supportPhone, setSupportPhone] = React.useState('')
-  const [address, setAddress] = React.useState('')
-  const [website, setWebsite] = React.useState('')
-  const [country, setCountry] = React.useState('India')
-  const [primaryTimezone, setPrimaryTimezone] = React.useState('Asia/Kolkata')
-  const [baseCurrency, setBaseCurrency] = React.useState('INR')
+  const [companyName, setCompanyName] = React.useState("");
+  const [legalName, setLegalName] = React.useState("");
+  const [taxId, setTaxId] = React.useState("");
+  const [supportPhone, setSupportPhone] = React.useState("");
+  const [address, setAddress] = React.useState("");
+  const [website, setWebsite] = React.useState("");
+  const [country, setCountry] = React.useState("India");
+  const [primaryTimezone, setPrimaryTimezone] = React.useState("Asia/Kolkata");
+  const [baseCurrency, setBaseCurrency] = React.useState("INR");
 
-  const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const handleStep1Next = (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
 
-    if (!adminFirstName.trim() || !adminLastName.trim() || !adminEmail.trim() || !adminPassword.trim()) {
-      setError('Please complete all account administrator details.')
-      return
+    if (
+      !adminFirstName.trim() ||
+      !adminLastName.trim() ||
+      !adminEmail.trim() ||
+      !adminPassword.trim()
+    ) {
+      setError("Please complete all account administrator details.");
+      return;
     }
 
-    setStep(2)
-  }
+    setStep(2);
+  };
 
   const handleCreateOrganization = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
 
     if (!companyName.trim()) {
-      setError('Organization Name is required.')
-      return
+      setError("Organization Name is required.");
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
       await authApi.setupOrganization({
@@ -71,26 +83,26 @@ export default function CreateOrganizationPage() {
         supportPhone: supportPhone.trim() || undefined,
         address: address.trim() || undefined,
         website: website.trim() || undefined,
-        country: country.trim() || 'India',
-        primaryTimezone: primaryTimezone.trim() || 'Asia/Kolkata',
-        baseCurrency: baseCurrency.trim() || 'INR',
+        country: country.trim() || "India",
+        primaryTimezone: primaryTimezone.trim() || "Asia/Kolkata",
+        baseCurrency: baseCurrency.trim() || "INR",
         adminFirstName: adminFirstName.trim(),
         adminLastName: adminLastName.trim(),
         adminEmail: adminEmail.trim(),
         adminPassword: adminPassword.trim(),
-      })
+      });
 
-      router.push('/dashboard')
+      router.push("/dashboard");
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message)
+        setError(err.message);
       } else {
-        setError('Failed to initialize organization profile.')
+        setError("Failed to initialize organization profile.");
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -104,7 +116,8 @@ export default function CreateOrganizationPage() {
           Create New Organization
         </h2>
         <p className="mt-1 text-center text-xs text-muted-foreground">
-          Step {step} of 2 — {step === 1 ? 'Root Administrator Account' : 'Organization Setup'}
+          Step {step} of 2 —{" "}
+          {step === 1 ? "Root Administrator Account" : "Organization Setup"}
         </p>
       </div>
 
@@ -121,7 +134,8 @@ export default function CreateOrganizationPage() {
               <div className="p-3 bg-muted/40 border border-border rounded-xl flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  The account created here will become the Root Administrator for your organization with full system privileges.
+                  The account created here will become the Root Administrator
+                  for your organization with full system privileges.
                 </p>
               </div>
 
@@ -163,7 +177,9 @@ export default function CreateOrganizationPage() {
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="admin-password">Create Account Password</FieldLabel>
+                <FieldLabel htmlFor="admin-password">
+                  Create Account Password
+                </FieldLabel>
                 <Input
                   id="admin-password"
                   type="password"
@@ -188,9 +204,14 @@ export default function CreateOrganizationPage() {
               </div>
             </form>
           ) : (
-            <form onSubmit={handleCreateOrganization} className="space-y-4 text-xs">
+            <form
+              onSubmit={handleCreateOrganization}
+              className="space-y-4 text-xs"
+            >
               <Field>
-                <FieldLabel htmlFor="company-name">Organization Name (Required)</FieldLabel>
+                <FieldLabel htmlFor="company-name">
+                  Organization Name (Required)
+                </FieldLabel>
                 <Input
                   id="company-name"
                   type="text"
@@ -203,7 +224,9 @@ export default function CreateOrganizationPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <Field>
-                  <FieldLabel htmlFor="legal-name">Legal Entity Name (Optional)</FieldLabel>
+                  <FieldLabel htmlFor="legal-name">
+                    Legal Entity Name (Optional)
+                  </FieldLabel>
                   <Input
                     id="legal-name"
                     type="text"
@@ -213,7 +236,9 @@ export default function CreateOrganizationPage() {
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="tax-id">GST / Tax ID (Optional)</FieldLabel>
+                  <FieldLabel htmlFor="tax-id">
+                    GST / Tax ID (Optional)
+                  </FieldLabel>
                   <Input
                     id="tax-id"
                     type="text"
@@ -226,7 +251,9 @@ export default function CreateOrganizationPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <Field>
-                  <FieldLabel htmlFor="support-phone">Support Phone (Optional)</FieldLabel>
+                  <FieldLabel htmlFor="support-phone">
+                    Support Phone (Optional)
+                  </FieldLabel>
                   <Input
                     id="support-phone"
                     type="text"
@@ -248,7 +275,9 @@ export default function CreateOrganizationPage() {
               </div>
 
               <Field>
-                <FieldLabel htmlFor="address">Operating Address (Optional)</FieldLabel>
+                <FieldLabel htmlFor="address">
+                  Operating Address (Optional)
+                </FieldLabel>
                 <Input
                   id="address"
                   type="text"
@@ -281,7 +310,7 @@ export default function CreateOrganizationPage() {
                   <FieldLabel htmlFor="currency">Base Currency</FieldLabel>
                   <Select
                     value={baseCurrency}
-                    onValueChange={(val) => setBaseCurrency(val ?? 'INR')}
+                    onValueChange={(val) => setBaseCurrency(val ?? "INR")}
                   >
                     <SelectTrigger id="currency">
                       <SelectValue placeholder="INR" />
@@ -297,7 +326,13 @@ export default function CreateOrganizationPage() {
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-border">
-                <Button type="button" variant="outline" size="sm" onClick={() => setStep(1)} disabled={loading}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStep(1)}
+                  disabled={loading}
+                >
                   <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
                   Back
                 </Button>
@@ -315,12 +350,10 @@ export default function CreateOrganizationPage() {
                   )}
                 </Button>
               </div>
-
-          </form>
-        )}
+            </form>
+          )}
+        </div>
       </div>
     </div>
-  </div>
-  )
+  );
 }
-

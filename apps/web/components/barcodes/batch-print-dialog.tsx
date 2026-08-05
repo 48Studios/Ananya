@@ -1,25 +1,30 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { Printer, X, Loader2, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import * as React from "react";
+import { Printer, X, Loader2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { LabelPreview, LabelTemplate } from './label-preview'
-import { barcodesApi, EntityType, LabelData, BarcodeFormat } from '@/lib/api/barcodes-api'
+} from "@/components/ui/select";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { LabelPreview, LabelTemplate } from "./label-preview";
+import {
+  barcodesApi,
+  EntityType,
+  LabelData,
+  BarcodeFormat,
+} from "@/lib/api/barcodes-api";
 
 export interface BatchPrintDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  entityType: EntityType
-  entityIds: string[]
-  title?: string
+  isOpen: boolean;
+  onClose: () => void;
+  entityType: EntityType;
+  entityIds: string[];
+  title?: string;
 }
 
 export function BatchPrintDialog({
@@ -27,41 +32,41 @@ export function BatchPrintDialog({
   onClose,
   entityType,
   entityIds,
-  title = 'Batch Label Print Studio',
+  title = "Batch Label Print Studio",
 }: BatchPrintDialogProps) {
-  const [labels, setLabels] = React.useState<LabelData[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [labels, setLabels] = React.useState<LabelData[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const [template, setTemplate] = React.useState<LabelTemplate>('STANDARD')
-  const [format, setFormat] = React.useState<BarcodeFormat>('CODE128')
+  const [template, setTemplate] = React.useState<LabelTemplate>("STANDARD");
+  const [format, setFormat] = React.useState<BarcodeFormat>("CODE128");
 
   const fetchBatchLabels = React.useCallback(async () => {
-    if (!isOpen || entityIds.length === 0) return
-    setLoading(true)
-    setError(null)
+    if (!isOpen || entityIds.length === 0) return;
+    setLoading(true);
+    setError(null);
     try {
       const data = await barcodesApi.getBatchLabels({
         entityType,
         ids: entityIds,
-      })
-      setLabels(data)
+      });
+      setLabels(data);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message)
+        setError(err.message);
       } else {
-        setError('Failed to generate batch label print queue.')
+        setError("Failed to generate batch label print queue.");
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [isOpen, entityType, entityIds])
+  }, [isOpen, entityType, entityIds]);
 
   React.useEffect(() => {
-    fetchBatchLabels()
-  }, [fetchBatchLabels])
+    fetchBatchLabels();
+  }, [fetchBatchLabels]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -73,7 +78,9 @@ export function BatchPrintDialog({
               <Printer className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-foreground">{title}</h3>
+              <h3 className="text-base font-semibold text-foreground">
+                {title}
+              </h3>
               <p className="text-xs text-muted-foreground">
                 Printing {entityIds.length} {entityType.toLowerCase()} label(s)
               </p>
@@ -99,9 +106,15 @@ export function BatchPrintDialog({
                 <SelectValue placeholder="Select template" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="STANDARD">Standard (2&quot; x 4&quot;)</SelectItem>
-                <SelectItem value="COMPACT">Compact (1&quot; x 2&quot;)</SelectItem>
-                <SelectItem value="DETAILED">Detailed (3&quot; x 4&quot;)</SelectItem>
+                <SelectItem value="STANDARD">
+                  Standard (2&quot; x 4&quot;)
+                </SelectItem>
+                <SelectItem value="COMPACT">
+                  Compact (1&quot; x 2&quot;)
+                </SelectItem>
+                <SelectItem value="DETAILED">
+                  Detailed (3&quot; x 4&quot;)
+                </SelectItem>
                 <SelectItem value="SHELF_BIN">Shelf Bin Tag</SelectItem>
               </SelectContent>
             </Select>
@@ -118,7 +131,9 @@ export function BatchPrintDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="CODE128">Code 128 (High Density)</SelectItem>
-                <SelectItem value="CODE39">Code 39 (Standard Alphanumeric)</SelectItem>
+                <SelectItem value="CODE39">
+                  Code 39 (Standard Alphanumeric)
+                </SelectItem>
                 <SelectItem value="EAN13">EAN-13 (13 Digits)</SelectItem>
                 <SelectItem value="UPCA">UPC-A (12 Digits)</SelectItem>
               </SelectContent>
@@ -173,6 +188,5 @@ export function BatchPrintDialog({
         </div>
       </div>
     </div>
-  )
+  );
 }
-

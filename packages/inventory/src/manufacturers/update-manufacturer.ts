@@ -8,7 +8,10 @@ import type { ManufacturerRepository } from "./manufacturer.repository";
 export class UpdateManufacturer {
   constructor(private readonly manufacturers: ManufacturerRepository) {}
 
-  async execute(id: string, input: UpdateManufacturerInput): Promise<Manufacturer> {
+  async execute(
+    id: string,
+    input: UpdateManufacturerInput,
+  ): Promise<Manufacturer> {
     const existing = await this.manufacturers.findById(id);
 
     if (!existing) {

@@ -1,36 +1,31 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 import {
   InvalidProjectStatusError,
   ProjectMaterialError,
-} from './project.errors';
+} from "./project.errors";
 
 export type ProjectStatus =
-  | 'PLANNING'
-  | 'ACTIVE'
-  | 'ON_HOLD'
-  | 'COMPLETED'
-  | 'ARCHIVED'
-  | 'CANCELLED';
+  "PLANNING" | "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED" | "CANCELLED";
 
 export type ProjectType =
-  | 'CUSTOMER'
-  | 'INTERNAL'
-  | 'R_AND_D'
-  | 'PROTOTYPE'
-  | 'INSTALLATION'
-  | 'MANUFACTURING_INITIATIVE';
+  | "CUSTOMER"
+  | "INTERNAL"
+  | "R_AND_D"
+  | "PROTOTYPE"
+  | "INSTALLATION"
+  | "MANUFACTURING_INITIATIVE";
 
-export type ProjectPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type ProjectPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
-export type MilestoneStatus = 'OPEN' | 'COMPLETED';
+export type MilestoneStatus = "OPEN" | "COMPLETED";
 
 export type ProjectActivityType =
-  | 'CREATED'
-  | 'STATUS_CHANGED'
-  | 'MATERIAL_ALLOCATED'
-  | 'MATERIAL_ISSUED'
-  | 'MATERIAL_RETURNED'
-  | 'ARCHIVED';
+  | "CREATED"
+  | "STATUS_CHANGED"
+  | "MATERIAL_ALLOCATED"
+  | "MATERIAL_ISSUED"
+  | "MATERIAL_RETURNED"
+  | "ARCHIVED";
 
 export interface ProjectMaterialProps {
   id: string;
@@ -157,11 +152,11 @@ export class Project implements ProjectProps {
   }
 
   public static create(props: CreateProjectProps): Project {
-    if (!props.name || props.name.trim() === '') {
-      throw new Error('Project name is required');
+    if (!props.name || props.name.trim() === "") {
+      throw new Error("Project name is required");
     }
     if (props.targetCompletionDate < props.startDate) {
-      throw new Error('Target completion date cannot be before start date');
+      throw new Error("Target completion date cannot be before start date");
     }
 
     const now = new Date();
@@ -170,16 +165,16 @@ export class Project implements ProjectProps {
       id: projectId,
       projectNumber: props.projectNumber,
       name: props.name.trim(),
-      projectType: props.projectType || 'INTERNAL',
+      projectType: props.projectType || "INTERNAL",
       description: props.description,
-      owner: props.owner || props.projectManager || 'Project Lead',
+      owner: props.owner || props.projectManager || "Project Lead",
       projectManager: props.projectManager,
       customerId: props.customerId || null,
       salesOrderId: props.salesOrderId || null,
       startDate: props.startDate,
       targetCompletionDate: props.targetCompletionDate,
-      priority: props.priority || 'MEDIUM',
-      status: 'PLANNING',
+      priority: props.priority || "MEDIUM",
+      status: "PLANNING",
       materials: [],
       activities: [],
       milestones: [],
@@ -188,7 +183,7 @@ export class Project implements ProjectProps {
     });
 
     project.logActivity({
-      activityType: 'CREATED',
+      activityType: "CREATED",
       description: `Project "${project.name}" (${project.projectNumber}) created under status PLANNING`,
       performedBy: project.owner,
     });
@@ -200,91 +195,115 @@ export class Project implements ProjectProps {
     return new Project(props);
   }
 
-  public update(props: UpdateProjectProps, performedBy = 'Project Manager'): void {
-    if (this.status === 'COMPLETED' || this.status === 'ARCHIVED' || this.status === 'CANCELLED') {
-      throw new InvalidProjectStatusError(`Cannot edit project in status ${this.status}`);
+  public update(
+    props: UpdateProjectProps,
+    performedBy = "Project Manager",
+  ): void {
+    if (
+      this.status === "COMPLETED" ||
+      this.status === "ARCHIVED" ||
+      this.status === "CANCELLED"
+    ) {
+      throw new InvalidProjectStatusError(
+        `Cannot edit project in status ${this.status}`,
+      );
     }
 
     if (props.name !== undefined) this.name = props.name.trim();
     if (props.projectType !== undefined) this.projectType = props.projectType;
     if (props.description !== undefined) this.description = props.description;
     if (props.owner !== undefined) this.owner = props.owner;
-    if (props.projectManager !== undefined) this.projectManager = props.projectManager;
+    if (props.projectManager !== undefined)
+      this.projectManager = props.projectManager;
     if (props.customerId !== undefined) this.customerId = props.customerId;
-    if (props.salesOrderId !== undefined) this.salesOrderId = props.salesOrderId;
+    if (props.salesOrderId !== undefined)
+      this.salesOrderId = props.salesOrderId;
     if (props.startDate !== undefined) this.startDate = props.startDate;
-    if (props.targetCompletionDate !== undefined) this.targetCompletionDate = props.targetCompletionDate;
+    if (props.targetCompletionDate !== undefined)
+      this.targetCompletionDate = props.targetCompletionDate;
     if (props.priority !== undefined) this.priority = props.priority;
 
     this.updatedAt = new Date();
     this.logActivity({
-      activityType: 'STATUS_CHANGED',
+      activityType: "STATUS_CHANGED",
       description: `Updated project metadata & parameters`,
       performedBy,
     });
   }
 
-  public start(performedBy = 'Project Manager'): void {
-    if (this.status === 'COMPLETED' || this.status === 'ARCHIVED' || this.status === 'CANCELLED') {
-      throw new InvalidProjectStatusError(`Cannot start project in status ${this.status}`);
+  public start(performedBy = "Project Manager"): void {
+    if (
+      this.status === "COMPLETED" ||
+      this.status === "ARCHIVED" ||
+      this.status === "CANCELLED"
+    ) {
+      throw new InvalidProjectStatusError(
+        `Cannot start project in status ${this.status}`,
+      );
     }
     const prevStatus = this.status;
-    this.status = 'ACTIVE';
+    this.status = "ACTIVE";
     this.updatedAt = new Date();
     this.logActivity({
-      activityType: 'STATUS_CHANGED',
+      activityType: "STATUS_CHANGED",
       description: `Project status transitioned from ${prevStatus} to ACTIVE`,
       performedBy,
     });
   }
 
-  public pause(performedBy = 'Project Manager'): void {
-    if (this.status !== 'ACTIVE') {
-      throw new InvalidProjectStatusError(`Only ACTIVE projects can be paused (current: ${this.status})`);
+  public pause(performedBy = "Project Manager"): void {
+    if (this.status !== "ACTIVE") {
+      throw new InvalidProjectStatusError(
+        `Only ACTIVE projects can be paused (current: ${this.status})`,
+      );
     }
-    this.status = 'ON_HOLD';
+    this.status = "ON_HOLD";
     this.updatedAt = new Date();
     this.logActivity({
-      activityType: 'STATUS_CHANGED',
+      activityType: "STATUS_CHANGED",
       description: `Project status set to ON_HOLD`,
       performedBy,
     });
   }
 
-  public complete(performedBy = 'Project Manager'): void {
-    if (this.status === 'CANCELLED' || this.status === 'ARCHIVED') {
-      throw new InvalidProjectStatusError(`Cannot complete project in status ${this.status}`);
+  public complete(performedBy = "Project Manager"): void {
+    if (this.status === "CANCELLED" || this.status === "ARCHIVED") {
+      throw new InvalidProjectStatusError(
+        `Cannot complete project in status ${this.status}`,
+      );
     }
     const prevStatus = this.status;
-    this.status = 'COMPLETED';
+    this.status = "COMPLETED";
     this.updatedAt = new Date();
     this.logActivity({
-      activityType: 'STATUS_CHANGED',
+      activityType: "STATUS_CHANGED",
       description: `Project status transitioned from ${prevStatus} to COMPLETED (Read-only)`,
       performedBy,
     });
   }
 
-  public archive(performedBy = 'Project Manager'): void {
+  public archive(performedBy = "Project Manager"): void {
     const prevStatus = this.status;
-    this.status = 'ARCHIVED';
+    this.status = "ARCHIVED";
     this.updatedAt = new Date();
     this.logActivity({
-      activityType: 'ARCHIVED',
+      activityType: "ARCHIVED",
       description: `Project archived from status ${prevStatus}`,
       performedBy,
     });
   }
 
-  public cancel(performedBy = 'Project Manager'): void {
-    if (this.status === 'COMPLETED' || this.status === 'ARCHIVED') {
-      throw new InvalidProjectStatusError(`Cannot cancel project in status ${this.status}`);
+  public cancel(performedBy = "Project Manager"): void {
+    if (this.status === "COMPLETED" || this.status === "ARCHIVED") {
+      throw new InvalidProjectStatusError(
+        `Cannot cancel project in status ${this.status}`,
+      );
     }
     const prevStatus = this.status;
-    this.status = 'CANCELLED';
+    this.status = "CANCELLED";
     this.updatedAt = new Date();
     this.logActivity({
-      activityType: 'STATUS_CHANGED',
+      activityType: "STATUS_CHANGED",
       description: `Project cancelled from status ${prevStatus}`,
       performedBy,
     });
@@ -294,16 +313,24 @@ export class Project implements ProjectProps {
     componentId: string,
     locationId: string,
     quantity: number,
-    unitOfMeasure = 'pcs',
+    unitOfMeasure = "pcs",
     notes?: string,
-    performedBy = 'Inventory Lead',
+    performedBy = "Inventory Lead",
   ): ProjectMaterialProps {
-    if (this.status === 'COMPLETED' || this.status === 'ARCHIVED' || this.status === 'CANCELLED') {
-      throw new InvalidProjectStatusError(`Cannot allocate materials to project in status ${this.status}`);
+    if (
+      this.status === "COMPLETED" ||
+      this.status === "ARCHIVED" ||
+      this.status === "CANCELLED"
+    ) {
+      throw new InvalidProjectStatusError(
+        `Cannot allocate materials to project in status ${this.status}`,
+      );
     }
 
     if (quantity <= 0) {
-      throw new ProjectMaterialError('Material allocation quantity must be greater than zero');
+      throw new ProjectMaterialError(
+        "Material allocation quantity must be greater than zero",
+      );
     }
 
     const now = new Date();
@@ -333,7 +360,7 @@ export class Project implements ProjectProps {
 
     this.updatedAt = now;
     this.logActivity({
-      activityType: 'MATERIAL_ALLOCATED',
+      activityType: "MATERIAL_ALLOCATED",
       description: `Allocated ${quantity} ${unitOfMeasure} of component (${componentId})`,
       performedBy,
     });
@@ -345,16 +372,18 @@ export class Project implements ProjectProps {
     componentId: string,
     locationId: string,
     quantity: number,
-    performedBy = 'Warehouse Lead',
+    performedBy = "Warehouse Lead",
   ): ProjectMaterialProps {
-    if (this.status !== 'ACTIVE') {
+    if (this.status !== "ACTIVE") {
       throw new InvalidProjectStatusError(
         `Only ACTIVE projects can issue materials (current status: ${this.status})`,
       );
     }
 
     if (quantity <= 0) {
-      throw new ProjectMaterialError('Material issue quantity must be greater than zero');
+      throw new ProjectMaterialError(
+        "Material issue quantity must be greater than zero",
+      );
     }
 
     const mat = this.materials.find(
@@ -362,10 +391,13 @@ export class Project implements ProjectProps {
     );
 
     if (!mat) {
-      throw new ProjectMaterialError('Component location allocation not found for this project');
+      throw new ProjectMaterialError(
+        "Component location allocation not found for this project",
+      );
     }
 
-    const unissuedRemaining = mat.allocatedQuantity - (mat.issuedQuantity - mat.returnedQuantity);
+    const unissuedRemaining =
+      mat.allocatedQuantity - (mat.issuedQuantity - mat.returnedQuantity);
     if (quantity > unissuedRemaining) {
       throw new ProjectMaterialError(
         `Cannot issue ${quantity} units. Unissued allocated balance is ${unissuedRemaining}`,
@@ -378,7 +410,7 @@ export class Project implements ProjectProps {
     this.updatedAt = now;
 
     this.logActivity({
-      activityType: 'MATERIAL_ISSUED',
+      activityType: "MATERIAL_ISSUED",
       description: `Issued ${quantity} ${mat.unitOfMeasure} of component (${componentId}) to project`,
       performedBy,
     });
@@ -390,16 +422,18 @@ export class Project implements ProjectProps {
     componentId: string,
     locationId: string,
     quantity: number,
-    performedBy = 'Warehouse Lead',
+    performedBy = "Warehouse Lead",
   ): ProjectMaterialProps {
-    if (this.status !== 'ACTIVE') {
+    if (this.status !== "ACTIVE") {
       throw new InvalidProjectStatusError(
         `Only ACTIVE projects can return materials (current status: ${this.status})`,
       );
     }
 
     if (quantity <= 0) {
-      throw new ProjectMaterialError('Material return quantity must be greater than zero');
+      throw new ProjectMaterialError(
+        "Material return quantity must be greater than zero",
+      );
     }
 
     const mat = this.materials.find(
@@ -407,7 +441,9 @@ export class Project implements ProjectProps {
     );
 
     if (!mat) {
-      throw new ProjectMaterialError('Component location material balance not found for this project');
+      throw new ProjectMaterialError(
+        "Component location material balance not found for this project",
+      );
     }
 
     const netIssued = mat.issuedQuantity - mat.returnedQuantity;
@@ -423,7 +459,7 @@ export class Project implements ProjectProps {
     this.updatedAt = now;
 
     this.logActivity({
-      activityType: 'MATERIAL_RETURNED',
+      activityType: "MATERIAL_RETURNED",
       description: `Returned ${quantity} ${mat.unitOfMeasure} of component (${componentId}) from project to warehouse`,
       performedBy,
     });
@@ -442,7 +478,7 @@ export class Project implements ProjectProps {
       projectId: this.id,
       name: props.name,
       dueDate: props.dueDate,
-      status: 'OPEN',
+      status: "OPEN",
       completionPercentage: props.completionPercentage ?? 0,
       createdAt: now,
       updatedAt: now,
@@ -455,9 +491,11 @@ export class Project implements ProjectProps {
   public completeMilestone(milestoneId: string): void {
     const milestone = this.milestones.find((m) => m.id === milestoneId);
     if (!milestone) {
-      throw new Error(`Milestone "${milestoneId}" not found on project "${this.id}"`);
+      throw new Error(
+        `Milestone "${milestoneId}" not found on project "${this.id}"`,
+      );
     }
-    milestone.status = 'COMPLETED';
+    milestone.status = "COMPLETED";
     milestone.completionPercentage = 100;
     milestone.updatedAt = new Date();
     this.updatedAt = new Date();

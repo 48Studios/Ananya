@@ -1,8 +1,4 @@
-import {
-  WorkOrder,
-  WorkOrderStatus,
-  WorkOrderPriority,
-} from './work-order';
+import { WorkOrder, WorkOrderStatus, WorkOrderPriority } from "./work-order";
 
 export interface FindManyWorkOrdersOptions {
   serviceRequestId?: string;

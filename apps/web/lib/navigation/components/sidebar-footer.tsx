@@ -1,3 +1,3 @@
 export function SidebarFooter() {
-  return null
+  return null;
 }

@@ -1,13 +1,13 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export type FulfillmentStatus =
-  | 'PENDING'
-  | 'ACCEPTED'
-  | 'PICKING'
-  | 'PACKED'
-  | 'SHIPPED'
-  | 'COMPLETED'
-  | 'CANCELLED';
+  | "PENDING"
+  | "ACCEPTED"
+  | "PICKING"
+  | "PACKED"
+  | "SHIPPED"
+  | "COMPLETED"
+  | "CANCELLED";
 
 export interface FulfillmentRequestLineProps {
   id: string;
@@ -83,7 +83,7 @@ export class FulfillmentRequest {
       requestNumber: input.requestNumber.toUpperCase(),
       salesOrderId: input.salesOrderId,
       warehouseId: input.warehouseId,
-      status: 'PENDING',
+      status: "PENDING",
       lines: [],
       createdAt: now,
       updatedAt: now,
@@ -95,8 +95,8 @@ export class FulfillmentRequest {
   }
 
   addLine(input: AddFulfillmentLineInput): FulfillmentRequestLineProps {
-    if (this.status !== 'PENDING') {
-      throw new Error('Can only add lines to PENDING fulfillment requests.');
+    if (this.status !== "PENDING") {
+      throw new Error("Can only add lines to PENDING fulfillment requests.");
     }
     const now = new Date();
     const line: FulfillmentRequestLineProps = {
@@ -115,34 +115,34 @@ export class FulfillmentRequest {
   }
 
   accept(): void {
-    if (this.status !== 'PENDING') {
-      throw new Error('Only PENDING requests can be accepted by Warehouse.');
+    if (this.status !== "PENDING") {
+      throw new Error("Only PENDING requests can be accepted by Warehouse.");
     }
-    this.status = 'ACCEPTED';
+    this.status = "ACCEPTED";
     this.updatedAt = new Date();
   }
 
   startPicking(): void {
-    if (this.status !== 'ACCEPTED') {
-      throw new Error('Only ACCEPTED requests can enter PICKING status.');
+    if (this.status !== "ACCEPTED") {
+      throw new Error("Only ACCEPTED requests can enter PICKING status.");
     }
-    this.status = 'PICKING';
+    this.status = "PICKING";
     this.updatedAt = new Date();
   }
 
   pack(): void {
-    if (this.status !== 'PICKING') {
-      throw new Error('Only PICKING requests can be PACKED.');
+    if (this.status !== "PICKING") {
+      throw new Error("Only PICKING requests can be PACKED.");
     }
-    this.status = 'PACKED';
+    this.status = "PACKED";
     this.updatedAt = new Date();
   }
 
   ship(carrierName: string, trackingNumber: string): void {
-    if (this.status !== 'PACKED') {
-      throw new Error('Only PACKED requests can be SHIPPED.');
+    if (this.status !== "PACKED") {
+      throw new Error("Only PACKED requests can be SHIPPED.");
     }
-    this.status = 'SHIPPED';
+    this.status = "SHIPPED";
     this.carrierName = carrierName;
     this.trackingNumber = trackingNumber;
     this.shippedAt = new Date();
@@ -150,20 +150,20 @@ export class FulfillmentRequest {
   }
 
   complete(): void {
-    if (this.status !== 'SHIPPED') {
-      throw new Error('Only SHIPPED requests can be COMPLETED.');
+    if (this.status !== "SHIPPED") {
+      throw new Error("Only SHIPPED requests can be COMPLETED.");
     }
-    this.status = 'COMPLETED';
+    this.status = "COMPLETED";
     this.deliveredAt = new Date();
     this.lines.forEach((l) => (l.fulfilledQuantity = l.requestedQuantity));
     this.updatedAt = new Date();
   }
 
   cancel(): void {
-    if (this.status === 'COMPLETED') {
-      throw new Error('Cannot cancel COMPLETED fulfillment request.');
+    if (this.status === "COMPLETED") {
+      throw new Error("Cannot cancel COMPLETED fulfillment request.");
     }
-    this.status = 'CANCELLED';
+    this.status = "CANCELLED";
     this.updatedAt = new Date();
   }
 }

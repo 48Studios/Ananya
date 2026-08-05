@@ -1,8 +1,4 @@
-import {
-  RmaRequest,
-  RmaStatus,
-  RmaDisposition,
-} from './rma-request';
+import { RmaRequest, RmaStatus, RmaDisposition } from "./rma-request";
 
 export interface FindManyRmaRequestsOptions {
   customerId?: string;

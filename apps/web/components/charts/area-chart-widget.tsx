@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import * as React from 'react'
+import * as React from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -9,39 +9,39 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-} from 'recharts'
+} from "recharts";
 
 export interface AreaChartDataItem {
-  name: string
-  value: number
-  [key: string]: string | number
+  name: string;
+  value: number;
+  [key: string]: string | number;
 }
 
 export interface AreaChartWidgetProps {
-  data: AreaChartDataItem[]
-  dataKey?: string
-  height?: number
-  color?: string
-  gradientId?: string
+  data: AreaChartDataItem[];
+  dataKey?: string;
+  height?: number;
+  color?: string;
+  gradientId?: string;
 }
 
 export function AreaChartWidget({
   data,
-  dataKey = 'value',
+  dataKey = "value",
   height = 240,
-  color = '#0ea5e9',
-  gradientId = 'colorValue',
+  color = "#0ea5e9",
+  gradientId = "colorValue",
 }: AreaChartWidgetProps) {
   if (!data || data.length === 0) {
     return (
       <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
         No data available for trend chart
       </div>
-    )
+    );
   }
 
   return (
-    <div style={{ width: '100%', height }}>
+    <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
           data={data}
@@ -53,7 +53,11 @@ export function AreaChartWidget({
               <stop offset="95%" stopColor={color} stopOpacity={0.0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.5} />
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="var(--border)"
+            opacity={0.5}
+          />
           <XAxis
             dataKey="name"
             stroke="var(--muted-foreground)"
@@ -69,12 +73,12 @@ export function AreaChartWidget({
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)',
-              borderRadius: '8px',
-              color: 'var(--foreground)',
-              fontSize: '12px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              backgroundColor: "var(--card)",
+              borderColor: "var(--border)",
+              borderRadius: "8px",
+              color: "var(--foreground)",
+              fontSize: "12px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             }}
           />
           <Area
@@ -88,5 +92,5 @@ export function AreaChartWidget({
         </AreaChart>
       </ResponsiveContainer>
     </div>
-  )
+  );
 }

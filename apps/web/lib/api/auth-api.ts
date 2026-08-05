@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface UserProfileDto {
   id: string;
@@ -54,39 +54,54 @@ export interface UserInvitationDto {
 
 export const authApi = {
   login: (email: string, password: string): Promise<LoginPayload> => {
-    return apiClient.post<LoginPayload>('/auth/login', { email, password });
+    return apiClient.post<LoginPayload>("/auth/login", { email, password });
   },
 
   logout: (): Promise<{ success: boolean }> => {
-    return apiClient.post<{ success: boolean }>('/auth/logout', {});
+    return apiClient.post<{ success: boolean }>("/auth/logout", {});
   },
 
   getMe: (): Promise<LoginPayload> => {
-    return apiClient.get<LoginPayload>('/auth/me');
+    return apiClient.get<LoginPayload>("/auth/me");
   },
 
-  changePassword: (data: { currentPassword?: string; newPassword?: string }): Promise<{ success: boolean }> => {
-    return apiClient.post<{ success: boolean }>('/auth/change-password', data);
+  changePassword: (data: {
+    currentPassword?: string;
+    newPassword?: string;
+  }): Promise<{ success: boolean }> => {
+    return apiClient.post<{ success: boolean }>("/auth/change-password", data);
   },
 
   getSessions: (): Promise<SessionDto[]> => {
-    return apiClient.get<SessionDto[]>('/auth/sessions');
+    return apiClient.get<SessionDto[]>("/auth/sessions");
   },
 
   revokeSession: (id: string): Promise<{ success: boolean }> => {
-    return apiClient.post<{ success: boolean }>(`/auth/sessions/${id}/revoke`, {});
+    return apiClient.post<{ success: boolean }>(
+      `/auth/sessions/${id}/revoke`,
+      {},
+    );
   },
 
   revokeOtherSessions: (): Promise<{ success: boolean }> => {
-    return apiClient.post<{ success: boolean }>('/auth/revoke-sessions', {});
+    return apiClient.post<{ success: boolean }>("/auth/revoke-sessions", {});
   },
 
-  getSetupStatus: (): Promise<SetupStatusDto & { bootstrapped?: boolean; allowBootstrap?: boolean }> => {
-    return apiClient.get<SetupStatusDto & { bootstrapped?: boolean; allowBootstrap?: boolean }>('/auth/setup-status');
+  getSetupStatus: (): Promise<
+    SetupStatusDto & { bootstrapped?: boolean; allowBootstrap?: boolean }
+  > => {
+    return apiClient.get<
+      SetupStatusDto & { bootstrapped?: boolean; allowBootstrap?: boolean }
+    >("/auth/setup-status");
   },
 
-  getBootstrapStatus: (): Promise<{ bootstrapped: boolean; allowBootstrap: boolean }> => {
-    return apiClient.get<{ bootstrapped: boolean; allowBootstrap: boolean }>('/auth/bootstrap-status');
+  getBootstrapStatus: (): Promise<{
+    bootstrapped: boolean;
+    allowBootstrap: boolean;
+  }> => {
+    return apiClient.get<{ bootstrapped: boolean; allowBootstrap: boolean }>(
+      "/auth/bootstrap-status",
+    );
   },
 
   setupOrganization: (data: {
@@ -104,11 +119,16 @@ export const authApi = {
     baseCurrency?: string;
     primaryTimezone?: string;
   }): Promise<{ success: boolean } & Partial<LoginPayload>> => {
-    return apiClient.post<{ success: boolean } & Partial<LoginPayload>>('/auth/setup-organization', data);
+    return apiClient.post<{ success: boolean } & Partial<LoginPayload>>(
+      "/auth/setup-organization",
+      data,
+    );
   },
 
   verifyInvitation: (token: string): Promise<UserInvitationDto> => {
-    return apiClient.get<UserInvitationDto>(`/auth/invitations/verify/${encodeURIComponent(token)}`);
+    return apiClient.get<UserInvitationDto>(
+      `/auth/invitations/verify/${encodeURIComponent(token)}`,
+    );
   },
 
   acceptInvitation: (data: {
@@ -117,10 +137,14 @@ export const authApi = {
     firstName: string;
     lastName: string;
   }): Promise<LoginPayload> => {
-    return apiClient.post<LoginPayload>('/auth/invitations/accept', data);
+    return apiClient.post<LoginPayload>("/auth/invitations/accept", data);
   },
 
-  createInvitation: (data: { email: string; roleId?: string; department?: string }): Promise<UserInvitationDto> => {
-    return apiClient.post<UserInvitationDto>('/auth/invitations', data);
+  createInvitation: (data: {
+    email: string;
+    roleId?: string;
+    department?: string;
+  }): Promise<UserInvitationDto> => {
+    return apiClient.post<UserInvitationDto>("/auth/invitations", data);
   },
 };

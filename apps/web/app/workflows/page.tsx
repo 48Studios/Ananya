@@ -1,42 +1,42 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { LoadingState } from '@/components/ui/loading-state'
-import { ErrorState } from '@/components/ui/error-state'
-import { WorkflowBuilder } from '@/components/ui/workflow-builder'
-import { notificationsApi, WorkflowRuleDto } from '@/lib/api/notifications-api'
-import { Zap, Plus, CheckCircle2, Play, GitBranch } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PermissionGuard } from '@/lib/auth/auth-context'
+import * as React from "react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { WorkflowBuilder } from "@/components/ui/workflow-builder";
+import { notificationsApi, WorkflowRuleDto } from "@/lib/api/notifications-api";
+import { Zap, Plus, CheckCircle2, Play, GitBranch } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PermissionGuard } from "@/lib/auth/auth-context";
 
 export default function WorkflowsPage() {
-  const [workflows, setWorkflows] = React.useState<WorkflowRuleDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [isBuilderOpen, setIsBuilderOpen] = React.useState(false)
+  const [workflows, setWorkflows] = React.useState<WorkflowRuleDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [isBuilderOpen, setIsBuilderOpen] = React.useState(false);
 
   const loadWorkflows = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const data = await notificationsApi.getWorkflows()
-      setWorkflows(data)
+      const data = await notificationsApi.getWorkflows();
+      setWorkflows(data);
     } catch {
-      setError('Failed to load automation workflows.')
-      setWorkflows([])
+      setError("Failed to load automation workflows.");
+      setWorkflows([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    loadWorkflows()
-  }, [loadWorkflows])
+    loadWorkflows();
+  }, [loadWorkflows]);
 
-  const totalRules = workflows.length
-  const activeRules = workflows.filter((w) => w.isActive).length
+  const totalRules = workflows.length;
+  const activeRules = workflows.filter((w) => w.isActive).length;
 
   return (
     <PermissionGuard permission="Administration.Security">
@@ -78,11 +78,18 @@ export default function WorkflowsPage() {
         {loading ? (
           <LoadingState message="Loading Workflow Automation Rules..." />
         ) : error ? (
-          <ErrorState title="Error Loading Workflows" message={error} onRetry={loadWorkflows} />
+          <ErrorState
+            title="Error Loading Workflows"
+            message={error}
+            onRetry={loadWorkflows}
+          />
         ) : workflows.length === 0 ? (
           <div className="py-12 text-center border border-dashed border-border rounded-xl text-xs text-muted-foreground space-y-3">
             <Zap className="w-10 h-10 text-muted-foreground/50 mx-auto" />
-            <p>No workflow automation rules configured yet. Create a rule to automate business alerts.</p>
+            <p>
+              No workflow automation rules configured yet. Create a rule to
+              automate business alerts.
+            </p>
             <Button size="sm" onClick={() => setIsBuilderOpen(true)}>
               Create First Automation Rule
             </Button>
@@ -100,8 +107,13 @@ export default function WorkflowsPage() {
                       <Zap className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-foreground">{wf.name}</h3>
-                      <p className="text-xs text-muted-foreground">{wf.description || 'Trigger -> Condition -> Action Pipeline'}</p>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        {wf.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {wf.description ||
+                          "Trigger -> Condition -> Action Pipeline"}
+                      </p>
                     </div>
                   </div>
                   <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded">
@@ -110,8 +122,18 @@ export default function WorkflowsPage() {
                 </div>
 
                 <div className="text-xs bg-muted/20 p-2.5 rounded-lg border border-border space-y-1 font-mono">
-                  <div className="text-muted-foreground">TRIGGER: <strong className="text-foreground">{wf.triggerType}</strong></div>
-                  <div className="text-muted-foreground">CONDITIONS: <strong className="text-foreground">{wf.conditionsJson.length} rules</strong></div>
+                  <div className="text-muted-foreground">
+                    TRIGGER:{" "}
+                    <strong className="text-foreground">
+                      {wf.triggerType}
+                    </strong>
+                  </div>
+                  <div className="text-muted-foreground">
+                    CONDITIONS:{" "}
+                    <strong className="text-foreground">
+                      {wf.conditionsJson.length} rules
+                    </strong>
+                  </div>
                 </div>
 
                 <div className="flex justify-end pt-1">
@@ -133,5 +155,5 @@ export default function WorkflowsPage() {
         />
       </div>
     </PermissionGuard>
-  )
+  );
 }

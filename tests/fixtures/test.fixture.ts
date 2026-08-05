@@ -1,8 +1,8 @@
-import { test as base, expect } from '@playwright/test';
-import { LoginPage } from '../page-objects/LoginPage';
-import { DashboardPage } from '../page-objects/DashboardPage';
-import { ComponentsPage } from '../page-objects/ComponentsPage';
-import { SettingsPage } from '../page-objects/SettingsPage';
+import { test as base, expect } from "@playwright/test";
+import { LoginPage } from "../page-objects/LoginPage";
+import { DashboardPage } from "../page-objects/DashboardPage";
+import { ComponentsPage } from "../page-objects/ComponentsPage";
+import { SettingsPage } from "../page-objects/SettingsPage";
 
 type CustomFixtures = {
   loginPage: LoginPage;
@@ -29,13 +29,13 @@ export const test = base.extend<CustomFixtures>({
 test.beforeEach(async ({ page }) => {
   const errors: string[] = [];
 
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') {
+  page.on("console", (msg) => {
+    if (msg.type() === "error") {
       errors.push(`Console error: ${msg.text()}`);
     }
   });
 
-  page.on('pageerror', (exception) => {
+  page.on("pageerror", (exception) => {
     errors.push(`Unhandled exception: ${exception.message}`);
   });
 });

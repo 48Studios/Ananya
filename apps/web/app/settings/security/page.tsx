@@ -1,56 +1,51 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import {
-  ShieldAlert,
-  ShieldCheck,
-  KeyRound,
-  Filter,
-} from 'lucide-react'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { LoadingState } from '@/components/ui/loading-state'
-import { ErrorState } from '@/components/ui/error-state'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ShieldAlert, ShieldCheck, KeyRound, Filter } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { auditApi, SecurityAuditLogDto } from '@/lib/api/audit-api'
+} from "@/components/ui/select";
+import { auditApi, SecurityAuditLogDto } from "@/lib/api/audit-api";
 
 export default function SecurityAuditPage() {
-  const [logs, setLogs] = React.useState<SecurityAuditLogDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [categoryFilter, setCategoryFilter] = React.useState('')
+  const [logs, setLogs] = React.useState<SecurityAuditLogDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = React.useState("");
 
   const loadData = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const data = await auditApi.getLogs(categoryFilter || undefined)
-      setLogs(data)
+      const data = await auditApi.getLogs(categoryFilter || undefined);
+      setLogs(data);
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message)
-      else setError('Failed to fetch security audit log.')
+      if (err instanceof Error) setError(err.message);
+      else setError("Failed to fetch security audit log.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [categoryFilter])
+  }, [categoryFilter]);
 
   React.useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadData();
+  }, [loadData]);
 
   const columns = React.useMemo<ColumnDef<SecurityAuditLogDto>[]>(
     () => [
       {
-        accessorKey: 'action',
-        header: 'Action',
+        accessorKey: "action",
+        header: "Action",
         cell: ({ row }) => (
           <span className="font-mono text-xs font-bold text-foreground">
             {row.original.action}
@@ -58,8 +53,8 @@ export default function SecurityAuditPage() {
         ),
       },
       {
-        accessorKey: 'category',
-        header: 'Category',
+        accessorKey: "category",
+        header: "Category",
         cell: ({ row }) => (
           <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
             {row.original.category}
@@ -67,26 +62,26 @@ export default function SecurityAuditPage() {
         ),
       },
       {
-        accessorKey: 'userEmail',
-        header: 'User Account',
+        accessorKey: "userEmail",
+        header: "User Account",
         cell: ({ row }) => (
           <span className="font-mono text-xs text-muted-foreground">
-            {row.original.userEmail || 'System'}
+            {row.original.userEmail || "System"}
           </span>
         ),
       },
       {
-        accessorKey: 'ipAddress',
-        header: 'IP Address',
+        accessorKey: "ipAddress",
+        header: "IP Address",
         cell: ({ row }) => (
           <span className="font-mono text-xs text-muted-foreground">
-            {row.original.ipAddress || '127.0.0.1'}
+            {row.original.ipAddress || "127.0.0.1"}
           </span>
         ),
       },
       {
-        accessorKey: 'createdAt',
-        header: 'Timestamp',
+        accessorKey: "createdAt",
+        header: "Timestamp",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground font-mono">
             {new Date(row.original.createdAt).toLocaleString()}
@@ -95,10 +90,10 @@ export default function SecurityAuditPage() {
       },
     ],
     [],
-  )
+  );
 
   if (loading) {
-    return <LoadingState message="Fetching security audit trail..." />
+    return <LoadingState message="Fetching security audit trail..." />;
   }
 
   if (error) {
@@ -108,7 +103,7 @@ export default function SecurityAuditPage() {
         message={error}
         onRetry={loadData}
       />
-    )
+    );
   }
 
   return (
@@ -129,19 +124,19 @@ export default function SecurityAuditPage() {
         />
         <StatCard
           title="Login Attempts"
-          value={logs.filter((l) => l.action.startsWith('LOGIN')).length}
+          value={logs.filter((l) => l.action.startsWith("LOGIN")).length}
           subtitle="Successful & failed logins"
           icon={KeyRound}
         />
         <StatCard
           title="Password Events"
-          value={logs.filter((l) => l.action.includes('PASSWORD')).length}
+          value={logs.filter((l) => l.action.includes("PASSWORD")).length}
           subtitle="Resets & modifications"
           icon={KeyRound}
         />
         <StatCard
           title="Role Modifying Events"
-          value={logs.filter((l) => l.action.includes('ROLE')).length}
+          value={logs.filter((l) => l.action.includes("ROLE")).length}
           subtitle="Policy assignments"
           icon={ShieldAlert}
         />
@@ -154,8 +149,10 @@ export default function SecurityAuditPage() {
           <span>Category Filter</span>
         </div>
         <Select
-          value={categoryFilter || 'ALL'}
-          onValueChange={(val) => setCategoryFilter(!val || val === 'ALL' ? '' : val)}
+          value={categoryFilter || "ALL"}
+          onValueChange={(val) =>
+            setCategoryFilter(!val || val === "ALL" ? "" : val)
+          }
         >
           <SelectTrigger className="h-8 text-xs w-[180px]">
             <SelectValue placeholder="All Categories" />
@@ -184,6 +181,5 @@ export default function SecurityAuditPage() {
         />
       </div>
     </div>
-  )
+  );
 }
-

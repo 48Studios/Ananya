@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface SupplierContactDto {
   id: string;
@@ -60,13 +60,20 @@ export interface UpdateSupplierPayload {
 
 export const suppliersApi = {
   getAll: (search?: string): Promise<SupplierDto[]> => {
-    const url = search ? `/suppliers?search=${encodeURIComponent(search)}` : '/suppliers';
+    const url = search
+      ? `/suppliers?search=${encodeURIComponent(search)}`
+      : "/suppliers";
     return apiClient.get<SupplierDto[]>(url);
   },
-  getById: (id: string): Promise<SupplierDto> => apiClient.get<SupplierDto>(`/suppliers/${id}`),
+  getById: (id: string): Promise<SupplierDto> =>
+    apiClient.get<SupplierDto>(`/suppliers/${id}`),
   create: (payload: CreateSupplierPayload): Promise<SupplierDto> =>
-    apiClient.post<SupplierDto, CreateSupplierPayload>('/suppliers', payload),
+    apiClient.post<SupplierDto, CreateSupplierPayload>("/suppliers", payload),
   update: (id: string, payload: UpdateSupplierPayload): Promise<SupplierDto> =>
-    apiClient.put<SupplierDto, UpdateSupplierPayload>(`/suppliers/${id}`, payload),
-  delete: (id: string): Promise<void> => apiClient.delete<void>(`/suppliers/${id}`),
+    apiClient.put<SupplierDto, UpdateSupplierPayload>(
+      `/suppliers/${id}`,
+      payload,
+    ),
+  delete: (id: string): Promise<void> =>
+    apiClient.delete<void>(`/suppliers/${id}`),
 };

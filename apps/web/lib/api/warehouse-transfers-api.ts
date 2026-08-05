@@ -1,11 +1,7 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export type WarehouseTransferStatus =
-  | 'DRAFT'
-  | 'SUBMITTED'
-  | 'DISPATCHED'
-  | 'RECEIVED'
-  | 'CANCELLED';
+  "DRAFT" | "SUBMITTED" | "DISPATCHED" | "RECEIVED" | "CANCELLED";
 
 export interface WarehouseTransferLineDto {
   id: string;
@@ -66,23 +62,30 @@ export interface FindManyTransfersOptions {
 }
 
 export const warehouseTransfersApi = {
-  getAll: (options?: FindManyTransfersOptions): Promise<WarehouseTransferDto[]> => {
+  getAll: (
+    options?: FindManyTransfersOptions,
+  ): Promise<WarehouseTransferDto[]> => {
     const params = new URLSearchParams();
-    if (options?.sourceLocationId) params.append('sourceLocationId', options.sourceLocationId);
+    if (options?.sourceLocationId)
+      params.append("sourceLocationId", options.sourceLocationId);
     if (options?.destinationLocationId)
-      params.append('destinationLocationId', options.destinationLocationId);
-    if (options?.status) params.append('status', options.status);
-    if (options?.search) params.append('search', options.search);
+      params.append("destinationLocationId", options.destinationLocationId);
+    if (options?.status) params.append("status", options.status);
+    if (options?.search) params.append("search", options.search);
 
     const queryString = params.toString();
-    const url = queryString ? `/warehouse-transfers?${queryString}` : '/warehouse-transfers';
+    const url = queryString
+      ? `/warehouse-transfers?${queryString}`
+      : "/warehouse-transfers";
     return apiClient.get<WarehouseTransferDto[]>(url);
   },
   getById: (id: string): Promise<WarehouseTransferDto> =>
     apiClient.get<WarehouseTransferDto>(`/warehouse-transfers/${id}`),
-  create: (payload: CreateWarehouseTransferPayload): Promise<WarehouseTransferDto> =>
+  create: (
+    payload: CreateWarehouseTransferPayload,
+  ): Promise<WarehouseTransferDto> =>
     apiClient.post<WarehouseTransferDto, CreateWarehouseTransferPayload>(
-      '/warehouse-transfers',
+      "/warehouse-transfers",
       payload,
     ),
   update: (

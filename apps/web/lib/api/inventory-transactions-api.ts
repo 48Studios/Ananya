@@ -1,15 +1,15 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export type TransactionType =
-  | 'Receipt'
-  | 'Issue'
-  | 'Transfer'
-  | 'Adjustment'
-  | 'Return'
-  | 'Consumption'
-  | 'Production'
-  | 'ManualCorrection'
-  | 'InitialStock';
+  | "Receipt"
+  | "Issue"
+  | "Transfer"
+  | "Adjustment"
+  | "Return"
+  | "Consumption"
+  | "Production"
+  | "ManualCorrection"
+  | "InitialStock";
 
 export interface InventoryTransactionDto {
   id: string;
@@ -35,19 +35,22 @@ export interface FindManyTransactionsOptions {
 }
 
 export const inventoryTransactionsApi = {
-  getAll: (options?: FindManyTransactionsOptions): Promise<InventoryTransactionDto[]> => {
+  getAll: (
+    options?: FindManyTransactionsOptions,
+  ): Promise<InventoryTransactionDto[]> => {
     const params = new URLSearchParams();
-    if (options?.componentId) params.append('componentId', options.componentId);
-    if (options?.locationId) params.append('locationId', options.locationId);
-    if (options?.transactionType) params.append('transactionType', options.transactionType);
-    if (options?.reference) params.append('reference', options.reference);
-    if (options?.createdBy) params.append('createdBy', options.createdBy);
-    if (options?.search) params.append('search', options.search);
+    if (options?.componentId) params.append("componentId", options.componentId);
+    if (options?.locationId) params.append("locationId", options.locationId);
+    if (options?.transactionType)
+      params.append("transactionType", options.transactionType);
+    if (options?.reference) params.append("reference", options.reference);
+    if (options?.createdBy) params.append("createdBy", options.createdBy);
+    if (options?.search) params.append("search", options.search);
 
     const queryString = params.toString();
     const url = queryString
       ? `/inventory-transactions?${queryString}`
-      : '/inventory-transactions';
+      : "/inventory-transactions";
     return apiClient.get<InventoryTransactionDto[]>(url);
   },
   getById: (id: string): Promise<InventoryTransactionDto> =>

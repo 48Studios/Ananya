@@ -1,18 +1,10 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export type ReservationStatus =
-  | 'DRAFT'
-  | 'ACTIVE'
-  | 'FULFILLED'
-  | 'RELEASED'
-  | 'EXPIRED'
-  | 'CANCELLED';
+  "DRAFT" | "ACTIVE" | "FULFILLED" | "RELEASED" | "EXPIRED" | "CANCELLED";
 
 export type ReservationType =
-  | 'WORK_ORDER'
-  | 'PROJECT'
-  | 'PURCHASE_REQUEST'
-  | 'SALES_ORDER';
+  "WORK_ORDER" | "PROJECT" | "PURCHASE_REQUEST" | "SALES_ORDER";
 
 export interface ReservationLineDto {
   id: string;
@@ -83,19 +75,21 @@ export interface FindManyReservationsOptions {
 }
 
 export const reservationsApi = {
-  getAll: (options?: FindManyReservationsOptions): Promise<ReservationDto[]> => {
+  getAll: (
+    options?: FindManyReservationsOptions,
+  ): Promise<ReservationDto[]> => {
     const params = new URLSearchParams();
-    if (options?.componentId) params.append('componentId', options.componentId);
-    if (options?.locationId) params.append('locationId', options.locationId);
+    if (options?.componentId) params.append("componentId", options.componentId);
+    if (options?.locationId) params.append("locationId", options.locationId);
     if (options?.reservationType)
-      params.append('reservationType', options.reservationType);
-    if (options?.status) params.append('status', options.status);
+      params.append("reservationType", options.reservationType);
+    if (options?.status) params.append("status", options.status);
     if (options?.referenceDocument)
-      params.append('referenceDocument', options.referenceDocument);
-    if (options?.search) params.append('search', options.search);
+      params.append("referenceDocument", options.referenceDocument);
+    if (options?.search) params.append("search", options.search);
 
     const queryString = params.toString();
-    const url = queryString ? `/reservations?${queryString}` : '/reservations';
+    const url = queryString ? `/reservations?${queryString}` : "/reservations";
     return apiClient.get<ReservationDto[]>(url);
   },
   getById: (id: string): Promise<ReservationDto> =>
@@ -109,7 +103,7 @@ export const reservationsApi = {
     ),
   create: (payload: CreateReservationPayload): Promise<ReservationDto> =>
     apiClient.post<ReservationDto, CreateReservationPayload>(
-      '/reservations',
+      "/reservations",
       payload,
     ),
   update: (

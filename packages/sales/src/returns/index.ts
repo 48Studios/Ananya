@@ -1,2 +1,2 @@
-export * from './customer-return';
-export * from './customer-return.repository';
+export * from "./customer-return";
+export * from "./customer-return.repository";

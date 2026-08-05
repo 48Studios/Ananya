@@ -1,66 +1,102 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Landmark, Plus, CheckCircle2, Eye } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable, type FilterConfig } from '@/components/ui/entity-data-table'
-import { formatCurrency } from '@/lib/utils'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Landmark, Plus, CheckCircle2, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
+import { formatCurrency } from "@/lib/utils";
 
 interface LedgerAccount {
-  id: string
-  accountNumber: string
-  name: string
-  type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
-  currentBalance: number
-  currency: string
+  id: string;
+  accountNumber: string;
+  name: string;
+  type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
+  currentBalance: number;
+  currency: string;
 }
 
 const mockAccounts: LedgerAccount[] = [
-  { id: 'acc-1', accountNumber: '1010-CASH', name: 'Main Operating Checking Account', type: 'ASSET', currentBalance: 345000, currency: 'INR' },
-  { id: 'acc-2', accountNumber: '1200-AR', name: 'Trade Accounts Receivable', type: 'ASSET', currentBalance: 124500, currency: 'INR' },
-  { id: 'acc-3', accountNumber: '2100-AP', name: 'Trade Accounts Payable', type: 'LIABILITY', currentBalance: 68400, currency: 'INR' },
-  { id: 'acc-4', accountNumber: '4000-REV', name: 'Product Sales Revenue', type: 'REVENUE', currentBalance: 890000, currency: 'INR' },
-]
+  {
+    id: "acc-1",
+    accountNumber: "1010-CASH",
+    name: "Main Operating Checking Account",
+    type: "ASSET",
+    currentBalance: 345000,
+    currency: "INR",
+  },
+  {
+    id: "acc-2",
+    accountNumber: "1200-AR",
+    name: "Trade Accounts Receivable",
+    type: "ASSET",
+    currentBalance: 124500,
+    currency: "INR",
+  },
+  {
+    id: "acc-3",
+    accountNumber: "2100-AP",
+    name: "Trade Accounts Payable",
+    type: "LIABILITY",
+    currentBalance: 68400,
+    currency: "INR",
+  },
+  {
+    id: "acc-4",
+    accountNumber: "4000-REV",
+    name: "Product Sales Revenue",
+    type: "REVENUE",
+    currentBalance: 890000,
+    currency: "INR",
+  },
+];
 
 export default function AccountsPage() {
-  const [accounts] = React.useState<LedgerAccount[]>(mockAccounts)
+  const [accounts] = React.useState<LedgerAccount[]>(mockAccounts);
 
   const filterConfigs: FilterConfig[] = [
     {
-      id: 'type',
-      label: 'Account Type',
+      id: "type",
+      label: "Account Type",
       options: [
-        { label: 'Asset', value: 'ASSET' },
-        { label: 'Liability', value: 'LIABILITY' },
-        { label: 'Equity', value: 'EQUITY' },
-        { label: 'Revenue', value: 'REVENUE' },
-        { label: 'Expense', value: 'EXPENSE' },
+        { label: "Asset", value: "ASSET" },
+        { label: "Liability", value: "LIABILITY" },
+        { label: "Equity", value: "EQUITY" },
+        { label: "Revenue", value: "REVENUE" },
+        { label: "Expense", value: "EXPENSE" },
       ],
     },
-  ]
+  ];
 
   const columns: ColumnDef<LedgerAccount>[] = [
     {
-      accessorKey: 'accountNumber',
-      header: 'GL Code',
+      accessorKey: "accountNumber",
+      header: "GL Code",
       cell: ({ row }) => (
-        <Link href={`/accounts/${row.original.id}`} className="font-mono text-xs font-bold text-primary hover:underline">
+        <Link
+          href={`/accounts/${row.original.id}`}
+          className="font-mono text-xs font-bold text-primary hover:underline"
+        >
           {row.original.accountNumber}
         </Link>
       ),
     },
     {
-      accessorKey: 'name',
-      header: 'Account Name',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.name}</span>,
+      accessorKey: "name",
+      header: "Account Name",
+      cell: ({ row }) => (
+        <span className="font-medium text-foreground">{row.original.name}</span>
+      ),
     },
     {
-      accessorKey: 'type',
-      header: 'Account Type',
+      accessorKey: "type",
+      header: "Account Type",
       cell: ({ row }) => (
         <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
           {row.original.type}
@@ -68,8 +104,8 @@ export default function AccountsPage() {
       ),
     },
     {
-      accessorKey: 'currentBalance',
-      header: 'Current Balance',
+      accessorKey: "currentBalance",
+      header: "Current Balance",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
           {formatCurrency(row.original.currentBalance)}
@@ -77,8 +113,8 @@ export default function AccountsPage() {
       ),
     },
     {
-      id: 'actions',
-      header: 'Actions',
+      id: "actions",
+      header: "Actions",
       cell: ({ row }) => (
         <Link href={`/accounts/${row.original.id}`}>
           <Button variant="ghost" size="xs">
@@ -87,7 +123,7 @@ export default function AccountsPage() {
         </Link>
       ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -127,5 +163,5 @@ export default function AccountsPage() {
         filterConfigs={filterConfigs}
       />
     </div>
-  )
+  );
 }

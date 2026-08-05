@@ -1,4 +1,4 @@
-export type PlanningRunStatus = 'DRAFT' | 'RUNNING' | 'COMPLETED' | 'CANCELLED';
+export type PlanningRunStatus = "DRAFT" | "RUNNING" | "COMPLETED" | "CANCELLED";
 
 export interface CreatePlanningRunProps {
   runNumber: string;
@@ -20,7 +20,7 @@ export interface RehydratePlanningRunProps {
 export class InvalidPlanningRunError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'InvalidPlanningRunError';
+    this.name = "InvalidPlanningRunError";
   }
 }
 
@@ -47,13 +47,15 @@ export class PlanningRun {
 
   public static create(props: CreatePlanningRunProps): PlanningRun {
     if (!props.runNumber || props.runNumber.trim().length === 0) {
-      throw new InvalidPlanningRunError('Run number cannot be empty.');
+      throw new InvalidPlanningRunError("Run number cannot be empty.");
     }
     if (props.horizonDays <= 0) {
-      throw new InvalidPlanningRunError('Planning horizon must be greater than zero days.');
+      throw new InvalidPlanningRunError(
+        "Planning horizon must be greater than zero days.",
+      );
     }
     if (!props.startedBy || props.startedBy.trim().length === 0) {
-      throw new InvalidPlanningRunError('Started by user must be specified.');
+      throw new InvalidPlanningRunError("Started by user must be specified.");
     }
 
     const now = new Date();
@@ -61,7 +63,7 @@ export class PlanningRun {
       id: crypto.randomUUID(),
       runNumber: props.runNumber.trim().toUpperCase(),
       horizonDays: props.horizonDays,
-      status: 'DRAFT',
+      status: "DRAFT",
       startedBy: props.startedBy.trim(),
       createdAt: now,
       updatedAt: now,
@@ -101,32 +103,34 @@ export class PlanningRun {
   }
 
   public start(): void {
-    if (this._status !== 'DRAFT') {
+    if (this._status !== "DRAFT") {
       throw new InvalidPlanningRunError(
         `Cannot start planning run in status ${this._status}.`,
       );
     }
-    this._status = 'RUNNING';
+    this._status = "RUNNING";
     this._updatedAt = new Date();
   }
 
   public complete(): void {
-    if (this._status !== 'RUNNING' && this._status !== 'DRAFT') {
+    if (this._status !== "RUNNING" && this._status !== "DRAFT") {
       throw new InvalidPlanningRunError(
         `Cannot complete planning run in status ${this._status}.`,
       );
     }
     const now = new Date();
-    this._status = 'COMPLETED';
+    this._status = "COMPLETED";
     this._completedAt = now;
     this._updatedAt = now;
   }
 
   public cancel(): void {
-    if (this._status === 'COMPLETED') {
-      throw new InvalidPlanningRunError('Cannot cancel a completed planning run.');
+    if (this._status === "COMPLETED") {
+      throw new InvalidPlanningRunError(
+        "Cannot cancel a completed planning run.",
+      );
     }
-    this._status = 'CANCELLED';
+    this._status = "CANCELLED";
     this._updatedAt = new Date();
   }
 }

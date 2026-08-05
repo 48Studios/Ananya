@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import WarehousePage from '../warehouse/page'
+import WarehousePage from "../warehouse/page";
 
 export default function WarehousesAliasPage() {
-  return <WarehousePage />
+  return <WarehousePage />;
 }

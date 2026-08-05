@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
   PlanningRun,
   MaterialRequirement,
@@ -6,37 +6,37 @@ import {
   ProductionRecommendation,
   CapacityPlan,
   PlanningMessage,
-} from './index';
+} from "./index";
 
-describe('MRP Domain Aggregates & Invariants', () => {
-  it('should create and transition PlanningRun lifecycle', () => {
+describe("MRP Domain Aggregates & Invariants", () => {
+  it("should create and transition PlanningRun lifecycle", () => {
     const run = PlanningRun.create({
-      runNumber: 'MRP-2026-0001',
+      runNumber: "MRP-2026-0001",
       horizonDays: 30,
-      startedBy: 'planner-alice',
+      startedBy: "planner-alice",
     });
 
-    expect(run.runNumber).toBe('MRP-2026-0001');
-    expect(run.status).toBe('DRAFT');
+    expect(run.runNumber).toBe("MRP-2026-0001");
+    expect(run.status).toBe("DRAFT");
 
     run.start();
-    expect(run.status).toBe('RUNNING');
+    expect(run.status).toBe("RUNNING");
 
     run.complete();
-    expect(run.status).toBe('COMPLETED');
+    expect(run.status).toBe("COMPLETED");
     expect(run.completedAt).toBeDefined();
   });
 
-  it('should calculate net shortage correctly in MaterialRequirement', () => {
+  it("should calculate net shortage correctly in MaterialRequirement", () => {
     const req = MaterialRequirement.create({
-      planningRunId: 'run-123',
-      componentId: 'comp-microcontroller',
+      planningRunId: "run-123",
+      componentId: "comp-microcontroller",
       requiredQuantity: 100,
       availableQuantity: 40,
       reservedQuantity: 10,
-      requiredDate: new Date('2026-08-15'),
-      source: 'SALES_ORDER',
-      sourceReferenceId: 'so-99',
+      requiredDate: new Date("2026-08-15"),
+      source: "SALES_ORDER",
+      sourceReferenceId: "so-99",
     });
 
     // Available (40) - Reserved (10) = Net Available (30)
@@ -44,55 +44,55 @@ describe('MRP Domain Aggregates & Invariants', () => {
     expect(req.shortageQuantity).toBe(70);
   });
 
-  it('should manage PurchaseRecommendation acceptance', () => {
+  it("should manage PurchaseRecommendation acceptance", () => {
     const rec = PurchaseRecommendation.create({
-      planningRunId: 'run-123',
-      componentId: 'comp-microcontroller',
-      supplierId: 'supp-acme',
+      planningRunId: "run-123",
+      componentId: "comp-microcontroller",
+      supplierId: "supp-acme",
       suggestedQuantity: 70,
-      requiredDate: new Date('2026-08-15'),
-      recommendationReason: 'Net shortage of 70 units derived from SO-99.',
+      requiredDate: new Date("2026-08-15"),
+      recommendationReason: "Net shortage of 70 units derived from SO-99.",
     });
 
-    expect(rec.status).toBe('PENDING');
+    expect(rec.status).toBe("PENDING");
 
     rec.accept();
-    expect(rec.status).toBe('ACCEPTED');
+    expect(rec.status).toBe("ACCEPTED");
 
     rec.markImplemented();
-    expect(rec.status).toBe('IMPLEMENTED');
+    expect(rec.status).toBe("IMPLEMENTED");
   });
 
-  it('should manage ProductionRecommendation start & completion invariants', () => {
+  it("should manage ProductionRecommendation start & completion invariants", () => {
     const rec = ProductionRecommendation.create({
-      planningRunId: 'run-123',
-      productId: 'prod-controller-box',
+      planningRunId: "run-123",
+      productId: "prod-controller-box",
       suggestedQuantity: 50,
-      suggestedStart: new Date('2026-08-01'),
-      suggestedCompletion: new Date('2026-08-10'),
-      manufacturingRoute: 'ROUTE-STANDARD-A',
+      suggestedStart: new Date("2026-08-01"),
+      suggestedCompletion: new Date("2026-08-10"),
+      manufacturingRoute: "ROUTE-STANDARD-A",
     });
 
-    expect(rec.status).toBe('PENDING');
+    expect(rec.status).toBe("PENDING");
     rec.accept();
-    expect(rec.status).toBe('ACCEPTED');
+    expect(rec.status).toBe("ACCEPTED");
 
     expect(() =>
       ProductionRecommendation.create({
-        planningRunId: 'run-123',
-        productId: 'prod-controller-box',
+        planningRunId: "run-123",
+        productId: "prod-controller-box",
         suggestedQuantity: 50,
-        suggestedStart: new Date('2026-08-10'),
-        suggestedCompletion: new Date('2026-08-01'), // Invalid: start after completion
+        suggestedStart: new Date("2026-08-10"),
+        suggestedCompletion: new Date("2026-08-01"), // Invalid: start after completion
       }),
     ).toThrow();
   });
 
-  it('should compute capacity utilization and flag overload in CapacityPlan', () => {
+  it("should compute capacity utilization and flag overload in CapacityPlan", () => {
     const planNormal = CapacityPlan.create({
-      planningRunId: 'run-123',
-      workCenterId: 'wc-cnc-milling',
-      workCenterName: 'CNC Milling Line 1',
+      planningRunId: "run-123",
+      workCenterId: "wc-cnc-milling",
+      workCenterName: "CNC Milling Line 1",
       availableCapacityHours: 160,
       plannedCapacityHours: 120,
     });
@@ -101,9 +101,9 @@ describe('MRP Domain Aggregates & Invariants', () => {
     expect(planNormal.isOverloaded).toBe(false);
 
     const planOverloaded = CapacityPlan.create({
-      planningRunId: 'run-123',
-      workCenterId: 'wc-cnc-milling',
-      workCenterName: 'CNC Milling Line 1',
+      planningRunId: "run-123",
+      workCenterId: "wc-cnc-milling",
+      workCenterName: "CNC Milling Line 1",
       availableCapacityHours: 160,
       plannedCapacityHours: 200,
     });
@@ -112,14 +112,14 @@ describe('MRP Domain Aggregates & Invariants', () => {
     expect(planOverloaded.isOverloaded).toBe(true);
   });
 
-  it('should log PlanningMessage entry', () => {
+  it("should log PlanningMessage entry", () => {
     const msg = PlanningMessage.create({
-      planningRunId: 'run-123',
-      severity: 'WARNING',
-      message: 'Work Center CNC Milling Line 1 is overloaded (125%).',
+      planningRunId: "run-123",
+      severity: "WARNING",
+      message: "Work Center CNC Milling Line 1 is overloaded (125%).",
     });
 
-    expect(msg.severity).toBe('WARNING');
-    expect(msg.message).toContain('125%');
+    expect(msg.severity).toBe("WARNING");
+    expect(msg.message).toContain("125%");
   });
 });

@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface DocumentDto {
   id: string;
@@ -45,11 +45,16 @@ export const documentsApi = {
     tags?: string[];
     isConfidential?: boolean;
   }): Promise<DocumentDto> => {
-    return apiClient.post<DocumentDto>('/documents/upload', params);
+    return apiClient.post<DocumentDto>("/documents/upload", params);
   },
 
-  getEntityDocuments: (entityType: string, entityId: string): Promise<DocumentDto[]> => {
-    return apiClient.get<DocumentDto[]>(`/documents/entity/${entityType}/${entityId}`);
+  getEntityDocuments: (
+    entityType: string,
+    entityId: string,
+  ): Promise<DocumentDto[]> => {
+    return apiClient.get<DocumentDto[]>(
+      `/documents/entity/${entityType}/${entityId}`,
+    );
   },
 
   getDocument: (id: string): Promise<DocumentDto> => {
@@ -86,6 +91,8 @@ export const documentsApi = {
   },
 
   deleteDocument: (id: string): Promise<{ success: boolean; id: string }> => {
-    return apiClient.delete<{ success: boolean; id: string }>(`/documents/${id}`);
+    return apiClient.delete<{ success: boolean; id: string }>(
+      `/documents/${id}`,
+    );
   },
 };

@@ -1,7 +1,7 @@
 import {
   BankReconciliation,
   ReconciliationStatus,
-} from './bank-reconciliation';
+} from "./bank-reconciliation";
 
 export interface FindManyReconciliationsOptions {
   bankAccountId?: string;

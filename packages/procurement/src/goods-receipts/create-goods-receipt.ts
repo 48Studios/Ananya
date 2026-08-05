@@ -12,7 +12,9 @@ export interface CreateGoodsReceiptWithLinesInput extends CreateGoodsReceiptInpu
 export class CreateGoodsReceipt {
   constructor(private readonly grRepository: GoodsReceiptRepository) {}
 
-  async execute(input: CreateGoodsReceiptWithLinesInput): Promise<GoodsReceipt> {
+  async execute(
+    input: CreateGoodsReceiptWithLinesInput,
+  ): Promise<GoodsReceipt> {
     const grNumber = input.grNumber
       ? input.grNumber
       : await this.grRepository.generateNextGrNumber();

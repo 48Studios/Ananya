@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
+import * as React from "react";
+import Link from "next/link";
 import {
   Boxes,
   ShoppingCart,
@@ -10,109 +10,128 @@ import {
   ArrowRightLeft,
   ArrowUpRight,
   ShieldCheck,
-} from 'lucide-react'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { ChartCard } from '@/components/charts/chart-card'
-import { AreaChartWidget } from '@/components/charts/area-chart-widget'
-import { DonutChartWidget } from '@/components/charts/donut-chart-widget'
-import { LoadingState } from '@/components/ui/loading-state'
-import { ErrorState } from '@/components/ui/error-state'
-import { reportingApi, OverviewMetricsDto } from '@/lib/api/reporting-api'
-import { formatNumber, formatCurrency } from '@/lib/utils'
+} from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { ChartCard } from "@/components/charts/chart-card";
+import { AreaChartWidget } from "@/components/charts/area-chart-widget";
+import { DonutChartWidget } from "@/components/charts/donut-chart-widget";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { reportingApi, OverviewMetricsDto } from "@/lib/api/reporting-api";
+import { formatNumber, formatCurrency } from "@/lib/utils";
 
 const REPORT_SECTIONS = [
   {
-    title: 'Inventory Reports',
-    description: 'Current stock, valuation, low stock alerts, and storage location analytics.',
-    href: '/reports/inventory',
+    title: "Inventory Reports",
+    description:
+      "Current stock, valuation, low stock alerts, and storage location analytics.",
+    href: "/reports/inventory",
     icon: Boxes,
-    color: 'text-sky-500 bg-sky-500/10',
+    color: "text-sky-500 bg-sky-500/10",
   },
   {
-    title: 'Procurement Reports',
-    description: 'Purchase orders by status, supplier performance, and spend metrics.',
-    href: '/reports/procurement',
+    title: "Procurement Reports",
+    description:
+      "Purchase orders by status, supplier performance, and spend metrics.",
+    href: "/reports/procurement",
     icon: ShoppingCart,
-    color: 'text-amber-500 bg-amber-500/10',
+    color: "text-amber-500 bg-amber-500/10",
   },
   {
-    title: 'Manufacturing Reports',
-    description: 'Work order execution, production output, scrap rates, and BOM usage.',
-    href: '/reports/manufacturing',
+    title: "Manufacturing Reports",
+    description:
+      "Work order execution, production output, scrap rates, and BOM usage.",
+    href: "/reports/manufacturing",
     icon: Factory,
-    color: 'text-emerald-500 bg-emerald-500/10',
+    color: "text-emerald-500 bg-emerald-500/10",
   },
   {
-    title: 'Project Reports',
-    description: 'Project material allocations, consumption trends, and cost summaries.',
-    href: '/reports/projects',
+    title: "Project Reports",
+    description:
+      "Project material allocations, consumption trends, and cost summaries.",
+    href: "/reports/projects",
     icon: FolderKanban,
-    color: 'text-purple-500 bg-purple-500/10',
+    color: "text-purple-500 bg-purple-500/10",
   },
   {
-    title: 'Transaction Reports',
-    description: 'Immutable inventory movement history, warehouse transfers, and adjustments.',
-    href: '/reports/transactions',
+    title: "Transaction Reports",
+    description:
+      "Immutable inventory movement history, warehouse transfers, and adjustments.",
+    href: "/reports/transactions",
     icon: ArrowRightLeft,
-    color: 'text-indigo-500 bg-indigo-500/10',
+    color: "text-indigo-500 bg-indigo-500/10",
   },
-]
+];
 
 export default function ReportsHubPage() {
-  const [metrics, setMetrics] = React.useState<OverviewMetricsDto | null>(null)
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [metrics, setMetrics] = React.useState<OverviewMetricsDto | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   const fetchOverview = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const data = await reportingApi.getOverview()
-      setMetrics(data)
+      const data = await reportingApi.getOverview();
+      setMetrics(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load report metrics')
+      setError(
+        err instanceof Error ? err.message : "Failed to load report metrics",
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    fetchOverview()
-  }, [fetchOverview])
+    fetchOverview();
+  }, [fetchOverview]);
 
   if (loading) {
-    return <LoadingState message="Loading Reporting & Analytics overview..." />
+    return <LoadingState message="Loading Reporting & Analytics overview..." />;
   }
 
   if (error || !metrics) {
     return (
       <ErrorState
         title="Reporting Data Unavailable"
-        message={error || 'Unable to fetch system reporting overview.'}
+        message={error || "Unable to fetch system reporting overview."}
         onRetry={fetchOverview}
       />
-    )
+    );
   }
 
   // Activity distribution derived dynamically from real backend metrics
-  const totalOps = metrics.totalTransactions || metrics.totalComponents || 0
+  const totalOps = metrics.totalTransactions || metrics.totalComponents || 0;
   const trendData = [
-    { name: 'Mon', value: Math.round(totalOps * 0.1) },
-    { name: 'Tue', value: Math.round(totalOps * 0.15) },
-    { name: 'Wed', value: Math.round(totalOps * 0.12) },
-    { name: 'Thu', value: Math.round(totalOps * 0.18) },
-    { name: 'Fri', value: Math.round(totalOps * 0.25) },
-    { name: 'Sat', value: Math.round(totalOps * 0.1) },
-    { name: 'Sun', value: Math.round(totalOps * 0.1) },
-  ]
+    { name: "Mon", value: Math.round(totalOps * 0.1) },
+    { name: "Tue", value: Math.round(totalOps * 0.15) },
+    { name: "Wed", value: Math.round(totalOps * 0.12) },
+    { name: "Thu", value: Math.round(totalOps * 0.18) },
+    { name: "Fri", value: Math.round(totalOps * 0.25) },
+    { name: "Sat", value: Math.round(totalOps * 0.1) },
+    { name: "Sun", value: Math.round(totalOps * 0.1) },
+  ];
 
   const moduleDistribution = [
-    { name: 'Inventory', value: metrics.totalComponents ?? 0, color: '#06b6d4' },
-    { name: 'Procurement', value: metrics.totalPurchaseOrders ?? 0, color: '#f59e0b' },
-    { name: 'Manufacturing', value: metrics.totalWorkOrders ?? 0, color: '#10b981' },
-    { name: 'Projects', value: metrics.totalProjects ?? 0, color: '#8b5cf6' },
-  ]
+    {
+      name: "Inventory",
+      value: metrics.totalComponents ?? 0,
+      color: "#06b6d4",
+    },
+    {
+      name: "Procurement",
+      value: metrics.totalPurchaseOrders ?? 0,
+      color: "#f59e0b",
+    },
+    {
+      name: "Manufacturing",
+      value: metrics.totalWorkOrders ?? 0,
+      color: "#10b981",
+    },
+    { name: "Projects", value: metrics.totalProjects ?? 0, color: "#8b5cf6" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -179,7 +198,7 @@ export default function ReportsHubPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {REPORT_SECTIONS.map((rep) => {
-            const Icon = rep.icon
+            const Icon = rep.icon;
             return (
               <Link
                 key={rep.href}
@@ -201,10 +220,10 @@ export default function ReportsHubPage() {
                   </p>
                 </div>
               </Link>
-            )
+            );
           })}
         </div>
       </div>
     </div>
-  )
+  );
 }

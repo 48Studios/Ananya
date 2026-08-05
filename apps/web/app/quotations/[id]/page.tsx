@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { ArrowLeft, FileSpreadsheet, CheckCircle2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { formatCurrency } from '@/lib/utils'
+import * as React from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { ArrowLeft, FileSpreadsheet, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { formatCurrency } from "@/lib/utils";
 
 export default function QuotationDetailPage() {
-  const params = useParams()
-  const quoteId = params?.id as string
+  const params = useParams();
+  const quoteId = params?.id as string;
 
   return (
     <div className="space-y-6">
@@ -24,7 +24,7 @@ export default function QuotationDetailPage() {
       </div>
 
       <PageHeader
-        title={`Quotation #${quoteId || 'QUO-2026-901'}`}
+        title={`Quotation #${quoteId || "QUO-2026-901"}`}
         description="Detailed commercial proposal, unit pricing breakdown, and customer acceptance terms."
         actions={
           <div className="flex gap-2">
@@ -42,7 +42,9 @@ export default function QuotationDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Prospect / Client</p>
-          <p className="text-sm font-semibold text-foreground">AeroTech Systems</p>
+          <p className="text-sm font-semibold text-foreground">
+            AeroTech Systems
+          </p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Status</p>
@@ -52,7 +54,9 @@ export default function QuotationDetailPage() {
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Total Quoted Value</p>
-          <p className="text-sm font-bold font-mono text-foreground">{formatCurrency(52000)}</p>
+          <p className="text-sm font-bold font-mono text-foreground">
+            {formatCurrency(52000)}
+          </p>
         </div>
       </div>
 
@@ -75,7 +79,9 @@ export default function QuotationDetailPage() {
             <tbody className="divide-y divide-border text-foreground font-mono">
               <tr>
                 <td className="p-3 font-bold text-primary">COMP-1001</td>
-                <td className="p-3 font-sans">Precision CNC Spindle Motor 5kW</td>
+                <td className="p-3 font-sans">
+                  Precision CNC Spindle Motor 5kW
+                </td>
                 <td className="p-3">2 units</td>
                 <td className="p-3">{formatCurrency(16000)}</td>
                 <td className="p-3 font-bold">{formatCurrency(32000)}</td>
@@ -92,5 +98,5 @@ export default function QuotationDetailPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

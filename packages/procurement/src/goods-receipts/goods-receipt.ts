@@ -98,10 +98,14 @@ export class GoodsReceipt {
 
   public addLine(input: AddGoodsReceiptLineInput): void {
     if (this.status !== "DRAFT") {
-      throw new InvalidGoodsReceiptStatusError("Cannot add lines to a non-DRAFT Goods Receipt.");
+      throw new InvalidGoodsReceiptStatusError(
+        "Cannot add lines to a non-DRAFT Goods Receipt.",
+      );
     }
     if (input.quantityReceived <= 0) {
-      throw new InvalidReceivingQuantityError("Quantity received must be greater than 0.");
+      throw new InvalidReceivingQuantityError(
+        "Quantity received must be greater than 0.",
+      );
     }
 
     const lineId = ObjectId.generate().value;
@@ -127,7 +131,9 @@ export class GoodsReceipt {
 
   public markCompleted(): void {
     if (this.status !== "DRAFT") {
-      throw new InvalidGoodsReceiptStatusError("Goods Receipt is already processed.");
+      throw new InvalidGoodsReceiptStatusError(
+        "Goods Receipt is already processed.",
+      );
     }
     this.status = "COMPLETED";
     this.updatedAt = new Date();

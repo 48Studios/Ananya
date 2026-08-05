@@ -12,7 +12,9 @@ export interface CreatePurchaseOrderWithLinesInput extends CreatePurchaseOrderIn
 export class CreatePurchaseOrder {
   constructor(private readonly poRepository: PurchaseOrderRepository) {}
 
-  async execute(input: CreatePurchaseOrderWithLinesInput): Promise<PurchaseOrder> {
+  async execute(
+    input: CreatePurchaseOrderWithLinesInput,
+  ): Promise<PurchaseOrder> {
     const poNumber = input.poNumber
       ? input.poNumber
       : await this.poRepository.generateNextPoNumber();

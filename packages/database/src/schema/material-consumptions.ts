@@ -54,8 +54,10 @@ export const materialConsumptionLines = pgTable(
     quantityPlanned: decimal("quantity_planned", { precision: 12, scale: 4 })
       .notNull()
       .default("0.0000"),
-    quantityConsumed: decimal("quantity_consumed", { precision: 12, scale: 4 })
-      .notNull(),
+    quantityConsumed: decimal("quantity_consumed", {
+      precision: 12,
+      scale: 4,
+    }).notNull(),
     batchNumber: varchar("batch_number", { length: 128 }),
     serialNumbers: text("serial_numbers").array(),
     consumedAt: timestamp("consumed_at", { withTimezone: true })

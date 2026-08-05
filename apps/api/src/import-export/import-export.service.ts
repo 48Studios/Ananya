@@ -5,6 +5,12 @@ import {
   components,
   locations,
   suppliers,
+  manufacturers,
+  categories,
+  units,
+  warehouses,
+  roles,
+  customers,
 } from '@ananya/database/schema';
 import { eq, desc, inArray } from '@ananya/database/query';
 import {
@@ -24,7 +30,6 @@ function safeString(val: unknown): string {
       : typeof val === 'number' || typeof val === 'boolean'
         ? String(val)
         : JSON.stringify(val);
-  // Prevent CSV Formula Injection
   if (/^[=+@\-\t\r]/.test(str)) {
     str = `'${str}`;
   }
@@ -38,6 +43,15 @@ export class ImportExportService {
       string,
       { headers: string[]; sampleRow: Record<string, string> }
     > = {
+      User: {
+        headers: ['email', 'firstName', 'lastName', 'roleName'],
+        sampleRow: {
+          email: 'user@48studios.com',
+          firstName: 'John',
+          lastName: 'Doe',
+          roleName: 'Member',
+        },
+      },
       Component: {
         headers: [
           'sku',
@@ -56,13 +70,12 @@ export class ImportExportService {
           manufacturerName: 'Yageo',
         },
       },
-      Location: {
-        headers: ['code', 'name', 'kind', 'description'],
+      Manufacturer: {
+        headers: ['code', 'name', 'website'],
         sampleRow: {
-          code: 'WH-A-01',
-          name: 'Main Warehouse Zone A Bin 01',
-          kind: 'BIN',
-          description: 'Top shelf bin 01',
+          code: 'MFG-001',
+          name: 'Yageo Corporation',
+          website: 'https://yageo.com',
         },
       },
       Supplier: {
@@ -73,6 +86,266 @@ export class ImportExportService {
           paymentTerms: 'NET30',
           currency: 'USD',
           taxId: 'TX-998877',
+        },
+      },
+      Customer: {
+        headers: ['code', 'name', 'email', 'phone', 'currency'],
+        sampleRow: {
+          code: 'CUST-001',
+          name: 'Stark Industries',
+          email: 'procurement@stark.com',
+          phone: '+1-555-0199',
+          currency: 'USD',
+        },
+      },
+      Warehouse: {
+        headers: ['code', 'name', 'description'],
+        sampleRow: {
+          code: 'WH-MAIN',
+          name: 'Main Central Warehouse',
+          description: 'Primary logistics hub',
+        },
+      },
+      WarehouseBin: {
+        headers: ['code', 'warehouseCode', 'capacity', 'purpose'],
+        sampleRow: {
+          code: 'WH-MAIN-Z1-B01',
+          warehouseCode: 'WH-MAIN',
+          capacity: '5000',
+          purpose: 'STORAGE',
+        },
+      },
+      Location: {
+        headers: ['code', 'name', 'kind', 'description'],
+        sampleRow: {
+          code: 'WH-A-01',
+          name: 'Main Warehouse Zone A Bin 01',
+          kind: 'BIN',
+          description: 'Top shelf bin 01',
+        },
+      },
+      Category: {
+        headers: ['code', 'name', 'description', 'parentCode'],
+        sampleRow: {
+          code: 'ELEC',
+          name: 'Electronics',
+          description: 'Electronic components',
+          parentCode: '',
+        },
+      },
+      Unit: {
+        headers: ['name', 'category', 'conversionFactor', 'precision'],
+        sampleRow: {
+          name: 'pcs',
+          category: 'Count',
+          conversionFactor: '1.0000',
+          precision: '0',
+        },
+      },
+      Project: {
+        headers: [
+          'projectNumber',
+          'name',
+          'projectType',
+          'priority',
+          'status',
+          'owner',
+        ],
+        sampleRow: {
+          projectNumber: 'PRJ-2026-001',
+          name: 'NextGen Flight Controller',
+          projectType: 'INTERNAL_R_D',
+          priority: 'HIGH',
+          status: 'ACTIVE',
+          owner: 'sarath@48studios.com',
+        },
+      },
+      Task: {
+        headers: [
+          'taskNumber',
+          'projectNumber',
+          'title',
+          'estimatedHours',
+          'assignedUser',
+        ],
+        sampleRow: {
+          taskNumber: 'TSK-001-01',
+          projectNumber: 'PRJ-2026-001',
+          title: 'Schematic Design',
+          estimatedHours: '40',
+          assignedUser: 'sarath@48studios.com',
+        },
+      },
+      BOM: {
+        headers: ['bomNumber', 'name', 'componentSku', 'quantity', 'revision'],
+        sampleRow: {
+          bomNumber: 'BOM-FC-V1',
+          name: 'Flight Controller Assembly',
+          componentSku: 'RES-10K-001',
+          quantity: '4',
+          revision: '1.0',
+        },
+      },
+      WorkOrder: {
+        headers: [
+          'orderNumber',
+          'bomNumber',
+          'targetQuantity',
+          'priority',
+          'status',
+        ],
+        sampleRow: {
+          orderNumber: 'WO-2026-001',
+          bomNumber: 'BOM-FC-V1',
+          targetQuantity: '50',
+          priority: 'HIGH',
+          status: 'RELEASED',
+        },
+      },
+      PurchaseOrder: {
+        headers: [
+          'orderNumber',
+          'supplierCode',
+          'componentSku',
+          'quantity',
+          'unitPrice',
+        ],
+        sampleRow: {
+          orderNumber: 'PO-2026-001',
+          supplierCode: 'SUP-001',
+          componentSku: 'RES-10K-001',
+          quantity: '1000',
+          unitPrice: '0.05',
+        },
+      },
+      OpeningInventory: {
+        headers: ['sku', 'locationCode', 'quantity', 'unitCost'],
+        sampleRow: {
+          sku: 'RES-10K-001',
+          locationCode: 'LOC-A-01',
+          quantity: '500',
+          unitCost: '0.04',
+        },
+      },
+      StockAdjustment: {
+        headers: [
+          'adjustmentNumber',
+          'sku',
+          'locationCode',
+          'adjustedQuantity',
+          'reason',
+        ],
+        sampleRow: {
+          adjustmentNumber: 'ADJ-2026-001',
+          sku: 'RES-10K-001',
+          locationCode: 'LOC-A-01',
+          adjustedQuantity: '50',
+          reason: 'Audit discrepancy',
+        },
+      },
+      Asset: {
+        headers: [
+          'assetNumber',
+          'name',
+          'category',
+          'purchaseValue',
+          'locationCode',
+        ],
+        sampleRow: {
+          assetNumber: 'AST-001',
+          name: 'SMT Pick and Place Machine',
+          category: 'Machinery',
+          purchaseValue: '45000',
+          locationCode: 'WH-MAIN',
+        },
+      },
+      Equipment: {
+        headers: ['equipmentNumber', 'name', 'model', 'serialNumber', 'status'],
+        sampleRow: {
+          equipmentNumber: 'EQP-001',
+          name: 'Reflow Oven Line 1',
+          model: 'RF-800',
+          serialNumber: 'SN-887766',
+          status: 'OPERATIONAL',
+        },
+      },
+      MaintenanceSchedule: {
+        headers: [
+          'scheduleNumber',
+          'equipmentNumber',
+          'title',
+          'frequencyDays',
+          'nextDueDate',
+        ],
+        sampleRow: {
+          scheduleNumber: 'MNT-001',
+          equipmentNumber: 'EQP-001',
+          title: 'Monthly Filter Cleaning',
+          frequencyDays: '30',
+          nextDueDate: '2026-09-01',
+        },
+      },
+      ServiceRequest: {
+        headers: [
+          'requestNumber',
+          'equipmentNumber',
+          'title',
+          'priority',
+          'status',
+        ],
+        sampleRow: {
+          requestNumber: 'SRV-001',
+          equipmentNumber: 'EQP-001',
+          title: 'Conveyor belt noise',
+          priority: 'MEDIUM',
+          status: 'OPEN',
+        },
+      },
+      Warranty: {
+        headers: [
+          'warrantyNumber',
+          'componentSku',
+          'supplierCode',
+          'startDate',
+          'endDate',
+        ],
+        sampleRow: {
+          warrantyNumber: 'WRN-001',
+          componentSku: 'MCU-STM32-001',
+          supplierCode: 'SUP-001',
+          startDate: '2026-01-01',
+          endDate: '2027-01-01',
+        },
+      },
+      RMA: {
+        headers: [
+          'rmaNumber',
+          'customerCode',
+          'componentSku',
+          'quantity',
+          'reason',
+        ],
+        sampleRow: {
+          rmaNumber: 'RMA-2026-001',
+          customerCode: 'CUST-001',
+          componentSku: 'MCU-STM32-001',
+          quantity: '5',
+          reason: 'Defective pin soldering',
+        },
+      },
+      Role: {
+        headers: ['name', 'description'],
+        sampleRow: {
+          name: 'Quality Inspector',
+          description: 'Inspects incoming components and production runs',
+        },
+      },
+      Permission: {
+        headers: ['code', 'module', 'description'],
+        sampleRow: {
+          code: 'quality:inspect',
+          module: 'Quality',
+          description: 'Permission to record quality inspections',
         },
       },
     };
@@ -117,7 +390,6 @@ export class ImportExportService {
     const template = this.getTemplate(dto.entityType);
     const systemFields = template.headers;
 
-    // Auto column mapping match
     const columnMapping: Record<string, string> = {};
     headers.forEach((h) => {
       const matched = systemFields.find(
@@ -128,7 +400,6 @@ export class ImportExportService {
       }
     });
 
-    // Validation Preview
     const validationErrors: Array<{
       row: number;
       column?: string;
@@ -156,6 +427,20 @@ export class ImportExportService {
             column: 'name',
             value: data.name,
             message: 'Missing required field: Name',
+          });
+          isRowValid = false;
+        }
+      } else if (
+        dto.entityType === 'Supplier' ||
+        dto.entityType === 'Manufacturer' ||
+        dto.entityType === 'Customer'
+      ) {
+        if (!data.code && !data.name) {
+          validationErrors.push({
+            row: rowIndex,
+            column: 'code',
+            value: data.code,
+            message: 'Missing required field: Code or Name',
           });
           isRowValid = false;
         }
@@ -212,13 +497,15 @@ export class ImportExportService {
       const row = dto.rows[i]!;
       try {
         if (dto.entityType === 'Component') {
-          const skuKey = dto.columnMapping.sku || 'sku';
-          const nameKey = dto.columnMapping.name || 'name';
-          const unitKey = dto.columnMapping.unit || 'unit';
-
-          const skuVal = safeString(row[skuKey]) || `SKU-${Date.now()}-${i}`;
-          const nameVal = safeString(row[nameKey]) || `Component ${skuVal}`;
-          const unitVal = safeString(row[unitKey]) || 'pcs';
+          const skuVal =
+            safeString(row.sku || row[dto.columnMapping.sku || 'sku']) ||
+            `SKU-${Date.now()}-${i}`;
+          const nameVal =
+            safeString(row.name || row[dto.columnMapping.name || 'name']) ||
+            `Component ${skuVal}`;
+          const unitVal =
+            safeString(row.unit || row[dto.columnMapping.unit || 'unit']) ||
+            'pcs';
           const descVal = safeString(row.description);
 
           await db
@@ -229,6 +516,116 @@ export class ImportExportService {
               unit: unitVal,
               description: descVal,
               isActive: true,
+            })
+            .onConflictDoNothing();
+        } else if (dto.entityType === 'Supplier') {
+          const codeVal =
+            safeString(row.code || row[dto.columnMapping.code || 'code']) ||
+            `SUP-${Date.now()}-${i}`;
+          const nameVal =
+            safeString(row.name || row[dto.columnMapping.name || 'name']) ||
+            `Supplier ${codeVal}`;
+          const termsVal = safeString(row.paymentTerms) || 'NET30';
+          const currVal = safeString(row.currency) || 'INR';
+
+          await db
+            .insert(suppliers)
+            .values({
+              code: codeVal,
+              name: nameVal,
+              paymentTerms: termsVal,
+              currency: currVal,
+              isActive: true,
+            })
+            .onConflictDoNothing();
+        } else if (dto.entityType === 'Manufacturer') {
+          const codeVal = safeString(row.code) || `MFG-${Date.now()}-${i}`;
+          const nameVal = safeString(row.name) || `Manufacturer ${codeVal}`;
+          await db
+            .insert(manufacturers)
+            .values({
+              code: codeVal,
+              name: nameVal,
+              isActive: true,
+            })
+            .onConflictDoNothing();
+        } else if (dto.entityType === 'Category') {
+          const codeVal = safeString(row.code) || `CAT-${Date.now()}-${i}`;
+          const nameVal = safeString(row.name) || `Category ${codeVal}`;
+          await db
+            .insert(categories)
+            .values({
+              code: codeVal,
+              name: nameVal,
+              description: safeString(row.description),
+              isActive: true,
+            })
+            .onConflictDoNothing();
+        } else if (dto.entityType === 'Unit') {
+          const nameVal = safeString(row.name) || `unit-${i}`;
+          await db
+            .insert(units)
+            .values({
+              name: nameVal,
+              category: safeString(row.category) || 'General',
+              conversionFactor: safeString(row.conversionFactor) || '1.0000',
+              precision: safeString(row.precision) || '0',
+              isActive: true,
+            })
+            .onConflictDoNothing();
+        } else if (dto.entityType === 'Location') {
+          const codeVal = safeString(row.code) || `LOC-${Date.now()}-${i}`;
+          const nameVal = safeString(row.name) || `Location ${codeVal}`;
+          await db
+            .insert(locations)
+            .values({
+              code: codeVal,
+              name: nameVal,
+              kind:
+                (safeString(row.kind) as
+                  'WAREHOUSE' | 'ZONE' | 'SHELF' | 'BIN' | 'VIRTUAL') || 'BIN',
+              metadata: { description: safeString(row.description) },
+              isActive: true,
+            })
+            .onConflictDoNothing();
+        } else if (dto.entityType === 'Warehouse') {
+          const codeVal = safeString(row.code) || `WH-${Date.now()}-${i}`;
+          const nameVal = safeString(row.name) || `Warehouse ${codeVal}`;
+          await db
+            .insert(warehouses)
+            .values({
+              code: codeVal,
+              name: nameVal,
+              description: safeString(row.description),
+              status: 'ACTIVE',
+            })
+            .onConflictDoNothing();
+        } else if (dto.entityType === 'Customer') {
+          const codeVal = safeString(row.code) || `CUST-${Date.now()}-${i}`;
+          const nameVal = safeString(row.name) || `Customer ${codeVal}`;
+          const emailVal =
+            safeString(row.email) || `${codeVal.toLowerCase()}@customer.com`;
+          await db
+            .insert(customers)
+            .values({
+              id: crypto.randomUUID(),
+              customerNumber: codeVal,
+              name: nameVal,
+              email: emailVal,
+              phone: safeString(row.phone),
+              currency: safeString(row.currency) || 'INR',
+              status: 'ACTIVE',
+            })
+            .onConflictDoNothing();
+        } else if (dto.entityType === 'Role') {
+          const nameVal = safeString(row.name) || `Custom Role ${i}`;
+          await db
+            .insert(roles)
+            .values({
+              name: nameVal,
+              description: safeString(row.description),
+              isSystem: false,
+              permissions: [],
             })
             .onConflictDoNothing();
         }
@@ -307,7 +704,6 @@ export class ImportExportService {
       rawData = rawData.filter((r) => dto.selectedIds!.includes(String(r.id)));
     }
 
-    // Filter columns if specified
     if (dto.columns && dto.columns.length > 0) {
       rawData = rawData.map((row) => {
         const filtered: Record<string, unknown> = {};
@@ -327,7 +723,6 @@ export class ImportExportService {
       fileContent = JSON.stringify(rawData, null, 2);
       fileName += '.json';
     } else {
-      // CSV Export
       if (rawData.length > 0) {
         const keys = Object.keys(rawData[0]!);
         const csvHeaders = keys.join(',');

@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   FolderKanban,
   Package,
@@ -10,71 +10,78 @@ import {
   ArrowLeft,
   ExternalLink,
   CheckCircle2,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { ChartCard } from '@/components/charts/chart-card'
-import { BarChartWidget } from '@/components/charts/bar-chart-widget'
-import { DonutChartWidget } from '@/components/charts/donut-chart-widget'
-import { LoadingState } from '@/components/ui/loading-state'
-import { ErrorState } from '@/components/ui/error-state'
-import { ReportFilters, FilterState } from '@/components/reports/report-filters'
-import { reportingApi, ProjectSummaryDto } from '@/lib/api/reporting-api'
-import { projectsApi, ProjectDto } from '@/lib/api/projects-api'
-import { formatNumber, formatQuantity, formatDate } from '@/lib/utils'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { ChartCard } from "@/components/charts/chart-card";
+import { BarChartWidget } from "@/components/charts/bar-chart-widget";
+import { DonutChartWidget } from "@/components/charts/donut-chart-widget";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import {
+  ReportFilters,
+  FilterState,
+} from "@/components/reports/report-filters";
+import { reportingApi, ProjectSummaryDto } from "@/lib/api/reporting-api";
+import { projectsApi, ProjectDto } from "@/lib/api/projects-api";
+import { formatNumber, formatQuantity, formatDate } from "@/lib/utils";
 
 export default function ProjectReportsPage() {
-  const [summary, setSummary] = React.useState<ProjectSummaryDto | null>(null)
-  const [projectList, setProjectList] = React.useState<ProjectDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [summary, setSummary] = React.useState<ProjectSummaryDto | null>(null);
+  const [projectList, setProjectList] = React.useState<ProjectDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   const [filters, setFilters] = React.useState<FilterState>({
-    status: '',
-    search: '',
-  })
+    status: "",
+    search: "",
+  });
 
   const loadData = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const [sumData, projData] = await Promise.all([
         reportingApi.getProjectSummary(),
         projectsApi.getAll(),
-      ])
-      setSummary(sumData)
-      setProjectList(projData)
+      ]);
+      setSummary(sumData);
+      setProjectList(projData);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load project report data')
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load project report data",
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadData();
+  }, [loadData]);
 
   const filteredProjects = React.useMemo(() => {
     return projectList.filter((proj) => {
-      if (filters.status && proj.status !== filters.status) return false
+      if (filters.status && proj.status !== filters.status) return false;
       if (filters.search) {
-        const query = filters.search.toLowerCase()
-        const matchNum = proj.projectNumber.toLowerCase().includes(query)
-        const matchName = proj.name.toLowerCase().includes(query)
-        if (!matchNum && !matchName) return false
+        const query = filters.search.toLowerCase();
+        const matchNum = proj.projectNumber.toLowerCase().includes(query);
+        const matchName = proj.name.toLowerCase().includes(query);
+        if (!matchNum && !matchName) return false;
       }
-      return true
-    })
-  }, [projectList, filters])
+      return true;
+    });
+  }, [projectList, filters]);
 
   const columns = React.useMemo<ColumnDef<ProjectDto>[]>(
     () => [
       {
-        accessorKey: 'projectNumber',
-        header: 'Project #',
+        accessorKey: "projectNumber",
+        header: "Project #",
         cell: ({ row }) => (
           <Link
             href={`/projects/${row.original.id}`}
@@ -86,18 +93,22 @@ export default function ProjectReportsPage() {
         ),
       },
       {
-        accessorKey: 'name',
-        header: 'Project Name',
+        accessorKey: "name",
+        header: "Project Name",
         cell: ({ row }) => (
           <div className="space-y-0.5">
-            <span className="text-xs font-medium text-foreground">{row.original.name}</span>
-            <p className="text-[11px] text-muted-foreground">{row.original.projectManager}</p>
+            <span className="text-xs font-medium text-foreground">
+              {row.original.name}
+            </span>
+            <p className="text-[11px] text-muted-foreground">
+              {row.original.projectManager}
+            </p>
           </div>
         ),
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
+        accessorKey: "status",
+        header: "Status",
         cell: ({ row }) => (
           <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
             {row.original.status}
@@ -105,8 +116,8 @@ export default function ProjectReportsPage() {
         ),
       },
       {
-        id: 'materials',
-        header: 'Material Lines',
+        id: "materials",
+        header: "Material Lines",
         cell: ({ row }) => (
           <span className="font-mono text-xs font-bold text-foreground">
             {row.original.materials?.length || 0} items
@@ -114,8 +125,8 @@ export default function ProjectReportsPage() {
         ),
       },
       {
-        accessorKey: 'createdAt',
-        header: 'Created',
+        accessorKey: "createdAt",
+        header: "Created",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground font-mono">
             {formatDate(row.original.createdAt)}
@@ -123,8 +134,8 @@ export default function ProjectReportsPage() {
         ),
       },
       {
-        id: 'actions',
-        header: 'Action',
+        id: "actions",
+        header: "Action",
         cell: ({ row }) => (
           <Link href={`/projects/${row.original.id}`}>
             <Button variant="ghost" size="xs">
@@ -135,33 +146,50 @@ export default function ProjectReportsPage() {
       },
     ],
     [],
-  )
+  );
 
   if (loading) {
-    return <LoadingState message="Aggregating Project reports..." />
+    return <LoadingState message="Aggregating Project reports..." />;
   }
 
   if (error || !summary) {
     return (
       <ErrorState
         title="Project Report Error"
-        message={error || 'Unable to load project material analytics.'}
+        message={error || "Unable to load project material analytics."}
         onRetry={loadData}
       />
-    )
+    );
   }
 
   const projectStatusData = [
-    { name: 'Active Projects', value: summary.activeProjects ?? 0, color: '#8b5cf6' },
-    { name: 'Completed Projects', value: summary.completedProjects ?? 0, color: '#10b981' },
-    { name: 'Planning / Other', value: Math.max(0, (summary.totalProjects ?? 0) - (summary.activeProjects ?? 0) - (summary.completedProjects ?? 0)), color: '#94a3b8' },
-  ]
+    {
+      name: "Active Projects",
+      value: summary.activeProjects ?? 0,
+      color: "#8b5cf6",
+    },
+    {
+      name: "Completed Projects",
+      value: summary.completedProjects ?? 0,
+      color: "#10b981",
+    },
+    {
+      name: "Planning / Other",
+      value: Math.max(
+        0,
+        (summary.totalProjects ?? 0) -
+          (summary.activeProjects ?? 0) -
+          (summary.completedProjects ?? 0),
+      ),
+      color: "#94a3b8",
+    },
+  ];
 
   const materialBalanceData = [
-    { name: 'Allocated', value: summary.totalAllocatedMaterials ?? 0 },
-    { name: 'Issued', value: summary.totalIssuedMaterials ?? 0 },
-    { name: 'Returned', value: summary.totalReturnedMaterials ?? 0 },
-  ]
+    { name: "Allocated", value: summary.totalAllocatedMaterials ?? 0 },
+    { name: "Issued", value: summary.totalIssuedMaterials ?? 0 },
+    { name: "Returned", value: summary.totalReturnedMaterials ?? 0 },
+  ];
 
   return (
     <div className="space-y-6">
@@ -189,19 +217,19 @@ export default function ProjectReportsPage() {
         />
         <StatCard
           title="Allocated Materials"
-          value={formatQuantity(summary.totalAllocatedMaterials, 'units')}
+          value={formatQuantity(summary.totalAllocatedMaterials, "units")}
           subtitle="Reserved project stock"
           icon={Package}
         />
         <StatCard
           title="Issued Materials"
-          value={formatQuantity(summary.totalIssuedMaterials, 'units')}
+          value={formatQuantity(summary.totalIssuedMaterials, "units")}
           subtitle="Consumed at job sites"
           icon={Layers}
         />
         <StatCard
           title="Returned Materials"
-          value={formatQuantity(summary.totalReturnedMaterials, 'units')}
+          value={formatQuantity(summary.totalReturnedMaterials, "units")}
           subtitle="Returned to warehouse"
           icon={CheckCircle2}
         />
@@ -214,7 +242,11 @@ export default function ProjectReportsPage() {
             title="Project Material Lifecycle Balance"
             subtitle="Allocated vs Issued vs Returned material quantities"
           >
-            <BarChartWidget data={materialBalanceData} color="#8b5cf6" height={220} />
+            <BarChartWidget
+              data={materialBalanceData}
+              color="#8b5cf6"
+              height={220}
+            />
           </ChartCard>
         </div>
 
@@ -234,10 +266,10 @@ export default function ProjectReportsPage() {
         onChange={setFilters}
         showStatusFilter
         statusOptions={[
-          { label: 'Planning', value: 'PLANNING' },
-          { label: 'Active', value: 'ACTIVE' },
-          { label: 'On Hold', value: 'ON_HOLD' },
-          { label: 'Completed', value: 'COMPLETED' },
+          { label: "Planning", value: "PLANNING" },
+          { label: "Active", value: "ACTIVE" },
+          { label: "On Hold", value: "ON_HOLD" },
+          { label: "Completed", value: "COMPLETED" },
         ]}
       />
 
@@ -257,5 +289,5 @@ export default function ProjectReportsPage() {
         />
       </div>
     </div>
-  )
+  );
 }

@@ -1,7 +1,4 @@
-import {
-  ReceivableInvoice,
-  InvoiceStatus,
-} from './receivable-invoice';
+import { ReceivableInvoice, InvoiceStatus } from "./receivable-invoice";
 
 export interface FindManyReceivablesOptions {
   customerId?: string;

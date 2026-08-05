@@ -1,15 +1,15 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
+import * as React from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function CustomerReturnDetailPage() {
-  const params = useParams()
-  const retId = params?.id as string
+  const params = useParams();
+  const retId = params?.id as string;
 
   return (
     <div className="space-y-6">
@@ -23,14 +23,16 @@ export default function CustomerReturnDetailPage() {
       </div>
 
       <PageHeader
-        title={`Customer Return #${retId || 'CR-2026-011'}`}
+        title={`Customer Return #${retId || "CR-2026-011"}`}
         description="Return inspection notes, disposition details, and credit note issuance."
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Customer</p>
-          <p className="text-sm font-semibold text-foreground">AeroTech Systems</p>
+          <p className="text-sm font-semibold text-foreground">
+            AeroTech Systems
+          </p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Return Status</p>
@@ -40,9 +42,11 @@ export default function CustomerReturnDetailPage() {
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Disposition</p>
-          <p className="text-sm font-semibold text-foreground">Restock to Inventory</p>
+          <p className="text-sm font-semibold text-foreground">
+            Restock to Inventory
+          </p>
         </div>
       </div>
     </div>
-  )
+  );
 }

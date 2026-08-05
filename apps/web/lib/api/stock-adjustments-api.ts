@@ -1,6 +1,6 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
-export type StockAdjustmentStatus = 'PENDING' | 'APPROVED' | 'CANCELLED';
+export type StockAdjustmentStatus = "PENDING" | "APPROVED" | "CANCELLED";
 
 export interface StockAdjustmentLineDto {
   id: string;
@@ -52,25 +52,40 @@ export interface FindManyStockAdjustmentsOptions {
 }
 
 export const stockAdjustmentsApi = {
-  getAll: (options?: FindManyStockAdjustmentsOptions): Promise<StockAdjustmentDto[]> => {
+  getAll: (
+    options?: FindManyStockAdjustmentsOptions,
+  ): Promise<StockAdjustmentDto[]> => {
     const params = new URLSearchParams();
-    if (options?.locationId) params.append('locationId', options.locationId);
-    if (options?.componentId) params.append('componentId', options.componentId);
-    if (options?.status) params.append('status', options.status);
-    if (options?.search) params.append('search', options.search);
+    if (options?.locationId) params.append("locationId", options.locationId);
+    if (options?.componentId) params.append("componentId", options.componentId);
+    if (options?.status) params.append("status", options.status);
+    if (options?.search) params.append("search", options.search);
 
     const queryString = params.toString();
-    const url = queryString ? `/stock-adjustments?${queryString}` : '/stock-adjustments';
+    const url = queryString
+      ? `/stock-adjustments?${queryString}`
+      : "/stock-adjustments";
     return apiClient.get<StockAdjustmentDto[]>(url);
   },
   getById: (id: string): Promise<StockAdjustmentDto> =>
     apiClient.get<StockAdjustmentDto>(`/stock-adjustments/${id}`),
-  create: (payload: CreateStockAdjustmentPayload): Promise<StockAdjustmentDto> =>
-    apiClient.post<StockAdjustmentDto, CreateStockAdjustmentPayload>('/stock-adjustments', payload),
+  create: (
+    payload: CreateStockAdjustmentPayload,
+  ): Promise<StockAdjustmentDto> =>
+    apiClient.post<StockAdjustmentDto, CreateStockAdjustmentPayload>(
+      "/stock-adjustments",
+      payload,
+    ),
   approve: (id: string, approvedBy?: string): Promise<StockAdjustmentDto> =>
-    apiClient.post<StockAdjustmentDto, { approvedBy?: string }>(`/stock-adjustments/${id}/approve`, {
-      approvedBy,
-    }),
+    apiClient.post<StockAdjustmentDto, { approvedBy?: string }>(
+      `/stock-adjustments/${id}/approve`,
+      {
+        approvedBy,
+      },
+    ),
   cancel: (id: string): Promise<StockAdjustmentDto> =>
-    apiClient.post<StockAdjustmentDto, Record<string, never>>(`/stock-adjustments/${id}/cancel`, {}),
+    apiClient.post<StockAdjustmentDto, Record<string, never>>(
+      `/stock-adjustments/${id}/cancel`,
+      {},
+    ),
 };

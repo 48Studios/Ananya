@@ -47,9 +47,7 @@ export const warehouseZones = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [
-    index("warehouse_zones_warehouse_id_idx").on(table.warehouseId),
-  ],
+  (table) => [index("warehouse_zones_warehouse_id_idx").on(table.warehouseId)],
 );
 
 export const warehouseBins = pgTable(

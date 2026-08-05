@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import * as React from 'react'
+import * as React from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -10,57 +10,72 @@ import {
   Wrench,
   Clock,
   User,
-} from 'lucide-react'
-import type { InventoryTransactionDto, TransactionType } from '@/lib/api/inventory-transactions-api'
+} from "lucide-react";
+import type {
+  InventoryTransactionDto,
+  TransactionType,
+} from "@/lib/api/inventory-transactions-api";
 
 interface ComponentTimelineProps {
-  transactions: InventoryTransactionDto[]
-  componentName?: string
-  componentSku?: string
+  transactions: InventoryTransactionDto[];
+  componentName?: string;
+  componentSku?: string;
 }
 
 function getTransactionIcon(type: TransactionType) {
   switch (type) {
-    case 'Receipt':
-    case 'InitialStock':
-      return <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-    case 'Issue':
-    case 'Consumption':
-      return <ArrowUpRight className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-    case 'Transfer':
-      return <ArrowRightLeft className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-    case 'Adjustment':
-    case 'ManualCorrection':
-      return <Wrench className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-    case 'Return':
-      return <RotateCcw className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-    case 'Production':
-      return <Package className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+    case "Receipt":
+    case "InitialStock":
+      return (
+        <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+      );
+    case "Issue":
+    case "Consumption":
+      return (
+        <ArrowUpRight className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+      );
+    case "Transfer":
+      return (
+        <ArrowRightLeft className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+      );
+    case "Adjustment":
+    case "ManualCorrection":
+      return (
+        <Wrench className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+      );
+    case "Return":
+      return (
+        <RotateCcw className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+      );
+    case "Production":
+      return (
+        <Package className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+      );
     default:
-      return <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+      return <Clock className="w-3.5 h-3.5 text-muted-foreground" />;
   }
 }
 
 function getDirectionBadge(type: TransactionType, quantity: number) {
-  if (['Receipt', 'InitialStock', 'Production', 'Return'].includes(type)) {
+  if (["Receipt", "InitialStock", "Production", "Return"].includes(type)) {
     return (
       <span className="inline-flex items-center text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
         +{quantity}
       </span>
-    )
+    );
   }
-  if (['Issue', 'Consumption'].includes(type)) {
+  if (["Issue", "Consumption"].includes(type)) {
     return (
       <span className="inline-flex items-center text-xs font-mono font-bold text-rose-600 dark:text-rose-400">
         -{quantity}
       </span>
-    )
+    );
   }
   return (
     <span className="inline-flex items-center text-xs font-mono font-bold text-blue-600 dark:text-blue-400">
       ±{quantity}
     </span>
-  )
+  );
 }
 
 export function ComponentTimeline({
@@ -71,16 +86,22 @@ export function ComponentTimeline({
   if (transactions.length === 0) {
     return (
       <div className="p-6 text-center text-xs text-muted-foreground italic border border-border rounded-xl">
-        No stock transaction history recorded for {componentName || 'this component'}.
+        No stock transaction history recorded for{" "}
+        {componentName || "this component"}.
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between border-b border-border pb-2">
         <h3 className="text-sm font-semibold text-foreground">
-          Stock Movement Timeline {componentSku && <span className="font-mono text-muted-foreground">({componentSku})</span>}
+          Stock Movement Timeline{" "}
+          {componentSku && (
+            <span className="font-mono text-muted-foreground">
+              ({componentSku})
+            </span>
+          )}
         </h3>
         <span className="text-xs font-mono text-muted-foreground">
           {transactions.length} audit entries
@@ -117,9 +138,7 @@ export function ComponentTimeline({
               )}
 
               <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/50">
-                <span className="font-mono">
-                  Ref: {tx.reference || '—'}
-                </span>
+                <span className="font-mono">Ref: {tx.reference || "—"}</span>
                 <span className="flex items-center gap-1">
                   <User className="w-3 h-3" />
                   {tx.createdBy}
@@ -130,5 +149,5 @@ export function ComponentTimeline({
         ))}
       </div>
     </div>
-  )
+  );
 }

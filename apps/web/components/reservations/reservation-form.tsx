@@ -1,76 +1,94 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm, useFieldArray, SubmitHandler, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2, AlertCircle, Plus, Trash2, Info } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import * as React from "react";
+import {
+  useForm,
+  useFieldArray,
+  SubmitHandler,
+  Controller,
+} from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2, AlertCircle, Plus, Trash2, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+} from "@/components/ui/select";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   reservationsApi,
   type ReservationDto,
   type CreateReservationPayload,
   type UpdateReservationPayload,
   type ReservationType,
-} from '@/lib/api/reservations-api'
-import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
-import { locationsApi, type LocationDto } from '@/lib/api/locations-api'
+} from "@/lib/api/reservations-api";
+import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
+import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 
 const reservationLineSchema = z.object({
-  componentId: z.string().min(1, 'Component is required'),
-  locationId: z.string().min(1, 'Location is required'),
-  reservedQuantity: z.number().min(0.0001, 'Quantity must be greater than zero'),
-  unitOfMeasure: z.string().min(1, 'Unit of measure is required'),
+  componentId: z.string().min(1, "Component is required"),
+  locationId: z.string().min(1, "Location is required"),
+  reservedQuantity: z
+    .number()
+    .min(0.0001, "Quantity must be greater than zero"),
+  unitOfMeasure: z.string().min(1, "Unit of measure is required"),
   notes: z.string().optional().nullable(),
-})
+});
 
 const reservationSchema = z.object({
-  reservationType: z.enum(['WORK_ORDER', 'PROJECT', 'PURCHASE_REQUEST', 'SALES_ORDER']),
+  reservationType: z.enum([
+    "WORK_ORDER",
+    "PROJECT",
+    "PURCHASE_REQUEST",
+    "SALES_ORDER",
+  ]),
   referenceDocument: z.string().optional().nullable(),
-  reservedBy: z.string().min(1, 'Reserved by identifier is required'),
+  reservedBy: z.string().min(1, "Reserved by identifier is required"),
   expiresAt: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
-  lines: z.array(reservationLineSchema).min(1, 'At least one line item is required for reservation'),
-})
+  lines: z
+    .array(reservationLineSchema)
+    .min(1, "At least one line item is required for reservation"),
+});
 
-export type ReservationFormValues = z.infer<typeof reservationSchema>
+export type ReservationFormValues = z.infer<typeof reservationSchema>;
 
 interface ReservationFormProps {
-  initialData?: ReservationDto | null
-  onSuccess: (saved: ReservationDto) => void
-  onCancel: () => void
+  initialData?: ReservationDto | null;
+  onSuccess: (saved: ReservationDto) => void;
+  onCancel: () => void;
 }
 
-export function ReservationForm({ initialData, onSuccess, onCancel }: ReservationFormProps) {
-  const [components, setComponents] = React.useState<ComponentDto[]>([])
-  const [locations, setLocations] = React.useState<LocationDto[]>([])
-  const [serverError, setServerError] = React.useState<string | null>(null)
-  const [loadingRef, setLoadingRef] = React.useState(true)
+export function ReservationForm({
+  initialData,
+  onSuccess,
+  onCancel,
+}: ReservationFormProps) {
+  const [components, setComponents] = React.useState<ComponentDto[]>([]);
+  const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const [loadingRef, setLoadingRef] = React.useState(true);
 
-  const isEdit = Boolean(initialData)
+  const isEdit = Boolean(initialData);
 
   React.useEffect(() => {
     Promise.all([componentsApi.getAll(), locationsApi.getAll()])
       .then(([comps, locs]) => {
-        setComponents(comps)
-        setLocations(locs)
+        setComponents(comps);
+        setLocations(locs);
       })
       .catch((err) => {
         setServerError(
-          err instanceof Error ? err.message : 'Failed to load catalogs',
-        )
+          err instanceof Error ? err.message : "Failed to load catalogs",
+        );
       })
-      .finally(() => setLoadingRef(false))
-  }, [])
+      .finally(() => setLoadingRef(false));
+  }, []);
 
   const {
     register,
@@ -83,52 +101,64 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
     defaultValues: initialData
       ? {
           reservationType: initialData.reservationType,
-          referenceDocument: initialData.referenceDocument || '',
+          referenceDocument: initialData.referenceDocument || "",
           reservedBy: initialData.reservedBy,
-          expiresAt: initialData.expiresAt ? initialData.expiresAt.split('T')[0] : '',
-          notes: initialData.notes || '',
+          expiresAt: initialData.expiresAt
+            ? initialData.expiresAt.split("T")[0]
+            : "",
+          notes: initialData.notes || "",
           lines: initialData.lines.map((l) => ({
             componentId: l.componentId,
             locationId: l.locationId,
             reservedQuantity: l.reservedQuantity,
             unitOfMeasure: l.unitOfMeasure,
-            notes: l.notes || '',
+            notes: l.notes || "",
           })),
         }
       : {
-          reservationType: 'WORK_ORDER',
-          referenceDocument: '',
-          reservedBy: 'OPERATIONS',
-          expiresAt: '',
-          notes: '',
-          lines: [{ componentId: '', locationId: '', reservedQuantity: 10, unitOfMeasure: 'pcs', notes: '' }],
+          reservationType: "WORK_ORDER",
+          referenceDocument: "",
+          reservedBy: "OPERATIONS",
+          expiresAt: "",
+          notes: "",
+          lines: [
+            {
+              componentId: "",
+              locationId: "",
+              reservedQuantity: 10,
+              unitOfMeasure: "pcs",
+              notes: "",
+            },
+          ],
         },
-  })
+  });
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'lines',
-  })
+    name: "lines",
+  });
 
   const handleLineComponentChange = (idx: number, compId: string) => {
-    setValue(`lines.${idx}.componentId`, compId)
-    const comp = components.find((c) => c.id === compId)
+    setValue(`lines.${idx}.componentId`, compId);
+    const comp = components.find((c) => c.id === compId);
     if (comp) {
-      setValue(`lines.${idx}.unitOfMeasure`, comp.unit || 'pcs')
+      setValue(`lines.${idx}.unitOfMeasure`, comp.unit || "pcs");
       if (comp.defaultLocationId) {
-        setValue(`lines.${idx}.locationId`, comp.defaultLocationId)
+        setValue(`lines.${idx}.locationId`, comp.defaultLocationId);
       }
     }
-  }
+  };
 
   const onSubmit: SubmitHandler<ReservationFormValues> = async (values) => {
-    setServerError(null)
+    setServerError(null);
     try {
       const payloadBase = {
         reservationType: values.reservationType as ReservationType,
         referenceDocument: values.referenceDocument || undefined,
         reservedBy: values.reservedBy,
-        expiresAt: values.expiresAt ? new Date(values.expiresAt).toISOString() : undefined,
+        expiresAt: values.expiresAt
+          ? new Date(values.expiresAt).toISOString()
+          : undefined,
         notes: values.notes || undefined,
         lines: values.lines.map((l) => ({
           componentId: l.componentId,
@@ -137,22 +167,27 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
           unitOfMeasure: l.unitOfMeasure,
           notes: l.notes || undefined,
         })),
-      }
+      };
       if (isEdit && initialData) {
-        const updated = await reservationsApi.update(initialData.id, payloadBase as UpdateReservationPayload)
-        onSuccess(updated)
+        const updated = await reservationsApi.update(
+          initialData.id,
+          payloadBase as UpdateReservationPayload,
+        );
+        onSuccess(updated);
       } else {
-        const created = await reservationsApi.create(payloadBase as CreateReservationPayload)
-        onSuccess(created)
+        const created = await reservationsApi.create(
+          payloadBase as CreateReservationPayload,
+        );
+        onSuccess(created);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError('Failed to submit inventory reservation')
+        setServerError("Failed to submit inventory reservation");
       }
     }
-  }
+  };
 
   if (loadingRef) {
     return (
@@ -160,7 +195,7 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
         <Loader2 className="w-4 h-4 animate-spin text-primary" />
         Loading components and location catalogs...
       </div>
-    )
+    );
   }
 
   return (
@@ -175,7 +210,8 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field>
           <FieldLabel htmlFor="res-type">
-            Reservation Purpose / Type <span className="text-destructive">*</span>
+            Reservation Purpose / Type{" "}
+            <span className="text-destructive">*</span>
           </FieldLabel>
           <Controller
             name="reservationType"
@@ -186,10 +222,18 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
                   <SelectValue placeholder="Select purpose" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="WORK_ORDER">Work Order Commitment</SelectItem>
-                  <SelectItem value="PROJECT">Project Stock Allocation</SelectItem>
-                  <SelectItem value="PURCHASE_REQUEST">Purchase Request Reservation</SelectItem>
-                  <SelectItem value="SALES_ORDER">Sales Order Reservation</SelectItem>
+                  <SelectItem value="WORK_ORDER">
+                    Work Order Commitment
+                  </SelectItem>
+                  <SelectItem value="PROJECT">
+                    Project Stock Allocation
+                  </SelectItem>
+                  <SelectItem value="PURCHASE_REQUEST">
+                    Purchase Request Reservation
+                  </SelectItem>
+                  <SelectItem value="SALES_ORDER">
+                    Sales Order Reservation
+                  </SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -202,7 +246,7 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
             id="res-ref"
             type="text"
             placeholder="e.g. WO-2026-0012 or PRJ-BUILD-01"
-            {...register('referenceDocument')}
+            {...register("referenceDocument")}
           />
         </Field>
       </div>
@@ -216,7 +260,7 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
             id="res-by"
             type="text"
             placeholder="e.g. Assembly Lead (Jane Doe)"
-            {...register('reservedBy')}
+            {...register("reservedBy")}
           />
           {errors.reservedBy?.message && (
             <FieldError>{errors.reservedBy.message}</FieldError>
@@ -224,23 +268,27 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="res-expires">Expiration Date (Lock Hold)</FieldLabel>
+          <FieldLabel htmlFor="res-expires">
+            Expiration Date (Lock Hold)
+          </FieldLabel>
           <Input
             id="res-expires"
             type="date"
-            {...register('expiresAt')}
+            {...register("expiresAt")}
             className="font-mono"
           />
         </Field>
       </div>
 
       <Field>
-        <FieldLabel htmlFor="res-notes">Allocation Notes / Justification</FieldLabel>
+        <FieldLabel htmlFor="res-notes">
+          Allocation Notes / Justification
+        </FieldLabel>
         <Input
           id="res-notes"
           type="text"
           placeholder="e.g. Hold critical high-precision sensors for scheduled Work Order WO-2026-0012"
-          {...register('notes')}
+          {...register("notes")}
         />
       </Field>
 
@@ -254,7 +302,13 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
             variant="outline"
             size="sm"
             onClick={() =>
-              append({ componentId: '', locationId: '', reservedQuantity: 10, unitOfMeasure: 'pcs', notes: '' })
+              append({
+                componentId: "",
+                locationId: "",
+                reservedQuantity: 10,
+                unitOfMeasure: "pcs",
+                notes: "",
+              })
             }
           >
             <Plus className="w-3 h-3 mr-1" />
@@ -265,7 +319,8 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
         <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-md text-[11px] text-blue-800 dark:text-blue-200 flex items-center gap-1.5">
           <Info className="w-3.5 h-3.5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
           <span>
-            Reservations commit stock and reduce <strong>Available Quantity</strong>.
+            Reservations commit stock and reduce{" "}
+            <strong>Available Quantity</strong>.
           </span>
         </div>
 
@@ -286,8 +341,8 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
                     <Select
                       value={compField.value}
                       onValueChange={(val) => {
-                        compField.onChange(val ?? '')
-                        handleLineComponentChange(idx, val ?? '')
+                        compField.onChange(val ?? "");
+                        handleLineComponentChange(idx, val ?? "");
                       }}
                     >
                       <SelectTrigger className="h-8 text-xs">
@@ -391,14 +446,22 @@ export function ReservationForm({ initialData, onSuccess, onCancel }: Reservatio
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-          {isEdit ? 'Save Changes' : 'Create Reservation'}
+          {isSubmitting && (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          )}
+          {isEdit ? "Save Changes" : "Create Reservation"}
         </Button>
       </div>
     </form>
-  )
+  );
 }

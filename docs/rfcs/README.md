@@ -170,66 +170,60 @@ Routine feature work, bug fixes, refactoring, implementation details, and small 
 
 # RFC Index
 
-| RFC  | Title                  | Status   |
-| ---- | ---------------------- | -------- |
-| 0001 | Inventory Ledger       | Accepted |
-| 0002 | Inventory Domain Model | Draft    |
-| 0003 | Inventory Ledger       | Accepted |
-| 0004 | Inventory Projection   | Accepted |
-| 0005 | Transaction Types      | Accepted |
-| 0006 | Units of Measure       | Accepted |
-| 0007 | Batch & Serial Tracking| Accepted |
-| 0008 | Inventory Reservations | Accepted |
-| 0009 | Supplier Management    | Accepted |
-| 0010 | Purchase Orders        | Accepted |
-| 0011 | Goods Receipt          | Accepted |
-| 0012 | Supplier Returns       | Accepted |
-| 0013 | Purchase Invoices      | Accepted |
-| 0014 | Procurement Policies   | Accepted |
-| 0015 | Procurement Reporting  | Accepted |
-| 0016 | Bill of Materials      | Accepted |
-| 0017 | Production Orders      | Accepted |
-| 0018 | Material Consumption   | Accepted |
-| 0019 | Finished Goods Receipt | Accepted |
-| 0020 | Manufacturing Traceability | Accepted |
+| RFC  | Title                               | Status   |
+| ---- | ----------------------------------- | -------- |
+| 0001 | Inventory Ledger                    | Accepted |
+| 0002 | Inventory Domain Model              | Draft    |
+| 0003 | Inventory Ledger                    | Accepted |
+| 0004 | Inventory Projection                | Accepted |
+| 0005 | Transaction Types                   | Accepted |
+| 0006 | Units of Measure                    | Accepted |
+| 0007 | Batch & Serial Tracking             | Accepted |
+| 0008 | Inventory Reservations              | Accepted |
+| 0009 | Supplier Management                 | Accepted |
+| 0010 | Purchase Orders                     | Accepted |
+| 0011 | Goods Receipt                       | Accepted |
+| 0012 | Supplier Returns                    | Accepted |
+| 0013 | Purchase Invoices                   | Accepted |
+| 0014 | Procurement Policies                | Accepted |
+| 0015 | Procurement Reporting               | Accepted |
+| 0016 | Bill of Materials                   | Accepted |
+| 0017 | Production Orders                   | Accepted |
+| 0018 | Material Consumption                | Accepted |
+| 0019 | Finished Goods Receipt              | Accepted |
+| 0020 | Manufacturing Traceability          | Accepted |
 | 0021 | Warehouse Structure & Bin Locations | Accepted |
-| 0022 | Stock Counts           | Accepted |
-| 0023 | Cycle Counting         | Accepted |
-| 0024 | Warehouse Transfers    | Accepted |
-| 0025 | Warehouse Policies     | Accepted |
-| 0026 | Customer Management    | Accepted |
-| 0027 | Quotations & Sales Orders | Accepted |
-| 0028 | Order Fulfillment Requests | Accepted |
-| 0029 | Shipping & Delivery    | Accepted |
-| 0030 | Customer Returns       | Accepted |
-| 0031 | Chart of Accounts      | Accepted |
-| 0032 | General Ledger & Journal Entries | Accepted |
-| 0033 | Accounts Receivable    | Accepted |
-| 0034 | Accounts Payable       | Accepted |
-| 0035 | Payments & Bank Reconciliation | Accepted |
-| 0036 | Lead Management        | Accepted |
-| 0037 | Accounts & Contacts    | Accepted |
-| 0038 | Opportunities & Pipeline | Accepted |
-| 0039 | Activities & Notes     | Accepted |
-| 0040 | CRM to Sales Integration | Accepted |
-| 0041 | Project Management     | Accepted |
-| 0042 | Milestones & Deliverables | Accepted |
-| 0043 | Task Management        | Accepted |
-| 0044 | Time Tracking          | Accepted |
-| 0045 | Project Integration    | Accepted |
-| 0046 | Service Requests       | Accepted |
-| 0047 | Work Orders & Repairs  | Accepted |
-| 0048 | Warranty & RMA         | Accepted |
-| 0049 | Field Service & Maintenance | Accepted |
-| 0050 | Service Integration    | Accepted |
-| 0051 | Material Requirements Planning | Accepted |
-| 0052 | Demand & Supply Planning | Accepted |
-| 0053 | Production Planning & Capacity | Accepted |
-| 0054 | Purchase Planning      | Accepted |
-| 0055 | Planning Integration   | Accepted |
-
-
-
-
-
-
+| 0022 | Stock Counts                        | Accepted |
+| 0023 | Cycle Counting                      | Accepted |
+| 0024 | Warehouse Transfers                 | Accepted |
+| 0025 | Warehouse Policies                  | Accepted |
+| 0026 | Customer Management                 | Accepted |
+| 0027 | Quotations & Sales Orders           | Accepted |
+| 0028 | Order Fulfillment Requests          | Accepted |
+| 0029 | Shipping & Delivery                 | Accepted |
+| 0030 | Customer Returns                    | Accepted |
+| 0031 | Chart of Accounts                   | Accepted |
+| 0032 | General Ledger & Journal Entries    | Accepted |
+| 0033 | Accounts Receivable                 | Accepted |
+| 0034 | Accounts Payable                    | Accepted |
+| 0035 | Payments & Bank Reconciliation      | Accepted |
+| 0036 | Lead Management                     | Accepted |
+| 0037 | Accounts & Contacts                 | Accepted |
+| 0038 | Opportunities & Pipeline            | Accepted |
+| 0039 | Activities & Notes                  | Accepted |
+| 0040 | CRM to Sales Integration            | Accepted |
+| 0041 | Project Management                  | Accepted |
+| 0042 | Milestones & Deliverables           | Accepted |
+| 0043 | Task Management                     | Accepted |
+| 0044 | Time Tracking                       | Accepted |
+| 0045 | Project Integration                 | Accepted |
+| 0046 | Service Requests                    | Accepted |
+| 0047 | Work Orders & Repairs               | Accepted |
+| 0048 | Warranty & RMA                      | Accepted |
+| 0049 | Field Service & Maintenance         | Accepted |
+| 0050 | Service Integration                 | Accepted |
+| 0051 | Material Requirements Planning      | Accepted |
+| 0052 | Demand & Supply Planning            | Accepted |
+| 0053 | Production Planning & Capacity      | Accepted |
+| 0054 | Purchase Planning                   | Accepted |
+| 0055 | Planning Integration                | Accepted |

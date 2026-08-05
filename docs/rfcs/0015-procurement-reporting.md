@@ -103,7 +103,9 @@ This RFC defines the **Procurement Reporting & Read Models** in Ananya ERP. Proc
 ```typescript
 export interface ProcurementReportingRepository {
   getSummaryMetrics(): Promise<ProcurementSummaryMetrics>;
-  getSupplierPerformance(supplierId?: string): Promise<SupplierPerformanceMetric[]>;
+  getSupplierPerformance(
+    supplierId?: string,
+  ): Promise<SupplierPerformanceMetric[]>;
   getOpenPoAging(): Promise<PoAgingBucket[]>;
 }
 ```

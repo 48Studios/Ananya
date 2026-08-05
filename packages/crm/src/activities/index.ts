@@ -1,2 +1,2 @@
-export * from './activity';
-export * from './activity.repository';
+export * from "./activity";
+export * from "./activity.repository";

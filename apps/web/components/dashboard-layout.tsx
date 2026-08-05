@@ -1,30 +1,32 @@
-'use client'
+"use client";
 
-import React from 'react'
-import { usePathname } from 'next/navigation'
-import { useAuth } from '@/lib/auth/auth-context'
-import { NavigationProvider } from '@/lib/navigation/navigation-context'
-import { NavigationRail } from '@/lib/navigation/components/navigation-rail'
-import { ContextSidebar } from '@/lib/navigation/components/context-sidebar'
-import { TopHeader } from '@/lib/navigation/components/top-header'
-import { MobileDrawer } from '@/lib/navigation/components/mobile-drawer'
-import { CommandPalette } from '@/lib/navigation/components/command-palette'
-import { AppFooter } from '@/components/app-footer'
+import React from "react";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth/auth-context";
+import { NavigationProvider } from "@/lib/navigation/navigation-context";
+import { NavigationRail } from "@/lib/navigation/components/navigation-rail";
+import { ContextSidebar } from "@/lib/navigation/components/context-sidebar";
+import { TopHeader } from "@/lib/navigation/components/top-header";
+import { MobileDrawer } from "@/lib/navigation/components/mobile-drawer";
+import { CommandPalette } from "@/lib/navigation/components/command-palette";
+import { AppFooter } from "@/components/app-footer";
 
 const PUBLIC_ROUTES = [
-  '/login',
-  '/forgot-password',
-  '/reset-password',
-  '/onboarding',
-  '/welcome',
-  '/setup',
-]
+  "/login",
+  "/forgot-password",
+  "/reset-password",
+  "/onboarding",
+  "/welcome",
+  "/setup",
+];
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const { user, loading } = useAuth()
+  const pathname = usePathname();
+  const { user, loading } = useAuth();
 
-  const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname?.startsWith(route))
+  const isPublicRoute = PUBLIC_ROUTES.some((route) =>
+    pathname?.startsWith(route),
+  );
 
   // Completely isolate public pages or unauthenticated state from the authenticated ERP shell
   if (isPublicRoute || !user || loading) {
@@ -32,7 +34,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <main className="min-h-screen w-full bg-background text-foreground">
         {children}
       </main>
-    )
+    );
   }
 
   return (
@@ -66,5 +68,5 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     </NavigationProvider>
-  )
+  );
 }

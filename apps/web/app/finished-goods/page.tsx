@@ -1,69 +1,85 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Package, Plus, CheckCircle2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { finishedGoodsApi, type FinishedGoodDto } from '@/lib/api/finished-goods-api'
-import { formatCurrency } from '@/lib/utils'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Package, Plus, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import {
+  finishedGoodsApi,
+  type FinishedGoodDto,
+} from "@/lib/api/finished-goods-api";
+import { formatCurrency } from "@/lib/utils";
 
 export default function FinishedGoodsPage() {
-  const [goods, setGoods] = React.useState<FinishedGoodDto[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const [goods, setGoods] = React.useState<FinishedGoodDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    finishedGoodsApi.getAll()
+    finishedGoodsApi
+      .getAll()
       .then((data) => setGoods(data || []))
       .catch(() => setGoods([]))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
   const totalValue = React.useMemo(() => {
-    return goods.reduce((acc, item) => acc + (item?.quantityOnHand || 0) * (item?.unitCost || 0), 0)
-  }, [goods])
+    return goods.reduce(
+      (acc, item) => acc + (item?.quantityOnHand || 0) * (item?.unitCost || 0),
+      0,
+    );
+  }, [goods]);
 
   const columns: ColumnDef<FinishedGoodDto>[] = [
     {
-      accessorKey: 'sku',
-      header: 'Finished SKU',
+      accessorKey: "sku",
+      header: "Finished SKU",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
-          {row.original.sku || '-'}
+          {row.original.sku || "-"}
         </span>
       ),
     },
     {
-      accessorKey: 'name',
-      header: 'Description',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.name || '-'}</span>,
+      accessorKey: "name",
+      header: "Description",
+      cell: ({ row }) => (
+        <span className="font-medium text-foreground">
+          {row.original.name || "-"}
+        </span>
+      ),
     },
     {
-      accessorKey: 'warehouseLocation',
-      header: 'Location',
-      cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.warehouseLocation || 'Main Assembly'}</span>,
+      accessorKey: "warehouseLocation",
+      header: "Location",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.warehouseLocation || "Main Assembly"}
+        </span>
+      ),
     },
     {
-      accessorKey: 'quantityOnHand',
-      header: 'OnHand Stock',
+      accessorKey: "quantityOnHand",
+      header: "OnHand Stock",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
-          {row.original.quantityOnHand || 0} {row.original.unitOfMeasure || 'units'}
+          {row.original.quantityOnHand || 0}{" "}
+          {row.original.unitOfMeasure || "units"}
         </span>
       ),
     },
     {
-      accessorKey: 'unitCost',
-      header: 'Unit Cost',
+      accessorKey: "unitCost",
+      header: "Unit Cost",
       cell: ({ row }) => (
         <span className="font-mono text-xs text-foreground font-semibold">
           {formatCurrency(row.original.unitCost || 0)}
         </span>
       ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -105,5 +121,5 @@ export default function FinishedGoodsPage() {
         emptyMessage="No completed finished goods match your search."
       />
     </div>
-  )
+  );
 }

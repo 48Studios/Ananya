@@ -1,4 +1,4 @@
-import { Task, TaskStatus, TaskPriority } from './task';
+import { Task, TaskStatus, TaskPriority } from "./task";
 
 export interface FindManyTasksOptions {
   projectId?: string;

@@ -1,73 +1,80 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
-import { authApi, type UserInvitationDto } from '@/lib/api/auth-api'
-import { UserCheck, ArrowLeft, Loader2, CheckCircle2, Building2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Field, FieldLabel } from '@/components/ui/field'
-
+import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { authApi, type UserInvitationDto } from "@/lib/api/auth-api";
+import {
+  UserCheck,
+  ArrowLeft,
+  Loader2,
+  CheckCircle2,
+  Building2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldLabel } from "@/components/ui/field";
 
 function JoinOrganizationContent() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const initialToken = searchParams?.get('token') || ''
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialToken = searchParams?.get("token") || "";
 
-  const [token, setToken] = React.useState(initialToken)
-  const [invitation, setInvitation] = React.useState<UserInvitationDto | null>(null)
-  const [firstName, setFirstName] = React.useState('')
-  const [lastName, setLastName] = React.useState('')
-  const [password, setPassword] = React.useState('')
+  const [token, setToken] = React.useState(initialToken);
+  const [invitation, setInvitation] = React.useState<UserInvitationDto | null>(
+    null,
+  );
+  const [firstName, setFirstName] = React.useState("");
+  const [lastName, setLastName] = React.useState("");
+  const [password, setPassword] = React.useState("");
 
-  const [validating, setValidating] = React.useState(false)
-  const [submitting, setSubmitting] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const [validating, setValidating] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const handleVerifyToken = React.useCallback(async () => {
-    if (!token.trim()) return
-    setValidating(true)
-    setError(null)
+    if (!token.trim()) return;
+    setValidating(true);
+    setError(null);
     try {
-      const res = await authApi.verifyInvitation(token.trim())
-      setInvitation(res)
+      const res = await authApi.verifyInvitation(token.trim());
+      setInvitation(res);
     } catch {
-      setError('Invalid, revoked, or expired invitation token.')
-      setInvitation(null)
+      setError("Invalid, revoked, or expired invitation token.");
+      setInvitation(null);
     } finally {
-      setValidating(false)
+      setValidating(false);
     }
-  }, [token])
+  }, [token]);
 
   React.useEffect(() => {
     if (initialToken) {
-      handleVerifyToken()
+      handleVerifyToken();
     }
-  }, [initialToken, handleVerifyToken])
+  }, [initialToken, handleVerifyToken]);
 
   const handleAcceptInvitation = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
     try {
       const res = await authApi.acceptInvitation({
         token: token.trim(),
         password,
         firstName,
         lastName,
-      })
+      });
       if (res.token) {
-        localStorage.setItem('ananya_auth_token', res.token)
-        document.cookie = `ananya_auth_token=${res.token}; path=/; max-age=604800; SameSite=Lax`
+        localStorage.setItem("ananya_auth_token", res.token);
+        document.cookie = `ananya_auth_token=${res.token}; path=/; max-age=604800; SameSite=Lax`;
       }
-      router.push('/dashboard')
+      router.push("/dashboard");
     } catch {
-      setError('Failed to accept invitation. The link may have expired.')
+      setError("Failed to accept invitation. The link may have expired.");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-background text-foreground font-sans">
@@ -77,8 +84,12 @@ function JoinOrganizationContent() {
             <UserCheck className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-foreground">Join Existing Organization</h2>
-            <p className="text-xs text-muted-foreground">Accept your invitation to join workspace</p>
+            <h2 className="text-base font-bold text-foreground">
+              Join Existing Organization
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Accept your invitation to join workspace
+            </p>
           </div>
         </div>
 
@@ -96,7 +107,10 @@ function JoinOrganizationContent() {
                 <span>Verified Workspace Invitation</span>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Invited Email: <span className="font-mono text-foreground font-semibold">{invitation.email}</span>
+                Invited Email:{" "}
+                <span className="font-mono text-foreground font-semibold">
+                  {invitation.email}
+                </span>
               </p>
             </div>
 
@@ -138,7 +152,12 @@ function JoinOrganizationContent() {
             </Field>
 
             <div className="flex items-center justify-between pt-4 border-t border-border">
-              <Button type="button" variant="outline" size="sm" onClick={() => setInvitation(null)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setInvitation(null)}
+              >
                 <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
                 Change Token
               </Button>
@@ -183,7 +202,7 @@ function JoinOrganizationContent() {
                   Verifying Token...
                 </>
               ) : (
-                'Verify Invitation Token'
+                "Verify Invitation Token"
               )}
             </Button>
 
@@ -194,16 +213,18 @@ function JoinOrganizationContent() {
                   Back
                 </Button>
               </Link>
-              <Link href="/onboarding/create" className="text-xs text-primary font-medium hover:underline">
+              <Link
+                href="/onboarding/create"
+                className="text-xs text-primary font-medium hover:underline"
+              >
                 Need to create a new organization?
               </Link>
             </div>
           </div>
         )}
-
       </div>
     </div>
-  )
+  );
 }
 
 export default function JoinOrganizationPage() {
@@ -211,5 +232,5 @@ export default function JoinOrganizationPage() {
     <React.Suspense fallback={<div className="min-h-screen bg-background" />}>
       <JoinOrganizationContent />
     </React.Suspense>
-  )
+  );
 }

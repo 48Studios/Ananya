@@ -1,92 +1,109 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Plus, X, Eye, Edit3, Trash2, FolderTree, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable, type FilterConfig } from '@/components/ui/entity-data-table'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { CategoryForm } from '@/components/categories/category-form'
-import { categoriesApi, type CategoryDto } from '@/lib/api/categories-api'
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  Plus,
+  X,
+  Eye,
+  Edit3,
+  Trash2,
+  FolderTree,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CategoryForm } from "@/components/categories/category-form";
+import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = React.useState<CategoryDto[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [isFormOpen, setIsFormOpen] = React.useState(false)
-  const [editingCategory, setEditingCategory] = React.useState<CategoryDto | null>(null)
-  const [deletingCategory, setDeletingCategory] = React.useState<CategoryDto | null>(null)
-  const [deleteLoading, setDeleteLoading] = React.useState(false)
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null)
-  const [apiAlert, setApiAlert] = React.useState<string | null>(null)
+  const [categories, setCategories] = React.useState<CategoryDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingCategory, setEditingCategory] =
+    React.useState<CategoryDto | null>(null);
+  const [deletingCategory, setDeletingCategory] =
+    React.useState<CategoryDto | null>(null);
+  const [deleteLoading, setDeleteLoading] = React.useState(false);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  const [apiAlert, setApiAlert] = React.useState<string | null>(null);
 
   const fetchCategories = React.useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const data = await categoriesApi.getAll()
-      setCategories(data)
+      const data = await categoriesApi.getAll();
+      setCategories(data);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message)
+        setError(err.message);
       } else {
-        setError('Failed to fetch categories from API')
+        setError("Failed to fetch categories from API");
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    fetchCategories()
-  }, [fetchCategories])
+    fetchCategories();
+  }, [fetchCategories]);
 
   const categoryMap = React.useMemo(() => {
-    const map = new Map<string, string>()
+    const map = new Map<string, string>();
     for (const c of categories) {
-      map.set(c.id, c.code)
+      map.set(c.id, c.code);
     }
-    return map
-  }, [categories])
+    return map;
+  }, [categories]);
 
   const rootCount = React.useMemo(
     () => categories.filter((c) => !c.parentId).length,
     [categories],
-  )
+  );
   const subcategoryCount = React.useMemo(
     () => categories.filter((c) => Boolean(c.parentId)).length,
     [categories],
-  )
+  );
 
   const handleDeleteConfirm = async () => {
-    if (!deletingCategory) return
-    setDeleteLoading(true)
-    setApiAlert(null)
+    if (!deletingCategory) return;
+    setDeleteLoading(true);
+    setApiAlert(null);
     try {
-      await categoriesApi.delete(deletingCategory.id)
-      setCategories((prev) => prev.filter((c) => c.id !== deletingCategory.id))
-      setToastMessage(`Category "${deletingCategory.code}" deleted successfully.`)
-      setTimeout(() => setToastMessage(null), 4000)
-      setDeletingCategory(null)
+      await categoriesApi.delete(deletingCategory.id);
+      setCategories((prev) => prev.filter((c) => c.id !== deletingCategory.id));
+      setToastMessage(
+        `Category "${deletingCategory.code}" deleted successfully.`,
+      );
+      setTimeout(() => setToastMessage(null), 4000);
+      setDeletingCategory(null);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setApiAlert(err.message)
+        setApiAlert(err.message);
       } else {
-        setApiAlert('Failed to delete category')
+        setApiAlert("Failed to delete category");
       }
     } finally {
-      setDeleteLoading(false)
+      setDeleteLoading(false);
     }
-  }
+  };
 
   const columns = React.useMemo<ColumnDef<CategoryDto>[]>(
     () => [
       {
-        accessorKey: 'code',
-        header: 'Code',
+        accessorKey: "code",
+        header: "Code",
         cell: ({ row }) => (
           <Link
             href={`/categories/${row.original.id}`}
@@ -97,8 +114,8 @@ export default function CategoriesPage() {
         ),
       },
       {
-        accessorKey: 'name',
-        header: 'Category Name',
+        accessorKey: "name",
+        header: "Category Name",
         cell: ({ row }) => (
           <Link
             href={`/categories/${row.original.id}`}
@@ -109,12 +126,15 @@ export default function CategoriesPage() {
         ),
       },
       {
-        accessorKey: 'parentId',
-        header: 'Parent Category',
+        accessorKey: "parentId",
+        header: "Parent Category",
         cell: ({ row }) => {
-          const parentId = row.original.parentId
-          if (!parentId) return <span className="text-xs text-muted-foreground italic">Root</span>
-          const parentCode = categoryMap.get(parentId)
+          const parentId = row.original.parentId;
+          if (!parentId)
+            return (
+              <span className="text-xs text-muted-foreground italic">Root</span>
+            );
+          const parentCode = categoryMap.get(parentId);
           return parentCode ? (
             <Link
               href={`/categories/${parentId}`}
@@ -124,36 +144,36 @@ export default function CategoriesPage() {
             </Link>
           ) : (
             <span className="text-xs text-muted-foreground">Parent</span>
-          )
+          );
         },
       },
       {
-        accessorKey: 'description',
-        header: 'Description',
+        accessorKey: "description",
+        header: "Description",
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground truncate max-w-xs block">
-            {row.original.description || '—'}
+            {row.original.description || "—"}
           </span>
         ),
       },
       {
-        accessorKey: 'isActive',
-        header: 'Status',
+        accessorKey: "isActive",
+        header: "Status",
         cell: ({ row }) => (
           <span
             className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
               row.original.isActive
-                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                : 'bg-muted text-muted-foreground'
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "bg-muted text-muted-foreground"
             }`}
           >
-            {row.original.isActive ? 'Active' : 'Inactive'}
+            {row.original.isActive ? "Active" : "Inactive"}
           </span>
         ),
       },
       {
-        id: 'actions',
-        header: 'Actions',
+        id: "actions",
+        header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/categories/${row.original.id}`}>
@@ -166,8 +186,8 @@ export default function CategoriesPage() {
               size="icon-xs"
               title="Edit category"
               onClick={() => {
-                setEditingCategory(row.original)
-                setIsFormOpen(true)
+                setEditingCategory(row.original);
+                setIsFormOpen(true);
               }}
             >
               <Edit3 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -177,8 +197,8 @@ export default function CategoriesPage() {
               size="icon-xs"
               title="Delete category"
               onClick={() => {
-                setApiAlert(null)
-                setDeletingCategory(row.original)
+                setApiAlert(null);
+                setDeletingCategory(row.original);
               }}
             >
               <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
@@ -188,33 +208,33 @@ export default function CategoriesPage() {
       },
     ],
     [categoryMap],
-  )
+  );
 
   const filterConfigs: FilterConfig[] = [
     {
-      columnId: 'isActive',
-      title: 'Status',
+      columnId: "isActive",
+      title: "Status",
       options: [
-        { label: 'Active', value: 'true' },
-        { label: 'Inactive', value: 'false' },
+        { label: "Active", value: "true" },
+        { label: "Inactive", value: "false" },
       ],
     },
-  ]
+  ];
 
   const handleFormSuccess = (savedCategory: CategoryDto) => {
     if (editingCategory) {
       setCategories((prev) =>
         prev.map((c) => (c.id === savedCategory.id ? savedCategory : c)),
-      )
-      setToastMessage(`Category "${savedCategory.code}" updated successfully.`)
+      );
+      setToastMessage(`Category "${savedCategory.code}" updated successfully.`);
     } else {
-      setCategories((prev) => [savedCategory, ...prev])
-      setToastMessage(`Category "${savedCategory.code}" created successfully.`)
+      setCategories((prev) => [savedCategory, ...prev]);
+      setToastMessage(`Category "${savedCategory.code}" created successfully.`);
     }
-    setIsFormOpen(false)
-    setEditingCategory(null)
-    setTimeout(() => setToastMessage(null), 4000)
-  }
+    setIsFormOpen(false);
+    setEditingCategory(null);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   return (
     <div className="space-y-6">
@@ -226,8 +246,8 @@ export default function CategoriesPage() {
           <Button
             size="sm"
             onClick={() => {
-              setEditingCategory(null)
-              setIsFormOpen(true)
+              setEditingCategory(null);
+              setIsFormOpen(true);
             }}
           >
             <Plus className="w-4 h-4 mr-1.5" />
@@ -292,12 +312,12 @@ export default function CategoriesPage() {
           <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h2 className="text-lg font-semibold text-foreground">
-                {editingCategory ? 'Edit Category' : 'Create New Category'}
+                {editingCategory ? "Edit Category" : "Create New Category"}
               </h2>
               <button
                 onClick={() => {
-                  setIsFormOpen(false)
-                  setEditingCategory(null)
+                  setIsFormOpen(false);
+                  setEditingCategory(null);
                 }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -308,8 +328,8 @@ export default function CategoriesPage() {
               initialData={editingCategory}
               onSuccess={handleFormSuccess}
               onCancel={() => {
-                setIsFormOpen(false)
-                setEditingCategory(null)
+                setIsFormOpen(false);
+                setEditingCategory(null);
               }}
             />
           </div>
@@ -340,5 +360,5 @@ export default function CategoriesPage() {
         emptyMessage="Get started by creating your first inventory category."
       />
     </div>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import { SalesOrder, SalesOrderStatus } from './sales-order';
+import { SalesOrder, SalesOrderStatus } from "./sales-order";
 
 export interface FindManySalesOrdersOptions {
   customerId?: string;

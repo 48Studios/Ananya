@@ -8,19 +8,18 @@ import type {
   Reservation,
   Batch,
   Serial,
-} from '@ananya/inventory';
+} from "@ananya/inventory";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 async function fetchApi<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const url = `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
   const headers = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     ...(options.headers || {}),
   };
 
@@ -35,7 +34,7 @@ async function fetchApi<T>(
       const errorData = await response.json();
       if (errorData.message) {
         errorMessage = Array.isArray(errorData.message)
-          ? errorData.message.join(', ')
+          ? errorData.message.join(", ")
           : errorData.message;
       }
     } catch {
@@ -49,7 +48,7 @@ async function fetchApi<T>(
 
 export const api = {
   // Components
-  getComponents: () => fetchApi<Component[]>('/components'),
+  getComponents: () => fetchApi<Component[]>("/components"),
   getComponent: (id: string) => fetchApi<Component>(`/components/${id}`),
   createComponent: (data: {
     sku: string;
@@ -60,13 +59,13 @@ export const api = {
     defaultLocationId?: string;
     unit: string;
   }) =>
-    fetchApi<Component>('/components', {
-      method: 'POST',
+    fetchApi<Component>("/components", {
+      method: "POST",
       body: JSON.stringify(data),
     }),
 
   // Locations
-  getLocations: () => fetchApi<Location[]>('/locations'),
+  getLocations: () => fetchApi<Location[]>("/locations"),
   getLocation: (id: string) => fetchApi<Location>(`/locations/${id}`),
   createLocation: (data: {
     code: string;
@@ -75,22 +74,23 @@ export const api = {
     parentId?: string | null;
     metadata?: Record<string, unknown>;
   }) =>
-    fetchApi<Location>('/locations', {
-      method: 'POST',
+    fetchApi<Location>("/locations", {
+      method: "POST",
       body: JSON.stringify(data),
     }),
 
   // Manufacturers
-  getManufacturers: () => fetchApi<Manufacturer[]>('/manufacturers'),
-  getManufacturer: (id: string) => fetchApi<Manufacturer>(`/manufacturers/${id}`),
+  getManufacturers: () => fetchApi<Manufacturer[]>("/manufacturers"),
+  getManufacturer: (id: string) =>
+    fetchApi<Manufacturer>(`/manufacturers/${id}`),
   createManufacturer: (data: { code: string; name: string }) =>
-    fetchApi<Manufacturer>('/manufacturers', {
-      method: 'POST',
+    fetchApi<Manufacturer>("/manufacturers", {
+      method: "POST",
       body: JSON.stringify(data),
     }),
 
   // Units
-  getUnits: () => fetchApi<Unit[]>('/units'),
+  getUnits: () => fetchApi<Unit[]>("/units"),
   getUnit: (id: string) => fetchApi<Unit>(`/units/${id}`),
   createUnit: (data: {
     name: string;
@@ -99,14 +99,16 @@ export const api = {
     conversionFactor?: number;
     precision: number;
   }) =>
-    fetchApi<Unit>('/units', {
-      method: 'POST',
+    fetchApi<Unit>("/units", {
+      method: "POST",
       body: JSON.stringify(data),
     }),
 
   // Ledger Transactions
-  getTransactions: () => fetchApi<InventoryTransaction[]>('/inventory-transactions'),
-  getTransaction: (id: string) => fetchApi<InventoryTransaction>(`/inventory-transactions/${id}`),
+  getTransactions: () =>
+    fetchApi<InventoryTransaction[]>("/inventory-transactions"),
+  getTransaction: (id: string) =>
+    fetchApi<InventoryTransaction>(`/inventory-transactions/${id}`),
   createTransaction: (data: {
     componentId: string;
     quantity: number;
@@ -118,33 +120,41 @@ export const api = {
     reason?: string;
     createdBy: string;
   }) =>
-    fetchApi<InventoryTransaction>('/inventory-transactions', {
-      method: 'POST',
+    fetchApi<InventoryTransaction>("/inventory-transactions", {
+      method: "POST",
       body: JSON.stringify(data),
     }),
 
   // Inventory Projections
   getProjectionsByComponent: (componentId: string) =>
-    fetchApi<InventoryProjection[]>(`/inventory-projections/component/${componentId}`),
+    fetchApi<InventoryProjection[]>(
+      `/inventory-projections/component/${componentId}`,
+    ),
   getProjectionsByLocation: (locationId: string) =>
-    fetchApi<InventoryProjection[]>(`/inventory-projections/location/${locationId}`),
+    fetchApi<InventoryProjection[]>(
+      `/inventory-projections/location/${locationId}`,
+    ),
   getProjectionQuery: (componentId: string, locationId: string) =>
     fetchApi<InventoryProjection>(
       `/inventory-projections/query?componentId=${encodeURIComponent(
-        componentId
-      )}&locationId=${encodeURIComponent(locationId)}`
+        componentId,
+      )}&locationId=${encodeURIComponent(locationId)}`,
     ),
   rebuildProjections: () =>
-    fetchApi<{ message: string }>('/inventory-projections/rebuild', {
-      method: 'POST',
+    fetchApi<{ message: string }>("/inventory-projections/rebuild", {
+      method: "POST",
     }),
 
   // Reservations
   getAvailableQuantity: (componentId: string, locationId: string) =>
-    fetchApi<{ componentId: string; locationId: string; availableQuantity: number }>(
+    fetchApi<{
+      componentId: string;
+      locationId: string;
+      availableQuantity: number;
+    }>(
       `/reservations/available?componentId=${encodeURIComponent(
-        componentId
-      )}&locationId=${encodeURIComponent(locationId)}`
+        componentId,
+      )}&locationId=${encodeURIComponent(locationId)}`,
     ),
   getReservation: (id: string) => fetchApi<Reservation>(`/reservations/${id}`),
   createReservation: (data: {
@@ -156,14 +166,14 @@ export const api = {
     reservedBy: string;
     expiresAt?: string;
   }) =>
-    fetchApi<Reservation>('/reservations', {
-      method: 'POST',
+    fetchApi<Reservation>("/reservations", {
+      method: "POST",
       body: JSON.stringify(data),
     }),
   fulfillReservation: (id: string) =>
-    fetchApi<Reservation>(`/reservations/${id}/fulfill`, { method: 'PATCH' }),
+    fetchApi<Reservation>(`/reservations/${id}/fulfill`, { method: "PATCH" }),
   cancelReservation: (id: string) =>
-    fetchApi<Reservation>(`/reservations/${id}/cancel`, { method: 'PATCH' }),
+    fetchApi<Reservation>(`/reservations/${id}/cancel`, { method: "PATCH" }),
 
   // Batches
   getBatchesByComponent: (componentId: string) =>
@@ -176,8 +186,8 @@ export const api = {
     expiryDate?: string;
     supplierBatchNumber?: string;
   }) =>
-    fetchApi<Batch>('/batches', {
-      method: 'POST',
+    fetchApi<Batch>("/batches", {
+      method: "POST",
       body: JSON.stringify(data),
     }),
 
@@ -190,759 +200,1960 @@ export const api = {
     serialNumber: string;
     locationId?: string;
   }) =>
-    fetchApi<Serial>('/serials', {
-      method: 'POST',
+    fetchApi<Serial>("/serials", {
+      method: "POST",
       body: JSON.stringify(data),
     }),
 
   // Suppliers
   getSuppliers: (search?: string) =>
-    fetchApi<Record<string, unknown>[]>(`/suppliers${search ? `?search=${encodeURIComponent(search)}` : ''}`),
-  getSupplier: (id: string) => fetchApi<Record<string, unknown>>(`/suppliers/${id}`),
-  createSupplier: (data: { code: string; name: string; taxId?: string; paymentTerms?: string; currency?: string }) =>
-    fetchApi<Record<string, unknown>>('/suppliers', { method: 'POST', body: JSON.stringify(data) }),
-  addSupplierContact: (id: string, data: { name: string; email?: string; phone?: string; role?: string; isPrimary?: boolean }) =>
-    fetchApi<void>(`/suppliers/${id}/contacts`, { method: 'POST', body: JSON.stringify(data) }),
-  mapSupplierComponent: (id: string, data: { componentId: string; vendorPartNumber: string; unitPrice?: number; leadTimeDays?: number }) =>
-    fetchApi<void>(`/suppliers/${id}/components`, { method: 'POST', body: JSON.stringify(data) }),
+    fetchApi<Record<string, unknown>[]>(
+      `/suppliers${search ? `?search=${encodeURIComponent(search)}` : ""}`,
+    ),
+  getSupplier: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/suppliers/${id}`),
+  createSupplier: (data: {
+    code: string;
+    name: string;
+    taxId?: string;
+    paymentTerms?: string;
+    currency?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/suppliers", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addSupplierContact: (
+    id: string,
+    data: {
+      name: string;
+      email?: string;
+      phone?: string;
+      role?: string;
+      isPrimary?: boolean;
+    },
+  ) =>
+    fetchApi<void>(`/suppliers/${id}/contacts`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  mapSupplierComponent: (
+    id: string,
+    data: {
+      componentId: string;
+      vendorPartNumber: string;
+      unitPrice?: number;
+      leadTimeDays?: number;
+    },
+  ) =>
+    fetchApi<void>(`/suppliers/${id}/components`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // Purchase Orders
   getPurchaseOrders: (supplierId?: string) =>
-    fetchApi<Record<string, unknown>[]>(`/purchase-orders${supplierId ? `?supplierId=${supplierId}` : ''}`),
-  getPurchaseOrder: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-orders/${id}`),
-  createPurchaseOrder: (data: { supplierId: string; currency?: string; notes?: string; expectedDeliveryDate?: string }) =>
-    fetchApi<Record<string, unknown>>('/purchase-orders', { method: 'POST', body: JSON.stringify(data) }),
-  addPoLine: (id: string, data: { componentId: string; vendorPartNumber?: string; unitPrice: number; quantityOrdered: number; taxRate?: number }) =>
-    fetchApi<Record<string, unknown>>(`/purchase-orders/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
-  submitPo: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-orders/${id}/submit`, { method: 'POST' }),
-  approvePo: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-orders/${id}/approve`, { method: 'POST' }),
-  issuePo: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-orders/${id}/issue`, { method: 'POST' }),
-  cancelPo: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-orders/${id}/cancel`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>[]>(
+      `/purchase-orders${supplierId ? `?supplierId=${supplierId}` : ""}`,
+    ),
+  getPurchaseOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/purchase-orders/${id}`),
+  createPurchaseOrder: (data: {
+    supplierId: string;
+    currency?: string;
+    notes?: string;
+    expectedDeliveryDate?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/purchase-orders", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addPoLine: (
+    id: string,
+    data: {
+      componentId: string;
+      vendorPartNumber?: string;
+      unitPrice: number;
+      quantityOrdered: number;
+      taxRate?: number;
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/purchase-orders/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  submitPo: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/purchase-orders/${id}/submit`, {
+      method: "POST",
+    }),
+  approvePo: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/purchase-orders/${id}/approve`, {
+      method: "POST",
+    }),
+  issuePo: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/purchase-orders/${id}/issue`, {
+      method: "POST",
+    }),
+  cancelPo: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/purchase-orders/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Goods Receipts
   getGoodsReceipts: (purchaseOrderId?: string) =>
-    fetchApi<Record<string, unknown>[]>(`/goods-receipts${purchaseOrderId ? `?purchaseOrderId=${purchaseOrderId}` : ''}`),
-  getGoodsReceipt: (id: string) => fetchApi<Record<string, unknown>>(`/goods-receipts/${id}`),
-  createGoodsReceipt: (data: { purchaseOrderId: string; supplierId: string; packingSlipNumber?: string }) =>
-    fetchApi<Record<string, unknown>>('/goods-receipts', { method: 'POST', body: JSON.stringify(data) }),
-  addGrLine: (id: string, data: { poLineId: string; componentId: string; locationId: string; quantityReceived: number; batchNumber?: string; serialNumbers?: string[] }) =>
-    fetchApi<Record<string, unknown>>(`/goods-receipts/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
-  postGoodsReceipt: (id: string) => fetchApi<Record<string, unknown>>(`/goods-receipts/${id}/post`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>[]>(
+      `/goods-receipts${purchaseOrderId ? `?purchaseOrderId=${purchaseOrderId}` : ""}`,
+    ),
+  getGoodsReceipt: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/goods-receipts/${id}`),
+  createGoodsReceipt: (data: {
+    purchaseOrderId: string;
+    supplierId: string;
+    packingSlipNumber?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/goods-receipts", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addGrLine: (
+    id: string,
+    data: {
+      poLineId: string;
+      componentId: string;
+      locationId: string;
+      quantityReceived: number;
+      batchNumber?: string;
+      serialNumbers?: string[];
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/goods-receipts/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  postGoodsReceipt: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/goods-receipts/${id}/post`, {
+      method: "POST",
+    }),
 
   // Supplier Returns
-  getSupplierReturns: () => fetchApi<Record<string, unknown>[]>(`/supplier-returns`),
-  getSupplierReturn: (id: string) => fetchApi<Record<string, unknown>>(`/supplier-returns/${id}`),
-  createSupplierReturn: (data: { supplierId: string; purchaseOrderId?: string; rmaNumber?: string }) =>
-    fetchApi<Record<string, unknown>>('/supplier-returns', { method: 'POST', body: JSON.stringify(data) }),
-  addReturnLine: (id: string, data: { componentId: string; locationId: string; quantityReturned: number; unitPrice: number; reason: string }) =>
-    fetchApi<Record<string, unknown>>(`/supplier-returns/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
+  getSupplierReturns: () =>
+    fetchApi<Record<string, unknown>[]>(`/supplier-returns`),
+  getSupplierReturn: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/supplier-returns/${id}`),
+  createSupplierReturn: (data: {
+    supplierId: string;
+    purchaseOrderId?: string;
+    rmaNumber?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/supplier-returns", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addReturnLine: (
+    id: string,
+    data: {
+      componentId: string;
+      locationId: string;
+      quantityReturned: number;
+      unitPrice: number;
+      reason: string;
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/supplier-returns/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   approveReturn: (id: string, rmaNumber?: string) =>
-    fetchApi<Record<string, unknown>>(`/supplier-returns/${id}/approve`, { method: 'POST', body: JSON.stringify({ rmaNumber }) }),
-  dispatchReturn: (id: string) => fetchApi<Record<string, unknown>>(`/supplier-returns/${id}/dispatch`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/supplier-returns/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ rmaNumber }),
+    }),
+  dispatchReturn: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/supplier-returns/${id}/dispatch`, {
+      method: "POST",
+    }),
 
   // Purchase Invoices
-  getPurchaseInvoices: () => fetchApi<Record<string, unknown>[]>(`/purchase-invoices`),
-  getPurchaseInvoice: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-invoices/${id}`),
-  createPurchaseInvoice: (data: { vendorInvoiceNumber: string; supplierId: string; purchaseOrderId: string; dueDate: string }) =>
-    fetchApi<Record<string, unknown>>('/purchase-invoices', { method: 'POST', body: JSON.stringify(data) }),
-  addInvoiceLine: (id: string, data: { componentId: string; quantityBilled: number; unitPrice: number }) =>
-    fetchApi<Record<string, unknown>>(`/purchase-invoices/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
+  getPurchaseInvoices: () =>
+    fetchApi<Record<string, unknown>[]>(`/purchase-invoices`),
+  getPurchaseInvoice: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/purchase-invoices/${id}`),
+  createPurchaseInvoice: (data: {
+    vendorInvoiceNumber: string;
+    supplierId: string;
+    purchaseOrderId: string;
+    dueDate: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/purchase-invoices", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addInvoiceLine: (
+    id: string,
+    data: { componentId: string; quantityBilled: number; unitPrice: number },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/purchase-invoices/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   matchInvoice: (id: string) =>
-    fetchApi<{ invoice: Record<string, unknown>; matchResult: { isMatch: boolean; details: string[] } }>(`/purchase-invoices/${id}/match`, { method: 'POST' }),
-  approveInvoice: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-invoices/${id}/approve`, { method: 'POST' }),
+    fetchApi<{
+      invoice: Record<string, unknown>;
+      matchResult: { isMatch: boolean; details: string[] };
+    }>(`/purchase-invoices/${id}/match`, { method: "POST" }),
+  approveInvoice: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/purchase-invoices/${id}/approve`, {
+      method: "POST",
+    }),
 
   // Policies & Reporting
-  getProcurementPolicies: () => fetchApi<Record<string, unknown>[]>(`/procurement-policies`),
-  createProcurementPolicy: (data: { policyType: string; name: string; thresholdAmount?: number; overReceiptTolerancePercent?: number }) =>
-    fetchApi<Record<string, unknown>>('/procurement-policies', { method: 'POST', body: JSON.stringify(data) }),
-  getProcurementMetrics: () => fetchApi<Record<string, unknown>>('/procurement/reporting/metrics'),
-  getOpenPoAging: () => fetchApi<Record<string, unknown>[]>(`/procurement/reporting/open-po-aging`),
+  getProcurementPolicies: () =>
+    fetchApi<Record<string, unknown>[]>(`/procurement-policies`),
+  createProcurementPolicy: (data: {
+    policyType: string;
+    name: string;
+    thresholdAmount?: number;
+    overReceiptTolerancePercent?: number;
+  }) =>
+    fetchApi<Record<string, unknown>>("/procurement-policies", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getProcurementMetrics: () =>
+    fetchApi<Record<string, unknown>>("/procurement/reporting/metrics"),
+  getOpenPoAging: () =>
+    fetchApi<Record<string, unknown>[]>(`/procurement/reporting/open-po-aging`),
 
   // Manufacturing - BOMs
   getBoms: (componentId?: string, status?: string) => {
     const params = new URLSearchParams();
-    if (componentId) params.append('componentId', componentId);
-    if (status) params.append('status', status);
+    if (componentId) params.append("componentId", componentId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/boms${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(`/boms${q ? `?${q}` : ""}`);
   },
   getBom: (id: string) => fetchApi<Record<string, unknown>>(`/boms/${id}`),
-  createBom: (data: { componentId: string; revision?: string; notes?: string }) =>
-    fetchApi<Record<string, unknown>>('/boms', { method: 'POST', body: JSON.stringify(data) }),
-  addBomLine: (id: string, data: { componentId: string; quantityPerUnit: number; unitOfMeasure?: string; scrapFactorPercent?: number; notes?: string }) =>
-    fetchApi<Record<string, unknown>>(`/boms/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
-  releaseBom: (id: string) => fetchApi<Record<string, unknown>>(`/boms/${id}/release`, { method: 'POST' }),
-  obsoleteBom: (id: string) => fetchApi<Record<string, unknown>>(`/boms/${id}/obsolete`, { method: 'POST' }),
+  createBom: (data: {
+    componentId: string;
+    revision?: string;
+    notes?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/boms", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addBomLine: (
+    id: string,
+    data: {
+      componentId: string;
+      quantityPerUnit: number;
+      unitOfMeasure?: string;
+      scrapFactorPercent?: number;
+      notes?: string;
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/boms/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  releaseBom: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/boms/${id}/release`, {
+      method: "POST",
+    }),
+  obsoleteBom: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/boms/${id}/obsolete`, {
+      method: "POST",
+    }),
 
   // Manufacturing - Production Orders
-  getProductionOrders: (componentId?: string, bomId?: string, status?: string) => {
+  getProductionOrders: (
+    componentId?: string,
+    bomId?: string,
+    status?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (componentId) params.append('componentId', componentId);
-    if (bomId) params.append('bomId', bomId);
-    if (status) params.append('status', status);
+    if (componentId) params.append("componentId", componentId);
+    if (bomId) params.append("bomId", bomId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/production-orders${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/production-orders${q ? `?${q}` : ""}`,
+    );
   },
-  getProductionOrder: (id: string) => fetchApi<Record<string, unknown>>(`/production-orders/${id}`),
-  createProductionOrder: (data: { bomId: string; componentId: string; quantityPlanned: number; startDate?: string; endDate?: string }) =>
-    fetchApi<Record<string, unknown>>('/production-orders', { method: 'POST', body: JSON.stringify(data) }),
-  releaseProductionOrder: (id: string) => fetchApi<Record<string, unknown>>(`/production-orders/${id}/release`, { method: 'POST' }),
-  startProductionOrder: (id: string) => fetchApi<Record<string, unknown>>(`/production-orders/${id}/start`, { method: 'POST' }),
-  completeProductionOrder: (id: string) => fetchApi<Record<string, unknown>>(`/production-orders/${id}/complete`, { method: 'POST' }),
-  closeProductionOrder: (id: string) => fetchApi<Record<string, unknown>>(`/production-orders/${id}/close`, { method: 'POST' }),
-  cancelProductionOrder: (id: string) => fetchApi<Record<string, unknown>>(`/production-orders/${id}/cancel`, { method: 'POST' }),
+  getProductionOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/production-orders/${id}`),
+  createProductionOrder: (data: {
+    bomId: string;
+    componentId: string;
+    quantityPlanned: number;
+    startDate?: string;
+    endDate?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/production-orders", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  releaseProductionOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/production-orders/${id}/release`, {
+      method: "POST",
+    }),
+  startProductionOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/production-orders/${id}/start`, {
+      method: "POST",
+    }),
+  completeProductionOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/production-orders/${id}/complete`, {
+      method: "POST",
+    }),
+  closeProductionOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/production-orders/${id}/close`, {
+      method: "POST",
+    }),
+  cancelProductionOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/production-orders/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Manufacturing - Material Consumptions
   getMaterialConsumptions: (productionOrderId?: string) =>
-    fetchApi<Record<string, unknown>[]>(`/material-consumptions${productionOrderId ? `?productionOrderId=${productionOrderId}` : ''}`),
-  getMaterialConsumption: (id: string) => fetchApi<Record<string, unknown>>(`/material-consumptions/${id}`),
+    fetchApi<Record<string, unknown>[]>(
+      `/material-consumptions${productionOrderId ? `?productionOrderId=${productionOrderId}` : ""}`,
+    ),
+  getMaterialConsumption: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/material-consumptions/${id}`),
   createMaterialConsumption: (data: { productionOrderId: string }) =>
-    fetchApi<Record<string, unknown>>('/material-consumptions', { method: 'POST', body: JSON.stringify(data) }),
-  addConsumptionLine: (id: string, data: { componentId: string; locationId: string; quantityPlanned?: number; quantityConsumed: number; batchNumber?: string; serialNumbers?: string[] }) =>
-    fetchApi<Record<string, unknown>>(`/material-consumptions/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
-  postMaterialConsumption: (id: string) => fetchApi<Record<string, unknown>>(`/material-consumptions/${id}/post`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>("/material-consumptions", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addConsumptionLine: (
+    id: string,
+    data: {
+      componentId: string;
+      locationId: string;
+      quantityPlanned?: number;
+      quantityConsumed: number;
+      batchNumber?: string;
+      serialNumbers?: string[];
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/material-consumptions/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  postMaterialConsumption: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/material-consumptions/${id}/post`, {
+      method: "POST",
+    }),
 
   // Manufacturing - Finished Goods Receipts
   getFinishedGoodsReceipts: (productionOrderId?: string) =>
-    fetchApi<Record<string, unknown>[]>(`/finished-goods${productionOrderId ? `?productionOrderId=${productionOrderId}` : ''}`),
-  getFinishedGoodsReceipt: (id: string) => fetchApi<Record<string, unknown>>(`/finished-goods/${id}`),
+    fetchApi<Record<string, unknown>[]>(
+      `/finished-goods${productionOrderId ? `?productionOrderId=${productionOrderId}` : ""}`,
+    ),
+  getFinishedGoodsReceipt: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/finished-goods/${id}`),
   createFinishedGoodsReceipt: (data: { productionOrderId: string }) =>
-    fetchApi<Record<string, unknown>>('/finished-goods', { method: 'POST', body: JSON.stringify(data) }),
-  addFgrLine: (id: string, data: { componentId: string; locationId: string; quantityProduced: number; quantityScrapped?: number; batchNumber?: string; serialNumbers?: string[] }) =>
-    fetchApi<Record<string, unknown>>(`/finished-goods/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
-  postFinishedGoodsReceipt: (id: string) => fetchApi<Record<string, unknown>>(`/finished-goods/${id}/post`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>("/finished-goods", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addFgrLine: (
+    id: string,
+    data: {
+      componentId: string;
+      locationId: string;
+      quantityProduced: number;
+      quantityScrapped?: number;
+      batchNumber?: string;
+      serialNumbers?: string[];
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/finished-goods/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  postFinishedGoodsReceipt: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/finished-goods/${id}/post`, {
+      method: "POST",
+    }),
 
   // Manufacturing - Traceability
-  getForwardTrace: (params: { batchNumber?: string; serialNumber?: string; componentId?: string }) => {
+  getForwardTrace: (params: {
+    batchNumber?: string;
+    serialNumber?: string;
+    componentId?: string;
+  }) => {
     const q = new URLSearchParams();
-    if (params.batchNumber) q.append('batchNumber', params.batchNumber);
-    if (params.serialNumber) q.append('serialNumber', params.serialNumber);
-    if (params.componentId) q.append('componentId', params.componentId);
-    return fetchApi<Record<string, unknown>[]>(`/traceability/forward?${q.toString()}`);
+    if (params.batchNumber) q.append("batchNumber", params.batchNumber);
+    if (params.serialNumber) q.append("serialNumber", params.serialNumber);
+    if (params.componentId) q.append("componentId", params.componentId);
+    return fetchApi<Record<string, unknown>[]>(
+      `/traceability/forward?${q.toString()}`,
+    );
   },
-  getBackwardTrace: (params: { batchNumber?: string; serialNumber?: string; componentId?: string }) => {
+  getBackwardTrace: (params: {
+    batchNumber?: string;
+    serialNumber?: string;
+    componentId?: string;
+  }) => {
     const q = new URLSearchParams();
-    if (params.batchNumber) q.append('batchNumber', params.batchNumber);
-    if (params.serialNumber) q.append('serialNumber', params.serialNumber);
-    if (params.componentId) q.append('componentId', params.componentId);
-    return fetchApi<Record<string, unknown>[]>(`/traceability/backward?${q.toString()}`);
+    if (params.batchNumber) q.append("batchNumber", params.batchNumber);
+    if (params.serialNumber) q.append("serialNumber", params.serialNumber);
+    if (params.componentId) q.append("componentId", params.componentId);
+    return fetchApi<Record<string, unknown>[]>(
+      `/traceability/backward?${q.toString()}`,
+    );
   },
-  getProductionOrderTrace: (id: string) => fetchApi<Record<string, unknown>[]>(`/traceability/production-order/${id}`),
+  getProductionOrderTrace: (id: string) =>
+    fetchApi<Record<string, unknown>[]>(`/traceability/production-order/${id}`),
 
   // Warehouse - Warehouses & Bins
   getWarehouses: () => fetchApi<Record<string, unknown>[]>(`/warehouses`),
-  getWarehouse: (id: string) => fetchApi<Record<string, unknown>>(`/warehouses/${id}`),
-  createWarehouse: (data: { code: string; name: string; description?: string }) =>
-    fetchApi<Record<string, unknown>>('/warehouses', { method: 'POST', body: JSON.stringify(data) }),
-  addWarehouseBin: (id: string, data: { code: string; capacity?: number; purpose?: string }) =>
-    fetchApi<Record<string, unknown>>(`/warehouses/${id}/bins`, { method: 'POST', body: JSON.stringify(data) }),
-  updateWarehouseBin: (id: string, binId: string, data: { isActive?: boolean; capacity?: number }) =>
-    fetchApi<Record<string, unknown>>(`/warehouses/${id}/bins/${binId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getWarehouse: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/warehouses/${id}`),
+  createWarehouse: (data: {
+    code: string;
+    name: string;
+    description?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/warehouses", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addWarehouseBin: (
+    id: string,
+    data: { code: string; capacity?: number; purpose?: string },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/warehouses/${id}/bins`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateWarehouseBin: (
+    id: string,
+    binId: string,
+    data: { isActive?: boolean; capacity?: number },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/warehouses/${id}/bins/${binId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
 
   // Warehouse - Stock Counts
   getStockCounts: (warehouseId?: string, status?: string) => {
     const params = new URLSearchParams();
-    if (warehouseId) params.append('warehouseId', warehouseId);
-    if (status) params.append('status', status);
+    if (warehouseId) params.append("warehouseId", warehouseId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/stock-counts${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/stock-counts${q ? `?${q}` : ""}`,
+    );
   },
-  getStockCount: (id: string) => fetchApi<Record<string, unknown>>(`/stock-counts/${id}`),
+  getStockCount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/stock-counts/${id}`),
   createStockCount: (data: { warehouseId: string; assignedUser?: string }) =>
-    fetchApi<Record<string, unknown>>('/stock-counts', { method: 'POST', body: JSON.stringify(data) }),
+    fetchApi<Record<string, unknown>>("/stock-counts", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   assignStockCountUser: (id: string, assignedUser: string) =>
-    fetchApi<Record<string, unknown>>(`/stock-counts/${id}/assign`, { method: 'POST', body: JSON.stringify({ assignedUser }) }),
-  addStockCountLine: (id: string, data: { componentId: string; binId: string; expectedQuantity?: number; countedQuantity: number; notes?: string }) =>
-    fetchApi<Record<string, unknown>>(`/stock-counts/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
-  submitStockCount: (id: string) => fetchApi<Record<string, unknown>>(`/stock-counts/${id}/submit`, { method: 'POST' }),
-  approveStockCount: (id: string) => fetchApi<Record<string, unknown>>(`/stock-counts/${id}/approve`, { method: 'POST' }),
-  postStockCount: (id: string) => fetchApi<Record<string, unknown>>(`/stock-counts/${id}/post`, { method: 'POST' }),
-  cancelStockCount: (id: string) => fetchApi<Record<string, unknown>>(`/stock-counts/${id}/cancel`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/stock-counts/${id}/assign`, {
+      method: "POST",
+      body: JSON.stringify({ assignedUser }),
+    }),
+  addStockCountLine: (
+    id: string,
+    data: {
+      componentId: string;
+      binId: string;
+      expectedQuantity?: number;
+      countedQuantity: number;
+      notes?: string;
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/stock-counts/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  submitStockCount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/stock-counts/${id}/submit`, {
+      method: "POST",
+    }),
+  approveStockCount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/stock-counts/${id}/approve`, {
+      method: "POST",
+    }),
+  postStockCount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/stock-counts/${id}/post`, {
+      method: "POST",
+    }),
+  cancelStockCount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/stock-counts/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Warehouse - Cycle Counts
   getCycleCounts: (warehouseId?: string, status?: string) => {
     const params = new URLSearchParams();
-    if (warehouseId) params.append('warehouseId', warehouseId);
-    if (status) params.append('status', status);
+    if (warehouseId) params.append("warehouseId", warehouseId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/cycle-counts${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/cycle-counts${q ? `?${q}` : ""}`,
+    );
   },
-  getCycleCount: (id: string) => fetchApi<Record<string, unknown>>(`/cycle-counts/${id}`),
-  createCycleCount: (data: { warehouseId: string; name: string; frequency: string; selectionRule?: Record<string, unknown>; nextScheduledDate?: string }) =>
-    fetchApi<Record<string, unknown>>('/cycle-counts', { method: 'POST', body: JSON.stringify(data) }),
-  executeCycleCount: (id: string) => fetchApi<Record<string, unknown>>(`/cycle-counts/${id}/execute`, { method: 'POST' }),
-  pauseCycleCount: (id: string) => fetchApi<Record<string, unknown>>(`/cycle-counts/${id}/pause`, { method: 'POST' }),
-  resumeCycleCount: (id: string) => fetchApi<Record<string, unknown>>(`/cycle-counts/${id}/resume`, { method: 'POST' }),
+  getCycleCount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/cycle-counts/${id}`),
+  createCycleCount: (data: {
+    warehouseId: string;
+    name: string;
+    frequency: string;
+    selectionRule?: Record<string, unknown>;
+    nextScheduledDate?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/cycle-counts", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  executeCycleCount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/cycle-counts/${id}/execute`, {
+      method: "POST",
+    }),
+  pauseCycleCount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/cycle-counts/${id}/pause`, {
+      method: "POST",
+    }),
+  resumeCycleCount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/cycle-counts/${id}/resume`, {
+      method: "POST",
+    }),
 
   // Warehouse - Transfers
-  getWarehouseTransfers: (sourceBinId?: string, destinationBinId?: string, status?: string) => {
+  getWarehouseTransfers: (
+    sourceBinId?: string,
+    destinationBinId?: string,
+    status?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (sourceBinId) params.append('sourceBinId', sourceBinId);
-    if (destinationBinId) params.append('destinationBinId', destinationBinId);
-    if (status) params.append('status', status);
+    if (sourceBinId) params.append("sourceBinId", sourceBinId);
+    if (destinationBinId) params.append("destinationBinId", destinationBinId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/warehouse-transfers${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/warehouse-transfers${q ? `?${q}` : ""}`,
+    );
   },
-  getWarehouseTransfer: (id: string) => fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}`),
-  createWarehouseTransfer: (data: { sourceBinId: string; destinationBinId: string }) =>
-    fetchApi<Record<string, unknown>>('/warehouse-transfers', { method: 'POST', body: JSON.stringify(data) }),
-  addTransferLine: (id: string, data: { componentId: string; quantity: number; batchNumber?: string; serialNumbers?: string[] }) =>
-    fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
-  approveTransfer: (id: string) => fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/approve`, { method: 'POST' }),
-  dispatchTransfer: (id: string) => fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/dispatch`, { method: 'POST' }),
-  completeTransfer: (id: string) => fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/complete`, { method: 'POST' }),
-  cancelTransfer: (id: string) => fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/cancel`, { method: 'POST' }),
+  getWarehouseTransfer: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}`),
+  createWarehouseTransfer: (data: {
+    sourceBinId: string;
+    destinationBinId: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/warehouse-transfers", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addTransferLine: (
+    id: string,
+    data: {
+      componentId: string;
+      quantity: number;
+      batchNumber?: string;
+      serialNumbers?: string[];
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  approveTransfer: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/approve`, {
+      method: "POST",
+    }),
+  dispatchTransfer: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/dispatch`, {
+      method: "POST",
+    }),
+  completeTransfer: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/complete`, {
+      method: "POST",
+    }),
+  cancelTransfer: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/warehouse-transfers/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Warehouse - Policies
-  getWarehousePolicies: () => fetchApi<Record<string, unknown>[]>(`/warehouse-policies`),
-  getWarehousePolicy: (warehouseId: string) => fetchApi<Record<string, unknown>>(`/warehouse-policies/warehouse/${warehouseId}`),
-  saveWarehousePolicy: (data: { warehouseId: string; allowNegativeInventory?: boolean; enforceBinCapacity?: boolean; directedPutaway?: boolean; directedPicking?: boolean; defaultReceivingBinId?: string; defaultProductionBinId?: string; defaultShippingBinId?: string }) =>
-    fetchApi<Record<string, unknown>>('/warehouse-policies', { method: 'POST', body: JSON.stringify(data) }),
+  getWarehousePolicies: () =>
+    fetchApi<Record<string, unknown>[]>(`/warehouse-policies`),
+  getWarehousePolicy: (warehouseId: string) =>
+    fetchApi<Record<string, unknown>>(
+      `/warehouse-policies/warehouse/${warehouseId}`,
+    ),
+  saveWarehousePolicy: (data: {
+    warehouseId: string;
+    allowNegativeInventory?: boolean;
+    enforceBinCapacity?: boolean;
+    directedPutaway?: boolean;
+    directedPicking?: boolean;
+    defaultReceivingBinId?: string;
+    defaultProductionBinId?: string;
+    defaultShippingBinId?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/warehouse-policies", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // Sales - Customers
   getCustomers: (status?: string, search?: string) => {
     const params = new URLSearchParams();
-    if (status) params.append('status', status);
-    if (search) params.append('search', search);
+    if (status) params.append("status", status);
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/customers${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(`/customers${q ? `?${q}` : ""}`);
   },
-  getCustomer: (id: string) => fetchApi<Record<string, unknown>>(`/customers/${id}`),
-  createCustomer: (data: { name: string; email: string; phone?: string; taxId?: string; currency?: string }) =>
-    fetchApi<Record<string, unknown>>('/customers', { method: 'POST', body: JSON.stringify(data) }),
-  activateCustomer: (id: string) => fetchApi<Record<string, unknown>>(`/customers/${id}/activate`, { method: 'POST' }),
-  suspendCustomer: (id: string) => fetchApi<Record<string, unknown>>(`/customers/${id}/suspend`, { method: 'POST' }),
-  addCustomerContact: (id: string, data: { name: string; email: string; phone?: string; role?: string; isPrimary?: boolean }) =>
-    fetchApi<Record<string, unknown>>(`/customers/${id}/contacts`, { method: 'POST', body: JSON.stringify(data) }),
-  addCustomerAddress: (id: string, data: { addressType: string; street1: string; street2?: string; city: string; state?: string; postalCode: string; country: string; isDefault?: boolean }) =>
-    fetchApi<Record<string, unknown>>(`/customers/${id}/addresses`, { method: 'POST', body: JSON.stringify(data) }),
+  getCustomer: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/customers/${id}`),
+  createCustomer: (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    taxId?: string;
+    currency?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/customers", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  activateCustomer: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/customers/${id}/activate`, {
+      method: "POST",
+    }),
+  suspendCustomer: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/customers/${id}/suspend`, {
+      method: "POST",
+    }),
+  addCustomerContact: (
+    id: string,
+    data: {
+      name: string;
+      email: string;
+      phone?: string;
+      role?: string;
+      isPrimary?: boolean;
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/customers/${id}/contacts`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addCustomerAddress: (
+    id: string,
+    data: {
+      addressType: string;
+      street1: string;
+      street2?: string;
+      city: string;
+      state?: string;
+      postalCode: string;
+      country: string;
+      isDefault?: boolean;
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/customers/${id}/addresses`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // Sales - Quotations
   getQuotations: (customerId?: string, status?: string) => {
     const params = new URLSearchParams();
-    if (customerId) params.append('customerId', customerId);
-    if (status) params.append('status', status);
+    if (customerId) params.append("customerId", customerId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/quotations${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/quotations${q ? `?${q}` : ""}`,
+    );
   },
-  getQuotation: (id: string) => fetchApi<Record<string, unknown>>(`/quotations/${id}`),
-  createQuotation: (data: { customerId: string; currency?: string; validUntil?: string }) =>
-    fetchApi<Record<string, unknown>>('/quotations', { method: 'POST', body: JSON.stringify(data) }),
-  addQuotationLine: (id: string, data: { componentId: string; quantity: number; unitPrice: number; discount?: number }) =>
-    fetchApi<Record<string, unknown>>(`/quotations/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
-  sendQuotation: (id: string) => fetchApi<Record<string, unknown>>(`/quotations/${id}/send`, { method: 'POST' }),
-  acceptQuotation: (id: string) => fetchApi<Record<string, unknown>>(`/quotations/${id}/accept`, { method: 'POST' }),
-  cancelQuotation: (id: string) => fetchApi<Record<string, unknown>>(`/quotations/${id}/cancel`, { method: 'POST' }),
+  getQuotation: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/quotations/${id}`),
+  createQuotation: (data: {
+    customerId: string;
+    currency?: string;
+    validUntil?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/quotations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addQuotationLine: (
+    id: string,
+    data: {
+      componentId: string;
+      quantity: number;
+      unitPrice: number;
+      discount?: number;
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/quotations/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  sendQuotation: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/quotations/${id}/send`, {
+      method: "POST",
+    }),
+  acceptQuotation: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/quotations/${id}/accept`, {
+      method: "POST",
+    }),
+  cancelQuotation: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/quotations/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Sales - Sales Orders
   getSalesOrders: (customerId?: string, status?: string) => {
     const params = new URLSearchParams();
-    if (customerId) params.append('customerId', customerId);
-    if (status) params.append('status', status);
+    if (customerId) params.append("customerId", customerId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/sales-orders${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/sales-orders${q ? `?${q}` : ""}`,
+    );
   },
-  getSalesOrder: (id: string) => fetchApi<Record<string, unknown>>(`/sales-orders/${id}`),
-  createSalesOrder: (data: { customerId: string; orderDate?: string; requiredDate?: string; quotationId?: string }) =>
-    fetchApi<Record<string, unknown>>('/sales-orders', { method: 'POST', body: JSON.stringify(data) }),
-  convertQuotationToSalesOrder: (data: { quotationId: string; requiredDate?: string }) =>
-    fetchApi<Record<string, unknown>>('/sales-orders/convert-quotation', { method: 'POST', body: JSON.stringify(data) }),
-  addSalesOrderLine: (id: string, data: { componentId: string; quantity: number; unitPrice: number; discount?: number; tax?: number }) =>
-    fetchApi<Record<string, unknown>>(`/sales-orders/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
-  approveSalesOrder: (id: string) => fetchApi<Record<string, unknown>>(`/sales-orders/${id}/approve`, { method: 'POST' }),
-  releaseSalesOrder: (id: string) => fetchApi<Record<string, unknown>>(`/sales-orders/${id}/release`, { method: 'POST' }),
-  cancelSalesOrder: (id: string) => fetchApi<Record<string, unknown>>(`/sales-orders/${id}/cancel`, { method: 'POST' }),
+  getSalesOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/sales-orders/${id}`),
+  createSalesOrder: (data: {
+    customerId: string;
+    orderDate?: string;
+    requiredDate?: string;
+    quotationId?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/sales-orders", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  convertQuotationToSalesOrder: (data: {
+    quotationId: string;
+    requiredDate?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/sales-orders/convert-quotation", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addSalesOrderLine: (
+    id: string,
+    data: {
+      componentId: string;
+      quantity: number;
+      unitPrice: number;
+      discount?: number;
+      tax?: number;
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/sales-orders/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  approveSalesOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/sales-orders/${id}/approve`, {
+      method: "POST",
+    }),
+  releaseSalesOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/sales-orders/${id}/release`, {
+      method: "POST",
+    }),
+  cancelSalesOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/sales-orders/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Sales - Fulfillment Requests
-  getFulfillmentRequests: (salesOrderId?: string, warehouseId?: string, status?: string) => {
+  getFulfillmentRequests: (
+    salesOrderId?: string,
+    warehouseId?: string,
+    status?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (salesOrderId) params.append('salesOrderId', salesOrderId);
-    if (warehouseId) params.append('warehouseId', warehouseId);
-    if (status) params.append('status', status);
+    if (salesOrderId) params.append("salesOrderId", salesOrderId);
+    if (warehouseId) params.append("warehouseId", warehouseId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/fulfillment${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/fulfillment${q ? `?${q}` : ""}`,
+    );
   },
-  getFulfillmentRequest: (id: string) => fetchApi<Record<string, unknown>>(`/fulfillment/${id}`),
-  createFulfillmentRequest: (data: { salesOrderId: string; warehouseId: string }) =>
-    fetchApi<Record<string, unknown>>('/fulfillment', { method: 'POST', body: JSON.stringify(data) }),
-  addFulfillmentLine: (id: string, data: { salesOrderLineId: string; componentId: string; requestedQuantity: number }) =>
-    fetchApi<Record<string, unknown>>(`/fulfillment/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
-  acceptFulfillmentRequest: (id: string) => fetchApi<Record<string, unknown>>(`/fulfillment/${id}/accept`, { method: 'POST' }),
-  startPickingFulfillmentRequest: (id: string) => fetchApi<Record<string, unknown>>(`/fulfillment/${id}/pick`, { method: 'POST' }),
-  packFulfillmentRequest: (id: string) => fetchApi<Record<string, unknown>>(`/fulfillment/${id}/pack`, { method: 'POST' }),
-  shipFulfillmentRequest: (id: string, data: { carrierName: string; trackingNumber: string }) =>
-    fetchApi<Record<string, unknown>>(`/fulfillment/${id}/ship`, { method: 'POST', body: JSON.stringify(data) }),
-  completeFulfillmentRequest: (id: string) => fetchApi<Record<string, unknown>>(`/fulfillment/${id}/complete`, { method: 'POST' }),
-  cancelFulfillmentRequest: (id: string) => fetchApi<Record<string, unknown>>(`/fulfillment/${id}/cancel`, { method: 'POST' }),
+  getFulfillmentRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/fulfillment/${id}`),
+  createFulfillmentRequest: (data: {
+    salesOrderId: string;
+    warehouseId: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/fulfillment", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addFulfillmentLine: (
+    id: string,
+    data: {
+      salesOrderLineId: string;
+      componentId: string;
+      requestedQuantity: number;
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/fulfillment/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  acceptFulfillmentRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/fulfillment/${id}/accept`, {
+      method: "POST",
+    }),
+  startPickingFulfillmentRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/fulfillment/${id}/pick`, {
+      method: "POST",
+    }),
+  packFulfillmentRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/fulfillment/${id}/pack`, {
+      method: "POST",
+    }),
+  shipFulfillmentRequest: (
+    id: string,
+    data: { carrierName: string; trackingNumber: string },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/fulfillment/${id}/ship`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  completeFulfillmentRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/fulfillment/${id}/complete`, {
+      method: "POST",
+    }),
+  cancelFulfillmentRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/fulfillment/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Sales - Customer Returns
-  getCustomerReturns: (customerId?: string, salesOrderId?: string, status?: string) => {
+  getCustomerReturns: (
+    customerId?: string,
+    salesOrderId?: string,
+    status?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (customerId) params.append('customerId', customerId);
-    if (salesOrderId) params.append('salesOrderId', salesOrderId);
-    if (status) params.append('status', status);
+    if (customerId) params.append("customerId", customerId);
+    if (salesOrderId) params.append("salesOrderId", salesOrderId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/customer-returns${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/customer-returns${q ? `?${q}` : ""}`,
+    );
   },
-  getCustomerReturn: (id: string) => fetchApi<Record<string, unknown>>(`/customer-returns/${id}`),
-  createCustomerReturn: (data: { customerId: string; salesOrderId: string; notes?: string }) =>
-    fetchApi<Record<string, unknown>>('/customer-returns', { method: 'POST', body: JSON.stringify(data) }),
-  addCustomerReturnLine: (id: string, data: { salesOrderLineId: string; componentId: string; quantity: number; reason: string }) =>
-    fetchApi<Record<string, unknown>>(`/customer-returns/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
-  approveCustomerReturn: (id: string) => fetchApi<Record<string, unknown>>(`/customer-returns/${id}/approve`, { method: 'POST' }),
-  receiveCustomerReturn: (id: string) => fetchApi<Record<string, unknown>>(`/customer-returns/${id}/receive`, { method: 'POST' }),
+  getCustomerReturn: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/customer-returns/${id}`),
+  createCustomerReturn: (data: {
+    customerId: string;
+    salesOrderId: string;
+    notes?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/customer-returns", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addCustomerReturnLine: (
+    id: string,
+    data: {
+      salesOrderLineId: string;
+      componentId: string;
+      quantity: number;
+      reason: string;
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/customer-returns/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  approveCustomerReturn: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/customer-returns/${id}/approve`, {
+      method: "POST",
+    }),
+  receiveCustomerReturn: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/customer-returns/${id}/receive`, {
+      method: "POST",
+    }),
   inspectCustomerReturn: (id: string, dispositions: Record<string, string>) =>
-    fetchApi<Record<string, unknown>>(`/customer-returns/${id}/inspect`, { method: 'POST', body: JSON.stringify({ dispositions }) }),
-  restockCustomerReturn: (id: string) => fetchApi<Record<string, unknown>>(`/customer-returns/${id}/restock`, { method: 'POST' }),
-  rejectCustomerReturn: (id: string) => fetchApi<Record<string, unknown>>(`/customer-returns/${id}/reject`, { method: 'POST' }),
-  closeCustomerReturn: (id: string) => fetchApi<Record<string, unknown>>(`/customer-returns/${id}/close`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/customer-returns/${id}/inspect`, {
+      method: "POST",
+      body: JSON.stringify({ dispositions }),
+    }),
+  restockCustomerReturn: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/customer-returns/${id}/restock`, {
+      method: "POST",
+    }),
+  rejectCustomerReturn: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/customer-returns/${id}/reject`, {
+      method: "POST",
+    }),
+  closeCustomerReturn: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/customer-returns/${id}/close`, {
+      method: "POST",
+    }),
 
   // Finance - Chart of Accounts
   getAccounts: (accountType?: string, isActive?: boolean, search?: string) => {
     const params = new URLSearchParams();
-    if (accountType) params.append('accountType', accountType);
-    if (isActive !== undefined) params.append('isActive', String(isActive));
-    if (search) params.append('search', search);
+    if (accountType) params.append("accountType", accountType);
+    if (isActive !== undefined) params.append("isActive", String(isActive));
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/accounts${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(`/accounts${q ? `?${q}` : ""}`);
   },
-  getAccount: (id: string) => fetchApi<Record<string, unknown>>(`/accounts/${id}`),
-  createAccount: (data: { accountNumber: string; name: string; accountType: string; parentAccountId?: string; currency?: string }) =>
-    fetchApi<Record<string, unknown>>('/accounts', { method: 'POST', body: JSON.stringify(data) }),
-  activateAccount: (id: string) => fetchApi<Record<string, unknown>>(`/accounts/${id}/activate`, { method: 'POST' }),
-  deactivateAccount: (id: string) => fetchApi<Record<string, unknown>>(`/accounts/${id}/deactivate`, { method: 'POST' }),
+  getAccount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/accounts/${id}`),
+  createAccount: (data: {
+    accountNumber: string;
+    name: string;
+    accountType: string;
+    parentAccountId?: string;
+    currency?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/accounts", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  activateAccount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/accounts/${id}/activate`, {
+      method: "POST",
+    }),
+  deactivateAccount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/accounts/${id}/deactivate`, {
+      method: "POST",
+    }),
 
   // Finance - Journal Entries
   getJournalEntries: (status?: string, search?: string) => {
     const params = new URLSearchParams();
-    if (status) params.append('status', status);
-    if (search) params.append('search', search);
+    if (status) params.append("status", status);
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/journal-entries${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/journal-entries${q ? `?${q}` : ""}`,
+    );
   },
-  getJournalEntry: (id: string) => fetchApi<Record<string, unknown>>(`/journal-entries/${id}`),
-  createJournalEntry: (data: { description: string; date?: string; reference?: string }) =>
-    fetchApi<Record<string, unknown>>('/journal-entries', { method: 'POST', body: JSON.stringify(data) }),
-  addJournalLine: (id: string, data: { accountId: string; debit: number; credit: number; description?: string }) =>
-    fetchApi<Record<string, unknown>>(`/journal-entries/${id}/lines`, { method: 'POST', body: JSON.stringify(data) }),
-  postJournalEntry: (id: string) => fetchApi<Record<string, unknown>>(`/journal-entries/${id}/post`, { method: 'POST' }),
-  reverseJournalEntry: (id: string) => fetchApi<Record<string, unknown>>(`/journal-entries/${id}/reverse`, { method: 'POST' }),
-  voidJournalEntry: (id: string) => fetchApi<Record<string, unknown>>(`/journal-entries/${id}/void`, { method: 'POST' }),
+  getJournalEntry: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/journal-entries/${id}`),
+  createJournalEntry: (data: {
+    description: string;
+    date?: string;
+    reference?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/journal-entries", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addJournalLine: (
+    id: string,
+    data: {
+      accountId: string;
+      debit: number;
+      credit: number;
+      description?: string;
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/journal-entries/${id}/lines`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  postJournalEntry: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/journal-entries/${id}/post`, {
+      method: "POST",
+    }),
+  reverseJournalEntry: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/journal-entries/${id}/reverse`, {
+      method: "POST",
+    }),
+  voidJournalEntry: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/journal-entries/${id}/void`, {
+      method: "POST",
+    }),
 
   // Finance - Accounts Receivable
-  getReceivableInvoices: (customerId?: string, salesOrderId?: string, status?: string) => {
+  getReceivableInvoices: (
+    customerId?: string,
+    salesOrderId?: string,
+    status?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (customerId) params.append('customerId', customerId);
-    if (salesOrderId) params.append('salesOrderId', salesOrderId);
-    if (status) params.append('status', status);
+    if (customerId) params.append("customerId", customerId);
+    if (salesOrderId) params.append("salesOrderId", salesOrderId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/receivable-invoices${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/receivable-invoices${q ? `?${q}` : ""}`,
+    );
   },
-  getReceivableInvoice: (id: string) => fetchApi<Record<string, unknown>>(`/receivable-invoices/${id}`),
-  createReceivableInvoice: (data: { customerId: string; salesOrderId: string; dueDate: string; amount: number }) =>
-    fetchApi<Record<string, unknown>>('/receivable-invoices', { method: 'POST', body: JSON.stringify(data) }),
-  postReceivableInvoice: (id: string) => fetchApi<Record<string, unknown>>(`/receivable-invoices/${id}/post`, { method: 'POST' }),
-  cancelReceivableInvoice: (id: string) => fetchApi<Record<string, unknown>>(`/receivable-invoices/${id}/cancel`, { method: 'POST' }),
+  getReceivableInvoice: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/receivable-invoices/${id}`),
+  createReceivableInvoice: (data: {
+    customerId: string;
+    salesOrderId: string;
+    dueDate: string;
+    amount: number;
+  }) =>
+    fetchApi<Record<string, unknown>>("/receivable-invoices", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  postReceivableInvoice: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/receivable-invoices/${id}/post`, {
+      method: "POST",
+    }),
+  cancelReceivableInvoice: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/receivable-invoices/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Finance - Accounts Payable
-  getPayableInvoices: (supplierId?: string, purchaseInvoiceId?: string, status?: string) => {
+  getPayableInvoices: (
+    supplierId?: string,
+    purchaseInvoiceId?: string,
+    status?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (supplierId) params.append('supplierId', supplierId);
-    if (purchaseInvoiceId) params.append('purchaseInvoiceId', purchaseInvoiceId);
-    if (status) params.append('status', status);
+    if (supplierId) params.append("supplierId", supplierId);
+    if (purchaseInvoiceId)
+      params.append("purchaseInvoiceId", purchaseInvoiceId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/payable-invoices${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/payable-invoices${q ? `?${q}` : ""}`,
+    );
   },
-  getPayableInvoice: (id: string) => fetchApi<Record<string, unknown>>(`/payable-invoices/${id}`),
-  createPayableInvoice: (data: { supplierId: string; purchaseInvoiceId: string; dueDate: string; amount: number }) =>
-    fetchApi<Record<string, unknown>>('/payable-invoices', { method: 'POST', body: JSON.stringify(data) }),
-  postPayableInvoice: (id: string) => fetchApi<Record<string, unknown>>(`/payable-invoices/${id}/post`, { method: 'POST' }),
-  cancelPayableInvoice: (id: string) => fetchApi<Record<string, unknown>>(`/payable-invoices/${id}/cancel`, { method: 'POST' }),
+  getPayableInvoice: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/payable-invoices/${id}`),
+  createPayableInvoice: (data: {
+    supplierId: string;
+    purchaseInvoiceId: string;
+    dueDate: string;
+    amount: number;
+  }) =>
+    fetchApi<Record<string, unknown>>("/payable-invoices", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  postPayableInvoice: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/payable-invoices/${id}/post`, {
+      method: "POST",
+    }),
+  cancelPayableInvoice: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/payable-invoices/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Finance - Payments
-  getPayments: (paymentType?: string, bankAccountId?: string, status?: string) => {
+  getPayments: (
+    paymentType?: string,
+    bankAccountId?: string,
+    status?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (paymentType) params.append('paymentType', paymentType);
-    if (bankAccountId) params.append('bankAccountId', bankAccountId);
-    if (status) params.append('status', status);
+    if (paymentType) params.append("paymentType", paymentType);
+    if (bankAccountId) params.append("bankAccountId", bankAccountId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/payments${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(`/payments${q ? `?${q}` : ""}`);
   },
-  getPayment: (id: string) => fetchApi<Record<string, unknown>>(`/payments/${id}`),
-  createPayment: (data: { paymentType: string; paymentMethod: string; amount: number; reference?: string; bankAccountId?: string; targetInvoiceId?: string }) =>
-    fetchApi<Record<string, unknown>>('/payments', { method: 'POST', body: JSON.stringify(data) }),
+  getPayment: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/payments/${id}`),
+  createPayment: (data: {
+    paymentType: string;
+    paymentMethod: string;
+    amount: number;
+    reference?: string;
+    bankAccountId?: string;
+    targetInvoiceId?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/payments", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   postPayment: (id: string, targetInvoiceId?: string) =>
-    fetchApi<Record<string, unknown>>(`/payments/${id}/post`, { method: 'POST', body: JSON.stringify({ targetInvoiceId }) }),
-  cancelPayment: (id: string) => fetchApi<Record<string, unknown>>(`/payments/${id}/cancel`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/payments/${id}/post`, {
+      method: "POST",
+      body: JSON.stringify({ targetInvoiceId }),
+    }),
+  cancelPayment: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/payments/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Finance - Bank Reconciliations
   getBankReconciliations: (bankAccountId?: string, status?: string) => {
     const params = new URLSearchParams();
-    if (bankAccountId) params.append('bankAccountId', bankAccountId);
-    if (status) params.append('status', status);
+    if (bankAccountId) params.append("bankAccountId", bankAccountId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/bank-reconciliations${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/bank-reconciliations${q ? `?${q}` : ""}`,
+    );
   },
-  getBankReconciliation: (id: string) => fetchApi<Record<string, unknown>>(`/bank-reconciliations/${id}`),
-  createBankReconciliation: (data: { bankAccountId: string; statementDate: string; openingBalance: number; closingBalance: number }) =>
-    fetchApi<Record<string, unknown>>('/bank-reconciliations', { method: 'POST', body: JSON.stringify(data) }),
-  addBankTransaction: (id: string, data: { transactionDate: string; description: string; amount: number }) =>
-    fetchApi<Record<string, unknown>>(`/bank-reconciliations/${id}/transactions`, { method: 'POST', body: JSON.stringify(data) }),
-  matchBankTransaction: (id: string, data: { transactionId: string; paymentId: string }) =>
-    fetchApi<Record<string, unknown>>(`/bank-reconciliations/${id}/match`, { method: 'POST', body: JSON.stringify(data) }),
-  completeBankReconciliation: (id: string) => fetchApi<Record<string, unknown>>(`/bank-reconciliations/${id}/complete`, { method: 'POST' }),
+  getBankReconciliation: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/bank-reconciliations/${id}`),
+  createBankReconciliation: (data: {
+    bankAccountId: string;
+    statementDate: string;
+    openingBalance: number;
+    closingBalance: number;
+  }) =>
+    fetchApi<Record<string, unknown>>("/bank-reconciliations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addBankTransaction: (
+    id: string,
+    data: { transactionDate: string; description: string; amount: number },
+  ) =>
+    fetchApi<Record<string, unknown>>(
+      `/bank-reconciliations/${id}/transactions`,
+      { method: "POST", body: JSON.stringify(data) },
+    ),
+  matchBankTransaction: (
+    id: string,
+    data: { transactionId: string; paymentId: string },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/bank-reconciliations/${id}/match`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  completeBankReconciliation: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/bank-reconciliations/${id}/complete`, {
+      method: "POST",
+    }),
 
   // CRM - Leads
-  getLeads: (status?: string, source?: string, owner?: string, search?: string) => {
+  getLeads: (
+    status?: string,
+    source?: string,
+    owner?: string,
+    search?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (status) params.append('status', status);
-    if (source) params.append('source', source);
-    if (owner) params.append('owner', owner);
-    if (search) params.append('search', search);
+    if (status) params.append("status", status);
+    if (source) params.append("source", source);
+    if (owner) params.append("owner", owner);
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/leads${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(`/leads${q ? `?${q}` : ""}`);
   },
   getLead: (id: string) => fetchApi<Record<string, unknown>>(`/leads/${id}`),
-  createLead: (data: { name: string; company: string; email?: string; phone?: string; source?: string; industry?: string; owner: string }) =>
-    fetchApi<Record<string, unknown>>('/leads', { method: 'POST', body: JSON.stringify(data) }),
+  createLead: (data: {
+    name: string;
+    company: string;
+    email?: string;
+    phone?: string;
+    source?: string;
+    industry?: string;
+    owner: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/leads", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   assignLead: (id: string, owner: string) =>
-    fetchApi<Record<string, unknown>>(`/leads/${id}/assign`, { method: 'POST', body: JSON.stringify({ owner }) }),
-  qualifyLead: (id: string) => fetchApi<Record<string, unknown>>(`/leads/${id}/qualify`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/leads/${id}/assign`, {
+      method: "POST",
+      body: JSON.stringify({ owner }),
+    }),
+  qualifyLead: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/leads/${id}/qualify`, {
+      method: "POST",
+    }),
   disqualifyLead: (id: string, reason: string) =>
-    fetchApi<Record<string, unknown>>(`/leads/${id}/disqualify`, { method: 'POST', body: JSON.stringify({ reason }) }),
-  convertLead: (id: string) => fetchApi<Record<string, unknown>>(`/leads/${id}/convert`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/leads/${id}/disqualify`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+  convertLead: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/leads/${id}/convert`, {
+      method: "POST",
+    }),
 
   // CRM - Accounts & Contacts
   getCrmAccounts: (isArchived?: boolean, search?: string) => {
     const params = new URLSearchParams();
-    if (isArchived !== undefined) params.append('isArchived', String(isArchived));
-    if (search) params.append('search', search);
+    if (isArchived !== undefined)
+      params.append("isArchived", String(isArchived));
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/crm-accounts${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/crm-accounts${q ? `?${q}` : ""}`,
+    );
   },
-  getCrmAccount: (id: string) => fetchApi<Record<string, unknown>>(`/crm-accounts/${id}`),
-  createCrmAccount: (data: { companyName: string; industry?: string; website?: string; billingAddress?: string; shippingAddress?: string }) =>
-    fetchApi<Record<string, unknown>>('/crm-accounts', { method: 'POST', body: JSON.stringify(data) }),
-  addCrmContact: (id: string, data: { firstName: string; lastName: string; email: string; phone?: string; role?: string; isPrimary?: boolean }) =>
-    fetchApi<Record<string, unknown>>(`/crm-accounts/${id}/contacts`, { method: 'POST', body: JSON.stringify(data) }),
-  archiveCrmAccount: (id: string) => fetchApi<Record<string, unknown>>(`/crm-accounts/${id}/archive`, { method: 'POST' }),
+  getCrmAccount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/crm-accounts/${id}`),
+  createCrmAccount: (data: {
+    companyName: string;
+    industry?: string;
+    website?: string;
+    billingAddress?: string;
+    shippingAddress?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/crm-accounts", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  addCrmContact: (
+    id: string,
+    data: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone?: string;
+      role?: string;
+      isPrimary?: boolean;
+    },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/crm-accounts/${id}/contacts`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  archiveCrmAccount: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/crm-accounts/${id}/archive`, {
+      method: "POST",
+    }),
 
   // CRM - Opportunities
-  getOpportunities: (crmAccountId?: string, stage?: string, search?: string) => {
+  getOpportunities: (
+    crmAccountId?: string,
+    stage?: string,
+    search?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (crmAccountId) params.append('crmAccountId', crmAccountId);
-    if (stage) params.append('stage', stage);
-    if (search) params.append('search', search);
+    if (crmAccountId) params.append("crmAccountId", crmAccountId);
+    if (stage) params.append("stage", stage);
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/opportunities${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/opportunities${q ? `?${q}` : ""}`,
+    );
   },
-  getOpportunity: (id: string) => fetchApi<Record<string, unknown>>(`/opportunities/${id}`),
-  createOpportunity: (data: { name: string; leadId?: string; crmAccountId: string; estimatedValue: number; expectedCloseDate: string; probability?: number }) =>
-    fetchApi<Record<string, unknown>>('/opportunities', { method: 'POST', body: JSON.stringify(data) }),
+  getOpportunity: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/opportunities/${id}`),
+  createOpportunity: (data: {
+    name: string;
+    leadId?: string;
+    crmAccountId: string;
+    estimatedValue: number;
+    expectedCloseDate: string;
+    probability?: number;
+  }) =>
+    fetchApi<Record<string, unknown>>("/opportunities", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   advanceOpportunityStage: (id: string, stage: string) =>
-    fetchApi<Record<string, unknown>>(`/opportunities/${id}/advance`, { method: 'POST', body: JSON.stringify({ stage }) }),
-  winOpportunity: (id: string) => fetchApi<Record<string, unknown>>(`/opportunities/${id}/win`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/opportunities/${id}/advance`, {
+      method: "POST",
+      body: JSON.stringify({ stage }),
+    }),
+  winOpportunity: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/opportunities/${id}/win`, {
+      method: "POST",
+    }),
   loseOpportunity: (id: string, reason: string) =>
-    fetchApi<Record<string, unknown>>(`/opportunities/${id}/lose`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    fetchApi<Record<string, unknown>>(`/opportunities/${id}/lose`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
 
   // CRM - Activities
-  getActivities: (type?: string, status?: string, owner?: string, relatedLeadId?: string, relatedAccountId?: string, relatedOpportunityId?: string) => {
+  getActivities: (
+    type?: string,
+    status?: string,
+    owner?: string,
+    relatedLeadId?: string,
+    relatedAccountId?: string,
+    relatedOpportunityId?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (type) params.append('type', type);
-    if (status) params.append('status', status);
-    if (owner) params.append('owner', owner);
-    if (relatedLeadId) params.append('relatedLeadId', relatedLeadId);
-    if (relatedAccountId) params.append('relatedAccountId', relatedAccountId);
-    if (relatedOpportunityId) params.append('relatedOpportunityId', relatedOpportunityId);
+    if (type) params.append("type", type);
+    if (status) params.append("status", status);
+    if (owner) params.append("owner", owner);
+    if (relatedLeadId) params.append("relatedLeadId", relatedLeadId);
+    if (relatedAccountId) params.append("relatedAccountId", relatedAccountId);
+    if (relatedOpportunityId)
+      params.append("relatedOpportunityId", relatedOpportunityId);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/activities${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/activities${q ? `?${q}` : ""}`,
+    );
   },
-  getActivity: (id: string) => fetchApi<Record<string, unknown>>(`/activities/${id}`),
-  createActivity: (data: { type: string; subject: string; dueDate: string; owner: string; relatedLeadId?: string; relatedAccountId?: string; relatedOpportunityId?: string }) =>
-    fetchApi<Record<string, unknown>>('/activities', { method: 'POST', body: JSON.stringify(data) }),
-  completeActivity: (id: string) => fetchApi<Record<string, unknown>>(`/activities/${id}/complete`, { method: 'POST' }),
-  cancelActivity: (id: string) => fetchApi<Record<string, unknown>>(`/activities/${id}/cancel`, { method: 'POST' }),
+  getActivity: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/activities/${id}`),
+  createActivity: (data: {
+    type: string;
+    subject: string;
+    dueDate: string;
+    owner: string;
+    relatedLeadId?: string;
+    relatedAccountId?: string;
+    relatedOpportunityId?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/activities", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  completeActivity: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/activities/${id}/complete`, {
+      method: "POST",
+    }),
+  cancelActivity: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/activities/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // CRM - Notes
-  getNotes: (leadId?: string, crmAccountId?: string, opportunityId?: string, activityId?: string) => {
+  getNotes: (
+    leadId?: string,
+    crmAccountId?: string,
+    opportunityId?: string,
+    activityId?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (leadId) params.append('leadId', leadId);
-    if (crmAccountId) params.append('crmAccountId', crmAccountId);
-    if (opportunityId) params.append('opportunityId', opportunityId);
-    if (activityId) params.append('activityId', activityId);
+    if (leadId) params.append("leadId", leadId);
+    if (crmAccountId) params.append("crmAccountId", crmAccountId);
+    if (opportunityId) params.append("opportunityId", opportunityId);
+    if (activityId) params.append("activityId", activityId);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/notes${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(`/notes${q ? `?${q}` : ""}`);
   },
   getNote: (id: string) => fetchApi<Record<string, unknown>>(`/notes/${id}`),
-  createNote: (data: { author: string; body: string; leadId?: string; crmAccountId?: string; opportunityId?: string; activityId?: string }) =>
-    fetchApi<Record<string, unknown>>('/notes', { method: 'POST', body: JSON.stringify(data) }),
+  createNote: (data: {
+    author: string;
+    body: string;
+    leadId?: string;
+    crmAccountId?: string;
+    opportunityId?: string;
+    activityId?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/notes", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // Projects
-  getProjects: (status?: string, priority?: string, customerId?: string, salesOrderId?: string, projectManager?: string, search?: string) => {
+  getProjects: (
+    status?: string,
+    priority?: string,
+    customerId?: string,
+    salesOrderId?: string,
+    projectManager?: string,
+    search?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (status) params.append('status', status);
-    if (priority) params.append('priority', priority);
-    if (customerId) params.append('customerId', customerId);
-    if (salesOrderId) params.append('salesOrderId', salesOrderId);
-    if (projectManager) params.append('projectManager', projectManager);
-    if (search) params.append('search', search);
+    if (status) params.append("status", status);
+    if (priority) params.append("priority", priority);
+    if (customerId) params.append("customerId", customerId);
+    if (salesOrderId) params.append("salesOrderId", salesOrderId);
+    if (projectManager) params.append("projectManager", projectManager);
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/projects${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(`/projects${q ? `?${q}` : ""}`);
   },
-  getProject: (id: string) => fetchApi<Record<string, unknown>>(`/projects/${id}`),
-  createProject: (data: { name: string; customerId: string; salesOrderId: string; projectManager: string; startDate: string; targetCompletionDate: string; priority?: string }) =>
-    fetchApi<Record<string, unknown>>('/projects', { method: 'POST', body: JSON.stringify(data) }),
-  startProject: (id: string) => fetchApi<Record<string, unknown>>(`/projects/${id}/start`, { method: 'POST' }),
-  pauseProject: (id: string) => fetchApi<Record<string, unknown>>(`/projects/${id}/pause`, { method: 'POST' }),
-  completeProject: (id: string) => fetchApi<Record<string, unknown>>(`/projects/${id}/complete`, { method: 'POST' }),
-  cancelProject: (id: string) => fetchApi<Record<string, unknown>>(`/projects/${id}/cancel`, { method: 'POST' }),
-  addProjectMilestone: (id: string, data: { name: string; dueDate: string; completionPercentage?: number }) =>
-    fetchApi<Record<string, unknown>>(`/projects/${id}/milestones`, { method: 'POST', body: JSON.stringify(data) }),
+  getProject: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/projects/${id}`),
+  createProject: (data: {
+    name: string;
+    customerId: string;
+    salesOrderId: string;
+    projectManager: string;
+    startDate: string;
+    targetCompletionDate: string;
+    priority?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/projects", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  startProject: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/projects/${id}/start`, {
+      method: "POST",
+    }),
+  pauseProject: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/projects/${id}/pause`, {
+      method: "POST",
+    }),
+  completeProject: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/projects/${id}/complete`, {
+      method: "POST",
+    }),
+  cancelProject: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/projects/${id}/cancel`, {
+      method: "POST",
+    }),
+  addProjectMilestone: (
+    id: string,
+    data: { name: string; dueDate: string; completionPercentage?: number },
+  ) =>
+    fetchApi<Record<string, unknown>>(`/projects/${id}/milestones`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   completeProjectMilestone: (id: string, milestoneId: string) =>
-    fetchApi<Record<string, unknown>>(`/projects/${id}/milestones/${milestoneId}/complete`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(
+      `/projects/${id}/milestones/${milestoneId}/complete`,
+      { method: "POST" },
+    ),
 
   // Tasks
-  getTasks: (projectId?: string, assignedUser?: string, status?: string, priority?: string, search?: string) => {
+  getTasks: (
+    projectId?: string,
+    assignedUser?: string,
+    status?: string,
+    priority?: string,
+    search?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (projectId) params.append('projectId', projectId);
-    if (assignedUser) params.append('assignedUser', assignedUser);
-    if (status) params.append('status', status);
-    if (priority) params.append('priority', priority);
-    if (search) params.append('search', search);
+    if (projectId) params.append("projectId", projectId);
+    if (assignedUser) params.append("assignedUser", assignedUser);
+    if (status) params.append("status", status);
+    if (priority) params.append("priority", priority);
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/tasks${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(`/tasks${q ? `?${q}` : ""}`);
   },
   getTask: (id: string) => fetchApi<Record<string, unknown>>(`/tasks/${id}`),
-  createTask: (data: { projectId: string; title: string; description?: string; assignedUser?: string; estimatedHours: number; priority?: string }) =>
-    fetchApi<Record<string, unknown>>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
+  createTask: (data: {
+    projectId: string;
+    title: string;
+    description?: string;
+    assignedUser?: string;
+    estimatedHours: number;
+    priority?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/tasks", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   assignTask: (id: string, userId: string) =>
-    fetchApi<Record<string, unknown>>(`/tasks/${id}/assign`, { method: 'POST', body: JSON.stringify({ userId }) }),
-  startTask: (id: string) => fetchApi<Record<string, unknown>>(`/tasks/${id}/start`, { method: 'POST' }),
-  blockTask: (id: string) => fetchApi<Record<string, unknown>>(`/tasks/${id}/block`, { method: 'POST' }),
-  completeTask: (id: string) => fetchApi<Record<string, unknown>>(`/tasks/${id}/complete`, { method: 'POST' }),
-  cancelTask: (id: string) => fetchApi<Record<string, unknown>>(`/tasks/${id}/cancel`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/tasks/${id}/assign`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    }),
+  startTask: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/tasks/${id}/start`, { method: "POST" }),
+  blockTask: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/tasks/${id}/block`, { method: "POST" }),
+  completeTask: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/tasks/${id}/complete`, {
+      method: "POST",
+    }),
+  cancelTask: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/tasks/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Time Entries
-  getTimeEntries: (userId?: string, taskId?: string, status?: string, startDate?: string, endDate?: string) => {
+  getTimeEntries: (
+    userId?: string,
+    taskId?: string,
+    status?: string,
+    startDate?: string,
+    endDate?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (userId) params.append('userId', userId);
-    if (taskId) params.append('taskId', taskId);
-    if (status) params.append('status', status);
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
+    if (userId) params.append("userId", userId);
+    if (taskId) params.append("taskId", taskId);
+    if (status) params.append("status", status);
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/time-entries${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/time-entries${q ? `?${q}` : ""}`,
+    );
   },
-  getTimeEntry: (id: string) => fetchApi<Record<string, unknown>>(`/time-entries/${id}`),
-  createTimeEntry: (data: { userId: string; taskId: string; date: string; hours: number; description?: string }) =>
-    fetchApi<Record<string, unknown>>('/time-entries', { method: 'POST', body: JSON.stringify(data) }),
+  getTimeEntry: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/time-entries/${id}`),
+  createTimeEntry: (data: {
+    userId: string;
+    taskId: string;
+    date: string;
+    hours: number;
+    description?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/time-entries", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   approveTimeEntry: (id: string, approverId: string) =>
-    fetchApi<Record<string, unknown>>(`/time-entries/${id}/approve`, { method: 'POST', body: JSON.stringify({ approverId }) }),
-  rejectTimeEntry: (id: string) => fetchApi<Record<string, unknown>>(`/time-entries/${id}/reject`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/time-entries/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ approverId }),
+    }),
+  rejectTimeEntry: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/time-entries/${id}/reject`, {
+      method: "POST",
+    }),
 
   // Service Requests
-  getServiceRequests: (status?: string, priority?: string, category?: string, customerId?: string, assignedTechnician?: string, search?: string) => {
+  getServiceRequests: (
+    status?: string,
+    priority?: string,
+    category?: string,
+    customerId?: string,
+    assignedTechnician?: string,
+    search?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (status) params.append('status', status);
-    if (priority) params.append('priority', priority);
-    if (category) params.append('category', category);
-    if (customerId) params.append('customerId', customerId);
-    if (assignedTechnician) params.append('assignedTechnician', assignedTechnician);
-    if (search) params.append('search', search);
+    if (status) params.append("status", status);
+    if (priority) params.append("priority", priority);
+    if (category) params.append("category", category);
+    if (customerId) params.append("customerId", customerId);
+    if (assignedTechnician)
+      params.append("assignedTechnician", assignedTechnician);
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/service-requests${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/service-requests${q ? `?${q}` : ""}`,
+    );
   },
-  getServiceRequest: (id: string) => fetchApi<Record<string, unknown>>(`/service-requests/${id}`),
-  createServiceRequest: (data: { customerId: string; salesOrderId?: string; projectId?: string; componentId?: string; serialNumber?: string; title: string; description?: string; priority?: string; category: string }) =>
-    fetchApi<Record<string, unknown>>('/service-requests', { method: 'POST', body: JSON.stringify(data) }),
+  getServiceRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}`),
+  createServiceRequest: (data: {
+    customerId: string;
+    salesOrderId?: string;
+    projectId?: string;
+    componentId?: string;
+    serialNumber?: string;
+    title: string;
+    description?: string;
+    priority?: string;
+    category: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/service-requests", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   assignServiceRequest: (id: string, technician: string) =>
-    fetchApi<Record<string, unknown>>(`/service-requests/${id}/assign`, { method: 'POST', body: JSON.stringify({ technician }) }),
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/assign`, {
+      method: "POST",
+      body: JSON.stringify({ technician }),
+    }),
   diagnoseServiceRequest: (id: string, notes: string) =>
-    fetchApi<Record<string, unknown>>(`/service-requests/${id}/diagnose`, { method: 'POST', body: JSON.stringify({ notes }) }),
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/diagnose`, {
+      method: "POST",
+      body: JSON.stringify({ notes }),
+    }),
   setServiceRequestWaitingParts: (id: string) =>
-    fetchApi<Record<string, unknown>>(`/service-requests/${id}/waiting-parts`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/waiting-parts`, {
+      method: "POST",
+    }),
   startServiceRequestRepair: (id: string) =>
-    fetchApi<Record<string, unknown>>(`/service-requests/${id}/start-repair`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/start-repair`, {
+      method: "POST",
+    }),
   completeServiceRequest: (id: string) =>
-    fetchApi<Record<string, unknown>>(`/service-requests/${id}/complete`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/complete`, {
+      method: "POST",
+    }),
   closeServiceRequest: (id: string) =>
-    fetchApi<Record<string, unknown>>(`/service-requests/${id}/close`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/close`, {
+      method: "POST",
+    }),
   cancelServiceRequest: (id: string) =>
-    fetchApi<Record<string, unknown>>(`/service-requests/${id}/cancel`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/service-requests/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Work Orders
-  getWorkOrders: (serviceRequestId?: string, assignedTechnician?: string, status?: string, priority?: string, search?: string) => {
+  getWorkOrders: (
+    serviceRequestId?: string,
+    assignedTechnician?: string,
+    status?: string,
+    priority?: string,
+    search?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (serviceRequestId) params.append('serviceRequestId', serviceRequestId);
-    if (assignedTechnician) params.append('assignedTechnician', assignedTechnician);
-    if (status) params.append('status', status);
-    if (priority) params.append('priority', priority);
-    if (search) params.append('search', search);
+    if (serviceRequestId) params.append("serviceRequestId", serviceRequestId);
+    if (assignedTechnician)
+      params.append("assignedTechnician", assignedTechnician);
+    if (status) params.append("status", status);
+    if (priority) params.append("priority", priority);
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/work-orders${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/work-orders${q ? `?${q}` : ""}`,
+    );
   },
-  getWorkOrder: (id: string) => fetchApi<Record<string, unknown>>(`/work-orders/${id}`),
-  createWorkOrder: (data: { serviceRequestId: string; assignedTechnician?: string; title: string; description?: string; plannedHours: number; priority?: string }) =>
-    fetchApi<Record<string, unknown>>('/work-orders', { method: 'POST', body: JSON.stringify(data) }),
+  getWorkOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/work-orders/${id}`),
+  createWorkOrder: (data: {
+    serviceRequestId: string;
+    assignedTechnician?: string;
+    title: string;
+    description?: string;
+    plannedHours: number;
+    priority?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/work-orders", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   assignWorkOrder: (id: string, technician: string) =>
-    fetchApi<Record<string, unknown>>(`/work-orders/${id}/assign`, { method: 'POST', body: JSON.stringify({ technician }) }),
-  startWorkOrder: (id: string) => fetchApi<Record<string, unknown>>(`/work-orders/${id}/start`, { method: 'POST' }),
-  pauseWorkOrder: (id: string) => fetchApi<Record<string, unknown>>(`/work-orders/${id}/pause`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/work-orders/${id}/assign`, {
+      method: "POST",
+      body: JSON.stringify({ technician }),
+    }),
+  startWorkOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/work-orders/${id}/start`, {
+      method: "POST",
+    }),
+  pauseWorkOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/work-orders/${id}/pause`, {
+      method: "POST",
+    }),
   logWorkOrderHours: (id: string, hours: number) =>
-    fetchApi<Record<string, unknown>>(`/work-orders/${id}/hours`, { method: 'POST', body: JSON.stringify({ hours }) }),
-  completeWorkOrder: (id: string) => fetchApi<Record<string, unknown>>(`/work-orders/${id}/complete`, { method: 'POST' }),
-  cancelWorkOrder: (id: string) => fetchApi<Record<string, unknown>>(`/work-orders/${id}/cancel`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/work-orders/${id}/hours`, {
+      method: "POST",
+      body: JSON.stringify({ hours }),
+    }),
+  completeWorkOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/work-orders/${id}/complete`, {
+      method: "POST",
+    }),
+  cancelWorkOrder: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/work-orders/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Warranty Claims
-  getWarrantyClaims: (customerId?: string, productId?: string, decision?: string, search?: string) => {
+  getWarrantyClaims: (
+    customerId?: string,
+    productId?: string,
+    decision?: string,
+    search?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (customerId) params.append('customerId', customerId);
-    if (productId) params.append('productId', productId);
-    if (decision) params.append('decision', decision);
-    if (search) params.append('search', search);
+    if (customerId) params.append("customerId", customerId);
+    if (productId) params.append("productId", productId);
+    if (decision) params.append("decision", decision);
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/warranty-claims${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/warranty-claims${q ? `?${q}` : ""}`,
+    );
   },
-  getWarrantyClaim: (id: string) => fetchApi<Record<string, unknown>>(`/warranty-claims/${id}`),
-  createWarrantyClaim: (data: { customerId: string; productId: string; serialNumber?: string; purchaseDate: string; expiryDate: string; claimReason: string }) =>
-    fetchApi<Record<string, unknown>>('/warranty-claims', { method: 'POST', body: JSON.stringify(data) }),
-  reviewWarrantyClaim: (id: string) => fetchApi<Record<string, unknown>>(`/warranty-claims/${id}/review`, { method: 'POST' }),
+  getWarrantyClaim: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/warranty-claims/${id}`),
+  createWarrantyClaim: (data: {
+    customerId: string;
+    productId: string;
+    serialNumber?: string;
+    purchaseDate: string;
+    expiryDate: string;
+    claimReason: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/warranty-claims", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  reviewWarrantyClaim: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/warranty-claims/${id}/review`, {
+      method: "POST",
+    }),
   approveWarrantyClaim: (id: string, notes?: string) =>
-    fetchApi<Record<string, unknown>>(`/warranty-claims/${id}/approve`, { method: 'POST', body: JSON.stringify({ notes }) }),
+    fetchApi<Record<string, unknown>>(`/warranty-claims/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ notes }),
+    }),
   rejectWarrantyClaim: (id: string, notes?: string) =>
-    fetchApi<Record<string, unknown>>(`/warranty-claims/${id}/reject`, { method: 'POST', body: JSON.stringify({ notes }) }),
+    fetchApi<Record<string, unknown>>(`/warranty-claims/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ notes }),
+    }),
 
   // RMA Requests
-  getRmaRequests: (customerId?: string, salesOrderId?: string, status?: string, disposition?: string, search?: string) => {
+  getRmaRequests: (
+    customerId?: string,
+    salesOrderId?: string,
+    status?: string,
+    disposition?: string,
+    search?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (customerId) params.append('customerId', customerId);
-    if (salesOrderId) params.append('salesOrderId', salesOrderId);
-    if (status) params.append('status', status);
-    if (disposition) params.append('disposition', disposition);
-    if (search) params.append('search', search);
+    if (customerId) params.append("customerId", customerId);
+    if (salesOrderId) params.append("salesOrderId", salesOrderId);
+    if (status) params.append("status", status);
+    if (disposition) params.append("disposition", disposition);
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/rma-requests${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/rma-requests${q ? `?${q}` : ""}`,
+    );
   },
-  getRmaRequest: (id: string) => fetchApi<Record<string, unknown>>(`/rma-requests/${id}`),
-  createRmaRequest: (data: { customerId: string; salesOrderId?: string; itemDescription: string; serialNumber?: string; reason: string }) =>
-    fetchApi<Record<string, unknown>>('/rma-requests', { method: 'POST', body: JSON.stringify(data) }),
-  approveRmaRequest: (id: string) => fetchApi<Record<string, unknown>>(`/rma-requests/${id}/approve`, { method: 'POST' }),
-  receiveRmaItem: (id: string) => fetchApi<Record<string, unknown>>(`/rma-requests/${id}/receive`, { method: 'POST' }),
+  getRmaRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/rma-requests/${id}`),
+  createRmaRequest: (data: {
+    customerId: string;
+    salesOrderId?: string;
+    itemDescription: string;
+    serialNumber?: string;
+    reason: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/rma-requests", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  approveRmaRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/rma-requests/${id}/approve`, {
+      method: "POST",
+    }),
+  receiveRmaItem: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/rma-requests/${id}/receive`, {
+      method: "POST",
+    }),
   inspectRmaItem: (id: string, data: { disposition: string; notes?: string }) =>
-    fetchApi<Record<string, unknown>>(`/rma-requests/${id}/inspect`, { method: 'POST', body: JSON.stringify(data) }),
-  processRmaRequest: (id: string) => fetchApi<Record<string, unknown>>(`/rma-requests/${id}/process`, { method: 'POST' }),
-  closeRmaRequest: (id: string) => fetchApi<Record<string, unknown>>(`/rma-requests/${id}/close`, { method: 'POST' }),
-  rejectRmaRequest: (id: string) => fetchApi<Record<string, unknown>>(`/rma-requests/${id}/reject`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>(`/rma-requests/${id}/inspect`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  processRmaRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/rma-requests/${id}/process`, {
+      method: "POST",
+    }),
+  closeRmaRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/rma-requests/${id}/close`, {
+      method: "POST",
+    }),
+  rejectRmaRequest: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/rma-requests/${id}/reject`, {
+      method: "POST",
+    }),
 
   // Maintenance Schedules
-  getMaintenanceSchedules: (customerId?: string, assignedTechnician?: string, status?: string, frequency?: string, search?: string) => {
+  getMaintenanceSchedules: (
+    customerId?: string,
+    assignedTechnician?: string,
+    status?: string,
+    frequency?: string,
+    search?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (customerId) params.append('customerId', customerId);
-    if (assignedTechnician) params.append('assignedTechnician', assignedTechnician);
-    if (status) params.append('status', status);
-    if (frequency) params.append('frequency', frequency);
-    if (search) params.append('search', search);
+    if (customerId) params.append("customerId", customerId);
+    if (assignedTechnician)
+      params.append("assignedTechnician", assignedTechnician);
+    if (status) params.append("status", status);
+    if (frequency) params.append("frequency", frequency);
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/maintenance-schedules${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/maintenance-schedules${q ? `?${q}` : ""}`,
+    );
   },
-  getMaintenanceSchedule: (id: string) => fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}`),
-  createMaintenanceSchedule: (data: { customerId: string; assetName: string; serialNumber?: string; frequency: string; nextVisitDate: string; assignedTechnician?: string; notes?: string }) =>
-    fetchApi<Record<string, unknown>>('/maintenance-schedules', { method: 'POST', body: JSON.stringify(data) }),
-  pauseMaintenanceSchedule: (id: string) => fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/pause`, { method: 'POST' }),
-  resumeMaintenanceSchedule: (id: string) => fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/resume`, { method: 'POST' }),
-  completeMaintenanceVisit: (id: string) => fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/complete-visit`, { method: 'POST' }),
-  completeMaintenancePlan: (id: string) => fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/complete-plan`, { method: 'POST' }),
-  cancelMaintenanceSchedule: (id: string) => fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/cancel`, { method: 'POST' }),
+  getMaintenanceSchedule: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}`),
+  createMaintenanceSchedule: (data: {
+    customerId: string;
+    assetName: string;
+    serialNumber?: string;
+    frequency: string;
+    nextVisitDate: string;
+    assignedTechnician?: string;
+    notes?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/maintenance-schedules", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  pauseMaintenanceSchedule: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/pause`, {
+      method: "POST",
+    }),
+  resumeMaintenanceSchedule: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/resume`, {
+      method: "POST",
+    }),
+  completeMaintenanceVisit: (id: string) =>
+    fetchApi<Record<string, unknown>>(
+      `/maintenance-schedules/${id}/complete-visit`,
+      { method: "POST" },
+    ),
+  completeMaintenancePlan: (id: string) =>
+    fetchApi<Record<string, unknown>>(
+      `/maintenance-schedules/${id}/complete-plan`,
+      { method: "POST" },
+    ),
+  cancelMaintenanceSchedule: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/maintenance-schedules/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Service Notes
-  getServiceNotes: (serviceRequestId?: string, workOrderId?: string, warrantyClaimId?: string) => {
+  getServiceNotes: (
+    serviceRequestId?: string,
+    workOrderId?: string,
+    warrantyClaimId?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (serviceRequestId) params.append('serviceRequestId', serviceRequestId);
-    if (workOrderId) params.append('workOrderId', workOrderId);
-    if (warrantyClaimId) params.append('warrantyClaimId', warrantyClaimId);
+    if (serviceRequestId) params.append("serviceRequestId", serviceRequestId);
+    if (workOrderId) params.append("workOrderId", workOrderId);
+    if (warrantyClaimId) params.append("warrantyClaimId", warrantyClaimId);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/service-notes${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/service-notes${q ? `?${q}` : ""}`,
+    );
   },
-  createServiceNote: (data: { author: string; body: string; serviceRequestId?: string; workOrderId?: string; warrantyClaimId?: string }) =>
-    fetchApi<Record<string, unknown>>('/service-notes', { method: 'POST', body: JSON.stringify(data) }),
+  createServiceNote: (data: {
+    author: string;
+    body: string;
+    serviceRequestId?: string;
+    workOrderId?: string;
+    warrantyClaimId?: string;
+  }) =>
+    fetchApi<Record<string, unknown>>("/service-notes", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // Planning Runs
   getPlanningRuns: (status?: string, startedBy?: string, search?: string) => {
     const params = new URLSearchParams();
-    if (status) params.append('status', status);
-    if (startedBy) params.append('startedBy', startedBy);
-    if (search) params.append('search', search);
+    if (status) params.append("status", status);
+    if (startedBy) params.append("startedBy", startedBy);
+    if (search) params.append("search", search);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/planning-runs${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/planning-runs${q ? `?${q}` : ""}`,
+    );
   },
-  getPlanningRun: (id: string) => fetchApi<Record<string, unknown>>(`/planning-runs/${id}`),
+  getPlanningRun: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/planning-runs/${id}`),
   startPlanningRun: (data: { horizonDays: number; startedBy: string }) =>
-    fetchApi<Record<string, unknown>>('/planning-runs', { method: 'POST', body: JSON.stringify(data) }),
-  cancelPlanningRun: (id: string) => fetchApi<Record<string, unknown>>(`/planning-runs/${id}/cancel`, { method: 'POST' }),
+    fetchApi<Record<string, unknown>>("/planning-runs", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  cancelPlanningRun: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/planning-runs/${id}/cancel`, {
+      method: "POST",
+    }),
 
   // Material Requirements
-  getMaterialRequirements: (planningRunId?: string, componentId?: string, source?: string, onlyShortages?: boolean) => {
+  getMaterialRequirements: (
+    planningRunId?: string,
+    componentId?: string,
+    source?: string,
+    onlyShortages?: boolean,
+  ) => {
     const params = new URLSearchParams();
-    if (planningRunId) params.append('planningRunId', planningRunId);
-    if (componentId) params.append('componentId', componentId);
-    if (source) params.append('source', source);
-    if (onlyShortages) params.append('onlyShortages', 'true');
+    if (planningRunId) params.append("planningRunId", planningRunId);
+    if (componentId) params.append("componentId", componentId);
+    if (source) params.append("source", source);
+    if (onlyShortages) params.append("onlyShortages", "true");
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/material-requirements${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/material-requirements${q ? `?${q}` : ""}`,
+    );
   },
-  getMaterialRequirement: (id: string) => fetchApi<Record<string, unknown>>(`/material-requirements/${id}`),
+  getMaterialRequirement: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/material-requirements/${id}`),
 
   // Purchase Recommendations
-  getPurchaseRecommendations: (planningRunId?: string, componentId?: string, supplierId?: string, status?: string) => {
+  getPurchaseRecommendations: (
+    planningRunId?: string,
+    componentId?: string,
+    supplierId?: string,
+    status?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (planningRunId) params.append('planningRunId', planningRunId);
-    if (componentId) params.append('componentId', componentId);
-    if (supplierId) params.append('supplierId', supplierId);
-    if (status) params.append('status', status);
+    if (planningRunId) params.append("planningRunId", planningRunId);
+    if (componentId) params.append("componentId", componentId);
+    if (supplierId) params.append("supplierId", supplierId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/purchase-recommendations${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/purchase-recommendations${q ? `?${q}` : ""}`,
+    );
   },
-  getPurchaseRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-recommendations/${id}`),
-  acceptPurchaseRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-recommendations/${id}/accept`, { method: 'POST' }),
-  rejectPurchaseRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-recommendations/${id}/reject`, { method: 'POST' }),
-  implementPurchaseRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/purchase-recommendations/${id}/implement`, { method: 'POST' }),
+  getPurchaseRecommendation: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/purchase-recommendations/${id}`),
+  acceptPurchaseRecommendation: (id: string) =>
+    fetchApi<Record<string, unknown>>(
+      `/purchase-recommendations/${id}/accept`,
+      { method: "POST" },
+    ),
+  rejectPurchaseRecommendation: (id: string) =>
+    fetchApi<Record<string, unknown>>(
+      `/purchase-recommendations/${id}/reject`,
+      { method: "POST" },
+    ),
+  implementPurchaseRecommendation: (id: string) =>
+    fetchApi<Record<string, unknown>>(
+      `/purchase-recommendations/${id}/implement`,
+      { method: "POST" },
+    ),
 
   // Production Recommendations
-  getProductionRecommendations: (planningRunId?: string, productId?: string, status?: string) => {
+  getProductionRecommendations: (
+    planningRunId?: string,
+    productId?: string,
+    status?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (planningRunId) params.append('planningRunId', planningRunId);
-    if (productId) params.append('productId', productId);
-    if (status) params.append('status', status);
+    if (planningRunId) params.append("planningRunId", planningRunId);
+    if (productId) params.append("productId", productId);
+    if (status) params.append("status", status);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/production-recommendations${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/production-recommendations${q ? `?${q}` : ""}`,
+    );
   },
-  getProductionRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/production-recommendations/${id}`),
-  acceptProductionRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/production-recommendations/${id}/accept`, { method: 'POST' }),
-  rejectProductionRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/production-recommendations/${id}/reject`, { method: 'POST' }),
-  implementProductionRecommendation: (id: string) => fetchApi<Record<string, unknown>>(`/production-recommendations/${id}/implement`, { method: 'POST' }),
+  getProductionRecommendation: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/production-recommendations/${id}`),
+  acceptProductionRecommendation: (id: string) =>
+    fetchApi<Record<string, unknown>>(
+      `/production-recommendations/${id}/accept`,
+      { method: "POST" },
+    ),
+  rejectProductionRecommendation: (id: string) =>
+    fetchApi<Record<string, unknown>>(
+      `/production-recommendations/${id}/reject`,
+      { method: "POST" },
+    ),
+  implementProductionRecommendation: (id: string) =>
+    fetchApi<Record<string, unknown>>(
+      `/production-recommendations/${id}/implement`,
+      { method: "POST" },
+    ),
 
   // Capacity Plans
-  getCapacityPlans: (planningRunId?: string, workCenterId?: string, onlyOverloaded?: boolean) => {
+  getCapacityPlans: (
+    planningRunId?: string,
+    workCenterId?: string,
+    onlyOverloaded?: boolean,
+  ) => {
     const params = new URLSearchParams();
-    if (planningRunId) params.append('planningRunId', planningRunId);
-    if (workCenterId) params.append('workCenterId', workCenterId);
-    if (onlyOverloaded) params.append('onlyOverloaded', 'true');
+    if (planningRunId) params.append("planningRunId", planningRunId);
+    if (workCenterId) params.append("workCenterId", workCenterId);
+    if (onlyOverloaded) params.append("onlyOverloaded", "true");
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/capacity-plans${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/capacity-plans${q ? `?${q}` : ""}`,
+    );
   },
-  getCapacityPlan: (id: string) => fetchApi<Record<string, unknown>>(`/capacity-plans/${id}`),
+  getCapacityPlan: (id: string) =>
+    fetchApi<Record<string, unknown>>(`/capacity-plans/${id}`),
 
   // Planning Messages
   getPlanningMessages: (planningRunId?: string, severity?: string) => {
     const params = new URLSearchParams();
-    if (planningRunId) params.append('planningRunId', planningRunId);
-    if (severity) params.append('severity', severity);
+    if (planningRunId) params.append("planningRunId", planningRunId);
+    if (severity) params.append("severity", severity);
     const q = params.toString();
-    return fetchApi<Record<string, unknown>[]>(`/planning-messages${q ? `?${q}` : ''}`);
+    return fetchApi<Record<string, unknown>[]>(
+      `/planning-messages${q ? `?${q}` : ""}`,
+    );
   },
 };
-
-
-
-
-

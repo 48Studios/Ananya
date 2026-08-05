@@ -1,73 +1,86 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm, useFieldArray, SubmitHandler, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2, AlertCircle, Plus, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import * as React from "react";
+import {
+  useForm,
+  useFieldArray,
+  SubmitHandler,
+  Controller,
+} from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+} from "@/components/ui/select";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   cycleCountsApi,
   type CycleCountDto,
   type CreateCycleCountPayload,
   type UpdateCycleCountPayload,
-} from '@/lib/api/cycle-counts-api'
-import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
-import { locationsApi, type LocationDto } from '@/lib/api/locations-api'
+} from "@/lib/api/cycle-counts-api";
+import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
+import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 
 const lineSchema = z.object({
-  componentId: z.string().min(1, 'Component item selection is required'),
-  systemQuantity: z.number().min(0, 'System quantity cannot be negative'),
+  componentId: z.string().min(1, "Component item selection is required"),
+  systemQuantity: z.number().min(0, "System quantity cannot be negative"),
   unitOfMeasure: z.string().optional(),
   notes: z.string().optional(),
-})
+});
 
 const cycleCountSchema = z.object({
-  locationId: z.string().min(1, 'Counting location is required'),
+  locationId: z.string().min(1, "Counting location is required"),
   assignedCounter: z.string().optional(),
   scheduledDate: z.string().optional(),
   notes: z.string().optional(),
-  lines: z.array(lineSchema).min(1, 'At least one component line item is required'),
-})
+  lines: z
+    .array(lineSchema)
+    .min(1, "At least one component line item is required"),
+});
 
-export type CycleCountFormValues = z.infer<typeof cycleCountSchema>
+export type CycleCountFormValues = z.infer<typeof cycleCountSchema>;
 
 interface CycleCountFormProps {
-  initialData?: CycleCountDto | null
-  onSuccess: (saved: CycleCountDto) => void
-  onCancel: () => void
+  initialData?: CycleCountDto | null;
+  onSuccess: (saved: CycleCountDto) => void;
+  onCancel: () => void;
 }
 
-export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountFormProps) {
-  const [components, setComponents] = React.useState<ComponentDto[]>([])
-  const [locations, setLocations] = React.useState<LocationDto[]>([])
-  const [serverError, setServerError] = React.useState<string | null>(null)
-  const [loadingRef, setLoadingRef] = React.useState(true)
+export function CycleCountForm({
+  initialData,
+  onSuccess,
+  onCancel,
+}: CycleCountFormProps) {
+  const [components, setComponents] = React.useState<ComponentDto[]>([]);
+  const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const [loadingRef, setLoadingRef] = React.useState(true);
 
-  const isEdit = Boolean(initialData)
+  const isEdit = Boolean(initialData);
 
   React.useEffect(() => {
     Promise.all([componentsApi.getAll(), locationsApi.getAll()])
       .then(([comps, locs]) => {
-        setComponents(comps)
-        setLocations(locs)
+        setComponents(comps);
+        setLocations(locs);
       })
       .catch((err) => {
         setServerError(
-          err instanceof Error ? err.message : 'Failed to load reference catalogs',
-        )
+          err instanceof Error
+            ? err.message
+            : "Failed to load reference catalogs",
+        );
       })
-      .finally(() => setLoadingRef(false))
-  }, [])
+      .finally(() => setLoadingRef(false));
+  }, []);
 
   const {
     register,
@@ -80,45 +93,59 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
     defaultValues: initialData
       ? {
           locationId: initialData.locationId,
-          assignedCounter: initialData.assignedCounter || '',
+          assignedCounter: initialData.assignedCounter || "",
           scheduledDate: initialData.scheduledDate
-            ? initialData.scheduledDate.split('T')[0]
-            : '',
-          notes: initialData.notes || '',
+            ? initialData.scheduledDate.split("T")[0]
+            : "",
+          notes: initialData.notes || "",
           lines:
             initialData.lines.length > 0
               ? initialData.lines.map((l) => ({
                   componentId: l.componentId,
                   systemQuantity: l.systemQuantity,
-                  unitOfMeasure: l.unitOfMeasure || 'pcs',
-                  notes: l.notes || '',
+                  unitOfMeasure: l.unitOfMeasure || "pcs",
+                  notes: l.notes || "",
                 }))
-              : [{ componentId: '', systemQuantity: 100, unitOfMeasure: 'pcs', notes: '' }],
+              : [
+                  {
+                    componentId: "",
+                    systemQuantity: 100,
+                    unitOfMeasure: "pcs",
+                    notes: "",
+                  },
+                ],
         }
       : {
-          locationId: '',
-          assignedCounter: 'Warehouse Counter Specialist',
-          scheduledDate: new Date().toISOString().split('T')[0],
-          notes: '',
-          lines: [{ componentId: '', systemQuantity: 100, unitOfMeasure: 'pcs', notes: '' }],
+          locationId: "",
+          assignedCounter: "Warehouse Counter Specialist",
+          scheduledDate: new Date().toISOString().split("T")[0],
+          notes: "",
+          lines: [
+            {
+              componentId: "",
+              systemQuantity: 100,
+              unitOfMeasure: "pcs",
+              notes: "",
+            },
+          ],
         },
-  })
+  });
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'lines',
-  })
+    name: "lines",
+  });
 
   const handleComponentChange = (idx: number, compId: string) => {
-    setValue(`lines.${idx}.componentId`, compId)
-    const comp = components.find((c) => c.id === compId)
+    setValue(`lines.${idx}.componentId`, compId);
+    const comp = components.find((c) => c.id === compId);
     if (comp) {
-      setValue(`lines.${idx}.unitOfMeasure`, comp.unit || 'pcs')
+      setValue(`lines.${idx}.unitOfMeasure`, comp.unit || "pcs");
     }
-  }
+  };
 
   const onSubmit: SubmitHandler<CycleCountFormValues> = async (values) => {
-    setServerError(null)
+    setServerError(null);
     try {
       if (isEdit && initialData) {
         const payload: UpdateCycleCountPayload = {
@@ -132,15 +159,15 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
             unitOfMeasure: l.unitOfMeasure,
             notes: l.notes || undefined,
           })),
-        }
-        const updated = await cycleCountsApi.update(initialData.id, payload)
-        onSuccess(updated)
+        };
+        const updated = await cycleCountsApi.update(initialData.id, payload);
+        onSuccess(updated);
       } else {
         const payload: CreateCycleCountPayload = {
           locationId: values.locationId,
           assignedCounter: values.assignedCounter || undefined,
           scheduledDate: values.scheduledDate || undefined,
-          createdBy: 'ADMIN',
+          createdBy: "ADMIN",
           notes: values.notes || undefined,
           lines: values.lines.map((l) => ({
             componentId: l.componentId,
@@ -148,18 +175,18 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
             unitOfMeasure: l.unitOfMeasure,
             notes: l.notes || undefined,
           })),
-        }
-        const created = await cycleCountsApi.create(payload)
-        onSuccess(created)
+        };
+        const created = await cycleCountsApi.create(payload);
+        onSuccess(created);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError('Failed to submit Cycle Count')
+        setServerError("Failed to submit Cycle Count");
       }
     }
-  }
+  };
 
   if (loadingRef) {
     return (
@@ -167,7 +194,7 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
         <Loader2 className="w-4 h-4 animate-spin text-primary" />
         Loading components and location catalogs...
       </div>
-    )
+    );
   }
 
   return (
@@ -183,7 +210,8 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field>
           <FieldLabel htmlFor="count-loc">
-            Counting Facility / Location <span className="text-destructive">*</span>
+            Counting Facility / Location{" "}
+            <span className="text-destructive">*</span>
           </FieldLabel>
           <Controller
             name="locationId"
@@ -214,7 +242,7 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
             id="count-user"
             type="text"
             placeholder="e.g. John Doe (Counter Lead)"
-            {...register('assignedCounter')}
+            {...register("assignedCounter")}
           />
         </Field>
       </div>
@@ -226,18 +254,20 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
           <Input
             id="count-date"
             type="date"
-            {...register('scheduledDate')}
+            {...register("scheduledDate")}
             className="font-mono"
           />
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="count-notes">Count Notes / Audit Scope</FieldLabel>
+          <FieldLabel htmlFor="count-notes">
+            Count Notes / Audit Scope
+          </FieldLabel>
           <Input
             id="count-notes"
             type="text"
             placeholder="e.g. Monthly A-class component verification count"
-            {...register('notes')}
+            {...register("notes")}
           />
         </Field>
       </div>
@@ -253,7 +283,12 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
             variant="outline"
             size="xs"
             onClick={() =>
-              append({ componentId: '', systemQuantity: 100, unitOfMeasure: 'pcs', notes: '' })
+              append({
+                componentId: "",
+                systemQuantity: 100,
+                unitOfMeasure: "pcs",
+                notes: "",
+              })
             }
           >
             <Plus className="w-3 h-3 mr-1" />
@@ -262,7 +297,9 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
         </div>
 
         {errors.lines?.root && (
-          <p className="text-xs text-destructive">{errors.lines.root.message}</p>
+          <p className="text-xs text-destructive">
+            {errors.lines.root.message}
+          </p>
         )}
 
         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
@@ -273,7 +310,8 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
             >
               <div className="sm:col-span-6 space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground">
-                  Item #{idx + 1} Component <span className="text-destructive">*</span>
+                  Item #{idx + 1} Component{" "}
+                  <span className="text-destructive">*</span>
                 </label>
                 <Controller
                   name={`lines.${idx}.componentId` as const}
@@ -282,8 +320,8 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
                     <Select
                       value={compField.value}
                       onValueChange={(val) => {
-                        compField.onChange(val ?? '')
-                        handleComponentChange(idx, val ?? '')
+                        compField.onChange(val ?? "");
+                        handleComponentChange(idx, val ?? "");
                       }}
                     >
                       <SelectTrigger className="h-8 text-xs">
@@ -308,7 +346,8 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
 
               <div className="sm:col-span-3 space-y-1">
                 <label className="text-[11px] font-medium text-muted-foreground">
-                  Expected System Qty <span className="text-destructive">*</span>
+                  Expected System Qty{" "}
+                  <span className="text-destructive">*</span>
                 </label>
                 <Input
                   type="number"
@@ -369,10 +408,9 @@ export function CycleCountForm({ initialData, onSuccess, onCancel }: CycleCountF
           {isSubmitting && (
             <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
           )}
-          {isEdit ? 'Save Changes' : 'Create Cycle Count'}
+          {isEdit ? "Save Changes" : "Create Cycle Count"}
         </Button>
       </div>
     </form>
-  )
+  );
 }
-

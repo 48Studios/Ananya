@@ -1,45 +1,46 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface ReconciliationStatement {
-  id: string
-  statementNumber: string
-  bankAccount: string
-  statementDate: string
-  statementEndingBalance: number
-  glEndingBalance: number
-  differenceAmount: number
-  status: 'MATCHED' | 'UNRECONCILED'
+  id: string;
+  statementNumber: string;
+  bankAccount: string;
+  statementDate: string;
+  statementEndingBalance: number;
+  glEndingBalance: number;
+  differenceAmount: number;
+  status: "MATCHED" | "UNRECONCILED";
 }
 
 const mockStatements: ReconciliationStatement[] = [
   {
-    id: 'rec-1',
-    statementNumber: 'STMT-2026-01',
-    bankAccount: 'HDFC Checking (•••• 9812)',
-    statementDate: '2026-01-31',
+    id: "rec-1",
+    statementNumber: "STMT-2026-01",
+    bankAccount: "HDFC Checking (•••• 9812)",
+    statementDate: "2026-01-31",
     statementEndingBalance: 345000,
     glEndingBalance: 345000,
     differenceAmount: 0,
-    status: 'MATCHED',
+    status: "MATCHED",
   },
-]
+];
 
 export default function BankReconciliationPage() {
-  const [statements] = React.useState<ReconciliationStatement[]>(mockStatements)
+  const [statements] =
+    React.useState<ReconciliationStatement[]>(mockStatements);
 
   const columns: ColumnDef<ReconciliationStatement>[] = [
     {
-      accessorKey: 'statementNumber',
-      header: 'Statement Ref',
+      accessorKey: "statementNumber",
+      header: "Statement Ref",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
           {row.original.statementNumber}
@@ -47,13 +48,17 @@ export default function BankReconciliationPage() {
       ),
     },
     {
-      accessorKey: 'bankAccount',
-      header: 'Bank Account',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.bankAccount}</span>,
+      accessorKey: "bankAccount",
+      header: "Bank Account",
+      cell: ({ row }) => (
+        <span className="font-medium text-foreground">
+          {row.original.bankAccount}
+        </span>
+      ),
     },
     {
-      accessorKey: 'statementEndingBalance',
-      header: 'Bank Statement Balance',
+      accessorKey: "statementEndingBalance",
+      header: "Bank Statement Balance",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-semibold text-foreground">
           {formatCurrency(row.original.statementEndingBalance)}
@@ -61,8 +66,8 @@ export default function BankReconciliationPage() {
       ),
     },
     {
-      accessorKey: 'glEndingBalance',
-      header: 'GL Ledger Balance',
+      accessorKey: "glEndingBalance",
+      header: "GL Ledger Balance",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-semibold text-foreground">
           {formatCurrency(row.original.glEndingBalance)}
@@ -70,30 +75,34 @@ export default function BankReconciliationPage() {
       ),
     },
     {
-      accessorKey: 'differenceAmount',
-      header: 'Unmatched Variance',
+      accessorKey: "differenceAmount",
+      header: "Unmatched Variance",
       cell: ({ row }) => {
-        const diff = row.original.differenceAmount
+        const diff = row.original.differenceAmount;
         if (diff === 0) {
           return (
             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" /> 0.00 (Zero Diff)
             </span>
-          )
+          );
         }
         return (
           <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
             <AlertCircle className="w-3.5 h-3.5" /> {formatCurrency(diff)}
           </span>
-        )
+        );
       },
     },
     {
-      accessorKey: 'statementDate',
-      header: 'Statement Date',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatDate(row.original.statementDate)}</span>,
+      accessorKey: "statementDate",
+      header: "Statement Date",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {formatDate(row.original.statementDate)}
+        </span>
+      ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -132,5 +141,5 @@ export default function BankReconciliationPage() {
         searchPlaceholder="Search bank reconciliation statements..."
       />
     </div>
-  )
+  );
 }

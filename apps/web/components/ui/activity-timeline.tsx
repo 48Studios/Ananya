@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
+import * as React from "react";
+import Link from "next/link";
 import {
   Boxes,
   Truck,
@@ -19,26 +19,26 @@ import {
   User as UserIcon,
   Search,
   Filter,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { ActivityEventDto, SecurityAuditLogDto } from '@/lib/api/activity-api'
+} from "@/components/ui/select";
+import { ActivityEventDto, SecurityAuditLogDto } from "@/lib/api/activity-api";
 
 export function ActivityIcon({
   module,
   severity,
   className,
 }: {
-  module: string
-  severity?: string
-  className?: string
+  module: string;
+  severity?: string;
+  className?: string;
 }) {
   const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
     Inventory: Boxes,
@@ -48,67 +48,73 @@ export function ActivityIcon({
     Administration: UserCheck,
     Security: Shield,
     Reports: FileText,
-  }
+  };
 
-  const IconComponent = iconMap[module] || Info
+  const IconComponent = iconMap[module] || Info;
 
   const colorMap: Record<string, string> = {
-    INFO: 'text-primary bg-primary/10 border-primary/20',
-    LOW: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
-    MEDIUM: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
-    HIGH: 'text-orange-500 bg-orange-500/10 border-orange-500/20',
-    CRITICAL: 'text-destructive bg-destructive/10 border-destructive/20',
-  }
+    INFO: "text-primary bg-primary/10 border-primary/20",
+    LOW: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+    MEDIUM: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+    HIGH: "text-orange-500 bg-orange-500/10 border-orange-500/20",
+    CRITICAL: "text-destructive bg-destructive/10 border-destructive/20",
+  };
 
-  const colorClass = colorMap[severity || 'INFO'] || colorMap.INFO
+  const colorClass = colorMap[severity || "INFO"] || colorMap.INFO;
 
   return (
-    <div className={cn('p-2 rounded-lg border flex items-center justify-center shrink-0', colorClass, className)}>
+    <div
+      className={cn(
+        "p-2 rounded-lg border flex items-center justify-center shrink-0",
+        colorClass,
+        className,
+      )}
+    >
       <IconComponent className="w-4 h-4" />
     </div>
-  )
+  );
 }
 
 export function ActivityBadge({
   status,
   severity,
 }: {
-  status?: string
-  severity?: string
+  status?: string;
+  severity?: string;
 }) {
-  if (severity === 'CRITICAL' || status === 'FAILED' || status === 'REJECTED') {
+  if (severity === "CRITICAL" || status === "FAILED" || status === "REJECTED") {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-destructive/10 text-destructive border border-destructive/20">
         <XCircle className="w-3 h-3" />
         {status || severity}
       </span>
-    )
+    );
   }
 
-  if (severity === 'HIGH' || severity === 'MEDIUM' || status === 'WARNING') {
+  if (severity === "HIGH" || severity === "MEDIUM" || status === "WARNING") {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
         <AlertTriangle className="w-3 h-3" />
         {status || severity}
       </span>
-    )
+    );
   }
 
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
       <CheckCircle2 className="w-3 h-3" />
-      {status || severity || 'SUCCESS'}
+      {status || severity || "SUCCESS"}
     </span>
-  )
+  );
 }
 
 export function ActivityCard({ event }: { event: ActivityEventDto }) {
   const formattedDate = new Date(event.createdAt).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div className="flex gap-3.5 p-4 rounded-xl bg-card border border-border/70 hover:border-primary/30 transition-all shadow-2xs group">
@@ -135,13 +141,21 @@ export function ActivityCard({ event }: { event: ActivityEventDto }) {
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground leading-relaxed mb-2">{event.description}</p>
+        <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+          {event.description}
+        </p>
 
         <div className="flex items-center justify-between text-[11px] text-muted-foreground flex-wrap pt-2 border-t border-border/40">
           <div className="flex items-center gap-1.5">
             <UserIcon className="w-3 h-3" />
-            <span>{event.userName || event.userEmail || 'System Operations'}</span>
-            {event.ipAddress && <span className="text-[10px] font-mono text-muted-foreground/70">({event.ipAddress})</span>}
+            <span>
+              {event.userName || event.userEmail || "System Operations"}
+            </span>
+            {event.ipAddress && (
+              <span className="text-[10px] font-mono text-muted-foreground/70">
+                ({event.ipAddress})
+              </span>
+            )}
           </div>
 
           {event.href && (
@@ -156,7 +170,7 @@ export function ActivityCard({ event }: { event: ActivityEventDto }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export function ActivityTimeline({ events }: { events: ActivityEventDto[] }) {
@@ -164,10 +178,15 @@ export function ActivityTimeline({ events }: { events: ActivityEventDto[] }) {
     return (
       <div className="py-12 text-center border border-dashed border-border rounded-xl bg-card/50 p-6">
         <Clock className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
-        <p className="text-xs font-semibold text-foreground mb-1">No Activity Logged</p>
-        <p className="text-xs text-muted-foreground">Operational activity and events will appear here in chronological order.</p>
+        <p className="text-xs font-semibold text-foreground mb-1">
+          No Activity Logged
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Operational activity and events will appear here in chronological
+          order.
+        </p>
       </div>
-    )
+    );
   }
 
   return (
@@ -179,7 +198,7 @@ export function ActivityTimeline({ events }: { events: ActivityEventDto[] }) {
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 export function ActivityFilters({
@@ -190,15 +209,23 @@ export function ActivityFilters({
   search,
   setSearch,
 }: {
-  module: string
-  setModule: (m: string) => void
-  severity: string
-  setSeverity: (s: string) => void
-  search: string
-  setSearch: (s: string) => void
+  module: string;
+  setModule: (m: string) => void;
+  severity: string;
+  setSeverity: (s: string) => void;
+  search: string;
+  setSearch: (s: string) => void;
 }) {
-  const modules = ['All', 'Inventory', 'Procurement', 'Manufacturing', 'Projects', 'Administration', 'Security']
-  const severities = ['All', 'INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+  const modules = [
+    "All",
+    "Inventory",
+    "Procurement",
+    "Manufacturing",
+    "Projects",
+    "Administration",
+    "Security",
+  ];
+  const severities = ["All", "INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 bg-card border border-border rounded-xl shadow-2xs mb-6">
@@ -219,15 +246,15 @@ export function ActivityFilters({
           <span>Module:</span>
         </div>
         <Select
-          value={module || 'ALL'}
-          onValueChange={(val) => setModule(!val || val === 'ALL' ? '' : val)}
+          value={module || "ALL"}
+          onValueChange={(val) => setModule(!val || val === "ALL" ? "" : val)}
         >
           <SelectTrigger className="w-36 h-8 text-xs">
             <SelectValue placeholder="Module" />
           </SelectTrigger>
           <SelectContent>
             {modules.map((m) => (
-              <SelectItem key={m} value={m === 'All' ? 'ALL' : m}>
+              <SelectItem key={m} value={m === "All" ? "ALL" : m}>
                 {m}
               </SelectItem>
             ))}
@@ -238,15 +265,15 @@ export function ActivityFilters({
           <span>Severity:</span>
         </div>
         <Select
-          value={severity || 'ALL'}
-          onValueChange={(val) => setSeverity(!val || val === 'ALL' ? '' : val)}
+          value={severity || "ALL"}
+          onValueChange={(val) => setSeverity(!val || val === "ALL" ? "" : val)}
         >
           <SelectTrigger className="w-32 h-8 text-xs">
             <SelectValue placeholder="Severity" />
           </SelectTrigger>
           <SelectContent>
             {severities.map((s) => (
-              <SelectItem key={s} value={s === 'All' ? 'ALL' : s}>
+              <SelectItem key={s} value={s === "All" ? "ALL" : s}>
                 {s}
               </SelectItem>
             ))}
@@ -254,7 +281,7 @@ export function ActivityFilters({
         </Select>
       </div>
     </div>
-  )
+  );
 }
 
 export function AuditTable({ logs }: { logs: SecurityAuditLogDto[] }) {
@@ -262,10 +289,14 @@ export function AuditTable({ logs }: { logs: SecurityAuditLogDto[] }) {
     return (
       <div className="py-12 text-center border border-dashed border-border rounded-xl bg-card/50 p-6">
         <Shield className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
-        <p className="text-xs font-semibold text-foreground mb-1">No Audit Entries Found</p>
-        <p className="text-xs text-muted-foreground">Security audit logs and admin actions will be recorded here.</p>
+        <p className="text-xs font-semibold text-foreground mb-1">
+          No Audit Entries Found
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Security audit logs and admin actions will be recorded here.
+        </p>
       </div>
-    )
+    );
   }
 
   return (
@@ -288,16 +319,18 @@ export function AuditTable({ logs }: { logs: SecurityAuditLogDto[] }) {
                   {new Date(log.createdAt).toLocaleString()}
                 </td>
                 <td className="px-4 py-3 font-medium">
-                  {log.userEmail || log.userId || 'System'}
+                  {log.userEmail || log.userId || "System"}
                 </td>
                 <td className="px-4 py-3">
                   <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-primary/10 text-primary border border-primary/20">
                     {log.category}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-medium text-foreground">{log.action}</td>
+                <td className="px-4 py-3 font-medium text-foreground">
+                  {log.action}
+                </td>
                 <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">
-                  {log.ipAddress || '127.0.0.1'}
+                  {log.ipAddress || "127.0.0.1"}
                 </td>
               </tr>
             ))}
@@ -305,5 +338,5 @@ export function AuditTable({ logs }: { logs: SecurityAuditLogDto[] }) {
         </table>
       </div>
     </div>
-  )
+  );
 }

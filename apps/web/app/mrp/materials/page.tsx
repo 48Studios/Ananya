@@ -1,59 +1,72 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { AlertTriangle, CheckCircle2 } from 'lucide-react'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { EntityDataTable } from '@/components/ui/entity-data-table'
-import { mrpApi, type MaterialShortageDto } from '@/lib/api/mrp-api'
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { mrpApi, type MaterialShortageDto } from "@/lib/api/mrp-api";
 
 export default function MrpMaterialsPage() {
-  const [shortages, setShortages] = React.useState<MaterialShortageDto[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const [shortages, setShortages] = React.useState<MaterialShortageDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    mrpApi.getShortages()
+    mrpApi
+      .getShortages()
       .then((data) => setShortages(data || []))
       .catch(() => setShortages([]))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
   const columns: ColumnDef<MaterialShortageDto>[] = [
     {
-      accessorKey: 'sku',
-      header: 'Shortage Component SKU',
+      accessorKey: "sku",
+      header: "Shortage Component SKU",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-primary">
-          {row.original.sku || '-'}
+          {row.original.sku || "-"}
         </span>
       ),
     },
     {
-      accessorKey: 'componentName',
-      header: 'Description',
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.componentName || '-'}</span>,
+      accessorKey: "componentName",
+      header: "Description",
+      cell: ({ row }) => (
+        <span className="font-medium text-foreground">
+          {row.original.componentName || "-"}
+        </span>
+      ),
     },
     {
-      accessorKey: 'requiredByDate',
-      header: 'Required By Date',
-      cell: ({ row }) => <span className="font-mono text-xs text-foreground font-semibold">{row.original.requiredByDate || 'Immediate'}</span>,
+      accessorKey: "requiredByDate",
+      header: "Required By Date",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-foreground font-semibold">
+          {row.original.requiredByDate || "Immediate"}
+        </span>
+      ),
     },
     {
-      accessorKey: 'leadTimeDays',
-      header: 'Supplier Lead Time',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.leadTimeDays || 0} days</span>,
+      accessorKey: "leadTimeDays",
+      header: "Supplier Lead Time",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {row.original.leadTimeDays || 0} days
+        </span>
+      ),
     },
     {
-      accessorKey: 'suggestedPoQuantity',
-      header: 'Suggested Reorder Qty',
+      accessorKey: "suggestedPoQuantity",
+      header: "Suggested Reorder Qty",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
           {row.original.suggestedPoQuantity || 0} units
         </span>
       ),
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -89,5 +102,5 @@ export default function MrpMaterialsPage() {
         emptyMessage="All material demand is satisfied by available inventory and scheduled PO receipts."
       />
     </div>
-  )
+  );
 }

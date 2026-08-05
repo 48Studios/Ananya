@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import * as React from 'react'
+import * as React from "react";
 import {
   User,
   Shield,
@@ -13,92 +13,94 @@ import {
   AlertCircle,
   Moon,
   Sun,
-} from 'lucide-react'
-import { useTheme } from 'next-themes'
-import { PageHeader } from '@/components/ui/page-header'
-import { StatCard } from '@/components/ui/stat-card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { LoadingState } from '@/components/ui/loading-state'
-import { useAuth } from '@/lib/auth/auth-context'
-import { authApi, SessionDto } from '@/lib/api/auth-api'
+} from "lucide-react";
+import { useTheme } from "next-themes";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { LoadingState } from "@/components/ui/loading-state";
+import { useAuth } from "@/lib/auth/auth-context";
+import { authApi, SessionDto } from "@/lib/api/auth-api";
 
 export default function ProfilePage() {
-  const { theme, setTheme } = useTheme()
-  const { user } = useAuth()
+  const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
 
-  const [sessions, setSessions] = React.useState<SessionDto[]>([])
-  const [loadingSessions, setLoadingSessions] = React.useState(true)
+  const [sessions, setSessions] = React.useState<SessionDto[]>([]);
+  const [loadingSessions, setLoadingSessions] = React.useState(true);
 
   // Change Password Form
-  const [currentPassword, setCurrentPassword] = React.useState('')
-  const [newPassword, setNewPassword] = React.useState('')
-  const [confirmPassword, setConfirmPassword] = React.useState('')
-  const [passwordLoading, setPasswordLoading] = React.useState(false)
-  const [passwordError, setPasswordError] = React.useState<string | null>(null)
-  const [passwordSuccess, setPasswordSuccess] = React.useState<string | null>(null)
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [newPassword, setNewPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [passwordLoading, setPasswordLoading] = React.useState(false);
+  const [passwordError, setPasswordError] = React.useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = React.useState<string | null>(
+    null,
+  );
 
   const loadSessions = React.useCallback(async () => {
-    setLoadingSessions(true)
+    setLoadingSessions(true);
     try {
-      const data = await authApi.getSessions()
-      setSessions(data)
+      const data = await authApi.getSessions();
+      setSessions(data);
     } catch {
       // Ignore
     } finally {
-      setLoadingSessions(false)
+      setLoadingSessions(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    loadSessions()
-  }, [loadSessions])
+    loadSessions();
+  }, [loadSessions]);
 
   const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (newPassword !== confirmPassword) {
-      setPasswordError('New password and confirmation do not match.')
-      return
+      setPasswordError("New password and confirmation do not match.");
+      return;
     }
 
-    setPasswordLoading(true)
-    setPasswordError(null)
-    setPasswordSuccess(null)
+    setPasswordLoading(true);
+    setPasswordError(null);
+    setPasswordSuccess(null);
     try {
-      await authApi.changePassword({ currentPassword, newPassword })
-      setPasswordSuccess('Password successfully updated!')
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
+      await authApi.changePassword({ currentPassword, newPassword });
+      setPasswordSuccess("Password successfully updated!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (err: unknown) {
-      if (err instanceof Error) setPasswordError(err.message)
-      else setPasswordError('Failed to change password.')
+      if (err instanceof Error) setPasswordError(err.message);
+      else setPasswordError("Failed to change password.");
     } finally {
-      setPasswordLoading(false)
+      setPasswordLoading(false);
     }
-  }
+  };
 
   const handleRevokeSession = async (sessionId: string) => {
     try {
-      await authApi.revokeSession(sessionId)
-      await loadSessions()
+      await authApi.revokeSession(sessionId);
+      await loadSessions();
     } catch {
       // Ignore
     }
-  }
+  };
 
   const handleRevokeOtherSessions = async () => {
     try {
-      await authApi.revokeOtherSessions()
-      await loadSessions()
+      await authApi.revokeOtherSessions();
+      await loadSessions();
     } catch {
       // Ignore
     }
-  }
+  };
 
   if (!user) {
-    return <LoadingState message="Loading profile details..." />
+    return <LoadingState message="Loading profile details..." />;
   }
 
   return (
@@ -119,13 +121,13 @@ export default function ProfilePage() {
         />
         <StatCard
           title="Assigned Role"
-          value={user.roleName || 'User'}
+          value={user.roleName || "User"}
           subtitle={`${user.permissions?.length || 0} granted permissions`}
           icon={Shield}
         />
         <StatCard
           title="Department"
-          value={user.department || 'Operations'}
+          value={user.department || "Operations"}
           subtitle="Organization Unit"
           icon={User}
         />
@@ -149,14 +151,14 @@ export default function ProfilePage() {
               <Button
                 variant="outline"
                 size="xs"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               >
-                {theme === 'dark' ? (
+                {theme === "dark" ? (
                   <Sun className="w-3.5 h-3.5 mr-1" />
                 ) : (
                   <Moon className="w-3.5 h-3.5 mr-1" />
                 )}
-                Theme: {theme === 'dark' ? 'Dark' : 'Light'}
+                Theme: {theme === "dark" ? "Dark" : "Light"}
               </Button>
             </div>
 
@@ -196,7 +198,7 @@ export default function ProfilePage() {
                 <Input
                   type="text"
                   disabled
-                  value={user.department || 'Operations'}
+                  value={user.department || "Operations"}
                   className="bg-muted/40 font-medium"
                 />
               </Field>
@@ -281,7 +283,9 @@ export default function ProfilePage() {
           <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
             <div className="border-b border-border pb-3 flex items-center justify-between">
               <div>
-                <h3 className="text-base font-semibold text-foreground">Active Sessions</h3>
+                <h3 className="text-base font-semibold text-foreground">
+                  Active Sessions
+                </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Currently signed-in devices
                 </p>
@@ -315,14 +319,17 @@ export default function ProfilePage() {
                       <div className="flex items-center gap-1.5">
                         <Laptop className="w-3.5 h-3.5 text-primary" />
                         <span className="font-semibold text-foreground">
-                          {s.deviceInfo || 'Web App Browser'}
+                          {s.deviceInfo || "Web App Browser"}
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground font-mono">
-                        IP: {s.ipAddress || '127.0.0.1'}
+                        IP: {s.ipAddress || "127.0.0.1"}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
-                        Expires: {s.expiresAt ? new Date(s.expiresAt).toLocaleDateString() : 'N/A'}
+                        Expires:{" "}
+                        {s.expiresAt
+                          ? new Date(s.expiresAt).toLocaleDateString()
+                          : "N/A"}
                       </p>
                     </div>
 
@@ -342,5 +349,5 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

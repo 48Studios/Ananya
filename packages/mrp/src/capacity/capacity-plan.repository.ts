@@ -1,4 +1,4 @@
-import { CapacityPlan } from './capacity-plan';
+import { CapacityPlan } from "./capacity-plan";
 
 export interface FindManyCapacityPlansOptions {
   planningRunId?: string;
@@ -8,9 +8,7 @@ export interface FindManyCapacityPlansOptions {
 
 export interface CapacityPlanRepository {
   findById(id: string): Promise<CapacityPlan | null>;
-  findMany(
-    options?: FindManyCapacityPlansOptions,
-  ): Promise<CapacityPlan[]>;
+  findMany(options?: FindManyCapacityPlansOptions): Promise<CapacityPlan[]>;
   save(plan: CapacityPlan): Promise<void>;
   saveMany(plans: CapacityPlan[]): Promise<void>;
 }

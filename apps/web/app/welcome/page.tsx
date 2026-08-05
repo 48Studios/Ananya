@@ -1,13 +1,19 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import { useAuth } from '@/lib/auth/auth-context'
-import { Building2, UserPlus, LogOut, ArrowRight, ShieldAlert } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import * as React from "react";
+import Link from "next/link";
+import { useAuth } from "@/lib/auth/auth-context";
+import {
+  Building2,
+  UserPlus,
+  LogOut,
+  ArrowRight,
+  ShieldAlert,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function WelcomePage() {
-  const { user, logout } = useAuth()
+  const { user, logout } = useAuth();
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-background text-foreground font-sans">
@@ -17,9 +23,14 @@ export default function WelcomePage() {
             <Building2 className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">Welcome to Ananya ERP</h1>
+            <h1 className="text-lg font-bold text-foreground">
+              Welcome to Ananya ERP
+            </h1>
             <p className="text-xs text-muted-foreground font-mono">
-              Signed in as <span className="text-foreground font-semibold">{user?.email || 'Authenticated User'}</span>
+              Signed in as{" "}
+              <span className="text-foreground font-semibold">
+                {user?.email || "Authenticated User"}
+              </span>
             </p>
           </div>
         </div>
@@ -30,7 +41,9 @@ export default function WelcomePage() {
             <span>Organization Membership Required</span>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Your account has been created successfully. To access Ananya ERP, you must join an existing organization or be invited by a workspace administrator.
+            Your account has been created successfully. To access Ananya ERP,
+            you must join an existing organization or be invited by a workspace
+            administrator.
           </p>
         </div>
 
@@ -43,12 +56,16 @@ export default function WelcomePage() {
             </Button>
           </Link>
 
-          <Button variant="outline" className="w-full h-10" onClick={() => logout()}>
+          <Button
+            variant="outline"
+            className="w-full h-10"
+            onClick={() => logout()}
+          >
             <LogOut className="w-4 h-4 mr-2 text-destructive" />
             Sign Out
           </Button>
         </div>
       </div>
     </div>
-  )
+  );
 }

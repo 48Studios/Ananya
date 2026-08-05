@@ -1,80 +1,92 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useForm, useFieldArray, Controller, SubmitHandler } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Plus, Trash2, Loader2, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import * as React from "react";
+import {
+  useForm,
+  useFieldArray,
+  Controller,
+  SubmitHandler,
+} from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+} from "@/components/ui/select";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   stockAdjustmentsApi,
   type StockAdjustmentDto,
   type CreateStockAdjustmentPayload,
-} from '@/lib/api/stock-adjustments-api'
-import { locationsApi, type LocationDto } from '@/lib/api/locations-api'
-import { componentsApi, type ComponentDto } from '@/lib/api/components-api'
+} from "@/lib/api/stock-adjustments-api";
+import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
+import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 
 const lineSchema = z.object({
-  componentId: z.string().min(1, 'Component selection is required'),
-  currentQuantity: z.number().min(0, 'Current quantity cannot be negative'),
-  countedQuantity: z.number().min(0, 'Counted quantity cannot be negative'),
+  componentId: z.string().min(1, "Component selection is required"),
+  currentQuantity: z.number().min(0, "Current quantity cannot be negative"),
+  countedQuantity: z.number().min(0, "Counted quantity cannot be negative"),
   unitOfMeasure: z.string(),
-})
+});
 
 const adjustmentSchema = z.object({
-  locationId: z.string().min(1, 'Location selection is required'),
-  reason: z.string().min(1, 'Reason is required'),
+  locationId: z.string().min(1, "Location selection is required"),
+  reason: z.string().min(1, "Reason is required"),
   notes: z.string().optional().nullable(),
-  lines: z.array(lineSchema).min(1, 'At least one line item must be added'),
-})
+  lines: z.array(lineSchema).min(1, "At least one line item must be added"),
+});
 
-export type AdjustmentFormValues = z.infer<typeof adjustmentSchema>
+export type AdjustmentFormValues = z.infer<typeof adjustmentSchema>;
 
 const STANDARD_REASONS = [
-  'Cycle Count Discrepancy',
-  'Damaged / Expired Goods',
-  'Supplier Shortage',
-  'Internal Transfer Error',
-  'System Reconciliation / Initial Balance',
-  'Other',
-]
+  "Cycle Count Discrepancy",
+  "Damaged / Expired Goods",
+  "Supplier Shortage",
+  "Internal Transfer Error",
+  "System Reconciliation / Initial Balance",
+  "Other",
+];
 
 interface StockAdjustmentFormProps {
-  onSuccess: (savedAdj: StockAdjustmentDto) => void
-  onCancel: () => void
+  onSuccess: (savedAdj: StockAdjustmentDto) => void;
+  onCancel: () => void;
 }
 
-export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentFormProps) {
-  const [locations, setLocations] = React.useState<LocationDto[]>([])
-  const [components, setComponents] = React.useState<ComponentDto[]>([])
-  const [componentsMap, setComponentsMap] = React.useState<Record<string, ComponentDto>>({})
-  const [serverError, setServerError] = React.useState<string | null>(null)
-  const [loadingData, setLoadingData] = React.useState(true)
+export function StockAdjustmentForm({
+  onSuccess,
+  onCancel,
+}: StockAdjustmentFormProps) {
+  const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [components, setComponents] = React.useState<ComponentDto[]>([]);
+  const [componentsMap, setComponentsMap] = React.useState<
+    Record<string, ComponentDto>
+  >({});
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const [loadingData, setLoadingData] = React.useState(true);
 
   React.useEffect(() => {
     Promise.all([locationsApi.getAll(), componentsApi.getAll()])
       .then(([locs, comps]) => {
-        setLocations(locs)
-        setComponents(comps)
+        setLocations(locs);
+        setComponents(comps);
 
-        const map: Record<string, ComponentDto> = {}
-        for (const c of comps) map[c.id] = c
-        setComponentsMap(map)
+        const map: Record<string, ComponentDto> = {};
+        for (const c of comps) map[c.id] = c;
+        setComponentsMap(map);
       })
       .catch((err) => {
-        setServerError(err instanceof Error ? err.message : 'Failed to load reference data')
+        setServerError(
+          err instanceof Error ? err.message : "Failed to load reference data",
+        );
       })
-      .finally(() => setLoadingData(false))
-  }, [])
+      .finally(() => setLoadingData(false));
+  }, []);
 
   const {
     register,
@@ -86,68 +98,68 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
   } = useForm<AdjustmentFormValues>({
     resolver: zodResolver(adjustmentSchema),
     defaultValues: {
-      locationId: '',
-      reason: 'Cycle Count Discrepancy',
-      notes: '',
+      locationId: "",
+      reason: "Cycle Count Discrepancy",
+      notes: "",
       lines: [
         {
-          componentId: '',
+          componentId: "",
           currentQuantity: 0,
           countedQuantity: 0,
-          unitOfMeasure: 'pcs',
+          unitOfMeasure: "pcs",
         },
       ],
     },
-  })
+  });
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'lines',
-  })
+    name: "lines",
+  });
 
   const handleComponentSelect = (index: number, componentId: string) => {
-    setValue(`lines.${index}.componentId`, componentId)
-    const comp = componentsMap[componentId]
+    setValue(`lines.${index}.componentId`, componentId);
+    const comp = componentsMap[componentId];
     if (comp) {
-      setValue(`lines.${index}.unitOfMeasure`, comp.unit || 'pcs')
+      setValue(`lines.${index}.unitOfMeasure`, comp.unit || "pcs");
     }
-  }
+  };
 
-  const watchedLines = watch('lines')
+  const watchedLines = watch("lines");
 
   const onSubmit: SubmitHandler<AdjustmentFormValues> = async (values) => {
-    setServerError(null)
+    setServerError(null);
     try {
       const payload: CreateStockAdjustmentPayload = {
         locationId: values.locationId,
         reason: values.reason,
         notes: values.notes || null,
-        createdBy: 'ADMIN',
+        createdBy: "ADMIN",
         lines: values.lines.map((l) => ({
           componentId: l.componentId,
           currentQuantity: Number(l.currentQuantity),
           countedQuantity: Number(l.countedQuantity),
           unitOfMeasure: l.unitOfMeasure,
         })),
-      }
+      };
 
-      const created = await stockAdjustmentsApi.create(payload)
-      onSuccess(created)
+      const created = await stockAdjustmentsApi.create(payload);
+      onSuccess(created);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setServerError(err.message)
+        setServerError(err.message);
       } else {
-        setServerError('Failed to submit Stock Adjustment')
+        setServerError("Failed to submit Stock Adjustment");
       }
     }
-  }
+  };
 
   if (loadingData) {
     return (
       <div className="p-6 text-center text-xs text-muted-foreground">
         Loading locations and components catalog...
       </div>
-    )
+    );
   }
 
   return (
@@ -182,7 +194,9 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
             </Select>
           )}
         />
-        {errors.locationId?.message && <FieldError>{errors.locationId.message}</FieldError>}
+        {errors.locationId?.message && (
+          <FieldError>{errors.locationId.message}</FieldError>
+        )}
       </Field>
 
       {/* Reason & Notes */}
@@ -217,7 +231,7 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
             id="adj-notes"
             type="text"
             placeholder="e.g. Approved during quarterly physical count"
-            {...register('notes')}
+            {...register("notes")}
           />
         </Field>
       </div>
@@ -226,7 +240,8 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
       <div className="space-y-3 pt-2 border-t border-border">
         <div className="flex items-center justify-between">
           <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
-            Reconciliation Line Items <span className="text-destructive">*</span>
+            Reconciliation Line Items{" "}
+            <span className="text-destructive">*</span>
           </label>
           <Button
             type="button"
@@ -234,10 +249,10 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
             size="xs"
             onClick={() =>
               append({
-                componentId: '',
+                componentId: "",
                 currentQuantity: 0,
                 countedQuantity: 0,
-                unitOfMeasure: 'pcs',
+                unitOfMeasure: "pcs",
               })
             }
           >
@@ -246,14 +261,16 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
         </div>
 
         {errors.lines?.root?.message && (
-          <p className="text-xs text-destructive">{errors.lines.root.message}</p>
+          <p className="text-xs text-destructive">
+            {errors.lines.root.message}
+          </p>
         )}
 
         <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
           {fields.map((field, index) => {
-            const current = Number(watchedLines[index]?.currentQuantity) || 0
-            const counted = Number(watchedLines[index]?.countedQuantity) || 0
-            const diff = counted - current
+            const current = Number(watchedLines[index]?.currentQuantity) || 0;
+            const counted = Number(watchedLines[index]?.countedQuantity) || 0;
+            const diff = counted - current;
 
             return (
               <div
@@ -274,8 +291,10 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
                 <Field className="pr-6">
                   <FieldLabel className="text-[10px]">Component</FieldLabel>
                   <Select
-                    value={watchedLines[index]?.componentId || ''}
-                    onValueChange={(val) => handleComponentSelect(index, val ?? '')}
+                    value={watchedLines[index]?.componentId || ""}
+                    onValueChange={(val) =>
+                      handleComponentSelect(index, val ?? "")
+                    }
                   >
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Select component..." />
@@ -293,21 +312,29 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
                 {/* Quantities & Preview Grid */}
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   <Field>
-                    <FieldLabel className="text-[10px]">Current Stock</FieldLabel>
+                    <FieldLabel className="text-[10px]">
+                      Current Stock
+                    </FieldLabel>
                     <Input
                       type="number"
                       min={0}
-                      {...register(`lines.${index}.currentQuantity`, { valueAsNumber: true })}
+                      {...register(`lines.${index}.currentQuantity`, {
+                        valueAsNumber: true,
+                      })}
                       className="h-8 text-xs font-mono"
                     />
                   </Field>
 
                   <Field>
-                    <FieldLabel className="text-[10px]">Counted Stock</FieldLabel>
+                    <FieldLabel className="text-[10px]">
+                      Counted Stock
+                    </FieldLabel>
                     <Input
                       type="number"
                       min={0}
-                      {...register(`lines.${index}.countedQuantity`, { valueAsNumber: true })}
+                      {...register(`lines.${index}.countedQuantity`, {
+                        valueAsNumber: true,
+                      })}
                       className="h-8 text-xs font-mono font-bold"
                     />
                   </Field>
@@ -329,28 +356,37 @@ export function StockAdjustmentForm({ onSuccess, onCancel }: StockAdjustmentForm
                         </span>
                       )}
                       {diff === 0 && (
-                        <span className="text-[10px] text-muted-foreground">No Change</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          No Change
+                        </span>
                       )}
                     </div>
                   </div>
                 </div>
               </div>
-            )
+            );
           })}
         </div>
       </div>
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+          {isSubmitting && (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          )}
           Submit Adjustment for Approval
         </Button>
       </div>
     </form>
-  )
+  );
 }
-

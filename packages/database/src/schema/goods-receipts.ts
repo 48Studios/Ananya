@@ -26,9 +26,15 @@ export const goodsReceipts = pgTable(
       .references(() => suppliers.id),
     status: varchar("status", { length: 32 }).notNull().default("DRAFT"),
     packingSlipNumber: varchar("packing_slip_number", { length: 128 }),
-    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     uniqueIndex("goods_receipts_gr_number_unique").on(table.grNumber),
@@ -61,8 +67,12 @@ export const goodsReceiptLines = pgTable(
       .$type<string[]>()
       .notNull()
       .default([]),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     index("goods_receipt_lines_gr_id_idx").on(table.goodsReceiptId),

@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { ArrowLeft, CheckCircle2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
-import { formatCurrency } from '@/lib/utils'
+import * as React from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { formatCurrency } from "@/lib/utils";
 
 export default function OpportunityDetailPage() {
-  const params = useParams()
-  const oppId = params?.id as string
+  const params = useParams();
+  const oppId = params?.id as string;
 
   return (
     <div className="space-y-6">
@@ -24,7 +24,7 @@ export default function OpportunityDetailPage() {
       </div>
 
       <PageHeader
-        title={`Opportunity Deal #${oppId || 'opp-1'}`}
+        title={`Opportunity Deal #${oppId || "opp-1"}`}
         description="Deal stage progress, expected revenue value, and client negotiation milestones."
         actions={
           <Button size="sm">
@@ -37,7 +37,9 @@ export default function OpportunityDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Account Customer</p>
-          <p className="text-sm font-semibold text-foreground">AeroTech Systems</p>
+          <p className="text-sm font-semibold text-foreground">
+            AeroTech Systems
+          </p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Stage</p>
@@ -47,9 +49,11 @@ export default function OpportunityDetailPage() {
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Target Deal Amount</p>
-          <p className="text-sm font-bold font-mono text-foreground">{formatCurrency(145000)}</p>
+          <p className="text-sm font-bold font-mono text-foreground">
+            {formatCurrency(145000)}
+          </p>
         </div>
       </div>
     </div>
-  )
+  );
 }

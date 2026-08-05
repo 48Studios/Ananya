@@ -1,33 +1,33 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { AlertTriangle, Loader2, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import * as React from "react";
+import { AlertTriangle, Loader2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export interface ConfirmDialogProps {
-  isOpen: boolean
-  title: string
-  description: string
-  confirmText?: string
-  cancelText?: string
-  variant?: 'destructive' | 'default'
-  loading?: boolean
-  onConfirm: () => void
-  onCancel: () => void
+  isOpen: boolean;
+  title: string;
+  description: string;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: "destructive" | "default";
+  loading?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
 }
 
 export function ConfirmDialog({
   isOpen,
   title,
   description,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
-  variant = 'destructive',
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  variant = "destructive",
   loading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -36,15 +36,17 @@ export function ConfirmDialog({
           <div className="flex items-center gap-3">
             <div
               className={`p-2 rounded-full ${
-                variant === 'destructive'
-                  ? 'bg-destructive/10 text-destructive'
-                  : 'bg-primary/10 text-primary'
+                variant === "destructive"
+                  ? "bg-destructive/10 text-destructive"
+                  : "bg-primary/10 text-primary"
               }`}
             >
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-foreground">{title}</h3>
+              <h3 className="text-base font-semibold text-foreground">
+                {title}
+              </h3>
             </div>
           </div>
           <button
@@ -59,11 +61,16 @@ export function ConfirmDialog({
         <p className="text-sm text-muted-foreground pl-11">{description}</p>
 
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
-          <Button variant="outline" size="sm" onClick={onCancel} disabled={loading}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            disabled={loading}
+          >
             {cancelText}
           </Button>
           <Button
-            variant={variant === 'destructive' ? 'destructive' : 'default'}
+            variant={variant === "destructive" ? "destructive" : "default"}
             size="sm"
             onClick={onConfirm}
             disabled={loading}
@@ -74,5 +81,5 @@ export function ConfirmDialog({
         </div>
       </div>
     </div>
-  )
+  );
 }

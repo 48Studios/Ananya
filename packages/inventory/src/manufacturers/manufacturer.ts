@@ -75,7 +75,8 @@ export class Manufacturer {
    * Updates manufacturer parameters maintaining invariants.
    */
   public update(input: UpdateManufacturerInput): Manufacturer {
-    const code = input.code !== undefined ? input.code.trim().toLowerCase() : this.code;
+    const code =
+      input.code !== undefined ? input.code.trim().toLowerCase() : this.code;
     const name = input.name !== undefined ? input.name.trim() : this.name;
 
     if (!code) {

@@ -1,4 +1,4 @@
-import { ObjectId } from '@ananya/core';
+import { ObjectId } from "@ananya/core";
 
 export interface ServiceNoteProps {
   id: string;
@@ -38,18 +38,20 @@ export class ServiceNote implements ServiceNoteProps {
   }
 
   public static create(props: CreateServiceNoteProps): ServiceNote {
-    if (!props.author || props.author.trim() === '') {
-      throw new Error('Service note author is required');
+    if (!props.author || props.author.trim() === "") {
+      throw new Error("Service note author is required");
     }
-    if (!props.body || props.body.trim() === '') {
-      throw new Error('Service note body is required');
+    if (!props.body || props.body.trim() === "") {
+      throw new Error("Service note body is required");
     }
     if (
       !props.serviceRequestId &&
       !props.workOrderId &&
       !props.warrantyClaimId
     ) {
-      throw new Error('Service note must be associated with at least one target');
+      throw new Error(
+        "Service note must be associated with at least one target",
+      );
     }
 
     return new ServiceNote({

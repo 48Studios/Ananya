@@ -1,2 +1,2 @@
-export * from './account';
-export * from './account.repository';
+export * from "./account";
+export * from "./account.repository";

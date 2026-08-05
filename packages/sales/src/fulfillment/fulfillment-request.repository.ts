@@ -1,7 +1,4 @@
-import {
-  FulfillmentRequest,
-  FulfillmentStatus,
-} from './fulfillment-request';
+import { FulfillmentRequest, FulfillmentStatus } from "./fulfillment-request";
 
 export interface FindManyFulfillmentRequestsOptions {
   salesOrderId?: string;
@@ -11,7 +8,9 @@ export interface FindManyFulfillmentRequestsOptions {
 
 export interface FulfillmentRequestRepository {
   findById(id: string): Promise<FulfillmentRequest | null>;
-  findByRequestNumber(requestNumber: string): Promise<FulfillmentRequest | null>;
+  findByRequestNumber(
+    requestNumber: string,
+  ): Promise<FulfillmentRequest | null>;
   findMany(
     options?: FindManyFulfillmentRequestsOptions,
   ): Promise<FulfillmentRequest[]>;
