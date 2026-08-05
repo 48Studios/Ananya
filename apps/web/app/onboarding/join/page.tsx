@@ -54,8 +54,10 @@ function JoinOrganizationContent() {
         firstName,
         lastName,
       })
-      // Authenticate after accepting
-      await authApi.login(res.email, password)
+      if (res.token) {
+        localStorage.setItem('ananya_auth_token', res.token)
+        document.cookie = `ananya_auth_token=${res.token}; path=/; max-age=604800; SameSite=Lax`
+      }
       router.push('/dashboard')
     } catch {
       setError('Failed to accept invitation. The link may have expired.')

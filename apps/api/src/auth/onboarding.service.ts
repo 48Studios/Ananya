@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { db } from '@ananya/database';
 import {
@@ -11,6 +11,7 @@ import {
 import { eq } from '@ananya/database/query';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { ActivityService } from '../activity/activity.service';
+import { AuthService } from './auth.service';
 import { SetupOrganizationDto } from './dtos';
 
 function hashPassword(password: string): string {
@@ -22,20 +23,26 @@ export class OnboardingService {
   constructor(
     private readonly auditService: SecurityAuditService,
     private readonly activityService: ActivityService,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
   ) {}
 
   async getSetupStatus() {
     try {
       const [status] = await db.select().from(organizationSetupStatus);
-      if (!status) {
-        return { isCompleted: false };
-      }
+      const isCompleted = !!status?.isCompleted;
       return {
-        isCompleted: status.isCompleted,
-        completedAt: status.completedAt,
+        isCompleted,
+        bootstrapped: isCompleted,
+        allowBootstrap: !isCompleted,
+        completedAt: status?.completedAt,
       };
     } catch {
-      return { isCompleted: false };
+      return {
+        isCompleted: false,
+        bootstrapped: false,
+        allowBootstrap: true,
+      };
     }
   }
 
@@ -148,7 +155,12 @@ export class OnboardingService {
         details: { companyName: dto.companyName, adminEmail: adminUser!.email },
       });
 
-      return { success: true, adminUser };
+      const sessionPayload = await this.authService.createSessionForUser(adminUser!.id);
+
+      return {
+        success: true,
+        ...sessionPayload,
+      };
     } catch (err: unknown) {
       const errorObj = err as { cause?: { code?: string }; code?: string };
       if (errorObj?.cause?.code === '42P01' || errorObj?.code === '42P01') {

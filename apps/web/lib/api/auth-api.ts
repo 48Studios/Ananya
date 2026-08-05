@@ -81,8 +81,12 @@ export const authApi = {
     return apiClient.post<{ success: boolean }>('/auth/revoke-sessions', {});
   },
 
-  getSetupStatus: (): Promise<SetupStatusDto> => {
-    return apiClient.get<SetupStatusDto>('/auth/setup-status');
+  getSetupStatus: (): Promise<SetupStatusDto & { bootstrapped?: boolean; allowBootstrap?: boolean }> => {
+    return apiClient.get<SetupStatusDto & { bootstrapped?: boolean; allowBootstrap?: boolean }>('/auth/setup-status');
+  },
+
+  getBootstrapStatus: (): Promise<{ bootstrapped: boolean; allowBootstrap: boolean }> => {
+    return apiClient.get<{ bootstrapped: boolean; allowBootstrap: boolean }>('/auth/bootstrap-status');
   },
 
   setupOrganization: (data: {
@@ -99,8 +103,8 @@ export const authApi = {
     adminLastName: string;
     baseCurrency?: string;
     primaryTimezone?: string;
-  }): Promise<{ success: boolean }> => {
-    return apiClient.post<{ success: boolean }>('/auth/setup-organization', data);
+  }): Promise<{ success: boolean } & Partial<LoginPayload>> => {
+    return apiClient.post<{ success: boolean } & Partial<LoginPayload>>('/auth/setup-organization', data);
   },
 
   verifyInvitation: (token: string): Promise<UserInvitationDto> => {
@@ -112,8 +116,8 @@ export const authApi = {
     password: string;
     firstName: string;
     lastName: string;
-  }): Promise<{ id: string; email: string }> => {
-    return apiClient.post<{ id: string; email: string }>('/auth/invitations/accept', data);
+  }): Promise<LoginPayload> => {
+    return apiClient.post<LoginPayload>('/auth/invitations/accept', data);
   },
 
   createInvitation: (data: { email: string; roleId?: string; department?: string }): Promise<UserInvitationDto> => {

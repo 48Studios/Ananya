@@ -74,6 +74,20 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials.');
     }
 
+    return this.createSessionForUser(userRecord.id, ipAddress, userAgent, dto.rememberMe);
+  }
+
+  async createSessionForUser(
+    userId: string,
+    ipAddress?: string,
+    userAgent?: string,
+    rememberMe?: boolean,
+  ) {
+    const userRecord = await this.usersService.findById(userId);
+    if (!userRecord) {
+      throw new UnauthorizedException('User not found.');
+    }
+
     // Update last login
     await db
       .update(users)
@@ -82,7 +96,7 @@ export class AuthService {
 
     // Create session token
     const token = crypto.randomBytes(32).toString('hex');
-    const expiryDays = dto.rememberMe ? 30 : 1;
+    const expiryDays = rememberMe ? 30 : 1;
     const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
 
     const [session] = await db
@@ -110,12 +124,10 @@ export class AuthService {
       details: { sessionId: session.id },
     });
 
-    const userProfile = await this.usersService.findById(userRecord.id);
-
     return {
       token: session.token,
-      user: userProfile,
-      permissions: userProfile.permissions,
+      user: userRecord,
+      permissions: userRecord.permissions,
       permissionGroups: this.permissionsService.getPermissionGroups(),
     };
   }

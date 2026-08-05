@@ -6,6 +6,7 @@ const PUBLIC_ROUTES = [
   '/forgot-password',
   '/reset-password',
   '/onboarding',
+  '/welcome',
   '/setup',
   '/api/health',
 ]

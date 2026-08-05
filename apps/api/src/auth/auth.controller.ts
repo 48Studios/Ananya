@@ -99,6 +99,11 @@ export class AuthController {
     return this.onboardingService.getSetupStatus();
   }
 
+  @Get('bootstrap-status')
+  getBootstrapStatus() {
+    return this.onboardingService.getSetupStatus();
+  }
+
   @Post('setup-organization')
   setupOrganization(@Body() dto: SetupOrganizationDto) {
     return this.onboardingService.setupOrganization(dto);

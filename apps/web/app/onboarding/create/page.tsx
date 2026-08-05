@@ -36,7 +36,7 @@ export default function CreateOrganizationPage() {
     setLoading(true)
     setError(null)
     try {
-      await authApi.setupOrganization({
+      const res = await authApi.setupOrganization({
         companyName,
         legalName: legalName || undefined,
         taxId: taxId || undefined,
@@ -52,8 +52,12 @@ export default function CreateOrganizationPage() {
         adminLastName,
       })
 
-      // Authenticate directly after creation
-      await authApi.login(adminEmail, adminPassword)
+      if (res.token) {
+        localStorage.setItem('ananya_auth_token', res.token)
+        document.cookie = `ananya_auth_token=${res.token}; path=/; max-age=604800; SameSite=Lax`
+      } else {
+        await authApi.login(adminEmail, adminPassword)
+      }
       router.push('/dashboard')
     } catch (err: unknown) {
       if (err instanceof Error) {

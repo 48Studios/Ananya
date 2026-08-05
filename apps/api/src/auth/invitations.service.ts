@@ -1,10 +1,11 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { db } from '@ananya/database';
 import { userInvitations, users } from '@ananya/database/schema';
 import { eq, and } from '@ananya/database/query';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { ActivityService } from '../activity/activity.service';
+import { AuthService } from './auth.service';
 import { CreateInvitationDto, AcceptInvitationDto } from './dtos';
 
 function hashPassword(password: string): string {
@@ -16,6 +17,8 @@ export class InvitationsService {
   constructor(
     private readonly auditService: SecurityAuditService,
     private readonly activityService: ActivityService,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
   ) {}
 
   async createInvitation(dto: CreateInvitationDto, invitedById?: string) {
@@ -123,6 +126,7 @@ export class InvitationsService {
       details: { userId: user!.id, email: user!.email },
     });
 
-    return user;
+    const sessionPayload = await this.authService.createSessionForUser(user!.id);
+    return sessionPayload;
   }
 }
