@@ -10,6 +10,10 @@ on:
       - main
       - 'release/*'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -23,13 +27,11 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9.0.0
 
-      - name: Setup Node.js 22 LTS
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: '.nvmrc'
           cache: pnpm
 
       - name: Install Dependencies
@@ -46,3 +48,4 @@ jobs:
 
       - name: Run Production Build Validation
         run: pnpm build
+

@@ -57,27 +57,23 @@ Ananya ERP uses a modular multi-service container architecture. Production image
 ## 🔄 Release Engineering Lifecycle
 
 ```
- Developer Code Edit
+ Developer Code Edit & Local Quality Gate (pnpm qa & pnpm test:e2e)
          │
          ▼
- Push to `main` Branch
+ Push to `main` Branch / Tag Release (`v*.*.*`)
          │
-         ├───► GitHub Actions: `ci.yml` (Lint, Check-Types, Test, Build)
+         ├───► GitHub Actions: `ci.yml` (Fast Quality Gates: Lint, Types, Tests, Build)
          │
-         └───► GitHub Actions: `docker.yml` (Buildx Multi-Arch → GHCR `edge`, `sha-<commit>`)
-                     │
-                     ▼
-           Daily Driver Deployment (`docker compose pull && docker compose up -d`)
-                     │
-                     ▼
-           RC Validation & Testing (`release/rc1`)
-                     │
-                     ▼
-           Tag Git Release (`git tag v0.1.0 && git push origin v0.1.0`)
-                     │
-                     └───► GitHub Actions: `release.yml`
-                               ├───► Publish GHCR Images (`v0.1.0`, `0.1.0`, `latest`)
-                               └───► Create GitHub Release with Automated Release Notes
+         ├───► GitHub Actions: `docker.yml` (Triggered on main push)
+         │           ├── 1. Mandatory Quality Gates (needs: none)
+         │           ├── 2. Container Boot & Health Smoke Test (needs: quality-gates)
+         │           └── 3. Buildx Multi-Arch GHCR Publish (`edge`, `sha-<commit>`)
+         │
+         └───► GitHub Actions: `release.yml` (Triggered on v*.*.* tag)
+                     ├── 1. Mandatory Quality Gates
+                     ├── 2. Container Boot & Health Smoke Test
+                     ├── 3. Publish GHCR Images (`vX.Y.Z`, `latest`)
+                     └── 4. Create GitHub Release with Release Notes
 ```
 
 ---

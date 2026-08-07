@@ -476,7 +476,7 @@ ANANYA_VERSION=sha-a1b2c3d docker compose -f compose.prod.yaml up -d
 
 ## 🔄 Continuous Integration & Delivery (CI/CD)
 
-Ananya ERP utilizes an optimized production workflow pipeline managed by GitHub Actions:
+Ananya ERP utilizes a layered quality strategy designed for fast, deterministic CI execution while maintaining comprehensive local and containerized quality gates:
 
 ```
 Developer Push / PR (main / release/*)
@@ -488,23 +488,40 @@ Mandatory CI Quality Gates (ci.yml)
 ├── Unit & Domain Test Suite (pnpm test)
 └── Production Build Validation (pnpm build)
 
-On-Demand / Nightly E2E (e2e.yml)
-├── Manual Dispatch (workflow_dispatch)
-├── Nightly Scheduled Runs (cron)
-└── Playwright E2E Integration Suite
+Gated Docker Publishing (docker.yml)
+├── 1. Mandatory Quality Gates (needs: none)
+├── 2. Container Startup & Health Smoke Test (needs: quality-gates)
+│      (Boots Web, API, Worker containers & probes /health endpoints)
+└── 3. Multi-Arch GHCR Publication (needs: [quality-gates, smoke-test])
 
-Production Release Candidate (release.yml)
-├── Mandatory Quality Gates
-├── Playwright E2E Release Candidate Gate
-├── Container Boot Smoke Tests
-├── Trivy Vulnerability Audit
-└── GHCR Container Image Publication & GitHub Release
+On-Demand Playwright E2E Gate (playwright.yml)
+└── Manual Trigger (workflow_dispatch)
+
+Production Release Pipeline (release.yml)
+├── 1. Mandatory Quality Gates
+├── 2. Container Startup & Health Smoke Test
+├── 3. GHCR Multi-Arch Release Tag Publication (vX.Y.Z, latest)
+└── 4. GitHub Release Creation with Release Notes
 ```
 
-- **[ci.yml](file:///.github/workflows/ci.yml)**: Fast mandatory quality gates running ESLint, TypeScript check, Vitest unit tests, and production build on every push and PR.
-- **[e2e.yml](file:///.github/workflows/e2e.yml)**: Dedicated Playwright E2E testing workflow supporting manual execution (`workflow_dispatch`), scheduled runs (`cron`), and optional PR gating.
-- **[docker.yml](file:///.github/workflows/docker.yml)**: Dependency-gated workflow (`needs: [quality-gates]`). Boots local container smoke test probes, runs Trivy vulnerability scans, generates SPDX SBOM artifacts, and pushes multi-arch images (`linux/amd64,linux/arm64`) to GHCR on `main` pushes.
-- **[release.yml](file:///.github/workflows/release.yml)**: Triggered on Git tags (`v*.*.*`). Reruns full quality gates, validates Playwright E2E suite, boots container smoke tests, generates SPDX SBOMs, pushes release tags to GHCR, and creates a GitHub Release with attached SBOM assets.
+### Workflow Specifications
+
+- **[ci.yml](file:///.github/workflows/ci.yml)**: Fast, deterministic CI quality gates running ESLint, TypeScript compilation check, Vitest unit tests, and production build validation on every push and pull request. Node and pnpm versions are read dynamically from repository configuration (`.nvmrc` and `package.json` `packageManager`). Concurrency automatically cancels obsolete builds.
+- **[docker.yml](file:///.github/workflows/docker.yml)**: Dependency-gated workflow (`needs: [quality-gates, smoke-test]`). Executes mandatory quality gates, boots local container instances of Web, API, and Worker, probes `/health` & `/api/health` endpoints, and pushes multi-arch images (`linux/amd64`, `linux/arm64`) with expanded OCI metadata to GHCR on `main` and `release/*` pushes.
+- **[release.yml](file:///.github/workflows/release.yml)**: Triggered on official Git version tags (`v*.*.*`). Reruns mandatory quality gates, validates container boot smoke tests, pushes release tags (`vX.Y.Z`, `X.Y`, `latest`) to GHCR, and creates a GitHub Release.
+- **[playwright.yml](file:///.github/workflows/playwright.yml)**: Dedicated manual workflow (`workflow_dispatch`) for executing Playwright E2E integration tests in GitHub Actions on demand.
+
+### Local Playwright Developer Quality Gate
+
+Playwright E2E tests are intentionally decoupled from automatic CI triggers to keep CI fast and reliable. Developers must run Playwright E2E tests locally prior to merging significant features or creating release candidates:
+
+```bash
+# Execute local Playwright E2E integration test suite
+pnpm test:e2e
+
+# Execute UI interactive mode
+pnpm test:e2e:ui
+```
 
 ---
 

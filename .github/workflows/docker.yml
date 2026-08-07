@@ -6,13 +6,93 @@ on:
       - main
       - 'release/*'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write
 
 jobs:
+  quality-gates:
+    name: Mandatory Quality Gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ESLint Audit
+        run: pnpm lint
+
+      - name: Run TypeScript Type Check
+        run: pnpm check-types
+
+      - name: Run Test Suite
+        run: pnpm test
+
+      - name: Run Production Build Validation
+        run: pnpm build
+
+  smoke-test:
+    name: Container Startup & Health Smoke Test
+    needs: quality-gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Build Local Container Images
+        run: |
+          docker build -f docker/Dockerfile.api -t ananya-api:smoke .
+          docker build -f docker/Dockerfile.web -t ananya-web:smoke .
+          docker build -f docker/Dockerfile.worker -t ananya-worker:smoke .
+
+      - name: Boot Containers & Test Health Endpoints
+        run: |
+          echo "Booting API Container..."
+          docker run -d --name smoke-api -p 4000:4000 -e PORT=4000 ananya-api:smoke
+
+          echo "Booting Web Container..."
+          docker run -d --name smoke-web -p 3000:3000 -e PORT=3000 ananya-web:smoke
+
+          echo "Booting Worker Container..."
+          docker run -d --name smoke-worker -p 4001:4001 -e WORKER_PORT=4001 ananya-worker:smoke
+
+          echo "Waiting for containers to initialize..."
+          sleep 10
+
+          echo "Checking API Health Probe (http://localhost:4000/health)..."
+          curl --fail --retry 10 --retry-delay 2 --retry-connrefused http://localhost:4000/health
+
+          echo "Checking Web Health Probe (http://localhost:3000/api/health)..."
+          curl --fail --retry 10 --retry-delay 2 --retry-connrefused http://localhost:3000/api/health
+
+          echo "Checking Worker Health Probe (http://localhost:4001/health)..."
+          curl --fail --retry 10 --retry-delay 2 --retry-connrefused http://localhost:4001/health
+
+          echo "All container health probes passed successfully!"
+
+      - name: Cleanup Smoke Containers
+        if: always()
+        run: |
+          docker rm -f smoke-api smoke-web smoke-worker || true
+
   build-and-publish:
     name: Build & Publish Image (${{ matrix.service }})
+    needs: [quality-gates, smoke-test]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -59,6 +139,8 @@ jobs:
             org.opencontainers.image.description=Production container image for Ananya ERP platform (${{ matrix.service }})
             org.opencontainers.image.vendor=48 Studios
             org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.documentation=https://github.com/48studios/ananya#readme
+            org.opencontainers.image.source=https://github.com/48studios/ananya
 
       - name: Build & Push Multi-Architecture Docker Image
         uses: docker/build-push-action@v6
@@ -71,3 +153,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
