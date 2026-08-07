@@ -31,4 +31,3 @@ export const warrantyClaimsApi = {
     return apiClient.post<WarrantyClaimDto>("/warranty-claims", data);
   },
 };
-

@@ -220,213 +220,214 @@ export function WarehouseTransferForm({
           </div>
         )}
 
-      {/* Source & Destination Locations */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field>
-          <FieldLabel htmlFor="transfer-source-loc">
-            Source Location <span className="text-destructive">*</span>
-          </FieldLabel>
-          <Controller
-            name="sourceLocationId"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="transfer-source-loc">
-                  <SelectValue placeholder="Select dispatch location..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>
-                      {loc.code} — {loc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {/* Source & Destination Locations */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="transfer-source-loc">
+              Source Location <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Controller
+              name="sourceLocationId"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="transfer-source-loc">
+                    <SelectValue placeholder="Select dispatch location..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        {loc.code} — {loc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.sourceLocationId?.message && (
+              <FieldError>{errors.sourceLocationId.message}</FieldError>
             )}
-          />
-          {errors.sourceLocationId?.message && (
-            <FieldError>{errors.sourceLocationId.message}</FieldError>
-          )}
-        </Field>
+          </Field>
 
-        <Field>
-          <FieldLabel htmlFor="transfer-dest-loc">
-            Destination Location <span className="text-destructive">*</span>
-          </FieldLabel>
-          <Controller
-            name="destinationLocationId"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="transfer-dest-loc">
-                  <SelectValue placeholder="Select receiving location..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>
-                      {loc.code} — {loc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <Field>
+            <FieldLabel htmlFor="transfer-dest-loc">
+              Destination Location <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Controller
+              name="destinationLocationId"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="transfer-dest-loc">
+                    <SelectValue placeholder="Select receiving location..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        {loc.code} — {loc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.destinationLocationId?.message && (
+              <FieldError>{errors.destinationLocationId.message}</FieldError>
             )}
-          />
-          {errors.destinationLocationId?.message && (
-            <FieldError>{errors.destinationLocationId.message}</FieldError>
-          )}
-        </Field>
-      </div>
-
-      {/* Date & Notes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field>
-          <FieldLabel htmlFor="transfer-date">Requested Date</FieldLabel>
-          <Input
-            id="transfer-date"
-            type="date"
-            {...register("requestedDate")}
-            className="font-mono"
-          />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="transfer-notes">
-            Transfer Notes / Purpose
-          </FieldLabel>
-          <Input
-            id="transfer-notes"
-            type="text"
-            placeholder="e.g. Replenish main assembly floor stock"
-            {...register("notes")}
-          />
-        </Field>
-      </div>
-
-      {/* Component Line Items Section */}
-      <div className="space-y-2 pt-2 border-t border-border">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-            Transfer Component Items ({fields.length})
-          </h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            onClick={() =>
-              append({
-                componentId: "",
-                quantity: 1,
-                unitOfMeasure: "pcs",
-                notes: "",
-              })
-            }
-          >
-            <Plus className="w-3 h-3 mr-1" />
-            Add Line Item
-          </Button>
+          </Field>
         </div>
 
-        {errors.lines?.root && (
-          <p className="text-xs text-destructive">
-            {errors.lines.root.message}
-          </p>
-        )}
+        {/* Date & Notes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="transfer-date">Requested Date</FieldLabel>
+            <Input
+              id="transfer-date"
+              type="date"
+              {...register("requestedDate")}
+              className="font-mono"
+            />
+          </Field>
 
-        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-          {fields.map((field, idx) => (
-            <div
-              key={field.id}
-              className="p-3 bg-muted/20 border border-border rounded-lg grid grid-cols-1 sm:grid-cols-12 gap-2 items-end"
+          <Field>
+            <FieldLabel htmlFor="transfer-notes">
+              Transfer Notes / Purpose
+            </FieldLabel>
+            <Input
+              id="transfer-notes"
+              type="text"
+              placeholder="e.g. Replenish main assembly floor stock"
+              {...register("notes")}
+            />
+          </Field>
+        </div>
+
+        {/* Component Line Items Section */}
+        <div className="space-y-2 pt-2 border-t border-border">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+              Transfer Component Items ({fields.length})
+            </h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={() =>
+                append({
+                  componentId: "",
+                  quantity: 1,
+                  unitOfMeasure: "pcs",
+                  notes: "",
+                })
+              }
             >
-              <div className="sm:col-span-6 space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Item #{idx + 1} Component{" "}
-                  <span className="text-destructive">*</span>
-                </label>
-                <Controller
-                  name={`lines.${idx}.componentId` as const}
-                  control={control}
-                  render={({ field: compField }) => (
-                    <Select
-                      value={compField.value}
-                      onValueChange={(val) => {
-                        compField.onChange(val ?? "");
-                        handleComponentChange(idx, val ?? "");
-                      }}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select component..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {components.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.sku} — {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              <Plus className="w-3 h-3 mr-1" />
+              Add Line Item
+            </Button>
+          </div>
+
+          {errors.lines?.root && (
+            <p className="text-xs text-destructive">
+              {errors.lines.root.message}
+            </p>
+          )}
+
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {fields.map((field, idx) => (
+              <div
+                key={field.id}
+                className="p-3 bg-muted/20 border border-border rounded-lg grid grid-cols-1 sm:grid-cols-12 gap-2 items-end"
+              >
+                <div className="sm:col-span-6 space-y-1">
+                  <label className="text-[11px] font-medium text-muted-foreground">
+                    Item #{idx + 1} Component{" "}
+                    <span className="text-destructive">*</span>
+                  </label>
+                  <Controller
+                    name={`lines.${idx}.componentId` as const}
+                    control={control}
+                    render={({ field: compField }) => (
+                      <Select
+                        value={compField.value}
+                        onValueChange={(val) => {
+                          compField.onChange(val ?? "");
+                          handleComponentChange(idx, val ?? "");
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Select component..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {components.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.sku} — {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.lines?.[idx]?.componentId?.message && (
+                    <p className="text-[11px] text-destructive">
+                      {errors.lines[idx]?.componentId?.message}
+                    </p>
                   )}
-                />
-                {errors.lines?.[idx]?.componentId?.message && (
-                  <p className="text-[11px] text-destructive">
-                    {errors.lines[idx]?.componentId?.message}
-                  </p>
-                )}
-              </div>
+                </div>
 
-              <div className="sm:col-span-3 space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Quantity <span className="text-destructive">*</span>
-                </label>
-                <Input
-                  type="number"
-                  step="any"
-                  min={0.0001}
-                  {...register(`lines.${idx}.quantity` as const, {
-                    valueAsNumber: true,
-                  })}
-                  className="h-8 text-xs font-mono font-bold"
-                />
-                {errors.lines?.[idx]?.quantity?.message && (
-                  <p className="text-[11px] text-destructive">
-                    {errors.lines[idx]?.quantity?.message}
-                  </p>
-                )}
-              </div>
+                <div className="sm:col-span-3 space-y-1">
+                  <label className="text-[11px] font-medium text-muted-foreground">
+                    Quantity <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    step="any"
+                    min={0.0001}
+                    {...register(`lines.${idx}.quantity` as const, {
+                      valueAsNumber: true,
+                    })}
+                    className="h-8 text-xs font-mono font-bold"
+                  />
+                  {errors.lines?.[idx]?.quantity?.message && (
+                    <p className="text-[11px] text-destructive">
+                      {errors.lines[idx]?.quantity?.message}
+                    </p>
+                  )}
+                </div>
 
-              <div className="sm:col-span-2 space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Unit
-                </label>
-                <Input
-                  type="text"
-                  {...register(`lines.${idx}.unitOfMeasure` as const)}
-                  className="h-8 text-xs font-mono"
-                />
-              </div>
+                <div className="sm:col-span-2 space-y-1">
+                  <label className="text-[11px] font-medium text-muted-foreground">
+                    Unit
+                  </label>
+                  <Input
+                    type="text"
+                    {...register(`lines.${idx}.unitOfMeasure` as const)}
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
 
-              <div className="sm:col-span-1 flex justify-end">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={fields.length === 1}
-                  onClick={() => remove(idx)}
-                  className="text-destructive hover:bg-destructive/10 h-8 w-8"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="sm:col-span-1 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={fields.length === 1}
+                    onClick={() => remove(idx)}
+                    className="text-destructive hover:bg-destructive/10 h-8 w-8"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-
       </DialogShellBody>
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          {isSubmitting && (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          )}
           {isEdit ? "Save Changes" : "Create Transfer"}
         </Button>
       </DialogShellFooter>

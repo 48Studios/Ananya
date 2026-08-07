@@ -15,8 +15,13 @@ export const materialConsumptionApi = {
   getAll: async (): Promise<MaterialConsumptionDto[]> => {
     return apiClient.get<MaterialConsumptionDto[]>("/material-consumptions");
   },
-  create: async (data: { productionOrderId: string }): Promise<MaterialConsumptionDto> => {
-    return apiClient.post<MaterialConsumptionDto>("/material-consumptions", data);
+  create: async (data: {
+    productionOrderId: string;
+  }): Promise<MaterialConsumptionDto> => {
+    return apiClient.post<MaterialConsumptionDto>(
+      "/material-consumptions",
+      data,
+    );
   },
   addLine: async (
     id: string,
@@ -34,4 +39,3 @@ export const materialConsumptionApi = {
     return apiClient.post(`/material-consumptions/${id}/post`, {});
   },
 };
-

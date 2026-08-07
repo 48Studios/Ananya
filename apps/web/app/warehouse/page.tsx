@@ -16,7 +16,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
-import { EntityDataTable, type FilterConfig } from "@/components/ui/entity-data-table";
+import {
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { LocationForm } from "@/components/locations/location-form";
@@ -27,8 +30,10 @@ export default function WarehousePage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
-  const [editingLocation, setEditingLocation] = React.useState<LocationDto | null>(null);
-  const [deletingLocation, setDeletingLocation] = React.useState<LocationDto | null>(null);
+  const [editingLocation, setEditingLocation] =
+    React.useState<LocationDto | null>(null);
+  const [deletingLocation, setDeletingLocation] =
+    React.useState<LocationDto | null>(null);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [apiAlert, setApiAlert] = React.useState<string | null>(null);
@@ -62,7 +67,9 @@ export default function WarehousePage() {
     try {
       await locationsApi.delete(deletingLocation.id);
       setLocations((prev) => prev.filter((l) => l.id !== deletingLocation.id));
-      setToastMessage(`Location "${deletingLocation.code}" deleted successfully.`);
+      setToastMessage(
+        `Location "${deletingLocation.code}" deleted successfully.`,
+      );
       setTimeout(() => setToastMessage(null), 4000);
       setDeletingLocation(null);
     } catch (err: unknown) {
@@ -109,7 +116,9 @@ export default function WarehousePage() {
         accessorKey: "name",
         header: "Location Name",
         cell: ({ row }) => (
-          <span className="font-medium text-foreground">{row.original.name}</span>
+          <span className="font-medium text-foreground">
+            {row.original.name}
+          </span>
         ),
       },
       {
@@ -257,7 +266,9 @@ export default function WarehousePage() {
           if (!open) setEditingLocation(null);
         }}
         title={
-          editingLocation ? "Edit Warehouse Location" : "Create Warehouse Location"
+          editingLocation
+            ? "Edit Warehouse Location"
+            : "Create Warehouse Location"
         }
         description={
           editingLocation

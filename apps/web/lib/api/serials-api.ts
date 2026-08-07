@@ -26,7 +26,8 @@ export interface CreateSerialPayload {
 export type UpdateSerialPayload = Partial<CreateSerialPayload>;
 
 export const serialsApi = {
-  getAll: async (): Promise<SerialDto[]> => apiClient.get<SerialDto[]>("/serials"),
+  getAll: async (): Promise<SerialDto[]> =>
+    apiClient.get<SerialDto[]>("/serials"),
   getById: async (id: string): Promise<SerialDto> =>
     apiClient.get<SerialDto>(`/serials/${id}`),
   create: async (payload: CreateSerialPayload): Promise<SerialDto> => {

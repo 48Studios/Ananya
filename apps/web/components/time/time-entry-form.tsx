@@ -13,10 +13,7 @@ import {
 } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
-import {
-  timeEntriesApi,
-  type TimeEntryDto,
-} from "@/lib/api/time-entries-api";
+import { timeEntriesApi, type TimeEntryDto } from "@/lib/api/time-entries-api";
 
 const timeEntrySchema = z.object({
   hours: z
@@ -91,7 +88,9 @@ export function TimeEntryForm({ onSuccess, onCancel }: TimeEntryFormProps) {
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="description">Task Description / Work Notes</FieldLabel>
+          <FieldLabel htmlFor="description">
+            Task Description / Work Notes
+          </FieldLabel>
           <Input
             id="description"
             placeholder="Describe labor performed..."
@@ -103,7 +102,9 @@ export function TimeEntryForm({ onSuccess, onCancel }: TimeEntryFormProps) {
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button size="sm" type="submit" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          {isSubmitting && (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          )}
           Log Hours
         </Button>
       </DialogShellFooter>

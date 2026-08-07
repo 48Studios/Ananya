@@ -30,7 +30,8 @@ export interface CreateBatchPayload {
 export type UpdateBatchPayload = Partial<CreateBatchPayload>;
 
 export const batchesApi = {
-  getAll: async (): Promise<BatchDto[]> => apiClient.get<BatchDto[]>("/batches"),
+  getAll: async (): Promise<BatchDto[]> =>
+    apiClient.get<BatchDto[]>("/batches"),
   getById: async (id: string): Promise<BatchDto> =>
     apiClient.get<BatchDto>(`/batches/${id}`),
   create: async (payload: CreateBatchPayload): Promise<BatchDto> => {
@@ -39,7 +40,10 @@ export const batchesApi = {
       "Batch creation requires a component-based workflow and is not available from this read-only registry.",
     );
   },
-  update: async (id: string, payload: UpdateBatchPayload): Promise<BatchDto> => {
+  update: async (
+    id: string,
+    payload: UpdateBatchPayload,
+  ): Promise<BatchDto> => {
     void id;
     void payload;
     throw new Error(

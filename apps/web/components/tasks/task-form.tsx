@@ -153,7 +153,9 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button size="sm" type="submit" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          {isSubmitting && (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          )}
           Create Task
         </Button>
       </DialogShellFooter>

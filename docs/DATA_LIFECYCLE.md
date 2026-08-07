@@ -166,15 +166,18 @@ Organization Reset replaces CLI truncation scripts with a secure, audited admini
 Every entity in Ananya ERP maintains a single canonical schema across Database, Domain, DTOs, API, UI Forms, Tables, and Import/Export templates.
 
 ### 1. 100% Relational Field Exposure
+
 - **UI Forms**: All relationship fields must use the searchable, creatable `<EntitySelector>` component. Text inputs and native HTML selects for foreign key fields are strictly forbidden.
 - **Import Templates**: Import templates include business key columns (`parentCode`, `categoryCode`, `manufacturerCode`, `warehouseCode`) for all entity relationships.
 - **Business Key Resolution**: Import pipelines resolve business keys (`code`, `sku`, `number`) to database primary keys (`id`). Internal UUIDs are never required in import files.
 
 ### 2. Multi-Pass Hierarchy Resolution
+
 - Hierarchical entities (e.g. Category, Location) support nested tree structures during import.
 - The import engine uses multi-pass iterative processing. Parent records are inserted first, allowing child records defined anywhere in the import file to resolve their `parentId` cleanly.
 - Self-parenting loops (`parentCode == code`) and unresolved parent codes are reported as structured row-level validation errors.
 
 ### 3. Round-Trip Export-Import Guarantee
+
 - `executeExport` queries actual database records and maps foreign key UUIDs back to human-readable business key codes (`parentCode`, `categoryCode`, `manufacturerCode`).
 - Data exported from the system can be re-imported into another workspace without data loss or broken relationships.

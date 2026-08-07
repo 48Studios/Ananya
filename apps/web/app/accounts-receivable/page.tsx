@@ -84,17 +84,17 @@ export default function AccountsReceivablePage() {
   ];
 
   if (loading) {
-  return <LoadingState message="Loading accounts receivable..." />;
+    return <LoadingState message="Loading accounts receivable..." />;
   }
 
   if (error) {
-  return (
-    <ErrorState
-      title="Accounts receivable unavailable"
-      message={error}
-      onRetry={() => window.location.reload()}
-    />
-  );
+    return (
+      <ErrorState
+        title="Accounts receivable unavailable"
+        message={error}
+        onRetry={() => window.location.reload()}
+      />
+    );
   }
 
   return (
@@ -121,7 +121,12 @@ export default function AccountsReceivablePage() {
         />
         <StatCard
           title="Overdue Accounts"
-          value={entries.filter((entry) => new Date(entry.dueDate) < new Date() && entry.balance > 0).length}
+          value={
+            entries.filter(
+              (entry) =>
+                new Date(entry.dueDate) < new Date() && entry.balance > 0,
+            ).length
+          }
           icon={Clock}
         />
       </div>

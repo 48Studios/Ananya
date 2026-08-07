@@ -8,7 +8,10 @@ import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { reportingApi, type FinancialSummaryDto } from "@/lib/api/reporting-api";
+import {
+  reportingApi,
+  type FinancialSummaryDto,
+} from "@/lib/api/reporting-api";
 import { formatCurrency } from "@/lib/utils";
 
 interface FinanceSummaryCategory {
@@ -18,7 +21,9 @@ interface FinanceSummaryCategory {
 }
 
 export default function FinancePage() {
-  const [summary, setSummary] = React.useState<FinancialSummaryDto | null>(null);
+  const [summary, setSummary] = React.useState<FinancialSummaryDto | null>(
+    null,
+  );
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 

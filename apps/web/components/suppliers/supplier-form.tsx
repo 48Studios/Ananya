@@ -118,90 +118,91 @@ export function SupplierForm({
           </div>
         )}
 
-      {/* Code */}
-      <Field>
-        <FieldLabel htmlFor="supplier-code">
-          Supplier Code <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="supplier-code"
-          type="text"
-          placeholder="e.g. SUP-ARROW-01"
-          {...register("code")}
-          className="uppercase font-mono"
-        />
-        {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
-      </Field>
-
-      {/* Name */}
-      <Field>
-        <FieldLabel htmlFor="supplier-name">
-          Supplier Name <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="supplier-name"
-          type="text"
-          placeholder="e.g. Arrow Electronics Corp"
-          {...register("name")}
-        />
-        {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
-      </Field>
-
-      {/* Tax ID */}
-      <Field>
-        <FieldLabel htmlFor="supplier-tax">Tax ID / GST Number</FieldLabel>
-        <Input
-          id="supplier-tax"
-          type="text"
-          placeholder="e.g. US-987654321 / GSTIN1234"
-          {...register("taxId")}
-          className="font-mono"
-        />
-      </Field>
-
-      <div className="grid grid-cols-2 gap-3">
-        {/* Payment Terms */}
+        {/* Code */}
         <Field>
-          <FieldLabel htmlFor="supplier-terms">
-            Payment Terms <span className="text-destructive">*</span>
+          <FieldLabel htmlFor="supplier-code">
+            Supplier Code <span className="text-destructive">*</span>
           </FieldLabel>
           <Input
-            id="supplier-terms"
+            id="supplier-code"
             type="text"
-            placeholder="e.g. NET30, NET60, COD"
-            {...register("paymentTerms")}
+            placeholder="e.g. SUP-ARROW-01"
+            {...register("code")}
             className="uppercase font-mono"
           />
-          {errors.paymentTerms?.message && (
-            <FieldError>{errors.paymentTerms.message}</FieldError>
+          {errors.code?.message && (
+            <FieldError>{errors.code.message}</FieldError>
           )}
         </Field>
 
-        {/* Currency */}
+        {/* Name */}
         <Field>
-          <FieldLabel htmlFor="supplier-currency">
-            Currency <span className="text-destructive">*</span>
+          <FieldLabel htmlFor="supplier-name">
+            Supplier Name <span className="text-destructive">*</span>
           </FieldLabel>
           <Input
-            id="supplier-currency"
+            id="supplier-name"
             type="text"
-            placeholder="e.g. USD, EUR, INR"
-            {...register("currency")}
-            className="uppercase font-mono"
+            placeholder="e.g. Arrow Electronics Corp"
+            {...register("name")}
           />
-          {errors.currency?.message && (
-            <FieldError>{errors.currency.message}</FieldError>
+          {errors.name?.message && (
+            <FieldError>{errors.name.message}</FieldError>
           )}
         </Field>
-      </div>
 
+        {/* Tax ID */}
+        <Field>
+          <FieldLabel htmlFor="supplier-tax">Tax ID / GST Number</FieldLabel>
+          <Input
+            id="supplier-tax"
+            type="text"
+            placeholder="e.g. US-987654321 / GSTIN1234"
+            {...register("taxId")}
+            className="font-mono"
+          />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          {/* Payment Terms */}
+          <Field>
+            <FieldLabel htmlFor="supplier-terms">
+              Payment Terms <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="supplier-terms"
+              type="text"
+              placeholder="e.g. NET30, NET60, COD"
+              {...register("paymentTerms")}
+              className="uppercase font-mono"
+            />
+            {errors.paymentTerms?.message && (
+              <FieldError>{errors.paymentTerms.message}</FieldError>
+            )}
+          </Field>
+
+          {/* Currency */}
+          <Field>
+            <FieldLabel htmlFor="supplier-currency">
+              Currency <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="supplier-currency"
+              type="text"
+              placeholder="e.g. USD, EUR, INR"
+              {...register("currency")}
+              className="uppercase font-mono"
+            />
+            {errors.currency?.message && (
+              <FieldError>{errors.currency.message}</FieldError>
+            )}
+          </Field>
+        </div>
       </DialogShellBody>
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && (
-            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-          )}
+          {isSubmitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
           {isEditing ? "Save Changes" : "Create Supplier"}
         </Button>
       </DialogShellFooter>

@@ -102,7 +102,9 @@ export function SavedViewDialog({
           onClick={handleSave}
           disabled={loading || !name.trim()}
         >
-          {loading ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
+          {loading ? (
+            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+          ) : null}
           Save View Preset
         </Button>
       </DialogShellFooter>

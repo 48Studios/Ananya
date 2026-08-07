@@ -121,7 +121,11 @@ export default function BankAccountsPage() {
         />
         <StatCard
           title="Reconciliation Status"
-          value={accounts.filter((account) => account.latestReconciliationStatus === "COMPLETED").length}
+          value={
+            accounts.filter(
+              (account) => account.latestReconciliationStatus === "COMPLETED",
+            ).length
+          }
           icon={CheckCircle2}
         />
       </div>

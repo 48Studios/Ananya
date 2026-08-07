@@ -78,7 +78,8 @@ export function FinishedGoodsForm({
 
         <Field>
           <FieldLabel htmlFor="productionOrderId">
-            Production Order ID / Number <span className="text-destructive">*</span>
+            Production Order ID / Number{" "}
+            <span className="text-destructive">*</span>
           </FieldLabel>
           <Input
             id="productionOrderId"
@@ -94,7 +95,9 @@ export function FinishedGoodsForm({
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button size="sm" type="submit" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          {isSubmitting && (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          )}
           Receive Batch
         </Button>
       </DialogShellFooter>

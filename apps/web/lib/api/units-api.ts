@@ -37,6 +37,5 @@ export const unitsApi = {
     apiClient.post<UnitDto, CreateUnitPayload>("/units", payload),
   update: (id: string, payload: UpdateUnitPayload): Promise<UnitDto> =>
     apiClient.put<UnitDto, UpdateUnitPayload>(`/units/${id}`, payload),
-  delete: (id: string): Promise<void> =>
-    apiClient.delete<void>(`/units/${id}`),
+  delete: (id: string): Promise<void> => apiClient.delete<void>(`/units/${id}`),
 };

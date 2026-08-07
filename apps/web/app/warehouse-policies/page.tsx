@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ShieldCheck, Plus, CheckCircle2, Edit2, Trash2, Boxes } from "lucide-react";
+import {
+  ShieldCheck,
+  Plus,
+  CheckCircle2,
+  Edit2,
+  Trash2,
+  Boxes,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -19,9 +26,14 @@ export default function WarehousePoliciesPage() {
   const [policies, setPolicies] = React.useState<WarehousePolicyDto[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
-  const [editingPolicy, setEditingPolicy] = React.useState<WarehousePolicyDto | null>(null);
-  const [deletingPolicy, setDeletingPolicy] = React.useState<WarehousePolicyDto | null>(null);
-  const [banner, setBanner] = React.useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [editingPolicy, setEditingPolicy] =
+    React.useState<WarehousePolicyDto | null>(null);
+  const [deletingPolicy, setDeletingPolicy] =
+    React.useState<WarehousePolicyDto | null>(null);
+  const [banner, setBanner] = React.useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
 
   const fetchPolicies = React.useCallback(async () => {
     setLoading(true);
@@ -30,7 +42,10 @@ export default function WarehousePoliciesPage() {
       setPolicies(data || []);
     } catch (err: unknown) {
       setBanner({
-        message: err instanceof Error ? err.message : "Failed to load storage policies",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Failed to load storage policies",
         type: "error",
       });
     } finally {
@@ -42,7 +57,10 @@ export default function WarehousePoliciesPage() {
     fetchPolicies();
   }, [fetchPolicies]);
 
-  const showBanner = (message: string, type: "success" | "error" = "success") => {
+  const showBanner = (
+    message: string,
+    type: "success" | "error" = "success",
+  ) => {
     setBanner({ message, type });
     setTimeout(() => setBanner(null), 4000);
   };
@@ -59,7 +77,9 @@ export default function WarehousePoliciesPage() {
 
   const handleFormSuccess = () => {
     setIsFormOpen(false);
-    showBanner(editingPolicy ? "Storage policy updated." : "Storage policy created.");
+    showBanner(
+      editingPolicy ? "Storage policy updated." : "Storage policy created.",
+    );
     fetchPolicies();
   };
 
@@ -70,14 +90,23 @@ export default function WarehousePoliciesPage() {
       showBanner(`Storage policy "${deletingPolicy.policyName}" deleted.`);
       fetchPolicies();
     } catch (err: unknown) {
-      showBanner(err instanceof Error ? err.message : "Failed to delete policy.", "error");
+      showBanner(
+        err instanceof Error ? err.message : "Failed to delete policy.",
+        "error",
+      );
     } finally {
       setDeletingPolicy(null);
     }
   };
 
-  const fifoCount = React.useMemo(() => policies.filter((p) => p.pickingRule === "FIFO").length, [policies]);
-  const fefoCount = React.useMemo(() => policies.filter((p) => p.pickingRule === "FEFO").length, [policies]);
+  const fifoCount = React.useMemo(
+    () => policies.filter((p) => p.pickingRule === "FIFO").length,
+    [policies],
+  );
+  const fefoCount = React.useMemo(
+    () => policies.filter((p) => p.pickingRule === "FEFO").length,
+    [policies],
+  );
 
   const columns: ColumnDef<WarehousePolicyDto>[] = [
     {
@@ -119,7 +148,7 @@ export default function WarehousePoliciesPage() {
     {
       accessorKey: "isActive",
       header: "Status",
-      cell: ({ row }) => (
+      cell: ({ row }) =>
         row.original.isActive ? (
           <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
             <CheckCircle2 className="w-3 h-3 mr-1" /> Active Policy
@@ -128,8 +157,7 @@ export default function WarehousePoliciesPage() {
           <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-muted text-muted-foreground border border-border">
             Inactive
           </span>
-        )
-      ),
+        ),
     },
     {
       id: "actions",

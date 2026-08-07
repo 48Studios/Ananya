@@ -4,15 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
-import {
-  ShieldCheck,
-  Eye,
-  EyeOff,
-  Lock,
-  Mail,
-  ArrowRight,
-  Loader2,
-} from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -186,7 +178,7 @@ function LoginFormContent() {
               href="/onboarding"
               className="text-primary font-medium hover:underline"
             >
-              Let's get started
+              Let&apos;s get started
             </Link>
           </div>
         </div>

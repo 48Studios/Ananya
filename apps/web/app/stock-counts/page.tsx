@@ -29,8 +29,12 @@ export default function StockCountsPage() {
   const [counts, setCounts] = React.useState<CycleCountDto[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
-  const [deletingCount, setDeletingCount] = React.useState<CycleCountDto | null>(null);
-  const [banner, setBanner] = React.useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [deletingCount, setDeletingCount] =
+    React.useState<CycleCountDto | null>(null);
+  const [banner, setBanner] = React.useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
 
   const fetchCounts = React.useCallback(async () => {
     setLoading(true);
@@ -39,7 +43,8 @@ export default function StockCountsPage() {
       setCounts(data || []);
     } catch (err: unknown) {
       setBanner({
-        message: err instanceof Error ? err.message : "Failed to load stock audits",
+        message:
+          err instanceof Error ? err.message : "Failed to load stock audits",
         type: "error",
       });
     } finally {
@@ -51,7 +56,10 @@ export default function StockCountsPage() {
     fetchCounts();
   }, [fetchCounts]);
 
-  const showBanner = (message: string, type: "success" | "error" = "success") => {
+  const showBanner = (
+    message: string,
+    type: "success" | "error" = "success",
+  ) => {
     setBanner({ message, type });
     setTimeout(() => setBanner(null), 4000);
   };
@@ -69,14 +77,23 @@ export default function StockCountsPage() {
       showBanner(`Stock audit run "${deletingCount.countNumber}" deleted.`);
       fetchCounts();
     } catch (err: unknown) {
-      showBanner(err instanceof Error ? err.message : "Failed to delete audit run.", "error");
+      showBanner(
+        err instanceof Error ? err.message : "Failed to delete audit run.",
+        "error",
+      );
     } finally {
       setDeletingCount(null);
     }
   };
 
   const activeAuditsCount = React.useMemo(
-    () => counts.filter((c) => c.status === "COUNTING" || c.status === "ASSIGNED" || c.status === "DRAFT").length,
+    () =>
+      counts.filter(
+        (c) =>
+          c.status === "COUNTING" ||
+          c.status === "ASSIGNED" ||
+          c.status === "DRAFT",
+      ).length,
     [counts],
   );
 
@@ -133,7 +150,9 @@ export default function StockCountsPage() {
       id: "varianceItemsCount",
       header: "Variance",
       cell: ({ row }) => {
-        const count = row.original.lines?.filter((l) => (l.variance || 0) !== 0).length || 0;
+        const count =
+          row.original.lines?.filter((l) => (l.variance || 0) !== 0).length ||
+          0;
         if (count === 0) {
           return (
             <span className="inline-flex items-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">

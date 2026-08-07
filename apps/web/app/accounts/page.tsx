@@ -28,7 +28,9 @@ export default function AccountsPage() {
         setError(null);
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Failed to load accounts");
+        setError(
+          err instanceof Error ? err.message : "Failed to load accounts",
+        );
       })
       .finally(() => setLoading(false));
   }, []);

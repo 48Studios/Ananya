@@ -29,4 +29,3 @@ export const timeEntriesApi = {
     return apiClient.post<TimeEntryDto>("/time-entries", data);
   },
 };
-

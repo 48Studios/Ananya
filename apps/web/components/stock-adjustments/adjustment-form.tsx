@@ -180,209 +180,212 @@ export function StockAdjustmentForm({
           </div>
         )}
 
-      {/* Storage Location */}
-      <Field>
-        <FieldLabel htmlFor="adj-location">
-          Target Storage Location <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Controller
-          name="locationId"
-          control={control}
-          render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger id="adj-location">
-                <SelectValue placeholder="Select location..." />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.code} - {loc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-        {errors.locationId?.message && (
-          <FieldError>{errors.locationId.message}</FieldError>
-        )}
-      </Field>
-
-      {/* Reason & Notes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Storage Location */}
         <Field>
-          <FieldLabel htmlFor="adj-reason">
-            Adjustment Reason <span className="text-destructive">*</span>
+          <FieldLabel htmlFor="adj-location">
+            Target Storage Location <span className="text-destructive">*</span>
           </FieldLabel>
           <Controller
-            name="reason"
+            name="locationId"
             control={control}
             render={({ field }) => (
               <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="adj-reason">
-                  <SelectValue placeholder="Select reason..." />
+                <SelectTrigger id="adj-location">
+                  <SelectValue placeholder="Select location..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {STANDARD_REASONS.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {r}
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.code} - {loc.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
           />
+          {errors.locationId?.message && (
+            <FieldError>{errors.locationId.message}</FieldError>
+          )}
         </Field>
 
-        <Field>
-          <FieldLabel htmlFor="adj-notes">Notes / Reference Details</FieldLabel>
-          <Input
-            id="adj-notes"
-            type="text"
-            placeholder="e.g. Approved during quarterly physical count"
-            {...register("notes")}
-          />
-        </Field>
-      </div>
+        {/* Reason & Notes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="adj-reason">
+              Adjustment Reason <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Controller
+              name="reason"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="adj-reason">
+                    <SelectValue placeholder="Select reason..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STANDARD_REASONS.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
 
-      {/* Line Items Section */}
-      <div className="space-y-3 pt-2 border-t border-border">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
-            Reconciliation Line Items{" "}
-            <span className="text-destructive">*</span>
-          </label>
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            onClick={() =>
-              append({
-                componentId: "",
-                currentQuantity: 0,
-                countedQuantity: 0,
-                unitOfMeasure: "pcs",
-              })
-            }
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" /> Add Line
-          </Button>
+          <Field>
+            <FieldLabel htmlFor="adj-notes">
+              Notes / Reference Details
+            </FieldLabel>
+            <Input
+              id="adj-notes"
+              type="text"
+              placeholder="e.g. Approved during quarterly physical count"
+              {...register("notes")}
+            />
+          </Field>
         </div>
 
-        {errors.lines?.root?.message && (
-          <p className="text-xs text-destructive">
-            {errors.lines.root.message}
-          </p>
-        )}
+        {/* Line Items Section */}
+        <div className="space-y-3 pt-2 border-t border-border">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
+              Reconciliation Line Items{" "}
+              <span className="text-destructive">*</span>
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={() =>
+                append({
+                  componentId: "",
+                  currentQuantity: 0,
+                  countedQuantity: 0,
+                  unitOfMeasure: "pcs",
+                })
+              }
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" /> Add Line
+            </Button>
+          </div>
 
-        <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-          {fields.map((field, index) => {
-            const current = Number(watchedLines[index]?.currentQuantity) || 0;
-            const counted = Number(watchedLines[index]?.countedQuantity) || 0;
-            const diff = counted - current;
+          {errors.lines?.root?.message && (
+            <p className="text-xs text-destructive">
+              {errors.lines.root.message}
+            </p>
+          )}
 
-            return (
-              <div
-                key={field.id}
-                className="p-3 bg-muted/30 border border-border rounded-lg space-y-2 relative"
-              >
-                {fields.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
+          <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+            {fields.map((field, index) => {
+              const current = Number(watchedLines[index]?.currentQuantity) || 0;
+              const counted = Number(watchedLines[index]?.countedQuantity) || 0;
+              const diff = counted - current;
 
-                {/* Component Select */}
-                <Field className="pr-6">
-                  <FieldLabel className="text-[10px]">Component</FieldLabel>
-                  <Select
-                    value={watchedLines[index]?.componentId || ""}
-                    onValueChange={(val) =>
-                      handleComponentSelect(index, val ?? "")
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Select component..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {components.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.sku} — {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
+              return (
+                <div
+                  key={field.id}
+                  className="p-3 bg-muted/30 border border-border rounded-lg space-y-2 relative"
+                >
+                  {fields.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => remove(index)}
+                      className="absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
 
-                {/* Quantities & Preview Grid */}
-                <div className="grid grid-cols-3 gap-2 pt-1">
-                  <Field>
-                    <FieldLabel className="text-[10px]">
-                      Current Stock
-                    </FieldLabel>
-                    <Input
-                      type="number"
-                      min={0}
-                      {...register(`lines.${index}.currentQuantity`, {
-                        valueAsNumber: true,
-                      })}
-                      className="h-8 text-xs font-mono"
-                    />
+                  {/* Component Select */}
+                  <Field className="pr-6">
+                    <FieldLabel className="text-[10px]">Component</FieldLabel>
+                    <Select
+                      value={watchedLines[index]?.componentId || ""}
+                      onValueChange={(val) =>
+                        handleComponentSelect(index, val ?? "")
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select component..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {components.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.sku} — {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </Field>
 
-                  <Field>
-                    <FieldLabel className="text-[10px]">
-                      Counted Stock
-                    </FieldLabel>
-                    <Input
-                      type="number"
-                      min={0}
-                      {...register(`lines.${index}.countedQuantity`, {
-                        valueAsNumber: true,
-                      })}
-                      className="h-8 text-xs font-mono font-bold"
-                    />
-                  </Field>
+                  {/* Quantities & Preview Grid */}
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    <Field>
+                      <FieldLabel className="text-[10px]">
+                        Current Stock
+                      </FieldLabel>
+                      <Input
+                        type="number"
+                        min={0}
+                        {...register(`lines.${index}.currentQuantity`, {
+                          valueAsNumber: true,
+                        })}
+                        className="h-8 text-xs font-mono"
+                      />
+                    </Field>
 
-                  <div>
-                    <label className="text-[10px] font-medium text-muted-foreground">
-                      Difference
-                    </label>
-                    <div className="px-2 py-1.5 text-xs font-mono font-bold rounded border border-border flex items-center justify-between bg-card">
-                      <span>{diff > 0 ? `+${diff}` : diff}</span>
-                      {diff > 0 && (
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
-                          Increase
-                        </span>
-                      )}
-                      {diff < 0 && (
-                        <span className="text-[10px] text-rose-600 dark:text-rose-400">
-                          Decrease
-                        </span>
-                      )}
-                      {diff === 0 && (
-                        <span className="text-[10px] text-muted-foreground">
-                          No Change
-                        </span>
-                      )}
+                    <Field>
+                      <FieldLabel className="text-[10px]">
+                        Counted Stock
+                      </FieldLabel>
+                      <Input
+                        type="number"
+                        min={0}
+                        {...register(`lines.${index}.countedQuantity`, {
+                          valueAsNumber: true,
+                        })}
+                        className="h-8 text-xs font-mono font-bold"
+                      />
+                    </Field>
+
+                    <div>
+                      <label className="text-[10px] font-medium text-muted-foreground">
+                        Difference
+                      </label>
+                      <div className="px-2 py-1.5 text-xs font-mono font-bold rounded border border-border flex items-center justify-between bg-card">
+                        <span>{diff > 0 ? `+${diff}` : diff}</span>
+                        {diff > 0 && (
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                            Increase
+                          </span>
+                        )}
+                        {diff < 0 && (
+                          <span className="text-[10px] text-rose-600 dark:text-rose-400">
+                            Decrease
+                          </span>
+                        )}
+                        {diff === 0 && (
+                          <span className="text-[10px] text-muted-foreground">
+                            No Change
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
-
       </DialogShellBody>
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          {isSubmitting && (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          )}
           Submit Adjustment for Approval
         </Button>
       </DialogShellFooter>

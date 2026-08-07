@@ -10,6 +10,7 @@
     "dev": "nest start --watch",
     "start": "nest start",
     "start:prod": "node dist/main",
+    "start:worker": "node dist/worker",
     "lint": "eslint \"{src,test}/**/*.ts\" --max-warnings 0",
     "check-types": "tsc --noEmit",
     "test": "jest --passWithNoTests",

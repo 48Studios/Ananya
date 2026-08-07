@@ -96,10 +96,7 @@ export function DialogShellBody({
 }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn(
-        className,
-        "min-h-0 flex-1 overflow-y-auto px-6 py-5",
-      )}
+      className={cn(className, "min-h-0 flex-1 overflow-y-auto px-6 py-5")}
       {...props}
     />
   );

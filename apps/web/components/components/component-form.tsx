@@ -120,95 +120,97 @@ export function ComponentForm({
           </div>
         )}
 
-      {/* SKU */}
-      <Field>
-        <FieldLabel htmlFor="component-sku">
-          SKU / Internal Part Number <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="component-sku"
-          type="text"
-          placeholder="e.g. MCU-STM32F4-01"
-          {...register("sku")}
-          className="font-mono"
-        />
-        {errors.sku?.message && <FieldError>{errors.sku.message}</FieldError>}
-      </Field>
+        {/* SKU */}
+        <Field>
+          <FieldLabel htmlFor="component-sku">
+            SKU / Internal Part Number{" "}
+            <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Input
+            id="component-sku"
+            type="text"
+            placeholder="e.g. MCU-STM32F4-01"
+            {...register("sku")}
+            className="font-mono"
+          />
+          {errors.sku?.message && <FieldError>{errors.sku.message}</FieldError>}
+        </Field>
 
-      {/* Name */}
-      <Field>
-        <FieldLabel htmlFor="component-name">
-          Component Name <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="component-name"
-          type="text"
-          placeholder="e.g. Microcontroller Unit 32-bit ARM Cortex-M4"
-          {...register("name")}
-        />
-        {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
-      </Field>
-
-      {/* Unit */}
-      <Field>
-        <FieldLabel htmlFor="component-unit">
-          Default Unit of Measure <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Controller
-          name="unit"
-          control={control}
-          render={({ field }) => (
-            <EntitySelector
-              id="component-unit"
-              entity="unit"
-              value={field.value}
-              onChange={(val) => field.onChange(val)}
-              creatable
-            />
+        {/* Name */}
+        <Field>
+          <FieldLabel htmlFor="component-name">
+            Component Name <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Input
+            id="component-name"
+            type="text"
+            placeholder="e.g. Microcontroller Unit 32-bit ARM Cortex-M4"
+            {...register("name")}
+          />
+          {errors.name?.message && (
+            <FieldError>{errors.name.message}</FieldError>
           )}
-        />
-        {errors.unit?.message && <FieldError>{errors.unit.message}</FieldError>}
-      </Field>
+        </Field>
 
-      {/* Description */}
-      <Field>
-        <FieldLabel htmlFor="component-desc">Description</FieldLabel>
-        <Textarea
-          id="component-desc"
-          rows={3}
-          placeholder="Detailed component specification..."
-          {...register("description")}
-          className="resize-none"
-        />
-      </Field>
-
-      {/* Default Location */}
-      <Field>
-        <FieldLabel htmlFor="component-location">
-          Default Storage Location
-        </FieldLabel>
-        <Controller
-          name="defaultLocationId"
-          control={control}
-          render={({ field }) => (
-            <EntitySelector
-              id="component-location"
-              entity="location"
-              value={field.value ?? ""}
-              onChange={(val) => field.onChange(val)}
-              creatable
-            />
+        {/* Unit */}
+        <Field>
+          <FieldLabel htmlFor="component-unit">
+            Default Unit of Measure <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Controller
+            name="unit"
+            control={control}
+            render={({ field }) => (
+              <EntitySelector
+                id="component-unit"
+                entity="unit"
+                value={field.value}
+                onChange={(val) => field.onChange(val)}
+                creatable
+              />
+            )}
+          />
+          {errors.unit?.message && (
+            <FieldError>{errors.unit.message}</FieldError>
           )}
-        />
-      </Field>
+        </Field>
 
+        {/* Description */}
+        <Field>
+          <FieldLabel htmlFor="component-desc">Description</FieldLabel>
+          <Textarea
+            id="component-desc"
+            rows={3}
+            placeholder="Detailed component specification..."
+            {...register("description")}
+            className="resize-none"
+          />
+        </Field>
+
+        {/* Default Location */}
+        <Field>
+          <FieldLabel htmlFor="component-location">
+            Default Storage Location
+          </FieldLabel>
+          <Controller
+            name="defaultLocationId"
+            control={control}
+            render={({ field }) => (
+              <EntitySelector
+                id="component-location"
+                entity="location"
+                value={field.value ?? ""}
+                onChange={(val) => field.onChange(val)}
+                creatable
+              />
+            )}
+          />
+        </Field>
       </DialogShellBody>
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && (
-            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-          )}
+          {isSubmitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
           {isEditing ? "Save Changes" : "Create Component"}
         </Button>
       </DialogShellFooter>

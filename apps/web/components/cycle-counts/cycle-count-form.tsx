@@ -215,198 +215,201 @@ export function CycleCountForm({
           </div>
         )}
 
-      {/* Location & Assigned User */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field>
-          <FieldLabel htmlFor="count-loc">
-            Counting Facility / Location{" "}
-            <span className="text-destructive">*</span>
-          </FieldLabel>
-          <Controller
-            name="locationId"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="count-loc">
-                  <SelectValue placeholder="Select facility location..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>
-                      {loc.code} — {loc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {/* Location & Assigned User */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="count-loc">
+              Counting Facility / Location{" "}
+              <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Controller
+              name="locationId"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="count-loc">
+                    <SelectValue placeholder="Select facility location..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        {loc.code} — {loc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.locationId?.message && (
+              <FieldError>{errors.locationId.message}</FieldError>
             )}
-          />
-          {errors.locationId?.message && (
-            <FieldError>{errors.locationId.message}</FieldError>
-          )}
-        </Field>
+          </Field>
 
-        <Field>
-          <FieldLabel htmlFor="count-user">Assigned Counter / User</FieldLabel>
-          <Input
-            id="count-user"
-            type="text"
-            placeholder="e.g. John Doe (Counter Lead)"
-            {...register("assignedCounter")}
-          />
-        </Field>
-      </div>
-
-      {/* Date & Notes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field>
-          <FieldLabel htmlFor="count-date">Scheduled Count Date</FieldLabel>
-          <Input
-            id="count-date"
-            type="date"
-            {...register("scheduledDate")}
-            className="font-mono"
-          />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="count-notes">
-            Count Notes / Audit Scope
-          </FieldLabel>
-          <Input
-            id="count-notes"
-            type="text"
-            placeholder="e.g. Monthly A-class component verification count"
-            {...register("notes")}
-          />
-        </Field>
-      </div>
-
-      {/* Line Items Manager */}
-      <div className="space-y-2 pt-2 border-t border-border">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-            Counting Component Scope ({fields.length} Items)
-          </h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            onClick={() =>
-              append({
-                componentId: "",
-                systemQuantity: 100,
-                unitOfMeasure: "pcs",
-                notes: "",
-              })
-            }
-          >
-            <Plus className="w-3 h-3 mr-1" />
-            Add Item
-          </Button>
+          <Field>
+            <FieldLabel htmlFor="count-user">
+              Assigned Counter / User
+            </FieldLabel>
+            <Input
+              id="count-user"
+              type="text"
+              placeholder="e.g. John Doe (Counter Lead)"
+              {...register("assignedCounter")}
+            />
+          </Field>
         </div>
 
-        {errors.lines?.root && (
-          <p className="text-xs text-destructive">
-            {errors.lines.root.message}
-          </p>
-        )}
+        {/* Date & Notes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="count-date">Scheduled Count Date</FieldLabel>
+            <Input
+              id="count-date"
+              type="date"
+              {...register("scheduledDate")}
+              className="font-mono"
+            />
+          </Field>
 
-        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-          {fields.map((field, idx) => (
-            <div
-              key={field.id}
-              className="p-3 bg-muted/20 border border-border rounded-lg grid grid-cols-1 sm:grid-cols-12 gap-2 items-end"
+          <Field>
+            <FieldLabel htmlFor="count-notes">
+              Count Notes / Audit Scope
+            </FieldLabel>
+            <Input
+              id="count-notes"
+              type="text"
+              placeholder="e.g. Monthly A-class component verification count"
+              {...register("notes")}
+            />
+          </Field>
+        </div>
+
+        {/* Line Items Manager */}
+        <div className="space-y-2 pt-2 border-t border-border">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+              Counting Component Scope ({fields.length} Items)
+            </h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={() =>
+                append({
+                  componentId: "",
+                  systemQuantity: 100,
+                  unitOfMeasure: "pcs",
+                  notes: "",
+                })
+              }
             >
-              <div className="sm:col-span-6 space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Item #{idx + 1} Component{" "}
-                  <span className="text-destructive">*</span>
-                </label>
-                <Controller
-                  name={`lines.${idx}.componentId` as const}
-                  control={control}
-                  render={({ field: compField }) => (
-                    <Select
-                      value={compField.value}
-                      onValueChange={(val) => {
-                        compField.onChange(val ?? "");
-                        handleComponentChange(idx, val ?? "");
-                      }}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select component..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {components.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.sku} — {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              <Plus className="w-3 h-3 mr-1" />
+              Add Item
+            </Button>
+          </div>
+
+          {errors.lines?.root && (
+            <p className="text-xs text-destructive">
+              {errors.lines.root.message}
+            </p>
+          )}
+
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {fields.map((field, idx) => (
+              <div
+                key={field.id}
+                className="p-3 bg-muted/20 border border-border rounded-lg grid grid-cols-1 sm:grid-cols-12 gap-2 items-end"
+              >
+                <div className="sm:col-span-6 space-y-1">
+                  <label className="text-[11px] font-medium text-muted-foreground">
+                    Item #{idx + 1} Component{" "}
+                    <span className="text-destructive">*</span>
+                  </label>
+                  <Controller
+                    name={`lines.${idx}.componentId` as const}
+                    control={control}
+                    render={({ field: compField }) => (
+                      <Select
+                        value={compField.value}
+                        onValueChange={(val) => {
+                          compField.onChange(val ?? "");
+                          handleComponentChange(idx, val ?? "");
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Select component..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {components.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.sku} — {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.lines?.[idx]?.componentId?.message && (
+                    <p className="text-[11px] text-destructive">
+                      {errors.lines[idx]?.componentId?.message}
+                    </p>
                   )}
-                />
-                {errors.lines?.[idx]?.componentId?.message && (
-                  <p className="text-[11px] text-destructive">
-                    {errors.lines[idx]?.componentId?.message}
-                  </p>
-                )}
-              </div>
+                </div>
 
-              <div className="sm:col-span-3 space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Expected System Qty{" "}
-                  <span className="text-destructive">*</span>
-                </label>
-                <Input
-                  type="number"
-                  step="any"
-                  min={0}
-                  {...register(`lines.${idx}.systemQuantity` as const, {
-                    valueAsNumber: true,
-                  })}
-                  className="h-8 text-xs font-mono font-bold"
-                />
-                {errors.lines?.[idx]?.systemQuantity?.message && (
-                  <p className="text-[11px] text-destructive">
-                    {errors.lines[idx]?.systemQuantity?.message}
-                  </p>
-                )}
-              </div>
+                <div className="sm:col-span-3 space-y-1">
+                  <label className="text-[11px] font-medium text-muted-foreground">
+                    Expected System Qty{" "}
+                    <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    step="any"
+                    min={0}
+                    {...register(`lines.${idx}.systemQuantity` as const, {
+                      valueAsNumber: true,
+                    })}
+                    className="h-8 text-xs font-mono font-bold"
+                  />
+                  {errors.lines?.[idx]?.systemQuantity?.message && (
+                    <p className="text-[11px] text-destructive">
+                      {errors.lines[idx]?.systemQuantity?.message}
+                    </p>
+                  )}
+                </div>
 
-              <div className="sm:col-span-2 space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Unit
-                </label>
-                <Input
-                  type="text"
-                  {...register(`lines.${idx}.unitOfMeasure` as const)}
-                  className="h-8 text-xs font-mono"
-                />
-              </div>
+                <div className="sm:col-span-2 space-y-1">
+                  <label className="text-[11px] font-medium text-muted-foreground">
+                    Unit
+                  </label>
+                  <Input
+                    type="text"
+                    {...register(`lines.${idx}.unitOfMeasure` as const)}
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
 
-              <div className="sm:col-span-1 flex justify-end">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={fields.length === 1}
-                  onClick={() => remove(idx)}
-                  className="text-destructive hover:bg-destructive/10 h-8 w-8"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="sm:col-span-1 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={fields.length === 1}
+                    onClick={() => remove(idx)}
+                    className="text-destructive hover:bg-destructive/10 h-8 w-8"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-
       </DialogShellBody>
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          {isSubmitting && (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          )}
           {isEdit ? "Save Changes" : "Create Cycle Count"}
         </Button>
       </DialogShellFooter>

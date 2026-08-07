@@ -2,7 +2,13 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Boxes, RefreshCw, CheckCircle2, AlertCircle, CalendarClock } from "lucide-react";
+import {
+  Boxes,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  CalendarClock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -129,31 +135,31 @@ export default function BatchesPage() {
   ];
 
   if (loading) {
-  return <LoadingState message="Loading batch registry..." />;
+    return <LoadingState message="Loading batch registry..." />;
   }
 
   if (error) {
-  return (
-    <ErrorState
-      title="Batch data unavailable"
-      message={error}
-      onRetry={fetchBatches}
-    />
-  );
+    return (
+      <ErrorState
+        title="Batch data unavailable"
+        message={error}
+        onRetry={fetchBatches}
+      />
+    );
   }
 
   return (
-  <div className="space-y-6">
-    <PageHeader
-      title="Batch & Lot Management"
-      description="Track material batches, lot expiry dates, quarantine holds, and batch genealogy."
-      actions={
-        <Button size="sm" variant="outline" onClick={fetchBatches}>
-          <RefreshCw className="w-4 h-4 mr-1.5" />
-          Refresh
-        </Button>
-      }
-    />
+    <div className="space-y-6">
+      <PageHeader
+        title="Batch & Lot Management"
+        description="Track material batches, lot expiry dates, quarantine holds, and batch genealogy."
+        actions={
+          <Button size="sm" variant="outline" onClick={fetchBatches}>
+            <RefreshCw className="w-4 h-4 mr-1.5" />
+            Refresh
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard

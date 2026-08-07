@@ -159,7 +159,11 @@ export default function PurchaseInvoicesPage() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Total Invoices" value={invoices.length} icon={FileText} />
+        <StatCard
+          title="Total Invoices"
+          value={invoices.length}
+          icon={FileText}
+        />
         <StatCard
           title="Outstanding Payable"
           value={formatCurrency(outstandingAmount)}

@@ -399,9 +399,7 @@ export default function ViewSupplierPage() {
           onSuccess={(updated) => {
             setSupplier(updated);
             setIsEditOpen(false);
-            setToastMessage(
-              `Supplier "${updated.code}" updated successfully.`,
-            );
+            setToastMessage(`Supplier "${updated.code}" updated successfully.`);
             setTimeout(() => setToastMessage(null), 4000);
           }}
           onCancel={() => setIsEditOpen(false)}

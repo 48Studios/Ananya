@@ -154,137 +154,134 @@ export function ProjectForm({
           </div>
         )}
 
-      {/* Name */}
-      <Field>
-        <FieldLabel htmlFor="project-name">
-          Project Name <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="project-name"
-          type="text"
-          placeholder="e.g. Customer Fitout — Building A"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </Field>
-
-      {/* Type & Priority */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Name */}
         <Field>
-          <FieldLabel htmlFor="project-type">Project Type</FieldLabel>
-          <Select
-            value={projectType}
-            onValueChange={(val) => setProjectType(val as ProjectType)}
-          >
-            <SelectTrigger id="project-type">
-              <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent>
-              {PROJECT_TYPES.map((pt) => (
-                <SelectItem key={pt.value} value={pt.value}>
-                  {pt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="project-priority">Priority</FieldLabel>
-          <Select
-            value={priority}
-            onValueChange={(val) => setPriority(val as ProjectPriority)}
-          >
-            <SelectTrigger id="project-priority">
-              <SelectValue placeholder="Select priority" />
-            </SelectTrigger>
-            <SelectContent>
-              {PRIORITIES.map((p) => (
-                <SelectItem key={p.value} value={p.value}>
-                  {p.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </div>
-
-      {/* Project Manager & Owner */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field>
-          <FieldLabel htmlFor="project-manager">
-            Project Manager <span className="text-destructive">*</span>
+          <FieldLabel htmlFor="project-name">
+            Project Name <span className="text-destructive">*</span>
           </FieldLabel>
           <Input
-            id="project-manager"
+            id="project-name"
             type="text"
-            placeholder="e.g. Arun K"
-            value={projectManager}
-            onChange={(e) => setProjectManager(e.target.value)}
+            placeholder="e.g. Customer Fitout — Building A"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
           />
         </Field>
 
+        {/* Type & Priority */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="project-type">Project Type</FieldLabel>
+            <Select
+              value={projectType}
+              onValueChange={(val) => setProjectType(val as ProjectType)}
+            >
+              <SelectTrigger id="project-type">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                {PROJECT_TYPES.map((pt) => (
+                  <SelectItem key={pt.value} value={pt.value}>
+                    {pt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="project-priority">Priority</FieldLabel>
+            <Select
+              value={priority}
+              onValueChange={(val) => setPriority(val as ProjectPriority)}
+            >
+              <SelectTrigger id="project-priority">
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITIES.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+
+        {/* Project Manager & Owner */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="project-manager">
+              Project Manager <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="project-manager"
+              type="text"
+              placeholder="e.g. Arun K"
+              value={projectManager}
+              onChange={(e) => setProjectManager(e.target.value)}
+            />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="project-owner">Owner</FieldLabel>
+            <Input
+              id="project-owner"
+              type="text"
+              placeholder="e.g. Operations Lead"
+              value={owner}
+              onChange={(e) => setOwner(e.target.value)}
+            />
+          </Field>
+        </div>
+
+        {/* Dates */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="project-start-date">
+              Start Date <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="project-start-date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="font-mono"
+            />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="project-target-date">
+              Target Completion Date <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="project-target-date"
+              type="date"
+              value={targetCompletionDate}
+              onChange={(e) => setTargetCompletionDate(e.target.value)}
+              className="font-mono"
+            />
+          </Field>
+        </div>
+
+        {/* Description */}
         <Field>
-          <FieldLabel htmlFor="project-owner">Owner</FieldLabel>
-          <Input
-            id="project-owner"
-            type="text"
-            placeholder="e.g. Operations Lead"
-            value={owner}
-            onChange={(e) => setOwner(e.target.value)}
+          <FieldLabel htmlFor="project-description">Description</FieldLabel>
+          <Textarea
+            id="project-description"
+            placeholder="Project scope, deliverables, or notes..."
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="resize-none"
           />
         </Field>
-      </div>
-
-      {/* Dates */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field>
-          <FieldLabel htmlFor="project-start-date">
-            Start Date <span className="text-destructive">*</span>
-          </FieldLabel>
-          <Input
-            id="project-start-date"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="font-mono"
-          />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="project-target-date">
-            Target Completion Date <span className="text-destructive">*</span>
-          </FieldLabel>
-          <Input
-            id="project-target-date"
-            type="date"
-            value={targetCompletionDate}
-            onChange={(e) => setTargetCompletionDate(e.target.value)}
-            className="font-mono"
-          />
-        </Field>
-      </div>
-
-      {/* Description */}
-      <Field>
-        <FieldLabel htmlFor="project-description">Description</FieldLabel>
-        <Textarea
-          id="project-description"
-          placeholder="Project scope, deliverables, or notes..."
-          rows={3}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="resize-none"
-        />
-      </Field>
-
       </DialogShellBody>
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && (
-            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-          )}
+          {isSubmitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
           {isEdit ? "Save Changes" : "Create Project"}
         </Button>
       </DialogShellFooter>

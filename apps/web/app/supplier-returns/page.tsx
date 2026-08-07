@@ -181,4 +181,3 @@ export default function SupplierReturnsPage() {
     </div>
   );
 }
-

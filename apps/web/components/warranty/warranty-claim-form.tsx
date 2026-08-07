@@ -85,7 +85,8 @@ export function WarrantyClaimForm({
 
         <Field>
           <FieldLabel htmlFor="claimReason">
-            Claim Reason / Issue Details <span className="text-destructive">*</span>
+            Claim Reason / Issue Details{" "}
+            <span className="text-destructive">*</span>
           </FieldLabel>
           <Input
             id="claimReason"
@@ -130,7 +131,9 @@ export function WarrantyClaimForm({
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button size="sm" type="submit" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          {isSubmitting && (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          )}
           File Claim
         </Button>
       </DialogShellFooter>

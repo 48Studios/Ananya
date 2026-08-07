@@ -151,7 +151,9 @@ export default function UnitsPage() {
                 : "bg-muted text-muted-foreground border border-border"
             }`}
           >
-            {row.original.isBaseUnit ? "Primary Base Unit" : "Derived Secondary"}
+            {row.original.isBaseUnit
+              ? "Primary Base Unit"
+              : "Derived Secondary"}
           </span>
         ),
       },

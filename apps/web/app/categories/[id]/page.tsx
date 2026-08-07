@@ -401,9 +401,7 @@ export default function ViewCategoryPage() {
           onSuccess={(updated) => {
             setCategory(updated);
             setIsEditOpen(false);
-            setToastMessage(
-              `Category "${updated.code}" updated successfully.`,
-            );
+            setToastMessage(`Category "${updated.code}" updated successfully.`);
             setTimeout(() => setToastMessage(null), 4000);
           }}
           onCancel={() => setIsEditOpen(false)}

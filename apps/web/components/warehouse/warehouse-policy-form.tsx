@@ -146,8 +146,12 @@ export function WarehousePolicyForm({
                   <SelectValue placeholder="Select picking rule" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="FIFO">FIFO (First In First Out)</SelectItem>
-                  <SelectItem value="FEFO">FEFO (First Expired First Out)</SelectItem>
+                  <SelectItem value="FIFO">
+                    FIFO (First In First Out)
+                  </SelectItem>
+                  <SelectItem value="FEFO">
+                    FEFO (First Expired First Out)
+                  </SelectItem>
                   <SelectItem value="LIFO">LIFO (Last In First Out)</SelectItem>
                   <SelectItem value="ZONE_BASED">Zone-Based Optimal</SelectItem>
                 </SelectContent>

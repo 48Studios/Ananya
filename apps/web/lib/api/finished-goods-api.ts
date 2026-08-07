@@ -15,7 +15,9 @@ export const finishedGoodsApi = {
   getAll: async (): Promise<FinishedGoodDto[]> => {
     return apiClient.get<FinishedGoodDto[]>("/finished-goods");
   },
-  create: async (data: { productionOrderId: string }): Promise<FinishedGoodDto> => {
+  create: async (data: {
+    productionOrderId: string;
+  }): Promise<FinishedGoodDto> => {
     return apiClient.post<FinishedGoodDto>("/finished-goods", data);
   },
   addLine: async (
@@ -34,4 +36,3 @@ export const finishedGoodsApi = {
     return apiClient.post(`/finished-goods/${id}/post`, {});
   },
 };
-

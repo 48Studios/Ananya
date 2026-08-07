@@ -359,7 +359,11 @@ export function ScanDialog({
           </span>
         </div>
 
-        <form id="scan-dialog-form" onSubmit={handleSubmit} className="space-y-2">
+        <form
+          id="scan-dialog-form"
+          onSubmit={handleSubmit}
+          className="space-y-2"
+        >
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground flex items-center justify-between">
               <span>Scan or Enter Barcode / QR Payload</span>
@@ -501,7 +505,6 @@ export function ScanDialog({
                 {result.subtitle}
               </p>
             </div>
-
           </div>
         )}
       </DialogShellBody>

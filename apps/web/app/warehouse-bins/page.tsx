@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Boxes, Plus, CheckCircle2, Edit2, Trash2, Package } from "lucide-react";
+import {
+  Boxes,
+  Plus,
+  CheckCircle2,
+  Edit2,
+  Trash2,
+  Package,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -17,18 +24,26 @@ export default function WarehouseBinsPage() {
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingBin, setEditingBin] = React.useState<LocationDto | null>(null);
-  const [deletingBin, setDeletingBin] = React.useState<LocationDto | null>(null);
-  const [banner, setBanner] = React.useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [deletingBin, setDeletingBin] = React.useState<LocationDto | null>(
+    null,
+  );
+  const [banner, setBanner] = React.useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
 
   const fetchBins = React.useCallback(async () => {
     setLoading(true);
     try {
       const allLocs = await locationsApi.getAll();
-      const binLocs = (allLocs || []).filter((l) => l.kind === "BIN" || l.kind === "SHELF");
+      const binLocs = (allLocs || []).filter(
+        (l) => l.kind === "BIN" || l.kind === "SHELF",
+      );
       setBins(binLocs);
     } catch (err: unknown) {
       setBanner({
-        message: err instanceof Error ? err.message : "Failed to load storage bins",
+        message:
+          err instanceof Error ? err.message : "Failed to load storage bins",
         type: "error",
       });
     } finally {
@@ -40,7 +55,10 @@ export default function WarehouseBinsPage() {
     fetchBins();
   }, [fetchBins]);
 
-  const showBanner = (message: string, type: "success" | "error" = "success") => {
+  const showBanner = (
+    message: string,
+    type: "success" | "error" = "success",
+  ) => {
     setBanner({ message, type });
     setTimeout(() => setBanner(null), 4000);
   };
@@ -57,7 +75,11 @@ export default function WarehouseBinsPage() {
 
   const handleFormSuccess = () => {
     setIsFormOpen(false);
-    showBanner(editingBin ? "Storage bin updated successfully." : "Storage bin created successfully.");
+    showBanner(
+      editingBin
+        ? "Storage bin updated successfully."
+        : "Storage bin created successfully.",
+    );
     fetchBins();
   };
 
@@ -68,13 +90,19 @@ export default function WarehouseBinsPage() {
       showBanner(`Storage bin "${deletingBin.code}" deleted successfully.`);
       fetchBins();
     } catch (err: unknown) {
-      showBanner(err instanceof Error ? err.message : "Failed to delete storage bin.", "error");
+      showBanner(
+        err instanceof Error ? err.message : "Failed to delete storage bin.",
+        "error",
+      );
     } finally {
       setDeletingBin(null);
     }
   };
 
-  const activeBinsCount = React.useMemo(() => bins.filter((b) => b.isActive).length, [bins]);
+  const activeBinsCount = React.useMemo(
+    () => bins.filter((b) => b.isActive).length,
+    [bins],
+  );
 
   const columns: ColumnDef<LocationDto>[] = [
     {
@@ -90,9 +118,7 @@ export default function WarehouseBinsPage() {
       accessorKey: "name",
       header: "Facility & Zone Name",
       cell: ({ row }) => (
-        <span className="font-medium text-foreground">
-          {row.original.name}
-        </span>
+        <span className="font-medium text-foreground">{row.original.name}</span>
       ),
     },
     {
@@ -107,7 +133,7 @@ export default function WarehouseBinsPage() {
     {
       accessorKey: "isActive",
       header: "Status",
-      cell: ({ row }) => (
+      cell: ({ row }) =>
         row.original.isActive ? (
           <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
             <CheckCircle2 className="w-3 h-3 mr-1" /> Active Bin
@@ -116,8 +142,7 @@ export default function WarehouseBinsPage() {
           <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-muted text-muted-foreground border border-border">
             Inactive
           </span>
-        )
-      ),
+        ),
     },
     {
       id: "actions",
@@ -172,11 +197,7 @@ export default function WarehouseBinsPage() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          title="Total Bins"
-          value={bins.length}
-          icon={Boxes}
-        />
+        <StatCard title="Total Bins" value={bins.length} icon={Boxes} />
         <StatCard
           title="Available Active Bins"
           value={activeBinsCount}
@@ -184,7 +205,11 @@ export default function WarehouseBinsPage() {
         />
         <StatCard
           title="Bin Utilization Ratio"
-          value={bins.length > 0 ? `${Math.round((activeBinsCount / bins.length) * 100)}% Active` : "100% Active"}
+          value={
+            bins.length > 0
+              ? `${Math.round((activeBinsCount / bins.length) * 100)}% Active`
+              : "100% Active"
+          }
           icon={Package}
         />
       </div>

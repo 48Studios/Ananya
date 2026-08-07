@@ -42,10 +42,7 @@ export interface PaymentDto {
   id: string;
   paymentNumber: string;
   paymentType:
-    | "CUSTOMER_PAYMENT"
-    | "SUPPLIER_PAYMENT"
-    | "INTERNAL_TRANSFER"
-    | "REFUND";
+    "CUSTOMER_PAYMENT" | "SUPPLIER_PAYMENT" | "INTERNAL_TRANSFER" | "REFUND";
   paymentMethod: "WIRE_TRANSFER" | "CHECK" | "CREDIT_CARD" | "CASH" | "ACH";
   amount: number;
   reference?: string | null;

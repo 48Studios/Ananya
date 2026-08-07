@@ -1,0 +1,132 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ananya-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ananya}
+      POSTGRES_USER: ${POSTGRES_USER:-ananya}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ananya_secure_password}
+    volumes:
+      - ananya_postgres_data:/var/lib/postgresql/data
+    networks:
+      - ananya-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ananya} -d ${POSTGRES_DB:-ananya}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ananya-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel notice
+    volumes:
+      - ananya_redis_data:/data
+    networks:
+      - ananya-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    image: 48studios/ananya-api:${ANANYA_VERSION:-latest}
+    container_name: ananya-api
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgres://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@postgres:5432/${POSTGRES_DB:-ananya}
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      JWT_SECRET: ${JWT_SECRET:-ananya_jwt_production_secret_change_me}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+    volumes:
+      - ananya_uploads_data:/app/uploads
+    networks:
+      - ananya-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    image: 48studios/ananya-worker:${ANANYA_VERSION:-latest}
+    container_name: ananya-worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      WORKER_PORT: 4001
+      DATABASE_URL: postgres://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@postgres:5432/${POSTGRES_DB:-ananya}
+      REDIS_URL: redis://redis:6379
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
+    volumes:
+      - ananya_uploads_data:/app/uploads
+    networks:
+      - ananya-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4001/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    image: 48studios/ananya-web:${ANANYA_VERSION:-latest}
+    container_name: ananya-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    networks:
+      - ananya-network
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  ananya_postgres_data:
+    driver: local
+  ananya_redis_data:
+    driver: local
+  ananya_uploads_data:
+    driver: local
+
+networks:
+  ananya-network:
+    driver: bridge

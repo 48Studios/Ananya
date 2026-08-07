@@ -25,7 +25,9 @@ export default function AccountsPayablePage() {
       })
       .catch((err: unknown) => {
         setError(
-          err instanceof Error ? err.message : "Failed to load payable invoices",
+          err instanceof Error
+            ? err.message
+            : "Failed to load payable invoices",
         );
       })
       .finally(() => setLoading(false));
@@ -91,17 +93,17 @@ export default function AccountsPayablePage() {
   ];
 
   if (loading) {
-  return <LoadingState message="Loading accounts payable..." />;
+    return <LoadingState message="Loading accounts payable..." />;
   }
 
   if (error) {
-  return (
-    <ErrorState
-      title="Accounts payable unavailable"
-      message={error}
-      onRetry={() => window.location.reload()}
-    />
-  );
+    return (
+      <ErrorState
+        title="Accounts payable unavailable"
+        message={error}
+        onRetry={() => window.location.reload()}
+      />
+    );
   }
 
   return (
@@ -128,7 +130,12 @@ export default function AccountsPayablePage() {
         />
         <StatCard
           title="Overdue Accounts"
-          value={entries.filter((entry) => new Date(entry.dueDate) < new Date() && entry.balance > 0).length}
+          value={
+            entries.filter(
+              (entry) =>
+                new Date(entry.dueDate) < new Date() && entry.balance > 0,
+            ).length
+          }
           icon={AlertCircle}
         />
       </div>

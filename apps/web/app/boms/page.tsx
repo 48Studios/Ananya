@@ -357,13 +357,13 @@ export default function BomsPage() {
         size="sm"
       >
         <BomForm
-            initialData={editingBom}
-            onSuccess={handleFormSuccess}
-            onCancel={() => {
-              setIsFormOpen(false);
-              setEditingBom(null);
-            }}
-          />
+          initialData={editingBom}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingBom(null);
+          }}
+        />
       </DialogShell>
 
       {/* Confirmation Dialog for Deleting */}

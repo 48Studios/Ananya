@@ -24,7 +24,9 @@ export default function PaymentsPage() {
         setError(null);
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Failed to load payments");
+        setError(
+          err instanceof Error ? err.message : "Failed to load payments",
+        );
       })
       .finally(() => setLoading(false));
   }, []);
@@ -96,17 +98,17 @@ export default function PaymentsPage() {
   ];
 
   if (loading) {
-  return <LoadingState message="Loading payments..." />;
+    return <LoadingState message="Loading payments..." />;
   }
 
   if (error) {
-  return (
-    <ErrorState
-      title="Payments unavailable"
-      message={error}
-      onRetry={() => window.location.reload()}
-    />
-  );
+    return (
+      <ErrorState
+        title="Payments unavailable"
+        message={error}
+        onRetry={() => window.location.reload()}
+      />
+    );
   }
 
   return (

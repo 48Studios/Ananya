@@ -102,42 +102,43 @@ export function ManufacturerForm({
           </div>
         )}
 
-      {/* Code */}
-      <Field>
-        <FieldLabel htmlFor="mfr-code">
-          Manufacturer Code <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="mfr-code"
-          type="text"
-          placeholder="e.g. MFR-ST-MICRO"
-          {...register("code")}
-          className="uppercase font-mono"
-        />
-        {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
-      </Field>
+        {/* Code */}
+        <Field>
+          <FieldLabel htmlFor="mfr-code">
+            Manufacturer Code <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Input
+            id="mfr-code"
+            type="text"
+            placeholder="e.g. MFR-ST-MICRO"
+            {...register("code")}
+            className="uppercase font-mono"
+          />
+          {errors.code?.message && (
+            <FieldError>{errors.code.message}</FieldError>
+          )}
+        </Field>
 
-      {/* Name */}
-      <Field>
-        <FieldLabel htmlFor="mfr-name">
-          Manufacturer Name <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="mfr-name"
-          type="text"
-          placeholder="e.g. STMicroelectronics N.V."
-          {...register("name")}
-        />
-        {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
-      </Field>
-
+        {/* Name */}
+        <Field>
+          <FieldLabel htmlFor="mfr-name">
+            Manufacturer Name <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Input
+            id="mfr-name"
+            type="text"
+            placeholder="e.g. STMicroelectronics N.V."
+            {...register("name")}
+          />
+          {errors.name?.message && (
+            <FieldError>{errors.name.message}</FieldError>
+          )}
+        </Field>
       </DialogShellBody>
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && (
-            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-          )}
+          {isSubmitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
           {isEditing ? "Save Changes" : "Create Manufacturer"}
         </Button>
       </DialogShellFooter>

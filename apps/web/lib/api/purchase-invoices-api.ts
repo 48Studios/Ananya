@@ -19,11 +19,7 @@ export interface PurchaseInvoiceDto {
     | "UNPAID"
     | "PARTIAL";
   matchStatus:
-    | "PENDING"
-    | "MATCHED"
-    | "PRICE_VARIANCE"
-    | "QUANTITY_VARIANCE"
-    | "APPROVED";
+    "PENDING" | "MATCHED" | "PRICE_VARIANCE" | "QUANTITY_VARIANCE" | "APPROVED";
   amount?: number;
   totalAmount: number;
   dueDate: string;

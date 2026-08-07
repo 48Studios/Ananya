@@ -123,95 +123,100 @@ export function LocationForm({
           </div>
         )}
 
-      {/* Code */}
-      <Field>
-        <FieldLabel htmlFor="location-code">
-          Location Code <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="location-code"
-          type="text"
-          placeholder="e.g. WH-A-01"
-          {...register("code")}
-          className="uppercase"
-        />
-        {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
-      </Field>
-
-      {/* Name */}
-      <Field>
-        <FieldLabel htmlFor="location-name">
-          Location Name <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="location-name"
-          type="text"
-          placeholder="e.g. Main Warehouse Row A"
-          {...register("name")}
-        />
-        {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
-      </Field>
-
-      {/* Kind */}
-      <Field>
-        <FieldLabel htmlFor="location-kind">
-          Location Kind <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Controller
-          name="kind"
-          control={control}
-          render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger id="location-kind">
-                <SelectValue placeholder="Select location kind" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="warehouse">Warehouse</SelectItem>
-                <SelectItem value="aisle">Aisle</SelectItem>
-                <SelectItem value="rack">Rack</SelectItem>
-                <SelectItem value="shelf">Shelf</SelectItem>
-                <SelectItem value="bin">Bin</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Code */}
+        <Field>
+          <FieldLabel htmlFor="location-code">
+            Location Code <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Input
+            id="location-code"
+            type="text"
+            placeholder="e.g. WH-A-01"
+            {...register("code")}
+            className="uppercase"
+          />
+          {errors.code?.message && (
+            <FieldError>{errors.code.message}</FieldError>
           )}
-        />
-        {errors.kind?.message && <FieldError>{errors.kind.message}</FieldError>}
-      </Field>
+        </Field>
 
-      {/* Parent Location */}
-      <Field>
-        <FieldLabel htmlFor="location-parent">Parent Location</FieldLabel>
-        <Controller
-          name="parentId"
-          control={control}
-          render={({ field }) => (
-            <Select
-              value={field.value ?? "none"}
-              onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
-            >
-              <SelectTrigger id="location-parent">
-                <SelectValue placeholder="Select parent location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None (Top Level)</SelectItem>
-                {availableParents.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.code} - {loc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Name */}
+        <Field>
+          <FieldLabel htmlFor="location-name">
+            Location Name <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Input
+            id="location-name"
+            type="text"
+            placeholder="e.g. Main Warehouse Row A"
+            {...register("name")}
+          />
+          {errors.name?.message && (
+            <FieldError>{errors.name.message}</FieldError>
           )}
-        />
-      </Field>
+        </Field>
 
+        {/* Kind */}
+        <Field>
+          <FieldLabel htmlFor="location-kind">
+            Location Kind <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Controller
+            name="kind"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="location-kind">
+                  <SelectValue placeholder="Select location kind" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="warehouse">Warehouse</SelectItem>
+                  <SelectItem value="aisle">Aisle</SelectItem>
+                  <SelectItem value="rack">Rack</SelectItem>
+                  <SelectItem value="shelf">Shelf</SelectItem>
+                  <SelectItem value="bin">Bin</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.kind?.message && (
+            <FieldError>{errors.kind.message}</FieldError>
+          )}
+        </Field>
+
+        {/* Parent Location */}
+        <Field>
+          <FieldLabel htmlFor="location-parent">Parent Location</FieldLabel>
+          <Controller
+            name="parentId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                value={field.value ?? "none"}
+                onValueChange={(val) =>
+                  field.onChange(val === "none" ? "" : val)
+                }
+              >
+                <SelectTrigger id="location-parent">
+                  <SelectValue placeholder="Select parent location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None (Top Level)</SelectItem>
+                  {availableParents.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.code} - {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
       </DialogShellBody>
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && (
-            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-          )}
+          {isSubmitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
           {isEditing ? "Save Changes" : "Create Location"}
         </Button>
       </DialogShellFooter>

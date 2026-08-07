@@ -1,8 +1,5 @@
 import { Unit, type UpdateUnitInput } from "./unit";
-import {
-  UnitNameAlreadyExistsError,
-  UnitNotFoundError,
-} from "./unit.errors";
+import { UnitNameAlreadyExistsError, UnitNotFoundError } from "./unit.errors";
 import type { UnitRepository } from "./unit.repository";
 
 export class UpdateUnit {

@@ -1,159 +1,65 @@
-# Turborepo starter
+# Ananya ERP — Operations Platform for 48 Studios
 
-This Turborepo starter is maintained by the Turborepo core team.
+> **Ananya ERP** is an internal operations platform for **48 Studios**, built as a Modular Monolith with Domain-Driven Design (DDD) principles.
 
-## Using this example
+---
 
-Run the following command:
+## 🚀 Docker Production Deployment
 
-```sh
-npx create-turbo@latest
+Ananya ERP is fully containerized and production-ready for Docker Hub, self-hosting, home labs, and cloud environments.
+
+### Quick Start
+
+```bash
+# 1. Clone & prepare environment
+cp .env.example .env
+
+# 2. Launch production stack (Web, API, Worker, PostgreSQL, Redis)
+docker compose -f compose.prod.yaml up -d
 ```
 
-## What's inside?
+- **Web Application**: [http://localhost:3000](http://localhost:3000)
+- **API Server**: [http://localhost:4000](http://localhost:4000)
+- **Worker Process**: [http://localhost:4001](http://localhost:4001)
 
-This Turborepo includes the following packages/apps:
+Detailed building, scaling, backup, and Docker Hub publishing documentation is available in [docker/README.md](file:///Users/jrsarath/Documents/GitHub/ananya/docker/README.md).
 
-### Apps and Packages
+---
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+## 📦 Workspace Architecture
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+Ananya ERP is managed as a pnpm Turborepo monorepo:
 
-### Utilities
+### Applications (`apps/`)
 
-This Turborepo has some additional tools already setup for you:
+- `web`: Next.js 15 App Router web application
+- `api`: NestJS modular backend REST API & background worker
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+### Core Domain Packages (`packages/`)
 
-### Build
+- `@ananya/shared`: Shared contracts, interfaces, and DTO types
+- `@ananya/core`: Base domain entities, DomainError primitives, value objects
+- `@ananya/database`: Drizzle ORM schema, migrations, and system bootstrap
+- `@ananya/inventory`: Component, serial, batch, allocation & inventory ledger aggregates
+- `@ananya/procurement`: Purchase orders, suppliers, goods receipts & vendor management
+- `@ananya/manufacturing`: Work orders, BOMs, routing & production execution
+- `@ananya/warehouse`: Warehouses, bins, cycle counts, inter-facility transfers
+- `@ananya/projects`: Project material tracking, milestones & allocations
 
-To build all apps and packages, run the following command:
+---
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+## 🛠 Local Development Commands
 
-```sh
-cd my-turborepo
-turbo build
+```bash
+# Install dependencies
+pnpm install
+
+# Run database setup & system bootstrap
+pnpm db:setup
+
+# Start development dev servers
+pnpm dev
+
+# Run quality gates
+pnpm qa
 ```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
-```
-
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)

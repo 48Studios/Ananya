@@ -16,7 +16,9 @@ import {
 import { formatCurrency } from "@/lib/utils";
 
 export default function ProjectionsPage() {
-  const [forecast, setForecast] = React.useState<CashFlowForecastDto | null>(null);
+  const [forecast, setForecast] = React.useState<CashFlowForecastDto | null>(
+    null,
+  );
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -27,7 +29,9 @@ export default function ProjectionsPage() {
       setForecast(await reportingApi.getCashFlowForecast());
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Failed to load cash flow forecast",
+        err instanceof Error
+          ? err.message
+          : "Failed to load cash flow forecast",
       );
     } finally {
       setLoading(false);
@@ -50,7 +54,8 @@ export default function ProjectionsPage() {
   const endingReserve = React.useMemo(
     () =>
       forecast?.periods.length
-        ? forecast.periods[forecast.periods.length - 1]?.endingLiquidityReserve ?? 0
+        ? (forecast.periods[forecast.periods.length - 1]
+            ?.endingLiquidityReserve ?? 0)
         : 0,
     [forecast],
   );
@@ -119,8 +124,6 @@ export default function ProjectionsPage() {
     );
   }
 
-
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -141,7 +144,11 @@ export default function ProjectionsPage() {
         />
         <StatCard
           title="Model Forecast Engine"
-          value={forecast.periods.length > 0 ? "Real due-date forecast" : "No forecast available"}
+          value={
+            forecast.periods.length > 0
+              ? "Real due-date forecast"
+              : "No forecast available"
+          }
           icon={CheckCircle2}
         />
       </div>

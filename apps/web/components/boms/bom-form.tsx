@@ -193,214 +193,215 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
           </div>
         )}
 
-      {/* Product & Revision */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Field className="sm:col-span-2">
-          <FieldLabel htmlFor="bom-product">
-            Finished Product Component{" "}
-            <span className="text-destructive">*</span>
-          </FieldLabel>
-          <Controller
-            name="componentId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                disabled={isEdit}
-                value={field.value}
-                onValueChange={field.onChange}
-              >
-                <SelectTrigger id="bom-product">
-                  <SelectValue placeholder="Select finished product component..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {components.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.sku} — {c.name} ({c.unit})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {/* Product & Revision */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Field className="sm:col-span-2">
+            <FieldLabel htmlFor="bom-product">
+              Finished Product Component{" "}
+              <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Controller
+              name="componentId"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  disabled={isEdit}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                >
+                  <SelectTrigger id="bom-product">
+                    <SelectValue placeholder="Select finished product component..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {components.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.sku} — {c.name} ({c.unit})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.componentId?.message && (
+              <FieldError>{errors.componentId.message}</FieldError>
             )}
-          />
-          {errors.componentId?.message && (
-            <FieldError>{errors.componentId.message}</FieldError>
-          )}
-        </Field>
+          </Field>
 
+          <Field>
+            <FieldLabel htmlFor="bom-revision">
+              Revision <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="bom-revision"
+              type="text"
+              placeholder="e.g. v1.0"
+              disabled={isEdit}
+              {...register("revision")}
+              className="font-mono"
+            />
+            {errors.revision?.message && (
+              <FieldError>{errors.revision.message}</FieldError>
+            )}
+          </Field>
+        </div>
+
+        {/* Notes */}
         <Field>
-          <FieldLabel htmlFor="bom-revision">
-            Revision <span className="text-destructive">*</span>
+          <FieldLabel htmlFor="bom-notes">
+            BOM Notes / Specification Details
           </FieldLabel>
           <Input
-            id="bom-revision"
+            id="bom-notes"
             type="text"
-            placeholder="e.g. v1.0"
-            disabled={isEdit}
-            {...register("revision")}
-            className="font-mono"
+            placeholder="e.g. Standard production assembly BOM for batch batch-v1"
+            {...register("notes")}
           />
-          {errors.revision?.message && (
-            <FieldError>{errors.revision.message}</FieldError>
-          )}
         </Field>
-      </div>
 
-      {/* Notes */}
-      <Field>
-        <FieldLabel htmlFor="bom-notes">
-          BOM Notes / Specification Details
-        </FieldLabel>
-        <Input
-          id="bom-notes"
-          type="text"
-          placeholder="e.g. Standard production assembly BOM for batch batch-v1"
-          {...register("notes")}
-        />
-      </Field>
-
-      {/* Dynamic Line Items Section */}
-      <div className="space-y-3 pt-2 border-t border-border">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
-            Required Component Line Items{" "}
-            <span className="text-destructive">*</span>
-          </label>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              append({
-                componentId: "",
-                quantityPerUnit: 1,
-                unitOfMeasure: "pcs",
-                scrapFactorPercent: 0,
-                notes: "",
-              })
-            }
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" /> Add Component
-          </Button>
-        </div>
-
-        {errors.lines && typeof errors.lines.message === "string" && (
-          <div className="p-2.5 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
-            {errors.lines.message}
-          </div>
-        )}
-
-        <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-          {fields.map((field, index) => (
-            <div
-              key={field.id}
-              className="p-3 bg-muted/30 border border-border rounded-lg space-y-2 relative"
+        {/* Dynamic Line Items Section */}
+        <div className="space-y-3 pt-2 border-t border-border">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
+              Required Component Line Items{" "}
+              <span className="text-destructive">*</span>
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                append({
+                  componentId: "",
+                  quantityPerUnit: 1,
+                  unitOfMeasure: "pcs",
+                  scrapFactorPercent: 0,
+                  notes: "",
+                })
+              }
             >
-              {fields.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => remove(index)}
-                  className="absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <Plus className="w-3.5 h-3.5 mr-1" /> Add Component
+            </Button>
+          </div>
 
-              {/* Component Select */}
-              <div className="space-y-1 pr-6">
-                <label className="text-[10px] font-medium text-muted-foreground">
-                  Component Item
-                </label>
-                <Controller
-                  name={`lines.${index}.componentId`}
-                  control={control}
-                  render={({ field: lineCompField }) => (
-                    <Select
-                      value={lineCompField.value}
-                      onValueChange={(val) => {
-                        lineCompField.onChange(val ?? "");
-                        handleLineComponentChange(index, val ?? "");
-                      }}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select component..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {components
-                          .filter((c) => c.id !== selectedFinishedProductId)
-                          .map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.sku} — {c.name} ({c.unit})
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
+          {errors.lines && typeof errors.lines.message === "string" && (
+            <div className="p-2.5 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+              {errors.lines.message}
+            </div>
+          )}
 
-              {/* Quantities, Unit, Scrap % */}
-              <div className="grid grid-cols-3 gap-2">
-                <div>
+          <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+            {fields.map((field, index) => (
+              <div
+                key={field.id}
+                className="p-3 bg-muted/30 border border-border rounded-lg space-y-2 relative"
+              >
+                {fields.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => remove(index)}
+                    className="absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {/* Component Select */}
+                <div className="space-y-1 pr-6">
                   <label className="text-[10px] font-medium text-muted-foreground">
-                    Qty / Finished Unit
+                    Component Item
                   </label>
-                  <Input
-                    type="number"
-                    step="0.0001"
-                    min="0.0001"
-                    {...register(`lines.${index}.quantityPerUnit`, {
-                      valueAsNumber: true,
-                    })}
-                    className="h-8 text-xs font-mono font-bold"
+                  <Controller
+                    name={`lines.${index}.componentId`}
+                    control={control}
+                    render={({ field: lineCompField }) => (
+                      <Select
+                        value={lineCompField.value}
+                        onValueChange={(val) => {
+                          lineCompField.onChange(val ?? "");
+                          handleLineComponentChange(index, val ?? "");
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Select component..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {components
+                            .filter((c) => c.id !== selectedFinishedProductId)
+                            .map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.sku} — {c.name} ({c.unit})
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   />
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-medium text-muted-foreground">
-                    Unit of Measure
-                  </label>
+                {/* Quantities, Unit, Scrap % */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-medium text-muted-foreground">
+                      Qty / Finished Unit
+                    </label>
+                    <Input
+                      type="number"
+                      step="0.0001"
+                      min="0.0001"
+                      {...register(`lines.${index}.quantityPerUnit`, {
+                        valueAsNumber: true,
+                      })}
+                      className="h-8 text-xs font-mono font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-medium text-muted-foreground">
+                      Unit of Measure
+                    </label>
+                    <Input
+                      type="text"
+                      {...register(`lines.${index}.unitOfMeasure`)}
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-medium text-muted-foreground">
+                      Scrap Factor %
+                    </label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      {...register(`lines.${index}.scrapFactorPercent`, {
+                        valueAsNumber: true,
+                      })}
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Line Notes */}
+                <div className="pt-1">
                   <Input
                     type="text"
-                    {...register(`lines.${index}.unitOfMeasure`)}
-                    className="h-8 text-xs font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-medium text-muted-foreground">
-                    Scrap Factor %
-                  </label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    {...register(`lines.${index}.scrapFactorPercent`, {
-                      valueAsNumber: true,
-                    })}
-                    className="h-8 text-xs font-mono"
+                    placeholder="Line note (e.g. Apply thermal paste prior to assembly)"
+                    {...register(`lines.${index}.notes`)}
+                    className="h-7 text-[11px]"
                   />
                 </div>
               </div>
-
-              {/* Line Notes */}
-              <div className="pt-1">
-                <Input
-                  type="text"
-                  placeholder="Line note (e.g. Apply thermal paste prior to assembly)"
-                  {...register(`lines.${index}.notes`)}
-                  className="h-7 text-[11px]"
-                />
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-
       </DialogShellBody>
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          {isSubmitting && (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          )}
           {isEdit ? "Save Changes" : "Create Bill of Materials"}
         </Button>
       </DialogShellFooter>

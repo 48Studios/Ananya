@@ -265,7 +265,9 @@ export default function MaintenancePage() {
           onSuccess={(created) => {
             setSchedules((prev) => [created, ...prev]);
             setIsFormOpen(false);
-            setToastMessage("New equipment maintenance task scheduled cleanly.");
+            setToastMessage(
+              "New equipment maintenance task scheduled cleanly.",
+            );
             setTimeout(() => setToastMessage(null), 4000);
           }}
           onCancel={() => setIsFormOpen(false)}

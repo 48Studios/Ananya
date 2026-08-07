@@ -30,4 +30,3 @@ export const serviceRequestsApi = {
     return apiClient.post<ServiceRequestDto>("/service-requests", data);
   },
 };
-

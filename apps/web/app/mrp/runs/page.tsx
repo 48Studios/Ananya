@@ -15,7 +15,10 @@ export default function MrpRunsPage() {
   const [runs, setRuns] = React.useState<MrpRunRecordDto[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [running, setRunning] = React.useState(false);
-  const [banner, setBanner] = React.useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [banner, setBanner] = React.useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
 
   const fetchRuns = React.useCallback(async () => {
     setLoading(true);
@@ -44,7 +47,8 @@ export default function MrpRunsPage() {
       fetchRuns();
     } catch (err: unknown) {
       setBanner({
-        message: err instanceof Error ? err.message : "Failed to execute MRP run",
+        message:
+          err instanceof Error ? err.message : "Failed to execute MRP run",
         type: "error",
       });
     } finally {

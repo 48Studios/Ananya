@@ -16,7 +16,9 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function BankReconciliationPage() {
-  const [statements, setStatements] = React.useState<BankReconciliationDto[]>([]);
+  const [statements, setStatements] = React.useState<BankReconciliationDto[]>(
+    [],
+  );
   const [accounts, setAccounts] = React.useState<BankAccountSummaryDto[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -88,7 +90,9 @@ export default function BankReconciliationPage() {
       accessorKey: "transactions",
       header: "Unmatched Variance",
       cell: ({ row }) => {
-        const diff = row.original.transactions.filter((tx) => !tx.isMatched).length;
+        const diff = row.original.transactions.filter(
+          (tx) => !tx.isMatched,
+        ).length;
         if (diff === 0) {
           return (
             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
@@ -143,12 +147,22 @@ export default function BankReconciliationPage() {
         />
         <StatCard
           title="Reconciliation Match"
-          value={statements.filter((statement) => statement.status === "COMPLETED").length}
+          value={
+            statements.filter((statement) => statement.status === "COMPLETED")
+              .length
+          }
           icon={CheckCircle2}
         />
         <StatCard
           title="Unmatched Items"
-          value={statements.reduce((sum, statement) => sum + statement.transactions.filter((transaction) => !transaction.isMatched).length, 0)}
+          value={statements.reduce(
+            (sum, statement) =>
+              sum +
+              statement.transactions.filter(
+                (transaction) => !transaction.isMatched,
+              ).length,
+            0,
+          )}
           icon={CheckCircle2}
         />
       </div>

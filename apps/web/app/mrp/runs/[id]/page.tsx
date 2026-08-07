@@ -8,7 +8,10 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
 import { mrpApi, type MrpRunRecordDto } from "@/lib/api/mrp-api";
-import { planningMessagesApi, type PlanningMessageDto } from "@/lib/api/planning-messages-api";
+import {
+  planningMessagesApi,
+  type PlanningMessageDto,
+} from "@/lib/api/planning-messages-api";
 import { formatDate } from "@/lib/utils";
 
 export default function MrpRunDetailPage() {
@@ -86,30 +89,30 @@ export default function MrpRunDetailPage() {
           <FileText className="w-4 h-4 text-primary" />
           Execution Log & Summary Trace
         </h3>
-          <EntityDataTable
-            data={messages}
-            columns={[
-              {
-                accessorKey: "severity",
-                header: "Severity",
-                cell: ({ row }) => row.original.severity,
-              },
-              {
-                accessorKey: "message",
-                header: "Message",
-                cell: ({ row }) => row.original.message,
-              },
-              {
-                accessorKey: "createdAt",
-                header: "Logged At",
-                cell: ({ row }) => formatDate(row.original.createdAt),
-              },
-            ]}
-            searchPlaceholder="Search planning messages..."
-            loading={false}
-            emptyTitle="No planning messages"
-            emptyMessage="This run has not produced any planning log messages."
-          />
+        <EntityDataTable
+          data={messages}
+          columns={[
+            {
+              accessorKey: "severity",
+              header: "Severity",
+              cell: ({ row }) => row.original.severity,
+            },
+            {
+              accessorKey: "message",
+              header: "Message",
+              cell: ({ row }) => row.original.message,
+            },
+            {
+              accessorKey: "createdAt",
+              header: "Logged At",
+              cell: ({ row }) => formatDate(row.original.createdAt),
+            },
+          ]}
+          searchPlaceholder="Search planning messages..."
+          loading={false}
+          emptyTitle="No planning messages"
+          emptyMessage="This run has not produced any planning log messages."
+        />
       </div>
     </div>
   );

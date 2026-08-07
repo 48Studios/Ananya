@@ -365,9 +365,7 @@ export default function ViewComponentPage() {
           onSuccess={(updated) => {
             setComponent(updated);
             setIsEditOpen(false);
-            setToastMessage(
-              `Component "${updated.sku}" updated successfully.`,
-            );
+            setToastMessage(`Component "${updated.sku}" updated successfully.`);
             setTimeout(() => setToastMessage(null), 4000);
           }}
           onCancel={() => setIsEditOpen(false)}

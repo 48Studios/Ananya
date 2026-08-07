@@ -114,7 +114,9 @@ function buildQuery(path: string, params?: Record<string, string | undefined>) {
 }
 
 export const mrpApi = {
-  async getGrossRequirements(planningRunId?: string): Promise<MrpRequirementDto[]> {
+  async getGrossRequirements(
+    planningRunId?: string,
+  ): Promise<MrpRequirementDto[]> {
     const [requirements, components] = await Promise.all([
       apiClient.get<MaterialRequirementRecord[]>(
         buildQuery("/material-requirements", { planningRunId }),
@@ -122,7 +124,9 @@ export const mrpApi = {
       componentsApi.getAll(),
     ]);
 
-    const componentById = new Map(components.map((component) => [component.id, component]));
+    const componentById = new Map(
+      components.map((component) => [component.id, component]),
+    );
 
     return requirements.map((requirement) => {
       const component = componentById.get(requirement.componentId);
@@ -168,7 +172,9 @@ export const mrpApi = {
       componentsApi.getAll(),
     ]);
 
-    const componentById = new Map(components.map((component) => [component.id, component]));
+    const componentById = new Map(
+      components.map((component) => [component.id, component]),
+    );
 
     return recommendations.map((recommendation) => {
       const component = componentById.get(recommendation.productId);
@@ -198,8 +204,12 @@ export const mrpApi = {
       suppliersApi.getAll().catch(() => []),
     ]);
 
-    const componentById = new Map(components.map((component) => [component.id, component]));
-    const supplierById = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
+    const componentById = new Map(
+      components.map((component) => [component.id, component]),
+    );
+    const supplierById = new Map(
+      suppliers.map((supplier) => [supplier.id, supplier]),
+    );
 
     return recommendations.map((recommendation) => {
       const component = componentById.get(recommendation.componentId);
@@ -221,7 +231,9 @@ export const mrpApi = {
     });
   },
 
-  getCapacityPlans: async (planningRunId?: string): Promise<WorkCenterCapacityDto[]> =>
+  getCapacityPlans: async (
+    planningRunId?: string,
+  ): Promise<WorkCenterCapacityDto[]> =>
     apiClient.get<WorkCenterCapacityDto[]>(
       buildQuery("/capacity-plans", { planningRunId }),
     ),

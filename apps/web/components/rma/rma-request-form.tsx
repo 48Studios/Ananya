@@ -13,10 +13,7 @@ import {
 } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
-import {
-  rmaRequestsApi,
-  type RmaRequestDto,
-} from "@/lib/api/rma-requests-api";
+import { rmaRequestsApi, type RmaRequestDto } from "@/lib/api/rma-requests-api";
 
 const rmaRequestSchema = z.object({
   itemDescription: z.string().min(1, "Item description is required"),
@@ -82,7 +79,8 @@ export function RmaRequestForm({ onSuccess, onCancel }: RmaRequestFormProps) {
 
         <Field>
           <FieldLabel htmlFor="itemDescription">
-            Item / Component Description <span className="text-destructive">*</span>
+            Item / Component Description{" "}
+            <span className="text-destructive">*</span>
           </FieldLabel>
           <Input
             id="itemDescription"
@@ -130,7 +128,9 @@ export function RmaRequestForm({ onSuccess, onCancel }: RmaRequestFormProps) {
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button size="sm" type="submit" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          {isSubmitting && (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          )}
           Issue RMA
         </Button>
       </DialogShellFooter>

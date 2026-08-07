@@ -31,4 +31,3 @@ export const tasksApi = {
     return apiClient.post<TaskDto>("/tasks", data);
   },
 };
-

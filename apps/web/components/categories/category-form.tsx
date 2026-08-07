@@ -135,80 +135,84 @@ export function CategoryForm({
         )}
 
         <Field>
-        <FieldLabel htmlFor="category-code">
-          Category Code <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="category-code"
-          type="text"
-          placeholder="e.g. CAT-ACTIVE-COMP"
-          {...register("code")}
-          className="uppercase font-mono"
-        />
-        {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
-        </Field>
-
-      {/* Name */}
-        <Field>
-        <FieldLabel htmlFor="category-name">
-          Category Name <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="category-name"
-          type="text"
-          placeholder="e.g. Active Electronic Components"
-          {...register("name")}
-        />
-        {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
-        </Field>
-
-      {/* Parent Category */}
-        <Field>
-        <FieldLabel htmlFor="category-parent">Parent Category</FieldLabel>
-        <Controller
-          name="parentId"
-          control={control}
-          render={({ field }) => (
-            <Select
-              value={field.value ?? "none"}
-              onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
-            >
-              <SelectTrigger id="category-parent">
-                <SelectValue placeholder="Select parent category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">
-                  None (Top-Level Root Category)
-                </SelectItem>
-                {allCategories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.code} - {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <FieldLabel htmlFor="category-code">
+            Category Code <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Input
+            id="category-code"
+            type="text"
+            placeholder="e.g. CAT-ACTIVE-COMP"
+            {...register("code")}
+            className="uppercase font-mono"
+          />
+          {errors.code?.message && (
+            <FieldError>{errors.code.message}</FieldError>
           )}
-        />
         </Field>
 
-      {/* Description */}
+        {/* Name */}
         <Field>
-        <FieldLabel htmlFor="category-desc">Description</FieldLabel>
-        <Textarea
-          id="category-desc"
-          rows={3}
-          placeholder="Detailed categorization description..."
-          {...register("description")}
-          className="resize-none"
-        />
+          <FieldLabel htmlFor="category-name">
+            Category Name <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Input
+            id="category-name"
+            type="text"
+            placeholder="e.g. Active Electronic Components"
+            {...register("name")}
+          />
+          {errors.name?.message && (
+            <FieldError>{errors.name.message}</FieldError>
+          )}
+        </Field>
+
+        {/* Parent Category */}
+        <Field>
+          <FieldLabel htmlFor="category-parent">Parent Category</FieldLabel>
+          <Controller
+            name="parentId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                value={field.value ?? "none"}
+                onValueChange={(val) =>
+                  field.onChange(val === "none" ? "" : val)
+                }
+              >
+                <SelectTrigger id="category-parent">
+                  <SelectValue placeholder="Select parent category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    None (Top-Level Root Category)
+                  </SelectItem>
+                  {allCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.code} - {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
+
+        {/* Description */}
+        <Field>
+          <FieldLabel htmlFor="category-desc">Description</FieldLabel>
+          <Textarea
+            id="category-desc"
+            rows={3}
+            placeholder="Detailed categorization description..."
+            {...register("description")}
+            className="resize-none"
+          />
         </Field>
       </DialogShellBody>
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && (
-            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-          )}
+          {isSubmitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
           {isEditing ? "Save Changes" : "Create Category"}
         </Button>
       </DialogShellFooter>

@@ -27,7 +27,10 @@ const unitSchema = z.object({
   category: z.string().min(1, "Measurement category is required"),
   isBaseUnit: z.boolean(),
   conversionFactor: z.number().optional().nullable(),
-  precision: z.number().min(0, "Precision must be 0 or greater").max(6, "Precision cannot exceed 6"),
+  precision: z
+    .number()
+    .min(0, "Precision must be 0 or greater")
+    .max(6, "Precision cannot exceed 6"),
 });
 
 export type UnitFormValues = z.infer<typeof unitSchema>;
@@ -67,9 +70,7 @@ export function UnitForm({ initialData, onSuccess, onCancel }: UnitFormProps) {
       conversionFactor: initialData?.conversionFactor
         ? Number(initialData.conversionFactor)
         : 1.0,
-      precision: initialData?.precision
-        ? Number(initialData.precision)
-        : 0,
+      precision: initialData?.precision ? Number(initialData.precision) : 0,
     },
   });
 
@@ -78,8 +79,13 @@ export function UnitForm({ initialData, onSuccess, onCancel }: UnitFormProps) {
   const onSubmit = async (values: UnitFormValues) => {
     setServerError(null);
     try {
-      if (!values.isBaseUnit && (!values.conversionFactor || values.conversionFactor <= 0)) {
-        setServerError("Non-base units require a conversion factor greater than 0");
+      if (
+        !values.isBaseUnit &&
+        (!values.conversionFactor || values.conversionFactor <= 0)
+      ) {
+        setServerError(
+          "Non-base units require a conversion factor greater than 0",
+        );
         return;
       }
 
@@ -88,7 +94,9 @@ export function UnitForm({ initialData, onSuccess, onCancel }: UnitFormProps) {
           name: values.name.trim(),
           category: values.category.trim(),
           isBaseUnit: values.isBaseUnit,
-          conversionFactor: values.isBaseUnit ? 1.0 : (values.conversionFactor ?? 1.0),
+          conversionFactor: values.isBaseUnit
+            ? 1.0
+            : (values.conversionFactor ?? 1.0),
           precision: values.precision,
         };
         const updated = await unitsApi.update(initialData.id, payload);
@@ -98,7 +106,9 @@ export function UnitForm({ initialData, onSuccess, onCancel }: UnitFormProps) {
           name: values.name.trim(),
           category: values.category.trim(),
           isBaseUnit: values.isBaseUnit,
-          conversionFactor: values.isBaseUnit ? 1.0 : (values.conversionFactor ?? 1.0),
+          conversionFactor: values.isBaseUnit
+            ? 1.0
+            : (values.conversionFactor ?? 1.0),
           precision: values.precision,
         };
         const created = await unitsApi.create(payload);
@@ -180,7 +190,9 @@ export function UnitForm({ initialData, onSuccess, onCancel }: UnitFormProps) {
                 <SelectValue placeholder="Select classification" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="base">Primary Base Unit (Standard)</SelectItem>
+                <SelectItem value="base">
+                  Primary Base Unit (Standard)
+                </SelectItem>
                 <SelectItem value="derived">Derived Secondary Unit</SelectItem>
               </SelectContent>
             </Select>
@@ -209,7 +221,9 @@ export function UnitForm({ initialData, onSuccess, onCancel }: UnitFormProps) {
 
       {/* Decimal Precision */}
       <Field>
-        <FieldLabel htmlFor="unit-precision">Decimal Precision (Digits)</FieldLabel>
+        <FieldLabel htmlFor="unit-precision">
+          Decimal Precision (Digits)
+        </FieldLabel>
         <Input
           id="unit-precision"
           type="number"

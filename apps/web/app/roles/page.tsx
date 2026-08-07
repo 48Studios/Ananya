@@ -293,7 +293,9 @@ export default function RolesListPage() {
       <DialogShell
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
-        title={editingRole ? `Edit Role: ${editingRole.name}` : "Create Custom Role"}
+        title={
+          editingRole ? `Edit Role: ${editingRole.name}` : "Create Custom Role"
+        }
         description={
           editingRole
             ? "Update role metadata and granted permissions using the standard administration dialog layout."
@@ -301,7 +303,10 @@ export default function RolesListPage() {
         }
         size="lg"
       >
-        <form onSubmit={handleSaveRole} className="flex min-h-0 flex-1 flex-col">
+        <form
+          onSubmit={handleSaveRole}
+          className="flex min-h-0 flex-1 flex-col"
+        >
           <DialogShellBody className="space-y-4 text-xs">
             {formError && (
               <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
@@ -323,7 +328,9 @@ export default function RolesListPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="font-medium text-foreground">Description</label>
+                <label className="font-medium text-foreground">
+                  Description
+                </label>
                 <input
                   type="text"
                   value={formDescription}
@@ -335,7 +342,8 @@ export default function RolesListPage() {
 
             <div className="space-y-3 pt-2">
               <label className="block font-semibold text-foreground">
-                Select Granted Permissions ({selectedPermissions.length} selected)
+                Select Granted Permissions ({selectedPermissions.length}{" "}
+                selected)
               </label>
 
               {permGroups.map((group) => (
@@ -365,7 +373,9 @@ export default function RolesListPage() {
                             className="mt-0.5 rounded border-border"
                           />
                           <div>
-                            <p className="font-semibold text-foreground">{name}</p>
+                            <p className="font-semibold text-foreground">
+                              {name}
+                            </p>
                             {description && (
                               <p className="text-[10px] text-muted-foreground">
                                 {description}

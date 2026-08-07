@@ -30,4 +30,3 @@ export const rmaRequestsApi = {
     return apiClient.post<RmaRequestDto>("/rma-requests", data);
   },
 };
-

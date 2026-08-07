@@ -28,4 +28,3 @@ export const supplierReturnsApi = {
     return apiClient.post<SupplierReturnDto>("/supplier-returns", data);
   },
 };
-

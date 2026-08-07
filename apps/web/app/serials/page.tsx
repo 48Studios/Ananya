@@ -98,31 +98,31 @@ export default function SerialsPage() {
   ];
 
   if (loading) {
-  return <LoadingState message="Loading serial registry..." />;
+    return <LoadingState message="Loading serial registry..." />;
   }
 
   if (error) {
-  return (
-    <ErrorState
-      title="Serial data unavailable"
-      message={error}
-      onRetry={fetchSerials}
-    />
-  );
+    return (
+      <ErrorState
+        title="Serial data unavailable"
+        message={error}
+        onRetry={fetchSerials}
+      />
+    );
   }
 
   return (
-  <div className="space-y-6">
-    <PageHeader
-      title="Serial Number Master Index"
-      description="Individual serial number tracking, barcode assignment, asset history, and component lifecycle."
-      actions={
-        <Button size="sm" variant="outline" onClick={fetchSerials}>
-          <RefreshCw className="w-4 h-4 mr-1.5" />
-          Refresh
-        </Button>
-      }
-    />
+    <div className="space-y-6">
+      <PageHeader
+        title="Serial Number Master Index"
+        description="Individual serial number tracking, barcode assignment, asset history, and component lifecycle."
+        actions={
+          <Button size="sm" variant="outline" onClick={fetchSerials}>
+            <RefreshCw className="w-4 h-4 mr-1.5" />
+            Refresh
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
@@ -135,11 +135,7 @@ export default function SerialsPage() {
           value={inStockCount}
           icon={CheckCircle2}
         />
-        <StatCard
-          title="Assigned to Orders"
-          value={assignedCount}
-          icon={Tag}
-        />
+        <StatCard title="Assigned to Orders" value={assignedCount} icon={Tag} />
       </div>
 
       <EntityDataTable

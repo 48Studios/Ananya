@@ -103,7 +103,9 @@ export function MaintenanceForm({
         )}
 
         <Field>
-          <FieldLabel htmlFor="maint-equipment">Equipment Asset Name</FieldLabel>
+          <FieldLabel htmlFor="maint-equipment">
+            Equipment Asset Name
+          </FieldLabel>
           <Input
             id="maint-equipment"
             {...register("equipmentName")}
@@ -165,7 +167,9 @@ export function MaintenanceForm({
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          {isSubmitting && (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          )}
           Schedule Maintenance
         </Button>
       </DialogShellFooter>
