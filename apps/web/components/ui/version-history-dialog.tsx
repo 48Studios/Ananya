@@ -1,13 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { History, Download, X, Upload, Loader2, GitCommit } from "lucide-react";
+import { History, Download, Upload, Loader2, GitCommit } from "lucide-react";
 import {
   documentsApi,
   DocumentDto,
   DocumentVersionDto,
 } from "@/lib/api/documents-api";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 
 export interface VersionHistoryDialogProps {
   isOpen: boolean;
@@ -83,32 +89,27 @@ export function VersionHistoryDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pt-10 px-4 animate-in fade-in-0 duration-150">
-      <div className="relative w-full max-w-xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden p-6 space-y-5">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <History className="w-5 h-5 text-primary" />
-            <div>
-              <h2 className="text-base font-semibold text-foreground">
-                Document Version History
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                {document.fileName} (v{document.currentVersion})
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-4 h-4" />
-          </button>
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title="Document Version History"
+      description={`${document.fileName} currently tracks version ${document.currentVersion}. Review or upload replacement revisions here.`}
+      size="md"
+      closeDisabled={isUploading}
+    >
+      <DialogShellBody className="space-y-5">
+        <div className="flex items-center gap-2 text-primary">
+          <History className="size-5" />
+          <span className="text-sm font-medium text-foreground">
+            Historical versions and replacement uploads
+          </span>
         </div>
 
-        {/* Upload New Version Section */}
-        <div className="p-3 bg-muted/20 border border-border rounded-lg space-y-2">
+        <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
           <label className="text-xs font-semibold text-foreground">
             Upload Replacement Version
           </label>
@@ -133,9 +134,9 @@ export function VersionHistoryDialog({
                 className="cursor-pointer text-xs"
               >
                 {isUploading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                  <Loader2 className="mr-1 size-3.5 animate-spin" />
                 ) : (
-                  <Upload className="w-3.5 h-3.5 mr-1" />
+                  <Upload className="mr-1 size-3.5" />
                 )}
                 Upload New Version
               </Button>
@@ -143,7 +144,6 @@ export function VersionHistoryDialog({
           </div>
         </div>
 
-        {/* Versions Timeline */}
         <div className="space-y-2">
           <label className="text-xs font-semibold text-foreground">
             Historical Versions
@@ -197,13 +197,15 @@ export function VersionHistoryDialog({
             </div>
           )}
         </div>
-
-        <div className="flex justify-end pt-2">
-          <Button variant="outline" size="sm" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-      </div>
-    </div>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={isUploading}>
+          Cancel
+        </DialogShellCancelButton>
+        <Button size="sm" onClick={onClose} disabled={isUploading}>
+          Done
+        </Button>
+      </DialogShellFooter>
+    </DialogShell>
   );
 }

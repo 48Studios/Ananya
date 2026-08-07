@@ -12,6 +12,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -309,26 +310,23 @@ export default function ViewLocationPage() {
       </div>
 
       {/* Edit Form Modal */}
-      {isEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                Edit Location
-              </h2>
-            </div>
-            <LocationForm
-              initialData={location}
-              locations={allLocations}
-              onSuccess={(updated) => {
-                setLocation(updated);
-                setIsEditOpen(false);
-              }}
-              onCancel={() => setIsEditOpen(false)}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        title="Edit Location"
+        description={`Update the storage location "${location.code}" and keep its hierarchy assignment aligned.`}
+        size="sm"
+      >
+        <LocationForm
+          initialData={location}
+          locations={allLocations}
+          onSuccess={(updated) => {
+            setLocation(updated);
+            setIsEditOpen(false);
+          }}
+          onCancel={() => setIsEditOpen(false)}
+        />
+      </DialogShell>
 
       {/* Confirm Delete Dialog */}
       <ConfirmDialog

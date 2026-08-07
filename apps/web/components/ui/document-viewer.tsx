@@ -1,9 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { X, Download, Eye, FileCheck } from "lucide-react";
+import { Download, FileCheck } from "lucide-react";
 import { DocumentDto } from "@/lib/api/documents-api";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 
 export interface DocumentViewerProps {
   isOpen: boolean;
@@ -25,89 +31,74 @@ export function DocumentViewer({
     document.mimeType === "application/json";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 pt-10 px-4 animate-in fade-in-0 duration-150">
-      <div className="relative w-full max-w-4xl h-[85vh] bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <Eye className="w-5 h-5 text-primary shrink-0" />
-            <div className="truncate">
-              <h3 className="text-sm font-semibold text-foreground truncate">
-                {document.title}
-              </h3>
-              <p className="text-[11px] text-muted-foreground">
-                {document.fileName} • v{document.currentVersion} •{" "}
-                {(document.sizeBytes / 1024).toFixed(1)} KB
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={document.title}
+      description={`${document.fileName} • v${document.currentVersion} • ${(document.sizeBytes / 1024).toFixed(1)} KB`}
+      size="lg"
+      contentClassName="h-[min(85vh,calc(100dvh-2rem))]"
+    >
+      <DialogShellBody className="flex items-center justify-center bg-muted/40 p-4">
+        {isImage ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={document.fileUrl}
+            alt={document.title}
+            className="max-h-full max-w-full rounded-lg border border-border object-contain shadow-md"
+          />
+        ) : isPdf ? (
+          <iframe
+            src={document.fileUrl}
+            title={document.title}
+            className="h-full w-full rounded-lg border border-border"
+          />
+        ) : isText ? (
+          <div className="h-full w-full overflow-auto rounded-lg border border-border bg-card p-4 font-mono text-xs text-foreground">
+            <p className="mb-2 text-muted-foreground">{`// Text preview mode for ${document.fileName}`}</p>
+            <pre className="whitespace-pre-wrap font-sans text-xs">
+              Preview content ready for download.
+            </pre>
+          </div>
+        ) : (
+          <div className="space-y-3 p-8 text-center">
+            <FileCheck className="mx-auto h-12 w-12 text-primary opacity-70" />
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">
+                CAD / Binary Document File
+              </h4>
+              <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                Direct inline rendering is unavailable for {document.mimeType}.
+                Click download to inspect in local desktop software.
               </p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <a
-              href={document.fileUrl}
-              download={document.fileName}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <Button variant="outline" size="sm" className="text-xs">
-                <Download className="w-3.5 h-3.5 mr-1" />
-                Download
+            <a href={document.fileUrl} download={document.fileName}>
+              <Button size="sm">
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                Download File ({document.fileName})
               </Button>
             </a>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-4 h-4" />
-            </button>
           </div>
-        </div>
-
-        {/* Content Viewer Body */}
-        <div className="flex-1 overflow-auto bg-muted/40 p-4 flex items-center justify-center">
-          {isImage ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={document.fileUrl}
-              alt={document.title}
-              className="max-w-full max-h-full object-contain rounded-lg shadow-md border border-border"
-            />
-          ) : isPdf ? (
-            <iframe
-              src={document.fileUrl}
-              title={document.title}
-              className="w-full h-full rounded-lg border border-border"
-            />
-          ) : isText ? (
-            <div className="w-full h-full bg-card border border-border p-4 rounded-lg font-mono text-xs overflow-auto text-foreground">
-              <p className="text-muted-foreground mb-2">{`// Text preview mode for ${document.fileName}`}</p>
-              <pre className="whitespace-pre-wrap font-sans text-xs">
-                Preview content ready for download.
-              </pre>
-            </div>
-          ) : (
-            <div className="text-center p-8 space-y-3">
-              <FileCheck className="w-12 h-12 text-primary mx-auto opacity-70" />
-              <div>
-                <h4 className="text-sm font-semibold text-foreground">
-                  CAD / Binary Document File
-                </h4>
-                <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-                  Direct inline rendering is unavailable for {document.mimeType}
-                  . Click download to inspect in local desktop software.
-                </p>
-              </div>
-              <a href={document.fileUrl} download={document.fileName}>
-                <Button size="sm">
-                  <Download className="w-3.5 h-3.5 mr-1.5" />
-                  Download File ({document.fileName})
-                </Button>
-              </a>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+        )}
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton />
+        <a
+          href={document.fileUrl}
+          download={document.fileName}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <Button size="sm">
+            <Download className="mr-1.5 size-3.5" />
+            Download
+          </Button>
+        </a>
+      </DialogShellFooter>
+    </DialogShell>
   );
 }

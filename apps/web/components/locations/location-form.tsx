@@ -6,6 +6,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -107,12 +112,16 @@ export function LocationForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {serverError && (
-        <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
-          {serverError}
-        </div>
-      )}
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <DialogShellBody className="space-y-4">
+        {serverError && (
+          <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+            {serverError}
+          </div>
+        )}
 
       {/* Code */}
       <Field>
@@ -196,24 +205,16 @@ export function LocationForm({
         />
       </Field>
 
-      {/* Form Action Buttons */}
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          disabled={isSubmitting}
-        >
-          Cancel
-        </Button>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
           {isSubmitting && (
-            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
           )}
           {isEditing ? "Save Changes" : "Create Location"}
         </Button>
-      </div>
+      </DialogShellFooter>
     </form>
   );
 }

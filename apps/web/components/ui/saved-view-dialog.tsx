@@ -2,8 +2,14 @@
 
 import * as React from "react";
 import { preferencesApi } from "@/lib/api/preferences-api";
-import { BookmarkPlus, X, Loader2 } from "lucide-react";
+import { BookmarkPlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 
 export interface SavedViewDialogProps {
   isOpen: boolean;
@@ -23,8 +29,6 @@ export function SavedViewDialog({
   const [name, setName] = React.useState("");
   const [isDefault, setIsDefault] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
-
-  if (!isOpen) return null;
 
   const handleSave = async () => {
     if (!name.trim()) return;
@@ -46,22 +50,24 @@ export function SavedViewDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pt-10 px-4 animate-in fade-in-0 duration-150">
-      <div className="relative w-full max-w-md bg-card border border-border rounded-xl shadow-2xl overflow-hidden p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <BookmarkPlus className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-foreground">
-              Save Custom View Preset
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-4 h-4" />
-          </button>
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title="Save Custom View Preset"
+      description={`Save the current ${module.toLowerCase()} filters as a reusable view preset.`}
+      size="sm"
+      closeDisabled={loading}
+    >
+      <DialogShellBody className="space-y-4">
+        <div className="flex items-center gap-2 text-primary">
+          <BookmarkPlus className="size-5" />
+          <span className="text-sm font-medium text-foreground">
+            View preset details
+          </span>
         </div>
 
         <div className="space-y-3">
@@ -88,28 +94,18 @@ export function SavedViewDialog({
             <span>Set as default view for {module}</span>
           </label>
         </div>
-
-        <div className="flex justify-end gap-2 pt-3 border-t border-border">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={loading || !name.trim()}
-          >
-            {loading ? (
-              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-            ) : null}
-            Save View Preset
-          </Button>
-        </div>
-      </div>
-    </div>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={loading} />
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={loading || !name.trim()}
+        >
+          {loading ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
+          Save View Preset
+        </Button>
+      </DialogShellFooter>
+    </DialogShell>
   );
 }

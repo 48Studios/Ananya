@@ -94,6 +94,89 @@ All forms, dialogs, drawers, and setup wizards must adhere to standard form spac
 
 ---
 
+# Dialog Design Standard
+
+Dialogs are part of the Ananya design system and must use the shared composition wrapper in `apps/web/components/ui/dialog-shell.tsx`, which composes the official shadcn dialog primitives without modifying vendor files.
+
+## Required Structure
+
+Every dialog must follow this structure with no deviations:
+
+```tsx
+<Dialog>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle />
+      <DialogDescription />
+      <CloseButton />
+    </DialogHeader>
+    <Separator />
+    <DialogBody />
+    <Separator />
+    <DialogFooter>
+      <CancelButton />
+      <PrimaryAction />
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+```
+
+## Header Rules
+
+- `DialogHeader`, `DialogTitle`, and `DialogDescription` are mandatory.
+- The close button must remain in the top-right corner in the same position for every dialog.
+- Dialogs must never omit descriptive text; the description should explain the action or consequence.
+
+## Separators
+
+- Use the shared shadcn `Separator` component between header and body.
+- Use the shared shadcn `Separator` component between body and footer.
+- Spacing alone is not sufficient to define sections.
+
+## Body Rules
+
+- Only the body may scroll.
+- Header and footer remain fixed while body content overflows within the dialog.
+- Body content uses standard dialog padding and must not create independent modal chrome.
+
+## Footer Rules
+
+- Every dialog must include a footer.
+- Footer actions are right-aligned.
+- Secondary action is `Cancel`.
+- Primary action appears last.
+- Destructive confirmations still follow the same footer layout.
+
+## Close Behaviour
+
+The top-right close button, `Cancel` button, `ESC` key, and outside-click dismissal must all follow the same `onOpenChange` close rules for the dialog instance. Modules must not implement separate close paths with divergent reset behavior.
+
+## Width Standards
+
+Dialogs may only use these standardized sizes:
+
+- `sm`: `sm:max-w-md`
+- `md`: `sm:max-w-2xl`
+- `lg`: `sm:max-w-4xl`
+- `xl`: `sm:max-w-6xl`
+
+Arbitrary per-dialog widths are prohibited.
+
+## Mobile Behaviour
+
+- Dialog width must remain responsive on narrow screens.
+- The scrollable body must remain usable on mobile.
+- Footer actions remain visible and consistently positioned.
+
+## Accessibility
+
+- Every dialog must have a title and description.
+- The close button must expose an accessible name.
+- Keyboard dismissal must remain functional unless explicitly disabled for a blocking flow.
+- Dialog composition must continue to rely on the official shadcn/base dialog primitives for focus management and semantics.
+
+---
+
 # Organization Setup & Initial Administrator
 
 During organization setup:

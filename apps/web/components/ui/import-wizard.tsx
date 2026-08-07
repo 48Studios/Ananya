@@ -9,7 +9,6 @@ import {
   ArrowRight,
   Download,
   Loader2,
-  X,
   FileCheck,
 } from "lucide-react";
 import {
@@ -24,6 +23,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 
 export interface ImportWizardProps {
   isOpen: boolean;
@@ -50,8 +55,6 @@ export function ImportWizard({
     failed: number;
   } | null>(null);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-
-  if (!isOpen) return null;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -126,27 +129,27 @@ export function ImportWizard({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pt-10 px-4 animate-in fade-in-0 duration-150">
-      <div className="relative w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden p-6 space-y-5">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-foreground">
-              Import {entityType} Wizard
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-4 h-4" />
-          </button>
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={`Import ${entityType} Wizard`}
+      description={`Upload a spreadsheet, map columns, validate rows, and import ${entityType.toLowerCase()} records through the production import framework.`}
+      size="lg"
+      closeDisabled={loading && step === 4}
+    >
+      <DialogShellBody className="space-y-5">
+        <div className="flex items-center gap-2 text-primary">
+          <FileSpreadsheet className="size-5" />
+          <span className="text-sm font-medium text-foreground">
+            Import workflow
+          </span>
         </div>
 
-        {/* Wizard Steps Indicator */}
-        <div className="flex items-center justify-between text-xs font-mono border-b border-border pb-3 text-muted-foreground">
+        <div className="flex items-center justify-between border-b border-border pb-3 text-xs font-mono text-muted-foreground">
           <span className={step >= 1 ? "text-primary font-bold" : ""}>
             1. Upload File
           </span>
@@ -207,7 +210,7 @@ export function ImportWizard({
                 onClick={handleDownloadTemplate}
                 className="text-xs text-primary"
               >
-                <Download className="w-3.5 h-3.5 mr-1" />
+                <Download className="mr-1 size-3.5" />
                 Download Sample Template
               </Button>
             </div>
@@ -273,22 +276,6 @@ export function ImportWizard({
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setStep(1)}
-                disabled={loading}
-              >
-                Back
-              </Button>
-              <Button size="sm" onClick={() => setStep(3)} disabled={loading}>
-                {loading ? (
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                ) : null}
-                Validate & Next
-              </Button>
-            </div>
           </div>
         )}
 
@@ -318,14 +305,6 @@ export function ImportWizard({
               )}
             </div>
 
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setStep(2)}>
-                Back to Mapping
-              </Button>
-              <Button size="sm" onClick={handleExecuteImport}>
-                Confirm & Import
-              </Button>
-            </div>
           </div>
         )}
 
@@ -355,12 +334,72 @@ export function ImportWizard({
                 workspace database.
               </p>
             </div>
+          </div>
+        )}
+      </DialogShellBody>
+      <DialogShellFooter>
+        {step === 1 && (
+          <>
+            <DialogShellCancelButton disabled={loading} />
+            <Button
+              size="sm"
+              onClick={() => document.getElementById("file-upload")?.click()}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Upload className="mr-1.5 size-3.5" />
+              )}
+              Upload File
+            </Button>
+          </>
+        )}
+        {step === 2 && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setStep(1)}
+              disabled={loading}
+            >
+              Back
+            </Button>
+            <Button size="sm" onClick={() => setStep(3)} disabled={loading}>
+              {loading ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : null}
+              Validate & Next
+            </Button>
+          </>
+        )}
+        {step === 3 && (
+          <>
+            <Button variant="outline" size="sm" onClick={() => setStep(2)}>
+              Back to Mapping
+            </Button>
+            <Button size="sm" onClick={handleExecuteImport}>
+              Confirm & Import
+            </Button>
+          </>
+        )}
+        {step === 4 && (
+          <>
+            <DialogShellCancelButton disabled>Cancel</DialogShellCancelButton>
+            <Button variant="outline" size="sm" disabled>
+              Import Running...
+            </Button>
+          </>
+        )}
+        {step === 5 && (
+          <>
+            <DialogShellCancelButton>Cancel</DialogShellCancelButton>
             <Button size="sm" onClick={onClose}>
               Done
             </Button>
-          </div>
+          </>
         )}
-      </div>
-    </div>
+      </DialogShellFooter>
+    </DialogShell>
   );
 }

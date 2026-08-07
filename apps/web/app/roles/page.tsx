@@ -9,10 +9,15 @@ import {
   Lock,
   ExternalLink,
   Trash2,
-  X,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
@@ -285,133 +290,110 @@ export default function RolesListPage() {
         />
       </div>
 
-      {/* Create / Edit Role Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl p-6 space-y-4 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
-              <h3 className="text-base font-semibold text-foreground">
-                {editingRole
-                  ? `Edit Role: ${editingRole.name}`
-                  : "Create Custom Role"}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
+      <DialogShell
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        title={editingRole ? `Edit Role: ${editingRole.name}` : "Create Custom Role"}
+        description={
+          editingRole
+            ? "Update role metadata and granted permissions using the standard administration dialog layout."
+            : "Create a custom role with a consistent dialog header, scrollable permission matrix, and shared footer actions."
+        }
+        size="lg"
+      >
+        <form onSubmit={handleSaveRole} className="flex min-h-0 flex-1 flex-col">
+          <DialogShellBody className="space-y-4 pr-1 text-xs">
             {formError && (
-              <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md shrink-0">
+              <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
                 {formError}
               </div>
             )}
 
-            <form
-              onSubmit={handleSaveRole}
-              className="space-y-4 flex-1 overflow-y-auto pr-1 text-xs"
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">
-                    Role Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={editingRole?.isSystem}
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">
-                    Description
-                  </label>
-                  <input
-                    type="text"
-                    value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                    className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground"
-                  />
-                </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="font-medium text-foreground">Role Name</label>
+                <input
+                  type="text"
+                  required
+                  disabled={editingRole?.isSystem}
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="w-full rounded-md border border-border bg-input/40 px-3 py-2 text-foreground outline-none"
+                />
               </div>
 
-              {/* Permission Matrix Selection */}
-              <div className="space-y-3 pt-2">
-                <label className="font-semibold text-foreground block">
-                  Select Granted Permissions ({selectedPermissions.length}{" "}
-                  selected)
-                </label>
-
-                {permGroups.map((group) => (
-                  <div
-                    key={group.category}
-                    className="p-3 bg-muted/20 border border-border rounded-lg space-y-2"
-                  >
-                    <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">
-                      {group.category} Permissions
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {group.permissions.map((p) => {
-                        const code = typeof p === "string" ? p : p.code;
-                        const name = typeof p === "string" ? p : p.name;
-                        const description =
-                          typeof p === "string" ? "" : p.description;
-                        const isChecked = selectedPermissions.includes(code);
-                        return (
-                          <label
-                            key={code}
-                            className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-muted/40 rounded transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleTogglePermission(code)}
-                              className="mt-0.5 rounded border-border"
-                            />
-                            <div>
-                              <p className="font-semibold text-foreground">
-                                {name}
-                              </p>
-                              {description && (
-                                <p className="text-[10px] text-muted-foreground">
-                                  {description}
-                                </p>
-                              )}
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-1">
+                <label className="font-medium text-foreground">Description</label>
+                <input
+                  type="text"
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  className="w-full rounded-md border border-border bg-input/40 px-3 py-2 text-foreground outline-none"
+                />
               </div>
+            </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-border shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
+            <div className="space-y-3 pt-2">
+              <label className="block font-semibold text-foreground">
+                Select Granted Permissions ({selectedPermissions.length} selected)
+              </label>
+
+              {permGroups.map((group) => (
+                <div
+                  key={group.category}
+                  className="space-y-2 rounded-lg border border-border bg-muted/20 p-3"
                 >
-                  Cancel
-                </Button>
-                <Button size="sm" type="submit" disabled={formSubmitting}>
-                  {formSubmitting && (
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  )}
-                  {editingRole ? "Save Changes" : "Create Role"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    {group.category} Permissions
+                  </h4>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {group.permissions.map((p) => {
+                      const code = typeof p === "string" ? p : p.code;
+                      const name = typeof p === "string" ? p : p.name;
+                      const description =
+                        typeof p === "string" ? "" : p.description;
+                      const isChecked = selectedPermissions.includes(code);
+                      return (
+                        <label
+                          key={code}
+                          className="flex cursor-pointer items-start gap-2 rounded p-1.5 transition-colors hover:bg-muted/40"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleTogglePermission(code)}
+                            className="mt-0.5 rounded border-border"
+                          />
+                          <div>
+                            <p className="font-semibold text-foreground">{name}</p>
+                            {description && (
+                              <p className="text-[10px] text-muted-foreground">
+                                {description}
+                              </p>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </DialogShellBody>
+          <DialogShellFooter>
+            <DialogShellCancelButton
+              disabled={formSubmitting}
+              onClick={() => setIsModalOpen(false)}
+            />
+            <Button size="sm" type="submit" disabled={formSubmitting}>
+              {formSubmitting && (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              )}
+              {editingRole ? "Save Changes" : "Create Role"}
+            </Button>
+          </DialogShellFooter>
+        </form>
+      </DialogShell>
     </div>
   );
 }

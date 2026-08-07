@@ -7,10 +7,15 @@ import {
   FileText,
   Check,
   Loader2,
-  X,
 } from "lucide-react";
 import { importExportApi, ExportFormat } from "@/lib/api/import-export-api";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 
 export interface ExportDialogProps {
   isOpen: boolean;
@@ -41,8 +46,6 @@ export function ExportDialog({
   React.useEffect(() => {
     setSelectedColumns(availableColumns);
   }, [availableColumns]);
-
-  if (!isOpen) return null;
 
   const toggleColumn = (col: string) => {
     if (selectedColumns.includes(col)) {
@@ -89,25 +92,26 @@ export function ExportDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pt-10 px-4 animate-in fade-in-0 duration-150">
-      <div className="relative w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl overflow-hidden p-6 space-y-5">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <Download className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-foreground">
-              Export {entityType} Data
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-4 h-4" />
-          </button>
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={`Export ${entityType} Data`}
+      description={`Choose the export format, scope, and columns for the ${entityType.toLowerCase()} dataset.`}
+      size="md"
+      closeDisabled={loading}
+    >
+      <DialogShellBody className="space-y-5">
+        <div className="flex items-center gap-2 text-primary">
+          <Download className="size-5" />
+          <span className="text-sm font-medium text-foreground">
+            Export configuration
+          </span>
         </div>
 
-        {/* Format Selection */}
         <div className="space-y-2">
           <label className="text-xs font-semibold text-foreground">
             Export Format
@@ -139,7 +143,6 @@ export function ExportDialog({
           </div>
         </div>
 
-        {/* Scope Selection */}
         <div className="space-y-2">
           <label className="text-xs font-semibold text-foreground">
             Record Scope
@@ -174,7 +177,6 @@ export function ExportDialog({
           </div>
         </div>
 
-        {/* Column Toggles */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <label className="text-xs font-semibold text-foreground">
@@ -222,35 +224,27 @@ export function ExportDialog({
             <span>{successMsg}</span>
           </div>
         )}
-
-        <div className="flex justify-end gap-2 border-t border-border pt-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleExport}
-            disabled={loading || selectedColumns.length === 0}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                Generating Export...
-              </>
-            ) : (
-              <>
-                <Download className="w-3.5 h-3.5 mr-1.5" />
-                Download {format} File
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-    </div>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={loading} />
+        <Button
+          size="sm"
+          onClick={handleExport}
+          disabled={loading || selectedColumns.length === 0}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              Generating Export...
+            </>
+          ) : (
+            <>
+              <Download className="mr-1.5 size-3.5" />
+              Download {format} File
+            </>
+          )}
+        </Button>
+      </DialogShellFooter>
+    </DialogShell>
   );
 }
