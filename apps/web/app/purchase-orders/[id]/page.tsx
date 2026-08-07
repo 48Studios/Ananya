@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { PurchaseOrderForm } from "@/components/purchase-orders/po-form";
@@ -556,29 +557,26 @@ export default function ViewPurchaseOrderPage() {
       </div>
 
       {/* Edit Modal */}
-      {isEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 print:hidden">
-          <div className="w-full max-w-xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                Edit Purchase Order ({po.poNumber})
-              </h2>
-            </div>
-            <PurchaseOrderForm
-              initialData={po}
-              onSuccess={(updated) => {
-                setPo(updated);
-                setIsEditOpen(false);
-                setToastMessage(
-                  `Purchase Order ${updated.poNumber} updated successfully.`,
-                );
-                setTimeout(() => setToastMessage(null), 4000);
-              }}
-              onCancel={() => setIsEditOpen(false)}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        title={`Edit Purchase Order (${po.poNumber})`}
+        description="Update vendor details, line items, target delivery date, or notes."
+        size="lg"
+      >
+        <PurchaseOrderForm
+          initialData={po}
+          onSuccess={(updated) => {
+            setPo(updated);
+            setIsEditOpen(false);
+            setToastMessage(
+              `Purchase Order ${updated.poNumber} updated successfully.`,
+            );
+            setTimeout(() => setToastMessage(null), 4000);
+          }}
+          onCancel={() => setIsEditOpen(false)}
+        />
+      </DialogShell>
 
       {/* Cancel Confirmation Dialog */}
       <ConfirmDialog

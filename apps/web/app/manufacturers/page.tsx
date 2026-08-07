@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  X,
   Eye,
   Edit3,
   Trash2,
@@ -22,6 +21,7 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { ManufacturerForm } from "@/components/manufacturers/manufacturer-form";
 import {
   manufacturersApi,
@@ -280,36 +280,33 @@ export default function ManufacturersPage() {
       )}
 
       {/* Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editingManufacturer
-                  ? "Edit Manufacturer"
-                  : "Create New Manufacturer"}
-              </h2>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingManufacturer(null);
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <ManufacturerForm
-              initialData={editingManufacturer}
-              onSuccess={handleFormSuccess}
-              onCancel={() => {
-                setIsFormOpen(false);
-                setEditingManufacturer(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) setEditingManufacturer(null);
+        }}
+        title={
+          editingManufacturer
+            ? "Edit Manufacturer"
+            : "Create New Manufacturer"
+        }
+        description={
+          editingManufacturer
+            ? "Update OEM manufacturer details, brand codes, or active status."
+            : "Track OEM component manufacturers, MPN cross-references, and brand origin."
+        }
+        size="md"
+      >
+        <ManufacturerForm
+          initialData={editingManufacturer}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingManufacturer(null);
+          }}
+        />
+      </DialogShell>
 
       {/* Confirm Delete Dialog */}
       <ConfirmDialog
@@ -325,12 +322,14 @@ export default function ManufacturersPage() {
 
       {/* Data Table */}
       <EntityDataTable
+        entityType="Manufacturer"
         columns={columns}
         data={manufacturers}
         searchKey="name"
         searchPlaceholder="Search manufacturers by name..."
         filters={filterConfigs}
         loading={loading}
+        onRefreshData={fetchManufacturers}
         emptyTitle="No manufacturers found"
         emptyMessage="Get started by creating your first manufacturer record."
       />

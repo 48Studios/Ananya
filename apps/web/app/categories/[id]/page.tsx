@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { CategoryForm } from "@/components/categories/category-form";
@@ -388,29 +389,26 @@ export default function ViewCategoryPage() {
       </div>
 
       {/* Edit Form Modal */}
-      {isEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                Edit Category
-              </h2>
-            </div>
-            <CategoryForm
-              initialData={category}
-              onSuccess={(updated) => {
-                setCategory(updated);
-                setIsEditOpen(false);
-                setToastMessage(
-                  `Category "${updated.code}" updated successfully.`,
-                );
-                setTimeout(() => setToastMessage(null), 4000);
-              }}
-              onCancel={() => setIsEditOpen(false)}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        title="Edit Category"
+        description="Update category code, name, description, or parent category hierarchy."
+        size="md"
+      >
+        <CategoryForm
+          initialData={category}
+          onSuccess={(updated) => {
+            setCategory(updated);
+            setIsEditOpen(false);
+            setToastMessage(
+              `Category "${updated.code}" updated successfully.`,
+            );
+            setTimeout(() => setToastMessage(null), 4000);
+          }}
+          onCancel={() => setIsEditOpen(false)}
+        />
+      </DialogShell>
 
       {/* Confirm Delete Dialog */}
       <ConfirmDialog

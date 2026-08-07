@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Factory, Play } from "lucide-react";
+import { Factory, Play, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
@@ -19,6 +19,11 @@ export default function MrpProductionPage() {
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
   }, []);
+
+  const totalSuggestedQty = React.useMemo(
+    () => orders.reduce((acc, o) => acc + (o.suggestedQuantity || 0), 0),
+    [orders],
+  );
 
   const columns: ColumnDef<PlannedProductionOrderDto>[] = [
     {
@@ -74,11 +79,15 @@ export default function MrpProductionPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard title="Planned Orders" value={orders.length} icon={Factory} />
         <StatCard
-          title="Actionable Orders"
-          value={`${orders.length} Orders`}
+          title="Total Planned Output"
+          value={`${totalSuggestedQty} Units`}
           icon={Play}
         />
-        <StatCard title="Capacity Verified" value="100% Fit" icon={Play} />
+        <StatCard
+          title="Schedule Feasibility"
+          value={orders.length > 0 ? "Validated" : "No Orders Pending"}
+          icon={CheckCircle2}
+        />
       </div>
 
       <EntityDataTable

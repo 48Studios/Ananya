@@ -20,12 +20,12 @@ import {
   Activity,
   Package,
   History,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { WorkOrderForm } from "@/components/work-orders/work-order-form";
@@ -469,32 +469,23 @@ export default function ViewWorkOrderPage() {
       />
 
       {/* Modals */}
-      {isEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                Edit Draft Work Order
-              </h2>
-              <button
-                onClick={() => setIsEditOpen(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <WorkOrderForm
-              initialData={wo}
-              onSuccess={(updated) => {
-                setWo(updated);
-                setIsEditOpen(false);
-                fetchData();
-              }}
-              onCancel={() => setIsEditOpen(false)}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        title="Edit Draft Work Order"
+        description="Update production quantity, target completion date, or BOM revision."
+        size="xl"
+      >
+        <WorkOrderForm
+          initialData={wo}
+          onSuccess={(updated) => {
+            setWo(updated);
+            setIsEditOpen(false);
+            fetchData();
+          }}
+          onCancel={() => setIsEditOpen(false)}
+        />
+      </DialogShell>
 
       {isOutputModalOpen && (
         <RecordOutputModal

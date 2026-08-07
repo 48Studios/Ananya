@@ -1,13 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { History, Download, X, Upload, Loader2, GitCommit } from "lucide-react";
+import { Download, GitCommit } from "lucide-react";
 import {
   documentsApi,
   DocumentDto,
   DocumentVersionDto,
 } from "@/lib/api/documents-api";
 import { Button } from "@/components/ui/button";
+import { FileUploader } from "@/components/ui/file-uploader";
+import { DialogShell } from "@/components/ui/dialog-shell";
 
 export interface VersionHistoryDialogProps {
   isOpen: boolean;
@@ -46,14 +48,8 @@ export function VersionHistoryDialog({
     }
   }, [isOpen, loadVersions]);
 
-  if (!isOpen || !document) return null;
-
-  const handleUploadNewVersion = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleFileSelected = async (file: File) => {
+    if (!document) return;
     setIsUploading(true);
     const reader = new FileReader();
     reader.onload = async (evt) => {
@@ -66,15 +62,14 @@ export function VersionHistoryDialog({
           fileContent: base64Data,
           mimeType: file.type || "application/octet-stream",
           sizeBytes: file.size,
-          changelog:
-            changelog.trim() || `Uploaded v${document.currentVersion + 1}`,
+          changelog: changelog.trim() || undefined,
         });
 
         setChangelog("");
         await loadVersions();
         if (onVersionAdded) onVersionAdded();
       } catch {
-        // ignore error
+        // ignore
       } finally {
         setIsUploading(false);
       }
@@ -83,75 +78,55 @@ export function VersionHistoryDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pt-10 px-4 animate-in fade-in-0 duration-150">
-      <div className="relative w-full max-w-xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden p-6 space-y-5">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <History className="w-5 h-5 text-primary" />
-            <div>
-              <h2 className="text-base font-semibold text-foreground">
-                Document Version History
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                {document.fileName} (v{document.currentVersion})
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Upload New Version Section */}
-        <div className="p-3 bg-muted/20 border border-border rounded-lg space-y-2">
+    <DialogShell
+      open={isOpen && Boolean(document)}
+      onOpenChange={(open) => {
+        if (!open && !isUploading) {
+          onClose();
+        }
+      }}
+      title="Document Version History"
+      description={
+        document
+          ? `${document.title} (${document.fileName})`
+          : "View and manage document revisions."
+      }
+      size="xl"
+      footer={
+        <Button variant="outline" size="sm" onClick={onClose}>
+          Close
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        {/* Upload Replacement Version */}
+        <div className="space-y-2">
           <label className="text-xs font-semibold text-foreground">
             Upload Replacement Version
           </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={changelog}
-              onChange={(e) => setChangelog(e.target.value)}
-              placeholder="Changelog notes (e.g. updated CAD dimensions)..."
-              className="flex-1 px-3 py-1.5 bg-input border border-border rounded text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
-            />
-            <input
-              type="file"
-              id="new-version-file"
-              className="hidden"
-              onChange={handleUploadNewVersion}
-            />
-            <label htmlFor="new-version-file">
-              <Button
-                size="sm"
-                disabled={isUploading}
-                className="cursor-pointer text-xs"
-              >
-                {isUploading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                ) : (
-                  <Upload className="w-3.5 h-3.5 mr-1" />
-                )}
-                Upload New Version
-              </Button>
-            </label>
-          </div>
+          <input
+            type="text"
+            value={changelog}
+            onChange={(e) => setChangelog(e.target.value)}
+            placeholder="Changelog notes (e.g. updated CAD dimensions)..."
+            className="w-full px-3 py-1.5 bg-input border border-border rounded text-xs text-foreground outline-none focus:ring-1 focus:ring-primary mb-2"
+          />
+          <FileUploader
+            loading={isUploading}
+            onFileSelected={handleFileSelected}
+            title="Upload new version"
+            description="Drag & drop new file or click to browse"
+          />
         </div>
 
         {/* Versions Timeline */}
-        <div className="space-y-2">
+        <div className="space-y-2 pt-2">
           <label className="text-xs font-semibold text-foreground">
             Historical Versions
           </label>
           {loading ? (
-            <div className="py-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
-              <span>Loading versions...</span>
+            <div className="py-8 text-center text-xs text-muted-foreground">
+              Loading versions...
             </div>
           ) : versions.length === 0 ? (
             <div className="py-4 text-center text-xs text-muted-foreground">
@@ -188,7 +163,7 @@ export function VersionHistoryDialog({
                   </div>
 
                   <a href={ver.fileUrl} download={ver.fileName}>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
                       <Download className="w-3.5 h-3.5" />
                     </Button>
                   </a>
@@ -197,13 +172,8 @@ export function VersionHistoryDialog({
             </div>
           )}
         </div>
-
-        <div className="flex justify-end pt-2">
-          <Button variant="outline" size="sm" onClick={onClose}>
-            Close
-          </Button>
-        </div>
       </div>
-    </div>
+    </DialogShell>
   );
 }
+

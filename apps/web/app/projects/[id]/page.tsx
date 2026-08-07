@@ -13,7 +13,6 @@ import {
   Calendar,
   Layers,
   User,
-  X,
   Play,
   Pause,
   Archive,
@@ -35,6 +34,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { ProjectForm } from "@/components/projects/project-form";
@@ -398,17 +398,13 @@ export default function ViewProjectPage() {
     submitLabel: string,
     showNotes = false,
   ) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-          <button
-            onClick={resetMaterialForm}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+    <DialogShell
+      open={true}
+      onOpenChange={(open) => { if (!open) resetMaterialForm(); }}
+      title={title}
+      description="Configure project bill of materials, planned requirements, and component allocations."
+      size="lg"
+    >
 
         {materialError && (
           <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2">
@@ -521,8 +517,7 @@ export default function ViewProjectPage() {
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </DialogShell>
   );
 
   return (
@@ -616,32 +611,23 @@ export default function ViewProjectPage() {
       />
 
       {/* Edit Modal */}
-      {isEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                Edit Project
-              </h2>
-              <button
-                onClick={() => setIsEditOpen(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <ProjectForm
-              initialData={project}
-              onSuccess={(updated) => {
-                setProject(updated);
-                setIsEditOpen(false);
-                fetchData();
-              }}
-              onCancel={() => setIsEditOpen(false)}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        title="Edit Project"
+        description="Update project budget allocations, milestone schedules, or customer details."
+        size="xl"
+      >
+        <ProjectForm
+          initialData={project}
+          onSuccess={(updated) => {
+            setProject(updated);
+            setIsEditOpen(false);
+            fetchData();
+          }}
+          onCancel={() => setIsEditOpen(false)}
+        />
+      </DialogShell>
 
       {/* Material Forms */}
       {showAllocateForm &&

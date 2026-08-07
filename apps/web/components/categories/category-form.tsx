@@ -8,20 +8,17 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { EntitySelector } from "@/components/ui/entity-selector";
 import {
   categoriesApi,
   type CategoryDto,
   type CreateCategoryPayload,
   type UpdateCategoryPayload,
 } from "@/lib/api/categories-api";
+
+import { DialogFooter } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 
 const categorySchema = z.object({
   code: z
@@ -49,25 +46,8 @@ export function CategoryForm({
   onSuccess,
   onCancel,
 }: CategoryFormProps) {
-  const [allCategories, setAllCategories] = React.useState<CategoryDto[]>([]);
   const [serverError, setServerError] = React.useState<string | null>(null);
   const isEditing = Boolean(initialData);
-
-  React.useEffect(() => {
-    categoriesApi
-      .getAll()
-      .then((cats) => {
-        // Exclude self from parent options if editing
-        if (initialData) {
-          setAllCategories(cats.filter((c) => c.id !== initialData.id));
-        } else {
-          setAllCategories(cats);
-        }
-      })
-      .catch(() => {
-        // Non-blocking category load error
-      });
-  }, [initialData]);
 
   const {
     register,
@@ -88,6 +68,10 @@ export function CategoryForm({
     setServerError(null);
     try {
       if (isEditing && initialData) {
+        if (values.parentId && values.parentId === initialData.id) {
+          setServerError("A category cannot be its own parent");
+          return;
+        }
         const payload: UpdateCategoryPayload = {
           code: values.code,
           name: values.name,
@@ -154,33 +138,24 @@ export function CategoryForm({
         {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
       </Field>
 
-      {/* Parent Category */}
+      {/* Parent Category with EntitySelector */}
       <Field>
         <FieldLabel htmlFor="category-parent">Parent Category</FieldLabel>
         <Controller
           name="parentId"
           control={control}
           render={({ field }) => (
-            <Select
-              value={field.value ?? "none"}
-              onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
-            >
-              <SelectTrigger id="category-parent">
-                <SelectValue placeholder="Select parent category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">
-                  None (Top-Level Root Category)
-                </SelectItem>
-                {allCategories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.code} - {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <EntitySelector
+              id="category-parent"
+              entity="category"
+              value={field.value ?? ""}
+              onChange={(val) => field.onChange(val)}
+              placeholder="Select parent category (optional)..."
+              creatable
+            />
           )}
         />
+        {errors.parentId?.message && <FieldError>{errors.parentId.message}</FieldError>}
       </Field>
 
       {/* Description */}
@@ -196,7 +171,8 @@ export function CategoryForm({
       </Field>
 
       {/* Form Actions */}
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+      <Separator className="my-2" />
+      <DialogFooter>
         <Button
           type="button"
           variant="outline"
@@ -212,7 +188,8 @@ export function CategoryForm({
           )}
           {isEditing ? "Save Changes" : "Create Category"}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
   );
 }
+

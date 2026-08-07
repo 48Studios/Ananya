@@ -16,11 +16,11 @@
 
 ## Current Vertical Slice
 
-**Global Creatable Entity Selector Pattern**
+**Repository-wide Import Framework Reliability & UX Audit**
 
 ## Current Sprint Goal
 
-Establish standardized Creatable Entity Selector pattern across Ananya ERP. Replace free-text inputs for master entities (Unit of Measure, Category, Manufacturer, Supplier, Warehouse, Location, Customer, Project) with unified `<EntitySelector>` component. Implement live search combobox, inline creation via backend APIs, automatic selection, and RBAC permission checks. Pass all monorepo quality gates.
+Establish a single authoritative FileUploader component (`apps/web/components/ui/file-uploader.tsx`) and unified 5-step import pipeline (`apps/web/components/ui/import-wizard.tsx`) across all Ananya ERP modules (Components, Suppliers, Manufacturers, Warehouses, Inventory, Customers, Projects, Data Packs, Attachments). Fix root cause DOM event duplication bug (`<label><button>`), implement quote-aware CSV & JSON parser in NestJS API (`apps/api/src/import-export/import-export.service.ts`), add Playwright E2E test suite (`tests/e2e/import-export/import-export.spec.ts`), and pass all monorepo quality gates.
 
 ## Current Branch
 
@@ -28,7 +28,7 @@ Establish standardized Creatable Entity Selector pattern across Ananya ERP. Repl
 
 ## Current Status
 
-🟢 Global Creatable Entity Selector Pattern 100% Complete — Created `EntitySelector` component (`apps/web/components/ui/entity-selector.tsx`) and `unitsApi` client. Migrated forms to use `<EntitySelector entity="..." creatable />`. Enabled inline creation, auto-selection, and RBAC permission enforcement across all master entities. Passed all monorepo quality gates.
+🟢 Repository-wide Import Framework Reliability & UX Audit 100% Complete — Refactored `FileUploader` to serve as the single shared uploader across Ananya ERP with drag & drop, click-to-browse, paste, keyboard navigation, and progress controls. Embedded `FileUploader` into `ImportWizard` across all module tables. Enhanced NestJS `import-export.service.ts` with quote-aware CSV line parsing and JSON row support. Added Playwright E2E tests covering CSV/XLSX imports and error validation. Updated `docs/DATA_LIFECYCLE.md` and `PROJECT_STATUS.md`. Passed all quality gates.
 
 ---
 
@@ -133,6 +133,7 @@ Completed work should immediately move into the **Completed** section.
 
 ## 2026-08-06
 
+- Complete Repository-wide Import Framework Reliability & UX Audit (Refactored single shared FileUploader component apps/web/components/ui/file-uploader.tsx resolving DOM event duplication bug. Embedded FileUploader into ImportWizard apps/web/components/ui/import-wizard.tsx for all module tables across Ananya ERP. Implemented quote-aware CSV line parsing and JSON row support in NestJS import-export.service.ts. Created Playwright E2E test suite in tests/e2e/import-export/import-export.spec.ts. Updated docs/DATA_LIFECYCLE.md and PROJECT_STATUS.md)
 - Complete Global Creatable Entity Selector Pattern (Implemented unified EntitySelector component apps/web/components/ui/entity-selector.tsx and unitsApi client. Replaced free-text inputs for Units of Measure, Categories, Manufacturers, Suppliers, Warehouses, Locations, Customers, and Projects with a searchable, creatable combobox. Enabled inline API creation with auto-selection and RBAC permission checks across all master entities. Updated DESIGN.md and PROJECT_STATUS.md)
 - Complete Production Data Management Architecture Refactor (Completely removed all CLI database seed, clear, clean, and reset scripts. Deleted packages/database/src/dev/. Refactored System Bootstrap to initialize platform infrastructure ONLY. Implemented web-based Data Packs Studio at /settings/data-packs for Base Units, Categories, Core Logistics, and Demo Datasets processing through the production Import Framework. Implemented web-based Organization Reset under Danger Zone at /settings/danger-zone with 3-step confirmation and security audit logging DATA_PACK_INSTALLED and ORGANIZATION_DATA_RESET. Updated ARCHITECTURE.md and docs/DATA_LIFECYCLE.md)
 

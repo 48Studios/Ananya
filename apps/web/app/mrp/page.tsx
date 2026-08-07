@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Cpu, CheckCircle2, Play, AlertTriangle } from "lucide-react";
+import { Cpu, CheckCircle2, Play, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -12,14 +12,44 @@ import { mrpApi, type MrpRequirementDto } from "@/lib/api/mrp-api";
 export default function MrpPage() {
   const [items, setItems] = React.useState<MrpRequirementDto[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [running, setRunning] = React.useState(false);
+  const [banner, setBanner] = React.useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const fetchRequirements = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await mrpApi.getGrossRequirements();
+      setItems(data || []);
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   React.useEffect(() => {
-    mrpApi
-      .getGrossRequirements()
-      .then((data) => setItems(data || []))
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
-  }, []);
+    fetchRequirements();
+  }, [fetchRequirements]);
+
+  const handleRunEngine = async () => {
+    setRunning(true);
+    try {
+      const result = await mrpApi.executeRun();
+      setBanner({
+        message: `MRP Calculation Engine finished run "${result.runNumber}". Processed ${result.itemsProcessed} SKUs.`,
+        type: "success",
+      });
+      fetchRequirements();
+    } catch (err: unknown) {
+      setBanner({
+        message: err instanceof Error ? err.message : "Failed to execute MRP run",
+        type: "error",
+      });
+    } finally {
+      setRunning(false);
+      setTimeout(() => setBanner(null), 5000);
+    }
+  };
 
   const shortagesCount = React.useMemo(() => {
     return items.filter((i) => (i?.shortageQuantity || 0) > 0).length;
@@ -94,12 +124,28 @@ export default function MrpPage() {
 
   return (
     <div className="space-y-6">
+      {banner && (
+        <div
+          className={`p-3 text-xs border rounded-md ${
+            banner.type === "error"
+              ? "bg-destructive/10 border-destructive/20 text-destructive"
+              : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+          }`}
+        >
+          {banner.message}
+        </div>
+      )}
+
       <PageHeader
         title="Material Requirements Planning (MRP) Hub"
         description="Calculate gross material demand, net stock shortages, capacity bottlenecks, and automated procurement suggestions."
         actions={
-          <Button size="sm">
-            <Play className="w-4 h-4 mr-1.5" />
+          <Button size="sm" onClick={handleRunEngine} disabled={running}>
+            {running ? (
+              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+            ) : (
+              <Play className="w-4 h-4 mr-1.5" />
+            )}
             Run MRP Calculation Engine
           </Button>
         }
@@ -117,8 +163,8 @@ export default function MrpPage() {
           icon={AlertTriangle}
         />
         <StatCard
-          title="Last Run Status"
-          value="Engine Synchronized"
+          title="Engine Status"
+          value={running ? "Executing..." : "Synchronized"}
           icon={CheckCircle2}
         />
       </div>

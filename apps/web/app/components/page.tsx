@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  X,
   Eye,
   Edit3,
   Trash2,
@@ -22,6 +21,7 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { ComponentForm } from "@/components/components/component-form";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
@@ -328,34 +328,29 @@ export default function ComponentsPage() {
       )}
 
       {/* Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editingComponent ? "Edit Component" : "Create New Component"}
-              </h2>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingComponent(null);
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <ComponentForm
-              initialData={editingComponent}
-              onSuccess={handleFormSuccess}
-              onCancel={() => {
-                setIsFormOpen(false);
-                setEditingComponent(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) setEditingComponent(null);
+        }}
+        title={editingComponent ? "Edit Component" : "Create New Component"}
+        description={
+          editingComponent
+            ? "Update internal component specifications, unit of measure, or default location."
+            : "Register a new raw material, component part number, or assembly item."
+        }
+        size="md"
+      >
+        <ComponentForm
+          initialData={editingComponent}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingComponent(null);
+          }}
+        />
+      </DialogShell>
 
       {/* Confirm Delete Dialog */}
       <ConfirmDialog
@@ -371,12 +366,14 @@ export default function ComponentsPage() {
 
       {/* Data Table */}
       <EntityDataTable
+        entityType="Component"
         columns={columns}
         data={components}
         searchKey="name"
         searchPlaceholder="Search components by name..."
         filters={filterConfigs}
         loading={loading}
+        onRefreshData={fetchData}
         emptyTitle="No components found"
         emptyMessage="Get started by adding your first inventory component."
       />

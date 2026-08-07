@@ -21,6 +21,15 @@ export interface CreateUnitInput {
   precision: number;
 }
 
+export interface UpdateUnitInput {
+  name?: string;
+  category?: string;
+  isBaseUnit?: boolean;
+  conversionFactor?: number | null;
+  precision?: number;
+  isActive?: boolean;
+}
+
 export class Unit {
   public readonly id: string;
   public readonly name: string;
@@ -110,6 +119,64 @@ export class Unit {
    */
   public static rehydrate(props: UnitProps): Unit {
     return new Unit(props);
+  }
+
+  /**
+   * Updates existing Unit props while validating business invariants.
+   */
+  public update(input: UpdateUnitInput): Unit {
+    const name = input.name !== undefined ? input.name.trim() : this.name;
+    const category =
+      input.category !== undefined ? input.category.trim() : this.category;
+    const isBaseUnit =
+      input.isBaseUnit !== undefined ? input.isBaseUnit : this.isBaseUnit;
+    const conversionFactor =
+      input.conversionFactor !== undefined
+        ? input.conversionFactor
+        : this.conversionFactor;
+    const precision =
+      input.precision !== undefined ? input.precision : this.precision;
+    const isActive =
+      input.isActive !== undefined ? input.isActive : this.isActive;
+
+    if (!name) {
+      throw new InvalidUnitNameError("Unit name is required");
+    }
+
+    if (!category) {
+      throw new InvalidUnitCategoryError("Unit category is required");
+    }
+
+    if (
+      !isBaseUnit &&
+      (conversionFactor === undefined || conversionFactor === null)
+    ) {
+      throw new InvalidUnitCategoryError(
+        "Non-base units must have a conversion factor",
+      );
+    }
+
+    if (
+      conversionFactor !== undefined &&
+      conversionFactor !== null &&
+      conversionFactor <= 0
+    ) {
+      throw new InvalidUnitCategoryError(
+        "Conversion factor must be greater than zero",
+      );
+    }
+
+    return new Unit({
+      id: this.id,
+      name,
+      category,
+      isBaseUnit,
+      conversionFactor,
+      precision,
+      isActive,
+      createdAt: this.createdAt,
+      updatedAt: new Date(),
+    });
   }
 
   /**

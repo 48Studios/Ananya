@@ -2,14 +2,11 @@
 
 import * as React from "react";
 import {
-  Upload,
-  FileSpreadsheet,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
   Download,
   Loader2,
-  X,
   FileCheck,
 } from "lucide-react";
 import {
@@ -17,6 +14,8 @@ import {
   ImportPreviewResultDto,
 } from "@/lib/api/import-export-api";
 import { Button } from "@/components/ui/button";
+import { FileUploader } from "@/components/ui/file-uploader";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import {
   Select,
   SelectContent,
@@ -24,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { useAuth } from "@/lib/auth/auth-context";
 
 export interface ImportWizardProps {
   isOpen: boolean;
@@ -38,6 +39,8 @@ export function ImportWizard({
   entityType,
   onImportComplete,
 }: ImportWizardProps) {
+  const { user } = useAuth();
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [step, setStep] = React.useState<1 | 2 | 3 | 4 | 5>(1);
   const [previewData, setPreviewData] =
     React.useState<ImportPreviewResultDto | null>(null);
@@ -51,31 +54,23 @@ export function ImportWizard({
   } | null>(null);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
-  if (!isOpen) return null;
+  const handleFileSelected = async (file: File) => {
+    setLoading(true);
+    setErrorMsg(null);
+    setSelectedFile(file);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const text = evt.target?.result as string;
-      setLoading(true);
-      setErrorMsg(null);
-      try {
-        const preview = await importExportApi.previewImport(entityType, text);
-        setPreviewData(preview);
-        setColumnMapping(preview.columnMapping);
-        setStep(2);
-      } catch (err: unknown) {
-        setErrorMsg(
-          err instanceof Error ? err.message : "Failed to parse file",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-    reader.readAsText(file);
+    try {
+      const preview = await importExportApi.previewImport(entityType, file);
+      setPreviewData(preview);
+      setColumnMapping(preview.columnMapping);
+      setStep(2);
+    } catch (err: unknown) {
+      setErrorMsg(
+        err instanceof Error ? err.message : "Failed to parse import file",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDownloadTemplate = async () => {
@@ -95,19 +90,23 @@ export function ImportWizard({
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      // ignore
+      // ignore template download failure
     }
   };
 
   const handleExecuteImport = async () => {
-    if (!previewData) return;
+    if (!selectedFile) {
+      setErrorMsg("No file selected for import execution");
+      return;
+    }
     setLoading(true);
     setStep(4);
     try {
       const job = await importExportApi.executeImport(
         entityType,
         columnMapping,
-        previewData.sampleRows,
+        selectedFile,
+        user?.id,
       );
       setExecutionResult({
         total: job.totalRecords,
@@ -125,26 +124,84 @@ export function ImportWizard({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pt-10 px-4 animate-in fade-in-0 duration-150">
-      <div className="relative w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden p-6 space-y-5">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-foreground">
-              Import {entityType} Wizard
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground"
+  const renderFooter = () => {
+    if (step === 1) {
+      return (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadTemplate}
+            className="text-xs text-primary mr-auto"
           >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+            <Download className="w-3.5 h-3.5 mr-1" />
+            Download Sample Template
+          </Button>
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+        </>
+      );
+    }
+    if (step === 2) {
+      return (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setStep(1)}
+            disabled={loading}
+          >
+            Back
+          </Button>
+          <Button size="sm" onClick={() => setStep(3)} disabled={loading}>
+            {loading && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+            Validate & Next
+          </Button>
+        </>
+      );
+    }
+    if (step === 3) {
+      return (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setStep(2)}
+            disabled={loading}
+          >
+            Back to Mapping
+          </Button>
+          <Button size="sm" onClick={handleExecuteImport} disabled={loading}>
+            Confirm & Import
+          </Button>
+        </>
+      );
+    }
+    if (step === 5) {
+      return (
+        <Button size="sm" onClick={onClose}>
+          Done
+        </Button>
+      );
+    }
+    return null;
+  };
 
+  return (
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !loading) {
+          onClose();
+        }
+      }}
+      title={`Import ${entityType} Wizard`}
+      description={`Multi-step batch import framework for ${entityType} records.`}
+      size="xl"
+      footer={renderFooter()}
+    >
+      <div className="space-y-4">
         {/* Wizard Steps Indicator */}
         <div className="flex items-center justify-between text-xs font-mono border-b border-border pb-3 text-muted-foreground">
           <span className={step >= 1 ? "text-primary font-bold" : ""}>
@@ -170,48 +227,16 @@ export function ImportWizard({
           </div>
         )}
 
-        {/* STEP 1: Upload File */}
+        {/* STEP 1: Upload File using Shared FileUploader */}
         {step === 1 && (
-          <div className="space-y-4">
-            <div className="border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-8 text-center bg-muted/20 transition-all flex flex-col items-center justify-center gap-3">
-              <Upload className="w-10 h-10 text-muted-foreground/60" />
-              <div>
-                <p className="text-xs font-semibold text-foreground">
-                  Upload CSV or Excel file
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Drag and drop your spreadsheet or click to browse
-                </p>
-              </div>
-              <input
-                type="file"
-                accept=".csv,.xlsx"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="file-upload"
-              />
-              <label htmlFor="file-upload">
-                <Button variant="outline" size="sm" className="cursor-pointer">
-                  Browse File
-                </Button>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-xs text-muted-foreground">
-                Need a starting template?
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDownloadTemplate}
-                className="text-xs text-primary"
-              >
-                <Download className="w-3.5 h-3.5 mr-1" />
-                Download Sample Template
-              </Button>
-            </div>
-          </div>
+          <FileUploader
+            accept=".csv,.xlsx,.json"
+            maxSizeBytes={50 * 1024 * 1024}
+            loading={loading}
+            onFileSelected={handleFileSelected}
+            title={`Upload ${entityType} CSV, XLSX, or JSON file`}
+            description="Drag and drop your spreadsheet or click to browse"
+          />
         )}
 
         {/* STEP 2: Preview & Column Mapping */}
@@ -272,60 +297,32 @@ export function ImportWizard({
                 ))}
               </div>
             </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setStep(1)}
-                disabled={loading}
-              >
-                Back
-              </Button>
-              <Button size="sm" onClick={() => setStep(3)} disabled={loading}>
-                {loading ? (
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                ) : null}
-                Validate & Next
-              </Button>
-            </div>
           </div>
         )}
 
         {/* STEP 3: Validation Summary */}
         {step === 3 && previewData && (
-          <div className="space-y-4">
-            <div className="p-4 bg-muted/20 border border-border rounded-xl space-y-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                <FileCheck className="w-4 h-4 text-emerald-500" />
-                <span>Pre-Import Validation Check</span>
+          <div className="p-4 bg-muted/20 border border-border rounded-xl space-y-3">
+            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+              <FileCheck className="w-4 h-4 text-emerald-500" />
+              <span>Pre-Import Validation Check</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Ready to import {previewData.validRowsCount} valid records into{" "}
+              {entityType} database repository.
+            </p>
+            {previewData.errors.length > 0 && (
+              <div className="max-h-32 overflow-y-auto space-y-1.5 border border-destructive/20 bg-destructive/5 p-2.5 rounded-lg text-[11px] text-destructive">
+                {previewData.errors.map((e, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                    <span>
+                      Row {e.row}: {e.message}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Ready to import {previewData.validRowsCount} valid records into{" "}
-                {entityType} database repository.
-              </p>
-              {previewData.errors.length > 0 && (
-                <div className="max-h-32 overflow-y-auto space-y-1.5 border border-destructive/20 bg-destructive/5 p-2.5 rounded-lg text-[11px] text-destructive">
-                  {previewData.errors.map((e, idx) => (
-                    <div key={idx} className="flex items-center gap-1.5">
-                      <AlertTriangle className="w-3 h-3 shrink-0" />
-                      <span>
-                        Row {e.row}: {e.message}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setStep(2)}>
-                Back to Mapping
-              </Button>
-              <Button size="sm" onClick={handleExecuteImport}>
-                Confirm & Import
-              </Button>
-            </div>
+            )}
           </div>
         )}
 
@@ -355,12 +352,10 @@ export function ImportWizard({
                 workspace database.
               </p>
             </div>
-            <Button size="sm" onClick={onClose}>
-              Done
-            </Button>
           </div>
         )}
       </div>
-    </div>
+    </DialogShell>
   );
 }
+

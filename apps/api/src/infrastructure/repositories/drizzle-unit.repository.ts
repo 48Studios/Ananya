@@ -79,4 +79,32 @@ export class DrizzleUnitRepository implements UnitRepository {
 
     return toDomain(row);
   }
+
+  async update(unit: Unit): Promise<Unit> {
+    const [row] = await db
+      .update(units)
+      .set({
+        name: unit.name,
+        category: unit.category,
+        isBaseUnit: unit.isBaseUnit,
+        conversionFactor: unit.conversionFactor
+          ? String(unit.conversionFactor)
+          : null,
+        precision: String(unit.precision),
+        isActive: unit.isActive,
+        updatedAt: unit.updatedAt,
+      })
+      .where(eq(units.id, unit.id))
+      .returning();
+
+    if (!row) {
+      throw new Error(`Failed to update unit: ${unit.id}`);
+    }
+
+    return toDomain(row);
+  }
+
+  async delete(id: string): Promise<void> {
+    await db.delete(units).where(eq(units.id, id));
+  }
 }

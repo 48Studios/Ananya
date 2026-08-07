@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { ComponentForm } from "@/components/components/component-form";
@@ -352,29 +353,26 @@ export default function ViewComponentPage() {
       </div>
 
       {/* Edit Form Modal */}
-      {isEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                Edit Component
-              </h2>
-            </div>
-            <ComponentForm
-              initialData={component}
-              onSuccess={(updated) => {
-                setComponent(updated);
-                setIsEditOpen(false);
-                setToastMessage(
-                  `Component "${updated.sku}" updated successfully.`,
-                );
-                setTimeout(() => setToastMessage(null), 4000);
-              }}
-              onCancel={() => setIsEditOpen(false)}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        title="Edit Component"
+        description="Update internal component specifications, unit of measure, or default storage location."
+        size="md"
+      >
+        <ComponentForm
+          initialData={component}
+          onSuccess={(updated) => {
+            setComponent(updated);
+            setIsEditOpen(false);
+            setToastMessage(
+              `Component "${updated.sku}" updated successfully.`,
+            );
+            setTimeout(() => setToastMessage(null), 4000);
+          }}
+          onCancel={() => setIsEditOpen(false)}
+        />
+      </DialogShell>
 
       {/* Confirm Delete Dialog */}
       <ConfirmDialog

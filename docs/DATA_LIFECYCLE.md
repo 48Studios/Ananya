@@ -48,6 +48,34 @@ The primary architectural principles are:
 
 ---
 
+# Unified Import Framework & FileUploader Architecture
+
+The Ananya ERP platform enforces a single authoritative file upload and import architecture across all web application modules (Components, Suppliers, Manufacturers, Warehouses, Inventory, Customers, Projects, Data Packs, Attachments, Document Management).
+
+### 1. Single Shared Upload Component (`FileUploader`)
+
+- **Canonical Component**: `apps/web/components/ui/file-uploader.tsx`
+- **User Interface**: Pure shadcn UI styling with drag & drop, click-to-browse, clipboard image/text paste, keyboard accessibility (`tabIndex={0}`), file extension filtering (`.csv,.xlsx,.json`, `image/*,.pdf`), maximum file size enforcement (default 50MB), progress state, error alerts, and retry/cancel controls.
+- **Event Handling**: Eliminates nested HTML `<label><button>` event duplication bugs by using programmatic `inputRef.current?.click()` element targeting.
+
+### 2. Standardized 5-Step Import Pipeline
+
+Every module import follows the identical workflow executed via `ImportWizard` (`apps/web/components/ui/import-wizard.tsx`):
+
+1. **Upload File**: File selection via `FileUploader` with CSV, XLSX, and JSON format validation. Stores actual `File` object in React state.
+2. **Multipart Preview**: Sends `POST /import-export/import/preview` as `multipart/form-data` with `file` and `entityType`. Backend parses headers & returns sample rows for mapping.
+3. **Column Mapping**: Auto-matches spreadsheet header columns against system entity schema fields.
+4. **Multipart Execution**: Sends `POST /import-export/import/execute` as `multipart/form-data` with `file`, `entityType`, and `columnMapping` JSON. Backend `@UseInterceptors(FileInterceptor('file'))` parses 100% of rows from uploaded `file.buffer`.
+5. **Transactional Execution & Read-Model Invalidation**: Inserts records inside a database transaction, performs post-write database verification, and triggers frontend `onRefreshData` / query invalidation, making imported records immediately visible in the UI without browser reload.
+
+### 3. Multipart Request & Data Integrity Standards
+
+- **HTTP Request Specification**: All import requests transmit binary or text file payloads as `multipart/form-data; boundary=...`. JSON-only metadata requests are prohibited.
+- **Backend File Processing**: NestJS controllers consume uploaded files using `@UseInterceptors(FileInterceptor('file'))` and `@UploadedFile() file: Express.Multer.File`.
+- **Data Integrity Invariant**: No import job reports status `COMPLETED` unless 100% of rows are parsed from the uploaded file, committed to the database, and verified as readable through the database repository read model.
+
+---
+
 # System Bootstrap Specification
 
 System Bootstrap (`packages/database/src/bootstrap/bootstrap.ts`) is executed during system setup (`pnpm db:setup` or `pnpm db:bootstrap`).
@@ -130,3 +158,23 @@ Organization Reset replaces CLI truncation scripts with a secure, audited admini
 2. **Text Verification**: Requires typing `RESET MY ORGANIZATION` exactly.
 3. **Password Re-Authentication**: Requires entering current administrator password.
 4. **Audit Logging**: Records audit event `ORGANIZATION_DATA_RESET` with user email, timestamp, and details.
+
+---
+
+# Canonical Schema Parity & Relational Resolution Principles
+
+Every entity in Ananya ERP maintains a single canonical schema across Database, Domain, DTOs, API, UI Forms, Tables, and Import/Export templates.
+
+### 1. 100% Relational Field Exposure
+- **UI Forms**: All relationship fields must use the searchable, creatable `<EntitySelector>` component. Text inputs and native HTML selects for foreign key fields are strictly forbidden.
+- **Import Templates**: Import templates include business key columns (`parentCode`, `categoryCode`, `manufacturerCode`, `warehouseCode`) for all entity relationships.
+- **Business Key Resolution**: Import pipelines resolve business keys (`code`, `sku`, `number`) to database primary keys (`id`). Internal UUIDs are never required in import files.
+
+### 2. Multi-Pass Hierarchy Resolution
+- Hierarchical entities (e.g. Category, Location) support nested tree structures during import.
+- The import engine uses multi-pass iterative processing. Parent records are inserted first, allowing child records defined anywhere in the import file to resolve their `parentId` cleanly.
+- Self-parenting loops (`parentCode == code`) and unresolved parent codes are reported as structured row-level validation errors.
+
+### 3. Round-Trip Export-Import Guarantee
+- `executeExport` queries actual database records and maps foreign key UUIDs back to human-readable business key codes (`parentCode`, `categoryCode`, `manufacturerCode`).
+- Data exported from the system can be re-imported into another workspace without data loss or broken relationships.

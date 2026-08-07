@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { db } from '@ananya/database';
 import {
   importExportJobs,
@@ -12,14 +12,13 @@ import {
   roles,
   customers,
 } from '@ananya/database/schema';
-import { eq, desc, inArray } from '@ananya/database/query';
+import { eq, desc, inArray, count, or } from '@ananya/database/query';
 import {
   ExportRequestDto,
   ExportFormat,
-  ImportPreviewDto,
-  ExecuteImportDto,
   BulkActionDto,
   BulkActionType,
+  UploadedFileObj,
 } from './dtos';
 
 function safeString(val: unknown): string {
@@ -38,6 +37,8 @@ function safeString(val: unknown): string {
 
 @Injectable()
 export class ImportExportService {
+  private readonly logger = new Logger(ImportExportService.name);
+
   getTemplate(entityType: string) {
     const templates: Record<
       string,
@@ -365,29 +366,89 @@ export class ImportExportService {
     return template;
   }
 
-  previewImport(dto: ImportPreviewDto) {
-    const lines = dto.fileContent
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length < 1) {
-      throw new BadRequestException('Import file is empty');
+  private parseFileRows(file: UploadedFileObj): {
+    headers: string[];
+    rows: Record<string, unknown>[];
+  } {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('Invalid or empty upload file buffer');
     }
 
-    const headers = lines[0]!
-      .split(',')
-      .map((h) => h.replace(/^"|"$/g, '').trim());
+    const content = file.buffer.toString('utf-8');
+
+    // JSON file support
+    if (
+      file.originalname?.endsWith('.json') ||
+      file.mimetype?.includes('json')
+    ) {
+      try {
+        const parsed: unknown = JSON.parse(content);
+        const rows: Record<string, unknown>[] = Array.isArray(parsed)
+          ? (parsed as Record<string, unknown>[])
+          : typeof parsed === 'object' && parsed !== null
+            ? [parsed as Record<string, unknown>]
+            : [];
+        const headers = Array.from(
+          new Set(
+            rows.flatMap((r) =>
+              typeof r === 'object' && r !== null ? Object.keys(r) : [],
+            ),
+          ),
+        );
+        return { headers, rows };
+      } catch {
+        throw new BadRequestException('Failed to parse JSON import file');
+      }
+    }
+
+    // CSV file support
+    const lines = content
+      .split(/\r?\n/)
+      .filter((line) => line.trim().length > 0);
+    if (lines.length === 0) {
+      return { headers: [], rows: [] };
+    }
+
+    const parseCsvLine = (line: string): string[] => {
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim().replace(/^"|"$/g, ''));
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim().replace(/^"|"$/g, ''));
+      return result;
+    };
+
+    const headers = parseCsvLine(lines[0]!);
     const rawRows = lines.slice(1);
-    const parsedRows = rawRows.map((line, index) => {
-      const values = line.split(',').map((v) => v.replace(/^"|"$/g, '').trim());
-      const rowObj: Record<string, string> = {};
+    const rows: Record<string, unknown>[] = rawRows.map((line) => {
+      const values = parseCsvLine(line);
+      const rowObj: Record<string, unknown> = {};
       headers.forEach((h, i) => {
-        rowObj[h] = values[i] || '';
+        rowObj[h] = values[i] !== undefined ? values[i] : '';
       });
-      return { rowIndex: index + 2, data: rowObj };
+      return rowObj;
     });
 
-    const template = this.getTemplate(dto.entityType);
+    return { headers, rows };
+  }
+
+  previewImport(file: UploadedFileObj, entityType: string) {
+    this.logger.log(
+      `[IMPORT SERVICE PREVIEW] Processing file: ${file.originalname}, size: ${file.size} bytes, entityType: ${entityType}`,
+    );
+
+    const { headers, rows } = this.parseFileRows(file);
+    const template = this.getTemplate(entityType);
     const systemFields = template.headers;
 
     const columnMapping: Record<string, string> = {};
@@ -409,9 +470,10 @@ export class ImportExportService {
     const validRows: Record<string, unknown>[] = [];
     const invalidRows: Record<string, unknown>[] = [];
 
-    parsedRows.forEach(({ rowIndex, data }) => {
+    rows.forEach((data, index) => {
+      const rowIndex = index + 2;
       let isRowValid = true;
-      if (dto.entityType === 'Component') {
+      if (entityType === 'Component') {
         if (!data.sku && !data['SKU']) {
           validationErrors.push({
             row: rowIndex,
@@ -431,11 +493,11 @@ export class ImportExportService {
           isRowValid = false;
         }
       } else if (
-        dto.entityType === 'Supplier' ||
-        dto.entityType === 'Manufacturer' ||
-        dto.entityType === 'Customer'
+        entityType === 'Supplier' ||
+        entityType === 'Manufacturer' ||
+        entityType === 'Customer'
       ) {
-        if (!data.code && !data.name) {
+        if (!data.code && !data.name && !data['Code'] && !data['Name']) {
           validationErrors.push({
             row: rowIndex,
             column: 'code',
@@ -457,34 +519,164 @@ export class ImportExportService {
       headers,
       systemFields,
       columnMapping,
-      totalRows: parsedRows.length,
+      totalRows: rows.length,
       validRowsCount: validRows.length,
       invalidRowsCount: invalidRows.length,
       errors: validationErrors,
-      sampleRows: parsedRows.slice(0, 5).map((r) => r.data),
+      sampleRows: rows.slice(0, 5),
     };
   }
 
-  async executeImport(dto: ExecuteImportDto, userId?: string) {
+  private getRowFieldValue(
+    row: Record<string, unknown>,
+    targetField: string,
+    columnMapping?: Record<string, string>,
+  ): string {
+    if (!row) return '';
+
+    if (columnMapping) {
+      for (const [csvHeader, systemField] of Object.entries(columnMapping)) {
+        if (
+          systemField &&
+          systemField.toLowerCase() === targetField.toLowerCase() &&
+          row[csvHeader] !== undefined &&
+          row[csvHeader] !== null
+        ) {
+          const val = row[csvHeader];
+          return typeof val === 'string'
+            ? val.trim()
+            : typeof val === 'number' || typeof val === 'boolean'
+              ? String(val)
+              : '';
+        }
+      }
+    }
+
+    if (row[targetField] !== undefined && row[targetField] !== null) {
+      const val = row[targetField];
+      return typeof val === 'string'
+        ? val.trim()
+        : typeof val === 'number' || typeof val === 'boolean'
+          ? String(val)
+          : '';
+    }
+
+    const targetLower = targetField.toLowerCase();
+    const caseMatchKey = Object.keys(row).find(
+      (k) => k.toLowerCase() === targetLower,
+    );
+    if (
+      caseMatchKey &&
+      row[caseMatchKey] !== undefined &&
+      row[caseMatchKey] !== null
+    ) {
+      const val = row[caseMatchKey];
+      return typeof val === 'string'
+        ? val.trim()
+        : typeof val === 'number' || typeof val === 'boolean'
+          ? String(val)
+          : '';
+    }
+
+    return '';
+  }
+
+  async executeImport(
+    file: UploadedFileObj,
+    entityType: string,
+    columnMapping: Record<string, string>,
+    userId?: string,
+  ): Promise<typeof importExportJobs.$inferSelect> {
+    this.logger.log(
+      `[IMPORT SERVICE EXECUTE] Starting import request for entityType="${entityType}", file="${file.originalname}", size=${file.size} bytes, userId="${userId || 'NONE'}"`,
+    );
+
+    // 1. Entity Importer Registry Resolution
+    const entityImporterMap: Record<string, string> = {
+      component: 'Component',
+      components: 'Component',
+      supplier: 'Supplier',
+      suppliers: 'Supplier',
+      manufacturer: 'Manufacturer',
+      manufacturers: 'Manufacturer',
+      category: 'Category',
+      categories: 'Category',
+      unit: 'Unit',
+      units: 'Unit',
+      location: 'Location',
+      locations: 'Location',
+      warehousebin: 'WarehouseBin',
+      warehousebins: 'WarehouseBin',
+      warehouse: 'Warehouse',
+      warehouses: 'Warehouse',
+      customer: 'Customer',
+      customers: 'Customer',
+      role: 'Role',
+      roles: 'Role',
+    };
+
+    const canonicalEntity =
+      entityImporterMap[entityType.toLowerCase().trim()] ||
+      ([
+        'Component',
+        'Supplier',
+        'Manufacturer',
+        'Category',
+        'Unit',
+        'Location',
+        'WarehouseBin',
+        'Warehouse',
+        'Customer',
+        'Role',
+      ].includes(entityType)
+        ? entityType
+        : null);
+
+    if (!canonicalEntity) {
+      this.logger.error(
+        `[IMPORTER REGISTRY ERROR] Importer resolution failed! No entity importer registered for entityType="${entityType}"`,
+      );
+      throw new BadRequestException(
+        `No importer registered for entity type: "${entityType}". Supported entities are: Category, Component, Supplier, Manufacturer, Unit, Location, Warehouse, Customer, Role.`,
+      );
+    }
+
+    this.logger.log(
+      `[IMPORTER REGISTRY RESOLVED] Successfully resolved entity importer for canonical entity "${canonicalEntity}" (from "${entityType}")`,
+    );
+
+    // 2. Parse file rows
+    const { rows } = this.parseFileRows(file);
+    this.logger.log(
+      `[IMPORT SERVICE FILE PARSE] Parsed ${rows.length} total rows from file "${file.originalname}"`,
+    );
+
+    // 3. Create Import Job Record
     const [job] = await db
       .insert(importExportJobs)
       .values({
         jobType: 'IMPORT',
-        entityType: dto.entityType,
+        entityType: canonicalEntity,
         format: 'CSV',
         status: 'PROCESSING',
-        totalRecords: dto.rows.length,
+        totalRecords: rows.length,
         processedRecords: 0,
         failedRecords: 0,
         progressPercent: 10,
+        fileName: file.originalname,
         userId: userId || null,
       })
       .returning();
 
     if (!job) {
-      throw new BadRequestException('Failed to create import job');
+      throw new BadRequestException('Failed to create import job record');
     }
 
+    this.logger.log(
+      `[IMPORT JOB CREATED] Created job id="${job.id}", entityType="${job.entityType}", fileName="${job.fileName}", userId="${job.userId || 'NONE'}"`,
+    );
+
+    // 4. Importer Execution Loop
     let processed = 0;
     const errors: Array<{
       row: number;
@@ -493,153 +685,469 @@ export class ImportExportService {
       message: string;
     }> = [];
 
-    for (let i = 0; i < dto.rows.length; i++) {
-      const row = dto.rows[i]!;
-      try {
-        if (dto.entityType === 'Component') {
-          const skuVal =
-            safeString(row.sku || row[dto.columnMapping.sku || 'sku']) ||
-            `SKU-${Date.now()}-${i}`;
-          const nameVal =
-            safeString(row.name || row[dto.columnMapping.name || 'name']) ||
-            `Component ${skuVal}`;
-          const unitVal =
-            safeString(row.unit || row[dto.columnMapping.unit || 'unit']) ||
-            'pcs';
-          const descVal = safeString(row.description);
+    if (canonicalEntity === 'Category') {
+      const existingCats = await db
+        .select({ id: categories.id, code: categories.code })
+        .from(categories);
+      const codeToIdMap = new Map<string, string>();
+      for (const c of existingCats) {
+        codeToIdMap.set(c.code.toUpperCase(), c.id);
+      }
 
-          await db
-            .insert(components)
-            .values({
-              sku: skuVal,
-              name: nameVal,
-              unit: unitVal,
-              description: descVal,
-              isActive: true,
-            })
-            .onConflictDoNothing();
-        } else if (dto.entityType === 'Supplier') {
-          const codeVal =
-            safeString(row.code || row[dto.columnMapping.code || 'code']) ||
-            `SUP-${Date.now()}-${i}`;
-          const nameVal =
-            safeString(row.name || row[dto.columnMapping.name || 'name']) ||
-            `Supplier ${codeVal}`;
-          const termsVal = safeString(row.paymentTerms) || 'NET30';
-          const currVal = safeString(row.currency) || 'INR';
+      let unassigned = rows.map((r, index) => ({ row: r, index }));
+      let pass = 0;
+      const maxPasses = 5;
 
-          await db
-            .insert(suppliers)
-            .values({
-              code: codeVal,
-              name: nameVal,
-              paymentTerms: termsVal,
-              currency: currVal,
-              isActive: true,
-            })
-            .onConflictDoNothing();
-        } else if (dto.entityType === 'Manufacturer') {
-          const codeVal = safeString(row.code) || `MFG-${Date.now()}-${i}`;
-          const nameVal = safeString(row.name) || `Manufacturer ${codeVal}`;
-          await db
-            .insert(manufacturers)
-            .values({
-              code: codeVal,
-              name: nameVal,
-              isActive: true,
-            })
-            .onConflictDoNothing();
-        } else if (dto.entityType === 'Category') {
-          const codeVal = safeString(row.code) || `CAT-${Date.now()}-${i}`;
-          const nameVal = safeString(row.name) || `Category ${codeVal}`;
-          await db
-            .insert(categories)
-            .values({
-              code: codeVal,
-              name: nameVal,
-              description: safeString(row.description),
-              isActive: true,
-            })
-            .onConflictDoNothing();
-        } else if (dto.entityType === 'Unit') {
-          const nameVal = safeString(row.name) || `unit-${i}`;
-          await db
-            .insert(units)
-            .values({
-              name: nameVal,
-              category: safeString(row.category) || 'General',
-              conversionFactor: safeString(row.conversionFactor) || '1.0000',
-              precision: safeString(row.precision) || '0',
-              isActive: true,
-            })
-            .onConflictDoNothing();
-        } else if (dto.entityType === 'Location') {
-          const codeVal = safeString(row.code) || `LOC-${Date.now()}-${i}`;
-          const nameVal = safeString(row.name) || `Location ${codeVal}`;
-          await db
-            .insert(locations)
-            .values({
-              code: codeVal,
-              name: nameVal,
-              kind:
-                (safeString(row.kind) as
-                  'WAREHOUSE' | 'ZONE' | 'SHELF' | 'BIN' | 'VIRTUAL') || 'BIN',
-              metadata: { description: safeString(row.description) },
-              isActive: true,
-            })
-            .onConflictDoNothing();
-        } else if (dto.entityType === 'Warehouse') {
-          const codeVal = safeString(row.code) || `WH-${Date.now()}-${i}`;
-          const nameVal = safeString(row.name) || `Warehouse ${codeVal}`;
-          await db
-            .insert(warehouses)
-            .values({
-              code: codeVal,
-              name: nameVal,
-              description: safeString(row.description),
-              status: 'ACTIVE',
-            })
-            .onConflictDoNothing();
-        } else if (dto.entityType === 'Customer') {
-          const codeVal = safeString(row.code) || `CUST-${Date.now()}-${i}`;
-          const nameVal = safeString(row.name) || `Customer ${codeVal}`;
-          const emailVal =
-            safeString(row.email) || `${codeVal.toLowerCase()}@customer.com`;
-          await db
-            .insert(customers)
-            .values({
-              id: crypto.randomUUID(),
-              customerNumber: codeVal,
-              name: nameVal,
-              email: emailVal,
-              phone: safeString(row.phone),
-              currency: safeString(row.currency) || 'INR',
-              status: 'ACTIVE',
-            })
-            .onConflictDoNothing();
-        } else if (dto.entityType === 'Role') {
-          const nameVal = safeString(row.name) || `Custom Role ${i}`;
-          await db
-            .insert(roles)
-            .values({
-              name: nameVal,
-              description: safeString(row.description),
-              isSystem: false,
-              permissions: [],
-            })
-            .onConflictDoNothing();
+      while (unassigned.length > 0 && pass < maxPasses) {
+        pass++;
+        const remaining: typeof unassigned = [];
+        let progress = false;
+
+        for (const { row, index } of unassigned) {
+          const codeVal = (
+            this.getRowFieldValue(row, 'code', columnMapping) ||
+            `CAT-${Date.now()}-${index}`
+          )
+            .trim()
+            .toUpperCase();
+          const nameVal = (
+            this.getRowFieldValue(row, 'name', columnMapping) ||
+            `Category ${codeVal}`
+          ).trim();
+          const descVal = this.getRowFieldValue(
+            row,
+            'description',
+            columnMapping,
+          );
+          const parentCodeVal = (
+            this.getRowFieldValue(row, 'parentCode', columnMapping) ||
+            this.getRowFieldValue(row, 'parentCategoryCode', columnMapping) ||
+            this.getRowFieldValue(row, 'parentCategory', columnMapping) ||
+            ''
+          )
+            .trim()
+            .toUpperCase();
+
+          let parentId: string | null = null;
+          if (parentCodeVal) {
+            if (parentCodeVal === codeVal) {
+              errors.push({
+                row: index + 1,
+                column: 'parentCode',
+                value: parentCodeVal,
+                message: `Category "${codeVal}" cannot be its own parent.`,
+              });
+              continue;
+            }
+            if (codeToIdMap.has(parentCodeVal)) {
+              parentId = codeToIdMap.get(parentCodeVal)!;
+            } else {
+              remaining.push({ row, index });
+              continue;
+            }
+          }
+
+          try {
+            this.logger.log(
+              `[REPOSITORY WRITE - Category Pass ${pass}] Row ${index + 1}/${rows.length}: Code="${codeVal}", Name="${nameVal}", ParentId="${parentId || 'NONE'}"`,
+            );
+            const [inserted] = await db
+              .insert(categories)
+              .values({
+                code: codeVal,
+                name: nameVal,
+                description: descVal,
+                parentId: parentId,
+                isActive: true,
+              })
+              .onConflictDoNothing()
+              .returning({ id: categories.id, code: categories.code });
+
+            if (inserted) {
+              codeToIdMap.set(inserted.code.toUpperCase(), inserted.id);
+            } else {
+              const [exist] = await db
+                .select({ id: categories.id, code: categories.code })
+                .from(categories)
+                .where(eq(categories.code, codeVal))
+                .limit(1);
+              if (exist) {
+                codeToIdMap.set(exist.code.toUpperCase(), exist.id);
+              }
+            }
+            processed++;
+            progress = true;
+          } catch (err: unknown) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            errors.push({
+              row: index + 1,
+              column: 'code',
+              value: codeVal,
+              message: `Failed to insert category: ${errMsg}`,
+            });
+          }
         }
-        processed++;
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Row import error';
-        errors.push({ row: i + 2, message: msg });
+
+        if (!progress) {
+          for (const { row, index } of remaining) {
+            const parentCodeVal = (
+              this.getRowFieldValue(row, 'parentCode', columnMapping) ||
+              this.getRowFieldValue(row, 'parentCategoryCode', columnMapping) ||
+              this.getRowFieldValue(row, 'parentCategory', columnMapping) ||
+              ''
+            )
+              .trim()
+              .toUpperCase();
+            errors.push({
+              row: index + 1,
+              column: 'parentCode',
+              value: parentCodeVal,
+              message: `Unresolved parent category code: "${parentCodeVal}". Parent category must exist or be defined in the import file.`,
+            });
+          }
+          break;
+        }
+        unassigned = remaining;
+      }
+    } else {
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]!;
+        try {
+          if (canonicalEntity === 'Component') {
+            const skuVal =
+              this.getRowFieldValue(row, 'sku', columnMapping) ||
+              `SKU-${Date.now()}-${i}`;
+            const nameVal =
+              this.getRowFieldValue(row, 'name', columnMapping) ||
+              `Component ${skuVal}`;
+            const unitVal =
+              this.getRowFieldValue(row, 'unit', columnMapping) || 'pcs';
+            const descVal = this.getRowFieldValue(
+              row,
+              'description',
+              columnMapping,
+            );
+
+            const categoryVal = (
+              this.getRowFieldValue(row, 'categoryCode', columnMapping) ||
+              this.getRowFieldValue(row, 'categoryName', columnMapping) ||
+              this.getRowFieldValue(row, 'category', columnMapping) ||
+              ''
+            ).trim();
+            let categoryId: string | null = null;
+            if (categoryVal) {
+              const [cat] = await db
+                .select({ id: categories.id })
+                .from(categories)
+                .where(
+                  or(
+                    eq(categories.code, categoryVal.toUpperCase()),
+                    eq(categories.name, categoryVal),
+                  ),
+                )
+                .limit(1);
+              if (cat) categoryId = cat.id;
+            }
+
+            const mfgVal = (
+              this.getRowFieldValue(row, 'manufacturerCode', columnMapping) ||
+              this.getRowFieldValue(row, 'manufacturerName', columnMapping) ||
+              this.getRowFieldValue(row, 'manufacturer', columnMapping) ||
+              ''
+            ).trim();
+            let manufacturerId: string | null = null;
+            if (mfgVal) {
+              const [mfg] = await db
+                .select({ id: manufacturers.id })
+                .from(manufacturers)
+                .where(
+                  or(
+                    eq(manufacturers.code, mfgVal.toUpperCase()),
+                    eq(manufacturers.name, mfgVal),
+                  ),
+                )
+                .limit(1);
+              if (mfg) manufacturerId = mfg.id;
+            }
+
+            this.logger.log(
+              `[REPOSITORY WRITE - Component] Row ${i + 1}/${rows.length}: SKU="${skuVal}", Name="${nameVal}"`,
+            );
+            await db
+              .insert(components)
+              .values({
+                sku: skuVal,
+                name: nameVal,
+                unit: unitVal,
+                description: descVal,
+                categoryId: categoryId,
+                manufacturerId: manufacturerId,
+                isActive: true,
+              })
+              .onConflictDoNothing();
+            processed++;
+          } else if (canonicalEntity === 'Supplier') {
+            const codeVal =
+              this.getRowFieldValue(row, 'code', columnMapping) ||
+              `SUP-${Date.now()}-${i}`;
+            const nameVal =
+              this.getRowFieldValue(row, 'name', columnMapping) ||
+              `Supplier ${codeVal}`;
+            const termsVal =
+              this.getRowFieldValue(row, 'paymentTerms', columnMapping) ||
+              'NET30';
+            const currVal =
+              this.getRowFieldValue(row, 'currency', columnMapping) || 'INR';
+            const taxIdVal = this.getRowFieldValue(row, 'taxId', columnMapping);
+
+            this.logger.log(
+              `[REPOSITORY WRITE - Supplier] Row ${i + 1}/${rows.length}: Code="${codeVal}", Name="${nameVal}"`,
+            );
+            await db
+              .insert(suppliers)
+              .values({
+                code: codeVal,
+                name: nameVal,
+                paymentTerms: termsVal,
+                currency: currVal,
+                taxId: taxIdVal || null,
+                isActive: true,
+              })
+              .onConflictDoNothing();
+            processed++;
+          } else if (canonicalEntity === 'Manufacturer') {
+            const codeVal =
+              this.getRowFieldValue(row, 'code', columnMapping) ||
+              `MFG-${Date.now()}-${i}`;
+            const nameVal =
+              this.getRowFieldValue(row, 'name', columnMapping) ||
+              `Manufacturer ${codeVal}`;
+
+            this.logger.log(
+              `[REPOSITORY WRITE - Manufacturer] Row ${i + 1}/${rows.length}: Code="${codeVal}", Name="${nameVal}"`,
+            );
+            await db
+              .insert(manufacturers)
+              .values({
+                code: codeVal,
+                name: nameVal,
+                isActive: true,
+              })
+              .onConflictDoNothing();
+            processed++;
+          } else if (canonicalEntity === 'Unit') {
+            const nameVal =
+              this.getRowFieldValue(row, 'name', columnMapping) || `unit-${i}`;
+            const catVal =
+              this.getRowFieldValue(row, 'category', columnMapping) ||
+              'General';
+            const factorVal =
+              this.getRowFieldValue(row, 'conversionFactor', columnMapping) ||
+              '1.0000';
+            const precVal =
+              this.getRowFieldValue(row, 'precision', columnMapping) || '0';
+
+            this.logger.log(
+              `[REPOSITORY WRITE - Unit] Row ${i + 1}/${rows.length}: Name="${nameVal}", Category="${catVal}"`,
+            );
+            await db
+              .insert(units)
+              .values({
+                name: nameVal,
+                category: catVal,
+                conversionFactor: factorVal,
+                precision: precVal,
+                isActive: true,
+              })
+              .onConflictDoNothing();
+            processed++;
+          } else if (
+            canonicalEntity === 'Location' ||
+            canonicalEntity === 'WarehouseBin'
+          ) {
+            const codeVal =
+              this.getRowFieldValue(row, 'code', columnMapping) ||
+              `LOC-${Date.now()}-${i}`;
+            const nameVal =
+              this.getRowFieldValue(row, 'name', columnMapping) ||
+              `Location ${codeVal}`;
+            const kindVal =
+              (this.getRowFieldValue(row, 'kind', columnMapping) as
+                'WAREHOUSE' | 'ZONE' | 'SHELF' | 'BIN' | 'VIRTUAL') || 'BIN';
+            const descVal = this.getRowFieldValue(
+              row,
+              'description',
+              columnMapping,
+            );
+            const parentCodeVal = (
+              this.getRowFieldValue(row, 'parentCode', columnMapping) ||
+              this.getRowFieldValue(row, 'parentLocationCode', columnMapping) ||
+              ''
+            )
+              .trim()
+              .toUpperCase();
+
+            let parentId: string | null = null;
+            if (parentCodeVal) {
+              const [parentLoc] = await db
+                .select({ id: locations.id })
+                .from(locations)
+                .where(eq(locations.code, parentCodeVal))
+                .limit(1);
+              if (parentLoc) parentId = parentLoc.id;
+            }
+
+            this.logger.log(
+              `[REPOSITORY WRITE - Location] Row ${i + 1}/${rows.length}: Code="${codeVal}", Name="${nameVal}"`,
+            );
+            await db
+              .insert(locations)
+              .values({
+                code: codeVal,
+                name: nameVal,
+                kind: kindVal,
+                parentId: parentId,
+                metadata: { description: descVal },
+                isActive: true,
+              })
+              .onConflictDoNothing();
+            processed++;
+          } else if (canonicalEntity === 'Warehouse') {
+            const codeVal =
+              this.getRowFieldValue(row, 'code', columnMapping) ||
+              `WH-${Date.now()}-${i}`;
+            const nameVal =
+              this.getRowFieldValue(row, 'name', columnMapping) ||
+              `Warehouse ${codeVal}`;
+            const descVal = this.getRowFieldValue(
+              row,
+              'description',
+              columnMapping,
+            );
+
+            this.logger.log(
+              `[REPOSITORY WRITE - Warehouse] Row ${i + 1}/${rows.length}: Code="${codeVal}", Name="${nameVal}"`,
+            );
+            await db
+              .insert(warehouses)
+              .values({
+                code: codeVal,
+                name: nameVal,
+                description: descVal,
+                status: 'ACTIVE',
+              })
+              .onConflictDoNothing();
+            processed++;
+          } else if (canonicalEntity === 'Customer') {
+            const codeVal =
+              this.getRowFieldValue(row, 'code', columnMapping) ||
+              this.getRowFieldValue(row, 'customerNumber', columnMapping) ||
+              `CUST-${Date.now()}-${i}`;
+            const nameVal =
+              this.getRowFieldValue(row, 'name', columnMapping) ||
+              `Customer ${codeVal}`;
+            const emailVal =
+              this.getRowFieldValue(row, 'email', columnMapping) ||
+              `${codeVal.toLowerCase()}@customer.com`;
+            const phoneVal = this.getRowFieldValue(row, 'phone', columnMapping);
+            const currVal =
+              this.getRowFieldValue(row, 'currency', columnMapping) || 'INR';
+
+            this.logger.log(
+              `[REPOSITORY WRITE - Customer] Row ${i + 1}/${rows.length}: Code="${codeVal}", Name="${nameVal}"`,
+            );
+            await db
+              .insert(customers)
+              .values({
+                id: crypto.randomUUID(),
+                customerNumber: codeVal,
+                name: nameVal,
+                email: emailVal,
+                phone: phoneVal,
+                currency: currVal,
+                status: 'ACTIVE',
+              })
+              .onConflictDoNothing();
+            processed++;
+          } else if (canonicalEntity === 'Role') {
+            const nameVal =
+              this.getRowFieldValue(row, 'name', columnMapping) ||
+              `Custom Role ${i}`;
+            const descVal = this.getRowFieldValue(
+              row,
+              'description',
+              columnMapping,
+            );
+
+            this.logger.log(
+              `[REPOSITORY WRITE - Role] Row ${i + 1}/${rows.length}: Name="${nameVal}"`,
+            );
+            await db
+              .insert(roles)
+              .values({
+                name: nameVal,
+                description: descVal,
+                isSystem: false,
+                permissions: [],
+              })
+              .onConflictDoNothing();
+            processed++;
+          } else {
+            this.logger.log(
+              `[REPOSITORY WRITE - ${canonicalEntity}] Skipping unhandled entity row ${i + 1}`,
+            );
+            processed++;
+          }
+        } catch (rowErr: unknown) {
+          const errMsg =
+            rowErr instanceof Error ? rowErr.message : String(rowErr);
+          this.logger.error(
+            `[REPOSITORY WRITE ERROR - ${canonicalEntity}] Row ${i + 1}: ${errMsg}`,
+          );
+          errors.push({
+            row: i + 1,
+            message: errMsg,
+          });
+        }
       }
     }
 
+    // 5. Post-Write Read Model Verification
+    this.logger.log(
+      `[DATABASE COMMIT COMPLETED] Repository writes finished for ${canonicalEntity}. Total: ${rows.length}, Processed: ${processed}, Failed: ${errors.length}`,
+    );
+
+    try {
+      let readCount = 0;
+      if (canonicalEntity === 'Category') {
+        const res = await db.select({ count: count() }).from(categories);
+        readCount = res[0]?.count ?? 0;
+      } else if (canonicalEntity === 'Component') {
+        const res = await db.select({ count: count() }).from(components);
+        readCount = res[0]?.count ?? 0;
+      } else if (canonicalEntity === 'Supplier') {
+        const res = await db.select({ count: count() }).from(suppliers);
+        readCount = res[0]?.count ?? 0;
+      }
+      this.logger.log(
+        `[READ MODEL VERIFICATION SUCCESS] Database contains ${readCount} total records in read model for ${canonicalEntity}`,
+      );
+    } catch (readErr: unknown) {
+      const errMsg =
+        readErr instanceof Error ? readErr.message : String(readErr);
+      this.logger.warn(
+        `[READ MODEL VERIFICATION WARNING] Could not verify read model count for ${canonicalEntity}: ${errMsg}`,
+      );
+    }
+
+    // 6. Update Job Status to COMPLETED
     const [updatedJob] = await db
       .update(importExportJobs)
       .set({
-        status: errors.length === dto.rows.length ? 'FAILED' : 'COMPLETED',
+        status:
+          errors.length === rows.length && rows.length > 0
+            ? 'FAILED'
+            : 'COMPLETED',
         processedRecords: processed,
         failedRecords: errors.length,
         progressPercent: 100,
@@ -649,30 +1157,70 @@ export class ImportExportService {
       .where(eq(importExportJobs.id, job.id))
       .returning();
 
+    this.logger.log(
+      `[IMPORT JOB COMPLETED] Job id="${updatedJob?.id}", entityType="${updatedJob?.entityType}", status="${updatedJob?.status}", fileName="${updatedJob?.fileName}", userId="${updatedJob?.userId || 'NONE'}", processedRecords=${updatedJob?.processedRecords}`,
+    );
+
+    if (!updatedJob) {
+      throw new BadRequestException('Import job execution failed');
+    }
+
     return updatedJob;
   }
 
   async executeExport(dto: ExportRequestDto, userId?: string) {
     let rawData: Record<string, unknown>[] = [];
 
-    if (dto.entityType === 'Component') {
+    if (dto.entityType === 'Category') {
+      const rows = await db.select().from(categories).limit(1000);
+      const catMap = new Map(rows.map((c) => [c.id, c.code]));
+      rawData = rows.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name,
+        description: c.description || '',
+        parentCode: c.parentId ? catMap.get(c.parentId) || '' : '',
+        isActive: c.isActive,
+        createdAt: c.createdAt,
+      }));
+    } else if (dto.entityType === 'Component') {
       const rows = await db.select().from(components).limit(1000);
+      const allCats = await db
+        .select({ id: categories.id, code: categories.code })
+        .from(categories);
+      const allMfgs = await db
+        .select({ id: manufacturers.id, code: manufacturers.code })
+        .from(manufacturers);
+      const catMap = new Map(allCats.map((c) => [c.id, c.code]));
+      const mfgMap = new Map(allMfgs.map((m) => [m.id, m.code]));
+
       rawData = rows.map((c) => ({
         id: c.id,
         sku: c.sku,
         name: c.name,
         unit: c.unit,
+        description: c.description || '',
+        categoryCode: c.categoryId ? catMap.get(c.categoryId) || '' : '',
+        manufacturerCode: c.manufacturerId
+          ? mfgMap.get(c.manufacturerId) || ''
+          : '',
         isActive: c.isActive,
         createdAt: c.createdAt,
       }));
-    } else if (dto.entityType === 'Location') {
+    } else if (
+      dto.entityType === 'Location' ||
+      dto.entityType === 'WarehouseBin'
+    ) {
       const rows = await db.select().from(locations).limit(1000);
+      const locMap = new Map(rows.map((l) => [l.id, l.code]));
       rawData = rows.map((l) => ({
         id: l.id,
         code: l.code,
         name: l.name,
         kind: l.kind,
+        parentCode: l.parentId ? locMap.get(l.parentId) || '' : '',
         isActive: l.isActive,
+        createdAt: l.createdAt,
       }));
     } else if (dto.entityType === 'Supplier') {
       const rows = await db.select().from(suppliers).limit(1000);
@@ -681,7 +1229,53 @@ export class ImportExportService {
         code: s.code,
         name: s.name,
         paymentTerms: s.paymentTerms,
+        currency: s.currency,
+        taxId: s.taxId || '',
         isActive: s.isActive,
+        createdAt: s.createdAt,
+      }));
+    } else if (dto.entityType === 'Manufacturer') {
+      const rows = await db.select().from(manufacturers).limit(1000);
+      rawData = rows.map((m) => ({
+        id: m.id,
+        code: m.code,
+        name: m.name,
+        isActive: m.isActive,
+        createdAt: m.createdAt,
+      }));
+    } else if (dto.entityType === 'Unit') {
+      const rows = await db.select().from(units).limit(1000);
+      rawData = rows.map((u) => ({
+        id: u.id,
+        name: u.name,
+        category: u.category,
+        conversionFactor: u.conversionFactor || '1.0000',
+        precision: u.precision,
+        isBaseUnit: u.isBaseUnit,
+        isActive: u.isActive,
+        createdAt: u.createdAt,
+      }));
+    } else if (dto.entityType === 'Warehouse') {
+      const rows = await db.select().from(warehouses).limit(1000);
+      rawData = rows.map((w) => ({
+        id: w.id,
+        code: w.code,
+        name: w.name,
+        description: w.description || '',
+        status: w.status,
+        createdAt: w.createdAt,
+      }));
+    } else if (dto.entityType === 'Customer') {
+      const rows = await db.select().from(customers).limit(1000);
+      rawData = rows.map((c) => ({
+        id: c.id,
+        customerNumber: c.customerNumber,
+        name: c.name,
+        email: c.email || '',
+        phone: c.phone || '',
+        currency: c.currency,
+        status: c.status,
+        createdAt: c.createdAt,
       }));
     } else {
       rawData = [

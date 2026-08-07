@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { PermissionGuard } from "@/lib/auth/auth-context";
@@ -228,56 +229,55 @@ export default function UserDetailPage() {
       </div>
 
       {/* Admin Reset Password Modal */}
-      {isResetOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-xl p-6 space-y-4 shadow-2xl">
-            <h3 className="text-base font-semibold text-foreground">
-              Reset Password for {userInfo.firstName}
-            </h3>
+      <DialogShell
+        open={isResetOpen}
+        onOpenChange={setIsResetOpen}
+        title={`Reset Password for ${userInfo.firstName}`}
+        description="Issue a new temporary password for this user account."
+        size="md"
+      >
 
-            {resetSuccess && (
-              <div className="p-3 text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-md">
-                {resetSuccess}
-              </div>
-            )}
+          {resetSuccess && (
+            <div className="p-3 text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-md">
+              {resetSuccess}
+            </div>
+          )}
 
-            <form
-              onSubmit={handleAdminResetPassword}
-              className="space-y-3 text-xs"
-            >
-              <div className="space-y-1">
-                <label className="font-medium text-foreground">
-                  New Temporary Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground"
-                />
-              </div>
+          <form
+            onSubmit={handleAdminResetPassword}
+            className="space-y-3 text-xs"
+          >
+            <div className="space-y-1">
+              <label className="font-medium text-foreground">
+                New Temporary Password
+              </label>
+              <input
+                type="password"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground"
+              />
+            </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  onClick={() => setIsResetOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button size="sm" type="submit" disabled={resetSubmitting}>
-                  {resetSubmitting && (
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  )}
-                  Set New Password
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() => setIsResetOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button size="sm" type="submit" disabled={resetSubmitting}>
+                {resetSubmitting && (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                )}
+                Reset Password
+              </Button>
+            </div>
+          </form>
+      </DialogShell>
     </div>
   );
 }

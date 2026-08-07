@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  X,
   Eye,
   Lock,
   Clock,
@@ -27,6 +26,7 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { ReservationForm } from "@/components/reservations/reservation-form";
 import {
   reservationsApi,
@@ -389,36 +389,33 @@ export default function ReservationsPage() {
       )}
 
       {/* Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editingReservation
-                  ? "Edit Reservation Lock"
-                  : "Create Inventory Reservation"}
-              </h2>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingReservation(null);
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <ReservationForm
-              initialData={editingReservation}
-              onSuccess={handleFormSuccess}
-              onCancel={() => {
-                setIsFormOpen(false);
-                setEditingReservation(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) setEditingReservation(null);
+        }}
+        title={
+          editingReservation
+            ? "Edit Reservation Lock"
+            : "Create Inventory Reservation"
+        }
+        description={
+          editingReservation
+            ? "Update hard-allocation reservation quantity or target order project."
+            : "Lock stock quantities for active production orders, sales allocations, or client projects."
+        }
+        size="xl"
+      >
+        <ReservationForm
+          initialData={editingReservation}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingReservation(null);
+          }}
+        />
+      </DialogShell>
 
       {/* Delete Dialog */}
       <ConfirmDialog

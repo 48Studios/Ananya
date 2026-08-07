@@ -4,8 +4,8 @@ export interface UnitDto {
   id: string;
   name: string;
   category: string;
-  conversionFactor: string;
-  precision: string;
+  conversionFactor: number | string | null;
+  precision: number | string;
   isBaseUnit: boolean;
   isActive: boolean;
   createdAt: string;
@@ -15,8 +15,18 @@ export interface UnitDto {
 export interface CreateUnitPayload {
   name: string;
   category?: string;
-  conversionFactor?: string;
-  precision?: string;
+  isBaseUnit?: boolean;
+  conversionFactor?: number | string | null;
+  precision?: number | string;
+}
+
+export interface UpdateUnitPayload {
+  name?: string;
+  category?: string;
+  isBaseUnit?: boolean;
+  conversionFactor?: number | null;
+  precision?: number;
+  isActive?: boolean;
 }
 
 export const unitsApi = {
@@ -24,10 +34,9 @@ export const unitsApi = {
   getById: (id: string): Promise<UnitDto> =>
     apiClient.get<UnitDto>(`/units/${id}`),
   create: (payload: CreateUnitPayload): Promise<UnitDto> =>
-    apiClient.post<UnitDto, CreateUnitPayload>("/units", {
-      name: payload.name,
-      category: payload.category || "Count",
-      conversionFactor: payload.conversionFactor || "1.0000",
-      precision: payload.precision || "0",
-    }),
+    apiClient.post<UnitDto, CreateUnitPayload>("/units", payload),
+  update: (id: string, payload: UpdateUnitPayload): Promise<UnitDto> =>
+    apiClient.put<UnitDto, UpdateUnitPayload>(`/units/${id}`, payload),
+  delete: (id: string): Promise<void> =>
+    apiClient.delete<void>(`/units/${id}`),
 };

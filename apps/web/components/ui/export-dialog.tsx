@@ -7,10 +7,10 @@ import {
   FileText,
   Check,
   Loader2,
-  X,
 } from "lucide-react";
 import { importExportApi, ExportFormat } from "@/lib/api/import-export-api";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 
 export interface ExportDialogProps {
   isOpen: boolean;
@@ -41,8 +41,6 @@ export function ExportDialog({
   React.useEffect(() => {
     setSelectedColumns(availableColumns);
   }, [availableColumns]);
-
-  if (!isOpen) return null;
 
   const toggleColumn = (col: string) => {
     if (selectedColumns.includes(col)) {
@@ -89,24 +87,47 @@ export function ExportDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pt-10 px-4 animate-in fade-in-0 duration-150">
-      <div className="relative w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl overflow-hidden p-6 space-y-5">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <Download className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-foreground">
-              Export {entityType} Data
-            </h2>
-          </div>
-          <button
-            type="button"
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !loading) {
+          onClose();
+        }
+      }}
+      title={`Export ${entityType} Data`}
+      description={`Export ${entityType} records to CSV, Excel, or JSON format.`}
+      size="lg"
+      footer={
+        <>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground"
+            disabled={loading}
           >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleExport}
+            disabled={loading || selectedColumns.length === 0}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                Generating Export...
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+                Download {format} File
+              </>
+            )}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-5">
         {/* Format Selection */}
         <div className="space-y-2">
           <label className="text-xs font-semibold text-foreground">
@@ -222,35 +243,8 @@ export function ExportDialog({
             <span>{successMsg}</span>
           </div>
         )}
-
-        <div className="flex justify-end gap-2 border-t border-border pt-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleExport}
-            disabled={loading || selectedColumns.length === 0}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                Generating Export...
-              </>
-            ) : (
-              <>
-                <Download className="w-3.5 h-3.5 mr-1.5" />
-                Download {format} File
-              </>
-            )}
-          </Button>
-        </div>
       </div>
-    </div>
+    </DialogShell>
   );
 }
+

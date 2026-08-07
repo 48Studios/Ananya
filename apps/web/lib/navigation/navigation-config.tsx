@@ -438,6 +438,7 @@ export const navigationModules: NavigationModule[] = [
                 id: "mfg-mrp-overview",
                 title: "Planning Overview",
                 href: "/mrp",
+                exact: true,
                 icon: <LayoutDashboard className="w-4 h-4" />,
               },
               {

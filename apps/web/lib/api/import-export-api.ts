@@ -66,24 +66,34 @@ export const importExportApi = {
 
   previewImport: (
     entityType: string,
-    fileContent: string,
+    file: File,
   ): Promise<ImportPreviewResultDto> => {
-    return apiClient.post<ImportPreviewResultDto>(
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("entityType", entityType);
+    return apiClient.postFormData<ImportPreviewResultDto>(
       "/import-export/import/preview",
-      { entityType, fileContent },
+      formData,
     );
   },
 
   executeImport: (
     entityType: string,
     columnMapping: Record<string, string>,
-    rows: Record<string, unknown>[],
+    file: File,
+    userId?: string,
   ): Promise<ImportExportJobDto> => {
-    return apiClient.post<ImportExportJobDto>("/import-export/import/execute", {
-      entityType,
-      columnMapping,
-      rows,
-    });
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("entityType", entityType);
+    formData.append("columnMapping", JSON.stringify(columnMapping));
+    if (userId) {
+      formData.append("userId", userId);
+    }
+    return apiClient.postFormData<ImportExportJobDto>(
+      "/import-export/import/execute",
+      formData,
+    );
   },
 
   executeExport: (params: {

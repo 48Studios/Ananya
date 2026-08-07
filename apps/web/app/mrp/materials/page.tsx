@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Boxes } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
@@ -19,6 +19,11 @@ export default function MrpMaterialsPage() {
       .catch(() => setShortages([]))
       .finally(() => setLoading(false));
   }, []);
+
+  const totalSuggestedPoQty = React.useMemo(
+    () => shortages.reduce((acc, s) => acc + (s.suggestedPoQuantity || 0), 0),
+    [shortages],
+  );
 
   const columns: ColumnDef<MaterialShortageDto>[] = [
     {
@@ -82,13 +87,13 @@ export default function MrpMaterialsPage() {
           icon={AlertTriangle}
         />
         <StatCard
-          title="Critical Lead Horizon"
-          value="Calculated Dynamic"
-          icon={CheckCircle2}
+          title="Total Reorder Quantity"
+          value={`${totalSuggestedPoQty} Units`}
+          icon={Boxes}
         />
         <StatCard
-          title="Reorder Actionable"
-          value={`${shortages.length} Shortages`}
+          title="Actionable Requisitions"
+          value={`${shortages.length} Shortfalls`}
           icon={CheckCircle2}
         />
       </div>

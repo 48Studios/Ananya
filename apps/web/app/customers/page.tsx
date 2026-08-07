@@ -146,6 +146,7 @@ export default function CustomersPage() {
       </div>
 
       <EntityDataTable
+        entityType="Customer"
         data={customers}
         columns={columns}
         searchPlaceholder="Search customer accounts by code, name, or city..."

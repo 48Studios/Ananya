@@ -6,6 +6,13 @@ import {
   IsObject,
 } from 'class-validator';
 
+export interface UploadedFileObj {
+  originalname: string;
+  buffer: Buffer;
+  size: number;
+  mimetype?: string;
+}
+
 export enum ExportFormat {
   CSV = 'CSV',
   EXCEL = 'EXCEL',

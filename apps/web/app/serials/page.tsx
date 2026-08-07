@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { QrCode, Plus, CheckCircle2, Clock, Tag } from "lucide-react";
+import { QrCode, Plus, CheckCircle2, Clock, Tag, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -10,37 +10,81 @@ import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
-
-interface SerialRecord {
-  id: string;
-  serialNumber: string;
-  sku: string;
-  componentName: string;
-  status: "IN_STOCK" | "ASSIGNED" | "DISPATCHED" | "MAINTENANCE";
-  location: string;
-}
-
-const mockSerials: SerialRecord[] = [
-  {
-    id: "ser-1",
-    serialNumber: "SN-772910-A",
-    sku: "COMP-1001",
-    componentName: "Precision CNC Spindle Motor 5kW",
-    status: "IN_STOCK",
-    location: "Main Assembly WH / Bin A1-04",
-  },
-  {
-    id: "ser-2",
-    serialNumber: "SN-881023-B",
-    sku: "COMP-1004",
-    componentName: "Optical Encoder Sensor Array",
-    status: "ASSIGNED",
-    location: "Work Center 2 - Subassembly",
-  },
-];
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
+import { SerialForm } from "@/components/serials/serial-form";
+import { serialsApi, type SerialDto } from "@/lib/api/serials-api";
 
 export default function SerialsPage() {
-  const [serials] = React.useState<SerialRecord[]>(mockSerials);
+  const [serials, setSerials] = React.useState<SerialDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingSerial, setEditingSerial] = React.useState<SerialDto | null>(null);
+  const [deletingSerial, setDeletingSerial] = React.useState<SerialDto | null>(null);
+  const [banner, setBanner] = React.useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const fetchSerials = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await serialsApi.getAll();
+      setSerials(data || []);
+    } catch (err: unknown) {
+      setBanner({
+        message: err instanceof Error ? err.message : "Failed to load serial numbers",
+        type: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchSerials();
+  }, [fetchSerials]);
+
+  const showBanner = (message: string, type: "success" | "error" = "success") => {
+    setBanner({ message, type });
+    setTimeout(() => setBanner(null), 4000);
+  };
+
+  const handleOpenCreate = () => {
+    setEditingSerial(null);
+    setIsFormOpen(true);
+  };
+
+  const handleOpenEdit = (ser: SerialDto) => {
+    setEditingSerial(ser);
+    setIsFormOpen(true);
+  };
+
+  const handleFormSuccess = () => {
+    setIsFormOpen(false);
+    showBanner(editingSerial ? "Serial record updated." : "Serial number registered.");
+    fetchSerials();
+  };
+
+  const handleDelete = async () => {
+    if (!deletingSerial) return;
+    try {
+      await serialsApi.delete(deletingSerial.id);
+      showBanner(`Serial "${deletingSerial.serialNumber}" deleted.`);
+      fetchSerials();
+    } catch (err: unknown) {
+      showBanner(err instanceof Error ? err.message : "Failed to delete serial.", "error");
+    } finally {
+      setDeletingSerial(null);
+    }
+  };
+
+  const inStockCount = React.useMemo(
+    () => serials.filter((s) => s.status === "IN_STOCK").length,
+    [serials],
+  );
+
+  const assignedCount = React.useMemo(
+    () => serials.filter((s) => s.status === "ASSIGNED").length,
+    [serials],
+  );
 
   const filterConfigs: FilterConfig[] = [
     {
@@ -55,7 +99,7 @@ export default function SerialsPage() {
     },
   ];
 
-  const columns: ColumnDef<SerialRecord>[] = [
+  const columns: ColumnDef<SerialDto>[] = [
     {
       accessorKey: "serialNumber",
       header: "Serial Number",
@@ -107,15 +151,52 @@ export default function SerialsPage() {
         );
       },
     },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => handleOpenEdit(row.original)}
+            title="Edit serial"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => setDeletingSerial(row.original)}
+            title="Delete serial"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      ),
+    },
   ];
 
   return (
     <div className="space-y-6">
+      {banner && (
+        <div
+          className={`p-3 text-xs border rounded-md ${
+            banner.type === "error"
+              ? "bg-destructive/10 border-destructive/20 text-destructive"
+              : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+          }`}
+        >
+          {banner.message}
+        </div>
+      )}
+
       <PageHeader
         title="Serial Number Master Index"
         description="Individual serial number tracking, barcode assignment, asset history, and component lifecycle."
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={handleOpenCreate}>
             <Plus className="w-4 h-4 mr-1.5" />
             Register Serial Number
           </Button>
@@ -126,17 +207,17 @@ export default function SerialsPage() {
         <StatCard
           title="Total Serials Registered"
           value={serials.length}
-          icon={<QrCode className="w-4 h-4 text-primary" />}
+          icon={QrCode}
         />
         <StatCard
           title="Available In Stock"
-          value={serials.filter((s) => s.status === "IN_STOCK").length}
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          value={inStockCount}
+          icon={CheckCircle2}
         />
         <StatCard
           title="Assigned to Orders"
-          value={serials.filter((s) => s.status === "ASSIGNED").length}
-          icon={<Tag className="w-4 h-4 text-blue-500" />}
+          value={assignedCount}
+          icon={Tag}
         />
       </div>
 
@@ -144,7 +225,38 @@ export default function SerialsPage() {
         data={serials}
         columns={columns}
         searchPlaceholder="Search serials by number, SKU, product, or location..."
+        loading={loading}
+        emptyTitle="No Serial Numbers Registered"
+        emptyMessage="Click 'Register Serial Number' to index your first serialized asset."
         filterConfigs={filterConfigs}
+      />
+
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title={editingSerial ? "Edit Serial Record" : "Register Serial Number"}
+        description={
+          editingSerial
+            ? "Update serial number assignment, storage path, or lifecycle status."
+            : "Register individual serial numbers, component tracking, and storage location paths."
+        }
+        size="md"
+      >
+        <SerialForm
+          initialData={editingSerial}
+          onSuccess={handleFormSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </DialogShell>
+
+      <ConfirmDialog
+        isOpen={Boolean(deletingSerial)}
+        onCancel={() => setDeletingSerial(null)}
+        title="Delete Serial Record"
+        description={`Are you sure you want to delete serial "${deletingSerial?.serialNumber}"?`}
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
       />
     </div>
   );

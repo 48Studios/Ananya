@@ -4,7 +4,6 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   Scan,
-  X,
   Loader2,
   AlertCircle,
   ArrowRight,
@@ -15,6 +14,7 @@ import {
   Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { barcodesApi, BarcodeLookupResult } from "@/lib/api/barcodes-api";
 
 // Declare native BarcodeDetector interface for browser compatibility
@@ -334,33 +334,24 @@ export function ScanDialog({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <Scan className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-foreground">
-                {title}
-              </h3>
-              <p className="text-xs text-muted-foreground">{description}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleClose}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md"
-            aria-label="Close barcode scanner"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          handleClose();
+        }
+      }}
+      title={title}
+      description={description}
+      size="lg"
+      footer={
+        <Button variant="outline" size="sm" onClick={handleClose}>
+          Close
+        </Button>
+      }
+    >
+      <div className="space-y-4">
         {/* Manual Barcode & Hardware Scanner Input */}
         <form onSubmit={handleSubmit} className="space-y-2">
           <div className="space-y-1">
@@ -531,14 +522,8 @@ export function ScanDialog({
             </div>
           </div>
         )}
-
-        {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-          <Button variant="outline" size="sm" onClick={handleClose}>
-            Close
-          </Button>
-        </div>
       </div>
-    </div>
+    </DialogShell>
   );
 }
+

@@ -114,7 +114,7 @@ export function EntitySelector({
       } else if (entity === "category") {
         const res = await categoriesApi.getAll();
         items = res.map((c) => ({
-          value: c.name,
+          value: c.id,
           label: `${c.code} - ${c.name}`,
         }));
       } else if (entity === "manufacturer") {
@@ -199,15 +199,15 @@ export function EntitySelector({
         const newUnit = await unitsApi.create({
           name: query.toLowerCase(),
           category: "Count",
-          conversionFactor: "1.0000",
-          precision: "0",
+          conversionFactor: 1.0,
+          precision: 0,
         });
         createdVal = newUnit.name;
         createdLabel = newUnit.name;
       } else if (entity === "category") {
         const code = query.toUpperCase().replace(/\s+/g, "-").slice(0, 10);
         const newCat = await categoriesApi.create({ code, name: query });
-        createdVal = newCat.name;
+        createdVal = newCat.id;
         createdLabel = `${newCat.code} - ${newCat.name}`;
       } else if (entity === "manufacturer") {
         const code = query.toUpperCase().replace(/\s+/g, "-").slice(0, 10);

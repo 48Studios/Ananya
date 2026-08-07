@@ -16,13 +16,13 @@ import {
   Calendar,
   Layers,
   User,
-  X,
   Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { WarehouseTransferForm } from "@/components/warehouse-transfers/warehouse-transfer-form";
@@ -354,32 +354,23 @@ export default function ViewWarehouseTransferPage() {
       />
 
       {/* Edit Modal */}
-      {isEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                Edit Draft Warehouse Transfer
-              </h2>
-              <button
-                onClick={() => setIsEditOpen(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <WarehouseTransferForm
-              initialData={transfer}
-              onSuccess={(updated) => {
-                setTransfer(updated);
-                setIsEditOpen(false);
-                fetchData();
-              }}
-              onCancel={() => setIsEditOpen(false)}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        title="Edit Draft Warehouse Transfer"
+        description="Update transfer source/destination locations, line items, or transfer notes."
+        size="xl"
+      >
+        <WarehouseTransferForm
+          initialData={transfer}
+          onSuccess={(updated) => {
+            setTransfer(updated);
+            setIsEditOpen(false);
+            fetchData();
+          }}
+          onCancel={() => setIsEditOpen(false)}
+        />
+      </DialogShell>
 
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">

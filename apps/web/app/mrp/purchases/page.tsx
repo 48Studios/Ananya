@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ShoppingCart, CheckCircle2 } from "lucide-react";
+import { ShoppingCart, CheckCircle2, Boxes } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
@@ -19,6 +19,11 @@ export default function MrpPurchasesPage() {
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
   }, []);
+
+  const totalOrderQty = React.useMemo(
+    () => orders.reduce((acc, o) => acc + (o.quantityToOrder || 0), 0),
+    [orders],
+  );
 
   const columns: ColumnDef<PlannedPurchaseOrderDto>[] = [
     {
@@ -87,13 +92,13 @@ export default function MrpPurchasesPage() {
           icon={ShoppingCart}
         />
         <StatCard
-          title="Action Needed"
-          value={`${orders.length} Suggestions`}
-          icon={CheckCircle2}
+          title="Total Component Demand"
+          value={`${totalOrderQty} Units`}
+          icon={Boxes}
         />
         <StatCard
           title="Vendor Allocation"
-          value="Matched to Approved Vendors"
+          value={orders.length > 0 ? `${orders.length} Matched` : "No Orders Pending"}
           icon={CheckCircle2}
         />
       </div>

@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  X,
   Eye,
   CheckCircle2,
   Clock,
@@ -26,6 +25,7 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { WorkOrderForm } from "@/components/work-orders/work-order-form";
 import {
   workOrdersApi,
@@ -429,34 +429,29 @@ export default function WorkOrdersPage() {
       )}
 
       {/* Creation / Edit Modal Form */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editingWo ? "Edit Draft Work Order" : "Create Work Order"}
-              </h2>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingWo(null);
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <WorkOrderForm
-              initialData={editingWo}
-              onSuccess={handleFormSuccess}
-              onCancel={() => {
-                setIsFormOpen(false);
-                setEditingWo(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) setEditingWo(null);
+        }}
+        title={editingWo ? "Edit Draft Work Order" : "Create Work Order"}
+        description={
+          editingWo
+            ? "Update production quantity, target completion date, or BOM revision."
+            : "Schedule manufacturing production runs, BOM allocations, and shop-floor work orders."
+        }
+        size="xl"
+      >
+        <WorkOrderForm
+          initialData={editingWo}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingWo(null);
+          }}
+        />
+      </DialogShell>
 
       {/* Confirmation Dialog for Deleting */}
       <ConfirmDialog

@@ -244,13 +244,34 @@ export class DataPacksService {
       columnMapping[h] = h;
     });
 
+    const csvLines = [
+      template.headers.join(','),
+      ...pack.rows.map((r) =>
+        template.headers
+          .map((h) => {
+            const val = r[h];
+            return typeof val === 'string'
+              ? val
+              : typeof val === 'number' || typeof val === 'boolean'
+                ? String(val)
+                : '';
+          })
+          .join(','),
+      ),
+    ];
+    const csvContent = csvLines.join('\n');
+    const mockFile = {
+      originalname: `${pack.id}.csv`,
+      buffer: Buffer.from(csvContent),
+      size: Buffer.from(csvContent).length,
+      mimetype: 'text/csv',
+    };
+
     // Execute import using production import engine
     const result = await this.importExportService.executeImport(
-      {
-        entityType: pack.entityType,
-        columnMapping,
-        rows: pack.rows,
-      },
+      mockFile,
+      pack.entityType,
+      columnMapping,
       userId,
     );
 

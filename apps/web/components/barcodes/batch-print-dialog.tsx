@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Printer, X, Loader2, AlertCircle } from "lucide-react";
+import { Printer, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import {
   Select,
   SelectContent,
@@ -66,34 +67,37 @@ export function BatchPrintDialog({
     fetchBatchLabels();
   }, [fetchBatchLabels]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-4xl bg-card border border-border rounded-xl shadow-2xl p-6 space-y-4 max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <Printer className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-foreground">
-                {title}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Printing {entityIds.length} {entityType.toLowerCase()} label(s)
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md"
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={title}
+      description={`Printing ${entityIds.length} ${entityType.toLowerCase()} label(s)`}
+      size="2xl"
+      footer={
+        <>
+          <span className="text-xs text-muted-foreground font-mono mr-auto self-center">
+            Ready to print {labels.length} label(s)
+          </span>
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            disabled={loading || labels.length === 0}
+            onClick={() => window.print()}
           >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
+            <Printer className="w-4 h-4 mr-1.5" />
+            Print Labels
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
         {/* Options Toolbar */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-muted/20 border border-border rounded-lg shrink-0">
           <Field>
@@ -166,27 +170,8 @@ export function BatchPrintDialog({
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-border shrink-0">
-          <span className="text-xs text-muted-foreground font-mono">
-            Ready to print {labels.length} label(s)
-          </span>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              disabled={loading || labels.length === 0}
-              onClick={() => window.print()}
-            >
-              <Printer className="w-4 h-4 mr-1.5" />
-              Print Labels
-            </Button>
-          </div>
-        </div>
       </div>
-    </div>
+    </DialogShell>
   );
 }
+

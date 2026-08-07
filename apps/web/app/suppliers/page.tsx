@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  X,
   Eye,
   Edit3,
   Trash2,
@@ -22,6 +21,7 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { SupplierForm } from "@/components/suppliers/supplier-form";
 import { suppliersApi, type SupplierDto } from "@/lib/api/suppliers-api";
 
@@ -285,34 +285,29 @@ export default function SuppliersPage() {
       )}
 
       {/* Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editingSupplier ? "Edit Supplier" : "Create New Supplier"}
-              </h2>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingSupplier(null);
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <SupplierForm
-              initialData={editingSupplier}
-              onSuccess={handleFormSuccess}
-              onCancel={() => {
-                setIsFormOpen(false);
-                setEditingSupplier(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) setEditingSupplier(null);
+        }}
+        title={editingSupplier ? "Edit Supplier" : "Create New Supplier"}
+        description={
+          editingSupplier
+            ? "Update vendor details, payment terms, tax ID, or currency."
+            : "Manage approved vendors, lead times, tax IDs, and procurement contracts."
+        }
+        size="md"
+      >
+        <SupplierForm
+          initialData={editingSupplier}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingSupplier(null);
+          }}
+        />
+      </DialogShell>
 
       {/* Confirm Delete Dialog */}
       <ConfirmDialog
@@ -328,12 +323,14 @@ export default function SuppliersPage() {
 
       {/* Data Table */}
       <EntityDataTable
+        entityType="Supplier"
         columns={columns}
         data={suppliers}
         searchKey="name"
         searchPlaceholder="Search suppliers by name..."
         filters={filterConfigs}
         loading={loading}
+        onRefreshData={fetchSuppliers}
         emptyTitle="No suppliers found"
         emptyMessage="Get started by adding your first procurement supplier."
       />

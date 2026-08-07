@@ -141,4 +141,69 @@ export const apiClient = {
 
   delete: <T>(endpoint: string, options?: RequestInit): Promise<T> =>
     request<T>(endpoint, { ...options, method: "DELETE" }),
+
+  postFormData: async <T>(
+    endpoint: string,
+    formData: FormData,
+    options?: RequestInit,
+  ): Promise<T> => {
+    const url = endpoint.startsWith("http")
+      ? endpoint
+      : `${API_BASE_URL}${endpoint}`;
+
+    const headers: Record<string, string> = {
+      ...(options?.headers as Record<string, string>),
+    };
+
+    const storedToken = getStoredToken();
+    if (storedToken && !headers["Authorization"] && !headers["authorization"]) {
+      headers["Authorization"] = `Bearer ${storedToken}`;
+    }
+
+    const response = await fetch(url, {
+      credentials: "include",
+      ...options,
+      method: "POST",
+      body: formData,
+      headers,
+    });
+
+    if (!response.ok) {
+      let errorData: { message?: string | string[]; error?: string } = {};
+      try {
+        errorData = (await response.json()) as {
+          message?: string | string[];
+          error?: string;
+        };
+      } catch {
+        // JSON parse failed
+      }
+
+      const message = Array.isArray(errorData.message)
+        ? errorData.message.join(", ")
+        : errorData.message ||
+          response.statusText ||
+          "An unexpected API error occurred";
+
+      if (response.status === 401 && !endpoint.includes("/auth/login")) {
+        clearStoredAuthToken();
+        broadcastAuthEvent("SESSION_EXPIRED");
+        if (onUnauthorizedHandler) onUnauthorizedHandler();
+        if (
+          typeof window !== "undefined" &&
+          !window.location.pathname.startsWith("/login")
+        ) {
+          window.location.href = "/login?expired=true";
+        }
+      }
+
+      throw new ApiError(response.status, message, errorData);
+    }
+
+    if (response.status === 204) {
+      return undefined as unknown as T;
+    }
+
+    return response.json() as Promise<T>;
+  },
 };

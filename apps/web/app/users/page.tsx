@@ -10,7 +10,6 @@ import {
   UserCheck,
   UserX,
   ExternalLink,
-  X,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { PermissionGuard } from "@/lib/auth/auth-context";
@@ -318,133 +318,128 @@ export default function UsersListPage() {
       </div>
 
       {/* Create / Edit User Dialog */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-base font-semibold text-foreground">
-                {editingUser ? "Edit User Account" : "Create New User Account"}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      <DialogShell
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        title={editingUser ? "Edit User Account" : "Create New User Account"}
+        description={
+          editingUser
+            ? "Update user profile details, department, or assigned system role."
+            : "Register a new user account, credentials, department, and RBAC permissions."
+        }
+        size="lg"
+      >
+
+          {formError && (
+            <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+              {formError}
+            </div>
+          )}
+
+          <form onSubmit={handleSaveUser} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="user-firstname">First Name</FieldLabel>
+                <Input
+                  id="user-firstname"
+                  type="text"
+                  required
+                  value={formFirstName}
+                  onChange={(e) => setFormFirstName(e.target.value)}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="user-lastname">Last Name</FieldLabel>
+                <Input
+                  id="user-lastname"
+                  type="text"
+                  required
+                  value={formLastName}
+                  onChange={(e) => setFormLastName(e.target.value)}
+                />
+              </Field>
             </div>
 
-            {formError && (
-              <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
-                {formError}
-              </div>
+            {!editingUser && (
+              <>
+                <Field>
+                  <FieldLabel htmlFor="user-email">Work Email</FieldLabel>
+                  <Input
+                    id="user-email"
+                    type="email"
+                    required
+                    value={formEmail}
+                    onChange={(e) => setFormEmail(e.target.value)}
+                    className="font-mono"
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="user-password">Password</FieldLabel>
+                  <Input
+                    id="user-password"
+                    type="password"
+                    required
+                    value={formPassword}
+                    onChange={(e) => setFormPassword(e.target.value)}
+                  />
+                </Field>
+              </>
             )}
 
-            <form onSubmit={handleSaveUser} className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field>
-                  <FieldLabel htmlFor="user-firstname">First Name</FieldLabel>
-                  <Input
-                    id="user-firstname"
-                    type="text"
-                    required
-                    value={formFirstName}
-                    onChange={(e) => setFormFirstName(e.target.value)}
-                  />
-                </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="user-dept">Department</FieldLabel>
+                <Input
+                  id="user-dept"
+                  type="text"
+                  value={formDepartment}
+                  onChange={(e) => setFormDepartment(e.target.value)}
+                />
+              </Field>
 
-                <Field>
-                  <FieldLabel htmlFor="user-lastname">Last Name</FieldLabel>
-                  <Input
-                    id="user-lastname"
-                    type="text"
-                    required
-                    value={formLastName}
-                    onChange={(e) => setFormLastName(e.target.value)}
-                  />
-                </Field>
-              </div>
-
-              {!editingUser && (
-                <>
-                  <Field>
-                    <FieldLabel htmlFor="user-email">Work Email</FieldLabel>
-                    <Input
-                      id="user-email"
-                      type="email"
-                      required
-                      value={formEmail}
-                      onChange={(e) => setFormEmail(e.target.value)}
-                      className="font-mono"
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="user-password">Password</FieldLabel>
-                    <Input
-                      id="user-password"
-                      type="password"
-                      required
-                      value={formPassword}
-                      onChange={(e) => setFormPassword(e.target.value)}
-                    />
-                  </Field>
-                </>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field>
-                  <FieldLabel htmlFor="user-dept">Department</FieldLabel>
-                  <Input
-                    id="user-dept"
-                    type="text"
-                    value={formDepartment}
-                    onChange={(e) => setFormDepartment(e.target.value)}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel htmlFor="user-role">Assigned Role</FieldLabel>
-                  <Select
-                    value={formRoleId || "NONE"}
-                    onValueChange={(val) =>
-                      setFormRoleId(!val || val === "NONE" ? "" : val)
-                    }
-                  >
-                    <SelectTrigger id="user-role">
-                      <SelectValue placeholder="No Role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NONE">No Role</SelectItem>
-                      {roles.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
+              <Field>
+                <FieldLabel htmlFor="user-role">Assigned Role</FieldLabel>
+                <Select
+                  value={formRoleId || "NONE"}
+                  onValueChange={(val) =>
+                    setFormRoleId(!val || val === "NONE" ? "" : val)
+                  }
                 >
-                  Cancel
-                </Button>
-                <Button size="sm" type="submit" disabled={formSubmitting}>
-                  {formSubmitting && (
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  )}
-                  {editingUser ? "Save User" : "Create User"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                  <SelectTrigger id="user-role">
+                    <SelectValue placeholder="No Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">No Role</SelectItem>
+                    {roles.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button size="sm" type="submit" disabled={formSubmitting}>
+                {formSubmitting && (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                )}
+                {editingUser ? "Save User" : "Create User"}
+              </Button>
+            </div>
+          </form>
+      </DialogShell>
     </div>
   );
 }

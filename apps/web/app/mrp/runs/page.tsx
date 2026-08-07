@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Play, CheckCircle2, Eye } from "lucide-react";
+import { Play, CheckCircle2, Eye, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -14,14 +14,49 @@ import { formatDate } from "@/lib/utils";
 export default function MrpRunsPage() {
   const [runs, setRuns] = React.useState<MrpRunRecordDto[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [running, setRunning] = React.useState(false);
+  const [banner, setBanner] = React.useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const fetchRuns = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await mrpApi.getRuns();
+      setRuns(data || []);
+    } catch {
+      setRuns([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   React.useEffect(() => {
-    mrpApi
-      .getRuns()
-      .then((data) => setRuns(data || []))
-      .catch(() => setRuns([]))
-      .finally(() => setLoading(false));
-  }, []);
+    fetchRuns();
+  }, [fetchRuns]);
+
+  const handleExecuteRun = async () => {
+    setRunning(true);
+    try {
+      const newRun = await mrpApi.executeRun();
+      setBanner({
+        message: `Executed new MRP run "${newRun.runNumber}".`,
+        type: "success",
+      });
+      fetchRuns();
+    } catch (err: unknown) {
+      setBanner({
+        message: err instanceof Error ? err.message : "Failed to execute MRP run",
+        type: "error",
+      });
+    } finally {
+      setRunning(false);
+      setTimeout(() => setBanner(null), 5000);
+    }
+  };
+
+  const completedCount = React.useMemo(
+    () => runs.filter((r) => r?.status === "COMPLETED").length,
+    [runs],
+  );
 
   const columns: ColumnDef<MrpRunRecordDto>[] = [
     {
@@ -97,12 +132,28 @@ export default function MrpRunsPage() {
 
   return (
     <div className="space-y-6">
+      {banner && (
+        <div
+          className={`p-3 text-xs border rounded-md ${
+            banner.type === "error"
+              ? "bg-destructive/10 border-destructive/20 text-destructive"
+              : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+          }`}
+        >
+          {banner.message}
+        </div>
+      )}
+
       <PageHeader
         title="MRP Execution History & Logs"
         description="Review historical material requirements planning calculation runs, log traces, and planned order outputs."
         actions={
-          <Button size="sm">
-            <Play className="w-4 h-4 mr-1.5" />
+          <Button size="sm" onClick={handleExecuteRun} disabled={running}>
+            {running ? (
+              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+            ) : (
+              <Play className="w-4 h-4 mr-1.5" />
+            )}
             Execute New MRP Run
           </Button>
         }
@@ -112,12 +163,12 @@ export default function MrpRunsPage() {
         <StatCard title="Total MRP Runs" value={runs.length} icon={Play} />
         <StatCard
           title="Completed Runs"
-          value={runs.filter((r) => r?.status === "COMPLETED").length}
+          value={completedCount}
           icon={CheckCircle2}
         />
         <StatCard
-          title="Success Rate"
-          value="100% Verified"
+          title="Run Success Rate"
+          value={runs.length > 0 ? `${Math.round((completedCount / runs.length) * 100)}% Verified` : "100% Verified"}
           icon={CheckCircle2}
         />
       </div>
@@ -128,7 +179,7 @@ export default function MrpRunsPage() {
         searchPlaceholder="Search MRP runs..."
         loading={loading}
         emptyTitle="No MRP Runs Recorded"
-        emptyMessage="No calculation runs have been executed."
+        emptyMessage="Click 'Execute New MRP Run' to trigger a calculation run."
       />
     </div>
   );

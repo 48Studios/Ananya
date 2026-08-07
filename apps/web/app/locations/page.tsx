@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  X,
   Eye,
   Edit3,
   Trash2,
@@ -21,6 +20,7 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { LocationForm } from "@/components/locations/location-form";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 
@@ -330,36 +330,31 @@ export default function LocationsPage() {
         </div>
       )}
 
-      {/* Modal / Slide-over for Creating or Editing Location */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editingLocation ? "Edit Location" : "Create New Location"}
-              </h2>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingLocation(null);
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <LocationForm
-              initialData={editingLocation}
-              locations={locations}
-              onSuccess={handleFormSuccess}
-              onCancel={() => {
-                setIsFormOpen(false);
-                setEditingLocation(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      {/* Form Modal */}
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) setEditingLocation(null);
+        }}
+        title={editingLocation ? "Edit Location" : "Create New Location"}
+        description={
+          editingLocation
+            ? "Update storage node code, kind, or parent location node."
+            : "Configure warehouses, zones, aisles, and storage location nodes."
+        }
+        size="md"
+      >
+        <LocationForm
+          initialData={editingLocation}
+          locations={locations}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingLocation(null);
+          }}
+        />
+      </DialogShell>
 
       {/* Confirm Delete Dialog */}
       <ConfirmDialog
@@ -375,12 +370,14 @@ export default function LocationsPage() {
 
       {/* Data Table */}
       <EntityDataTable
+        entityType="Location"
         columns={columns}
         data={locations}
         searchKey="code"
         searchPlaceholder="Search locations by code..."
         filters={filterConfigs}
         loading={loading}
+        onRefreshData={fetchLocations}
         emptyTitle="No locations found"
         emptyMessage="Get started by creating your first storage location."
       />

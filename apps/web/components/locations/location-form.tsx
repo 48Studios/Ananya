@@ -22,6 +22,9 @@ import {
   type UpdateLocationPayload,
 } from "@/lib/api/locations-api";
 
+import { DialogFooter } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+
 const locationSchema = z.object({
   code: z
     .string()
@@ -197,7 +200,8 @@ export function LocationForm({
       </Field>
 
       {/* Form Action Buttons */}
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+      <Separator className="my-2" />
+      <DialogFooter>
         <Button
           type="button"
           variant="outline"
@@ -213,7 +217,7 @@ export function LocationForm({
           )}
           {isEditing ? "Save Changes" : "Create Location"}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
   );
 }

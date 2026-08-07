@@ -8,4 +8,6 @@ export interface UnitRepository {
   findByCategory(category: string): Promise<Unit[]>;
   findMany(options?: FindManyUnitsOptions): Promise<Unit[]>;
   save(unit: Unit): Promise<Unit>;
+  update(unit: Unit): Promise<Unit>;
+  delete(id: string): Promise<void>;
 }

@@ -2,44 +2,84 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ShieldCheck, Plus, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Plus, CheckCircle2, Edit2, Trash2, Boxes } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
-
-interface WarehousePolicy {
-  id: string;
-  policyName: string;
-  warehouseName: string;
-  pickingRule: "FIFO" | "FEFO" | "LIFO" | "ZONE_BASED";
-  putawayRule: "FAST_MOVING_FRONT" | "VOLUME_MATCHED" | "DIRECT_TO_BIN";
-  isActive: boolean;
-}
-
-const mockPolicies: WarehousePolicy[] = [
-  {
-    id: "pol-1",
-    policyName: "Electronics FIFO Picking Policy",
-    warehouseName: "Main Assembly WH",
-    pickingRule: "FIFO",
-    putawayRule: "FAST_MOVING_FRONT",
-    isActive: true,
-  },
-  {
-    id: "pol-2",
-    policyName: "Chemical & Paste FEFO Expiry Rule",
-    warehouseName: "Raw Materials WH",
-    pickingRule: "FEFO",
-    putawayRule: "VOLUME_MATCHED",
-    isActive: true,
-  },
-];
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DialogShell } from "@/components/ui/dialog-shell";
+import { WarehousePolicyForm } from "@/components/warehouse/warehouse-policy-form";
+import {
+  warehousePoliciesApi,
+  type WarehousePolicyDto,
+} from "@/lib/api/warehouse-policies-api";
 
 export default function WarehousePoliciesPage() {
-  const [policies] = React.useState<WarehousePolicy[]>(mockPolicies);
+  const [policies, setPolicies] = React.useState<WarehousePolicyDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingPolicy, setEditingPolicy] = React.useState<WarehousePolicyDto | null>(null);
+  const [deletingPolicy, setDeletingPolicy] = React.useState<WarehousePolicyDto | null>(null);
+  const [banner, setBanner] = React.useState<{ message: string; type: "success" | "error" } | null>(null);
 
-  const columns: ColumnDef<WarehousePolicy>[] = [
+  const fetchPolicies = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await warehousePoliciesApi.getAll();
+      setPolicies(data || []);
+    } catch (err: unknown) {
+      setBanner({
+        message: err instanceof Error ? err.message : "Failed to load storage policies",
+        type: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchPolicies();
+  }, [fetchPolicies]);
+
+  const showBanner = (message: string, type: "success" | "error" = "success") => {
+    setBanner({ message, type });
+    setTimeout(() => setBanner(null), 4000);
+  };
+
+  const handleOpenCreate = () => {
+    setEditingPolicy(null);
+    setIsFormOpen(true);
+  };
+
+  const handleOpenEdit = (pol: WarehousePolicyDto) => {
+    setEditingPolicy(pol);
+    setIsFormOpen(true);
+  };
+
+  const handleFormSuccess = () => {
+    setIsFormOpen(false);
+    showBanner(editingPolicy ? "Storage policy updated." : "Storage policy created.");
+    fetchPolicies();
+  };
+
+  const handleDelete = async () => {
+    if (!deletingPolicy) return;
+    try {
+      await warehousePoliciesApi.delete(deletingPolicy.id);
+      showBanner(`Storage policy "${deletingPolicy.policyName}" deleted.`);
+      fetchPolicies();
+    } catch (err: unknown) {
+      showBanner(err instanceof Error ? err.message : "Failed to delete policy.", "error");
+    } finally {
+      setDeletingPolicy(null);
+    }
+  };
+
+  const fifoCount = React.useMemo(() => policies.filter((p) => p.pickingRule === "FIFO").length, [policies]);
+  const fefoCount = React.useMemo(() => policies.filter((p) => p.pickingRule === "FEFO").length, [policies]);
+
+  const columns: ColumnDef<WarehousePolicyDto>[] = [
     {
       accessorKey: "policyName",
       header: "Policy Rule Name",
@@ -79,21 +119,64 @@ export default function WarehousePoliciesPage() {
     {
       accessorKey: "isActive",
       header: "Status",
-      cell: () => (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          <CheckCircle2 className="w-3 h-3 mr-1" /> Active Policy
-        </span>
+      cell: ({ row }) => (
+        row.original.isActive ? (
+          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <CheckCircle2 className="w-3 h-3 mr-1" /> Active Policy
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-muted text-muted-foreground border border-border">
+            Inactive
+          </span>
+        )
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => handleOpenEdit(row.original)}
+            title="Edit policy"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => setDeletingPolicy(row.original)}
+            title="Delete policy"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
       ),
     },
   ];
 
   return (
     <div className="space-y-6">
+      {banner && (
+        <div
+          className={`p-3 text-xs border rounded-md ${
+            banner.type === "error"
+              ? "bg-destructive/10 border-destructive/20 text-destructive"
+              : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+          }`}
+        >
+          {banner.message}
+        </div>
+      )}
+
       <PageHeader
         title="Warehouse Policies & Picking Rules"
         description="Configure FIFO, FEFO, putaway strategies, and automated bin selection rules."
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={handleOpenCreate}>
             <Plus className="w-4 h-4 mr-1.5" />
             New Storage Policy
           </Button>
@@ -107,21 +190,52 @@ export default function WarehousePoliciesPage() {
           icon={ShieldCheck}
         />
         <StatCard
-          title="Default Picking Rule"
-          value="FIFO Strategy"
+          title="FIFO Picking Strategy"
+          value={`${fifoCount} Policies`}
           icon={CheckCircle2}
         />
         <StatCard
-          title="Expiry Enforced"
-          value="FEFO Enabled"
-          icon={CheckCircle2}
+          title="FEFO Expiry Rules"
+          value={`${fefoCount} Policies`}
+          icon={Boxes}
         />
       </div>
 
       <EntityDataTable
         data={policies}
         columns={columns}
-        searchPlaceholder="Search policies by name, picking strategy, or facility..."
+        searchPlaceholder="Search policies by name, strategy, or facility..."
+        loading={loading}
+        emptyTitle="No Storage Policies Found"
+        emptyMessage="Click 'New Storage Policy' to create your first picking & putaway rule."
+      />
+
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title={editingPolicy ? "Edit Storage Policy" : "New Storage Policy"}
+        description={
+          editingPolicy
+            ? "Update picking rules (FIFO/FEFO) and putaway strategies."
+            : "Define picking strategies and automated putaway rules for warehouse facilities."
+        }
+        size="md"
+      >
+        <WarehousePolicyForm
+          initialData={editingPolicy}
+          onSuccess={handleFormSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </DialogShell>
+
+      <ConfirmDialog
+        isOpen={Boolean(deletingPolicy)}
+        onCancel={() => setDeletingPolicy(null)}
+        title="Delete Storage Policy"
+        description={`Are you sure you want to delete policy "${deletingPolicy?.policyName}"?`}
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
       />
     </div>
   );
