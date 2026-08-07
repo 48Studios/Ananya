@@ -56,6 +56,41 @@ export interface TransactionSummaryDto {
   adjustmentCount: number;
 }
 
+export interface FinancialSummaryDto {
+  totalAccounts: number;
+  activeAccounts: number;
+  bankAccountsWithStatements: number;
+  receivablesOutstanding: number;
+  payablesOutstanding: number;
+  postedPaymentsTotal: number;
+  openReconciliations: number;
+  accountTypeDistribution: Array<{
+    accountType: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
+    totalAccounts: number;
+    activeAccounts: number;
+  }>;
+}
+
+export interface CashFlowForecastPeriodDto {
+  id: string;
+  periodStart: string;
+  periodLabel: string;
+  projectedInflow: number;
+  projectedOutflow: number;
+  netCashFlow: number;
+  endingLiquidityReserve: number | null;
+  receivableInvoices: number;
+  payableInvoices: number;
+}
+
+export interface CashFlowForecastDto {
+  currentLiquidity: number | null;
+  totalProjectedInflow: number;
+  totalProjectedOutflow: number;
+  periods: CashFlowForecastPeriodDto[];
+  insufficientDataReason: string | null;
+}
+
 export const reportingApi = {
   getOverview: (): Promise<OverviewMetricsDto> =>
     apiClient.get<OverviewMetricsDto>("/reporting/overview"),
@@ -69,4 +104,8 @@ export const reportingApi = {
     apiClient.get<ProjectSummaryDto>("/reporting/project-summary"),
   getTransactionSummary: (): Promise<TransactionSummaryDto> =>
     apiClient.get<TransactionSummaryDto>("/reporting/transaction-summary"),
+  getFinancialSummary: (): Promise<FinancialSummaryDto> =>
+    apiClient.get<FinancialSummaryDto>("/reporting/financial-summary"),
+  getCashFlowForecast: (): Promise<CashFlowForecastDto> =>
+    apiClient.get<CashFlowForecastDto>("/reporting/cash-flow-forecast"),
 };

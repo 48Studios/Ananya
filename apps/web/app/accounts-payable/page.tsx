@@ -2,53 +2,44 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { DollarSign, Plus, Clock, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { DollarSign, Clock, AlertCircle } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { ErrorState } from "@/components/ui/error-state";
+import { LoadingState } from "@/components/ui/loading-state";
+import { financeApi, type PayableInvoiceDto } from "@/lib/api/finance-api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-interface AccountsPayableEntry {
-  id: string;
-  supplierName: string;
-  invoiceNumber: string;
-  currentDue: number;
-  agingCategory: "CURRENT" | "1_30_DAYS" | "31_60_DAYS" | "OVER_60_DAYS";
-  dueDate: string;
-}
-
-const mockAp: AccountsPayableEntry[] = [
-  {
-    id: "ap-1",
-    supplierName: "Global Microelectronics Co.",
-    invoiceNumber: "INV-SUP-901",
-    currentDue: 18450,
-    agingCategory: "CURRENT",
-    dueDate: "2026-02-28",
-  },
-  {
-    id: "ap-2",
-    supplierName: "Precision Steel Alloys",
-    invoiceNumber: "INV-SUP-882",
-    currentDue: 8900,
-    agingCategory: "1_30_DAYS",
-    dueDate: "2026-01-20",
-  },
-];
-
 export default function AccountsPayablePage() {
-  const [entries] = React.useState<AccountsPayableEntry[]>(mockAp);
+  const [entries, setEntries] = React.useState<PayableInvoiceDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const totalAp = entries.reduce((acc, e) => acc + e.currentDue, 0);
+  React.useEffect(() => {
+    financeApi
+      .getPayableInvoices()
+      .then((data) => {
+        setEntries(data);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        setError(
+          err instanceof Error ? err.message : "Failed to load payable invoices",
+        );
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-  const columns: ColumnDef<AccountsPayableEntry>[] = [
+  const totalAp = entries.reduce((acc, entry) => acc + entry.balance, 0);
+
+  const columns: ColumnDef<PayableInvoiceDto>[] = [
     {
-      accessorKey: "supplierName",
+      accessorKey: "supplierId",
       header: "Supplier Vendor",
       cell: ({ row }) => (
         <span className="font-semibold text-xs text-primary">
-          {row.original.supplierName}
+          {row.original.supplierId}
         </span>
       ),
     },
@@ -62,29 +53,28 @@ export default function AccountsPayablePage() {
       ),
     },
     {
-      accessorKey: "currentDue",
+      accessorKey: "balance",
       header: "Amount Payable",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
-          {formatCurrency(row.original.currentDue)}
+          {formatCurrency(row.original.balance)}
         </span>
       ),
     },
     {
-      accessorKey: "agingCategory",
+      accessorKey: "status",
       header: "AP Aging Bracket",
       cell: ({ row }) => {
-        const cat = row.original.agingCategory;
-        if (cat === "CURRENT") {
+        if (row.original.status === "POSTED") {
           return (
             <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-              Current (On Schedule)
+              Current
             </span>
           );
         }
         return (
           <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">
-            Overdue 1-30 Days
+            {row.original.status}
           </span>
         );
       },
@@ -100,17 +90,25 @@ export default function AccountsPayablePage() {
     },
   ];
 
+  if (loading) {
+  return <LoadingState message="Loading accounts payable..." />;
+  }
+
+  if (error) {
+  return (
+    <ErrorState
+      title="Accounts payable unavailable"
+      message={error}
+      onRetry={() => window.location.reload()}
+    />
+  );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Accounts Payable (AP) Aging & Bills"
         description="Monitor vendor liabilities, aging brackets, payment schedules, and cash outflow projections."
-        actions={
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Process Vendor Payment
-          </Button>
-        }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -121,13 +119,17 @@ export default function AccountsPayablePage() {
         />
         <StatCard
           title="Current Due (<30 Days)"
-          value={formatCurrency(18450)}
-          icon={<Clock className="w-4 h-4 text-blue-500" />}
+          value={formatCurrency(
+            entries
+              .filter((entry) => entry.status === "POSTED")
+              .reduce((sum, entry) => sum + entry.balance, 0),
+          )}
+          icon={Clock}
         />
         <StatCard
           title="Overdue Accounts"
-          value="1 Vendor Bill"
-          icon={<AlertCircle className="w-4 h-4 text-amber-500" />}
+          value={entries.filter((entry) => new Date(entry.dueDate) < new Date() && entry.balance > 0).length}
+          icon={AlertCircle}
         />
       </div>
 
@@ -135,6 +137,9 @@ export default function AccountsPayablePage() {
         data={entries}
         columns={columns}
         searchPlaceholder="Search AP by supplier or invoice..."
+        loading={false}
+        emptyTitle="No payable invoices"
+        emptyMessage="No supplier payable records are available."
       />
     </div>
   );

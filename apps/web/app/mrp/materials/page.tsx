@@ -55,10 +55,10 @@ export default function MrpMaterialsPage() {
     },
     {
       accessorKey: "leadTimeDays",
-      header: "Supplier Lead Time",
+      header: "Planning Window",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {row.original.leadTimeDays || 0} days
+          {row.original.requiredByDate ? "Due by date" : "Immediate"}
         </span>
       ),
     },

@@ -1,4 +1,11 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { db } from '@ananya/database';
+import {
+  inventoryProjections,
+  inventoryReservationLines,
+  inventoryReservations,
+} from '@ananya/database/schema';
+import { and, eq, inArray, sql } from '@ananya/database/query';
 import {
   PlanningRun,
   PlanningRunRepository,
@@ -9,8 +16,6 @@ import {
   PurchaseRecommendationRepository,
   ProductionRecommendation,
   ProductionRecommendationRepository,
-  CapacityPlan,
-  CapacityPlanRepository,
   PlanningMessage,
   PlanningMessageRepository,
 } from '@ananya/mrp';
@@ -26,7 +31,6 @@ export const PURCHASE_RECOMMENDATION_REPOSITORY =
   'PURCHASE_RECOMMENDATION_REPOSITORY';
 export const PRODUCTION_RECOMMENDATION_REPOSITORY =
   'PRODUCTION_RECOMMENDATION_REPOSITORY';
-export const CAPACITY_PLAN_REPOSITORY = 'CAPACITY_PLAN_REPOSITORY';
 export const PLANNING_MESSAGE_REPOSITORY = 'PLANNING_MESSAGE_REPOSITORY';
 
 @Injectable()
@@ -40,8 +44,6 @@ export class PlanningRunsService {
     private readonly purchaseRecommendationRepository: PurchaseRecommendationRepository,
     @Inject(PRODUCTION_RECOMMENDATION_REPOSITORY)
     private readonly productionRecommendationRepository: ProductionRecommendationRepository,
-    @Inject(CAPACITY_PLAN_REPOSITORY)
-    private readonly capacityPlanRepository: CapacityPlanRepository,
     @Inject(PLANNING_MESSAGE_REPOSITORY)
     private readonly planningMessageRepository: PlanningMessageRepository,
     private readonly componentsService: ComponentsService,
@@ -84,6 +86,36 @@ export class PlanningRunsService {
     const allComponents = await this.componentsService.getAllComponents();
     const allBoms = await this.bomsService.findAll();
     const allSalesOrders = await this.salesOrdersService.findAll();
+    const [projectionRows, reservationRows] = await Promise.all([
+      db
+        .select({
+          componentId: inventoryProjections.componentId,
+          availableQuantity: sql<string>`COALESCE(SUM(${inventoryProjections.quantity}), 0)`,
+        })
+        .from(inventoryProjections)
+        .groupBy(inventoryProjections.componentId),
+      db
+        .select({
+          componentId: inventoryReservationLines.componentId,
+          reservedQuantity: sql<string>`COALESCE(SUM(${inventoryReservationLines.reservedQuantity} - ${inventoryReservationLines.fulfilledQuantity}), 0)`,
+        })
+        .from(inventoryReservationLines)
+        .innerJoin(
+          inventoryReservations,
+          eq(inventoryReservationLines.reservationId, inventoryReservations.id),
+        )
+        .where(
+          and(
+            eq(inventoryReservations.status, 'ACTIVE'),
+            inArray(inventoryReservations.reservationType, [
+              'WORK_ORDER',
+              'SALES_ORDER',
+              'PROJECT',
+            ]),
+          ),
+        )
+        .groupBy(inventoryReservationLines.componentId),
+    ]);
 
     await this.planningMessageRepository.save(
       PlanningMessage.create({
@@ -96,66 +128,157 @@ export class PlanningRunsService {
     const generatedRequirements: MaterialRequirement[] = [];
     const generatedPurchaseRecs: PurchaseRecommendation[] = [];
     const generatedProdRecs: ProductionRecommendation[] = [];
+    const now = new Date();
+    const horizonLimit = new Date(
+      now.getTime() + run.horizonDays * 24 * 60 * 60 * 1000,
+    );
+    const releasedBomByProduct = new Map(
+      allBoms
+        .filter((bom) => bom.status === 'RELEASED')
+        .map((bom) => [bom.componentId, bom]),
+    );
+    const componentById = new Map(
+      allComponents.map((component) => [component.id, component]),
+    );
+    const availableByComponent = new Map(
+      projectionRows.map((row) => [
+        row.componentId,
+        parseFloat(row.availableQuantity ?? '0'),
+      ]),
+    );
+    const reservedByComponent = new Map(
+      reservationRows.map((row) => [
+        row.componentId,
+        parseFloat(row.reservedQuantity ?? '0'),
+      ]),
+    );
+    const requirementsByComponent = new Map<
+      string,
+      {
+        requiredQuantity: number;
+        requiredDate: Date;
+        sourceReferenceId: string;
+      }
+    >();
 
-    // Analyze sales orders & component stock
-    for (const comp of allComponents) {
-      const isManufactured = allBoms.some((b) => b.componentId === comp.id);
+    const demandOrders = allSalesOrders.filter((order) => {
+      if (
+        !['APPROVED', 'RELEASED', 'ALLOCATED', 'PARTIALLY_FULFILLED'].includes(
+          order.status,
+        )
+      ) {
+        return false;
+      }
 
-      // Simple mock/sample calculation for net shortage
-      const reqQty = 50;
-      const availQty = 20;
-      const resQty = 5;
+      const requiredDate = order.requiredDate ?? order.orderDate;
+      return requiredDate <= horizonLimit;
+    });
 
-      const req = MaterialRequirement.create({
-        planningRunId: run.id,
-        componentId: comp.id,
-        requiredQuantity: reqQty,
-        availableQuantity: availQty,
-        reservedQuantity: resQty,
-        requiredDate: new Date(Date.now() + 14 * 86400000),
-        source: 'SALES_ORDER',
-        sourceReferenceId: allSalesOrders[0]?.id,
-      });
-      generatedRequirements.push(req);
+    for (const order of demandOrders) {
+      const orderRequiredDate = order.requiredDate ?? order.orderDate;
 
-      if (req.shortageQuantity > 0) {
-        if (isManufactured) {
-          const prodRec = ProductionRecommendation.create({
-            planningRunId: run.id,
-            productId: comp.id,
-            suggestedQuantity: req.shortageQuantity,
-            suggestedStart: new Date(Date.now() + 2 * 86400000),
-            suggestedCompletion: new Date(Date.now() + 12 * 86400000),
-            manufacturingRoute: 'ROUTE-DEFAULT',
+      for (const line of order.lines) {
+        const netDemand = Math.max(line.quantity - line.fulfilledQuantity, 0);
+        if (netDemand <= 0) {
+          continue;
+        }
+
+        const releasedBom = releasedBomByProduct.get(line.componentId);
+        if (!releasedBom || releasedBom.lines.length === 0) {
+          const current = requirementsByComponent.get(line.componentId);
+          requirementsByComponent.set(line.componentId, {
+            requiredQuantity: (current?.requiredQuantity ?? 0) + netDemand,
+            requiredDate:
+              current && current.requiredDate < orderRequiredDate
+                ? current.requiredDate
+                : orderRequiredDate,
+            sourceReferenceId: order.id,
           });
-          generatedProdRecs.push(prodRec);
-        } else {
-          const purchRec = PurchaseRecommendation.create({
-            planningRunId: run.id,
-            componentId: comp.id,
-            suggestedQuantity: req.shortageQuantity,
-            requiredDate: new Date(Date.now() + 14 * 86400000),
-            recommendationReason: `Net shortage of ${req.shortageQuantity} units for component ${comp.name}.`,
+          continue;
+        }
+
+        for (const bomLine of releasedBom.lines) {
+          const grossRequirement =
+            netDemand *
+            bomLine.quantityPerUnit *
+            (1 + bomLine.scrapFactorPercent / 100);
+          const current = requirementsByComponent.get(bomLine.componentId);
+
+          requirementsByComponent.set(bomLine.componentId, {
+            requiredQuantity:
+              (current?.requiredQuantity ?? 0) + grossRequirement,
+            requiredDate:
+              current && current.requiredDate < orderRequiredDate
+                ? current.requiredDate
+                : orderRequiredDate,
+            sourceReferenceId: order.id,
           });
-          generatedPurchaseRecs.push(purchRec);
         }
       }
     }
 
-    // Capacity planning analysis
-    const capacityPlan = CapacityPlan.create({
-      planningRunId: run.id,
-      workCenterId: 'wc-assembly-1',
-      workCenterName: 'Main Assembly Work Center',
-      availableCapacityHours: 160,
-      plannedCapacityHours: generatedProdRecs.length * 20 + 40,
-    });
+    for (const [componentId, demand] of requirementsByComponent.entries()) {
+      const req = MaterialRequirement.create({
+        planningRunId: run.id,
+        componentId,
+        requiredQuantity: Math.round(demand.requiredQuantity * 10000) / 10000,
+        availableQuantity: availableByComponent.get(componentId) ?? 0,
+        reservedQuantity: reservedByComponent.get(componentId) ?? 0,
+        requiredDate: demand.requiredDate,
+        source: 'SALES_ORDER',
+        sourceReferenceId: demand.sourceReferenceId,
+      });
+      generatedRequirements.push(req);
+
+      if (req.shortageQuantity <= 0) {
+        continue;
+      }
+
+      const manufacturedBom = releasedBomByProduct.get(componentId);
+      if (manufacturedBom) {
+        const suggestedCompletion = demand.requiredDate;
+        const suggestedStart = new Date(
+          suggestedCompletion.getTime() - 7 * 24 * 60 * 60 * 1000,
+        );
+
+        generatedProdRecs.push(
+          ProductionRecommendation.create({
+            planningRunId: run.id,
+            productId: componentId,
+            suggestedQuantity: req.shortageQuantity,
+            suggestedStart,
+            suggestedCompletion,
+          }),
+        );
+      } else {
+        const component = componentById.get(componentId);
+
+        generatedPurchaseRecs.push(
+          PurchaseRecommendation.create({
+            planningRunId: run.id,
+            componentId,
+            suggestedQuantity: req.shortageQuantity,
+            requiredDate: demand.requiredDate,
+            recommendationReason: component
+              ? `Projected shortage of ${req.shortageQuantity} ${component.unit} for ${component.sku}.`
+              : `Projected shortage of ${req.shortageQuantity} units.`,
+          }),
+        );
+      }
+    }
 
     // Save outputs
-    await this.materialRequirementRepository.saveMany(generatedRequirements);
-    await this.purchaseRecommendationRepository.saveMany(generatedPurchaseRecs);
-    await this.productionRecommendationRepository.saveMany(generatedProdRecs);
-    await this.capacityPlanRepository.save(capacityPlan);
+    if (generatedRequirements.length > 0) {
+      await this.materialRequirementRepository.saveMany(generatedRequirements);
+    }
+    if (generatedPurchaseRecs.length > 0) {
+      await this.purchaseRecommendationRepository.saveMany(
+        generatedPurchaseRecs,
+      );
+    }
+    if (generatedProdRecs.length > 0) {
+      await this.productionRecommendationRepository.saveMany(generatedProdRecs);
+    }
 
     await this.planningMessageRepository.save(
       PlanningMessage.create({
@@ -165,12 +288,13 @@ export class PlanningRunsService {
       }),
     );
 
-    if (capacityPlan.isOverloaded) {
+    if (generatedProdRecs.length > 0) {
       await this.planningMessageRepository.save(
         PlanningMessage.create({
           planningRunId: run.id,
           severity: 'WARNING',
-          message: `Work Center ${capacityPlan.workCenterName} is overloaded (${capacityPlan.utilizationPercentage}%).`,
+          message:
+            'Capacity plans were not generated because no work-center master data is available for this planning run.',
         }),
       );
     }

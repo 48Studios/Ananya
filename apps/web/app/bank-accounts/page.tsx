@@ -2,47 +2,41 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Landmark, Plus, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Landmark, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { financeApi, type BankAccountSummaryDto } from "@/lib/api/finance-api";
 import { formatCurrency } from "@/lib/utils";
 
-interface BankAccount {
-  id: string;
-  bankName: string;
-  accountNumberMasked: string;
-  accountType: "CHECKING" | "SAVINGS" | "MONEY_MARKET";
-  currentBalance: number;
-  reconciledStatus: boolean;
-}
-
-const mockBankAccounts: BankAccount[] = [
-  {
-    id: "b-1",
-    bankName: "HDFC Corporate Commercial Bank",
-    accountNumberMasked: "•••• •••• 9812",
-    accountType: "CHECKING",
-    currentBalance: 345000,
-    reconciledStatus: true,
-  },
-  {
-    id: "b-2",
-    bankName: "State Bank Industrial Reserve",
-    accountNumberMasked: "•••• •••• 4410",
-    accountType: "SAVINGS",
-    currentBalance: 140000,
-    reconciledStatus: true,
-  },
-];
-
 export default function BankAccountsPage() {
-  const [accounts] = React.useState<BankAccount[]>(mockBankAccounts);
+  const [accounts, setAccounts] = React.useState<BankAccountSummaryDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const totalCash = accounts.reduce((acc, a) => acc + a.currentBalance, 0);
+  React.useEffect(() => {
+    financeApi
+      .getBankAccounts()
+      .then((data) => {
+        setAccounts(data);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        setError(
+          err instanceof Error ? err.message : "Failed to load bank accounts",
+        );
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-  const columns: ColumnDef<BankAccount>[] = [
+  const totalCash = accounts.reduce(
+    (acc, account) => acc + (account.latestStatementBalance ?? 0),
+    0,
+  );
+
+  const columns: ColumnDef<BankAccountSummaryDto>[] = [
     {
       accessorKey: "bankName",
       header: "Banking Institution",
@@ -62,62 +56,73 @@ export default function BankAccountsPage() {
       ),
     },
     {
-      accessorKey: "accountType",
-      header: "Account Type",
+      accessorKey: "accountName",
+      header: "Account Name",
       cell: ({ row }) => (
         <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-          {row.original.accountType}
+          {row.original.accountName}
         </span>
       ),
     },
     {
-      accessorKey: "currentBalance",
+      accessorKey: "latestStatementBalance",
       header: "Cleared Bank Balance",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
-          {formatCurrency(row.original.currentBalance)}
+          {row.original.latestStatementBalance === null
+            ? "Unavailable"
+            : formatCurrency(row.original.latestStatementBalance)}
         </span>
       ),
     },
     {
-      accessorKey: "reconciledStatus",
+      accessorKey: "latestReconciliationStatus",
       header: "Reconciliation",
-      cell: () => (
+      cell: ({ row }) => (
         <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          <CheckCircle2 className="w-3 h-3 mr-1" /> Reconciled
+          <CheckCircle2 className="w-3 h-3 mr-1" />{" "}
+          {row.original.latestReconciliationStatus || "No statements"}
         </span>
       ),
     },
   ];
+
+  if (loading) {
+    return <LoadingState message="Loading bank accounts..." />;
+  }
+
+  if (error) {
+    return (
+      <ErrorState
+        title="Bank accounts unavailable"
+        message={error}
+        onRetry={() => window.location.reload()}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Bank Accounts & Liquidity Management"
         description="Monitor corporate bank balances, checking/savings liquid reserves, and bank feeds."
-        actions={
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Connect Bank Account
-          </Button>
-        }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
           title="Total Cash Reserves"
           value={formatCurrency(totalCash)}
-          icon={<Landmark className="w-4 h-4 text-primary" />}
+          icon={Landmark}
         />
         <StatCard
           title="Active Corporate Accounts"
           value={accounts.length}
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          icon={CheckCircle2}
         />
         <StatCard
           title="Reconciliation Status"
-          value="100% Up to Date"
-          icon={<CheckCircle2 className="w-4 h-4 text-blue-500" />}
+          value={accounts.filter((account) => account.latestReconciliationStatus === "COMPLETED").length}
+          icon={CheckCircle2}
         />
       </div>
 
@@ -125,6 +130,9 @@ export default function BankAccountsPage() {
         data={accounts}
         columns={columns}
         searchPlaceholder="Search bank accounts..."
+        loading={false}
+        emptyTitle="No bank accounts"
+        emptyMessage="No bank account records are available."
       />
     </div>
   );

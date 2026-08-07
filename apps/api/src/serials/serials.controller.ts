@@ -13,6 +13,11 @@ import { SerialsService } from './serials.service';
 export class SerialsController {
   constructor(private readonly service: SerialsService) {}
 
+  @Get()
+  async findAll() {
+    return this.service.getAll();
+  }
+
   @Post()
   async create(@Body() dto: CreateSerialDto) {
     return this.service.create(dto);

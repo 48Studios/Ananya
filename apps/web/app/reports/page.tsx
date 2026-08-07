@@ -14,10 +14,10 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ChartCard } from "@/components/charts/chart-card";
-import { AreaChartWidget } from "@/components/charts/area-chart-widget";
 import { DonutChartWidget } from "@/components/charts/donut-chart-widget";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
 import { reportingApi, OverviewMetricsDto } from "@/lib/api/reporting-api";
 import { formatNumber, formatCurrency } from "@/lib/utils";
 
@@ -102,18 +102,6 @@ export default function ReportsHubPage() {
     );
   }
 
-  // Activity distribution derived dynamically from real backend metrics
-  const totalOps = metrics.totalTransactions || metrics.totalComponents || 0;
-  const trendData = [
-    { name: "Mon", value: Math.round(totalOps * 0.1) },
-    { name: "Tue", value: Math.round(totalOps * 0.15) },
-    { name: "Wed", value: Math.round(totalOps * 0.12) },
-    { name: "Thu", value: Math.round(totalOps * 0.18) },
-    { name: "Fri", value: Math.round(totalOps * 0.25) },
-    { name: "Sat", value: Math.round(totalOps * 0.1) },
-    { name: "Sun", value: Math.round(totalOps * 0.1) },
-  ];
-
   const moduleDistribution = [
     {
       name: "Inventory",
@@ -173,10 +161,13 @@ export default function ReportsHubPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
           <ChartCard
-            title="Weekly Operational Velocity"
-            subtitle="Cross-module activity and completed operational movements"
+            title="Recent activity trend"
+            subtitle="Only renders when a real time-series source is available"
           >
-            <AreaChartWidget data={trendData} color="#0ea5e9" height={220} />
+            <EmptyState
+              title="No trend data available"
+              description="This view no longer fabricates weekly activity. Connect a real time-series reporting source to render this chart."
+            />
           </ChartCard>
         </div>
 

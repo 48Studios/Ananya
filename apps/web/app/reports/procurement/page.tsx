@@ -244,8 +244,8 @@ export default function ProcurementReportsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
           <ChartCard
-            title="Monthly Purchasing Spend Trend"
-            subtitle="Cumulative spend on fulfilled purchase orders"
+            title="Purchasing spend by PO lifecycle"
+            subtitle="Real draft, active, and fulfilled purchase order totals"
           >
             <AreaChartWidget
               data={spendTrendData}

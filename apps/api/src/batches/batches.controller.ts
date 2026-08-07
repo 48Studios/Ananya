@@ -13,6 +13,11 @@ import { BatchesService } from './batches.service';
 export class BatchesController {
   constructor(private readonly service: BatchesService) {}
 
+  @Get()
+  async findAll() {
+    return this.service.getAll();
+  }
+
   @Post()
   async create(@Body() dto: CreateBatchDto) {
     return this.service.create({

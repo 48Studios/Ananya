@@ -244,8 +244,8 @@ export default function InventoryReportsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
           <ChartCard
-            title="Stock Distribution by Location"
-            subtitle="Current component balance per warehouse section"
+            title="Inventory operational mix"
+            subtitle="Real reserved, adjustment, transfer, and active-SKU counts"
           >
             <BarChartWidget
               data={locationChartData}

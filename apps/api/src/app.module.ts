@@ -39,6 +39,7 @@ import { ReceivableInvoicesModule } from './receivable-invoices/receivable-invoi
 import { PayableInvoicesModule } from './payable-invoices/payable-invoices.module';
 import { PaymentsModule } from './payments/payments.module';
 import { BankReconciliationsModule } from './bank-reconciliations/bank-reconciliations.module';
+import { BankAccountsModule } from './bank-accounts/bank-accounts.module';
 import { LeadsModule } from './leads/leads.module';
 import { CrmAccountsModule } from './crm-accounts/crm-accounts.module';
 import { OpportunitiesModule } from './opportunities/opportunities.module';
@@ -115,6 +116,7 @@ import { DataPacksModule } from './data-packs/data-packs.module';
     ReceivableInvoicesModule,
     PayableInvoicesModule,
     PaymentsModule,
+    BankAccountsModule,
     BankReconciliationsModule,
     LeadsModule,
     CrmAccountsModule,

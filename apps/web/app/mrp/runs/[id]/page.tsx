@@ -6,7 +6,9 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, CheckCircle2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
 import { mrpApi, type MrpRunRecordDto } from "@/lib/api/mrp-api";
+import { planningMessagesApi, type PlanningMessageDto } from "@/lib/api/planning-messages-api";
 import { formatDate } from "@/lib/utils";
 
 export default function MrpRunDetailPage() {
@@ -14,14 +16,20 @@ export default function MrpRunDetailPage() {
   const runId = params?.id as string;
 
   const [run, setRun] = React.useState<MrpRunRecordDto | null>(null);
+  const [messages, setMessages] = React.useState<PlanningMessageDto[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     if (!runId) return;
-    mrpApi
-      .getRunById(runId)
-      .then((data) => setRun(data))
-      .catch(() => setRun(null))
+    Promise.all([mrpApi.getRunById(runId), planningMessagesApi.getAll(runId)])
+      .then(([runData, messageData]) => {
+        setRun(runData);
+        setMessages(messageData);
+      })
+      .catch(() => {
+        setRun(null);
+        setMessages([]);
+      })
       .finally(() => setLoading(false));
   }, [runId]);
 
@@ -55,7 +63,7 @@ export default function MrpRunDetailPage() {
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Executed By</p>
           <p className="text-sm font-semibold text-foreground">
-            {run?.executedBy || "System Auto-Scheduler"}
+            {run?.startedBy || "System Auto-Scheduler"}
           </p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
@@ -68,7 +76,7 @@ export default function MrpRunDetailPage() {
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Timestamp</p>
           <p className="text-sm font-mono text-foreground">
-            {run?.timestamp ? formatDate(run.timestamp) : "Recent"}
+            {run?.createdAt ? formatDate(run.createdAt) : "Recent"}
           </p>
         </div>
       </div>
@@ -78,25 +86,30 @@ export default function MrpRunDetailPage() {
           <FileText className="w-4 h-4 text-primary" />
           Execution Log & Summary Trace
         </h3>
-        <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 font-mono text-xs text-slate-300 space-y-1.5">
-          <p className="text-emerald-400">
-            [INFO] Initialized MRP engine version 2.4.0
-          </p>
-          <p className="text-slate-400">
-            [INFO] Loaded {run?.itemsProcessed || 0} active SKU records from
-            inventory database
-          </p>
-          <p className="text-slate-400">
-            [INFO] Exploded bills of materials for open sales orders
-          </p>
-          <p className="text-emerald-400">
-            [INFO] Generated {run?.plannedOrdersCreated || 0} planned order
-            suggestions
-          </p>
-          <p className="text-emerald-400">
-            [INFO] MRP calculation cycle finished cleanly
-          </p>
-        </div>
+          <EntityDataTable
+            data={messages}
+            columns={[
+              {
+                accessorKey: "severity",
+                header: "Severity",
+                cell: ({ row }) => row.original.severity,
+              },
+              {
+                accessorKey: "message",
+                header: "Message",
+                cell: ({ row }) => row.original.message,
+              },
+              {
+                accessorKey: "createdAt",
+                header: "Logged At",
+                cell: ({ row }) => formatDate(row.original.createdAt),
+              },
+            ]}
+            searchPlaceholder="Search planning messages..."
+            loading={false}
+            emptyTitle="No planning messages"
+            emptyMessage="This run has not produced any planning log messages."
+          />
       </div>
     </div>
   );

@@ -1,4 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { db } from '@ananya/database';
+import { batches, components } from '@ananya/database/schema';
+import { eq } from '@ananya/database/query';
 import {
   Batch,
   type BatchRepository,
@@ -16,6 +19,24 @@ export class BatchesService {
   async create(input: CreateBatchInput): Promise<Batch> {
     const batch = Batch.create(input);
     return this.repository.save(batch);
+  }
+
+  async getAll() {
+    return db
+      .select({
+        id: batches.id,
+        componentId: batches.componentId,
+        componentName: components.name,
+        componentSku: components.sku,
+        batchNumber: batches.batchNumber,
+        supplierBatchNumber: batches.supplierBatchNumber,
+        manufacturingDate: batches.manufacturingDate,
+        expiryDate: batches.expiryDate,
+        createdAt: batches.createdAt,
+      })
+      .from(batches)
+      .innerJoin(components, eq(batches.componentId, components.id))
+      .orderBy(components.sku, batches.batchNumber);
   }
 
   async getByComponent(componentId: string): Promise<Batch[]> {
