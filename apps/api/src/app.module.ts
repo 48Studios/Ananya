@@ -75,9 +75,11 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { SettingsModule } from './settings/settings.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { DataPacksModule } from './data-packs/data-packs.module';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
+    DatabaseModule,
     LocationsModule,
     ComponentsModule,
     ManufacturersModule,
