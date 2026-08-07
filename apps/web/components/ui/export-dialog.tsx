@@ -10,7 +10,12 @@ import {
 } from "lucide-react";
 import { importExportApi, ExportFormat } from "@/lib/api/import-export-api";
 import { Button } from "@/components/ui/button";
-import { DialogShell } from "@/components/ui/dialog-shell";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 
 export interface ExportDialogProps {
   isOpen: boolean;
@@ -90,45 +95,23 @@ export function ExportDialog({
     <DialogShell
       open={isOpen}
       onOpenChange={(open) => {
-        if (!open && !loading) {
+        if (!open) {
           onClose();
         }
       }}
       title={`Export ${entityType} Data`}
-      description={`Export ${entityType} records to CSV, Excel, or JSON format.`}
-      size="lg"
-      footer={
-        <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleExport}
-            disabled={loading || selectedColumns.length === 0}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                Generating Export...
-              </>
-            ) : (
-              <>
-                <Download className="w-3.5 h-3.5 mr-1.5" />
-                Download {format} File
-              </>
-            )}
-          </Button>
-        </>
-      }
+      description={`Choose the export format, scope, and columns for the ${entityType.toLowerCase()} dataset.`}
+      size="md"
+      closeDisabled={loading}
     >
-      <div className="space-y-5">
-        {/* Format Selection */}
+      <DialogShellBody className="space-y-5">
+        <div className="flex items-center gap-2 text-primary">
+          <Download className="size-5" />
+          <span className="text-sm font-medium text-foreground">
+            Export configuration
+          </span>
+        </div>
+
         <div className="space-y-2">
           <label className="text-xs font-semibold text-foreground">
             Export Format
@@ -160,7 +143,6 @@ export function ExportDialog({
           </div>
         </div>
 
-        {/* Scope Selection */}
         <div className="space-y-2">
           <label className="text-xs font-semibold text-foreground">
             Record Scope
@@ -195,7 +177,6 @@ export function ExportDialog({
           </div>
         </div>
 
-        {/* Column Toggles */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <label className="text-xs font-semibold text-foreground">
@@ -243,8 +224,27 @@ export function ExportDialog({
             <span>{successMsg}</span>
           </div>
         )}
-      </div>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={loading} />
+        <Button
+          size="sm"
+          onClick={handleExport}
+          disabled={loading || selectedColumns.length === 0}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              Generating Export...
+            </>
+          ) : (
+            <>
+              <Download className="mr-1.5 size-3.5" />
+              Download {format} File
+            </>
+          )}
+        </Button>
+      </DialogShellFooter>
     </DialogShell>
   );
 }
-

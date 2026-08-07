@@ -22,6 +22,12 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -34,7 +40,6 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { ProjectForm } from "@/components/projects/project-form";
@@ -394,26 +399,31 @@ export default function ViewProjectPage() {
 
   const renderMaterialForm = (
     title: string,
+    description: string,
     onSubmit: (e: React.FormEvent) => void,
     submitLabel: string,
     showNotes = false,
   ) => (
     <DialogShell
-      open={true}
-      onOpenChange={(open) => { if (!open) resetMaterialForm(); }}
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          resetMaterialForm();
+        }
+      }}
       title={title}
-      description="Configure project bill of materials, planned requirements, and component allocations."
-      size="lg"
+      description={description}
+      size="md"
     >
+      <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+        <DialogShellBody className="space-y-3">
+          {materialError && (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span>{materialError}</span>
+            </div>
+          )}
 
-        {materialError && (
-          <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{materialError}</span>
-          </div>
-        )}
-
-        <form onSubmit={onSubmit} className="space-y-3">
           <Field>
             <FieldLabel htmlFor="mat-comp">
               Component <span className="text-destructive">*</span>
@@ -499,24 +509,19 @@ export default function ViewProjectPage() {
               </Field>
             </div>
           )}
-
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={resetMaterialForm}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" disabled={materialSubmitting}>
-              {materialSubmitting && (
-                <span className="w-3.5 h-3.5 mr-1.5 animate-spin inline-block border-2 border-current border-t-transparent rounded-full" />
-              )}
-              {submitLabel}
-            </Button>
-          </div>
-        </form>
+        </DialogShellBody>
+        <DialogShellFooter>
+          <DialogShellCancelButton onClick={resetMaterialForm}>
+            Cancel
+          </DialogShellCancelButton>
+          <Button type="submit" size="sm" disabled={materialSubmitting}>
+            {materialSubmitting && (
+              <span className="mr-1.5 inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            )}
+            {submitLabel}
+          </Button>
+        </DialogShellFooter>
+      </form>
     </DialogShell>
   );
 
@@ -615,8 +620,8 @@ export default function ViewProjectPage() {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title="Edit Project"
-        description="Update project budget allocations, milestone schedules, or customer details."
-        size="xl"
+        description={`Update project "${project.projectNumber}" with current ownership, dates, and priority.`}
+        size="md"
       >
         <ProjectForm
           initialData={project}
@@ -633,6 +638,7 @@ export default function ViewProjectPage() {
       {showAllocateForm &&
         renderMaterialForm(
           "Allocate Material",
+          `Reserve planned component quantity against project "${project.projectNumber}" from a specific location.`,
           handleAllocateMaterial,
           "Allocate",
           true,
@@ -640,12 +646,14 @@ export default function ViewProjectPage() {
       {showIssueForm &&
         renderMaterialForm(
           "Issue Material",
+          `Issue committed stock to project "${project.projectNumber}" from the selected storage location.`,
           handleIssueMaterial,
           "Issue Material",
         )}
       {showReturnForm &&
         renderMaterialForm(
           "Return Material",
+          `Return unused project stock from the selected location back into available inventory.`,
           handleReturnMaterial,
           "Return Material",
         )}

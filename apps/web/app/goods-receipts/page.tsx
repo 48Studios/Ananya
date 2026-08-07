@@ -13,13 +13,13 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { GoodsReceiptForm } from "@/components/goods-receipts/gr-form";
 import {
   goodsReceiptsApi,
@@ -271,13 +271,16 @@ export default function GoodsReceiptsPage() {
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         title="Receive Goods against Purchase Order"
-        description="Log physical inventory goods receipts, inspection notes, and warehouse putaway paths."
-        size="lg"
+        description="Capture a purchase order receipt, delivery references, and destination locations for each received line item."
+        size="sm"
+        contentClassName="sm:max-w-xl"
       >
-        <GoodsReceiptForm
-          onSuccess={handleFormSuccess}
-          onCancel={() => setIsFormOpen(false)}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <GoodsReceiptForm
+            onSuccess={handleFormSuccess}
+            onCancel={() => setIsFormOpen(false)}
+          />
+        </div>
       </DialogShell>
 
       {/* Data Table */}

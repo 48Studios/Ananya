@@ -12,10 +12,15 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { PermissionGuard } from "@/lib/auth/auth-context";
@@ -285,74 +290,63 @@ export default function RolesListPage() {
         />
       </div>
 
-      {/* Create / Edit Role Modal */}
       <DialogShell
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
-        title={
-          editingRole
-            ? `Edit Role: ${editingRole.name}`
-            : "Create Custom Role"
-        }
+        title={editingRole ? `Edit Role: ${editingRole.name}` : "Create Custom Role"}
         description={
           editingRole
-            ? "Update role name, description, and permission matrix assignments."
-            : "Define custom access control roles and granular module permission policies."
+            ? "Update role metadata and granted permissions using the standard administration dialog layout."
+            : "Create a custom role with a consistent dialog header, scrollable permission matrix, and shared footer actions."
         }
-        size="xl"
+        size="lg"
       >
+        <form onSubmit={handleSaveRole} className="flex min-h-0 flex-1 flex-col">
+          <DialogShellBody className="space-y-4 pr-1 text-xs">
+            {formError && (
+              <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+                {formError}
+              </div>
+            )}
 
-          {formError && (
-            <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md shrink-0">
-              {formError}
-            </div>
-          )}
-
-          <form
-            onSubmit={handleSaveRole}
-            className="space-y-4 flex-1 overflow-y-auto pr-1 text-xs"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <label className="font-medium text-foreground">
-                  Role Name
-                </label>
+                <label className="font-medium text-foreground">Role Name</label>
                 <input
                   type="text"
                   required
                   disabled={editingRole?.isSystem}
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground"
+                  className="w-full rounded-md border border-border bg-input/40 px-3 py-2 text-foreground outline-none"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="font-medium text-foreground">
-                  Description
-                </label>
+                <label className="font-medium text-foreground">Description</label>
                 <input
                   type="text"
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground"
+                  className="w-full rounded-md border border-border bg-input/40 px-3 py-2 text-foreground outline-none"
                 />
               </div>
             </div>
 
-            <div className="space-y-3">
-              <h4 className="font-semibold text-foreground">
-                Permission Matrix ({selectedPermissions.length} selected)
-              </h4>
+            <div className="space-y-3 pt-2">
+              <label className="block font-semibold text-foreground">
+                Select Granted Permissions ({selectedPermissions.length} selected)
+              </label>
+
               {permGroups.map((group) => (
                 <div
                   key={group.category}
-                  className="border border-border rounded-lg p-3 space-y-2"
+                  className="space-y-2 rounded-lg border border-border bg-muted/20 p-3"
                 >
-                  <h5 className="font-semibold text-foreground text-xs border-b border-border pb-1 uppercase tracking-wider">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
                     {group.category} Permissions
-                  </h5>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  </h4>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {group.permissions.map((p) => {
                       const code = typeof p === "string" ? p : p.code;
                       const name = typeof p === "string" ? p : p.name;
@@ -362,7 +356,7 @@ export default function RolesListPage() {
                       return (
                         <label
                           key={code}
-                          className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-muted/40 rounded transition-colors"
+                          className="flex cursor-pointer items-start gap-2 rounded p-1.5 transition-colors hover:bg-muted/40"
                         >
                           <input
                             type="checkbox"
@@ -371,9 +365,7 @@ export default function RolesListPage() {
                             className="mt-0.5 rounded border-border"
                           />
                           <div>
-                            <p className="font-semibold text-foreground">
-                              {name}
-                            </p>
+                            <p className="font-semibold text-foreground">{name}</p>
                             {description && (
                               <p className="text-[10px] text-muted-foreground">
                                 {description}
@@ -387,24 +379,20 @@ export default function RolesListPage() {
                 </div>
               ))}
             </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-border shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button size="sm" type="submit" disabled={formSubmitting}>
-                {formSubmitting && (
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                )}
-                {editingRole ? "Save Changes" : "Create Role"}
-              </Button>
-            </div>
-          </form>
+          </DialogShellBody>
+          <DialogShellFooter>
+            <DialogShellCancelButton
+              disabled={formSubmitting}
+              onClick={() => setIsModalOpen(false)}
+            />
+            <Button size="sm" type="submit" disabled={formSubmitting}>
+              {formSubmitting && (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              )}
+              {editingRole ? "Save Changes" : "Create Role"}
+            </Button>
+          </DialogShellFooter>
+        </form>
       </DialogShell>
     </div>
   );

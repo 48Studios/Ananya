@@ -16,6 +16,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -23,7 +24,6 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { PurchaseOrderForm } from "@/components/purchase-orders/po-form";
 import {
   purchaseOrdersApi,
@@ -422,13 +422,15 @@ export default function PurchaseOrdersPage() {
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingPo(null);
+          if (!open) {
+            setEditingPo(null);
+          }
         }}
         title={editingPo ? "Edit Purchase Order" : "Create Purchase Order"}
         description={
           editingPo
-            ? "Update vendor details, line items, target delivery date, or notes."
-            : "Create a new procurement purchase order for vendor components and raw materials."
+            ? `Revise purchase order "${editingPo.poNumber}" using the shared procurement dialog layout.`
+            : "Create a new purchase order with standardized header, body, and footer composition."
         }
         size="lg"
       >

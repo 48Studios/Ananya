@@ -6,19 +6,27 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
-import { EntitySelector } from "@/components/ui/entity-selector";
 import {
   categoriesApi,
   type CategoryDto,
   type CreateCategoryPayload,
   type UpdateCategoryPayload,
 } from "@/lib/api/categories-api";
-
-import { DialogFooter } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 
 const categorySchema = z.object({
   code: z
@@ -46,8 +54,25 @@ export function CategoryForm({
   onSuccess,
   onCancel,
 }: CategoryFormProps) {
+  const [allCategories, setAllCategories] = React.useState<CategoryDto[]>([]);
   const [serverError, setServerError] = React.useState<string | null>(null);
   const isEditing = Boolean(initialData);
+
+  React.useEffect(() => {
+    categoriesApi
+      .getAll()
+      .then((cats) => {
+        // Exclude self from parent options if editing
+        if (initialData) {
+          setAllCategories(cats.filter((c) => c.id !== initialData.id));
+        } else {
+          setAllCategories(cats);
+        }
+      })
+      .catch(() => {
+        // Non-blocking category load error
+      });
+  }, [initialData]);
 
   const {
     register,
@@ -68,10 +93,6 @@ export function CategoryForm({
     setServerError(null);
     try {
       if (isEditing && initialData) {
-        if (values.parentId && values.parentId === initialData.id) {
-          setServerError("A category cannot be its own parent");
-          return;
-        }
         const payload: UpdateCategoryPayload = {
           code: values.code,
           name: values.name,
@@ -102,15 +123,18 @@ export function CategoryForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {serverError && (
-        <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
-          {serverError}
-        </div>
-      )}
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <DialogShellBody className="space-y-4">
+        {serverError && (
+          <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+            {serverError}
+          </div>
+        )}
 
-      {/* Code */}
-      <Field>
+        <Field>
         <FieldLabel htmlFor="category-code">
           Category Code <span className="text-destructive">*</span>
         </FieldLabel>
@@ -122,10 +146,10 @@ export function CategoryForm({
           className="uppercase font-mono"
         />
         {errors.code?.message && <FieldError>{errors.code.message}</FieldError>}
-      </Field>
+        </Field>
 
       {/* Name */}
-      <Field>
+        <Field>
         <FieldLabel htmlFor="category-name">
           Category Name <span className="text-destructive">*</span>
         </FieldLabel>
@@ -136,30 +160,39 @@ export function CategoryForm({
           {...register("name")}
         />
         {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
-      </Field>
+        </Field>
 
-      {/* Parent Category with EntitySelector */}
-      <Field>
+      {/* Parent Category */}
+        <Field>
         <FieldLabel htmlFor="category-parent">Parent Category</FieldLabel>
         <Controller
           name="parentId"
           control={control}
           render={({ field }) => (
-            <EntitySelector
-              id="category-parent"
-              entity="category"
-              value={field.value ?? ""}
-              onChange={(val) => field.onChange(val)}
-              placeholder="Select parent category (optional)..."
-              creatable
-            />
+            <Select
+              value={field.value ?? "none"}
+              onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
+            >
+              <SelectTrigger id="category-parent">
+                <SelectValue placeholder="Select parent category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">
+                  None (Top-Level Root Category)
+                </SelectItem>
+                {allCategories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.code} - {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         />
-        {errors.parentId?.message && <FieldError>{errors.parentId.message}</FieldError>}
-      </Field>
+        </Field>
 
       {/* Description */}
-      <Field>
+        <Field>
         <FieldLabel htmlFor="category-desc">Description</FieldLabel>
         <Textarea
           id="category-desc"
@@ -168,28 +201,17 @@ export function CategoryForm({
           {...register("description")}
           className="resize-none"
         />
-      </Field>
-
-      {/* Form Actions */}
-      <Separator className="my-2" />
-      <DialogFooter>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          disabled={isSubmitting}
-        >
-          Cancel
-        </Button>
+        </Field>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
           {isSubmitting && (
-            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
           )}
           {isEditing ? "Save Changes" : "Create Category"}
         </Button>
-      </DialogFooter>
+      </DialogShellFooter>
     </form>
   );
 }
-

@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -21,7 +22,6 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { ManufacturerForm } from "@/components/manufacturers/manufacturer-form";
 import {
   manufacturersApi,
@@ -284,19 +284,19 @@ export default function ManufacturersPage() {
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingManufacturer(null);
+          if (!open) {
+            setEditingManufacturer(null);
+          }
         }}
         title={
-          editingManufacturer
-            ? "Edit Manufacturer"
-            : "Create New Manufacturer"
+          editingManufacturer ? "Edit Manufacturer" : "Create New Manufacturer"
         }
         description={
           editingManufacturer
-            ? "Update OEM manufacturer details, brand codes, or active status."
-            : "Track OEM component manufacturers, MPN cross-references, and brand origin."
+            ? `Update the manufacturer record "${editingManufacturer.code}" used across sourced components.`
+            : "Create a manufacturer master record for component sourcing and catalog references."
         }
-        size="md"
+        size="sm"
       >
         <ManufacturerForm
           initialData={editingManufacturer}
@@ -322,14 +322,12 @@ export default function ManufacturersPage() {
 
       {/* Data Table */}
       <EntityDataTable
-        entityType="Manufacturer"
         columns={columns}
         data={manufacturers}
         searchKey="name"
         searchPlaceholder="Search manufacturers by name..."
         filters={filterConfigs}
         loading={loading}
-        onRefreshData={fetchManufacturers}
         emptyTitle="No manufacturers found"
         emptyMessage="Get started by creating your first manufacturer record."
       />

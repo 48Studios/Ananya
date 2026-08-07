@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -21,7 +22,6 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { SupplierForm } from "@/components/suppliers/supplier-form";
 import { suppliersApi, type SupplierDto } from "@/lib/api/suppliers-api";
 
@@ -289,15 +289,17 @@ export default function SuppliersPage() {
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingSupplier(null);
+          if (!open) {
+            setEditingSupplier(null);
+          }
         }}
         title={editingSupplier ? "Edit Supplier" : "Create New Supplier"}
         description={
           editingSupplier
-            ? "Update vendor details, payment terms, tax ID, or currency."
-            : "Manage approved vendors, lead times, tax IDs, and procurement contracts."
+            ? `Update supplier "${editingSupplier.code}" for purchasing, payment, and tax tracking.`
+            : "Create a supplier master record with purchasing terms, currency, and tax identifiers."
         }
-        size="md"
+        size="sm"
       >
         <SupplierForm
           initialData={editingSupplier}
@@ -323,14 +325,12 @@ export default function SuppliersPage() {
 
       {/* Data Table */}
       <EntityDataTable
-        entityType="Supplier"
         columns={columns}
         data={suppliers}
         searchKey="name"
         searchPlaceholder="Search suppliers by name..."
         filters={filterConfigs}
         loading={loading}
-        onRefreshData={fetchSuppliers}
         emptyTitle="No suppliers found"
         emptyMessage="Get started by adding your first procurement supplier."
       />

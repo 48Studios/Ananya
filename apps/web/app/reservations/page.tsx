@@ -19,6 +19,7 @@ import {
   FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -26,7 +27,6 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { ReservationForm } from "@/components/reservations/reservation-form";
 import {
   reservationsApi,
@@ -393,7 +393,9 @@ export default function ReservationsPage() {
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingReservation(null);
+          if (!open) {
+            setEditingReservation(null);
+          }
         }}
         title={
           editingReservation
@@ -402,19 +404,21 @@ export default function ReservationsPage() {
         }
         description={
           editingReservation
-            ? "Update hard-allocation reservation quantity or target order project."
-            : "Lock stock quantities for active production orders, sales allocations, or client projects."
+            ? `Update reservation "${editingReservation.reservationNumber}" while preserving its active hold details.`
+            : "Create an inventory reservation with its purpose, reference document, and held stock lines."
         }
-        size="xl"
+        size="md"
       >
-        <ReservationForm
-          initialData={editingReservation}
-          onSuccess={handleFormSuccess}
-          onCancel={() => {
-            setIsFormOpen(false);
-            setEditingReservation(null);
-          }}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <ReservationForm
+            initialData={editingReservation}
+            onSuccess={handleFormSuccess}
+            onCancel={() => {
+              setIsFormOpen(false);
+              setEditingReservation(null);
+            }}
+          />
+        </div>
       </DialogShell>
 
       {/* Delete Dialog */}

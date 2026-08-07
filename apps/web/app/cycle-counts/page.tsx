@@ -19,6 +19,7 @@ import {
   FileCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -26,7 +27,6 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { CycleCountForm } from "@/components/cycle-counts/cycle-count-form";
 import {
   cycleCountsApi,
@@ -377,7 +377,9 @@ export default function CycleCountsPage() {
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingCount(null);
+          if (!open) {
+            setEditingCount(null);
+          }
         }}
         title={
           editingCount
@@ -386,19 +388,21 @@ export default function CycleCountsPage() {
         }
         description={
           editingCount
-            ? "Update count scope parameters, assigned counter staff, or scheduled count date."
-            : "Schedule physical inventory counts, assign counter staff, and initiate stock audit runs."
+            ? `Update draft cycle count "${editingCount.countNumber}" before assigning or starting the physical count.`
+            : "Create a cycle count scope with its location, assigned counter, and inventory lines to verify."
         }
-        size="xl"
+        size="md"
       >
-        <CycleCountForm
-          initialData={editingCount}
-          onSuccess={handleFormSuccess}
-          onCancel={() => {
-            setIsFormOpen(false);
-            setEditingCount(null);
-          }}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <CycleCountForm
+            initialData={editingCount}
+            onSuccess={handleFormSuccess}
+            onCancel={() => {
+              setIsFormOpen(false);
+              setEditingCount(null);
+            }}
+          />
+        </div>
       </DialogShell>
 
       {/* Delete Dialog */}

@@ -18,13 +18,13 @@ import {
   Archive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { ProjectForm } from "@/components/projects/project-form";
 import {
   projectsApi,
@@ -383,15 +383,17 @@ export default function ProjectsPage() {
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingProject(null);
+          if (!open) {
+            setEditingProject(null);
+          }
         }}
         title={editingProject ? "Edit Project" : "Create Project"}
         description={
           editingProject
-            ? "Update project budget allocations, milestone schedules, or customer details."
-            : "Register a new client project, budget baseline, and operational timeline."
+            ? `Update project "${editingProject.projectNumber}" with current ownership, dates, and priority.`
+            : "Create a project with ownership, schedule, and priority details for downstream planning."
         }
-        size="xl"
+        size="md"
       >
         <ProjectForm
           initialData={editingProject}

@@ -19,6 +19,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -26,7 +27,6 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { WarehouseTransferForm } from "@/components/warehouse-transfers/warehouse-transfer-form";
 import {
   warehouseTransfersApi,
@@ -383,28 +383,30 @@ export default function WarehouseTransfersPage() {
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingTransfer(null);
+          if (!open) {
+            setEditingTransfer(null);
+          }
         }}
         title={
-          editingTransfer
-            ? "Edit Draft Transfer"
-            : "Create Warehouse Transfer"
+          editingTransfer ? "Edit Draft Transfer" : "Create Warehouse Transfer"
         }
         description={
           editingTransfer
-            ? "Update transfer source/destination locations, line items, or transfer notes."
-            : "Move inventory stock between warehouse locations, facilities, or storage zones."
+            ? `Update draft transfer "${editingTransfer.transferNumber}" before dispatching stock between facilities.`
+            : "Create a warehouse transfer with source and destination locations, requested date, and line items."
         }
-        size="xl"
+        size="md"
       >
-        <WarehouseTransferForm
-          initialData={editingTransfer}
-          onSuccess={handleFormSuccess}
-          onCancel={() => {
-            setIsFormOpen(false);
-            setEditingTransfer(null);
-          }}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <WarehouseTransferForm
+            initialData={editingTransfer}
+            onSuccess={handleFormSuccess}
+            onCancel={() => {
+              setIsFormOpen(false);
+              setEditingTransfer(null);
+            }}
+          />
+        </div>
       </DialogShell>
 
       {/* Confirmation Dialog for Deleting */}

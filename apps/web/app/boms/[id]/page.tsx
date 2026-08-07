@@ -17,10 +17,10 @@ import {
   Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { BomForm } from "@/components/boms/bom-form";
@@ -292,18 +292,20 @@ export default function ViewBomPage() {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title="Edit Draft BOM"
-        description="Update assembly revision, sub-component items, and batch yield ratios."
-        size="xl"
+        description={`Update draft BOM revision "${bom.revision}" before releasing it for production use.`}
+        size="md"
       >
-        <BomForm
-          initialData={bom}
-          onSuccess={(updated) => {
-            setBom(updated);
-            setIsEditOpen(false);
-            fetchData();
-          }}
-          onCancel={() => setIsEditOpen(false)}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <BomForm
+            initialData={bom}
+            onSuccess={(updated) => {
+              setBom(updated);
+              setIsEditOpen(false);
+              fetchData();
+            }}
+            onCancel={() => setIsEditOpen(false)}
+          />
+        </div>
       </DialogShell>
 
       {/* Overview Grid */}

@@ -19,10 +19,10 @@ import {
   Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { WarehouseTransferForm } from "@/components/warehouse-transfers/warehouse-transfer-form";
@@ -358,18 +358,20 @@ export default function ViewWarehouseTransferPage() {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title="Edit Draft Warehouse Transfer"
-        description="Update transfer source/destination locations, line items, or transfer notes."
-        size="xl"
+        description={`Update draft transfer "${transfer.transferNumber}" before dispatching stock between facilities.`}
+        size="md"
       >
-        <WarehouseTransferForm
-          initialData={transfer}
-          onSuccess={(updated) => {
-            setTransfer(updated);
-            setIsEditOpen(false);
-            fetchData();
-          }}
-          onCancel={() => setIsEditOpen(false)}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <WarehouseTransferForm
+            initialData={transfer}
+            onSuccess={(updated) => {
+              setTransfer(updated);
+              setIsEditOpen(false);
+              fetchData();
+            }}
+            onCancel={() => setIsEditOpen(false)}
+          />
+        </div>
       </DialogShell>
 
       {/* Overview Stat Cards */}

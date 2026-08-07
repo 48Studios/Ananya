@@ -13,6 +13,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -25,7 +31,6 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { PermissionGuard } from "@/lib/auth/auth-context";
@@ -317,27 +322,26 @@ export default function UsersListPage() {
         />
       </div>
 
-      {/* Create / Edit User Dialog */}
       <DialogShell
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         title={editingUser ? "Edit User Account" : "Create New User Account"}
         description={
           editingUser
-            ? "Update user profile details, department, or assigned system role."
-            : "Register a new user account, credentials, department, and RBAC permissions."
+            ? "Update user identity, department, and role assignment using the standard administration dialog layout."
+            : "Create a new user account with consistent dialog structure and footer actions."
         }
-        size="lg"
+        size="md"
       >
+        <form onSubmit={handleSaveUser} className="flex min-h-0 flex-1 flex-col">
+          <DialogShellBody className="space-y-3">
+            {formError && (
+              <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+                {formError}
+              </div>
+            )}
 
-          {formError && (
-            <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
-              {formError}
-            </div>
-          )}
-
-          <form onSubmit={handleSaveUser} className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="user-firstname">First Name</FieldLabel>
                 <Input
@@ -388,7 +392,7 @@ export default function UsersListPage() {
               </>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="user-dept">Department</FieldLabel>
                 <Input
@@ -421,24 +425,20 @@ export default function UsersListPage() {
                 </Select>
               </Field>
             </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-border">
-              <Button
-                variant="outline"
-                size="sm"
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button size="sm" type="submit" disabled={formSubmitting}>
-                {formSubmitting && (
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                )}
-                {editingUser ? "Save User" : "Create User"}
-              </Button>
-            </div>
-          </form>
+          </DialogShellBody>
+          <DialogShellFooter>
+            <DialogShellCancelButton
+              disabled={formSubmitting}
+              onClick={() => setIsModalOpen(false)}
+            />
+            <Button size="sm" type="submit" disabled={formSubmitting}>
+              {formSubmitting && (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              )}
+              {editingUser ? "Save User" : "Create User"}
+            </Button>
+          </DialogShellFooter>
+        </form>
       </DialogShell>
     </div>
   );

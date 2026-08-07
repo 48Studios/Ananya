@@ -16,10 +16,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { SupplierForm } from "@/components/suppliers/supplier-form";
@@ -391,8 +391,8 @@ export default function ViewSupplierPage() {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title="Edit Supplier"
-        description="Update vendor details, payment terms, tax ID, or currency."
-        size="md"
+        description={`Update supplier "${supplier.code}" for purchasing, payment, and tax tracking.`}
+        size="sm"
       >
         <SupplierForm
           initialData={supplier}

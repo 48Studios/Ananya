@@ -13,10 +13,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { CategoryForm } from "@/components/categories/category-form";
@@ -393,8 +393,8 @@ export default function ViewCategoryPage() {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title="Edit Category"
-        description="Update category code, name, description, or parent category hierarchy."
-        size="md"
+        description={`Update the inventory category "${category.code}" with standardized master data fields.`}
+        size="sm"
       >
         <CategoryForm
           initialData={category}

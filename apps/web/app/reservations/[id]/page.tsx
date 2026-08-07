@@ -20,10 +20,10 @@ import {
   PackageCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { ReservationForm } from "@/components/reservations/reservation-form";
@@ -365,8 +365,8 @@ export default function ViewReservationPage() {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title="Edit Inventory Reservation"
-        description="Update hard-allocation reservation quantity or target order project."
-        size="xl"
+        description={`Revise reservation "${reservation.reservationNumber}" using the shared inventory dialog shell.`}
+        size="md"
       >
         <ReservationForm
           initialData={reservation}

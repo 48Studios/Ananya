@@ -13,10 +13,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { ManufacturerForm } from "@/components/manufacturers/manufacturer-form";
@@ -301,8 +301,8 @@ export default function ViewManufacturerPage() {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title="Edit Manufacturer"
-        description="Update OEM manufacturer details, brand codes, or active status."
-        size="md"
+        description={`Update the manufacturer record "${manufacturer.code}" used across sourced components.`}
+        size="sm"
       >
         <ManufacturerForm
           initialData={manufacturer}

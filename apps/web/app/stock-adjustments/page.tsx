@@ -15,13 +15,13 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { StockAdjustmentForm } from "@/components/stock-adjustments/adjustment-form";
 import {
   stockAdjustmentsApi,
@@ -280,13 +280,15 @@ export default function StockAdjustmentsPage() {
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         title="Create Stock Adjustment"
-        description="Log inventory balance adjustments, variance reasons, and stock ledger entries."
-        size="xl"
+        description="Record a stock variance with its location, justification, and reconciled component line items before approval."
+        size="md"
       >
-        <StockAdjustmentForm
-          onSuccess={handleFormSuccess}
-          onCancel={() => setIsFormOpen(false)}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <StockAdjustmentForm
+            onSuccess={handleFormSuccess}
+            onCancel={() => setIsFormOpen(false)}
+          />
+        </div>
       </DialogShell>
 
       {/* Data Table */}

@@ -2,9 +2,14 @@
 
 import * as React from "react";
 import { preferencesApi } from "@/lib/api/preferences-api";
-import { Loader2 } from "lucide-react";
+import { BookmarkPlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DialogShell } from "@/components/ui/dialog-shell";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 
 export interface SavedViewDialogProps {
   isOpen: boolean;
@@ -48,61 +53,59 @@ export function SavedViewDialog({
     <DialogShell
       open={isOpen}
       onOpenChange={(open) => {
-        if (!open && !loading) {
+        if (!open) {
           onClose();
         }
       }}
       title="Save Custom View Preset"
-      description={`Save active filter configuration as a reusable preset for ${module}.`}
-      size="md"
-      footer={
-        <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={loading || !name.trim()}
-          >
-            {loading ? (
-              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-            ) : null}
-            Save View Preset
-          </Button>
-        </>
-      }
+      description={`Save the current ${module.toLowerCase()} filters as a reusable view preset.`}
+      size="sm"
+      closeDisabled={loading}
     >
-      <div className="space-y-3">
-        <div>
-          <label className="text-xs font-semibold text-foreground">
-            View Preset Name
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Critical Low Stock (Chennai Warehouse)"
-            className="w-full px-3 py-1.5 mt-1 bg-input border border-border rounded-md text-xs outline-none text-foreground focus:ring-1 focus:ring-primary"
-          />
+      <DialogShellBody className="space-y-4">
+        <div className="flex items-center gap-2 text-primary">
+          <BookmarkPlus className="size-5" />
+          <span className="text-sm font-medium text-foreground">
+            View preset details
+          </span>
         </div>
 
-        <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-foreground">
-          <input
-            type="checkbox"
-            checked={isDefault}
-            onChange={(e) => setIsDefault(e.target.checked)}
-            className="rounded text-primary focus:ring-primary"
-          />
-          <span>Set as default view for {module}</span>
-        </label>
-      </div>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-foreground">
+              View Preset Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Critical Low Stock (Chennai Warehouse)"
+              className="w-full px-3 py-1.5 mt-1 bg-input border border-border rounded-md text-xs outline-none text-foreground focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-foreground">
+            <input
+              type="checkbox"
+              checked={isDefault}
+              onChange={(e) => setIsDefault(e.target.checked)}
+              className="rounded text-primary focus:ring-primary"
+            />
+            <span>Set as default view for {module}</span>
+          </label>
+        </div>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={loading} />
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={loading || !name.trim()}
+        >
+          {loading ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
+          Save View Preset
+        </Button>
+      </DialogShellFooter>
     </DialogShell>
   );
 }
-

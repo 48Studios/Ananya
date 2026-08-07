@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -20,7 +21,6 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LocationForm } from "@/components/locations/location-form";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 
@@ -330,20 +330,22 @@ export default function LocationsPage() {
         </div>
       )}
 
-      {/* Form Modal */}
+      {/* Modal / Slide-over for Creating or Editing Location */}
       <DialogShell
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingLocation(null);
+          if (!open) {
+            setEditingLocation(null);
+          }
         }}
         title={editingLocation ? "Edit Location" : "Create New Location"}
         description={
           editingLocation
-            ? "Update storage node code, kind, or parent location node."
-            : "Configure warehouses, zones, aisles, and storage location nodes."
+            ? `Update the storage location "${editingLocation.code}" and keep its hierarchy assignment aligned.`
+            : "Create a new storage location with its code, hierarchy level, and parent placement."
         }
-        size="md"
+        size="sm"
       >
         <LocationForm
           initialData={editingLocation}
@@ -370,14 +372,12 @@ export default function LocationsPage() {
 
       {/* Data Table */}
       <EntityDataTable
-        entityType="Location"
         columns={columns}
         data={locations}
         searchKey="code"
         searchPlaceholder="Search locations by code..."
         filters={filterConfigs}
         loading={loading}
-        onRefreshData={fetchLocations}
         emptyTitle="No locations found"
         emptyMessage="Get started by creating your first storage location."
       />

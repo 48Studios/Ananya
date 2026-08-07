@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -21,7 +22,6 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { ComponentForm } from "@/components/components/component-form";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
@@ -332,13 +332,15 @@ export default function ComponentsPage() {
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingComponent(null);
+          if (!open) {
+            setEditingComponent(null);
+          }
         }}
         title={editingComponent ? "Edit Component" : "Create New Component"}
         description={
           editingComponent
-            ? "Update internal component specifications, unit of measure, or default location."
-            : "Register a new raw material, component part number, or assembly item."
+            ? `Update component "${editingComponent.sku}" using the standardized dialog composition.`
+            : "Create a new inventory component with shared header, scrollable body, and footer actions."
         }
         size="md"
       >
@@ -366,14 +368,12 @@ export default function ComponentsPage() {
 
       {/* Data Table */}
       <EntityDataTable
-        entityType="Component"
         columns={columns}
         data={components}
         searchKey="name"
         searchPlaceholder="Search components by name..."
         filters={filterConfigs}
         loading={loading}
-        onRefreshData={fetchData}
         emptyTitle="No components found"
         emptyMessage="Get started by adding your first inventory component."
       />

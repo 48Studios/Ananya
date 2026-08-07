@@ -3,6 +3,12 @@
 import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { cn } from "@/lib/utils";
 
 function Command({
@@ -24,37 +30,36 @@ function CommandDialog({
   open,
   onOpenChange,
   children,
+  title = "Command Palette",
+  description = "Search records, navigate to pages, and trigger quick actions from a standardized dialog shell.",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
 }) {
-  React.useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && open) {
-        onOpenChange(false);
-      }
-    };
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, [open, onOpenChange]);
-
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 pt-[15vh] px-4 animate-in fade-in-0 duration-150"
-      onClick={() => onOpenChange(false)}
+    <DialogShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      description={description}
+      size="md"
+      contentClassName="sm:max-w-2xl"
     >
-      <div
-        className="relative w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <DialogShellBody className="p-0">
         <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
           {children}
         </Command>
-      </div>
-    </div>
+      </DialogShellBody>
+      <DialogShellFooter className="justify-between">
+        <p className="text-xs text-muted-foreground">
+          Press Enter to open the highlighted result.
+        </p>
+        <DialogShellCancelButton />
+      </DialogShellFooter>
+    </DialogShell>
   );
 }
 

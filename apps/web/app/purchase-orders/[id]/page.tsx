@@ -18,10 +18,10 @@ import {
   Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { PurchaseOrderForm } from "@/components/purchase-orders/po-form";
@@ -561,8 +561,9 @@ export default function ViewPurchaseOrderPage() {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title={`Edit Purchase Order (${po.poNumber})`}
-        description="Update vendor details, line items, target delivery date, or notes."
+        description={`Revise purchase order "${po.poNumber}" using the shared procurement dialog layout.`}
         size="lg"
+        contentClassName="print:hidden"
       >
         <PurchaseOrderForm
           initialData={po}

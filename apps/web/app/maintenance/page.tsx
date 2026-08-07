@@ -13,13 +13,13 @@ import {
   Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { MaintenanceForm } from "@/components/maintenance/maintenance-form";
 import {
   maintenanceApi,
@@ -264,20 +264,22 @@ export default function MaintenancePage() {
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         title="Schedule Equipment Maintenance"
-        description="Schedule preventative or corrective maintenance work orders for machinery and facility assets."
-        size="md"
+        description="Plan the next preventive, calibration, or overhaul visit for a tracked equipment asset."
+        size="sm"
       >
-        <MaintenanceForm
-          onSuccess={(created) => {
-            setSchedules((prev) => [created, ...prev]);
-            setIsFormOpen(false);
-            setToastMessage(
-              "New equipment maintenance task scheduled cleanly.",
-            );
-            setTimeout(() => setToastMessage(null), 4000);
-          }}
-          onCancel={() => setIsFormOpen(false)}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <MaintenanceForm
+            onSuccess={(created) => {
+              setSchedules((prev) => [created, ...prev]);
+              setIsFormOpen(false);
+              setToastMessage(
+                "New equipment maintenance task scheduled cleanly.",
+              );
+              setTimeout(() => setToastMessage(null), 4000);
+            }}
+            onCancel={() => setIsFormOpen(false)}
+          />
+        </div>
       </DialogShell>
     </div>
   );

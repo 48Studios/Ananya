@@ -22,10 +22,10 @@ import {
   History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { WorkOrderForm } from "@/components/work-orders/work-order-form";
@@ -473,8 +473,8 @@ export default function ViewWorkOrderPage() {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title="Edit Draft Work Order"
-        description="Update production quantity, target completion date, or BOM revision."
-        size="xl"
+        description={`Update draft work order "${wo.productionNumber}" using the standardized manufacturing dialog shell.`}
+        size="lg"
       >
         <WorkOrderForm
           initialData={wo}

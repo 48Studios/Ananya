@@ -12,10 +12,10 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { LocationForm } from "@/components/locations/location-form";
@@ -314,8 +314,8 @@ export default function ViewLocationPage() {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title="Edit Location"
-        description="Update storage location code, name, kind, or parent storage hierarchy node."
-        size="md"
+        description={`Update the storage location "${location.code}" and keep its hierarchy assignment aligned.`}
+        size="sm"
       >
         <LocationForm
           initialData={location}

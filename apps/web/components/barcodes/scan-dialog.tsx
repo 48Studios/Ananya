@@ -14,7 +14,12 @@ import {
   Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DialogShell } from "@/components/ui/dialog-shell";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { barcodesApi, BarcodeLookupResult } from "@/lib/api/barcodes-api";
 
 // Declare native BarcodeDetector interface for browser compatibility
@@ -344,16 +349,17 @@ export function ScanDialog({
       }}
       title={title}
       description={description}
-      size="lg"
-      footer={
-        <Button variant="outline" size="sm" onClick={handleClose}>
-          Close
-        </Button>
-      }
+      size="md"
     >
-      <div className="space-y-4">
-        {/* Manual Barcode & Hardware Scanner Input */}
-        <form onSubmit={handleSubmit} className="space-y-2">
+      <DialogShellBody className="space-y-4">
+        <div className="flex items-center gap-2 text-primary">
+          <Scan className="size-5" />
+          <span className="text-sm font-medium text-foreground">
+            Scanner and lookup controls
+          </span>
+        </div>
+
+        <form id="scan-dialog-form" onSubmit={handleSubmit} className="space-y-2">
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground flex items-center justify-between">
               <span>Scan or Enter Barcode / QR Payload</span>
@@ -372,23 +378,10 @@ export function ScanDialog({
                 className="w-full pl-9 pr-24 py-2.5 text-xs font-mono bg-input/40 border border-border rounded-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground"
               />
               <Scan className="w-4 h-4 absolute left-3 text-muted-foreground" />
-              <Button
-                type="submit"
-                size="xs"
-                disabled={loading || !inputCode.trim()}
-                className="absolute right-1.5"
-              >
-                {loading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  "Lookup"
-                )}
-              </Button>
             </div>
           </div>
         </form>
 
-        {/* Live Camera Video Feed Controls */}
         <div className="space-y-2">
           <div className="flex items-center justify-between p-3 bg-muted/20 border border-border rounded-lg text-xs">
             <div className="flex items-center gap-2">
@@ -423,7 +416,6 @@ export function ScanDialog({
             </div>
           </div>
 
-          {/* Camera Stream Viewport */}
           {isCameraActive && (
             <div className="relative rounded-xl overflow-hidden border border-border bg-black aspect-video flex items-center justify-center">
               <video
@@ -433,7 +425,6 @@ export function ScanDialog({
                 muted
                 className="w-full h-full object-cover"
               />
-              {/* Reticle Overlay */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="w-48 h-28 border-2 border-primary/80 rounded-lg relative flex items-center justify-center shadow-lg">
                   <div className="w-full h-0.5 bg-primary animate-pulse absolute top-1/2 -translate-y-1/2" />
@@ -445,7 +436,6 @@ export function ScanDialog({
             </div>
           )}
 
-          {/* Camera Error Messaging */}
           {cameraError && (
             <div className="p-3 text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -454,7 +444,6 @@ export function ScanDialog({
           )}
         </div>
 
-        {/* Scan Error Result Alert */}
         {error && (
           <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg space-y-2">
             <div className="flex items-center gap-2">
@@ -490,7 +479,6 @@ export function ScanDialog({
           </div>
         )}
 
-        {/* Lookup Result Card */}
         {result && (
           <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-3">
             <div className="flex items-start justify-between">
@@ -514,16 +502,32 @@ export function ScanDialog({
               </p>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-emerald-500/20">
-              <Button size="xs" onClick={handleNavigate}>
-                Open Entity Page
-                <ArrowRight className="w-3.5 h-3.5 ml-1" />
-              </Button>
-            </div>
           </div>
         )}
-      </div>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton>Cancel</DialogShellCancelButton>
+        {result ? (
+          <Button size="sm" onClick={handleNavigate}>
+            Open Entity Page
+            <ArrowRight className="ml-1.5 size-3.5" />
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            form="scan-dialog-form"
+            size="sm"
+            disabled={loading || !inputCode.trim()}
+          >
+            {loading ? (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            ) : (
+              <Scan className="mr-1.5 size-3.5" />
+            )}
+            Lookup
+          </Button>
+        )}
+      </DialogShellFooter>
     </DialogShell>
   );
 }
-

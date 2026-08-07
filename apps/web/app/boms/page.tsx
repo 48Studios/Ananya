@@ -18,6 +18,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -25,7 +26,6 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { BomForm } from "@/components/boms/bom-form";
 import {
   bomsApi,
@@ -344,24 +344,28 @@ export default function BomsPage() {
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingBom(null);
+          if (!open) {
+            setEditingBom(null);
+          }
         }}
         title={editingBom ? "Edit Draft BOM" : "Create Bill of Materials"}
         description={
           editingBom
-            ? "Update assembly revision, sub-component items, and batch yield ratios."
-            : "Define multi-level assembly structures, sub-component items, and yield ratios."
+            ? `Update draft BOM revision "${editingBom.revision}" before releasing it for production use.`
+            : "Create a bill of materials with a finished product, revision, and required component structure."
         }
-        size="xl"
+        size="md"
       >
-        <BomForm
-          initialData={editingBom}
-          onSuccess={handleFormSuccess}
-          onCancel={() => {
-            setIsFormOpen(false);
-            setEditingBom(null);
-          }}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <BomForm
+            initialData={editingBom}
+            onSuccess={handleFormSuccess}
+            onCancel={() => {
+              setIsFormOpen(false);
+              setEditingBom(null);
+            }}
+          />
+        </div>
       </DialogShell>
 
       {/* Confirmation Dialog for Deleting */}

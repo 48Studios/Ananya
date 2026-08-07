@@ -14,10 +14,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { ComponentForm } from "@/components/components/component-form";
@@ -357,7 +357,7 @@ export default function ViewComponentPage() {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title="Edit Component"
-        description="Update internal component specifications, unit of measure, or default storage location."
+        description={`Update component "${component.sku}" using the standardized dialog composition.`}
         size="md"
       >
         <ComponentForm

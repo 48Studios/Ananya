@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -21,7 +22,6 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { CategoryForm } from "@/components/categories/category-form";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
 
@@ -311,15 +311,17 @@ export default function CategoriesPage() {
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingCategory(null);
+          if (!open) {
+            setEditingCategory(null);
+          }
         }}
         title={editingCategory ? "Edit Category" : "Create New Category"}
         description={
           editingCategory
-            ? "Update category code, name, description, or parent category hierarchy."
-            : "Configure material taxonomy, component classifications, and category hierarchies."
+            ? `Update the inventory category "${editingCategory.code}" with standardized master data fields.`
+            : "Create a new inventory category using the shared dialog layout and footer actions."
         }
-        size="md"
+        size="sm"
       >
         <CategoryForm
           initialData={editingCategory}
@@ -345,14 +347,12 @@ export default function CategoriesPage() {
 
       {/* Data Table */}
       <EntityDataTable
-        entityType="Category"
         columns={columns}
         data={categories}
         searchKey="name"
         searchPlaceholder="Search categories by name..."
         filters={filterConfigs}
         loading={loading}
-        onRefreshData={fetchCategories}
         emptyTitle="No categories found"
         emptyMessage="Get started by creating your first inventory category."
       />

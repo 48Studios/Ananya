@@ -18,6 +18,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -25,7 +26,6 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { WorkOrderForm } from "@/components/work-orders/work-order-form";
 import {
   workOrdersApi,
@@ -433,15 +433,17 @@ export default function WorkOrdersPage() {
         open={isFormOpen}
         onOpenChange={(open) => {
           setIsFormOpen(open);
-          if (!open) setEditingWo(null);
+          if (!open) {
+            setEditingWo(null);
+          }
         }}
         title={editingWo ? "Edit Draft Work Order" : "Create Work Order"}
         description={
           editingWo
-            ? "Update production quantity, target completion date, or BOM revision."
-            : "Schedule manufacturing production runs, BOM allocations, and shop-floor work orders."
+            ? `Update draft work order "${editingWo.productionNumber}" using the standardized manufacturing dialog shell.`
+            : "Create a new work order with a fixed header, scrollable body, and shared footer actions."
         }
-        size="xl"
+        size="lg"
       >
         <WorkOrderForm
           initialData={editingWo}

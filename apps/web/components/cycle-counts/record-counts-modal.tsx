@@ -4,8 +4,14 @@ import * as React from "react";
 import { useForm, useFieldArray, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, AlertCircle, ClipboardCheck, X } from "lucide-react";
+import { Loader2, AlertCircle, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import {
   cycleCountsApi,
   type CycleCountDto,
@@ -84,8 +90,6 @@ export function RecordCountsModal({
 
   const watchedCounts = watch("counts");
 
-  if (!isOpen) return null;
-
   const onSubmit: SubmitHandler<RecordCountsFormValues> = async (values) => {
     setServerError(null);
     try {
@@ -109,37 +113,38 @@ export function RecordCountsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <ClipboardCheck className="w-4 h-4 text-primary" />
-            <h2 className="text-base font-semibold text-foreground">
-              Record Physical Counts — {cycleCount.countNumber}
-            </h2>
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={`Record Physical Counts — ${cycleCount.countNumber}`}
+      description="Enter actual warehouse floor quantities. System quantities remain read-only for variance review."
+      size="md"
+      closeDisabled={isSubmitting}
+    >
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <DialogShellBody className="space-y-4">
+          <div className="flex items-center gap-2 text-primary">
+            <ClipboardCheck className="size-4" />
+            <span className="text-xs font-medium text-foreground">
+              Variances are calculated automatically as counts are entered.
+            </span>
           </div>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
 
-        <p className="text-xs text-muted-foreground">
-          Enter actual physical quantities verified on the warehouse floor.
-          System quantity is read-only.
-        </p>
+          {serverError && (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+              <AlertCircle className="size-4 shrink-0" />
+              <span>{serverError}</span>
+            </div>
+          )}
 
-        {serverError && (
-          <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{serverError}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+          <div className="space-y-2">
             {fields.map((field, idx) => {
               const comp = componentsMap[field.componentId];
               const currentCounted =
@@ -215,26 +220,17 @@ export function RecordCountsModal({
               );
             })}
           </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-              )}
-              Submit Physical Counts for Review
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </DialogShellBody>
+        <DialogShellFooter>
+          <DialogShellCancelButton disabled={isSubmitting} />
+          <Button type="submit" size="sm" disabled={isSubmitting}>
+            {isSubmitting && (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            )}
+            Submit Physical Counts for Review
+          </Button>
+        </DialogShellFooter>
+      </form>
+    </DialogShell>
   );
 }

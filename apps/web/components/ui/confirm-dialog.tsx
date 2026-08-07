@@ -3,7 +3,12 @@
 import * as React from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DialogShell } from "@/components/ui/dialog-shell";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 
 export interface ConfirmDialogProps {
   isOpen: boolean;
@@ -32,50 +37,41 @@ export function ConfirmDialog({
     <DialogShell
       open={isOpen}
       onOpenChange={(open) => {
-        if (!open && !loading) {
+        if (!open) {
           onCancel();
         }
       }}
       title={title}
       description={description}
       size="sm"
-      footer={
-        <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onCancel}
-            disabled={loading}
-          >
-            {cancelText}
-          </Button>
-          <Button
-            variant={variant === "destructive" ? "destructive" : "default"}
-            size="sm"
-            onClick={onConfirm}
-            disabled={loading}
-          >
-            {loading && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-            {confirmText}
-          </Button>
-        </>
-      }
+      closeDisabled={loading}
     >
-      <div className="flex items-start gap-3">
+      <DialogShellBody className="flex items-start gap-3">
         <div
-          className={`p-2 rounded-full shrink-0 ${
+          className={`rounded-full p-2 ${
             variant === "destructive"
               ? "bg-destructive/10 text-destructive"
               : "bg-primary/10 text-primary"
           }`}
         >
-          <AlertTriangle className="w-5 h-5" />
+          <AlertTriangle className="size-5" />
         </div>
-        <div className="text-xs text-muted-foreground leading-relaxed pt-0.5">
-          {description}
-        </div>
-      </div>
+        <p className="pt-1 text-sm text-muted-foreground">{description}</p>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={loading}>
+          {cancelText}
+        </DialogShellCancelButton>
+        <Button
+          variant={variant === "destructive" ? "destructive" : "default"}
+          size="sm"
+          onClick={onConfirm}
+          disabled={loading}
+        >
+          {loading && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+          {confirmText}
+        </Button>
+      </DialogShellFooter>
     </DialogShell>
   );
 }
-

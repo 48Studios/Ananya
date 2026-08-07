@@ -22,10 +22,10 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DialogShell } from "@/components/ui/dialog-shell";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { CycleCountForm } from "@/components/cycle-counts/cycle-count-form";
@@ -343,18 +343,20 @@ export default function ViewCycleCountPage() {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title="Edit Draft Cycle Count"
-        description="Update count scope parameters, assigned counter staff, or scheduled count date."
-        size="xl"
+        description={`Update draft cycle count "${cycleCount.countNumber}" before assigning or starting the physical count.`}
+        size="md"
       >
-        <CycleCountForm
-          initialData={cycleCount}
-          onSuccess={(updated) => {
-            setCycleCount(updated);
-            setIsEditOpen(false);
-            fetchData();
-          }}
-          onCancel={() => setIsEditOpen(false)}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <CycleCountForm
+            initialData={cycleCount}
+            onSuccess={(updated) => {
+              setCycleCount(updated);
+              setIsEditOpen(false);
+              fetchData();
+            }}
+            onCancel={() => setIsEditOpen(false)}
+          />
+        </div>
       </DialogShell>
 
       {/* Record Physical Counts Modal */}

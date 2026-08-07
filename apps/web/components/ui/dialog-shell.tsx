@@ -1,39 +1,39 @@
 "use client";
 
 import * as React from "react";
+import { XIcon } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-export type DialogSize = "sm" | "md" | "lg" | "xl" | "2xl" | "full";
+const dialogShellWidthClasses = {
+  sm: "sm:max-w-md",
+  md: "sm:max-w-2xl",
+  lg: "sm:max-w-4xl",
+  xl: "sm:max-w-6xl",
+} as const;
 
-const dialogSizeMap: Record<DialogSize, string> = {
-  sm: "sm:max-w-sm",
-  md: "sm:max-w-md",
-  lg: "sm:max-w-lg",
-  xl: "sm:max-w-2xl",
-  "2xl": "sm:max-w-4xl",
-  full: "sm:max-w-6xl",
-};
+export type DialogShellSize = keyof typeof dialogShellWidthClasses;
 
-export interface DialogShellProps {
+interface DialogShellProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: React.ReactNode;
-  description?: React.ReactNode;
-  size?: DialogSize;
+  description: React.ReactNode;
   children: React.ReactNode;
-  footer?: React.ReactNode;
-  showCloseButton?: boolean;
-  className?: string;
-  bodyClassName?: string;
+  size?: DialogShellSize;
+  closeDisabled?: boolean;
+  contentClassName?: string;
 }
 
 export function DialogShell({
@@ -41,50 +41,106 @@ export function DialogShell({
   onOpenChange,
   title,
   description,
-  size = "md",
   children,
-  footer,
-  showCloseButton = true,
-  className,
-  bodyClassName,
+  size = "md",
+  closeDisabled = false,
+  contentClassName,
 }: DialogShellProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && closeDisabled) {
+          return;
+        }
+
+        onOpenChange(nextOpen);
+      }}
+    >
       <DialogContent
-        showCloseButton={showCloseButton}
+        showCloseButton={false}
         className={cn(
-          "flex max-h-[85vh] flex-col gap-0 p-0 overflow-hidden",
-          dialogSizeMap[size],
-          className,
+          "flex max-h-[calc(100dvh-2rem)] min-h-[12rem] flex-col gap-0 overflow-hidden p-0",
+          dialogShellWidthClasses[size],
+          contentClassName,
         )}
       >
-        <DialogHeader className="p-4 sm:p-6 pb-4 shrink-0 pr-12">
+        <DialogHeader className="relative shrink-0 px-6 py-5 pr-14">
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className={description ? "" : "sr-only"}>
-            {description || title}
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
+          <DialogClose
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="absolute top-4 right-4"
+                disabled={closeDisabled}
+              />
+            }
+          >
+            <XIcon />
+            <span className="sr-only">Close</span>
+          </DialogClose>
         </DialogHeader>
-
         <Separator />
-
-        <div
-          className={cn(
-            "flex-1 overflow-y-auto p-4 sm:p-6 space-y-4",
-            bodyClassName,
-          )}
-        >
-          {children}
-        </div>
-
-        {footer !== undefined && (
-          <>
-            <Separator />
-            <DialogFooter className="p-4 sm:p-6 bg-muted/30 shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-              {footer}
-            </DialogFooter>
-          </>
-        )}
+        {children}
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function DialogShellBody({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      className={cn(
+        "min-h-0 flex-1 overflow-y-auto px-6 py-5",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function DialogShellFooter({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <>
+      <Separator />
+      <DialogFooter
+        className={cn(
+          "mx-0 mb-0 flex-row items-center justify-end gap-2 rounded-none border-0 bg-transparent p-0 px-6 py-4",
+          className,
+        )}
+        {...props}
+      />
+    </>
+  );
+}
+
+export function DialogShellCancelButton({
+  className,
+  children = "Cancel",
+  ...props
+}: React.ComponentProps<typeof Button>) {
+  return (
+    <DialogClose
+      render={
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={className}
+          {...props}
+        />
+      }
+    >
+      {children}
+    </DialogClose>
   );
 }
