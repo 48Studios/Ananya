@@ -334,7 +334,7 @@ ananya/
 
 ### Prerequisites
 
-- **Node.js**: `>=20.14.0` (managed via `.nvmrc`)
+- **Node.js**: `>=22.14.0` (managed via `.nvmrc`)
 - **pnpm**: `9.0.0`
 - **Docker & Docker Compose**: (optional for containerized setup)
 
