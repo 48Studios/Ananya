@@ -272,15 +272,12 @@ export default function GoodsReceiptsPage() {
         onOpenChange={setIsFormOpen}
         title="Receive Goods against Purchase Order"
         description="Capture a purchase order receipt, delivery references, and destination locations for each received line item."
-        size="sm"
-        contentClassName="sm:max-w-xl"
+        size="md"
       >
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          <GoodsReceiptForm
-            onSuccess={handleFormSuccess}
-            onCancel={() => setIsFormOpen(false)}
-          />
-        </div>
+        <GoodsReceiptForm
+          onSuccess={handleFormSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
       </DialogShell>
 
       {/* Data Table */}

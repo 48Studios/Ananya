@@ -267,19 +267,15 @@ export default function MaintenancePage() {
         description="Plan the next preventive, calibration, or overhaul visit for a tracked equipment asset."
         size="sm"
       >
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          <MaintenanceForm
-            onSuccess={(created) => {
-              setSchedules((prev) => [created, ...prev]);
-              setIsFormOpen(false);
-              setToastMessage(
-                "New equipment maintenance task scheduled cleanly.",
-              );
-              setTimeout(() => setToastMessage(null), 4000);
-            }}
-            onCancel={() => setIsFormOpen(false)}
-          />
-        </div>
+        <MaintenanceForm
+          onSuccess={(created) => {
+            setSchedules((prev) => [created, ...prev]);
+            setIsFormOpen(false);
+            setToastMessage("New equipment maintenance task scheduled cleanly.");
+            setTimeout(() => setToastMessage(null), 4000);
+          }}
+          onCancel={() => setIsFormOpen(false)}
+        />
       </DialogShell>
     </div>
   );

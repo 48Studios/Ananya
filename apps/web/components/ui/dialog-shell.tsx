@@ -97,8 +97,8 @@ export function DialogShellBody({
   return (
     <div
       className={cn(
-        "min-h-0 flex-1 overflow-y-auto px-6 py-5",
         className,
+        "min-h-0 flex-1 overflow-y-auto px-6 py-5",
       )}
       {...props}
     />
@@ -114,8 +114,8 @@ export function DialogShellFooter({
       <Separator />
       <DialogFooter
         className={cn(
-          "mx-0 mb-0 flex-row items-center justify-end gap-2 rounded-none border-0 bg-transparent p-0 px-6 py-4",
           className,
+          "mx-0 mb-0 flex-row items-center justify-end gap-2 rounded-none border-0 bg-transparent px-6 py-5",
         )}
         {...props}
       />
