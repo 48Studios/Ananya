@@ -57,7 +57,7 @@ jobs:
             org.opencontainers.image.title=Ananya ERP ${{ matrix.service }} (Release)
             org.opencontainers.image.description=Production release image for Ananya ERP platform (${{ matrix.service }})
             org.opencontainers.image.vendor=48 Studios
-            org.opencontainers.image.licenses=UNLICENSED
+            org.opencontainers.image.licenses=MIT
 
       - name: Build & Push Release Multi-Architecture Image
         uses: docker/build-push-action@v6
