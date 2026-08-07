@@ -15,8 +15,13 @@ import {
   inventoryReservationLines,
   stockAdjustments,
   warehouseTransfers,
+  accounts,
+  receivableInvoices,
+  payableInvoices,
+  payments,
+  bankReconciliations,
 } from '@ananya/database/schema';
-import { count, eq, sql } from '@ananya/database/query';
+import { and, count, eq, gte, inArray, sql } from '@ananya/database/query';
 
 @Injectable()
 export class ReportingService {
@@ -176,19 +181,21 @@ export class ReportingService {
       .select({ count: count() })
       .from(projects)
       .where(eq(projects.status, 'COMPLETED'));
-    const [matCount] = await db
-      .select({ count: count() })
+    const [materialTotals] = await db
+      .select({
+        allocated: sql<string>`COALESCE(SUM(${projectMaterials.allocatedQuantity}), 0)`,
+        issued: sql<string>`COALESCE(SUM(${projectMaterials.issuedQuantity}), 0)`,
+        returned: sql<string>`COALESCE(SUM(${projectMaterials.returnedQuantity}), 0)`,
+      })
       .from(projectMaterials);
-
-    const totalAllocated = Number(matCount?.count ?? 0);
 
     return {
       totalProjects: Number(projCount?.count ?? 0),
       activeProjects: Number(activeProj?.count ?? 0),
       completedProjects: Number(completedProj?.count ?? 0),
-      totalAllocatedMaterials: totalAllocated,
-      totalIssuedMaterials: Math.round(totalAllocated * 0.7),
-      totalReturnedMaterials: 0,
+      totalAllocatedMaterials: parseFloat(materialTotals?.allocated ?? '0'),
+      totalIssuedMaterials: parseFloat(materialTotals?.issued ?? '0'),
+      totalReturnedMaterials: parseFloat(materialTotals?.returned ?? '0'),
     };
   }
 
@@ -217,6 +224,231 @@ export class ReportingService {
       issueCount: Number(issues?.count ?? 0),
       transferCount: Number(transferCount?.count ?? 0),
       adjustmentCount: Number(adjCount?.count ?? 0),
+    };
+  }
+
+  async getFinancialSummary() {
+    const [accountCount] = await db.select({ count: count() }).from(accounts);
+    const [activeAccountCount] = await db
+      .select({ count: count() })
+      .from(accounts)
+      .where(eq(accounts.isActive, true));
+    const [bankAccountCount] = await db
+      .select({
+        count: sql<string>`COUNT(DISTINCT ${bankReconciliations.bankAccountId})`,
+      })
+      .from(bankReconciliations);
+    const [receivableTotals] = await db
+      .select({
+        outstanding: sql<string>`COALESCE(SUM(${receivableInvoices.balance}), 0)`,
+      })
+      .from(receivableInvoices)
+      .where(
+        inArray(receivableInvoices.status, [
+          'POSTED',
+          'PARTIALLY_PAID',
+        ] as const),
+      );
+    const [payableTotals] = await db
+      .select({
+        outstanding: sql<string>`COALESCE(SUM(${payableInvoices.balance}), 0)`,
+      })
+      .from(payableInvoices)
+      .where(
+        inArray(payableInvoices.status, ['POSTED', 'PARTIALLY_PAID'] as const),
+      );
+    const [paymentTotals] = await db
+      .select({
+        total: sql<string>`COALESCE(SUM(${payments.amount}), 0)`,
+      })
+      .from(payments)
+      .where(eq(payments.status, 'POSTED'));
+    const [openReconciliations] = await db
+      .select({ count: count() })
+      .from(bankReconciliations)
+      .where(eq(bankReconciliations.status, 'IN_PROGRESS'));
+    const accountTypeDistribution = await db
+      .select({
+        accountType: accounts.accountType,
+        totalAccounts: count(),
+        activeAccounts: sql<number>`COUNT(*) FILTER (WHERE ${accounts.isActive} = true)`,
+      })
+      .from(accounts)
+      .groupBy(accounts.accountType);
+
+    return {
+      totalAccounts: Number(accountCount?.count ?? 0),
+      activeAccounts: Number(activeAccountCount?.count ?? 0),
+      bankAccountsWithStatements: Number(bankAccountCount?.count ?? 0),
+      receivablesOutstanding: parseFloat(receivableTotals?.outstanding ?? '0'),
+      payablesOutstanding: parseFloat(payableTotals?.outstanding ?? '0'),
+      postedPaymentsTotal: parseFloat(paymentTotals?.total ?? '0'),
+      openReconciliations: Number(openReconciliations?.count ?? 0),
+      accountTypeDistribution: accountTypeDistribution.map((item) => ({
+        accountType: item.accountType,
+        totalAccounts: Number(item.totalAccounts ?? 0),
+        activeAccounts: Number(item.activeAccounts ?? 0),
+      })),
+    };
+  }
+
+  async getCashFlowForecast() {
+    const now = new Date();
+    const monthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+
+    const receivableRows = await db
+      .select({
+        dueDate: receivableInvoices.dueDate,
+        balance: receivableInvoices.balance,
+      })
+      .from(receivableInvoices)
+      .where(
+        and(
+          gte(receivableInvoices.dueDate, monthStart),
+          inArray(receivableInvoices.status, [
+            'POSTED',
+            'PARTIALLY_PAID',
+          ] as const),
+        ),
+      );
+
+    const payableRows = await db
+      .select({
+        dueDate: payableInvoices.dueDate,
+        balance: payableInvoices.balance,
+      })
+      .from(payableInvoices)
+      .where(
+        and(
+          gte(payableInvoices.dueDate, monthStart),
+          inArray(payableInvoices.status, [
+            'POSTED',
+            'PARTIALLY_PAID',
+          ] as const),
+        ),
+      );
+
+    const reconciliationRows = await db
+      .select({
+        bankAccountId: bankReconciliations.bankAccountId,
+        closingBalance: bankReconciliations.closingBalance,
+        statementDate: bankReconciliations.statementDate,
+      })
+      .from(bankReconciliations)
+      .orderBy(sql`${bankReconciliations.statementDate} DESC`);
+
+    const latestBalanceByAccount = new Map<string, number>();
+    for (const row of reconciliationRows) {
+      if (!latestBalanceByAccount.has(row.bankAccountId)) {
+        latestBalanceByAccount.set(
+          row.bankAccountId,
+          parseFloat(row.closingBalance ?? '0'),
+        );
+      }
+    }
+
+    const currentLiquidity =
+      latestBalanceByAccount.size > 0
+        ? Array.from(latestBalanceByAccount.values()).reduce(
+            (sum, balance) => sum + balance,
+            0,
+          )
+        : null;
+
+    const periodMap = new Map<
+      string,
+      {
+        id: string;
+        periodStart: string;
+        periodLabel: string;
+        projectedInflow: number;
+        projectedOutflow: number;
+        receivableInvoices: number;
+        payableInvoices: number;
+      }
+    >();
+
+    const getPeriodKey = (value: Date) =>
+      `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}`;
+
+    const ensurePeriod = (date: Date) => {
+      const key = getPeriodKey(date);
+      if (!periodMap.has(key)) {
+        const periodStartDate = new Date(
+          Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1),
+        );
+        periodMap.set(key, {
+          id: key,
+          periodStart: periodStartDate.toISOString(),
+          periodLabel: periodStartDate.toLocaleDateString('en-US', {
+            month: 'short',
+            year: 'numeric',
+            timeZone: 'UTC',
+          }),
+          projectedInflow: 0,
+          projectedOutflow: 0,
+          receivableInvoices: 0,
+          payableInvoices: 0,
+        });
+      }
+
+      return periodMap.get(key)!;
+    };
+
+    for (const row of receivableRows) {
+      const period = ensurePeriod(row.dueDate);
+      period.projectedInflow += parseFloat(row.balance ?? '0');
+      period.receivableInvoices += 1;
+    }
+
+    for (const row of payableRows) {
+      const period = ensurePeriod(row.dueDate);
+      period.projectedOutflow += parseFloat(row.balance ?? '0');
+      period.payableInvoices += 1;
+    }
+
+    const periods = Array.from(periodMap.values())
+      .sort((left, right) => left.periodStart.localeCompare(right.periodStart))
+      .slice(0, 6)
+      .map((period, index, allPeriods) => {
+        const netCashFlow = period.projectedInflow - period.projectedOutflow;
+        const cumulativeNet = allPeriods
+          .slice(0, index + 1)
+          .reduce(
+            (sum, current) =>
+              sum + (current.projectedInflow - current.projectedOutflow),
+            0,
+          );
+
+        return {
+          ...period,
+          projectedInflow: Math.round(period.projectedInflow * 100) / 100,
+          projectedOutflow: Math.round(period.projectedOutflow * 100) / 100,
+          netCashFlow: Math.round(netCashFlow * 100) / 100,
+          endingLiquidityReserve:
+            currentLiquidity === null
+              ? null
+              : Math.round((currentLiquidity + cumulativeNet) * 100) / 100,
+        };
+      });
+
+    return {
+      currentLiquidity,
+      totalProjectedInflow: periods.reduce(
+        (sum, period) => sum + period.projectedInflow,
+        0,
+      ),
+      totalProjectedOutflow: periods.reduce(
+        (sum, period) => sum + period.projectedOutflow,
+        0,
+      ),
+      periods,
+      insufficientDataReason:
+        periods.length === 0
+          ? 'No posted receivable or payable balances exist with future due dates.'
+          : null,
     };
   }
 }

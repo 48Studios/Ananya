@@ -34,4 +34,14 @@ export class ReportingController {
   getTransactionSummary() {
     return this.reportingService.getTransactionSummary();
   }
+
+  @Get('financial-summary')
+  getFinancialSummary() {
+    return this.reportingService.getFinancialSummary();
+  }
+
+  @Get('cash-flow-forecast')
+  getCashFlowForecast() {
+    return this.reportingService.getCashFlowForecast();
+  }
 }

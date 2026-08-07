@@ -2,53 +2,46 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { DollarSign, Plus, CheckCircle2, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { DollarSign, CheckCircle2, Clock } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { ErrorState } from "@/components/ui/error-state";
+import { LoadingState } from "@/components/ui/loading-state";
+import { financeApi, type ReceivableInvoiceDto } from "@/lib/api/finance-api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-interface AccountsReceivableEntry {
-  id: string;
-  customerName: string;
-  invoiceNumber: string;
-  amountDue: number;
-  agingCategory: "CURRENT" | "1_30_DAYS" | "31_60_DAYS";
-  dueDate: string;
-}
-
-const mockAr: AccountsReceivableEntry[] = [
-  {
-    id: "ar-1",
-    customerName: "AeroTech Systems",
-    invoiceNumber: "INV-CUST-101",
-    amountDue: 48500,
-    agingCategory: "CURRENT",
-    dueDate: "2026-02-25",
-  },
-  {
-    id: "ar-2",
-    customerName: "Starlight Robotics",
-    invoiceNumber: "INV-CUST-102",
-    amountDue: 19800,
-    agingCategory: "CURRENT",
-    dueDate: "2026-03-01",
-  },
-];
-
 export default function AccountsReceivablePage() {
-  const [entries] = React.useState<AccountsReceivableEntry[]>(mockAr);
+  const [entries, setEntries] = React.useState<ReceivableInvoiceDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const totalAr = entries.reduce((acc, e) => acc + e.amountDue, 0);
+  React.useEffect(() => {
+    financeApi
+      .getReceivableInvoices()
+      .then((data) => {
+        setEntries(data);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load receivable invoices",
+        );
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-  const columns: ColumnDef<AccountsReceivableEntry>[] = [
+  const totalAr = entries.reduce((acc, entry) => acc + entry.balance, 0);
+
+  const columns: ColumnDef<ReceivableInvoiceDto>[] = [
     {
-      accessorKey: "customerName",
+      accessorKey: "customerId",
       header: "Customer Name",
       cell: ({ row }) => (
         <span className="font-semibold text-xs text-primary">
-          {row.original.customerName}
+          {row.original.customerId}
         </span>
       ),
     },
@@ -62,20 +55,20 @@ export default function AccountsReceivablePage() {
       ),
     },
     {
-      accessorKey: "amountDue",
+      accessorKey: "balance",
       header: "Receivable Amount",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
-          {formatCurrency(row.original.amountDue)}
+          {formatCurrency(row.original.balance)}
         </span>
       ),
     },
     {
-      accessorKey: "agingCategory",
+      accessorKey: "status",
       header: "AR Aging Status",
-      cell: () => (
+      cell: ({ row }) => (
         <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-          Current (Current Term)
+          {row.original.status}
         </span>
       ),
     },
@@ -90,17 +83,25 @@ export default function AccountsReceivablePage() {
     },
   ];
 
+  if (loading) {
+  return <LoadingState message="Loading accounts receivable..." />;
+  }
+
+  if (error) {
+  return (
+    <ErrorState
+      title="Accounts receivable unavailable"
+      message={error}
+      onRetry={() => window.location.reload()}
+    />
+  );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Accounts Receivable (AR) Aging & Receipts"
         description="Track customer invoices, payment collection aging, credit limits, and incoming cash flows."
-        actions={
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Receive Customer Payment
-          </Button>
-        }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -111,13 +112,17 @@ export default function AccountsReceivablePage() {
         />
         <StatCard
           title="Current Due (<30 Days)"
-          value={formatCurrency(totalAr)}
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          value={formatCurrency(
+            entries
+              .filter((entry) => entry.status === "POSTED")
+              .reduce((sum, entry) => sum + entry.balance, 0),
+          )}
+          icon={CheckCircle2}
         />
         <StatCard
-          title="Collection Rate"
-          value="99.1% On Time"
-          icon={<Clock className="w-4 h-4 text-blue-500" />}
+          title="Overdue Accounts"
+          value={entries.filter((entry) => new Date(entry.dueDate) < new Date() && entry.balance > 0).length}
+          icon={Clock}
         />
       </div>
 
@@ -125,6 +130,9 @@ export default function AccountsReceivablePage() {
         data={entries}
         columns={columns}
         searchPlaceholder="Search AR by customer or invoice..."
+        loading={false}
+        emptyTitle="No receivable invoices"
+        emptyMessage="No customer receivable records are available."
       />
     </div>
   );

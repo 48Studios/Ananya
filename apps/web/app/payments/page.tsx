@@ -2,48 +2,34 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { DollarSign, Plus, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { DollarSign, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { ErrorState } from "@/components/ui/error-state";
+import { LoadingState } from "@/components/ui/loading-state";
+import { financeApi, type PaymentDto } from "@/lib/api/finance-api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-interface PaymentVoucher {
-  id: string;
-  paymentNumber: string;
-  partyName: string;
-  type: "RECEIPT" | "PAYMENT";
-  amount: number;
-  method: "BANK_TRANSFER" | "CHECK" | "WIRE";
-  paymentDate: string;
-}
-
-const mockPayments: PaymentVoucher[] = [
-  {
-    id: "pay-1",
-    paymentNumber: "PAY-2026-101",
-    partyName: "AeroTech Systems",
-    type: "RECEIPT",
-    amount: 48500,
-    method: "WIRE",
-    paymentDate: "2026-02-04",
-  },
-  {
-    id: "pay-2",
-    paymentNumber: "PAY-2026-102",
-    partyName: "Precision Steel Alloys",
-    type: "PAYMENT",
-    amount: 12900,
-    method: "BANK_TRANSFER",
-    paymentDate: "2026-02-02",
-  },
-];
-
 export default function PaymentsPage() {
-  const [payments] = React.useState<PaymentVoucher[]>(mockPayments);
+  const [payments, setPayments] = React.useState<PaymentDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const columns: ColumnDef<PaymentVoucher>[] = [
+  React.useEffect(() => {
+    financeApi
+      .getPayments()
+      .then((data) => {
+        setPayments(data);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : "Failed to load payments");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const columns: ColumnDef<PaymentDto>[] = [
     {
       accessorKey: "paymentNumber",
       header: "Payment Voucher No.",
@@ -54,19 +40,19 @@ export default function PaymentsPage() {
       ),
     },
     {
-      accessorKey: "partyName",
+      accessorKey: "reference",
       header: "Customer / Supplier Party",
       cell: ({ row }) => (
         <span className="font-medium text-foreground">
-          {row.original.partyName}
+          {row.original.reference || "Not linked"}
         </span>
       ),
     },
     {
-      accessorKey: "type",
+      accessorKey: "paymentType",
       header: "Voucher Type",
       cell: ({ row }) => {
-        const isReceipt = row.original.type === "RECEIPT";
+        const isReceipt = row.original.paymentType === "CUSTOMER_PAYMENT";
         return (
           <span
             className={`font-mono text-xs px-2 py-0.5 rounded font-semibold border ${
@@ -75,7 +61,7 @@ export default function PaymentsPage() {
                 : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
             }`}
           >
-            {isReceipt ? "Customer Receipt" : "Vendor Payment"}
+            {row.original.paymentType}
           </span>
         );
       },
@@ -90,53 +76,69 @@ export default function PaymentsPage() {
       ),
     },
     {
-      accessorKey: "method",
+      accessorKey: "paymentMethod",
       header: "Payment Method",
       cell: ({ row }) => (
         <span className="font-mono text-xs text-muted-foreground">
-          {row.original.method}
+          {row.original.paymentMethod}
         </span>
       ),
     },
     {
-      accessorKey: "paymentDate",
+      accessorKey: "createdAt",
       header: "Payment Date",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {formatDate(row.original.paymentDate)}
+          {formatDate(row.original.createdAt)}
         </span>
       ),
     },
   ];
+
+  if (loading) {
+  return <LoadingState message="Loading payments..." />;
+  }
+
+  if (error) {
+  return (
+    <ErrorState
+      title="Payments unavailable"
+      message={error}
+      onRetry={() => window.location.reload()}
+    />
+  );
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Payments & Customer Cash Receipts"
         description="Record incoming customer receipts, vendor disbursements, and bank wire transfers."
-        actions={
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Record Payment Voucher
-          </Button>
-        }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
           title="Total Transactions Logged"
           value={payments.length}
-          icon={<DollarSign className="w-4 h-4 text-primary" />}
+          icon={DollarSign}
         />
         <StatCard
           title="Customer Cash Receipts"
-          value={formatCurrency(48500)}
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          value={formatCurrency(
+            payments
+              .filter((payment) => payment.paymentType === "CUSTOMER_PAYMENT")
+              .reduce((sum, payment) => sum + payment.amount, 0),
+          )}
+          icon={CheckCircle2}
         />
         <StatCard
           title="Vendor Disbursements"
-          value={formatCurrency(12900)}
-          icon={<CheckCircle2 className="w-4 h-4 text-blue-500" />}
+          value={formatCurrency(
+            payments
+              .filter((payment) => payment.paymentType === "SUPPLIER_PAYMENT")
+              .reduce((sum, payment) => sum + payment.amount, 0),
+          )}
+          icon={CheckCircle2}
         />
       </div>
 
@@ -144,6 +146,9 @@ export default function PaymentsPage() {
         data={payments}
         columns={columns}
         searchPlaceholder="Search payments by voucher # or party..."
+        loading={false}
+        emptyTitle="No payments"
+        emptyMessage="No payment records are available."
       />
     </div>
   );

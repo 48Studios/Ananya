@@ -36,7 +36,7 @@ export default function MrpPage() {
     try {
       const result = await mrpApi.executeRun();
       setBanner({
-        message: `MRP Calculation Engine finished run "${result.runNumber}". Processed ${result.itemsProcessed} SKUs.`,
+        message: `MRP Calculation Engine finished run "${result.runNumber}".`,
         type: "success",
       });
       fetchRequirements();

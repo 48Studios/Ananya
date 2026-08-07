@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Play, CheckCircle2, Eye, Loader2 } from "lucide-react";
+import { Play, CheckCircle2, Eye, Loader2, Clock3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -72,29 +72,31 @@ export default function MrpRunsPage() {
       ),
     },
     {
-      accessorKey: "executedBy",
+      accessorKey: "startedBy",
       header: "Triggered By",
       cell: ({ row }) => (
         <span className="font-medium text-foreground">
-          {row.original.executedBy || "System"}
+          {row.original.startedBy || "System"}
         </span>
       ),
     },
     {
-      accessorKey: "itemsProcessed",
-      header: "Items Analyzed",
+      accessorKey: "horizonDays",
+      header: "Planning Horizon",
       cell: ({ row }) => (
         <span className="font-mono text-xs text-foreground">
-          {row.original.itemsProcessed || 0} SKUs
+          {row.original.horizonDays || 0} days
         </span>
       ),
     },
     {
-      accessorKey: "plannedOrdersCreated",
-      header: "Planned Orders Output",
+      accessorKey: "completedAt",
+      header: "Completed At",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
-          {row.original.plannedOrdersCreated || 0} orders
+          {row.original.completedAt
+            ? formatDate(row.original.completedAt)
+            : "Pending"}
         </span>
       ),
     },
@@ -109,11 +111,11 @@ export default function MrpRunsPage() {
       ),
     },
     {
-      accessorKey: "timestamp",
+      accessorKey: "createdAt",
       header: "Run Date",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {row.original.timestamp ? formatDate(row.original.timestamp) : "-"}
+          {row.original.createdAt ? formatDate(row.original.createdAt) : "-"}
         </span>
       ),
     },
@@ -167,9 +169,9 @@ export default function MrpRunsPage() {
           icon={CheckCircle2}
         />
         <StatCard
-          title="Run Success Rate"
-          value={runs.length > 0 ? `${Math.round((completedCount / runs.length) * 100)}% Verified` : "100% Verified"}
-          icon={CheckCircle2}
+          title="Active Runs"
+          value={runs.filter((run) => run.status === "IN_PROGRESS").length}
+          icon={Clock3}
         />
       </div>
 

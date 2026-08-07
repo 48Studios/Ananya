@@ -6,69 +6,65 @@ import { TrendingUp, CheckCircle2, DollarSign } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
-import { reportingApi } from "@/lib/api/reporting-api";
+import { ChartCard } from "@/components/charts/chart-card";
+import { AreaChartWidget } from "@/components/charts/area-chart-widget";
+import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import {
+  reportingApi,
+  type CashFlowForecastDto,
+  type CashFlowForecastPeriodDto,
+} from "@/lib/api/reporting-api";
 import { formatCurrency } from "@/lib/utils";
 
-interface CashFlowProjection {
-  id: string;
-  period: string;
-  projectedInflow: number;
-  projectedOutflow: number;
-  netCashFlow: number;
-  endingLiquidityReserve: number;
-}
-
 export default function ProjectionsPage() {
-  const [projections, setProjections] = React.useState<CashFlowProjection[]>([]);
+  const [forecast, setForecast] = React.useState<CashFlowForecastDto | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    reportingApi
-      .getProcurementSummary()
-      .then((summary) => {
-        const baseInflow = (summary?.totalProcurementSpend || 250000) * 1.4;
-        const baseOutflow = summary?.fulfilledSpend || 180000;
-
-        const months = ["Current Month", "Next Month", "Quarter 2 Projection"];
-        const generated: CashFlowProjection[] = months.map((period, i) => {
-          const inflow = Math.round(baseInflow * (1 + i * 0.08));
-          const outflow = Math.round(baseOutflow * (1 + i * 0.04));
-          const netFlow = inflow - outflow;
-          const reserve = 450000 + netFlow * (i + 1);
-          return {
-            id: `proj-${i + 1}`,
-            period,
-            projectedInflow: inflow,
-            projectedOutflow: outflow,
-            netCashFlow: netFlow,
-            endingLiquidityReserve: reserve,
-          };
-        });
-        setProjections(generated);
-      })
-      .catch(() => {
-        setProjections([]);
-      })
-      .finally(() => setLoading(false));
+  const loadForecast = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setForecast(await reportingApi.getCashFlowForecast());
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load cash flow forecast",
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  React.useEffect(() => {
+    loadForecast();
+  }, [loadForecast]);
+
   const totalProjectedNet = React.useMemo(
-    () => projections.reduce((acc, p) => acc + p.netCashFlow, 0),
-    [projections],
+    () =>
+      (forecast?.periods ?? []).reduce(
+        (acc, period) => acc + period.netCashFlow,
+        0,
+      ),
+    [forecast],
   );
 
   const endingReserve = React.useMemo(
-    () => (projections.length > 0 ? projections[projections.length - 1]!.endingLiquidityReserve : 0),
-    [projections],
+    () =>
+      forecast?.periods.length
+        ? forecast.periods[forecast.periods.length - 1]?.endingLiquidityReserve ?? 0
+        : 0,
+    [forecast],
   );
 
-  const columns: ColumnDef<CashFlowProjection>[] = [
+  const columns: ColumnDef<CashFlowForecastPeriodDto>[] = [
     {
-      accessorKey: "period",
+      accessorKey: "periodLabel",
       header: "Forecast Month",
       cell: ({ row }) => (
         <span className="font-semibold text-xs text-primary">
-          {row.original.period}
+          {row.original.periodLabel}
         </span>
       ),
     },
@@ -104,11 +100,32 @@ export default function ProjectionsPage() {
       header: "Ending Reserve Balance",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
-          {formatCurrency(row.original.endingLiquidityReserve)}
+          {row.original.endingLiquidityReserve === null
+            ? "Unavailable"
+            : formatCurrency(row.original.endingLiquidityReserve)}
         </span>
       ),
     },
   ];
+
+  if (loading) {
+    return <LoadingState message="Loading financial projections..." />;
+  }
+
+  if (error || !forecast) {
+    return (
+      <ErrorState
+        title="Forecast unavailable"
+        message={error || "Unable to load cash flow forecast data."}
+        onRetry={loadForecast}
+      />
+    );
+  }
+
+  const chartData = forecast.periods.map((period) => ({
+    name: period.periodLabel,
+    value: period.netCashFlow,
+  }));
 
   return (
     <div className="space-y-6">
@@ -130,18 +147,38 @@ export default function ProjectionsPage() {
         />
         <StatCard
           title="Model Forecast Engine"
-          value={projections.length > 0 ? "Live API Forecast" : "Calculating..."}
+          value={forecast.periods.length > 0 ? "Real due-date forecast" : "No forecast available"}
           icon={CheckCircle2}
         />
       </div>
 
+      <ChartCard
+        title="Net cash flow outlook"
+        subtitle="Derived from posted receivable and payable balances with future due dates"
+      >
+        {forecast.periods.length > 0 ? (
+          <AreaChartWidget data={chartData} color="#0ea5e9" height={220} />
+        ) : (
+          <EmptyState
+            title="No forecast available"
+            description={
+              forecast.insufficientDataReason ||
+              "There is not enough transactional history to produce a forecast."
+            }
+          />
+        )}
+      </ChartCard>
+
       <EntityDataTable
-        data={projections}
+        data={forecast.periods}
         columns={columns}
         searchPlaceholder="Search projection periods..."
-        loading={loading}
+        loading={false}
         emptyTitle="No Projections Available"
-        emptyMessage="Financial projection data is currently being calculated."
+        emptyMessage={
+          forecast.insufficientDataReason ||
+          "There is not enough transactional history to produce a forecast."
+        }
       />
     </div>
   );

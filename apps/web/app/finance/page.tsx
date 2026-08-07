@@ -6,59 +6,57 @@ import { Landmark, TrendingUp, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { ErrorState } from "@/components/ui/error-state";
+import { LoadingState } from "@/components/ui/loading-state";
+import { reportingApi, type FinancialSummaryDto } from "@/lib/api/reporting-api";
 import { formatCurrency } from "@/lib/utils";
 
 interface FinanceSummaryCategory {
-  id: string;
-  accountCategory: string;
   accountType: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
-  totalBalance: number;
+  totalAccounts: number;
   activeAccountsCount: number;
 }
 
-const mockFinanceCategories: FinanceSummaryCategory[] = [
-  {
-    id: "f-1",
-    accountCategory: "Current Cash & Bank Reserves",
-    accountType: "ASSET",
-    totalBalance: 485000,
-    activeAccountsCount: 4,
-  },
-  {
-    id: "f-2",
-    accountCategory: "Accounts Receivable (Customer Balances)",
-    accountType: "ASSET",
-    totalBalance: 124500,
-    activeAccountsCount: 12,
-  },
-  {
-    id: "f-3",
-    accountCategory: "Accounts Payable (Vendor Liabilities)",
-    accountType: "LIABILITY",
-    totalBalance: 68400,
-    activeAccountsCount: 8,
-  },
-  {
-    id: "f-4",
-    accountCategory: "Operating Revenue YTD",
-    accountType: "REVENUE",
-    totalBalance: 890000,
-    activeAccountsCount: 5,
-  },
-];
-
 export default function FinancePage() {
-  const [categories] = React.useState<FinanceSummaryCategory[]>(
-    mockFinanceCategories,
+  const [summary, setSummary] = React.useState<FinancialSummaryDto | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const loadSummary = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setSummary(await reportingApi.getFinancialSummary());
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load finance summary",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadSummary();
+  }, [loadSummary]);
+
+  const categories = React.useMemo<FinanceSummaryCategory[]>(
+    () =>
+      (summary?.accountTypeDistribution ?? []).map((item) => ({
+        accountType: item.accountType,
+        totalAccounts: item.totalAccounts,
+        activeAccountsCount: item.activeAccounts,
+      })),
+    [summary],
   );
 
   const columns: ColumnDef<FinanceSummaryCategory>[] = [
     {
-      accessorKey: "accountCategory",
+      accessorKey: "accountType",
       header: "GL Category",
       cell: ({ row }) => (
         <span className="font-semibold text-xs text-primary">
-          {row.original.accountCategory}
+          {row.original.accountType}
         </span>
       ),
     },
@@ -81,15 +79,29 @@ export default function FinancePage() {
       ),
     },
     {
-      accessorKey: "totalBalance",
-      header: "Category Balance",
+      accessorKey: "totalAccounts",
+      header: "Accounts Tracked",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
-          {formatCurrency(row.original.totalBalance)}
+          {row.original.totalAccounts}
         </span>
       ),
     },
   ];
+
+  if (loading) {
+    return <LoadingState message="Loading finance summary..." />;
+  }
+
+  if (error || !summary) {
+    return (
+      <ErrorState
+        title="Finance summary unavailable"
+        message={error || "Unable to load finance analytics."}
+        onRetry={loadSummary}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -100,19 +112,19 @@ export default function FinancePage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          title="Total Cash & Reserves"
-          value={formatCurrency(485000)}
-          icon={<Landmark className="w-4 h-4 text-primary" />}
+          title="Receivables Outstanding"
+          value={formatCurrency(summary.receivablesOutstanding)}
+          icon={Landmark}
         />
         <StatCard
-          title="YTD Revenue"
-          value={formatCurrency(890000)}
-          icon={<TrendingUp className="w-4 h-4 text-emerald-500" />}
+          title="Payables Outstanding"
+          value={formatCurrency(summary.payablesOutstanding)}
+          icon={TrendingUp}
         />
         <StatCard
-          title="Ledger Integrity"
-          value="100% Reconciled"
-          icon={<CheckCircle2 className="w-4 h-4 text-blue-500" />}
+          title="Open Reconciliations"
+          value={summary.openReconciliations}
+          icon={CheckCircle2}
         />
       </div>
 
@@ -120,6 +132,9 @@ export default function FinancePage() {
         data={categories}
         columns={columns}
         searchPlaceholder="Search finance categories..."
+        loading={false}
+        emptyTitle="No finance accounts"
+        emptyMessage="No ledger accounts have been configured yet."
       />
     </div>
   );

@@ -40,7 +40,7 @@ export default function MrpPurchasesPage() {
       header: "Suggested Vendor",
       cell: ({ row }) => (
         <span className="font-medium text-foreground">
-          {row.original.supplierName || "Primary Vendor"}
+          {row.original.supplierName || "Unassigned supplier"}
         </span>
       ),
     },
@@ -98,7 +98,11 @@ export default function MrpPurchasesPage() {
         />
         <StatCard
           title="Vendor Allocation"
-          value={orders.length > 0 ? `${orders.length} Matched` : "No Orders Pending"}
+          value={
+            orders.length > 0
+              ? `${orders.filter((order) => order.supplierName).length} assigned`
+              : "No Orders Pending"
+          }
           icon={CheckCircle2}
         />
       </div>
