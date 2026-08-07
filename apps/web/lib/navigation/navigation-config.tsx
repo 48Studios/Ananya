@@ -519,12 +519,6 @@ export const navigationModules: NavigationModule[] = [
             icon: <Wrench className="w-4 h-4" />,
           },
           {
-            id: "proj-maint",
-            title: "Equipment Maintenance",
-            href: "/maintenance",
-            icon: <Wrench className="w-4 h-4" />,
-          },
-          {
             id: "proj-warranty",
             title: "Warranty Tracking",
             href: "/warranty",

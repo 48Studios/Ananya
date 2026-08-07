@@ -1,7 +1,6 @@
-"use client";
-
-import MaintenancePage from "../maintenance/page";
+import { redirect } from "next/navigation";
 
 export default function EquipmentAliasPage() {
-  return <MaintenancePage />;
+  redirect("/maintenance");
 }
+

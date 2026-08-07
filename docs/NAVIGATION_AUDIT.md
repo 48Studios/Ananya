@@ -131,6 +131,7 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Work Orders` (`/work-orders`): Shop floor execution jobs.
   - `Material Consumption` (`/material-consumption`): Raw material staging & issue.
   - `Finished Goods` (`/finished-goods`): Production completion & FG receipt.
+  - `Equipment Maintenance` (`/maintenance`): Equipment maintenance jobs and machine calibration schedules.
 
 ### 3.5 Sales Module (`sales`)
 
@@ -196,7 +197,6 @@ Ananya ERP employs a dual-panel layout shell backed by Next.js 16 App Router, Re
   - `Service Requests` (`/service`): Field service and support tickets.
   - `RMA` (`/rma`): Return Material Authorization.
   - `Warranty` (`/warranty`): Warranty claim tracking.
-  - `Maintenance` (`/maintenance`): Equipment maintenance jobs.
 
 ### 3.10 MRP & Planning Module (`mrp`)
 
@@ -315,7 +315,8 @@ Ananya ERP System Shell
 │   ├── Production Orders (/production-orders)
 │   ├── Work Orders (/work-orders)
 │   ├── Material Consumption (/material-consumption)
-│   └── Finished Goods (/finished-goods)
+│   ├── Finished Goods (/finished-goods)
+│   └── Equipment Maintenance (/maintenance)
 ├── Sales (/sales) [Permission: Sales.Read]
 │   ├── Overview (/sales)
 │   ├── Customers (/customers)
@@ -350,8 +351,7 @@ Ananya ERP System Shell
 │   ├── Timesheets (/time)
 │   ├── Service Requests (/service)
 │   ├── RMA (/rma)
-│   ├── Warranty (/warranty)
-│   └── Maintenance (/maintenance)
+│   └── Warranty (/warranty)
 ├── MRP & Planning (/mrp) [Permission: MRP.Read]
 │   ├── Overview (/mrp)
 │   ├── Planning Runs (/mrp/runs)

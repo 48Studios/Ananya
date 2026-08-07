@@ -124,10 +124,18 @@ export default function ServicePage() {
         title="Field Service & Technical Support Tickets"
         description="Manage customer field service requests, engineer dispatches, asset repairs, and SLA resolution times."
         actions={
-          <Button size="sm" onClick={() => setIsFormOpen(true)}>
-            <Plus className="w-4 h-4 mr-1.5" />
-            New Service Ticket
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link href="/maintenance">
+              <Button variant="outline" size="sm">
+                <Wrench className="w-4 h-4 mr-1.5" />
+                Equipment Maintenance
+              </Button>
+            </Link>
+            <Button size="sm" onClick={() => setIsFormOpen(true)}>
+              <Plus className="w-4 h-4 mr-1.5" />
+              New Service Ticket
+            </Button>
+          </div>
         }
       />
 

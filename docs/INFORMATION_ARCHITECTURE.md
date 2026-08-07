@@ -86,6 +86,7 @@ Ananya ERP is an enterprise operations system designed for high-density workflow
   - `Work Orders` (`/work-orders`)
   - `Material Consumption` (`/material-consumption`)
   - `Finished Goods` (`/finished-goods`)
+  - `Equipment Maintenance` (`/maintenance`)
   - `MRP & Material Planning` (`/mrp` — Submenu: Planning Overview, Planning Runs, Material Shortages, Purchase Recommendations, Production Recommendations, Capacity Planning)
 
 ### 3.5 📁 Projects & Services Workspace (`projects`)
@@ -97,7 +98,6 @@ Ananya ERP is an enterprise operations system designed for high-density workflow
   - `Tasks` (`/tasks`)
   - `Timesheets` (`/time`)
   - `Service Requests` (`/service`)
-  - `Equipment Maintenance` (`/maintenance`)
   - `Warranty Tracking` (`/warranty`)
   - `RMA Returns` (`/rma`)
 
