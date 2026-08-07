@@ -293,7 +293,7 @@ export default function ViewBomPage() {
         onOpenChange={setIsEditOpen}
         title="Edit Draft BOM"
         description={`Update draft BOM revision "${bom.revision}" before releasing it for production use.`}
-        size="md"
+        size="sm"
       >
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <BomForm

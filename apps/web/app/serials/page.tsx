@@ -240,7 +240,7 @@ export default function SerialsPage() {
             ? "Update serial number assignment, storage path, or lifecycle status."
             : "Register individual serial numbers, component tracking, and storage location paths."
         }
-        size="md"
+        size="sm"
       >
         <SerialForm
           initialData={editingSerial}

@@ -259,7 +259,7 @@ export default function PurchaseInvoicesPage() {
             ? "Update vendor invoice details, purchase order references, or payment status."
             : "Process new vendor invoices, match purchase orders, and schedule accounts payable."
         }
-        size="md"
+        size="sm"
       >
         <PurchaseInvoiceForm
           initialData={editingInvoice}

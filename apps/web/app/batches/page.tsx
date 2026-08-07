@@ -258,7 +258,7 @@ export default function BatchesPage() {
             ? "Update material batch details, expiry dates, and lot status."
             : "Register a new material batch, lot manufacture dates, and quarantine holds."
         }
-        size="md"
+        size="sm"
       >
         <BatchForm
           initialData={editingBatch}

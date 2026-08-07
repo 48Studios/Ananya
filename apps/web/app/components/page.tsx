@@ -342,7 +342,7 @@ export default function ComponentsPage() {
             ? `Update component "${editingComponent.sku}" using the standardized dialog composition.`
             : "Create a new inventory component with shared header, scrollable body, and footer actions."
         }
-        size="md"
+        size="sm"
       >
         <ComponentForm
           initialData={editingComponent}

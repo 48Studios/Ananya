@@ -101,7 +101,7 @@ export function ExportDialog({
       }}
       title={`Export ${entityType} Data`}
       description={`Choose the export format, scope, and columns for the ${entityType.toLowerCase()} dataset.`}
-      size="md"
+      size="sm"
       closeDisabled={loading}
     >
       <DialogShellBody className="space-y-5">

@@ -281,7 +281,7 @@ export default function StockAdjustmentsPage() {
         onOpenChange={setIsFormOpen}
         title="Create Stock Adjustment"
         description="Record a stock variance with its location, justification, and reconciled component line items before approval."
-        size="md"
+        size="sm"
       >
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <StockAdjustmentForm

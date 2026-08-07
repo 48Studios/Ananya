@@ -99,7 +99,7 @@ export function WorkflowBuilder({
       }}
       title="Create Automation Rule"
       description="Define the trigger, conditions, and notification action for a new workflow automation rule."
-      size="md"
+      size="sm"
       closeDisabled={loading}
     >
       <DialogShellBody className="space-y-4">

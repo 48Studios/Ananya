@@ -295,7 +295,7 @@ export default function UnitsPage() {
             ? "Update unit symbol, category, and decimal precision."
             : "Define standard units of measure, precision scales, and conversion rules."
         }
-        size="md"
+        size="sm"
       >
         <UnitForm
           initialData={editingUnit}

@@ -219,7 +219,7 @@ export default function WarehousePoliciesPage() {
             ? "Update picking rules (FIFO/FEFO) and putaway strategies."
             : "Define picking strategies and automated putaway rules for warehouse facilities."
         }
-        size="md"
+        size="sm"
       >
         <WarehousePolicyForm
           initialData={editingPolicy}

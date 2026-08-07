@@ -358,7 +358,7 @@ export default function ViewComponentPage() {
         onOpenChange={setIsEditOpen}
         title="Edit Component"
         description={`Update component "${component.sku}" using the standardized dialog composition.`}
-        size="md"
+        size="sm"
       >
         <ComponentForm
           initialData={component}

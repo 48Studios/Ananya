@@ -331,7 +331,7 @@ export default function UsersListPage() {
             ? "Update user identity, department, and role assignment using the standard administration dialog layout."
             : "Create a new user account with consistent dialog structure and footer actions."
         }
-        size="md"
+        size="sm"
       >
         <form onSubmit={handleSaveUser} className="flex min-h-0 flex-1 flex-col">
           <DialogShellBody className="space-y-3">

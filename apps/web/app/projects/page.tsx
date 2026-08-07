@@ -393,7 +393,7 @@ export default function ProjectsPage() {
             ? `Update project "${editingProject.projectNumber}" with current ownership, dates, and priority.`
             : "Create a project with ownership, schedule, and priority details for downstream planning."
         }
-        size="md"
+        size="sm"
       >
         <ProjectForm
           initialData={editingProject}

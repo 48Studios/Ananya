@@ -354,7 +354,7 @@ export default function BomsPage() {
             ? `Update draft BOM revision "${editingBom.revision}" before releasing it for production use.`
             : "Create a bill of materials with a finished product, revision, and required component structure."
         }
-        size="md"
+        size="sm"
       >
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <BomForm

@@ -391,7 +391,7 @@ export default function CycleCountsPage() {
             ? `Update draft cycle count "${editingCount.countNumber}" before assigning or starting the physical count.`
             : "Create a cycle count scope with its location, assigned counter, and inventory lines to verify."
         }
-        size="md"
+        size="sm"
       >
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <CycleCountForm

@@ -98,7 +98,7 @@ export function VersionHistoryDialog({
       }}
       title="Document Version History"
       description={`${document.fileName} currently tracks version ${document.currentVersion}. Review or upload replacement revisions here.`}
-      size="md"
+      size="sm"
       closeDisabled={isUploading}
     >
       <DialogShellBody className="space-y-5">

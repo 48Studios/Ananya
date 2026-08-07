@@ -359,7 +359,7 @@ export default function ViewWarehouseTransferPage() {
         onOpenChange={setIsEditOpen}
         title="Edit Draft Warehouse Transfer"
         description={`Update draft transfer "${transfer.transferNumber}" before dispatching stock between facilities.`}
-        size="md"
+        size="sm"
       >
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <WarehouseTransferForm

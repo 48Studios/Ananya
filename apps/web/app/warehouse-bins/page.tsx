@@ -207,7 +207,7 @@ export default function WarehouseBinsPage() {
             ? "Update aisle, rack, and shelf bin path configuration."
             : "Configure aisle, rack, and shelf bin paths for high-density inventory putaway."
         }
-        size="md"
+        size="sm"
       >
         <LocationForm
           initialData={editingBin}

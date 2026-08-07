@@ -344,7 +344,7 @@ export default function ViewCycleCountPage() {
         onOpenChange={setIsEditOpen}
         title="Edit Draft Cycle Count"
         description={`Update draft cycle count "${cycleCount.countNumber}" before assigning or starting the physical count.`}
-        size="md"
+        size="sm"
       >
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <CycleCountForm

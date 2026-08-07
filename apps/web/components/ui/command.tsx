@@ -45,7 +45,7 @@ function CommandDialog({
       onOpenChange={onOpenChange}
       title={title}
       description={description}
-      size="md"
+      size="sm"
       contentClassName="sm:max-w-2xl"
     >
       <DialogShellBody className="p-0">

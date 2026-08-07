@@ -122,7 +122,7 @@ export function RecordCountsModal({
       }}
       title={`Record Physical Counts — ${cycleCount.countNumber}`}
       description="Enter actual warehouse floor quantities. System quantities remain read-only for variance review."
-      size="md"
+      size="sm"
       closeDisabled={isSubmitting}
     >
       <form

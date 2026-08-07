@@ -395,7 +395,7 @@ export default function WarehouseTransfersPage() {
             ? `Update draft transfer "${editingTransfer.transferNumber}" before dispatching stock between facilities.`
             : "Create a warehouse transfer with source and destination locations, requested date, and line items."
         }
-        size="md"
+        size="sm"
       >
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <WarehouseTransferForm

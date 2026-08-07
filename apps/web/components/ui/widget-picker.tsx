@@ -36,7 +36,7 @@ export function WidgetPicker({
       }}
       title="Customize Dashboard Widgets"
       description="Choose which widgets remain visible in your personal dashboard workspace."
-      size="md"
+      size="sm"
     >
       <DialogShellBody className="space-y-4">
         <div className="flex items-center gap-2 text-primary">

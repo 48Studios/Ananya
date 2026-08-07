@@ -366,7 +366,7 @@ export default function ViewReservationPage() {
         onOpenChange={setIsEditOpen}
         title="Edit Inventory Reservation"
         description={`Revise reservation "${reservation.reservationNumber}" using the shared inventory dialog shell.`}
-        size="md"
+        size="sm"
       >
         <ReservationForm
           initialData={reservation}

@@ -413,7 +413,7 @@ export default function ViewProjectPage() {
       }}
       title={title}
       description={description}
-      size="md"
+      size="sm"
     >
       <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
         <DialogShellBody className="space-y-3">
@@ -621,7 +621,7 @@ export default function ViewProjectPage() {
         onOpenChange={setIsEditOpen}
         title="Edit Project"
         description={`Update project "${project.projectNumber}" with current ownership, dates, and priority.`}
-        size="md"
+        size="sm"
       >
         <ProjectForm
           initialData={project}

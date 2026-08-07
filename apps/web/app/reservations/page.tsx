@@ -407,7 +407,7 @@ export default function ReservationsPage() {
             ? `Update reservation "${editingReservation.reservationNumber}" while preserving its active hold details.`
             : "Create an inventory reservation with its purpose, reference document, and held stock lines."
         }
-        size="md"
+        size="sm"
       >
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <ReservationForm

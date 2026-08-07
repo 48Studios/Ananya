@@ -264,7 +264,7 @@ export default function WarehousePage() {
             ? "Update warehouse facility code, name, or storage hierarchy parent."
             : "Configure warehouse facilities, storage areas, and putaway zones."
         }
-        size="md"
+        size="sm"
       >
         <LocationForm
           initialData={editingLocation}
