@@ -3,6 +3,8 @@ services:
     image: postgres:16-alpine
     container_name: ananya-postgres
     restart: unless-stopped
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ananya}
       POSTGRES_USER: ${POSTGRES_USER:-ananya}
@@ -22,6 +24,8 @@ services:
     container_name: ananya-redis
     restart: unless-stopped
     command: redis-server --save 60 1 --loglevel notice
+    ports:
+      - "6379:6379"
     volumes:
       - ananya_redis_data:/data
     networks:
@@ -72,6 +76,8 @@ services:
     image: ${ANANYA_REGISTRY:-ghcr.io/48studios}/ananya-worker:${ANANYA_VERSION:-edge}
     container_name: ananya-worker
     restart: unless-stopped
+    ports:
+      - "4001:4001"
     environment:
       NODE_ENV: production
       WORKER_PORT: 4001

@@ -47,34 +47,67 @@ jobs:
         run: pnpm build
 
   smoke-test:
-    name: Container Startup & Health Smoke Test
+    name: Production Stack Docker Integration Test
     needs: quality-gates
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Build Local Container Images
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Boot Infrastructure Services (PostgreSQL & Redis)
         run: |
-          docker build -f docker/Dockerfile.api -t ananya-api:smoke .
-          docker build -f docker/Dockerfile.web -t ananya-web:smoke .
-          docker build -f docker/Dockerfile.worker -t ananya-worker:smoke .
+          echo "=== 1. Starting PostgreSQL & Redis ==="
+          docker compose -f compose.prod.yaml up -d postgres redis
 
-      - name: Boot Containers & Test Health Endpoints
+          echo "=== 2. Waiting for PostgreSQL & Redis Readiness ==="
+          for i in {1..30}; do
+            if docker compose -f compose.prod.yaml exec -T postgres pg_isready -U ananya -d ananya 2>/dev/null; then
+              echo "✅ PostgreSQL is ready!"
+              break
+            fi
+            echo "Waiting for PostgreSQL ($i/30)..."
+            sleep 2
+          done
+
+          for i in {1..30}; do
+            if docker compose -f compose.prod.yaml exec -T redis redis-cli ping 2>/dev/null | grep -q PONG; then
+              echo "✅ Redis is ready!"
+              break
+            fi
+            echo "Waiting for Redis ($i/30)..."
+            sleep 2
+          done
+
+      - name: Run Database Setup & Migrations
         run: |
-          echo "=== 1. Booting Containers ==="
-          docker run -d --name smoke-api -p 4000:4000 -e PORT=4000 ananya-api:smoke
-          docker run -d --name smoke-web -p 3000:3000 -e PORT=3000 ananya-web:smoke
-          docker run -d --name smoke-worker -p 4001:4001 -e WORKER_PORT=4001 ananya-worker:smoke
+          echo "=== 3. Executing Database Migrations ==="
+          DATABASE_URL="postgres://ananya:ananya_secure_password@localhost:5432/ananya" pnpm --filter @ananya/database db:setup
 
-          echo "=== 2. Container Status (docker ps -a) ==="
-          docker ps -a
+      - name: Boot Application Stack & Run Health Checks
+        run: |
+          echo "=== 4. Booting Application Stack (API, Worker, Web) ==="
+          docker compose -f compose.prod.yaml up --build -d api worker web
 
-          echo "=== 3. Waiting 5s for process initialization ==="
+          echo "=== 5. Container Status (docker compose ps -a) ==="
+          docker compose -f compose.prod.yaml ps -a
+
+          echo "=== 6. Waiting 5s for process initialization ==="
           sleep 5
 
-          echo "=== 4. Checking Container Exit States ==="
-          containers=("smoke-api" "smoke-web" "smoke-worker")
+          echo "=== 7. Checking Service Exit States ==="
+          containers=("ananya-postgres" "ananya-redis" "ananya-api" "ananya-worker" "ananya-web")
           for c in "${containers[@]}"; do
             running=$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo "false")
             exit_code=$(docker inspect -f '{{.State.ExitCode}}' "$c" 2>/dev/null || echo "1")
@@ -89,41 +122,34 @@ jobs:
             fi
           done
 
-          echo "=== 5. Container Logs Output ==="
-          for c in "${containers[@]}"; do
-            echo "--- Logs for '$c' ---"
-            docker logs "$c"
-            echo "------------------------"
-          done
-
-          echo "=== 6. Health Probes Verification ==="
+          echo "=== 8. Health Probes Verification ==="
           echo "Probing API Health (http://localhost:4000/health)..."
-          if ! curl --fail --retry 5 --retry-delay 2 --retry-connrefused http://localhost:4000/health; then
-            echo "❌ API Health Probe Failed! Checking container logs..."
-            docker logs smoke-api
-            exit 1
-          fi
-
-          echo "Probing Web Health (http://localhost:3000/api/health)..."
-          if ! curl --fail --retry 5 --retry-delay 2 --retry-connrefused http://localhost:3000/api/health; then
-            echo "❌ Web Health Probe Failed! Checking container logs..."
-            docker logs smoke-web
+          if ! curl --fail --retry 10 --retry-delay 3 --retry-connrefused http://localhost:4000/health; then
+            echo "❌ API Health Probe Failed! Logs:"
+            docker logs ananya-api
             exit 1
           fi
 
           echo "Probing Worker Health (http://localhost:4001/health)..."
-          if ! curl --fail --retry 5 --retry-delay 2 --retry-connrefused http://localhost:4001/health; then
-            echo "❌ Worker Health Probe Failed! Checking container logs..."
-            docker logs smoke-worker
+          if ! curl --fail --retry 10 --retry-delay 3 --retry-connrefused http://localhost:4001/health; then
+            echo "❌ Worker Health Probe Failed! Logs:"
+            docker logs ananya-worker
             exit 1
           fi
 
-          echo "✅ All container startup and health probes passed cleanly!"
+          echo "Probing Web Health (http://localhost:3000/api/health)..."
+          if ! curl --fail --retry 10 --retry-delay 3 --retry-connrefused http://localhost:3000/api/health; then
+            echo "❌ Web Health Probe Failed! Logs:"
+            docker logs ananya-web
+            exit 1
+          fi
 
-      - name: Cleanup Smoke Containers
+          echo "✅ Full production integration smoke test passed cleanly!"
+
+      - name: Cleanup Production Stack
         if: always()
         run: |
-          docker rm -f smoke-api smoke-web smoke-worker || true
+          docker compose -f compose.prod.yaml down -v --remove-orphans || true
 
   build-and-publish:
     name: Build & Publish Image (${{ matrix.service }})
