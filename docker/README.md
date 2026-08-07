@@ -1,14 +1,14 @@
-# Ananya ERP — Production Containerization & Deployment Guide
+# Ananya ERP — Production Containerization & Release Engineering Guide
 
-> **Release Candidate 1 (RC1) Daily Driver Documentation**
+> **Daily Driver Phase & Continuous Delivery Reference**
 >
-> This guide details how to build, deploy, manage, update, backup, and publish the Docker container suite for **Ananya ERP**.
+> This guide details how to build, deploy, manage, update, rollback, and publish multi-architecture container images for **Ananya ERP** using GitHub Container Registry (GHCR).
 
 ---
 
-## 🏗 Container Architecture
+## 🏗 Container Architecture & Registry
 
-Ananya ERP is containerized using a modular multi-service architecture. Each component is built from multi-stage Dockerfiles leveraging Turborepo dependency pruning (`turbo prune`) for minimal image sizes and non-root execution (`ananya` user, uid/gid 10001).
+Ananya ERP uses a modular multi-service container architecture. Production images are built as multi-architecture containers (`linux/amd64`, `linux/arm64`) using Docker Buildx and Turborepo dependency pruning (`turbo prune`) for minimal image size and non-root security (`ananya` user, `UID/GID 10001`).
 
 ```
                       ┌────────────────────────┐
@@ -19,7 +19,7 @@ Ananya ERP is containerized using a modular multi-service architecture. Each com
                   ┌───────────────┴───────────────┐
                   │                               │
         ┌─────────▼──────────┐         ┌──────────▼─────────┐
-        │  48studios/        │         │  48studios/        │
+        │  ghcr.io/48studios/│         │  ghcr.io/48studios/│
         │  ananya-web        │         │  ananya-api        │
         │  (Next.js :3000)   │         │  (NestJS :4000)    │
         └────────────────────┘         └──────────┬─────────┘
@@ -27,140 +27,142 @@ Ananya ERP is containerized using a modular multi-service architecture. Each com
                                  ┌────────────────┼────────────────┐
                                  │                │                │
                         ┌────────▼────────┐ ┌─────▼───────┐ ┌──────▼─────────┐
-                        │  48studios/     │ │ PostgreSQL  │ │ Redis          │
-                        │  ananya-worker  │ │ Database    │ │ Cache/Queue    │
-                        │  (Worker :4001) │ │ (:5432)     │ │ (:6379)        │
-                        └─────────────────┘ └─────────────┘ └────────────────┘
+                        │  ghcr.io/      │ │ PostgreSQL  │ │ Redis          │
+                        │  48studios/     │ │ Database    │ │ Cache/Queue    │
+                        │  ananya-worker  │ │ (:5432)     │ │ (:6379)        │
+                        │  (Worker :4001) │ └─────────────┘ └────────────────┘
+                        └─────────────────┘
 ```
 
-### Published Docker Hub Images
+### Published GHCR Images
 
-| Service           | Docker Hub Repository     | Description                                         | Exposed Port |
-| :---------------- | :------------------------ | :-------------------------------------------------- | :----------- |
-| **Web Interface** | `48studios/ananya-web`    | Next.js Standalone frontend UI                      | `3000`       |
-| **API Backend**   | `48studios/ananya-api`    | NestJS REST API server                              | `4000`       |
-| **Worker Engine** | `48studios/ananya-worker` | Background jobs (Notifications, Imports, Workflows) | `4001`       |
+| Service | GitHub Container Registry Path | Multi-Arch Platforms | Description |
+| :--- | :--- | :--- | :--- |
+| **Web Interface** | `ghcr.io/48studios/ananya-web` | `linux/amd64`, `linux/arm64` | Next.js Standalone frontend UI |
+| **API Backend** | `ghcr.io/48studios/ananya-api` | `linux/amd64`, `linux/arm64` | NestJS REST API server |
+| **Worker Engine** | `ghcr.io/48studios/ananya-worker` | `linux/amd64`, `linux/arm64` | Background job & workflow worker |
 
 ---
 
-## 🚀 Quick Start (Production Compose)
+## 🏷 Image Tagging Strategy
+
+| Tag Type | Image Tag Pattern | Trigger Event | `latest` Tag Behavior |
+| :--- | :--- | :--- | :--- |
+| **Edge Build** | `edge`, `sha-<commit-sha>` | Push to `main` branch | ❌ `latest` NOT modified |
+| **Release Candidate** | `rc1`, `rc2`, ... | Push to `release/*` branch | ❌ `latest` NOT modified |
+| **Official Release** | `vX.Y.Z`, `X.Y.Z`, `latest` | Git release tag `v*.*.*` | ✅ `latest` updated ONLY on official releases |
+
+---
+
+## 🔄 Release Engineering Lifecycle
+
+```
+ Developer Code Edit
+         │
+         ▼
+ Push to `main` Branch
+         │
+         ├───► GitHub Actions: `ci.yml` (Lint, Check-Types, Test, Build)
+         │
+         └───► GitHub Actions: `docker.yml` (Buildx Multi-Arch → GHCR `edge`, `sha-<commit>`)
+                     │
+                     ▼
+           Daily Driver Deployment (`docker compose pull && docker compose up -d`)
+                     │
+                     ▼
+           RC Validation & Testing (`release/rc1`)
+                     │
+                     ▼
+           Tag Git Release (`git tag v0.1.0 && git push origin v0.1.0`)
+                     │
+                     └───► GitHub Actions: `release.yml`
+                               ├───► Publish GHCR Images (`v0.1.0`, `0.1.0`, `latest`)
+                               └───► Create GitHub Release with Automated Release Notes
+```
+
+---
+
+## 🚀 Quick Start (Production Deployment via GHCR)
 
 ### 1. Configure Environment
-
-Copy `.env.example` to `.env` and update credentials:
-
+Copy `.env.example` to `.env` and set production secrets:
 ```bash
 cp .env.example .env
 ```
 
-### 2. Launch Production Stack
+### 2. Pull Latest Edge or Release Images
+```bash
+# Pull default 'edge' tag from GHCR
+docker compose -f compose.prod.yaml pull
 
+# Or pull a specific release tag
+ANANYA_VERSION=v0.1.0 docker compose -f compose.prod.yaml pull
+```
+
+### 3. Launch Production Stack
 ```bash
 docker compose -f compose.prod.yaml up -d
 ```
 
-### 3. Verify Health Status
-
-Check container health probes:
-
+### 4. Verify Service Probes
 ```bash
 docker compose -f compose.prod.yaml ps
 ```
-
-- **Web Endpoint**: `http://localhost:3000` (Healthcheck: `http://localhost:3000/api/health`)
-- **API Endpoint**: `http://localhost:4000` (Healthcheck: `http://localhost:4000/health`)
-- **Worker Endpoint**: `http://localhost:4001` (Healthcheck: `http://localhost:4001/health`)
+- **Web Endpoint**: `http://localhost:3000` (Health Probe: `http://localhost:3000/api/health`)
+- **API Endpoint**: `http://localhost:4000` (Health Probe: `http://localhost:4000/health`)
+- **Worker Endpoint**: `http://localhost:4001` (Health Probe: `http://localhost:4001/health`)
 
 ---
 
-## 🛠 Local Container Image Building
+## 🔄 Updating Containers & Rollback
 
-To manually build images from source:
-
-### Build API Image
-
+### Updating to Latest Edge Images
 ```bash
-docker build -f docker/Dockerfile.api -t 48studios/ananya-api:latest .
+docker compose -f compose.prod.yaml pull
+docker compose -f compose.prod.yaml up -d --remove-orphans
 ```
 
-### Build Web Image
-
+### Rolling Back to a Specific Version or Git SHA
+To roll back to a previous stable tag (e.g. `sha-a1b2c3d` or `v0.1.0`):
 ```bash
-docker build -f docker/Dockerfile.web -t 48studios/ananya-web:latest .
-```
-
-### Build Worker Image
-
-```bash
-docker build -f docker/Dockerfile.worker -t 48studios/ananya-worker:latest .
+ANANYA_VERSION=sha-a1b2c3d docker compose -f compose.prod.yaml up -d
 ```
 
 ---
 
-## 🏷 Docker Hub Publishing Strategy
+## 🛠 Local Multi-Arch Buildx Testing
 
-When publishing releases to Docker Hub (`48studios/ananya-*`), follow the tag strategy:
-
-1. `latest` — Latest stable build on `main` branch
-2. `rc1` — Release Candidate builds
-3. `vX.Y.Z` — Semantic version tags (e.g., `v1.0.0`)
-4. `<git-sha>` — Immutable commit SHA tags
-
-### Manual Publishing Commands
+To test multi-architecture builds locally using Docker Buildx:
 
 ```bash
-# Tag images
-docker tag 48studios/ananya-web:latest 48studios/ananya-web:rc1
-docker tag 48studios/ananya-api:latest 48studios/ananya-api:rc1
-docker tag 48studios/ananya-worker:latest 48studios/ananya-worker:rc1
+# Initialize buildx builder instance
+docker buildx create --name ananya-builder --use
 
-# Push to Docker Hub
-docker push 48studios/ananya-web:latest
-docker push 48studios/ananya-web:rc1
+# Build API multi-arch image
+docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile.api -t ghcr.io/48studios/ananya-api:local .
 
-docker push 48studios/ananya-api:latest
-docker push 48studios/ananya-api:rc1
+# Build Web multi-arch image
+docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile.web -t ghcr.io/48studios/ananya-web:local .
 
-docker push 48studios/ananya-worker:latest
-docker push 48studios/ananya-worker:rc1
+# Build Worker multi-arch image
+docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile.worker -t ghcr.io/48studios/ananya-worker:local .
 ```
-
----
-
-## 🏡 Home Lab & Daily Driver Deployment
-
-For Home Lab server deployment (e.g. Unraid, Portainer, TrueNAS SCALE, Proxmox LXC):
-
-1. **Clone & Configure**:
-   ```bash
-   git clone https://github.com/48studios/ananya.git /opt/ananya
-   cd /opt/ananya
-   cp .env.example .env
-   ```
-2. **Persistence Mounts**: Ensure volumes `ananya_postgres_data`, `ananya_redis_data`, and `ananya_uploads_data` map to persistent host SSD/NVMe paths.
-3. **Run Daemon**:
-   ```bash
-   docker compose -f compose.prod.yaml up -d
-   ```
 
 ---
 
 ## 💾 Backup & Restore Procedures
 
 ### Database Backup (PostgreSQL)
-
 ```bash
 docker exec -t ananya-postgres pg_dump -U ananya ananya | gzip > ananya_backup_$(date +%Y%m%d_%H%M%S).sql.gz
 ```
 
 ### Database Restore
-
 ```bash
 gunzip -c ananya_backup.sql.gz | docker exec -i ananya-postgres psql -U ananya -d ananya
 ```
 
-### Persistent Attachments & Uploads Backup
-
+### Persistent File Storage Backup
 ```bash
 docker run --rm -v ananya_uploads_data:/volume -v $(pwd):/backup alpine tar czf /backup/ananya_uploads_$(date +%Y%m%d).tar.gz -C /volume .
 ```
@@ -169,7 +171,7 @@ docker run --rm -v ananya_uploads_data:/volume -v $(pwd):/backup alpine tar czf 
 
 ## 🔒 Security Hardening Standards
 
-- **Non-Root Execution**: Container runtimes execute under standard unprivileged user `ananya` (`UID/GID 10001`).
-- **Network Isolation**: PostgreSQL and Redis are isolated within internal bridge network `ananya-network` and are not exposed externally in production.
-- **Capability Dropping**: Unnecessary Linux capabilities are dropped (`cap_drop: [ALL]`).
-- **Health Probes**: Automated healthcheck probes trigger container restarts if service unresponsiveness occurs.
+- **Non-Root Execution**: Containers run as `ananya` user (`UID/GID 10001`).
+- **Network Isolation**: PostgreSQL and Redis run on private bridge network `ananya-network` with zero public exposure.
+- **Least Privilege Workflows**: GitHub Actions authentication uses temporary `GITHUB_TOKEN` with minimal scope (`contents: read`, `packages: write`).
+- **Automated Health Probes**: Active container probes verify HTTP endpoints every 10-15s.

@@ -39,7 +39,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
-    image: 48studios/ananya-api:${ANANYA_VERSION:-latest}
+    image: ${ANANYA_REGISTRY:-ghcr.io/48studios}/ananya-api:${ANANYA_VERSION:-edge}
     container_name: ananya-api
     restart: unless-stopped
     ports:
@@ -66,7 +66,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.worker
-    image: 48studios/ananya-worker:${ANANYA_VERSION:-latest}
+    image: ${ANANYA_REGISTRY:-ghcr.io/48studios}/ananya-worker:${ANANYA_VERSION:-edge}
     container_name: ananya-worker
     restart: unless-stopped
     environment:
@@ -89,7 +89,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.web
-    image: 48studios/ananya-web:${ANANYA_VERSION:-latest}
+    image: ${ANANYA_REGISTRY:-ghcr.io/48studios}/ananya-web:${ANANYA_VERSION:-edge}
     container_name: ananya-web
     restart: unless-stopped
     ports:
