@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  X,
   Eye,
   Lock,
   Clock,
@@ -20,6 +19,7 @@ import {
   FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -389,36 +389,37 @@ export default function ReservationsPage() {
       )}
 
       {/* Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editingReservation
-                  ? "Edit Reservation Lock"
-                  : "Create Inventory Reservation"}
-              </h2>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingReservation(null);
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <ReservationForm
-              initialData={editingReservation}
-              onSuccess={handleFormSuccess}
-              onCancel={() => {
-                setIsFormOpen(false);
-                setEditingReservation(null);
-              }}
-            />
-          </div>
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) {
+            setEditingReservation(null);
+          }
+        }}
+        title={
+          editingReservation
+            ? "Edit Reservation Lock"
+            : "Create Inventory Reservation"
+        }
+        description={
+          editingReservation
+            ? `Update reservation "${editingReservation.reservationNumber}" while preserving its active hold details.`
+            : "Create an inventory reservation with its purpose, reference document, and held stock lines."
+        }
+        size="md"
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <ReservationForm
+            initialData={editingReservation}
+            onSuccess={handleFormSuccess}
+            onCancel={() => {
+              setIsFormOpen(false);
+              setEditingReservation(null);
+            }}
+          />
         </div>
-      )}
+      </DialogShell>
 
       {/* Delete Dialog */}
       <ConfirmDialog

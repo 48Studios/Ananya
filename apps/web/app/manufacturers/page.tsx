@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  X,
   Eye,
   Edit3,
   Trash2,
@@ -15,6 +14,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -280,36 +280,33 @@ export default function ManufacturersPage() {
       )}
 
       {/* Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editingManufacturer
-                  ? "Edit Manufacturer"
-                  : "Create New Manufacturer"}
-              </h2>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingManufacturer(null);
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <ManufacturerForm
-              initialData={editingManufacturer}
-              onSuccess={handleFormSuccess}
-              onCancel={() => {
-                setIsFormOpen(false);
-                setEditingManufacturer(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) {
+            setEditingManufacturer(null);
+          }
+        }}
+        title={
+          editingManufacturer ? "Edit Manufacturer" : "Create New Manufacturer"
+        }
+        description={
+          editingManufacturer
+            ? `Update the manufacturer record "${editingManufacturer.code}" used across sourced components.`
+            : "Create a manufacturer master record for component sourcing and catalog references."
+        }
+        size="sm"
+      >
+        <ManufacturerForm
+          initialData={editingManufacturer}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingManufacturer(null);
+          }}
+        />
+      </DialogShell>
 
       {/* Confirm Delete Dialog */}
       <ConfirmDialog

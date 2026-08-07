@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  X,
   Eye,
   CheckCircle2,
   Clock,
@@ -20,6 +19,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -379,36 +379,35 @@ export default function WarehouseTransfersPage() {
       )}
 
       {/* Creation / Edit Modal Form */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editingTransfer
-                  ? "Edit Draft Transfer"
-                  : "Create Warehouse Transfer"}
-              </h2>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingTransfer(null);
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <WarehouseTransferForm
-              initialData={editingTransfer}
-              onSuccess={handleFormSuccess}
-              onCancel={() => {
-                setIsFormOpen(false);
-                setEditingTransfer(null);
-              }}
-            />
-          </div>
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) {
+            setEditingTransfer(null);
+          }
+        }}
+        title={
+          editingTransfer ? "Edit Draft Transfer" : "Create Warehouse Transfer"
+        }
+        description={
+          editingTransfer
+            ? `Update draft transfer "${editingTransfer.transferNumber}" before dispatching stock between facilities.`
+            : "Create a warehouse transfer with source and destination locations, requested date, and line items."
+        }
+        size="md"
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <WarehouseTransferForm
+            initialData={editingTransfer}
+            onSuccess={handleFormSuccess}
+            onCancel={() => {
+              setIsFormOpen(false);
+              setEditingTransfer(null);
+            }}
+          />
         </div>
-      )}
+      </DialogShell>
 
       {/* Confirmation Dialog for Deleting */}
       <ConfirmDialog

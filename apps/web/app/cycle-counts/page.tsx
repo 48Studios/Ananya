@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  X,
   Eye,
   CheckCircle2,
   Clock,
@@ -20,6 +19,7 @@ import {
   FileCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -373,36 +373,37 @@ export default function CycleCountsPage() {
       )}
 
       {/* Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editingCount
-                  ? "Edit Draft Cycle Count Scope"
-                  : "Create Cycle Count Audit"}
-              </h2>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingCount(null);
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <CycleCountForm
-              initialData={editingCount}
-              onSuccess={handleFormSuccess}
-              onCancel={() => {
-                setIsFormOpen(false);
-                setEditingCount(null);
-              }}
-            />
-          </div>
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) {
+            setEditingCount(null);
+          }
+        }}
+        title={
+          editingCount
+            ? "Edit Draft Cycle Count Scope"
+            : "Create Cycle Count Audit"
+        }
+        description={
+          editingCount
+            ? `Update draft cycle count "${editingCount.countNumber}" before assigning or starting the physical count.`
+            : "Create a cycle count scope with its location, assigned counter, and inventory lines to verify."
+        }
+        size="md"
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <CycleCountForm
+            initialData={editingCount}
+            onSuccess={handleFormSuccess}
+            onCancel={() => {
+              setIsFormOpen(false);
+              setEditingCount(null);
+            }}
+          />
         </div>
-      )}
+      </DialogShell>
 
       {/* Delete Dialog */}
       <ConfirmDialog

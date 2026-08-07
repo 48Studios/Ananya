@@ -13,6 +13,12 @@ import {
   Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -228,56 +234,51 @@ export default function UserDetailPage() {
       </div>
 
       {/* Admin Reset Password Modal */}
-      {isResetOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-xl p-6 space-y-4 shadow-2xl">
-            <h3 className="text-base font-semibold text-foreground">
-              Reset Password for {userInfo.firstName}
-            </h3>
-
+      <DialogShell
+        open={isResetOpen}
+        onOpenChange={setIsResetOpen}
+        title={`Reset Password for ${userInfo.firstName}`}
+        description="Set a new temporary password for this user account."
+        size="sm"
+      >
+        <form
+          onSubmit={handleAdminResetPassword}
+          className="flex min-h-0 flex-1 flex-col text-xs"
+        >
+          <DialogShellBody className="space-y-3">
             {resetSuccess && (
-              <div className="p-3 text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-md">
+              <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-600 dark:text-emerald-400">
                 {resetSuccess}
               </div>
             )}
 
-            <form
-              onSubmit={handleAdminResetPassword}
-              className="space-y-3 text-xs"
-            >
-              <div className="space-y-1">
-                <label className="font-medium text-foreground">
-                  New Temporary Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 bg-input/40 border border-border rounded-md outline-none text-foreground"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  onClick={() => setIsResetOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button size="sm" type="submit" disabled={resetSubmitting}>
-                  {resetSubmitting && (
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  )}
-                  Set New Password
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <div className="space-y-1">
+              <label className="font-medium text-foreground">
+                New Temporary Password
+              </label>
+              <input
+                type="password"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full rounded-md border border-border bg-input/40 px-3 py-2 text-foreground outline-none"
+              />
+            </div>
+          </DialogShellBody>
+          <DialogShellFooter>
+            <DialogShellCancelButton
+              disabled={resetSubmitting}
+              onClick={() => setIsResetOpen(false)}
+            />
+            <Button size="sm" type="submit" disabled={resetSubmitting}>
+              {resetSubmitting && (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              )}
+              Set New Password
+            </Button>
+          </DialogShellFooter>
+        </form>
+      </DialogShell>
     </div>
   );
 }

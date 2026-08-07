@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Printer, X, Loader2, AlertCircle } from "lucide-react";
+import { Printer, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -11,6 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { LabelPreview, LabelTemplate } from "./label-preview";
 import {
   barcodesApi,
@@ -66,36 +72,27 @@ export function BatchPrintDialog({
     fetchBatchLabels();
   }, [fetchBatchLabels]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-4xl bg-card border border-border rounded-xl shadow-2xl p-6 space-y-4 max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <Printer className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-foreground">
-                {title}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Printing {entityIds.length} {entityType.toLowerCase()} label(s)
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md"
-          >
-            <X className="w-4 h-4" />
-          </button>
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title={title}
+      description={`Review and print ${entityIds.length} ${entityType.toLowerCase()} label(s) with standardized barcode output settings.`}
+      size="lg"
+    >
+      <DialogShellBody className="space-y-4">
+        <div className="flex items-center gap-2 text-primary">
+          <Printer className="size-5" />
+          <span className="text-sm font-medium text-foreground">
+            Printing {entityIds.length} {entityType.toLowerCase()} label(s)
+          </span>
         </div>
 
-        {/* Options Toolbar */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-muted/20 border border-border rounded-lg shrink-0">
+        <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-2">
           <Field>
             <FieldLabel className="text-xs">Label Template</FieldLabel>
             <Select
@@ -141,8 +138,7 @@ export function BatchPrintDialog({
           </Field>
         </div>
 
-        {/* Content Preview List */}
-        <div className="flex-1 overflow-y-auto min-h-[300px] p-4 bg-muted/10 border border-border rounded-xl">
+        <div className="min-h-[300px] rounded-xl border border-border bg-muted/10 p-4">
           {loading ? (
             <div className="h-full flex items-center justify-center p-8 text-xs text-muted-foreground">
               <Loader2 className="w-4 h-4 mr-2 animate-spin text-primary" />
@@ -166,27 +162,21 @@ export function BatchPrintDialog({
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-border shrink-0">
-          <span className="text-xs text-muted-foreground font-mono">
-            Ready to print {labels.length} label(s)
-          </span>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              disabled={loading || labels.length === 0}
-              onClick={() => window.print()}
-            >
-              <Printer className="w-4 h-4 mr-1.5" />
-              Print Labels
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <span className="mr-auto text-xs font-mono text-muted-foreground">
+          Ready to print {labels.length} label(s)
+        </span>
+        <DialogShellCancelButton />
+        <Button
+          size="sm"
+          disabled={loading || labels.length === 0}
+          onClick={() => window.print()}
+        >
+          <Printer className="mr-1.5 size-4" />
+          Print Labels
+        </Button>
+      </DialogShellFooter>
+    </DialogShell>
   );
 }

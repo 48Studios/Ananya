@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  X,
   Eye,
   CheckCircle2,
   Clock,
@@ -16,6 +15,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -276,27 +276,20 @@ export default function StockAdjustmentsPage() {
       )}
 
       {/* Creation Modal Form */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                Create Stock Adjustment
-              </h2>
-              <button
-                onClick={() => setIsFormOpen(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <StockAdjustmentForm
-              onSuccess={handleFormSuccess}
-              onCancel={() => setIsFormOpen(false)}
-            />
-          </div>
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title="Create Stock Adjustment"
+        description="Record a stock variance with its location, justification, and reconciled component line items before approval."
+        size="md"
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <StockAdjustmentForm
+            onSuccess={handleFormSuccess}
+            onCancel={() => setIsFormOpen(false)}
+          />
         </div>
-      )}
+      </DialogShell>
 
       {/* Data Table */}
       <EntityDataTable

@@ -11,9 +11,9 @@ import {
   RefreshCw,
   Pause,
   Play,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -260,35 +260,27 @@ export default function MaintenancePage() {
         }
       />
 
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-foreground">
-                Schedule Equipment Maintenance
-              </h3>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setIsFormOpen(false)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-            <MaintenanceForm
-              onSuccess={(created) => {
-                setSchedules((prev) => [created, ...prev]);
-                setIsFormOpen(false);
-                setToastMessage(
-                  "New equipment maintenance task scheduled cleanly.",
-                );
-                setTimeout(() => setToastMessage(null), 4000);
-              }}
-              onCancel={() => setIsFormOpen(false)}
-            />
-          </div>
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title="Schedule Equipment Maintenance"
+        description="Plan the next preventive, calibration, or overhaul visit for a tracked equipment asset."
+        size="sm"
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <MaintenanceForm
+            onSuccess={(created) => {
+              setSchedules((prev) => [created, ...prev]);
+              setIsFormOpen(false);
+              setToastMessage(
+                "New equipment maintenance task scheduled cleanly.",
+              );
+              setTimeout(() => setToastMessage(null), 4000);
+            }}
+            onCancel={() => setIsFormOpen(false)}
+          />
         </div>
-      )}
+      </DialogShell>
     </div>
   );
 }

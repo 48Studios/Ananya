@@ -16,13 +16,13 @@ import {
   Calendar,
   Layers,
   User,
-  X,
   Send,
   AlertTriangle,
   FileCheck,
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -339,32 +339,25 @@ export default function ViewCycleCountPage() {
       />
 
       {/* Edit Form Modal */}
-      {isEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                Edit Draft Cycle Count
-              </h2>
-              <button
-                onClick={() => setIsEditOpen(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <CycleCountForm
-              initialData={cycleCount}
-              onSuccess={(updated) => {
-                setCycleCount(updated);
-                setIsEditOpen(false);
-                fetchData();
-              }}
-              onCancel={() => setIsEditOpen(false)}
-            />
-          </div>
+      <DialogShell
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        title="Edit Draft Cycle Count"
+        description={`Update draft cycle count "${cycleCount.countNumber}" before assigning or starting the physical count.`}
+        size="md"
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <CycleCountForm
+            initialData={cycleCount}
+            onSuccess={(updated) => {
+              setCycleCount(updated);
+              setIsEditOpen(false);
+              fetchData();
+            }}
+            onCancel={() => setIsEditOpen(false)}
+          />
         </div>
-      )}
+      </DialogShell>
 
       {/* Record Physical Counts Modal */}
       <RecordCountsModal

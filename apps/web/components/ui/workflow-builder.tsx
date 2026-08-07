@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Zap, Plus, X, Loader2 } from "lucide-react";
+import { Zap, Plus, Loader2 } from "lucide-react";
 import { notificationsApi } from "@/lib/api/notifications-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 
 export interface WorkflowBuilderProps {
   isOpen: boolean;
@@ -41,8 +47,6 @@ export function WorkflowBuilder({
     },
   ]);
   const [loading, setLoading] = React.useState(false);
-
-  if (!isOpen) return null;
 
   const handleAddCondition = () => {
     setConditions([
@@ -86,22 +90,24 @@ export function WorkflowBuilder({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 pt-10 px-4 animate-in fade-in-0 duration-150">
-      <div className="relative w-full max-w-xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden p-6 space-y-5">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-foreground">
-              Create Automation Rule
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-4 h-4" />
-          </button>
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title="Create Automation Rule"
+      description="Define the trigger, conditions, and notification action for a new workflow automation rule."
+      size="md"
+      closeDisabled={loading}
+    >
+      <DialogShellBody className="space-y-4">
+        <div className="flex items-center gap-2 text-primary">
+          <Zap className="size-5" />
+          <span className="text-sm font-medium text-foreground">
+            Workflow rule configuration
+          </span>
         </div>
 
         <div className="space-y-3">
@@ -252,30 +258,22 @@ export function WorkflowBuilder({
             </div>
           </div>
         </div>
-
-        <div className="flex justify-end gap-2 pt-4 border-t border-border">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSaveWorkflow}
-            disabled={loading || !name.trim()}
-          >
-            {loading ? (
-              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-            ) : (
-              <Zap className="w-3.5 h-3.5 mr-1.5" />
-            )}
-            Save Automation Rule
-          </Button>
-        </div>
-      </div>
-    </div>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={loading} />
+        <Button
+          size="sm"
+          onClick={handleSaveWorkflow}
+          disabled={loading || !name.trim()}
+        >
+          {loading ? (
+            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+          ) : (
+            <Zap className="mr-1.5 size-3.5" />
+          )}
+          Save Automation Rule
+        </Button>
+      </DialogShellFooter>
+    </DialogShell>
   );
 }

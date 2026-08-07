@@ -4,7 +4,7 @@ import * as React from "react";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, AlertCircle, AlertTriangle, X } from "lucide-react";
+import { Loader2, AlertCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,6 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import {
   workOrdersApi,
   type WorkOrderDto,
@@ -77,8 +83,6 @@ export function RecordScrapModal({
     },
   });
 
-  if (!isOpen) return null;
-
   const onSubmit: SubmitHandler<RecordScrapFormValues> = async (values) => {
     setServerError(null);
     try {
@@ -98,40 +102,37 @@ export function RecordScrapModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-            <h2 className="text-base font-semibold text-foreground">
-              Record Scrap / Material Defect
-            </h2>
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      title="Record Scrap / Material Defect"
+      description={`Capture damaged material or finished goods against Work Order ${workOrder.productionNumber}.`}
+      size="sm"
+      closeDisabled={isSubmitting}
+    >
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <DialogShellBody className="space-y-4">
+          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <AlertTriangle className="size-4" />
+            <span className="text-xs font-medium text-foreground">
+              Damaged units are recorded as irreversible scrap entries.
+            </span>
           </div>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
 
-        <p className="text-xs text-muted-foreground">
-          Record damaged raw material components or finished goods for Work
-          Order{" "}
-          <span className="font-mono font-bold text-foreground">
-            {workOrder.productionNumber}
-          </span>
-          .
-        </p>
+          {serverError && (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+              <AlertCircle className="size-4 shrink-0" />
+              <span>{serverError}</span>
+            </div>
+          )}
 
-        {serverError && (
-          <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{serverError}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Field>
             <FieldLabel htmlFor="scrap-component">
               Component / Item <span className="text-destructive">*</span>
@@ -198,31 +199,22 @@ export function RecordScrapModal({
               <FieldError>{errors.reason.message}</FieldError>
             )}
           </Field>
-
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="destructive"
-              size="sm"
-              disabled={isSubmitting}
-            >
-              {isSubmitting && (
-                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-              )}
-              Record Scrap Entry
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </DialogShellBody>
+        <DialogShellFooter>
+          <DialogShellCancelButton disabled={isSubmitting} />
+          <Button
+            type="submit"
+            variant="destructive"
+            size="sm"
+            disabled={isSubmitting}
+          >
+            {isSubmitting && (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            )}
+            Record Scrap Entry
+          </Button>
+        </DialogShellFooter>
+      </form>
+    </DialogShell>
   );
 }

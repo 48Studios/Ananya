@@ -10,10 +10,15 @@ import {
   UserCheck,
   UserX,
   ExternalLink,
-  X,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -317,134 +322,124 @@ export default function UsersListPage() {
         />
       </div>
 
-      {/* Create / Edit User Dialog */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-base font-semibold text-foreground">
-                {editingUser ? "Edit User Account" : "Create New User Account"}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
+      <DialogShell
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        title={editingUser ? "Edit User Account" : "Create New User Account"}
+        description={
+          editingUser
+            ? "Update user identity, department, and role assignment using the standard administration dialog layout."
+            : "Create a new user account with consistent dialog structure and footer actions."
+        }
+        size="md"
+      >
+        <form onSubmit={handleSaveUser} className="flex min-h-0 flex-1 flex-col">
+          <DialogShellBody className="space-y-3">
             {formError && (
-              <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+              <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
                 {formError}
               </div>
             )}
 
-            <form onSubmit={handleSaveUser} className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="user-firstname">First Name</FieldLabel>
+                <Input
+                  id="user-firstname"
+                  type="text"
+                  required
+                  value={formFirstName}
+                  onChange={(e) => setFormFirstName(e.target.value)}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="user-lastname">Last Name</FieldLabel>
+                <Input
+                  id="user-lastname"
+                  type="text"
+                  required
+                  value={formLastName}
+                  onChange={(e) => setFormLastName(e.target.value)}
+                />
+              </Field>
+            </div>
+
+            {!editingUser && (
+              <>
                 <Field>
-                  <FieldLabel htmlFor="user-firstname">First Name</FieldLabel>
+                  <FieldLabel htmlFor="user-email">Work Email</FieldLabel>
                   <Input
-                    id="user-firstname"
-                    type="text"
+                    id="user-email"
+                    type="email"
                     required
-                    value={formFirstName}
-                    onChange={(e) => setFormFirstName(e.target.value)}
+                    value={formEmail}
+                    onChange={(e) => setFormEmail(e.target.value)}
+                    className="font-mono"
                   />
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="user-lastname">Last Name</FieldLabel>
+                  <FieldLabel htmlFor="user-password">Password</FieldLabel>
                   <Input
-                    id="user-lastname"
-                    type="text"
+                    id="user-password"
+                    type="password"
                     required
-                    value={formLastName}
-                    onChange={(e) => setFormLastName(e.target.value)}
+                    value={formPassword}
+                    onChange={(e) => setFormPassword(e.target.value)}
                   />
                 </Field>
-              </div>
+              </>
+            )}
 
-              {!editingUser && (
-                <>
-                  <Field>
-                    <FieldLabel htmlFor="user-email">Work Email</FieldLabel>
-                    <Input
-                      id="user-email"
-                      type="email"
-                      required
-                      value={formEmail}
-                      onChange={(e) => setFormEmail(e.target.value)}
-                      className="font-mono"
-                    />
-                  </Field>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="user-dept">Department</FieldLabel>
+                <Input
+                  id="user-dept"
+                  type="text"
+                  value={formDepartment}
+                  onChange={(e) => setFormDepartment(e.target.value)}
+                />
+              </Field>
 
-                  <Field>
-                    <FieldLabel htmlFor="user-password">Password</FieldLabel>
-                    <Input
-                      id="user-password"
-                      type="password"
-                      required
-                      value={formPassword}
-                      onChange={(e) => setFormPassword(e.target.value)}
-                    />
-                  </Field>
-                </>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field>
-                  <FieldLabel htmlFor="user-dept">Department</FieldLabel>
-                  <Input
-                    id="user-dept"
-                    type="text"
-                    value={formDepartment}
-                    onChange={(e) => setFormDepartment(e.target.value)}
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel htmlFor="user-role">Assigned Role</FieldLabel>
-                  <Select
-                    value={formRoleId || "NONE"}
-                    onValueChange={(val) =>
-                      setFormRoleId(!val || val === "NONE" ? "" : val)
-                    }
-                  >
-                    <SelectTrigger id="user-role">
-                      <SelectValue placeholder="No Role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NONE">No Role</SelectItem>
-                      {roles.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
+              <Field>
+                <FieldLabel htmlFor="user-role">Assigned Role</FieldLabel>
+                <Select
+                  value={formRoleId || "NONE"}
+                  onValueChange={(val) =>
+                    setFormRoleId(!val || val === "NONE" ? "" : val)
+                  }
                 >
-                  Cancel
-                </Button>
-                <Button size="sm" type="submit" disabled={formSubmitting}>
-                  {formSubmitting && (
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  )}
-                  {editingUser ? "Save User" : "Create User"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                  <SelectTrigger id="user-role">
+                    <SelectValue placeholder="No Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">No Role</SelectItem>
+                    {roles.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </DialogShellBody>
+          <DialogShellFooter>
+            <DialogShellCancelButton
+              disabled={formSubmitting}
+              onClick={() => setIsModalOpen(false)}
+            />
+            <Button size="sm" type="submit" disabled={formSubmitting}>
+              {formSubmitting && (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              )}
+              {editingUser ? "Save User" : "Create User"}
+            </Button>
+          </DialogShellFooter>
+        </form>
+      </DialogShell>
     </div>
   );
 }

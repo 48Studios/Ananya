@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  X,
   Eye,
   CheckCircle2,
   Clock,
@@ -19,6 +18,7 @@ import {
   Archive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -379,34 +379,31 @@ export default function ProjectsPage() {
       )}
 
       {/* Creation / Edit Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-xl shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editingProject ? "Edit Project" : "Create Project"}
-              </h2>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingProject(null);
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <ProjectForm
-              initialData={editingProject}
-              onSuccess={handleFormSuccess}
-              onCancel={() => {
-                setIsFormOpen(false);
-                setEditingProject(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) {
+            setEditingProject(null);
+          }
+        }}
+        title={editingProject ? "Edit Project" : "Create Project"}
+        description={
+          editingProject
+            ? `Update project "${editingProject.projectNumber}" with current ownership, dates, and priority.`
+            : "Create a project with ownership, schedule, and priority details for downstream planning."
+        }
+        size="md"
+      >
+        <ProjectForm
+          initialData={editingProject}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingProject(null);
+          }}
+        />
+      </DialogShell>
 
       {/* Data Table */}
       <EntityDataTable
