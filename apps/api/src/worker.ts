@@ -41,9 +41,9 @@ async function bootstrapWorker() {
     }
   });
 
-  server.listen(workerPort, () => {
+  server.listen(workerPort, '0.0.0.0', () => {
     console.log(
-      `📡 Ananya Worker healthcheck server listening on port ${workerPort}`,
+      `📡 Ananya Worker healthcheck server listening on 0.0.0.0:${workerPort}`,
     );
   });
 
