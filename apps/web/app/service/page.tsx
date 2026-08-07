@@ -142,12 +142,6 @@ export default function ServicePage() {
         loading={loading}
         emptyTitle="No Service Tickets"
         emptyMessage="No open support or field service tickets found."
-        actionButton={
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            New Service Ticket
-          </Button>
-        }
       />
     </div>
   );

@@ -252,12 +252,6 @@ export default function MaintenancePage() {
         filterConfigs={filterConfigs}
         emptyTitle="No Maintenance Schedules Found"
         emptyMessage="No equipment maintenance schedules match your query."
-        actionButton={
-          <Button size="sm" onClick={() => setIsFormOpen(true)}>
-            <Plus className="w-4 h-4 mr-1.5" />
-            Schedule Maintenance Work
-          </Button>
-        }
       />
 
       <DialogShell

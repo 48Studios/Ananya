@@ -104,12 +104,6 @@ export default function TasksPage() {
         loading={loading}
         emptyTitle="No Tasks Found"
         emptyMessage="No tasks assigned to your active queue."
-        actionButton={
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Create Task
-          </Button>
-        }
       />
     </div>
   );

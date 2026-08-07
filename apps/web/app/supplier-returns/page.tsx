@@ -150,12 +150,6 @@ export default function SupplierReturnsPage() {
         filterConfigs={filterConfigs}
         emptyTitle="No Supplier Returns Found"
         emptyMessage="No supplier material returns recorded."
-        actionButton={
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Create Supplier Return
-          </Button>
-        }
       />
     </div>
   );

@@ -443,7 +443,7 @@ export default function WorkOrdersPage() {
             ? `Update draft work order "${editingWo.productionNumber}" using the standardized manufacturing dialog shell.`
             : "Create a new work order with a fixed header, scrollable body, and shared footer actions."
         }
-        size="lg"
+        size="md"
       >
         <WorkOrderForm
           initialData={editingWo}

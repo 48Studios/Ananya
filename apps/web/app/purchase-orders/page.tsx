@@ -432,7 +432,7 @@ export default function PurchaseOrdersPage() {
             ? `Revise purchase order "${editingPo.poNumber}" using the shared procurement dialog layout.`
             : "Create a new purchase order with standardized header, body, and footer composition."
         }
-        size="lg"
+        size="md"
       >
         <PurchaseOrderForm
           initialData={editingPo}

@@ -112,12 +112,6 @@ export default function TimePage() {
         loading={loading}
         emptyTitle="No Timesheets Found"
         emptyMessage="No time tracking records currently logged."
-        actionButton={
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Log Hours
-          </Button>
-        }
       />
     </div>
   );

@@ -118,12 +118,6 @@ export default function WarrantyPage() {
         loading={loading}
         emptyTitle="No Warranty Claims"
         emptyMessage="No active warranty claims match your query."
-        actionButton={
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            File New Warranty Claim
-          </Button>
-        }
       />
     </div>
   );

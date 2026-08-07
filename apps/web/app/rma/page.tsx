@@ -112,12 +112,6 @@ export default function RmaPage() {
         loading={loading}
         emptyTitle="No RMA Requests"
         emptyMessage="No active Return Merchandise Authorizations."
-        actionButton={
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Issue New RMA
-          </Button>
-        }
       />
     </div>
   );
