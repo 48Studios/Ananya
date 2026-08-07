@@ -152,23 +152,6 @@ export default function ProjectionsPage() {
         />
       </div>
 
-      <ChartCard
-        title="Net cash flow outlook"
-        subtitle="Derived from posted receivable and payable balances with future due dates"
-      >
-        {forecast.periods.length > 0 ? (
-          <AreaChartWidget data={chartData} color="#0ea5e9" height={220} />
-        ) : (
-          <EmptyState
-            title="No forecast available"
-            description={
-              forecast.insufficientDataReason ||
-              "There is not enough transactional history to produce a forecast."
-            }
-          />
-        )}
-      </ChartCard>
-
       <EntityDataTable
         data={forecast.periods}
         columns={columns}
