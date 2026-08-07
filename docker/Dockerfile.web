@@ -56,6 +56,9 @@ COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder --chown=ananya:ananya /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=ananya:ananya /app/apps/web/.next/static ./apps/web/.next/static
 
+# Verify compiled build artifact existence
+RUN find /app -name server.js | grep -q server.js || (echo "❌ server.js not found in build output!" && exit 1)
+
 USER ananya
 
 EXPOSE 3000
