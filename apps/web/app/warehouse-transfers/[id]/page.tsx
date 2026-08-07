@@ -361,17 +361,15 @@ export default function ViewWarehouseTransferPage() {
         description={`Update draft transfer "${transfer.transferNumber}" before dispatching stock between facilities.`}
         size="sm"
       >
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          <WarehouseTransferForm
-            initialData={transfer}
-            onSuccess={(updated) => {
-              setTransfer(updated);
-              setIsEditOpen(false);
-              fetchData();
-            }}
-            onCancel={() => setIsEditOpen(false)}
-          />
-        </div>
+        <WarehouseTransferForm
+          initialData={transfer}
+          onSuccess={(updated) => {
+            setTransfer(updated);
+            setIsEditOpen(false);
+            fetchData();
+          }}
+          onCancel={() => setIsEditOpen(false)}
+        />
       </DialogShell>
 
       {/* Overview Stat Cards */}

@@ -6,6 +6,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -86,90 +91,84 @@ export function MaintenanceForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {serverError && (
-        <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
-          {serverError}
-        </div>
-      )}
-
-      <Field>
-        <FieldLabel htmlFor="maint-equipment">Equipment Asset Name</FieldLabel>
-        <Input
-          id="maint-equipment"
-          {...register("equipmentName")}
-          placeholder="e.g. CNC Milling Machine 04"
-        />
-        {errors.equipmentName?.message && (
-          <FieldError>{errors.equipmentName.message}</FieldError>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <DialogShellBody className="space-y-4">
+        {serverError && (
+          <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+            {serverError}
+          </div>
         )}
-      </Field>
 
-      <div className="grid grid-cols-2 gap-3">
         <Field>
-          <FieldLabel htmlFor="maint-wc">Work Center Code</FieldLabel>
+          <FieldLabel htmlFor="maint-equipment">Equipment Asset Name</FieldLabel>
           <Input
-            id="maint-wc"
-            {...register("workCenterCode")}
-            placeholder="e.g. WC-MACHINING"
-            className="font-mono uppercase"
+            id="maint-equipment"
+            {...register("equipmentName")}
+            placeholder="e.g. CNC Milling Machine 04"
           />
-          {errors.workCenterCode?.message && (
-            <FieldError>{errors.workCenterCode.message}</FieldError>
+          {errors.equipmentName?.message && (
+            <FieldError>{errors.equipmentName.message}</FieldError>
           )}
         </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="maint-wc">Work Center Code</FieldLabel>
+            <Input
+              id="maint-wc"
+              {...register("workCenterCode")}
+              placeholder="e.g. WC-MACHINING"
+              className="font-mono uppercase"
+            />
+            {errors.workCenterCode?.message && (
+              <FieldError>{errors.workCenterCode.message}</FieldError>
+            )}
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="maint-type">Task Type</FieldLabel>
+            <Controller
+              name="taskType"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="maint-type">
+                    <SelectValue placeholder="Select task type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PREVENTIVE">PREVENTIVE</SelectItem>
+                    <SelectItem value="CALIBRATION">CALIBRATION</SelectItem>
+                    <SelectItem value="OVERHAUL">OVERHAUL</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+        </div>
 
         <Field>
-          <FieldLabel htmlFor="maint-type">Task Type</FieldLabel>
-          <Controller
-            name="taskType"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="maint-type">
-                  <SelectValue placeholder="Select task type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PREVENTIVE">PREVENTIVE</SelectItem>
-                  <SelectItem value="CALIBRATION">CALIBRATION</SelectItem>
-                  <SelectItem value="OVERHAUL">OVERHAUL</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
+          <FieldLabel htmlFor="maint-due">Next Service Due Date</FieldLabel>
+          <Input
+            id="maint-due"
+            type="date"
+            {...register("nextDueDate")}
+            className="font-mono"
           />
-        </Field>
-      </div>
-
-      <Field>
-        <FieldLabel htmlFor="maint-due">Next Service Due Date</FieldLabel>
-        <Input
-          id="maint-due"
-          type="date"
-          {...register("nextDueDate")}
-          className="font-mono"
-        />
-        {errors.nextDueDate?.message && (
-          <FieldError>{errors.nextDueDate.message}</FieldError>
-        )}
-      </Field>
-
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          disabled={isSubmitting}
-        >
-          Cancel
-        </Button>
-        <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && (
-            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          {errors.nextDueDate?.message && (
+            <FieldError>{errors.nextDueDate.message}</FieldError>
           )}
+        </Field>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
+        <Button type="submit" size="sm" disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
           Schedule Maintenance
         </Button>
-      </div>
+      </DialogShellFooter>
     </form>
   );
 }

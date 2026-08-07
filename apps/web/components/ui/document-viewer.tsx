@@ -43,7 +43,7 @@ export function DocumentViewer({
       size="lg"
       contentClassName="h-[min(85vh,calc(100dvh-2rem))]"
     >
-      <DialogShellBody className="flex items-center justify-center bg-muted/40 p-4">
+      <DialogShellBody className="flex items-center justify-center bg-muted/40">
         {isImage ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img

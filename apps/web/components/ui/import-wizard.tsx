@@ -55,30 +55,25 @@ export function ImportWizard({
     failed: number;
   } | null>(null);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [importFile, setImportFile] = React.useState<File | null>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const text = evt.target?.result as string;
-      setLoading(true);
-      setErrorMsg(null);
-      try {
-        const preview = await importExportApi.previewImport(entityType, text);
-        setPreviewData(preview);
-        setColumnMapping(preview.columnMapping);
-        setStep(2);
-      } catch (err: unknown) {
-        setErrorMsg(
-          err instanceof Error ? err.message : "Failed to parse file",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-    reader.readAsText(file);
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const preview = await importExportApi.previewImport(entityType, file);
+      setImportFile(file);
+      setPreviewData(preview);
+      setColumnMapping(preview.columnMapping);
+      setStep(2);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Failed to parse file");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDownloadTemplate = async () => {
@@ -103,14 +98,14 @@ export function ImportWizard({
   };
 
   const handleExecuteImport = async () => {
-    if (!previewData) return;
+    if (!previewData || !importFile) return;
     setLoading(true);
     setStep(4);
     try {
       const job = await importExportApi.executeImport(
         entityType,
         columnMapping,
-        previewData.sampleRows,
+        importFile,
       );
       setExecutionResult({
         total: job.totalRecords,

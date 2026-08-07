@@ -295,17 +295,15 @@ export default function ViewBomPage() {
         description={`Update draft BOM revision "${bom.revision}" before releasing it for production use.`}
         size="sm"
       >
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          <BomForm
-            initialData={bom}
-            onSuccess={(updated) => {
-              setBom(updated);
-              setIsEditOpen(false);
-              fetchData();
-            }}
-            onCancel={() => setIsEditOpen(false)}
-          />
-        </div>
+        <BomForm
+          initialData={bom}
+          onSuccess={(updated) => {
+            setBom(updated);
+            setIsEditOpen(false);
+            fetchData();
+          }}
+          onCancel={() => setIsEditOpen(false)}
+        />
       </DialogShell>
 
       {/* Overview Grid */}

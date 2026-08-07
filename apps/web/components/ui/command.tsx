@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DialogShell,
   DialogShellBody,
@@ -32,13 +33,36 @@ function CommandDialog({
   children,
   title = "Command Palette",
   description = "Search records, navigate to pages, and trigger quick actions from a standardized dialog shell.",
+  onPrimaryAction,
+  primaryActionLabel = "Open Selected",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
   title?: React.ReactNode;
   description?: React.ReactNode;
+  onPrimaryAction?: () => void;
+  primaryActionLabel?: string;
 }) {
+  const handlePrimaryAction = React.useCallback(() => {
+    if (onPrimaryAction) {
+      onPrimaryAction();
+      return;
+    }
+
+    const input = document.querySelector<HTMLInputElement>("[cmdk-input]");
+    if (!input) {
+      return;
+    }
+
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+      }),
+    );
+  }, [onPrimaryAction]);
+
   return (
     <DialogShell
       open={open}
@@ -46,18 +70,17 @@ function CommandDialog({
       title={title}
       description={description}
       size="sm"
-      contentClassName="sm:max-w-2xl"
     >
-      <DialogShellBody className="p-0">
+      <DialogShellBody>
         <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
           {children}
         </Command>
       </DialogShellBody>
-      <DialogShellFooter className="justify-between">
-        <p className="text-xs text-muted-foreground">
-          Press Enter to open the highlighted result.
-        </p>
+      <DialogShellFooter>
         <DialogShellCancelButton />
+        <Button type="button" size="sm" onClick={handlePrimaryAction}>
+          {primaryActionLabel}
+        </Button>
       </DialogShellFooter>
     </DialogShell>
   );

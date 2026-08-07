@@ -346,17 +346,15 @@ export default function ViewCycleCountPage() {
         description={`Update draft cycle count "${cycleCount.countNumber}" before assigning or starting the physical count.`}
         size="sm"
       >
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          <CycleCountForm
-            initialData={cycleCount}
-            onSuccess={(updated) => {
-              setCycleCount(updated);
-              setIsEditOpen(false);
-              fetchData();
-            }}
-            onCancel={() => setIsEditOpen(false)}
-          />
-        </div>
+        <CycleCountForm
+          initialData={cycleCount}
+          onSuccess={(updated) => {
+            setCycleCount(updated);
+            setIsEditOpen(false);
+            fetchData();
+          }}
+          onCancel={() => setIsEditOpen(false)}
+        />
       </DialogShell>
 
       {/* Record Physical Counts Modal */}

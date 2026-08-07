@@ -302,7 +302,7 @@ export default function RolesListPage() {
         size="lg"
       >
         <form onSubmit={handleSaveRole} className="flex min-h-0 flex-1 flex-col">
-          <DialogShellBody className="space-y-4 pr-1 text-xs">
+          <DialogShellBody className="space-y-4 text-xs">
             {formError && (
               <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
                 {formError}
