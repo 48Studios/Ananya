@@ -11,6 +11,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -198,13 +203,17 @@ export function CycleCountForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {serverError && (
-        <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{serverError}</span>
-        </div>
-      )}
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <DialogShellBody className="space-y-4">
+        {serverError && (
+          <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{serverError}</span>
+          </div>
+        )}
 
       {/* Location & Assigned User */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -393,24 +402,14 @@ export function CycleCountForm({
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          disabled={isSubmitting}
-        >
-          Cancel
-        </Button>
+      </DialogShellBody>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && (
-            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-          )}
+          {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
           {isEdit ? "Save Changes" : "Create Cycle Count"}
         </Button>
-      </div>
+      </DialogShellFooter>
     </form>
   );
 }

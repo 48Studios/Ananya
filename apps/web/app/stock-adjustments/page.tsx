@@ -283,12 +283,10 @@ export default function StockAdjustmentsPage() {
         description="Record a stock variance with its location, justification, and reconciled component line items before approval."
         size="md"
       >
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          <StockAdjustmentForm
-            onSuccess={handleFormSuccess}
-            onCancel={() => setIsFormOpen(false)}
-          />
-        </div>
+        <StockAdjustmentForm
+          onSuccess={handleFormSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
       </DialogShell>
 
       {/* Data Table */}
