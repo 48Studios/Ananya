@@ -12,17 +12,31 @@ import {
 } from "@/components/ui/entity-data-table";
 import { workOrdersApi, type WorkOrderDto } from "@/lib/api/work-orders-api";
 
+import { DialogShell } from "@/components/ui/dialog-shell";
+import { WorkOrderForm } from "@/components/work-orders/work-order-form";
+
 export default function ProductionOrdersPage() {
   const [orders, setOrders] = React.useState<WorkOrderDto[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
 
-  React.useEffect(() => {
+  const fetchOrders = React.useCallback(() => {
+    setLoading(true);
     workOrdersApi
       .getAll()
       .then((data) => setOrders(data))
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const handleFormSuccess = () => {
+    setIsFormOpen(false);
+    fetchOrders();
+  };
 
   const filterConfigs: FilterConfig[] = [
     {
@@ -92,7 +106,7 @@ export default function ProductionOrdersPage() {
         title="Production Orders & Scheduling"
         description="Release production orders to shop floor work centers, allocate components, and track yield output."
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
             Release New Production Order
           </Button>
@@ -124,6 +138,20 @@ export default function ProductionOrdersPage() {
         filters={filterConfigs}
         loading={loading}
       />
+
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title="Create Production Order"
+        description="Schedule manufacturing production runs, BOM allocations, and shop-floor work orders."
+        size="md"
+      >
+        <WorkOrderForm
+          onSuccess={handleFormSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </DialogShell>
     </div>
   );
 }
+

@@ -20,4 +20,12 @@ export const supplierReturnsApi = {
   getById: async (id: string): Promise<SupplierReturnDto> => {
     return apiClient.get<SupplierReturnDto>(`/supplier-returns/${id}`);
   },
+  create: async (data: {
+    supplierId: string;
+    purchaseOrderId?: string;
+    rmaNumber?: string;
+  }): Promise<SupplierReturnDto> => {
+    return apiClient.post<SupplierReturnDto>("/supplier-returns", data);
+  },
 };
+

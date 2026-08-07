@@ -10,17 +10,31 @@ import { EntityDataTable } from "@/components/ui/entity-data-table";
 import { timeEntriesApi, type TimeEntryDto } from "@/lib/api/time-entries-api";
 import { formatDate } from "@/lib/utils";
 
+import { DialogShell } from "@/components/ui/dialog-shell";
+import { TimeEntryForm } from "@/components/time/time-entry-form";
+
 export default function TimePage() {
   const [logs, setLogs] = React.useState<TimeEntryDto[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
 
-  React.useEffect(() => {
+  const fetchLogs = React.useCallback(() => {
+    setLoading(true);
     timeEntriesApi
       .getAll()
       .then((data) => setLogs(data || []))
       .catch(() => setLogs([]))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
+
+  const handleSuccess = () => {
+    setIsFormOpen(false);
+    fetchLogs();
+  };
 
   const totalHours = React.useMemo(() => {
     return logs.reduce((acc, l) => acc + (l?.hoursLogged || 0), 0);
@@ -80,7 +94,7 @@ export default function TimePage() {
         title="Employee Time Tracking & Labor Logs"
         description="Log labor hours against work orders, field service tickets, and shop floor operations."
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
             Log Hours
           </Button>
@@ -113,6 +127,20 @@ export default function TimePage() {
         emptyTitle="No Timesheets Found"
         emptyMessage="No time tracking records currently logged."
       />
+
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title="Log Labor Hours"
+        description="Record labor time spent on operations or tasks."
+        size="sm"
+      >
+        <TimeEntryForm
+          onSuccess={handleSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </DialogShell>
     </div>
   );
 }
+

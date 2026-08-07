@@ -10,17 +10,31 @@ import { EntityDataTable } from "@/components/ui/entity-data-table";
 import { rmaRequestsApi, type RmaRequestDto } from "@/lib/api/rma-requests-api";
 import { formatDate } from "@/lib/utils";
 
+import { DialogShell } from "@/components/ui/dialog-shell";
+import { RmaRequestForm } from "@/components/rma/rma-request-form";
+
 export default function RmaPage() {
   const [requests, setRequests] = React.useState<RmaRequestDto[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
 
-  React.useEffect(() => {
+  const fetchRequests = React.useCallback(() => {
+    setLoading(true);
     rmaRequestsApi
       .getAll()
       .then((data) => setRequests(data || []))
       .catch(() => setRequests([]))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
+
+  const handleSuccess = () => {
+    setIsFormOpen(false);
+    fetchRequests();
+  };
 
   const columns: ColumnDef<RmaRequestDto>[] = [
     {
@@ -84,7 +98,7 @@ export default function RmaPage() {
         title="Return Merchandise Authorization (RMA)"
         description="Manage customer returns, inspection dispositioning, credit memos, and restocking."
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
             Issue New RMA
           </Button>
@@ -113,6 +127,20 @@ export default function RmaPage() {
         emptyTitle="No RMA Requests"
         emptyMessage="No active Return Merchandise Authorizations."
       />
+
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title="Issue Return Merchandise Authorization"
+        description="Create a new customer Return Merchandise Authorization (RMA)."
+        size="sm"
+      >
+        <RmaRequestForm
+          onSuccess={handleSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </DialogShell>
     </div>
   );
 }
+

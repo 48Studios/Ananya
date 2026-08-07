@@ -13,17 +13,31 @@ import {
 } from "@/lib/api/finished-goods-api";
 import { formatCurrency } from "@/lib/utils";
 
+import { DialogShell } from "@/components/ui/dialog-shell";
+import { FinishedGoodsForm } from "@/components/finished-goods/finished-goods-form";
+
 export default function FinishedGoodsPage() {
   const [goods, setGoods] = React.useState<FinishedGoodDto[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
 
-  React.useEffect(() => {
+  const fetchGoods = React.useCallback(() => {
+    setLoading(true);
     finishedGoodsApi
       .getAll()
       .then((data) => setGoods(data || []))
       .catch(() => setGoods([]))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => {
+    fetchGoods();
+  }, [fetchGoods]);
+
+  const handleSuccess = () => {
+    setIsFormOpen(false);
+    fetchGoods();
+  };
 
   const totalValue = React.useMemo(() => {
     return goods.reduce(
@@ -87,7 +101,7 @@ export default function FinishedGoodsPage() {
         title="Finished Goods Inventory Master"
         description="Monitor completed manufactured products, available finished stock, and valuation."
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
             Receive Production Batch
           </Button>
@@ -120,6 +134,20 @@ export default function FinishedGoodsPage() {
         emptyTitle="No Finished Goods Found"
         emptyMessage="No completed finished goods match your search."
       />
+
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title="Receive Production Batch"
+        description="Receive completed manufacturing output batch into finished goods inventory."
+        size="sm"
+      >
+        <FinishedGoodsForm
+          onSuccess={handleSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </DialogShell>
     </div>
   );
 }
+

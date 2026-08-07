@@ -13,19 +13,33 @@ import {
 } from "@/lib/api/material-consumption-api";
 import { formatDate } from "@/lib/utils";
 
+import { DialogShell } from "@/components/ui/dialog-shell";
+import { MaterialConsumptionForm } from "@/components/material-consumption/material-consumption-form";
+
 export default function MaterialConsumptionPage() {
   const [consumptions, setConsumptions] = React.useState<
     MaterialConsumptionDto[]
   >([]);
   const [loading, setLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
 
-  React.useEffect(() => {
+  const fetchConsumptions = React.useCallback(() => {
+    setLoading(true);
     materialConsumptionApi
       .getAll()
       .then((data) => setConsumptions(data || []))
       .catch(() => setConsumptions([]))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => {
+    fetchConsumptions();
+  }, [fetchConsumptions]);
+
+  const handleSuccess = () => {
+    setIsFormOpen(false);
+    fetchConsumptions();
+  };
 
   const columns: ColumnDef<MaterialConsumptionDto>[] = [
     {
@@ -87,7 +101,7 @@ export default function MaterialConsumptionPage() {
         title="Material Consumption & Issue Log"
         description="Track component issues, raw material consumption, and job cost allocations for work orders."
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
             Issue Material to Work Order
           </Button>
@@ -120,6 +134,20 @@ export default function MaterialConsumptionPage() {
         emptyTitle="No Material Consumptions Found"
         emptyMessage="No material consumption records match your filter."
       />
+
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title="Issue Material to Work Order"
+        description="Allocate and log raw material consumption against shop-floor work orders."
+        size="sm"
+      >
+        <MaterialConsumptionForm
+          onSuccess={handleSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </DialogShell>
     </div>
   );
 }
+

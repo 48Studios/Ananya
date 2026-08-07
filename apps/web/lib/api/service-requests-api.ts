@@ -20,4 +20,14 @@ export const serviceRequestsApi = {
   getById: async (id: string): Promise<ServiceRequestDto> => {
     return apiClient.get<ServiceRequestDto>(`/service-requests/${id}`);
   },
+  create: async (data: {
+    customerId?: string;
+    title: string;
+    description?: string;
+    priority?: string;
+    category?: string;
+  }): Promise<ServiceRequestDto> => {
+    return apiClient.post<ServiceRequestDto>("/service-requests", data);
+  },
 };
+

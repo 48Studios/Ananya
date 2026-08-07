@@ -13,17 +13,31 @@ import {
 } from "@/lib/api/warranty-claims-api";
 import { formatDate } from "@/lib/utils";
 
+import { DialogShell } from "@/components/ui/dialog-shell";
+import { WarrantyClaimForm } from "@/components/warranty/warranty-claim-form";
+
 export default function WarrantyPage() {
   const [claims, setClaims] = React.useState<WarrantyClaimDto[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
 
-  React.useEffect(() => {
+  const fetchClaims = React.useCallback(() => {
+    setLoading(true);
     warrantyClaimsApi
       .getAll()
       .then((data) => setClaims(data || []))
       .catch(() => setClaims([]))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => {
+    fetchClaims();
+  }, [fetchClaims]);
+
+  const handleSuccess = () => {
+    setIsFormOpen(false);
+    fetchClaims();
+  };
 
   const columns: ColumnDef<WarrantyClaimDto>[] = [
     {
@@ -86,7 +100,7 @@ export default function WarrantyPage() {
         title="Warranty & Serial Number Guarantees"
         description="Track product warranty claims, serial number guarantees, and customer return authorizations."
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
             File New Warranty Claim
           </Button>
@@ -119,6 +133,20 @@ export default function WarrantyPage() {
         emptyTitle="No Warranty Claims"
         emptyMessage="No active warranty claims match your query."
       />
+
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title="File New Warranty Claim"
+        description="Submit a new product warranty claim or serial number guarantee case."
+        size="sm"
+      >
+        <WarrantyClaimForm
+          onSuccess={handleSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </DialogShell>
     </div>
   );
 }
+

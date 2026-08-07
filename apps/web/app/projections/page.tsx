@@ -6,9 +6,6 @@ import { TrendingUp, CheckCircle2, DollarSign } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
-import { ChartCard } from "@/components/charts/chart-card";
-import { AreaChartWidget } from "@/components/charts/area-chart-widget";
-import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import {
@@ -122,10 +119,7 @@ export default function ProjectionsPage() {
     );
   }
 
-  const chartData = forecast.periods.map((period) => ({
-    name: period.periodLabel,
-    value: period.netCashFlow,
-  }));
+
 
   return (
     <div className="space-y-6">

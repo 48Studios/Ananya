@@ -14,17 +14,31 @@ import {
 } from "@/lib/api/service-requests-api";
 import { formatDate } from "@/lib/utils";
 
+import { DialogShell } from "@/components/ui/dialog-shell";
+import { ServiceRequestForm } from "@/components/service/service-request-form";
+
 export default function ServicePage() {
   const [tickets, setTickets] = React.useState<ServiceRequestDto[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
 
-  React.useEffect(() => {
+  const fetchTickets = React.useCallback(() => {
+    setLoading(true);
     serviceRequestsApi
       .getAll()
       .then((data) => setTickets(data || []))
       .catch(() => setTickets([]))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => {
+    fetchTickets();
+  }, [fetchTickets]);
+
+  const handleSuccess = () => {
+    setIsFormOpen(false);
+    fetchTickets();
+  };
 
   const columns: ColumnDef<ServiceRequestDto>[] = [
     {
@@ -110,7 +124,7 @@ export default function ServicePage() {
         title="Field Service & Technical Support Tickets"
         description="Manage customer field service requests, engineer dispatches, asset repairs, and SLA resolution times."
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
             New Service Ticket
           </Button>
@@ -143,6 +157,20 @@ export default function ServicePage() {
         emptyTitle="No Service Tickets"
         emptyMessage="No open support or field service tickets found."
       />
+
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title="New Field Service Ticket"
+        description="Create a technical support or field service ticket."
+        size="sm"
+      >
+        <ServiceRequestForm
+          onSuccess={handleSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </DialogShell>
     </div>
   );
 }
+

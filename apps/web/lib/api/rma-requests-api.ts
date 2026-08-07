@@ -20,4 +20,14 @@ export const rmaRequestsApi = {
   getById: async (id: string): Promise<RmaRequestDto> => {
     return apiClient.get<RmaRequestDto>(`/rma-requests/${id}`);
   },
+  create: async (data: {
+    customerId?: string;
+    itemDescription: string;
+    reason: string;
+    serialNumber?: string;
+    salesOrderNumber?: string;
+  }): Promise<RmaRequestDto> => {
+    return apiClient.post<RmaRequestDto>("/rma-requests", data);
+  },
 };
+

@@ -10,17 +10,31 @@ import { EntityDataTable } from "@/components/ui/entity-data-table";
 import { tasksApi, type TaskDto } from "@/lib/api/tasks-api";
 import { formatDate } from "@/lib/utils";
 
+import { DialogShell } from "@/components/ui/dialog-shell";
+import { TaskForm } from "@/components/tasks/task-form";
+
 export default function TasksPage() {
   const [tasks, setTasks] = React.useState<TaskDto[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
 
-  React.useEffect(() => {
+  const fetchTasks = React.useCallback(() => {
+    setLoading(true);
     tasksApi
       .getAll()
       .then((data) => setTasks(data || []))
       .catch(() => setTasks([]))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  const handleSuccess = () => {
+    setIsFormOpen(false);
+    fetchTasks();
+  };
 
   const columns: ColumnDef<TaskDto>[] = [
     {
@@ -76,7 +90,7 @@ export default function TasksPage() {
         title="Operations Task Management"
         description="Assign, track, and execute cross-departmental ERP operational tasks."
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
             Create Task
           </Button>
@@ -105,6 +119,20 @@ export default function TasksPage() {
         emptyTitle="No Tasks Found"
         emptyMessage="No tasks assigned to your active queue."
       />
+
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title="Create Operational Task"
+        description="Assign a new operational task and tracking target."
+        size="sm"
+      >
+        <TaskForm
+          onSuccess={handleSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </DialogShell>
     </div>
   );
 }
+

@@ -20,4 +20,15 @@ export const tasksApi = {
   getById: async (id: string): Promise<TaskDto> => {
     return apiClient.get<TaskDto>(`/tasks/${id}`);
   },
+  create: async (data: {
+    projectId?: string;
+    title: string;
+    description?: string;
+    assignedUser?: string;
+    estimatedHours?: number;
+    priority?: string;
+  }): Promise<TaskDto> => {
+    return apiClient.post<TaskDto>("/tasks", data);
+  },
 };
+

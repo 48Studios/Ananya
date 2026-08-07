@@ -19,4 +19,14 @@ export const timeEntriesApi = {
   getById: async (id: string): Promise<TimeEntryDto> => {
     return apiClient.get<TimeEntryDto>(`/time-entries/${id}`);
   },
+  create: async (data: {
+    userId?: string;
+    taskId?: string;
+    date?: string;
+    hours: number;
+    description?: string;
+  }): Promise<TimeEntryDto> => {
+    return apiClient.post<TimeEntryDto>("/time-entries", data);
+  },
 };
+

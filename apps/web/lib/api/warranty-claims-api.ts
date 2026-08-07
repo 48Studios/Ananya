@@ -20,4 +20,15 @@ export const warrantyClaimsApi = {
   getById: async (id: string): Promise<WarrantyClaimDto> => {
     return apiClient.get<WarrantyClaimDto>(`/warranty-claims/${id}`);
   },
+  create: async (data: {
+    customerId?: string;
+    productId?: string;
+    serialNumber?: string;
+    purchaseDate?: string;
+    expiryDate?: string;
+    claimReason: string;
+  }): Promise<WarrantyClaimDto> => {
+    return apiClient.post<WarrantyClaimDto>("/warranty-claims", data);
+  },
 };
+

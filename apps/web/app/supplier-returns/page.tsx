@@ -16,17 +16,31 @@ import {
 } from "@/lib/api/supplier-returns-api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
+import { DialogShell } from "@/components/ui/dialog-shell";
+import { SupplierReturnForm } from "@/components/supplier-returns/supplier-return-form";
+
 export default function SupplierReturnsPage() {
   const [returns, setReturns] = React.useState<SupplierReturnDto[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
 
-  React.useEffect(() => {
+  const fetchReturns = React.useCallback(() => {
+    setLoading(true);
     supplierReturnsApi
       .getAll()
       .then((data) => setReturns(data || []))
       .catch(() => setReturns([]))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => {
+    fetchReturns();
+  }, [fetchReturns]);
+
+  const handleSuccess = () => {
+    setIsFormOpen(false);
+    fetchReturns();
+  };
 
   const totalValue = React.useMemo(() => {
     return returns.reduce((acc, r) => acc + (r?.totalAmount || 0), 0);
@@ -117,7 +131,7 @@ export default function SupplierReturnsPage() {
         title="Supplier Returns & Debit Memos"
         description="Process non-conforming vendor material returns, debit memo issuances, and credit receipts."
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
             Create Supplier Return
           </Button>
@@ -151,6 +165,20 @@ export default function SupplierReturnsPage() {
         emptyTitle="No Supplier Returns Found"
         emptyMessage="No supplier material returns recorded."
       />
+
+      <DialogShell
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        title="Create Supplier Return"
+        description="Process vendor material return and issue debit memo."
+        size="sm"
+      >
+        <SupplierReturnForm
+          onSuccess={handleSuccess}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </DialogShell>
     </div>
   );
 }
+
