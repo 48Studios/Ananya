@@ -60,18 +60,14 @@ function LoginFormContent() {
               Ananya ERP
             </h1>
             <p className="text-xs text-muted-foreground font-mono">
-              48 Studios Enterprise Operations
+              Enterprise Operations
             </p>
           </div>
         </div>
 
         <div className="space-y-4 max-w-md">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Identity & Access Control</span>
-          </div>
           <h2 className="text-3xl font-extrabold text-foreground tracking-tight leading-tight">
-            Centralized Platform for Modern Hardware & Film Production.
+            Centralized Platform for Engineering.
           </h2>
           <p className="text-sm text-muted-foreground">
             Manage components, inventory transactions, manufacturing work
@@ -190,7 +186,7 @@ function LoginFormContent() {
               href="/onboarding"
               className="text-primary font-medium hover:underline"
             >
-              Request workspace invitation
+              Let's get started
             </Link>
           </div>
         </div>

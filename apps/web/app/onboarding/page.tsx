@@ -25,7 +25,7 @@ export default function OnboardingLandingPage() {
               Welcome to Ananya ERP
             </h1>
             <p className="text-xs text-muted-foreground font-mono">
-              48 Studios Enterprise Platform
+              Enterprise Platform
             </p>
           </div>
         </div>
