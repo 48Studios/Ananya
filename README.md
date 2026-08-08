@@ -488,7 +488,7 @@ docker compose down -v
 | `CORS_ORIGIN`         | No       | `http://localhost:3000`                                            | Allowed CORS origin URLs                                   |
 | `JWT_SECRET`          | Yes      | `ananya_jwt_production_secret_change_me`                           | Secret key for JWT token signing                           |
 | `RUN_MIGRATIONS`      | No       | `true`                                                             | Executes `pnpm db:setup` on API container boot when `true` |
-| `NEXT_PUBLIC_API_URL` | Yes      | `http://localhost:4000`                                            | Public API endpoint URL consumed by Next.js web client     |
+| `API_INTERNAL_URL`    | No       | `http://localhost:4000`                                            | Server-only internal URL used by Next.js to proxy `/api/*` to the NestJS backend. Never exposed to the browser. |
 | `ANANYA_REGISTRY`     | No       | `ghcr.io/48studios`                                                | Container registry namespace                               |
 | `ANANYA_VERSION`      | No       | `edge`                                                             | Deployment container version tag                           |
 

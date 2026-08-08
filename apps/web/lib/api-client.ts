@@ -9,7 +9,7 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API_BASE_URL = "/api";
 const TOKEN_KEY = "ananya_auth_token";
 
 let onUnauthorizedHandler: (() => void) | null = null;
@@ -51,7 +51,7 @@ function getStoredToken(): string | null {
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = endpoint.startsWith("http")
     ? endpoint
-    : `${API_BASE_URL}${endpoint}`;
+    : `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -83,8 +83,8 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const message = Array.isArray(errorData.message)
       ? errorData.message.join(", ")
       : errorData.message ||
-        response.statusText ||
-        "An unexpected API error occurred";
+      response.statusText ||
+      "An unexpected API error occurred";
 
     // Global 401 Unauthorized Interceptor
     if (response.status === 401 && !endpoint.includes("/auth/login")) {
@@ -149,7 +149,7 @@ export const apiClient = {
   ): Promise<T> => {
     const url = endpoint.startsWith("http")
       ? endpoint
-      : `${API_BASE_URL}${endpoint}`;
+      : `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
     const headers: Record<string, string> = {
       ...(options?.headers as Record<string, string>),
@@ -182,8 +182,8 @@ export const apiClient = {
       const message = Array.isArray(errorData.message)
         ? errorData.message.join(", ")
         : errorData.message ||
-          response.statusText ||
-          "An unexpected API error occurred";
+        response.statusText ||
+        "An unexpected API error occurred";
 
       if (response.status === 401 && !endpoint.includes("/auth/login")) {
         clearStoredAuthToken();
