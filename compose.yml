@@ -1,57 +1,38 @@
 # ==============================================================================
-# Ananya ERP — Local Development Stack (compose.yml)
-# Builds application containers locally from workspace source files.
-# Exposes debugging ports (5432, 4000, 4001, 3000, 5050) for local development.
+# Ananya ERP — Base Stack (compose.yml)
+# Contains shared infrastructure and common application service configuration.
+# Must be composed with an override file that provides build or image directives:
+#
+#   Local build:     docker compose -f compose.yml -f compose.local.yml up --build
+#   Published image: docker compose -f compose.yml -f compose.prod.yml up
 # ==============================================================================
 
-name: ananya-dev
+name: ananya
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: ananya-postgres-dev
+    container_name: ananya-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ananya}
       POSTGRES_USER: ${POSTGRES_USER:-ananya}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ananya_secure_password}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - dev
+      - internal
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ananya} -d ${POSTGRES_DB:-ananya}"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: ananya-pgadmin-dev
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@ananya.internal}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
-    ports:
-      - "5050:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    networks:
-      - dev
-    depends_on:
-      postgres:
-        condition: service_healthy
-
   api:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.api
-    container_name: ananya-api-dev
+    container_name: ananya-api
     restart: unless-stopped
     ports:
-      - "4000:4000"
+      - "${API_PORT:-4000}:4000"
     environment:
       NODE_ENV: production
       PORT: 4000
@@ -62,7 +43,7 @@ services:
     volumes:
       - uploads_data:/app/uploads
     networks:
-      - dev
+      - internal
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,13 +55,11 @@ services:
       start_period: 15s
 
   worker:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.worker
-    container_name: ananya-worker-dev
+    container_name: ananya-worker
     restart: unless-stopped
-    ports:
-      - "4001:4001"
+    profiles:
+      - worker
+      - all
     environment:
       NODE_ENV: production
       WORKER_PORT: 4001
@@ -89,7 +68,7 @@ services:
     volumes:
       - uploads_data:/app/uploads
     networks:
-      - dev
+      - internal
     depends_on:
       postgres:
         condition: service_healthy
@@ -101,19 +80,16 @@ services:
       start_period: 15s
 
   web:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.web
-    container_name: ananya-web-dev
+    container_name: ananya-web
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${WEB_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
       API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:4000}
     networks:
-      - dev
+      - internal
     depends_on:
       api:
         condition: service_healthy
@@ -124,15 +100,36 @@ services:
       retries: 3
       start_period: 15s
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ananya-pgadmin
+    restart: unless-stopped
+    profiles:
+      - tools
+      - admin
+      - all
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@ananya.internal}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin_password}
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
-    name: ananya_dev_postgres_data
+    name: ananya_postgres_data
   uploads_data:
-    name: ananya_dev_uploads_data
+    name: ananya_uploads_data
   pgadmin_data:
-    name: ananya_dev_pgadmin_data
+    name: ananya_pgadmin_data
 
 networks:
-  dev:
-    name: ananya_dev
+  internal:
+    name: ananya_internal
     driver: bridge
