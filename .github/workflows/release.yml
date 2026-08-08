@@ -67,27 +67,18 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Boot Infrastructure Services (PostgreSQL & Redis)
+      - name: Boot Infrastructure Services (PostgreSQL)
         run: |
-          echo "=== 1. Starting PostgreSQL & Redis ==="
-          docker compose -f compose.prod.yaml up -d postgres redis
+          echo "=== 1. Starting PostgreSQL ==="
+          docker compose -f compose.yaml up -d postgres
 
-          echo "=== 2. Waiting for PostgreSQL & Redis Readiness ==="
+          echo "=== 2. Waiting for PostgreSQL Readiness ==="
           for i in {1..30}; do
-            if docker compose -f compose.prod.yaml exec -T postgres pg_isready -U ananya -d ananya 2>/dev/null; then
+            if docker compose -f compose.yaml exec -T postgres pg_isready -U ananya -d ananya 2>/dev/null; then
               echo "✅ PostgreSQL is ready!"
               break
             fi
             echo "Waiting for PostgreSQL ($i/30)..."
-            sleep 2
-          done
-
-          for i in {1..30}; do
-            if docker compose -f compose.prod.yaml exec -T redis redis-cli ping 2>/dev/null | grep -q PONG; then
-              echo "✅ Redis is ready!"
-              break
-            fi
-            echo "Waiting for Redis ($i/30)..."
             sleep 2
           done
 
@@ -99,16 +90,16 @@ jobs:
       - name: Boot Application Stack & Run Health Checks
         run: |
           echo "=== 4. Booting Application Stack (API, Worker, Web) ==="
-          docker compose -f compose.prod.yaml up --build -d api worker web
+          docker compose -f compose.yaml -f compose.prod.yaml up --build -d api worker web
 
           echo "=== 5. Container Status (docker compose ps -a) ==="
-          docker compose -f compose.prod.yaml ps -a
+          docker compose -f compose.yaml -f compose.prod.yaml ps -a
 
           echo "=== 6. Waiting 5s for process initialization ==="
           sleep 5
 
           echo "=== 7. Checking Service Exit States ==="
-          containers=("ananya-postgres" "ananya-redis" "ananya-api" "ananya-worker" "ananya-web")
+          containers=("ananya-postgres" "ananya-api" "ananya-worker" "ananya-web")
           for c in "${containers[@]}"; do
             running=$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo "false")
             exit_code=$(docker inspect -f '{{.State.ExitCode}}' "$c" 2>/dev/null || echo "1")

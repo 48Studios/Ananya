@@ -1,6 +1,7 @@
 # ==============================================================================
 # Ananya ERP — Production Worker Container Image
-# Multi-stage Dockerfile using pnpm and Turborepo prune
+# Hardened Multi-stage Dockerfile (Pruner -> Builder -> Prod-Deps -> Runner)
+# Note: Prepared for future workspace package decoupling to @ananya/worker
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -10,9 +11,9 @@
 FROM node:22-alpine AS pruner
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
-RUN npm install -g pnpm@9.0.0 turbo@^2.10.5
+RUN corepack enable
 COPY . .
-RUN turbo prune --scope=@ananya/api --docker
+RUN npx turbo prune --scope=@ananya/api --docker
 
 # ------------------------------------------------------------------------------
 # Stage 2: Builder
@@ -21,21 +22,45 @@ RUN turbo prune --scope=@ananya/api --docker
 FROM node:22-alpine AS builder
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
-RUN npm install -g pnpm@9.0.0
+RUN corepack enable
+
+# Copy pruned lockfile & workspace package configs
+COPY --from=pruner /app/out/json/ .
+COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+
+# Install all dependencies with BuildKit caching
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install
+
+# Copy pruned source code
+COPY --from=pruner /app/out/full/ .
+
+# Build workspace packages & API worker target
+ENV NODE_ENV=production
+RUN pnpm turbo run build --filter=@ananya/api...
+
+# Clean non-runtime source files and test suites from workspace packages
+RUN find packages -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.mts" -o -name "*.cts" -o -name "*.md" -o -name "tsconfig*.json" \) -not -path "*/dist/*" -delete && \
+    find packages -type d \( -name "src" -o -name "test" -o -name "tests" -o -name "__tests__" \) -exec rm -rf {} +
+
+# ------------------------------------------------------------------------------
+# Stage 3: Production Dependencies
+# Install production-only dependencies without build tooling
+# ------------------------------------------------------------------------------
+FROM node:22-alpine AS prod-deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+RUN corepack enable
 
 COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 
-RUN pnpm install --frozen-lockfile
-
-COPY --from=pruner /app/out/full/ .
-
-ENV NODE_ENV=production
-RUN pnpm turbo run build --filter=@ananya/api...
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --prod
 
 # ------------------------------------------------------------------------------
-# Stage 3: Production Runner
-# Dedicated background worker runtime environment with non-root security
+# Stage 4: Production Runner
+# Minimal background worker runtime environment with non-root security isolation
 # ------------------------------------------------------------------------------
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -43,31 +68,24 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV WORKER_PORT=4001
 
-# Create non-root system user & group
+# Create non-root system user & group with fixed GID/UID 10001
 RUN addgroup -S -g 10001 ananya && \
-    adduser -S -u 10001 -G ananya ananya
+    adduser -S -u 10001 -G ananya -h /app ananya
 
-RUN npm install -g pnpm@9.0.0
+# Copy pre-built production node_modules and built artifacts
+COPY --from=prod-deps --chown=ananya:ananya /app/node_modules ./node_modules
+COPY --from=builder --chown=ananya:ananya /app/packages ./packages
+COPY --from=builder --chown=ananya:ananya /app/apps/api/dist ./apps/api/dist
 
-COPY --from=pruner /app/out/json/ .
-COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
-RUN pnpm install --frozen-lockfile --prod
-
-# Copy built artifacts from builder
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/packages ./packages
-
-# Verify compiled build artifact existence
-RUN find /app/apps/api/dist -name worker.js | grep -q worker.js || (echo "❌ worker.js not found in build output!" && exit 1)
-
-RUN chown -R ananya:ananya /app
+# Deterministic build verification
+RUN test -f apps/api/dist/src/worker.js || (echo "❌ worker.js not found in build output!" && exit 1)
 
 USER ananya
 
 EXPOSE 4001
 
-CMD ["node", "apps/api/dist/src/worker.js"]
-
 # Health check probe
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://localhost:4001/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"
+
+CMD ["node", "apps/api/dist/src/worker.js"]

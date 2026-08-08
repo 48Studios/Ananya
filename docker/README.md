@@ -24,14 +24,14 @@ Ananya ERP uses a modular multi-service container architecture. Production image
         │  (Next.js :3000)   │         │  (NestJS :4000)    │
         └────────────────────┘         └──────────┬─────────┘
                                                   │
-                                 ┌────────────────┼────────────────┐
-                                 │                │                │
-                        ┌────────▼────────┐ ┌─────▼───────┐ ┌──────▼─────────┐
-                        │  ghcr.io/      │ │ PostgreSQL  │ │ Redis          │
-                        │  48studios/     │ │ Database    │ │ Cache/Queue    │
-                        │  ananya-worker  │ │ (:5432)     │ │ (:6379)        │
-                        │  (Worker :4001) │ └─────────────┘ └────────────────┘
-                        └─────────────────┘
+                                  ┌────────────────┼────────────────┐
+                                  │                │                │
+                         ┌────────▼────────┐ ┌─────▼───────┐
+                         │  ghcr.io/      │ │ PostgreSQL  │
+                         │  48studios/     │ │ Database    │
+                         │  ananya-worker  │ │ (:5432)     │
+                         │  (Worker :4001) │ └─────────────┘
+                         └─────────────────┘
 ```
 
 ### Published GHCR Images
@@ -89,20 +89,20 @@ cp .env.example .env
 ### 2. Pull Latest Edge or Release Images
 ```bash
 # Pull default 'edge' tag from GHCR
-docker compose -f compose.prod.yaml pull
+docker compose -f compose.yaml -f compose.prod.yaml pull
 
 # Or pull a specific release tag
-ANANYA_VERSION=v0.1.0 docker compose -f compose.prod.yaml pull
+ANANYA_VERSION=v0.1.0 docker compose -f compose.yaml -f compose.prod.yaml pull
 ```
 
 ### 3. Launch Production Stack
 ```bash
-docker compose -f compose.prod.yaml up -d
+docker compose -f compose.yaml -f compose.prod.yaml up -d
 ```
 
 ### 4. Verify Service Probes
 ```bash
-docker compose -f compose.prod.yaml ps
+docker compose -f compose.yaml -f compose.prod.yaml ps
 ```
 - **Web Endpoint**: `http://localhost:3000` (Health Probe: `http://localhost:3000/api/health`)
 - **API Endpoint**: `http://localhost:4000` (Health Probe: `http://localhost:4000/health`)
@@ -114,14 +114,14 @@ docker compose -f compose.prod.yaml ps
 
 ### Updating to Latest Edge Images
 ```bash
-docker compose -f compose.prod.yaml pull
-docker compose -f compose.prod.yaml up -d --remove-orphans
+docker compose -f compose.yaml -f compose.prod.yaml pull
+docker compose -f compose.yaml -f compose.prod.yaml up -d --remove-orphans
 ```
 
 ### Rolling Back to a Specific Version or Git SHA
 To roll back to a previous stable tag (e.g. `sha-a1b2c3d` or `v0.1.0`):
 ```bash
-ANANYA_VERSION=sha-a1b2c3d docker compose -f compose.prod.yaml up -d
+ANANYA_VERSION=sha-a1b2c3d docker compose -f compose.yaml -f compose.prod.yaml up -d
 ```
 
 ---
@@ -167,7 +167,15 @@ docker run --rm -v ananya_uploads_data:/volume -v $(pwd):/backup alpine tar czf 
 
 ## 🔒 Security Hardening Standards
 
+- **Unified 4-Stage Pipeline**: All container images follow a standardized 4-stage architecture (`pruner` → `builder` → `prod-deps` → `runner`).
+- **Corepack Version Alignment**: Global package manager installations are removed; builds use `corepack enable` to mirror the repository's `packageManager` declaration (`pnpm@9.0.0`).
+- **Zero Runtime Package Installation**: Production dependencies are installed during the `prod-deps` stage. The runtime `runner` image copies pre-installed `node_modules` and executes `node` directly with zero runtime package installations (`pnpm install` / `npm install`).
+- **No Build Tooling in Runtime**: Runtime images exclude `pnpm`, `turbo`, TypeScript compilers, test files, and raw `.ts` source code.
 - **Non-Root Execution**: Containers run as `ananya` user (`UID/GID 10001`).
-- **Network Isolation**: PostgreSQL and Redis run on private bridge network `ananya-network` with zero public exposure.
+- **Deterministic Build Verification**: Container builds fail immediately if compiled entrypoint artifacts (`main.js`, `worker.js`, `server.js`) are missing using `test -f`.
+- **BuildKit Caching**: Dependency installation steps leverage BuildKit cache mounts (`--mount=type=cache,id=pnpm,target=...`).
+- **Minimal Context**: Root `.dockerignore` excludes unnecessary context (`.git`, `node_modules`, test reports, local build outputs).
+- **Network Isolation**: PostgreSQL database runs on private bridge network `ananya` with zero public exposure.
 - **Least Privilege Workflows**: GitHub Actions authentication uses temporary `GITHUB_TOKEN` with minimal scope (`contents: read`, `packages: write`).
-- **Automated Health Probes**: Active container probes verify HTTP endpoints every 10-15s.
+- **Automated Health Probes**: Active container probes verify HTTP endpoints every 10-15s (`/health`, `/api/health`).
+
