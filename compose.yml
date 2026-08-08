@@ -5,6 +5,11 @@
 #
 #   Local build:     docker compose -f compose.yml -f compose.local.yml up --build
 #   Published image: docker compose -f compose.yml -f compose.prod.yml up
+#
+# Architecture:
+#   Browser → https://erp.<domain>        (Next.js Web, port 3000)
+#   Browser → https://api.erp.<domain>    (NestJS API, port 4000)
+#   Web container communicates with API via Docker network (internal only)
 # ==============================================================================
 
 name: ananya
@@ -87,7 +92,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:4000}
+      # Public API URL baked into the Next.js build.
+      # The browser communicates directly with this endpoint.
+      # Docker service names (e.g. http://api:4000) must NEVER appear here.
+      NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:-http://localhost:4000}
     networks:
       - internal
     depends_on:

@@ -8,6 +8,9 @@
 #
 # Pin a specific release:
 #   ANANYA_VERSION=sha-a1b2c3d docker compose -f compose.yml -f compose.prod.yml up -d
+#
+# Required: Set API_PUBLIC_URL in your .env to the public API endpoint.
+# Example:  API_PUBLIC_URL=https://api.erp.48studios.dev
 # ==============================================================================
 
 services:
@@ -19,3 +22,7 @@ services:
 
   web:
     image: ghcr.io/48studios/ananya-web:${ANANYA_VERSION:-latest}
+    environment:
+      # Public API URL baked into the Next.js build at container start.
+      # Must be a URL the browser can reach. Never use Docker service names here.
+      NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?API_PUBLIC_URL must be set for production deployments}

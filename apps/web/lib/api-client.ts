@@ -9,7 +9,10 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE_URL = "/api";
+// The public base URL of the API, configured at build time via NEXT_PUBLIC_API_URL.
+// Example: http://localhost:4000 (dev) | https://api.erp.example.com (prod)
+// Set API_PUBLIC_URL in your environment; Next.js exposes it as NEXT_PUBLIC_API_URL.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const TOKEN_KEY = "ananya_auth_token";
 
 let onUnauthorizedHandler: (() => void) | null = null;

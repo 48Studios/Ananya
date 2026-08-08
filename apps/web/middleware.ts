@@ -14,7 +14,9 @@ const PUBLIC_ROUTES = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Ignore static assets, Next.js internal files, images, and favicons
+  // Ignore static assets, Next.js internal files, images, and favicons.
+  // /api/* is scoped to Next.js route handlers only (e.g. /api/health).
+  // The browser communicates directly with the public API endpoint, not via proxy.
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
@@ -23,6 +25,7 @@ export function middleware(request: NextRequest) {
   ) {
     return NextResponse.next();
   }
+
 
   const token =
     request.cookies.get("ananya_auth_token")?.value ||
