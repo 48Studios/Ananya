@@ -31,30 +31,30 @@ Ananya ERP uses a modular multi-service container architecture with **separate p
 
 ### Deployment Architecture
 
-| Public Endpoint | Service | Port |
-| :--- | :--- | :--- |
-| `https://erp.<domain>` | Next.js Web UI | 3000 |
+| Public Endpoint            | Service         | Port |
+| :------------------------- | :-------------- | :--- |
+| `https://erp.<domain>`     | Next.js Web UI  | 3000 |
 | `https://api.erp.<domain>` | NestJS REST API | 4000 |
 
 **Key principle**: The browser communicates **directly** with the API via its public URL. Docker service names (e.g. `http://api:4000`) are used only for internal container-to-container communication and **must never appear in browser-facing configuration**.
 
 ### Published GHCR Images
 
-| Service | GitHub Container Registry Path | Multi-Arch Platforms |
-| :--- | :--- | :--- |
-| **Web Interface** | `ghcr.io/48studios/ananya-web` | `linux/amd64`, `linux/arm64` |
-| **API Backend** | `ghcr.io/48studios/ananya-api` | `linux/amd64`, `linux/arm64` |
+| Service           | GitHub Container Registry Path    | Multi-Arch Platforms         |
+| :---------------- | :-------------------------------- | :--------------------------- |
+| **Web Interface** | `ghcr.io/48studios/ananya-web`    | `linux/amd64`, `linux/arm64` |
+| **API Backend**   | `ghcr.io/48studios/ananya-api`    | `linux/amd64`, `linux/arm64` |
 | **Worker Engine** | `ghcr.io/48studios/ananya-worker` | `linux/amd64`, `linux/arm64` |
 
 ---
 
 ## 🏷 Image Tagging Strategy
 
-| Tag Type | Image Tag Pattern | Trigger Event | `latest` Tag Behavior |
-| :--- | :--- | :--- | :--- |
-| **Edge Build** | `edge`, `sha-<commit-sha>` | Push to `main` branch | ❌ `latest` NOT modified |
-| **Release Candidate** | `rc1`, `rc2`, ... | Push to `release/*` branch | ❌ `latest` NOT modified |
-| **Official Release** | `vX.Y.Z`, `X.Y.Z`, `latest` | Git release tag `v*.*.*` | ✅ `latest` updated ONLY on official releases |
+| Tag Type              | Image Tag Pattern           | Trigger Event              | `latest` Tag Behavior                         |
+| :-------------------- | :-------------------------- | :------------------------- | :-------------------------------------------- |
+| **Edge Build**        | `edge`, `sha-<commit-sha>`  | Push to `main` branch      | ❌ `latest` NOT modified                      |
+| **Release Candidate** | `rc1`, `rc2`, ...           | Push to `release/*` branch | ❌ `latest` NOT modified                      |
+| **Official Release**  | `vX.Y.Z`, `X.Y.Z`, `latest` | Git release tag `v*.*.*`   | ✅ `latest` updated ONLY on official releases |
 
 ---
 
@@ -64,11 +64,11 @@ Ananya ERP uses a modular multi-service container architecture with **separate p
 
 **`API_PUBLIC_URL`** — the public base URL of the API that the browser calls directly.
 
-| Environment | Value |
-| :--- | :--- |
-| Local development | `http://localhost:4000` |
-| Local Docker | `http://localhost:4000` |
-| Production | `https://api.erp.48studios.dev` |
+| Environment       | Value                           |
+| :---------------- | :------------------------------ |
+| Local development | `http://localhost:4000`         |
+| Local Docker      | `http://localhost:4000`         |
+| Production        | `https://api.erp.48studios.dev` |
 
 > [!IMPORTANT]
 > `API_PUBLIC_URL` must be a URL the **browser** can reach. Docker DNS names like `http://api:4000` only work inside the Docker network and will break in the browser.
@@ -119,6 +119,18 @@ docker compose -f compose.yml -f compose.prod.yml --profile all up -d
 
 ---
 
+## 🗄️ Database Startup Lifecycle
+
+The API container owns the standard Ananya database startup lifecycle:
+
+1. On every API startup, the process waits for PostgreSQL to accept connections.
+2. The API applies all pending Drizzle schema migrations before NestJS starts listening.
+3. Migration execution is idempotent; repeated starts simply leave the schema up to date.
+4. If migrations fail, the API logs the failure and exits with a non-zero status so the container is not marked healthy.
+5. The `/health` endpoint is only reachable after migrations have completed successfully and NestJS has started.
+
+No manual migration command is required during deployment. No automatic seed or demo business data is created on startup. After the API is healthy, administrators should open the Web UI and import the required Data Pack(s) from **Settings → Data Packs** to initialize business data.
+
 ## 💻 Local Docker Workflow
 
 Build and run all services locally from workspace source files:
@@ -133,13 +145,13 @@ docker compose -f compose.yml -f compose.local.yml ps
 
 Local ports exposed to host:
 
-| Service | URL |
-| :--- | :--- |
-| **Web UI** | `http://localhost:3000` |
+| Service        | URL                     |
+| :------------- | :---------------------- |
+| **Web UI**     | `http://localhost:3000` |
 | **API Server** | `http://localhost:4000` |
-| **Worker** | `http://localhost:4001` |
-| **PostgreSQL** | `localhost:5432` |
-| **pgAdmin** | `http://localhost:5050` |
+| **Worker**     | `http://localhost:4001` |
+| **PostgreSQL** | `localhost:5432`        |
+| **pgAdmin**    | `http://localhost:5050` |
 
 To reset local development database:
 
@@ -257,4 +269,3 @@ gunzip -c ananya_backup.sql.gz | docker exec -i ananya-postgres psql -U ananya -
 ```bash
 docker run --rm -v ananya_uploads_data:/volume -v $(pwd):/backup alpine tar czf /backup/ananya_uploads_$(date +%Y%m%d).tar.gz -C /volume .
 ```
-

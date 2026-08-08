@@ -11,9 +11,22 @@ dotenv.config();
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { LocationExceptionFilter } from './locations/location-exception.filter';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { runStartupMigrations } from '@ananya/database/startup-migrations';
 
 async function bootstrap() {
+  const logger = new Logger('Startup');
+
+  try {
+    await runStartupMigrations();
+  } catch (error) {
+    logger.error(
+      'Database startup migrations failed. Terminating API startup.',
+      error instanceof Error ? error.stack : String(error),
+    );
+    process.exit(1);
+  }
+
   const app = await NestFactory.create(AppModule);
 
   const corsOrigin = process.env.CORS_ORIGIN
