@@ -1,9 +1,0 @@
-services:
-  api:
-    image: ${ANANYA_REGISTRY:-ghcr.io/48studios}/ananya-api:${ANANYA_VERSION:-latest}
-
-  worker:
-    image: ${ANANYA_REGISTRY:-ghcr.io/48studios}/ananya-worker:${ANANYA_VERSION:-latest}
-
-  web:
-    image: ${ANANYA_REGISTRY:-ghcr.io/48studios}/ananya-web:${ANANYA_VERSION:-latest}

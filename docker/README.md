@@ -1,37 +1,40 @@
 # Ananya ERP — Production Containerization & Release Engineering Guide
 
-> **Daily Driver Phase & Continuous Delivery Reference**
+> **Production Deployment Architecture & Release Engineering Reference**
 >
-> This guide details how to build, deploy, manage, update, rollback, and publish multi-architecture container images for **Ananya ERP** using GitHub Container Registry (GHCR).
+> This guide details how to build, deploy, manage, update, rollback, and publish multi-architecture container images for **Ananya ERP** using GitHub Container Registry (GHCR) and standalone Docker Compose specifications.
 
 ---
 
 ## 🏗 Container Architecture & Registry
 
-Ananya ERP uses a modular multi-service container architecture. Production images are built as multi-architecture containers (`linux/amd64`, `linux/arm64`) using Docker Buildx and Turborepo dependency pruning (`turbo prune`) for minimal image size and non-root security (`ananya` user, `UID/GID 10001`).
+Ananya ERP uses a modular multi-service container architecture. Production images are built as multi-architecture containers (`linux/amd64`, `linux/arm64`) using Docker Buildx, 4-stage pipeline pruning (`pruner` → `builder` → `prod-deps` → `runner`), and non-root security (`ananya` user, `UID/GID 10001`).
 
 ```
-                      ┌────────────────────────┐
-                      │    Reverse Proxy /     │
-                      │     Ingress Controller │
-                      └───────────┬────────────┘
-                                  │
-                  ┌───────────────┴───────────────┐
-                  │                               │
-        ┌─────────▼──────────┐         ┌──────────▼─────────┐
-        │  ghcr.io/48studios/│         │  ghcr.io/48studios/│
-        │  ananya-web        │         │  ananya-api        │
-        │  (Next.js :3000)   │         │  (NestJS :4000)    │
-        └────────────────────┘         └──────────┬─────────┘
-                                                  │
-                                  ┌────────────────┼────────────────┐
-                                  │                │                │
-                         ┌────────▼────────┐ ┌─────▼───────┐
-                         │  ghcr.io/      │ │ PostgreSQL  │
-                         │  48studios/     │ │ Database    │
-                         │  ananya-worker  │ │ (:5432)     │
-                         │  (Worker :4001) │ └─────────────┘
-                         └─────────────────┘
+                    ┌────────────────────────────────┐
+                    │  Reverse Proxy / Ingress       │
+                    │  (Caddy / Traefik / Nginx /    │
+                    │   Cloudflare Tunnel / Tailscale)│
+                    └───────────────┬────────────────┘
+                                    │ (Port 3000)
+                    ┌───────────────▼────────────────┐
+                    │  ghcr.io/48studios/ananya-web  │
+                    │  (Next.js Standalone UI)       │
+                    └───────────────┬────────────────┘
+                                    │ (Internal Network: ananya_internal)
+                    ┌───────────────┴────────────────┐
+                    │                                │
+          ┌─────────▼──────────┐          ┌──────────▼─────────┐
+          │ ghcr.io/48studios/ │          │ PostgreSQL         │
+          │ ananya-api         │          │ Database           │
+          │ (NestJS REST API)  │          │ (postgres:16-alpine│
+          └─────────┬──────────┘          └────────────────────┘
+                    │ (Optional Profile: worker)
+          ┌─────────▼──────────┐
+          │ ghcr.io/48studios/ │
+          │ ananya-worker      │
+          │ (Background Worker)│
+          └────────────────────┘
 ```
 
 ### Published GHCR Images
@@ -54,99 +57,119 @@ Ananya ERP uses a modular multi-service container architecture. Production image
 
 ---
 
-## 🔄 Release Engineering Lifecycle
+## 🚀 Quick Start (Production Deployment via Standalone Compose)
 
-```
- Developer Code Edit & Local Quality Gate (pnpm qa & pnpm test:e2e)
-         │
-         ▼
- Push to `main` Branch / Tag Release (`v*.*.*`)
-         │
-         ├───► GitHub Actions: `ci.yml` (Fast Quality Gates: Lint, Types, Tests, Build)
-         │
-         ├───► GitHub Actions: `docker.yml` (Triggered on main push)
-         │           ├── 1. Mandatory Quality Gates (needs: none)
-         │           ├── 2. Container Boot & Health Smoke Test (needs: quality-gates)
-         │           └── 3. Buildx Multi-Arch GHCR Publish (`edge`, `sha-<commit>`)
-         │
-         └───► GitHub Actions: `release.yml` (Triggered on v*.*.* tag)
-                     ├── 1. Mandatory Quality Gates
-                     ├── 2. Container Boot & Health Smoke Test
-                     ├── 3. Publish GHCR Images (`vX.Y.Z`, `latest`)
-                     └── 4. Create GitHub Release with Release Notes
-```
-
----
-
-## 🚀 Quick Start (Production Deployment via GHCR)
+Production deployments use a **standalone, self-contained** Compose configuration (`compose.prod.yaml`). It does NOT depend on or merge with `compose.yaml`.
 
 ### 1. Configure Environment
-Copy `.env.example` to `.env` and set production secrets:
+Copy `.env.example` to `.env` and set production credentials:
 ```bash
 cp .env.example .env
 ```
 
-### 2. Pull Latest Edge or Release Images
+### 2. Deploy Production Stack
+To deploy the default production stack (`postgres`, `api`, `web`):
 ```bash
-# Pull default 'edge' tag from GHCR
-docker compose -f compose.yaml -f compose.prod.yaml pull
-
-# Or pull a specific release tag
-ANANYA_VERSION=v0.1.0 docker compose -f compose.yaml -f compose.prod.yaml pull
+docker compose -f compose.prod.yaml up -d
 ```
 
-### 3. Launch Production Stack
+### 3. Optional Service Profiles
+To enable the background worker or pgAdmin management tools:
 ```bash
-docker compose -f compose.yaml -f compose.prod.yaml up -d
-```
+# Enable background worker service
+docker compose -f compose.prod.yaml --profile worker up -d
 
-### 4. Verify Service Probes
-```bash
-docker compose -f compose.yaml -f compose.prod.yaml ps
+# Enable pgAdmin administration tool
+docker compose -f compose.prod.yaml --profile tools up -d
+
+# Enable all optional services
+docker compose -f compose.prod.yaml --profile all up -d
 ```
-- **Web Endpoint**: `http://localhost:3000` (Health Probe: `http://localhost:3000/api/health`)
-- **API Endpoint**: `http://localhost:4000` (Health Probe: `http://localhost:4000/health`)
-- **Worker Endpoint**: `http://localhost:4001` (Health Probe: `http://localhost:4001/health`)
+Alternatively, set `COMPOSE_PROFILES=worker` in your `.env` file.
 
 ---
 
-## 🔄 Updating Containers & Rollback
+## 💻 Local Development Workflow
 
-### Updating to Latest Edge Images
+To build and run all services locally from workspace source files:
+
 ```bash
-docker compose -f compose.yaml -f compose.prod.yaml pull
-docker compose -f compose.yaml -f compose.prod.yaml up -d --remove-orphans
+# Build and boot all local development services
+docker compose up --build -d
+
+# Verify local container health & ports
+docker compose ps
 ```
+Local dev ports exposed to host:
+- **Web UI**: `http://localhost:3000`
+- **API Server**: `http://localhost:4000` (Health Probe: `http://localhost:4000/health`)
+- **Worker**: `http://localhost:4001` (Health Probe: `http://localhost:4001/health`)
+- **PostgreSQL**: `localhost:5432`
+- **pgAdmin**: `http://localhost:5050`
 
-### Rolling Back to a Specific Version or Git SHA
-To roll back to a previous stable tag (e.g. `sha-a1b2c3d` or `v0.1.0`):
+To reset local development database:
 ```bash
-ANANYA_VERSION=sha-a1b2c3d docker compose -f compose.yaml -f compose.prod.yaml up -d
-```
-
----
-
-## 🛠 Local Multi-Arch Buildx Testing
-
-To test multi-architecture builds locally using Docker Buildx:
-
-```bash
-# Initialize buildx builder instance
-docker buildx create --name ananya-builder --use
-
-# Build API multi-arch image
-docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile.api -t ghcr.io/48studios/ananya-api:local .
-
-# Build Web multi-arch image
-docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile.web -t ghcr.io/48studios/ananya-web:local .
-
-# Build Worker multi-arch image
-docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile.worker -t ghcr.io/48studios/ananya-worker:local .
+docker compose down -v
+docker compose up --build -d
 ```
 
 ---
 
-## 💾 Backup & Restore Procedures
+## 🔒 Security & Network Isolation
+
+- **Single Ingress Point**: In production (`compose.prod.yaml`), only the Web interface (port 3000) is published to the host interface.
+- **Backend Network Isolation**: PostgreSQL (5432), API (4000), and Worker (4001) communicate over the private Docker network `ananya_internal` with zero host port exposure.
+- **Dynamic Database Credentials**: `DATABASE_URL` is automatically constructed by Docker Compose from `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`.
+- **Non-Root Execution**: Container processes run under non-root user `ananya` (`UID/GID 10001`).
+
+---
+
+## 🌐 Reverse Proxy Integration
+
+The `ananya-web` container exposes port `3000`. You can front it with any reverse proxy or ingress solution.
+
+### Caddy Example
+```caddy
+ananya.example.com {
+    reverse_proxy localhost:3000
+}
+```
+
+### Nginx Example
+```nginx
+server {
+    listen 80;
+    server_name ananya.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+---
+
+## 🔄 Updating & Rollback
+
+### Updating to Latest Container Images
+```bash
+docker compose -f compose.prod.yaml pull
+docker compose -f compose.prod.yaml up -d --remove-orphans
+```
+
+### Rolling Back to a Specific Tag or Git SHA
+To roll back to a previous tag (e.g. `v0.1.0` or `sha-a1b2c3d`):
+```bash
+ANANYA_VERSION=v0.1.0 docker compose -f compose.prod.yaml up -d
+```
+
+---
+
+## 💾 Backup & Maintenance Procedures
 
 ### Database Backup (PostgreSQL)
 ```bash
@@ -158,24 +181,7 @@ docker exec -t ananya-postgres pg_dump -U ananya ananya | gzip > ananya_backup_$
 gunzip -c ananya_backup.sql.gz | docker exec -i ananya-postgres psql -U ananya -d ananya
 ```
 
-### Persistent File Storage Backup
+### Persistent Volume Backup (File Uploads)
 ```bash
 docker run --rm -v ananya_uploads_data:/volume -v $(pwd):/backup alpine tar czf /backup/ananya_uploads_$(date +%Y%m%d).tar.gz -C /volume .
 ```
-
----
-
-## 🔒 Security Hardening Standards
-
-- **Unified 4-Stage Pipeline**: All container images follow a standardized 4-stage architecture (`pruner` → `builder` → `prod-deps` → `runner`).
-- **Corepack Version Alignment**: Global package manager installations are removed; builds use `corepack enable` to mirror the repository's `packageManager` declaration (`pnpm@9.0.0`).
-- **Zero Runtime Package Installation**: Production dependencies are installed during the `prod-deps` stage. The runtime `runner` image copies pre-installed `node_modules` and executes `node` directly with zero runtime package installations (`pnpm install` / `npm install`).
-- **No Build Tooling in Runtime**: Runtime images exclude `pnpm`, `turbo`, TypeScript compilers, test files, and raw `.ts` source code.
-- **Non-Root Execution**: Containers run as `ananya` user (`UID/GID 10001`).
-- **Deterministic Build Verification**: Container builds fail immediately if compiled entrypoint artifacts (`main.js`, `worker.js`, `server.js`) are missing using `test -f`.
-- **BuildKit Caching**: Dependency installation steps leverage BuildKit cache mounts (`--mount=type=cache,id=pnpm,target=...`).
-- **Minimal Context**: Root `.dockerignore` excludes unnecessary context (`.git`, `node_modules`, test reports, local build outputs).
-- **Network Isolation**: PostgreSQL database runs on private bridge network `ananya` with zero public exposure.
-- **Least Privilege Workflows**: GitHub Actions authentication uses temporary `GITHUB_TOKEN` with minimal scope (`contents: read`, `packages: write`).
-- **Automated Health Probes**: Active container probes verify HTTP endpoints every 10-15s (`/health`, `/api/health`).
-

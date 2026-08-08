@@ -1,3 +1,11 @@
+# ==============================================================================
+# Ananya ERP — Standalone Production Deployment Stack (compose.prod.yml)
+# Self-contained multi-container deployment architecture.
+# Exposes only the Web interface (port 3000) for reverse proxy ingress.
+# ==============================================================================
+
+name: ananya-prod
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -7,48 +15,31 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-ananya}
       POSTGRES_USER: ${POSTGRES_USER:-ananya}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ananya_secure_password}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ananya} -d ${POSTGRES_DB:-ananya}"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: ananya-pgadmin
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@ananya.internal}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
-    ports:
-      - "5050:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-
   api:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.api
+    image: ${ANANYA_REGISTRY:-ghcr.io/48studios}/ananya-api:${ANANYA_VERSION:-latest}
     container_name: ananya-api
     restart: unless-stopped
-    ports:
-      - "4000:4000"
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgres://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@postgres:5432/${POSTGRES_DB:-ananya}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@postgres:5432/${POSTGRES_DB:-ananya}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       JWT_SECRET: ${JWT_SECRET:-ananya_jwt_production_secret_change_me}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
     volumes:
       - uploads_data:/app/uploads
+    networks:
+      - internal
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,20 +51,21 @@ services:
       start_period: 15s
 
   worker:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.worker
+    image: ${ANANYA_REGISTRY:-ghcr.io/48studios}/ananya-worker:${ANANYA_VERSION:-latest}
     container_name: ananya-worker
     restart: unless-stopped
-    ports:
-      - "4001:4001"
+    profiles:
+      - worker
+      - all
     environment:
       NODE_ENV: production
       WORKER_PORT: 4001
-      DATABASE_URL: postgres://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@postgres:5432/${POSTGRES_DB:-ananya}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@postgres:5432/${POSTGRES_DB:-ananya}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
     volumes:
       - uploads_data:/app/uploads
+    networks:
+      - internal
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,17 +77,17 @@ services:
       start_period: 15s
 
   web:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.web
+    image: ${ANANYA_REGISTRY:-ghcr.io/48studios}/ananya-web:${ANANYA_VERSION:-latest}
     container_name: ananya-web
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${WEB_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    networks:
+      - internal
     depends_on:
       api:
         condition: service_healthy
@@ -106,6 +98,27 @@ services:
       retries: 3
       start_period: 15s
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ananya-pgadmin
+    restart: unless-stopped
+    profiles:
+      - tools
+      - admin
+      - all
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@ananya.internal}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin_password}
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
     name: ananya_postgres_data
@@ -115,5 +128,6 @@ volumes:
     name: ananya_pgadmin_data
 
 networks:
-  default:
-    name: ananya
+  internal:
+    name: ananya_internal
+    driver: bridge

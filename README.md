@@ -286,13 +286,8 @@ ananya/
 │   ├── Dockerfile.worker     # Multi-stage background worker production Dockerfile
 │   ├── docker-entrypoint.sh  # Auto-migration entrypoint handler
 │   └── README.md             # Docker & Release Engineering operational guide
-├── tests/
-│   ├── accessibility/        # Playwright axe-core accessibility audit suite
-│   ├── e2e/                  # Modular Playwright E2E integration test suites
-│   ├── fixtures/             # Test fixtures and POM helpers
-│   └── page-objects/         # Page Object Models (LoginPage, DashboardPage, etc.)
-├── compose.yaml              # Canonical local development Compose stack (source builds, PostgreSQL, pgAdmin)
-├── compose.prod.yaml         # Production GHCR image overlay definition
+├── compose.yml              # Canonical local development Compose stack (source builds, PostgreSQL, pgAdmin)
+├── compose.prod.yml         # Standalone production deployment Compose specification
 ├── package.json              # Monorepo root configuration & scripts
 ├── pnpm-workspace.yaml       # pnpm workspace definition
 └── turbo.json                # Turborepo build pipeline configuration
@@ -424,14 +419,14 @@ docker build -f docker/Dockerfile.worker -t ghcr.io/48studios/ananya-worker:late
 
 Production multi-architecture container images (`linux/amd64`, `linux/arm64`) are published automatically to **GitHub Container Registry (GHCR)**.
 
-Production deployments merge the canonical `compose.yaml` base with the `compose.prod.yaml` overlay to pull published multi-architecture images from GHCR:
+Production deployments merge the canonical `compose.yml` base with the `compose.prod.yml` overlay to pull published multi-architecture images from GHCR:
 
 ```bash
 # 1. Pull latest production images from GHCR
-docker compose -f compose.yaml -f compose.prod.yaml pull
+docker compose -f compose.yml -f compose.prod.yml pull
 
 # 2. Start full production stack (Web, API, Worker, PostgreSQL)
-docker compose -f compose.yaml -f compose.prod.yaml up -d
+docker compose -f compose.yml -f compose.prod.yml up -d
 ```
 
 ### Image Tag Reference Matrix
@@ -445,8 +440,8 @@ docker compose -f compose.yaml -f compose.prod.yaml up -d
 ### Updating Production Containers
 
 ```bash
-docker compose -f compose.yaml -f compose.prod.yaml pull
-docker compose -f compose.yaml -f compose.prod.yaml up -d --remove-orphans
+docker compose -f compose.yml -f compose.prod.yml pull
+docker compose -f compose.yml -f compose.prod.yml up -d --remove-orphans
 ```
 
 ### Rolling Back to a Specific Git Commit SHA

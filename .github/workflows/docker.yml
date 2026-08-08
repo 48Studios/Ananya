@@ -66,38 +66,18 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Boot Infrastructure Services (PostgreSQL)
+      - name: Boot Production Application Stack & Run Health Checks
         run: |
-          echo "=== 1. Starting PostgreSQL ==="
-          docker compose -f compose.yaml up -d postgres
+          echo "=== 1. Booting Production Stack via Standalone compose.prod.yml ==="
+          docker compose -f compose.prod.yml --profile worker up --build -d
 
-          echo "=== 2. Waiting for PostgreSQL Readiness ==="
-          for i in {1..30}; do
-            if docker compose -f compose.yaml exec -T postgres pg_isready -U ananya -d ananya 2>/dev/null; then
-              echo "✅ PostgreSQL is ready!"
-              break
-            fi
-            echo "Waiting for PostgreSQL ($i/30)..."
-            sleep 2
-          done
+          echo "=== 2. Container Status (docker compose ps -a) ==="
+          docker compose -f compose.prod.yml --profile worker ps -a
 
-      - name: Run Database Setup & Migrations
-        run: |
-          echo "=== 3. Executing Database Migrations ==="
-          DATABASE_URL="postgres://ananya:ananya_secure_password@localhost:5432/ananya" pnpm --filter @ananya/database db:setup
-
-      - name: Boot Application Stack & Run Health Checks
-        run: |
-          echo "=== 4. Booting Application Stack (API, Worker, Web) ==="
-          docker compose -f compose.yaml -f compose.prod.yaml up --build -d api worker web
-
-          echo "=== 5. Container Status (docker compose ps -a) ==="
-          docker compose -f compose.yaml -f compose.prod.yaml ps -a
-
-          echo "=== 6. Waiting 5s for process initialization ==="
+          echo "=== 3. Waiting 5s for process initialization ==="
           sleep 5
 
-          echo "=== 7. Checking Service Exit States ==="
+          echo "=== 4. Checking Service Exit States ==="
           containers=("ananya-postgres" "ananya-api" "ananya-worker" "ananya-web")
           for c in "${containers[@]}"; do
             running=$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo "false")
@@ -113,21 +93,7 @@ jobs:
             fi
           done
 
-          echo "=== 8. Health Probes Verification ==="
-          echo "Probing API Health (http://localhost:4000/health)..."
-          if ! curl --fail --retry 10 --retry-delay 3 --retry-connrefused http://localhost:4000/health; then
-            echo "❌ API Health Probe Failed! Logs:"
-            docker logs ananya-api
-            exit 1
-          fi
-
-          echo "Probing Worker Health (http://localhost:4001/health)..."
-          if ! curl --fail --retry 10 --retry-delay 3 --retry-connrefused http://localhost:4001/health; then
-            echo "❌ Worker Health Probe Failed! Logs:"
-            docker logs ananya-worker
-            exit 1
-          fi
-
+          echo "=== 5. Health Probes Verification ==="
           echo "Probing Web Health (http://localhost:3000/api/health)..."
           if ! curl --fail --retry 10 --retry-delay 3 --retry-connrefused http://localhost:3000/api/health; then
             echo "❌ Web Health Probe Failed! Logs:"
@@ -135,12 +101,26 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Full production integration smoke test passed cleanly!"
+          echo "Probing API Internal Health..."
+          if ! docker exec ananya-api node -e "fetch('http://localhost:4000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"; then
+            echo "❌ API Health Probe Failed! Logs:"
+            docker logs ananya-api
+            exit 1
+          fi
+
+          echo "Probing Worker Internal Health..."
+          if ! docker exec ananya-worker node -e "fetch('http://localhost:4001/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"; then
+            echo "❌ Worker Health Probe Failed! Logs:"
+            docker logs ananya-worker
+            exit 1
+          fi
+
+          echo "✅ Standalone production deployment integration smoke test passed cleanly!"
 
       - name: Cleanup Production Stack
         if: always()
         run: |
-          docker compose -f compose.prod.yaml down -v --remove-orphans || true
+          docker compose -f compose.prod.yml --profile worker down -v --remove-orphans || true
 
   build-and-publish:
     name: Build & Publish Image (${{ matrix.service }})
@@ -186,6 +166,8 @@ jobs:
             type=edge,branch=main
             type=sha,prefix=sha-,format=short
             type=ref,event=branch,enable=${{ startsWith(github.ref, 'refs/heads/release/') }}
+          flavor: |
+            latest=false
           labels: |
             org.opencontainers.image.title=Ananya ERP ${{ matrix.service }}
             org.opencontainers.image.description=Production container image for Ananya ERP platform (${{ matrix.service }})
@@ -205,4 +187,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-
