@@ -161,16 +161,23 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ matrix.image }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
-            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
-            type=raw,value=rc,enable=${{ contains(github.ref_name, '-RC') || contains(github.ref_name, '-rc') }}
+
           flavor: |
             latest=false
+
+          tags: |
+            # Stable releases
+            type=semver,pattern={{version}},enable=${{ !contains(github.ref_name, '-') }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ !contains(github.ref_name, '-') }}
+            type=semver,pattern={{major}},enable=${{ !contains(github.ref_name, '-') && !startsWith(github.ref_name, 'v0.') }}
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+
+            # Release candidates
+            type=raw,value=rc,enable=${{ contains(github.ref_name, '-RC') || contains(github.ref_name, '-rc') }}
+            type=raw,value=${{ github.ref_name }},enable=${{ contains(github.ref_name, '-RC') || contains(github.ref_name, '-rc') }}
+
           labels: |
-            org.opencontainers.image.title=Ananya ERP ${{ matrix.service }} (Release)
+            org.opencontainers.image.title=Ananya ERP ${{ matrix.service }}
             org.opencontainers.image.description=Production release image for Ananya ERP platform (${{ matrix.service }})
             org.opencontainers.image.vendor=48 Studios
             org.opencontainers.image.licenses=MIT
