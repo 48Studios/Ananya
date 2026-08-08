@@ -349,25 +349,28 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-Start PostgreSQL & pgAdmin, then run system setup:
+Start PostgreSQL & pgAdmin, then start the API. The API waits for PostgreSQL and applies pending migrations automatically before serving requests:
 
 ```bash
 # Launch development datastores only
 docker compose up -d postgres
 
-# Run database setup & system bootstrap
-pnpm db:setup
+# Start the API after PostgreSQL is available
+pnpm --filter @ananya/api dev
 ```
 
 ### 4. Local Development Options
 
 **Option A: Full Container Stack (Build from local source)**
+
 ```bash
 docker compose -f compose.yml -f compose.local.yml up --build
 ```
+
 Builds and runs Web (port 3000), API (port 4000), PostgreSQL, and pgAdmin (profile: `tools`) directly from local source files without depending on GHCR.
 
 **Option B: Local Node/pnpm Development**
+
 ```bash
 # Run NestJS API, Next.js Web, & Worker concurrently
 pnpm dev
@@ -404,11 +407,11 @@ Ananya ERP is containerized using multi-stage Dockerfiles that leverage Turborep
 
 The stack uses a three-file overlay pattern to eliminate duplicated configuration:
 
-| File | Purpose |
-| :--- | :--- |
-| `compose.yml` | Base stack: shared infrastructure (postgres, pgadmin), common service configuration (env, healthchecks, depends_on, networks, volumes) |
-| `compose.local.yml` | Override: build application services from local Dockerfiles |
-| `compose.prod.yml` | Override: run application services from published GHCR images |
+| File                | Purpose                                                                                                                                |
+| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------- |
+| `compose.yml`       | Base stack: shared infrastructure (postgres, pgadmin), common service configuration (env, healthchecks, depends_on, networks, volumes) |
+| `compose.local.yml` | Override: build application services from local Dockerfiles                                                                            |
+| `compose.prod.yml`  | Override: run application services from published GHCR images                                                                          |
 
 ### Test Production Dockerfiles Locally
 
@@ -498,21 +501,20 @@ docker compose -f compose.yml -f compose.prod.yml down -v
 
 ## 🔐 Environment Variables
 
-| Variable              | Required | Default                                                            | Description                                                |
-| :-------------------- | :------- | :----------------------------------------------------------------- | :--------------------------------------------------------- |
-| `DATABASE_URL`        | Yes      | `postgresql://ananya:ananya_secure_password@localhost:5432/ananya` | Primary PostgreSQL database connection string              |
-| `POSTGRES_DB`         | Yes      | `ananya`                                                           | Database name for PostgreSQL container                     |
-| `POSTGRES_USER`       | Yes      | `ananya`                                                           | Database user for PostgreSQL container                     |
-| `POSTGRES_PASSWORD`   | Yes      | `ananya_secure_password`                                           | Database password for PostgreSQL container                 |
-| `PORT`                | No       | `4000`                                                             | HTTP port for NestJS API server                            |
-| `WORKER_PORT`         | No       | `4001`                                                             | HTTP port for Background Worker health check server        |
-| `WEB_PORT`            | No       | `3000`                                                             | HTTP port for Next.js Web application                      |
-| `CORS_ORIGIN`         | No       | `http://localhost:3000`                                            | Allowed CORS origin URLs                                   |
-| `JWT_SECRET`          | Yes      | `ananya_jwt_production_secret_change_me`                           | Secret key for JWT token signing                           |
-| `RUN_MIGRATIONS`      | No       | `true`                                                             | Executes `pnpm db:setup` on API container boot when `true` |
-| `API_INTERNAL_URL`    | No       | `http://localhost:4000`                                            | Server-only internal URL used by Next.js to proxy `/api/*` to the NestJS backend. Never exposed to the browser. |
-| `ANANYA_REGISTRY`     | No       | `ghcr.io/48studios`                                                | Container registry namespace                               |
-| `ANANYA_VERSION`      | No       | `edge`                                                             | Deployment container version tag                           |
+| Variable            | Required | Default                                                            | Description                                                                                                     |
+| :------------------ | :------- | :----------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`      | Yes      | `postgresql://ananya:ananya_secure_password@localhost:5432/ananya` | Primary PostgreSQL database connection string                                                                   |
+| `POSTGRES_DB`       | Yes      | `ananya`                                                           | Database name for PostgreSQL container                                                                          |
+| `POSTGRES_USER`     | Yes      | `ananya`                                                           | Database user for PostgreSQL container                                                                          |
+| `POSTGRES_PASSWORD` | Yes      | `ananya_secure_password`                                           | Database password for PostgreSQL container                                                                      |
+| `PORT`              | No       | `4000`                                                             | HTTP port for NestJS API server                                                                                 |
+| `WORKER_PORT`       | No       | `4001`                                                             | HTTP port for Background Worker health check server                                                             |
+| `WEB_PORT`          | No       | `3000`                                                             | HTTP port for Next.js Web application                                                                           |
+| `CORS_ORIGIN`       | No       | `http://localhost:3000`                                            | Allowed CORS origin URLs                                                                                        |
+| `JWT_SECRET`        | Yes      | `ananya_jwt_production_secret_change_me`                           | Secret key for JWT token signing                                                                                |
+| `API_INTERNAL_URL`  | No       | `http://localhost:4000`                                            | Server-only internal URL used by Next.js to proxy `/api/*` to the NestJS backend. Never exposed to the browser. |
+| `ANANYA_REGISTRY`   | No       | `ghcr.io/48studios`                                                | Container registry namespace                                                                                    |
+| `ANANYA_VERSION`    | No       | `edge`                                                             | Deployment container version tag                                                                                |
 
 ---
 
@@ -596,7 +598,7 @@ In accordance with [`ARCHITECTURE.md`](file:///ARCHITECTURE.md), Ananya ERP comp
 ```
                   ┌────────────────────────────────────────┐
                   │          Database Migration            │
-                  │           (pnpm db:migrate)            │
+                  │      (automatic on API startup)        │
                   └───────────────────┬────────────────────┘
                                       │
                   ┌───────────────────▼────────────────────┐
@@ -620,9 +622,10 @@ In accordance with [`ARCHITECTURE.md`](file:///ARCHITECTURE.md), Ananya ERP comp
                   └────────────────────────────────────────┘
 ```
 
-1. **System Bootstrap (`runBootstrap`)**: Executed during platform setup (`pnpm db:setup`). Initializes **ONLY** system infrastructure (Roles, System Settings, Default Numbering Series, Feature Flags). Zero synthetic business data is created.
-2. **Data Packs Studio (`/settings/data-packs`)**: Web interface allowing administrators to install Base Units, Core Logistics, Default Categories, and Demo datasets processing strictly through the production Import Framework (`ImportExportService`).
-3. **Organization Reset (`/settings/danger-zone`)**: Web-based destructive purge under Danger Zone. Requires 3-step confirmation (Warning screen, text verification `RESET MY ORGANIZATION`, and administrator password re-authentication), preserving system tenant profiles while recording security audit log `ORGANIZATION_DATA_RESET`.
+1. **Automatic schema migration**: On every API startup, Ananya waits for PostgreSQL, applies pending Drizzle migrations idempotently, and only exposes `/health` after NestJS starts successfully. No manual migration command is required during deployment.
+2. **No automatic seed data**: Startup never creates synthetic seed or demo business data.
+3. **Data Packs Studio (`/settings/data-packs`)**: After the application is healthy, administrators import the required Data Pack(s) to initialize business data. Data Packs process strictly through the production Import Framework (`ImportExportService`).
+4. **Organization Reset (`/settings/danger-zone`)**: Web-based destructive purge under Danger Zone. Requires 3-step confirmation (Warning screen, text verification `RESET MY ORGANIZATION`, and administrator password re-authentication), preserving system tenant profiles while recording security audit log `ORGANIZATION_DATA_RESET`.
 
 ---
 

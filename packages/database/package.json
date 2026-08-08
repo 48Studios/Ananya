@@ -16,6 +16,10 @@
     "./query": {
       "types": "./src/query.ts",
       "default": "./dist/query.js"
+    },
+    "./startup-migrations": {
+      "types": "./src/startup-migrations.ts",
+      "default": "./dist/startup-migrations.js"
     }
   },
   "typesVersions": {
@@ -25,6 +29,9 @@
       ],
       "query": [
         "./src/query.ts"
+      ],
+      "startup-migrations": [
+        "./src/startup-migrations.ts"
       ]
     }
   },
