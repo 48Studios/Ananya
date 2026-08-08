@@ -162,9 +162,9 @@ jobs:
         with:
           images: ${{ matrix.image }}
           tags: |
-            type=semver,pattern={{version}},value=${{ github.ref_name }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ github.ref_name }}
-            type=semver,pattern={{major}},value=${{ github.ref_name }},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
             type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
             type=raw,value=rc,enable=${{ contains(github.ref_name, '-RC') || contains(github.ref_name, '-rc') }}
           flavor: |
@@ -176,6 +176,15 @@ jobs:
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.documentation=https://github.com/48studios/ananya#readme
             org.opencontainers.image.source=https://github.com/48studios/ananya
+
+      - name: Inspect Metadata Outputs
+        run: |
+          echo "=== steps.meta.outputs.tags ==="
+          echo "${{ steps.meta.outputs.tags }}"
+          echo "=== steps.meta.outputs.version ==="
+          echo "${{ steps.meta.outputs.version }}"
+          echo "=== steps.meta.outputs.json ==="
+          echo "${{ steps.meta.outputs.json }}"
 
       - name: Build & Push Release Multi-Architecture Image
         uses: docker/build-push-action@v6
