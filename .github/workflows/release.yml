@@ -3,7 +3,7 @@ name: Production Release Pipeline
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,7 +27,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: '.nvmrc'
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install Dependencies
@@ -59,7 +59,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: '.nvmrc'
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install Dependencies
@@ -67,16 +67,22 @@ jobs:
 
       - name: Boot Production Application Stack & Run Health Checks
         run: |
-          echo "=== 1. Booting Production Stack via Standalone compose.prod.yml ==="
-          docker compose -f compose.prod.yml --profile worker up --build -d
+          echo "=== 1. Starting PostgreSQL ==="
+          docker compose -f compose.yml -f compose.local.yml up -d postgres
 
-          echo "=== 2. Container Status (docker compose ps -a) ==="
-          docker compose -f compose.prod.yml --profile worker ps -a
+          echo "=== 2. Running schema migrations ==="
+          docker compose -f compose.yml -f compose.local.yml run --build --rm migrate
 
-          echo "=== 3. Waiting 5s for process initialization ==="
+          echo "=== 3. Booting production-equivalent application stack ==="
+          docker compose -f compose.yml -f compose.local.yml --profile worker up --build -d api worker web
+
+          echo "=== 4. Container Status (docker compose ps -a) ==="
+          docker compose -f compose.yml -f compose.local.yml --profile worker ps -a
+
+          echo "=== 5. Waiting 5s for process initialization ==="
           sleep 5
 
-          echo "=== 4. Checking Service Exit States ==="
+          echo "=== 6. Checking Service Exit States ==="
           containers=("ananya-postgres" "ananya-api" "ananya-worker" "ananya-web")
           for c in "${containers[@]}"; do
             running=$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo "false")
@@ -92,7 +98,7 @@ jobs:
             fi
           done
 
-          echo "=== 5. Health Probes Verification ==="
+          echo "=== 7. Health Probes Verification ==="
           echo "Probing Web Health (http://localhost:3000/api/health)..."
           if ! curl --fail --retry 10 --retry-delay 3 --retry-connrefused http://localhost:3000/api/health; then
             echo "❌ Web Health Probe Failed! Logs:"
@@ -114,12 +120,12 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Standalone production deployment integration smoke test passed cleanly!"
+          echo "✅ Production-equivalent deployment integration smoke test passed cleanly!"
 
       - name: Cleanup Production Stack
         if: always()
         run: |
-          docker compose -f compose.prod.yml --profile worker down -v --remove-orphans || true
+          docker compose -f compose.yml -f compose.local.yml --profile worker down -v --remove-orphans || true
 
   publish-release-images:
     name: Build & Publish Release Image (${{ matrix.service }})

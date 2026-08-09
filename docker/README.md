@@ -1,260 +1,155 @@
-# Ananya ERP — Production Containerization & Release Engineering Guide
+# Ananya ERP Docker Guide
 
-> **Production Deployment Architecture & Release Engineering Reference**
->
-> This guide details how to build, deploy, manage, update, rollback, and publish multi-architecture container images for **Ananya ERP** using GitHub Container Registry (GHCR) and standalone Docker Compose specifications.
+This guide covers the Compose and container workflow for Ananya ERP. The root [README.md](../README.md) is the entry point; this file keeps the Docker-specific operational detail.
 
----
+## Compose Files
 
-## 🏗 Container Architecture & Registry
+Ananya uses three Compose files:
 
-Ananya ERP uses a modular multi-service container architecture with **separate public endpoints** for the Web application and the API.
+| File                                        | Purpose                                                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [`compose.yml`](../compose.yml)             | Canonical/base stack: PostgreSQL, API, migration service, worker, web, pgAdmin profile, volumes, and network. |
+| [`compose.local.yml`](../compose.local.yml) | Local override that builds application images from the repository Dockerfiles.                                |
+| [`compose.prod.yml`](../compose.prod.yml)   | Production override that runs published GHCR images.                                                          |
 
+Use `compose.yml` with one application override. Do not run `compose.prod.yml` by itself.
+
+## Application Images
+
+| Image                             | Container       | Purpose                                                                              |
+| --------------------------------- | --------------- | ------------------------------------------------------------------------------------ |
+| `ghcr.io/48studios/ananya-web`    | `ananya-web`    | Next.js standalone web app on port `3000`.                                           |
+| `ghcr.io/48studios/ananya-api`    | `ananya-api`    | NestJS REST API on port `4000`; also used by the one-shot migration service.         |
+| `ghcr.io/48studios/ananya-worker` | `ananya-worker` | Background worker using `apps/api/src/worker.ts`, with health checks on port `4001`. |
+
+The Dockerfiles build non-root images using the `ananya` user with UID/GID `10001`.
+
+## Required Deployment Order
+
+Production and production-equivalent Docker runs should follow this order:
+
+```text
+PostgreSQL -> database migrations -> API / Worker / Web -> Data Packs when required
 ```
-                    ┌────────────────────────────────┐
-                    │  Reverse Proxy / Ingress       │
-                    │  (Caddy / Traefik / Nginx /    │
-                    │   Cloudflare Tunnel)           │
-                    └───┬────────────────────────┬───┘
-                        │ erp.<domain>:3000      │ api.erp.<domain>:4000
-          ┌─────────────▼──────────┐  ┌──────────▼─────────────┐
-          │ ghcr.io/48studios/     │  │ ghcr.io/48studios/     │
-          │ ananya-web             │  │ ananya-api             │
-          │ (Next.js Standalone)   │  │ (NestJS REST API)      │
-          └────────────────────────┘  └──────────┬─────────────┘
-                                                 │ (Internal: ananya_internal)
-                                      ┌──────────▼─────────────┐
-                                      │ PostgreSQL              │
-                                      │ (postgres:16-alpine)    │
-                                      └────────────────────────┘
-```
 
-### Deployment Architecture
+Migrations are explicit. The API container does not run migrations on startup.
 
-| Public Endpoint | Service | Port |
-| :--- | :--- | :--- |
-| `https://erp.<domain>` | Next.js Web UI | 3000 |
-| `https://api.erp.<domain>` | NestJS REST API | 4000 |
+## Local Production-Equivalent Build
 
-**Key principle**: The browser communicates **directly** with the API via its public URL. Docker service names (e.g. `http://api:4000`) are used only for internal container-to-container communication and **must never appear in browser-facing configuration**.
-
-### Published GHCR Images
-
-| Service | GitHub Container Registry Path | Multi-Arch Platforms |
-| :--- | :--- | :--- |
-| **Web Interface** | `ghcr.io/48studios/ananya-web` | `linux/amd64`, `linux/arm64` |
-| **API Backend** | `ghcr.io/48studios/ananya-api` | `linux/amd64`, `linux/arm64` |
-| **Worker Engine** | `ghcr.io/48studios/ananya-worker` | `linux/amd64`, `linux/arm64` |
-
----
-
-## 🏷 Image Tagging Strategy
-
-| Tag Type | Image Tag Pattern | Trigger Event | `latest` Tag Behavior |
-| :--- | :--- | :--- | :--- |
-| **Edge Build** | `edge`, `sha-<commit-sha>` | Push to `main` branch | ❌ `latest` NOT modified |
-| **Release Candidate** | `rc1`, `rc2`, ... | Push to `release/*` branch | ❌ `latest` NOT modified |
-| **Official Release** | `vX.Y.Z`, `X.Y.Z`, `latest` | Git release tag `v*.*.*` | ✅ `latest` updated ONLY on official releases |
-
----
-
-## ⚙️ Environment Variables
-
-### The One Variable You Must Configure
-
-**`API_PUBLIC_URL`** — the public base URL of the API that the browser calls directly.
-
-| Environment | Value |
-| :--- | :--- |
-| Local development | `http://localhost:4000` |
-| Local Docker | `http://localhost:4000` |
-| Production | `https://api.erp.48studios.dev` |
-
-> [!IMPORTANT]
-> `API_PUBLIC_URL` must be a URL the **browser** can reach. Docker DNS names like `http://api:4000` only work inside the Docker network and will break in the browser.
-
-This value is passed to `docker compose` as `NEXT_PUBLIC_API_URL`, which Next.js bakes into the build. Changing `API_PUBLIC_URL` requires rebuilding the web image.
-
----
-
-## 🚀 Quick Start (Production Deployment)
-
-### 1. Configure Environment
+Build and run the application Dockerfiles locally:
 
 ```bash
-cp .env.example .env
+docker compose -f compose.yml -f compose.local.yml up -d postgres
+docker compose -f compose.yml -f compose.local.yml run --build --rm migrate
+docker compose -f compose.yml -f compose.local.yml --profile worker up --build -d
+docker compose -f compose.yml -f compose.local.yml --profile worker ps
 ```
 
-Edit `.env` and set:
+Shut down and remove local volumes:
 
 ```bash
-# Your public API endpoint
-API_PUBLIC_URL=https://api.erp.your-domain.com
-
-# Required: JWT secret
-JWT_SECRET=your_secure_secret_here
-
-# Required: Database credentials
-POSTGRES_PASSWORD=your_secure_password
+docker compose -f compose.yml -f compose.local.yml --profile worker down -v --remove-orphans
 ```
 
-### 2. Deploy Production Stack
+## Production Deployment
+
+Configure `.env` first:
 
 ```bash
-docker compose -f compose.yml -f compose.prod.yml up -d
+ANANYA_VERSION=0.1.0
+POSTGRES_DB=ananya
+POSTGRES_USER=ananya
+POSTGRES_PASSWORD=change-me
+JWT_SECRET=change-me
+CORS_ORIGIN=https://erp.example.com
+API_PUBLIC_URL=https://api.erp.example.com
 ```
 
-### 3. Optional Service Profiles
-
-```bash
-# Enable background worker service
-docker compose -f compose.yml -f compose.prod.yml --profile worker up -d
-
-# Enable pgAdmin administration tool
-docker compose -f compose.yml -f compose.prod.yml --profile tools up -d
-
-# Enable all optional services
-docker compose -f compose.yml -f compose.prod.yml --profile all up -d
-```
-
----
-
-## 💻 Local Docker Workflow
-
-Build and run all services locally from workspace source files:
-
-```bash
-# Build and boot all local development services
-docker compose -f compose.yml -f compose.local.yml up --build -d
-
-# Verify local container health & ports
-docker compose -f compose.yml -f compose.local.yml ps
-```
-
-Local ports exposed to host:
-
-| Service | URL |
-| :--- | :--- |
-| **Web UI** | `http://localhost:3000` |
-| **API Server** | `http://localhost:4000` |
-| **Worker** | `http://localhost:4001` |
-| **PostgreSQL** | `localhost:5432` |
-| **pgAdmin** | `http://localhost:5050` |
-
-To reset local development database:
-
-```bash
-docker compose -f compose.yml -f compose.local.yml down -v
-docker compose -f compose.yml -f compose.local.yml up --build -d
-```
-
----
-
-## 🔒 Security & Network Isolation
-
-- **Separate Public Endpoints**: Web UI (`erp.<domain>`) and API (`api.erp.<domain>`) are exposed independently via a reverse proxy. The browser calls the API directly.
-- **Backend Network Isolation**: PostgreSQL (5432) and Worker (4001) communicate over the private Docker network `ananya_internal` with zero host port exposure in production.
-- **No Proxy Layer**: The Next.js frontend does **not** proxy API traffic. There is no `/api/*` rewrite forwarding to the backend.
-- **Dynamic Database Credentials**: `DATABASE_URL` is automatically constructed by Docker Compose from `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`.
-- **Non-Root Execution**: Container processes run under non-root user `ananya` (`UID/GID 10001`).
-
----
-
-## 🌐 Reverse Proxy Integration
-
-Both the Web UI and API must be publicly accessible. Front both with your reverse proxy.
-
-### Caddy Example
-
-```caddy
-erp.example.com {
-    reverse_proxy localhost:3000
-}
-
-api.erp.example.com {
-    reverse_proxy localhost:4000
-}
-```
-
-### Nginx Example
-
-```nginx
-server {
-    listen 80;
-    server_name erp.example.com;
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-
-server {
-    listen 80;
-    server_name api.erp.example.com;
-    location / {
-        proxy_pass http://127.0.0.1:4000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-### Traefik Example (Docker labels)
-
-```yaml
-services:
-  web:
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`erp.example.com`)"
-      - "traefik.http.services.web.loadbalancer.server.port=3000"
-
-  api:
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(`api.erp.example.com`)"
-      - "traefik.http.services.api.loadbalancer.server.port=4000"
-```
-
----
-
-## 🔄 Updating & Rollback
-
-### Updating to Latest Container Images
+Then run:
 
 ```bash
 docker compose -f compose.yml -f compose.prod.yml pull
-docker compose -f compose.yml -f compose.prod.yml up -d --remove-orphans
+docker compose -f compose.yml -f compose.prod.yml up -d postgres
+docker compose -f compose.yml -f compose.prod.yml run --rm migrate
+docker compose -f compose.yml -f compose.prod.yml --profile worker up -d
 ```
 
-### Rolling Back to a Specific Tag or Git SHA
+For deployments without the worker:
 
 ```bash
-ANANYA_VERSION=v0.1.0 docker compose -f compose.yml -f compose.prod.yml up -d
+docker compose -f compose.yml -f compose.prod.yml up -d api web
 ```
 
----
+## Upgrades
 
-## 💾 Backup & Maintenance Procedures
-
-### Database Backup (PostgreSQL)
+Pin the target version, pull images, run migrations, then update services:
 
 ```bash
-docker exec -t ananya-postgres pg_dump -U ananya ananya | gzip > ananya_backup_$(date +%Y%m%d_%H%M%S).sql.gz
+ANANYA_VERSION=0.1.1 docker compose -f compose.yml -f compose.prod.yml pull
+ANANYA_VERSION=0.1.1 docker compose -f compose.yml -f compose.prod.yml run --rm migrate
+ANANYA_VERSION=0.1.1 docker compose -f compose.yml -f compose.prod.yml --profile worker up -d
 ```
 
-### Database Restore
+Migrations modify schema only. Business/master data is installed separately through Data Packs in the web application.
+
+## Image Tags
+
+Current GitHub Actions behavior:
+
+| Source                              | Tags                                                                   |
+| ----------------------------------- | ---------------------------------------------------------------------- |
+| Push to `main` after CI passes      | `edge`, `sha-<short-sha>`                                              |
+| Prerelease tag such as `v0.1.0-RC1` | `0.1.0-RC1`, lowercase prerelease channel such as `rc`                 |
+| Stable tag such as `v0.1.0`         | `latest`, `0.1.0`, `0.1`; major tag when major version is at least `1` |
+
+Use exact tags for production pinning:
 
 ```bash
-gunzip -c ananya_backup.sql.gz | docker exec -i ananya-postgres psql -U ananya -d ananya
+ANANYA_VERSION=0.1.0
 ```
 
-### Persistent Volume Backup (File Uploads)
+Use `latest` only when intentionally tracking the latest stable release:
 
 ```bash
-docker run --rm -v ananya_uploads_data:/volume -v $(pwd):/backup alpine tar czf /backup/ananya_uploads_$(date +%Y%m%d).tar.gz -C /volume .
+ANANYA_VERSION=latest
 ```
 
+## Networking
+
+The browser uses public URLs:
+
+```text
+Browser -> https://erp.example.com -> Web
+Browser -> https://api.erp.example.com -> API
+```
+
+Containers use Docker DNS only inside the Compose network:
+
+```text
+API / Worker / migrate -> postgres:5432
+```
+
+`API_PUBLIC_URL` must be browser-reachable. Do not set it to Docker service names such as `http://api:4000` or `http://ananya-api:4000`.
+
+The production reverse proxy, such as Caddy, lives outside this Compose stack and should route:
+
+```text
+https://erp.example.com -> host/container port 3000
+https://api.erp.example.com -> host/container port 4000
+```
+
+## Configuration Notes
+
+- `DATABASE_URL` is constructed by Compose for API, worker, and migration containers using `postgres:5432`.
+- Direct host commands, such as `pnpm db:migrate`, need a host-reachable `DATABASE_URL`, usually `localhost:5432`.
+- Redis is not part of the current Docker stack.
+- PostgreSQL has no host port mapping in the base/production stack; `compose.local.yml` publishes it through `POSTGRES_PORT` for host-side development.
+
+## Health Checks
+
+| Service    | Probe                                               |
+| ---------- | --------------------------------------------------- |
+| Web        | `http://localhost:3000/api/health`                  |
+| API        | `http://localhost:4000/health` inside the container |
+| Worker     | `http://localhost:4001/health` inside the container |
+| PostgreSQL | `pg_isready`                                        |

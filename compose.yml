@@ -5,11 +5,12 @@
 #
 #   Local build:     docker compose -f compose.yml -f compose.local.yml up --build
 #   Published image: docker compose -f compose.yml -f compose.prod.yml up
+#   Migrations:      docker compose -f compose.yml -f <override>.yml run --rm migrate
 #
 # Architecture:
 #   Browser → https://erp.<domain>        (Next.js Web, port 3000)
 #   Browser → https://api.erp.<domain>    (NestJS API, port 4000)
-#   Web container communicates with API via Docker network (internal only)
+#   Docker service names are internal only; browser-facing API URLs must be public.
 # ==============================================================================
 
 name: ananya
@@ -28,7 +29,11 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ananya} -d ${POSTGRES_DB:-ananya}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-ananya} -d ${POSTGRES_DB:-ananya}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,7 +49,6 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@postgres:5432/${POSTGRES_DB:-ananya}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       JWT_SECRET: ${JWT_SECRET:-ananya_jwt_production_secret_change_me}
-      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
     volumes:
       - uploads_data:/app/uploads
     networks:
@@ -53,11 +57,32 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  migrate:
+    container_name: ananya-migrate
+    restart: "no"
+    command: ["node", "packages/database/dist/setup/migrate.js"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@postgres:5432/${POSTGRES_DB:-ananya}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - migrate
 
   worker:
     container_name: ananya-worker
@@ -78,7 +103,13 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:4001/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4001/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -102,7 +133,13 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 3

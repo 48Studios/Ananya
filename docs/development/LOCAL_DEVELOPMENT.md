@@ -1,177 +1,81 @@
 # Local Development Guide
 
-This document provides detailed instructions for local development within the Ananya project.
+This guide covers the Node/pnpm workflow for local Ananya development. Use the root [README.md](../../README.md) for Docker production-image workflows.
 
-## Setting Up Your Environment
+## Prerequisites
 
-### Prerequisites
+- Node.js `22.14.0` from [.nvmrc](../../.nvmrc), or any version satisfying `>=22.12.0`.
+- pnpm `9.0.0`.
+- Docker and Docker Compose.
+- PostgreSQL 16, usually through Compose.
 
-- Node.js 18+ (use nvm for version management)
-- pnpm 8+
-- Docker and Docker Compose
-- PostgreSQL 13+
-
-### Initial Setup
+## Initial Setup
 
 ```bash
-# Clone repository
 git clone https://github.com/48studios/ananya.git
 cd ananya
-
-# Install dependencies
 pnpm install
-
-# Start database
-docker-compose up -d
-
-# Run migrations
-pnpm db:migrate
-```
-
-## Development Workflow
-
-### Running Applications
-
-The project uses Turborepo for managing multiple applications:
-
-```bash
-# Start both applications in development mode
-pnpm dev
-
-# Start API only
-pnpm api:dev
-
-# Start Web application only
-pnpm web:dev
-```
-
-### Environment Variables
-
-Create a `.env` file based on `.env.example`:
-
-```bash
 cp .env.example .env
+docker compose -f compose.yml -f compose.local.yml up -d postgres
+DATABASE_URL=postgresql://ananya:ananya_secure_password@localhost:5432/ananya pnpm db:migrate
+pnpm dev
 ```
 
-Key environment variables include:
-
-- DATABASE_URL - PostgreSQL connection string
-- JWT_SECRET - Secret for JWT token generation
-- API_PORT - Port for API server
-- WEB_PORT - Port for web application
-
-## Development Tools
-
-### Code Quality
-
-- TypeScript compilation and type checking: `pnpm type-check`
-- Linting with ESLint: `pnpm lint`
-- Formatting with Prettier: `pnpm format`
-
-### Testing
+For local browser development, keep:
 
 ```bash
-# Run all tests
+API_PUBLIC_URL=http://localhost:4000
+CORS_ORIGIN=http://localhost:3000
+```
+
+## Development Commands
+
+```bash
+pnpm dev
+pnpm lint
+pnpm check-types
 pnpm test
-
-# Run tests with coverage
-pnpm test:coverage
-
-# Run specific test file
-pnpm test -- <path-to-test-file>
-
-# Watch mode for tests
-pnpm test:watch
+pnpm build
+pnpm test:e2e
 ```
 
-## Debugging
-
-### API Debugging
-
-Use VS Code debugger configuration:
-
-1. Set breakpoints in NestJS controllers or services
-2. Launch debug configuration for API
-3. Make requests to the API endpoints
-
-### Web Application Debugging
-
-1. Set breakpoints in React components or Next.js pages
-2. Launch debug configuration for web application
-3. Navigate to web interface in browser
-
-## Database Development
-
-### Migrations
+Package-specific commands can be run with pnpm filters:
 
 ```bash
-# Create new migration
-pnpm db:generate-migration <migration-name>
-
-# Run migrations
-pnpm db:migrate
-
-# Rollback migrations
-pnpm db:rollback
+pnpm --filter @ananya/api dev
+pnpm --filter @ananya/web dev
 ```
 
-### Seeding Data
+## Database
+
+Migrations are schema management only. They do not seed business data.
 
 ```bash
-# Seed database with test data
-pnpm db:seed
+DATABASE_URL=postgresql://ananya:ananya_secure_password@localhost:5432/ananya pnpm db:migrate
 ```
 
-## Branching Strategy
+Generate migrations after schema changes:
 
-### Git Workflow
-
-1. Create feature branches from `main`
-2. Follow semantic commit messages
-3. Keep commits focused and atomic
-4. Rebase feature branches before merging
-
-### Feature Branch Naming
-
-- `feature/<description>` - New features
-- `bugfix/<description>` - Bug fixes
-- `hotfix/<description>` - Urgent fixes
-- `docs/<description>` - Documentation changes
-
-## Code Standards During Development
-
-### Commit Messages
-
-Follow conventional commits:
-
-```
-feat: add new inventory transaction type
-fix: resolve database connection issue
-docs: update API documentation
-style: format code according to standards
-refactor: restructure inventory service
-test: add tests for edge cases
+```bash
+DATABASE_URL=postgresql://ananya:ananya_secure_password@localhost:5432/ananya pnpm db:generate
 ```
 
-### Pull Request Process
+Business/master data is provisioned through Data Packs in the web application, not through seed scripts.
 
-1. Create a descriptive pull request
-2. Reference related issues
-3. Include testing information
-4. Ensure all checks pass
-5. Request review from maintainers
+## Configuration
+
+Create `.env` from [.env.example](../../.env.example). Important local values:
+
+- `DATABASE_URL`: required for direct pnpm database commands; use `localhost:5432` from the host.
+- `API_PUBLIC_URL`: browser-facing API URL, normally `http://localhost:4000`.
+- `CORS_ORIGIN`: web origin allowed by the API, normally `http://localhost:3000`.
+- `JWT_SECRET`: local development secret.
+
+Inside Compose, services use `postgres:5432`; in the browser and host shell, use host-reachable URLs.
 
 ## Troubleshooting
 
-### Common Issues
-
-- **Database connection errors**: Ensure Docker is running and `docker-compose up -d` has been executed
-- **Dependency installation failures**: Try `pnpm install --force`
-- **Port conflicts**: Check if ports 3000 (API) and 3001 (Web) are available
-- **TypeScript errors**: Run `pnpm type-check` to identify issues
-
-### Development Tips
-
-- Use `pnpm turbo` for optimized build processes
-- Leverage VS Code's TypeScript integration for better development experience
-- Utilize the built-in API documentation at `/api/docs` during development
+- Database connection errors: ensure PostgreSQL is running with `docker compose -f compose.yml ps postgres`.
+- Port conflicts: web defaults to `3000`, API defaults to `4000`, and worker health defaults to `4001`.
+- Type errors: run `pnpm check-types`.
+- Lint errors: run `pnpm lint`.
