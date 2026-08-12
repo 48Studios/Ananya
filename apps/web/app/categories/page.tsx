@@ -353,6 +353,8 @@ export default function CategoriesPage() {
         searchPlaceholder="Search categories by name..."
         filters={filterConfigs}
         loading={loading}
+        entityType="Category"
+        onRefreshData={fetchCategories}
         emptyTitle="No categories found"
         emptyMessage="Get started by creating your first inventory category."
       />

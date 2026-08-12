@@ -134,6 +134,7 @@ export default function ProductionOrdersPage() {
       <EntityDataTable
         data={orders}
         columns={columns}
+        entityType="WorkOrder"
         searchPlaceholder="Search production orders by number or status..."
         filters={filterConfigs}
         loading={loading}

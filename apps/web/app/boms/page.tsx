@@ -381,6 +381,7 @@ export default function BomsPage() {
       <EntityDataTable
         columns={columns}
         data={boms}
+        entityType="BOM"
         searchKey="revision"
         searchPlaceholder="Search by revision or notes..."
         filters={filterConfigs}

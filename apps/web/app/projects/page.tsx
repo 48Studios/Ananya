@@ -409,6 +409,7 @@ export default function ProjectsPage() {
       <EntityDataTable
         columns={columns}
         data={projects}
+        entityType="Project"
         searchKey="projectNumber"
         searchPlaceholder="Search by project # or name..."
         filters={filterConfigs}

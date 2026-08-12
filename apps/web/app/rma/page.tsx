@@ -122,6 +122,7 @@ export default function RmaPage() {
       <EntityDataTable
         data={requests}
         columns={columns}
+        entityType="RMA"
         searchPlaceholder="Search RMA requests by number, customer, or sales order..."
         loading={loading}
         emptyTitle="No RMA Requests"

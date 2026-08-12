@@ -128,6 +128,7 @@ export default function WarrantyPage() {
       <EntityDataTable
         data={claims}
         columns={columns}
+        entityType="Warranty"
         searchPlaceholder="Search claims by number, serial, customer, or product..."
         loading={loading}
         emptyTitle="No Warranty Claims"

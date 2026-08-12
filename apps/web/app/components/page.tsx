@@ -370,6 +370,7 @@ export default function ComponentsPage() {
       <EntityDataTable
         columns={columns}
         data={components}
+        entityType="Component"
         searchKey="name"
         searchPlaceholder="Search components by name..."
         filters={filterConfigs}

@@ -26,7 +26,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-
   const token =
     request.cookies.get("ananya_auth_token")?.value ||
     request.headers.get("authorization")?.replace("Bearer ", "");

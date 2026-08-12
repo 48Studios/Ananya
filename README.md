@@ -77,6 +77,7 @@ Run the automated setup script:
 ```
 
 The setup script automatically:
+
 1. Validates your Docker & Docker Compose installation.
 2. Compiles the Web image with your configured `API_PUBLIC_URL`.
 3. Pulls published API and Worker container images from GHCR.
@@ -114,6 +115,7 @@ To upgrade your installation to a newer release:
 ```
 
 The upgrade script automatically:
+
 1. Re-builds the Web image with your `API_PUBLIC_URL`.
 2. Pulls updated published API and Worker images from GHCR.
 3. Applies pending database schema migrations.

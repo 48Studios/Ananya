@@ -29,6 +29,7 @@ import {
   DialogShellCancelButton,
   DialogShellFooter,
 } from "@/components/ui/dialog-shell";
+import { FileUploader, FileUploaderRef } from "@/components/ui/file-uploader";
 
 export interface ImportWizardProps {
   isOpen: boolean;
@@ -57,10 +58,22 @@ export function ImportWizard({
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [importFile, setImportFile] = React.useState<File | null>(null);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const fileUploaderRef = React.useRef<FileUploaderRef | null>(null);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setPreviewData(null);
+      setColumnMapping({});
+      setLoading(false);
+      setExecutionResult(null);
+      setErrorMsg(null);
+      setImportFile(null);
+      fileUploaderRef.current?.reset();
+    }
+  }, [isOpen]);
+
+  const handleFileUpload = async (file: File) => {
     setLoading(true);
     setErrorMsg(null);
     try {
@@ -71,6 +84,7 @@ export function ImportWizard({
       setStep(2);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Failed to parse file");
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -78,13 +92,18 @@ export function ImportWizard({
 
   const handleDownloadTemplate = async () => {
     try {
-      const template = await importExportApi.getTemplate(entityType);
-      const csv = [
-        template.headers.join(","),
-        Object.values(template.sampleRow)
-          .map((v) => `"${v}"`)
-          .join(","),
-      ].join("\n");
+      let csv = "";
+      try {
+        csv = await importExportApi.getTemplateCsv(entityType);
+      } catch {
+        const template = await importExportApi.getTemplate(entityType);
+        csv = [
+          template.headers.join(","),
+          Object.values(template.sampleRow)
+            .map((v) => `"${v}"`)
+            .join(","),
+        ].join("\n");
+      }
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -171,29 +190,15 @@ export function ImportWizard({
         {/* STEP 1: Upload File */}
         {step === 1 && (
           <div className="space-y-4">
-            <div className="border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-8 text-center bg-muted/20 transition-all flex flex-col items-center justify-center gap-3">
-              <Upload className="w-10 h-10 text-muted-foreground/60" />
-              <div>
-                <p className="text-xs font-semibold text-foreground">
-                  Upload CSV or Excel file
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Drag and drop your spreadsheet or click to browse
-                </p>
-              </div>
-              <input
-                type="file"
-                accept=".csv,.xlsx"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="file-upload"
-              />
-              <label htmlFor="file-upload">
-                <Button variant="outline" size="sm" className="cursor-pointer">
-                  Browse File
-                </Button>
-              </label>
-            </div>
+            <FileUploader
+              ref={fileUploaderRef}
+              accept=".csv,.xlsx,.json"
+              title={`Upload ${entityType} CSV, XLSX, or JSON file`}
+              description="Drag and drop your spreadsheet or click to browse (up to 50MB)"
+              loading={loading}
+              disabled={loading}
+              onFileSelected={handleFileUpload}
+            />
 
             <div className="flex items-center justify-between pt-2">
               <span className="text-xs text-muted-foreground">
@@ -336,7 +341,7 @@ export function ImportWizard({
             <DialogShellCancelButton disabled={loading} />
             <Button
               size="sm"
-              onClick={() => document.getElementById("file-upload")?.click()}
+              onClick={() => fileUploaderRef.current?.openFilePicker()}
               disabled={loading}
             >
               {loading ? (

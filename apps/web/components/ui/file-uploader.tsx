@@ -12,6 +12,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { documentsApi } from "@/lib/api/documents-api";
 
+export interface FileUploaderRef {
+  openFilePicker: () => void;
+  reset: () => void;
+}
+
 export interface FileUploaderProps {
   /** Optional file extension or MIME type filter (e.g. ".csv,.xlsx,.json" or "image/*,.pdf") */
   accept?: string;
@@ -41,21 +46,27 @@ export interface FileUploaderProps {
   className?: string;
 }
 
-export function FileUploader({
-  accept = ".csv,.xlsx,.json,image/*,.pdf,.doc,.docx,.step,.stl",
-  maxSizeBytes = 50 * 1024 * 1024,
-  multiple = false,
-  disabled = false,
-  loading: externalLoading = false,
-  onFileSelected,
-  onFilesSelected,
-  entityType,
-  entityId,
-  onUploadSuccess,
-  title = "Drag & Drop file or click to browse",
-  description = "Supports CSV, Excel, JSON, PDF, Images & CAD up to 50MB (Paste images directly)",
-  className = "",
-}: FileUploaderProps) {
+export const FileUploader = React.forwardRef<
+  FileUploaderRef,
+  FileUploaderProps
+>(function FileUploader(
+  {
+    accept = ".csv,.xlsx,.json,image/*,.pdf,.doc,.docx,.step,.stl",
+    maxSizeBytes = 50 * 1024 * 1024,
+    multiple = false,
+    disabled = false,
+    loading: externalLoading = false,
+    onFileSelected,
+    onFilesSelected,
+    entityType,
+    entityId,
+    onUploadSuccess,
+    title = "Drag & Drop file or click to browse",
+    description = "Supports CSV, Excel, JSON, PDF, Images & CAD up to 50MB (Paste images directly)",
+    className = "",
+  },
+  ref,
+) {
   const [isDragging, setIsDragging] = React.useState(false);
   const [internalLoading, setInternalLoading] = React.useState(false);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
@@ -65,7 +76,36 @@ export function FileUploader({
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const isLoading = externalLoading || internalLoading;
 
+  const handleButtonClick = React.useCallback(() => {
+    if (disabled || isLoading) return;
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  }, [disabled, isLoading]);
+
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      openFilePicker: handleButtonClick,
+      reset: () => {
+        setSelectedFile(null);
+        setErrorMsg(null);
+        setSuccessMsg(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      },
+    }),
+    [handleButtonClick],
+  );
+
   const validateFile = (file: File): boolean => {
+    if (file.size === 0) {
+      setErrorMsg(`File "${file.name}" is empty (0 bytes)`);
+      return false;
+    }
+
     if (file.size > maxSizeBytes) {
       const maxMb = (maxSizeBytes / (1024 * 1024)).toFixed(0);
       setErrorMsg(
@@ -199,14 +239,6 @@ export function FileUploader({
     }
   };
 
-  const handleButtonClick = () => {
-    if (disabled || isLoading) return;
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-      fileInputRef.current.click();
-    }
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -237,6 +269,7 @@ export function FileUploader({
       onDragLeave={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
         setIsDragging(false);
       }}
       onDrop={handleDrop}
@@ -350,4 +383,4 @@ export function FileUploader({
       </div>
     </div>
   );
-}
+});

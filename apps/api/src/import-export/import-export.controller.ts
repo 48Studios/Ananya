@@ -27,6 +27,38 @@ export class ImportExportController {
     return this.service.getTemplate(entityType);
   }
 
+  @Get('template/:entityType/csv')
+  getTemplateCsv(@Param('entityType') entityType: string, @Req() req: Request) {
+    const csv = this.service.getTemplateCsv(entityType);
+    if (req.res) {
+      req.res.setHeader('Content-Type', 'text/csv');
+      req.res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${entityType.toLowerCase()}_template.csv"`,
+      );
+    }
+    return csv;
+  }
+
+  @Get('template/:entityType/xlsx')
+  getTemplateXlsx(
+    @Param('entityType') entityType: string,
+    @Req() req: Request,
+  ) {
+    const xlsxContent = this.service.getTemplateXlsx(entityType);
+    if (req.res) {
+      req.res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      req.res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${entityType.toLowerCase()}_template.xlsx"`,
+      );
+    }
+    return xlsxContent;
+  }
+
   @Post('import/preview')
   @UseInterceptors(FileInterceptor('file'))
   previewImport(

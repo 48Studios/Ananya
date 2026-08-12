@@ -238,6 +238,7 @@ export default function InventoryPage() {
       <EntityDataTable
         data={components}
         columns={columns}
+        entityType="Component"
         searchKey="sku"
         searchPlaceholder="Search inventory by SKU..."
         filters={filterConfigs}

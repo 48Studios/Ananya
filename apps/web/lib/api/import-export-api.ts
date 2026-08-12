@@ -64,6 +64,10 @@ export const importExportApi = {
     }>(`/import-export/template/${entityType}`);
   },
 
+  getTemplateCsv: (entityType: string): Promise<string> => {
+    return apiClient.get<string>(`/import-export/template/${entityType}/csv`);
+  },
+
   previewImport: (
     entityType: string,
     file: File,

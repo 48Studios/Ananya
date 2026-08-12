@@ -282,6 +282,7 @@ export default function RolesListPage() {
         <EntityDataTable
           columns={columns}
           data={roleList}
+          entityType="Role"
           searchKey="name"
           searchPlaceholder="Search role name or description..."
           loading={loading}

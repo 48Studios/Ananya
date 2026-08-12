@@ -72,7 +72,14 @@ const ALL_QUICK_ACTIONS = [
     href: "/components/new",
     category: "Inventory",
     permission: "Inventory.Create",
-    keywords: ["new component", "part", "item", "add component", "inventory", "part number"],
+    keywords: [
+      "new component",
+      "part",
+      "item",
+      "add component",
+      "inventory",
+      "part number",
+    ],
   },
   {
     title: "Receive Stock",
@@ -80,7 +87,14 @@ const ALL_QUICK_ACTIONS = [
     href: "/goods-receipts/new",
     category: "Inventory",
     permission: "Inventory.Create",
-    keywords: ["goods receipt", "inbound", "stock in", "receive", "grn", "stock receipt"],
+    keywords: [
+      "goods receipt",
+      "inbound",
+      "stock in",
+      "receive",
+      "grn",
+      "stock receipt",
+    ],
   },
   {
     title: "Create Supplier",
@@ -88,7 +102,13 @@ const ALL_QUICK_ACTIONS = [
     href: "/suppliers",
     category: "Procurement",
     permission: "PurchaseOrders.Create",
-    keywords: ["vendor", "new supplier", "procurement", "partner", "add supplier"],
+    keywords: [
+      "vendor",
+      "new supplier",
+      "procurement",
+      "partner",
+      "add supplier",
+    ],
   },
   {
     title: "Create Purchase Order",
@@ -104,7 +124,14 @@ const ALL_QUICK_ACTIONS = [
     href: "/boms/new",
     category: "Manufacturing",
     permission: "WorkOrders.Manage",
-    keywords: ["bom", "assembly", "recipe", "bill of materials", "manufacturing", "parts list"],
+    keywords: [
+      "bom",
+      "assembly",
+      "recipe",
+      "bill of materials",
+      "manufacturing",
+      "parts list",
+    ],
   },
   {
     title: "Create Work Order",
@@ -112,7 +139,14 @@ const ALL_QUICK_ACTIONS = [
     href: "/work-orders",
     category: "Manufacturing",
     permission: "WorkOrders.Manage",
-    keywords: ["wo", "build", "job", "production", "manufacturing", "work order"],
+    keywords: [
+      "wo",
+      "build",
+      "job",
+      "production",
+      "manufacturing",
+      "work order",
+    ],
   },
   {
     title: "Create Project",
@@ -136,7 +170,15 @@ const ALL_QUICK_ACTIONS = [
     href: "/users",
     category: "Administration",
     permission: "Administration.Users",
-    keywords: ["users", "team", "people", "members", "staff", "permissions", "directory"],
+    keywords: [
+      "users",
+      "team",
+      "people",
+      "members",
+      "staff",
+      "permissions",
+      "directory",
+    ],
   },
   {
     title: "Open Organization Settings",
@@ -144,7 +186,14 @@ const ALL_QUICK_ACTIONS = [
     href: "/settings",
     category: "Administration",
     permission: "Administration.Security",
-    keywords: ["settings", "preferences", "config", "org", "admin", "organization"],
+    keywords: [
+      "settings",
+      "preferences",
+      "config",
+      "org",
+      "admin",
+      "organization",
+    ],
   },
 ];
 

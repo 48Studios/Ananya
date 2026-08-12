@@ -122,6 +122,7 @@ export default function ProcurementPage() {
       <EntityDataTable
         data={orders}
         columns={columns}
+        entityType="PurchaseOrder"
         searchPlaceholder="Search purchase orders..."
         loading={loading}
         emptyTitle="No Purchase Orders Found"

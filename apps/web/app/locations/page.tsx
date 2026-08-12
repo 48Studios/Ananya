@@ -374,6 +374,7 @@ export default function LocationsPage() {
       <EntityDataTable
         columns={columns}
         data={locations}
+        entityType="Location"
         searchKey="code"
         searchPlaceholder="Search locations by code..."
         filters={filterConfigs}

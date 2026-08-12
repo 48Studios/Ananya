@@ -106,6 +106,7 @@ export default function ManufacturingPage() {
       <EntityDataTable
         data={workOrders}
         columns={columns}
+        entityType="WorkOrder"
         searchPlaceholder="Search work orders by number or status..."
         loading={loading}
       />

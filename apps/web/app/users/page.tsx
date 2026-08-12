@@ -314,6 +314,7 @@ export default function UsersListPage() {
         <EntityDataTable
           columns={columns}
           data={userList}
+          entityType="User"
           searchKey="name"
           searchPlaceholder="Search user name, email or department..."
           loading={loading}

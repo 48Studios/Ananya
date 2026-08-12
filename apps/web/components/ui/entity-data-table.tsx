@@ -76,7 +76,7 @@ export function EntityDataTable<TData, TValue>({
   emptyTitle = "No data found",
   emptyMessage = "No records match your criteria.",
   actionButton,
-  entityType = "Entity",
+  entityType = "Component",
   onRefreshData,
 }: EntityDataTableProps<TData, TValue>) {
   const activeFilters = filters || filterConfigs;

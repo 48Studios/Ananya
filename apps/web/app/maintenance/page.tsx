@@ -247,6 +247,7 @@ export default function MaintenancePage() {
       <EntityDataTable
         data={schedules}
         columns={columns}
+        entityType="MaintenanceSchedule"
         searchPlaceholder="Search maintenance tasks by asset, work center, or status..."
         loading={loading}
         filterConfigs={filterConfigs}

@@ -86,8 +86,8 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const message = Array.isArray(errorData.message)
       ? errorData.message.join(", ")
       : errorData.message ||
-      response.statusText ||
-      "An unexpected API error occurred";
+        response.statusText ||
+        "An unexpected API error occurred";
 
     // Global 401 Unauthorized Interceptor
     if (response.status === 401 && !endpoint.includes("/auth/login")) {
@@ -185,8 +185,8 @@ export const apiClient = {
       const message = Array.isArray(errorData.message)
         ? errorData.message.join(", ")
         : errorData.message ||
-        response.statusText ||
-        "An unexpected API error occurred";
+          response.statusText ||
+          "An unexpected API error occurred";
 
       if (response.status === 401 && !endpoint.includes("/auth/login")) {
         clearStoredAuthToken();

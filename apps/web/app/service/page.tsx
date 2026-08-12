@@ -160,6 +160,7 @@ export default function ServicePage() {
       <EntityDataTable
         data={tickets}
         columns={columns}
+        entityType="ServiceRequest"
         searchPlaceholder="Search service tickets by number, customer, or asset..."
         loading={loading}
         emptyTitle="No Service Tickets"

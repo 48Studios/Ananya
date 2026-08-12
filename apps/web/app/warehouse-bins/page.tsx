@@ -217,6 +217,7 @@ export default function WarehouseBinsPage() {
       <EntityDataTable
         data={bins}
         columns={columns}
+        entityType="WarehouseBin"
         searchPlaceholder="Search bin locations by code or name..."
         loading={loading}
         emptyTitle="No Storage Bins Found"

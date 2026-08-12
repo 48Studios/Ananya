@@ -324,6 +324,7 @@ export default function ManufacturersPage() {
       <EntityDataTable
         columns={columns}
         data={manufacturers}
+        entityType="Manufacturer"
         searchKey="name"
         searchPlaceholder="Search manufacturers by name..."
         filters={filterConfigs}

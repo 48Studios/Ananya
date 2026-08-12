@@ -68,7 +68,13 @@ Every module import follows the identical workflow executed via `ImportWizard` (
 4. **Multipart Execution**: Sends `POST /import-export/import/execute` as `multipart/form-data` with `file`, `entityType`, and `columnMapping` JSON. Backend `@UseInterceptors(FileInterceptor('file'))` parses 100% of rows from uploaded `file.buffer`.
 5. **Transactional Execution & Read-Model Invalidation**: Inserts records inside a database transaction, performs post-write database verification, and triggers frontend `onRefreshData` / query invalidation, making imported records immediately visible in the UI without browser reload.
 
-### 3. Multipart Request & Data Integrity Standards
+### 3. Importer Registry & Single Source of Truth
+
+- **Canonical Importer Registry**: `apps/api/src/import-export/importer-registry.ts` serves as the single source of truth for import contracts, field metadata (`ImportFieldDefinition`), display labels, data types, required flags, relationships, aliases, and sample rows across all 25 supported Data Import entity types.
+- **Dynamic Template Generation**: Downloadable CSV and XLSX sample templates (`GET /api/import-export/template/:entityType/csv` and `/xlsx`) derive directly from `importer-registry.ts`.
+- **System-Wide Auto-Matching & Preview Consistency**: Header auto-matching in `previewImport` matches spreadsheet column names against `f.aliases` and `f.name` defined in the registry. Automated tests (`importer-registry.spec.ts`) verify that every registered entity template parses cleanly without drift.
+
+### 4. Multipart Request & Data Integrity Standards
 
 - **HTTP Request Specification**: All import requests transmit binary or text file payloads as `multipart/form-data; boundary=...`. JSON-only metadata requests are prohibited.
 - **Backend File Processing**: NestJS controllers consume uploaded files using `@UseInterceptors(FileInterceptor('file'))` and `@UploadedFile() file: Express.Multer.File`.
