@@ -32,13 +32,15 @@ function CommandDialog({
   children,
   title = "Command Palette",
   description = "Search records, navigate to pages, and trigger quick actions.",
-  ...props
-}: React.ComponentProps<typeof Dialog> & {
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children?: React.ReactNode;
   title?: React.ReactNode;
   description?: React.ReactNode;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} {...props}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
         className="overflow-hidden p-0 max-w-xl sm:max-w-xl shadow-2xl border border-border bg-popover"
