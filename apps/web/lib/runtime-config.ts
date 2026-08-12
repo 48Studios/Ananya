@@ -13,6 +13,7 @@ export interface RuntimeConfig {
 export function getRuntimeConfig(): RuntimeConfig {
   if (typeof window === "undefined") {
     return {
+      // eslint-disable-next-line turbo/no-undeclared-env-vars
       apiUrl: process.env.API_PUBLIC_URL || "http://localhost:4000",
     };
   }
