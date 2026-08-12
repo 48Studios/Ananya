@@ -31,8 +31,10 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 COPY --from=pruner /app/out/full/ .
 
+ARG API_PUBLIC_URL=http://localhost:4000
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_API_URL=${API_PUBLIC_URL}
 
 RUN pnpm turbo run build --filter=@ananya/web...
 
@@ -72,9 +74,8 @@ COPY --from=builder --chown=ananya:ananya /app/apps/web/public ./apps/web/public
 COPY --from=builder --chown=ananya:ananya /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=ananya:ananya /app/apps/web/.next/static ./apps/web/.next/static
 
-# Copy entrypoint script
-COPY --chown=ananya:ananya docker/entrypoint-web.sh /app/docker-entrypoint-web.sh
-RUN chmod +x /app/docker-entrypoint-web.sh
+# Deterministic build verification
+RUN test -f apps/web/server.js || (echo "❌ server.js not found in build output!" && exit 1)
 
 USER ananya
 
@@ -84,5 +85,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/api/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"
 
-ENTRYPOINT ["/app/docker-entrypoint-web.sh"]
 CMD ["node", "apps/web/server.js"]

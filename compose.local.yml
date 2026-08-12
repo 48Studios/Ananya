@@ -33,7 +33,5 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.web
-    environment:
-      # Browser-accessible API URL for local Docker builds.
-      # Generated at container boot into /app/apps/web/public/runtime-config.js.
-      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:4000}
+      args:
+        API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:4000}

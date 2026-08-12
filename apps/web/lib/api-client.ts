@@ -1,5 +1,3 @@
-import { getRuntimeConfig } from "./runtime-config";
-
 export class ApiError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -11,9 +9,10 @@ export class ApiError extends Error {
   }
 }
 
-function getApiBaseUrl(): string {
-  return getRuntimeConfig().apiUrl;
-}
+// The public base URL of the API, configured at build time via NEXT_PUBLIC_API_URL.
+// Example: http://localhost:4000 (dev) | https://api.erp.example.com (prod)
+// Set API_PUBLIC_URL during Next.js build; Next.js exposes it as NEXT_PUBLIC_API_URL.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const TOKEN_KEY = "ananya_auth_token";
 
 let onUnauthorizedHandler: (() => void) | null = null;
@@ -53,10 +52,9 @@ function getStoredToken(): string | null {
 }
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const baseUrl = getApiBaseUrl();
   const url = endpoint.startsWith("http")
     ? endpoint
-    : `${baseUrl}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+    : `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -152,10 +150,9 @@ export const apiClient = {
     formData: FormData,
     options?: RequestInit,
   ): Promise<T> => {
-    const baseUrl = getApiBaseUrl();
     const url = endpoint.startsWith("http")
       ? endpoint
-      : `${baseUrl}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+      : `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
     const headers: Record<string, string> = {
       ...(options?.headers as Record<string, string>),

@@ -21,47 +21,41 @@ Ananya ERP is a modern operations platform for inventory, procurement, manufactu
 
 # Get Started
 
-This guide is for users and administrators who want to install and run Ananya ERP. You do not need to understand Node.js, pnpm, Turborepo, or the source-code architecture to follow it.
+This guide is for administrators and users installing and running Ananya ERP. You do not need to understand Node.js, pnpm, Turborepo, or full codebase internals.
 
 ## Requirements
 
-- A Linux server or workstation that can run Docker containers.
-- Docker and Docker Compose.
+- A Linux server or workstation capable of running Docker containers.
+- Docker and Docker Compose (v2).
 - Enough disk space for PostgreSQL data and uploaded files.
-- A domain name if you want browser access over HTTPS.
-- A reverse proxy such as Caddy, Nginx, or Traefik for production HTTPS routing.
-
-For local evaluation, a domain is optional and you can use `http://localhost:3000` for the web app and `http://localhost:4000` for the API.
+- Domain names (e.g. `erp.example.com` and `api.erp.example.com`) for HTTPS access, or `localhost` for evaluation.
+- A reverse proxy (e.g. Caddy, Nginx, Traefik) for production HTTPS routing.
 
 ## 1. Download Ananya
 
-Choose the version you want to run, then download the production Compose files for that release.
+Clone or download the Ananya ERP repository files:
 
 ```bash
-mkdir ananya
+git clone https://github.com/48studios/ananya.git
 cd ananya
-
-export ANANYA_VERSION=0.1.0
-export ANANYA_SOURCE_REF=v${ANANYA_VERSION}
-
-curl -fsSLO https://raw.githubusercontent.com/48studios/ananya/${ANANYA_SOURCE_REF}/compose.yml
-curl -fsSLO https://raw.githubusercontent.com/48studios/ananya/${ANANYA_SOURCE_REF}/compose.prod.yml
-curl -fsSLo .env.example https://raw.githubusercontent.com/48studios/ananya/${ANANYA_SOURCE_REF}/.env.example
-cp .env.example .env
 ```
-
-This deployment uses published images from GitHub Container Registry. You do not need to clone the source repository for a normal installation.
 
 ## 2. Configure Environment
 
-Edit `.env` and set your own values.
+Copy `.env.example` to `.env` and set your deployment parameters:
 
 ```bash
+cp .env.example .env
+```
+
+Key configuration variables:
+
+```env
 ANANYA_VERSION=0.1.0
 
 POSTGRES_DB=ananya
 POSTGRES_USER=ananya
-POSTGRES_PASSWORD=replace-with-a-strong-database-password
+POSTGRES_PASSWORD=replace-with-a-strong-password
 
 JWT_SECRET=replace-with-a-long-random-secret
 CORS_ORIGIN=https://erp.example.com
@@ -72,137 +66,60 @@ API_PORT=4000
 WORKER_PORT=4001
 ```
 
-Important variables:
+> **Note on Web Image Build**: The Web application is compiled with the public API address (`API_PUBLIC_URL`) configured for your deployment. The setup script automatically compiles the Web image for your domain while pulling pre-built API and Worker images from GitHub Container Registry.
 
-| Variable             | What it means                                                                |
-| -------------------- | ---------------------------------------------------------------------------- |
-| `ANANYA_VERSION`     | The container image tag to run, such as `0.1.0` or `latest`.                 |
-| `POSTGRES_*`         | PostgreSQL database name, user, and password used by the Compose stack.      |
-| `JWT_SECRET`         | Secret used by the API for authentication. Use a long random value.          |
-| `CORS_ORIGIN`        | The public web URL allowed to call the API.                                  |
-| `API_PUBLIC_URL`     | The public API URL that the user's browser can reach.                        |
-| `WEB_PORT`           | Host port routed to the web container.                                       |
-| `API_PORT`           | Host port routed to the API container.                                       |
-| `WORKER_PORT`        | Worker health-check port inside the worker container.                        |
-| `STORAGE_DRIVER`     | Current file storage driver. The default local driver stores uploaded files. |
-| `STORAGE_LOCAL_PATH` | Upload path inside the API and worker containers.                            |
+## 3. Run Automated Setup
 
-Do not use Docker service names such as `api`, `ananya-api`, or `postgres` as browser-facing URLs. They only work inside the Docker network.
+Run the automated setup script:
 
-## 3. Configure the Database
-
-PostgreSQL runs as part of the Docker deployment. You do not need to create tables manually.
-
-Database tables are created and updated by the migration step below. Business data is added later through Data Packs.
-
-## 4. Configure the Domain
-
-A production installation normally has two public endpoints:
-
-```text
-https://erp.example.com      -> Web container, host port 3000
-https://api.erp.example.com  -> API container, host port 4000
+```bash
+./setup.sh
 ```
 
-Use your reverse proxy to route those public domains to the host ports exposed by Docker Compose.
+The setup script automatically:
+1. Validates your Docker & Docker Compose installation.
+2. Compiles the Web image with your configured `API_PUBLIC_URL`.
+3. Pulls published API and Worker container images from GHCR.
+4. Starts PostgreSQL and waits for healthy status.
+5. Executes database schema migrations using the published API image.
+6. Starts the application stack (`web`, `api`, `worker`).
+7. Probes service health and displays your access URLs.
 
-| Public endpoint               | Route to         |
+## 4. Reverse Proxy & HTTPS Setup
+
+Route public HTTPS requests to the host ports exposed by Docker:
+
+```text
+https://erp.example.com      -> Web container (host port 3000)
+https://api.erp.example.com  -> API container (host port 4000)
+```
+
+| Public Endpoint               | Route To Target  |
 | ----------------------------- | ---------------- |
 | `https://erp.example.com`     | `localhost:3000` |
 | `https://api.erp.example.com` | `localhost:4000` |
 
-The reverse proxy configuration lives outside this repository's Compose stack.
+## 5. Install Data Packs
 
-## 5. Start PostgreSQL
+Database migrations prepare the schema structure only. Data Packs provision business master data (e.g., initial system roles, default categories, numbering series).
 
-```bash
-docker compose -f compose.yml -f compose.prod.yml up -d postgres
-```
-
-## 6. Run Database Migrations
-
-Run migrations explicitly before starting Ananya.
-
-```bash
-docker compose -f compose.yml -f compose.prod.yml run --rm migrate
-```
-
-Migrations create or update the PostgreSQL schema. They do not seed business data, install demo data, or install Data Packs.
-
-Run migrations during first installation and again when upgrading to a release that contains schema changes.
-
-## 7. Start Ananya
-
-Start the web app, API, and worker:
-
-```bash
-docker compose -f compose.yml -f compose.prod.yml --profile worker up -d
-```
-
-If you do not want to run the worker process:
-
-```bash
-docker compose -f compose.yml -f compose.prod.yml up -d api web
-```
-
-## 8. Open Ananya
-
-Open the application URL you configured:
-
-```text
-https://erp.example.com
-```
-
-For local evaluation without a reverse proxy, open:
-
-```text
-http://localhost:3000
-```
-
-## 9. Install Data Packs
-
-Data Packs provision business and master data through the application.
-
-```text
-Database migrations = database schema
-Data Packs          = business/application data
-```
-
-Data Packs do not install automatically. After the application is running, sign in as an administrator and install the Data Packs your organization needs from Settings -> Data Packs.
+After opening `https://erp.example.com` in your browser, sign in as administrator and navigate to **Settings -> Data Packs** to install initial business data.
 
 # Updating Ananya
 
-Use this process when moving to a newer release.
+To upgrade your installation to a newer release:
 
-1. Select the new version.
+```bash
+./setup.sh --upgrade
+```
 
-   ```bash
-   export ANANYA_VERSION=0.1.1
-   ```
+The upgrade script automatically:
+1. Re-builds the Web image with your `API_PUBLIC_URL`.
+2. Pulls updated published API and Worker images from GHCR.
+3. Applies pending database schema migrations.
+4. Safely updates running application containers.
 
-2. Update `.env` so it uses the same version.
-
-   ```bash
-   ANANYA_VERSION=0.1.1
-   ```
-
-3. Pull the new images.
-
-   ```bash
-   docker compose -f compose.yml -f compose.prod.yml pull
-   ```
-
-4. Run migrations.
-
-   ```bash
-   docker compose -f compose.yml -f compose.prod.yml run --rm migrate
-   ```
-
-5. Recreate the application services.
-
-   ```bash
-   docker compose -f compose.yml -f compose.prod.yml --profile worker up -d
-   ```
+Existing PostgreSQL database data, uploaded files, and `.env` credentials are preserved. No data volumes are deleted.
 
 6. Verify health.
 
