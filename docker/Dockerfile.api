@@ -77,7 +77,9 @@ COPY --from=builder --chown=ananya:ananya /app/packages ./packages
 COPY --from=builder --chown=ananya:ananya /app/apps/api/dist ./apps/api/dist
 
 # Deterministic build verification
-RUN test -f apps/api/dist/src/main.js || (echo "❌ main.js not found in build output!" && exit 1)
+RUN test -f apps/api/dist/src/main.js || (echo "❌ main.js not found in build output!" && exit 1) && \
+    test -f packages/database/dist/setup/migrate.js || (echo "❌ migrate.js not found in build output!" && exit 1) && \
+    test -d packages/database/drizzle || (echo "❌ drizzle migrations directory not found in build output!" && exit 1)
 
 USER ananya
 

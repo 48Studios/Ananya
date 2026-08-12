@@ -168,11 +168,8 @@ services:
 
 volumes:
   postgres_data:
-    name: ananya_postgres_data
   uploads_data:
-    name: ananya_uploads_data
   pgadmin_data:
-    name: ananya_pgadmin_data
 
 networks:
   internal:
