@@ -3,13 +3,12 @@
 import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
-  DialogShell,
-  DialogShellBody,
-  DialogShellCancelButton,
-  DialogShellFooter,
-} from "@/components/ui/dialog-shell";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 function Command({
@@ -32,57 +31,27 @@ function CommandDialog({
   onOpenChange,
   children,
   title = "Command Palette",
-  description = "Search records, navigate to pages, and trigger quick actions from a standardized dialog shell.",
-  onPrimaryAction,
-  primaryActionLabel = "Open Selected",
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  children: React.ReactNode;
+  description = "Search records, navigate to pages, and trigger quick actions.",
+  ...props
+}: React.ComponentProps<typeof Dialog> & {
   title?: React.ReactNode;
   description?: React.ReactNode;
-  onPrimaryAction?: () => void;
-  primaryActionLabel?: string;
 }) {
-  const handlePrimaryAction = React.useCallback(() => {
-    if (onPrimaryAction) {
-      onPrimaryAction();
-      return;
-    }
-
-    const input = document.querySelector<HTMLInputElement>("[cmdk-input]");
-    if (!input) {
-      return;
-    }
-
-    input.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "Enter",
-        bubbles: true,
-      }),
-    );
-  }, [onPrimaryAction]);
-
   return (
-    <DialogShell
-      open={open}
-      onOpenChange={onOpenChange}
-      title={title}
-      description={description}
-      size="sm"
-    >
-      <DialogShellBody>
+    <Dialog open={open} onOpenChange={onOpenChange} {...props}>
+      <DialogContent
+        showCloseButton={false}
+        className="overflow-hidden p-0 max-w-xl sm:max-w-xl shadow-2xl border border-border bg-popover"
+      >
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+        <DialogDescription className="sr-only">
+          {description}
+        </DialogDescription>
         <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
           {children}
         </Command>
-      </DialogShellBody>
-      <DialogShellFooter>
-        <DialogShellCancelButton />
-        <Button type="button" size="sm" onClick={handlePrimaryAction}>
-          {primaryActionLabel}
-        </Button>
-      </DialogShellFooter>
-    </DialogShell>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -168,11 +137,34 @@ function CommandItem({
   return (
     <CommandPrimitive.Item
       className={cn(
-        "relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-xs outline-none data-[disabled=true]:pointer-events-none data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:opacity-50 transition-colors",
+        "group relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-xs outline-none data-[disabled=true]:pointer-events-none data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[disabled=true]:opacity-50 transition-colors",
         className,
       )}
       {...props}
     />
+  );
+}
+
+function CommandIcon({
+  icon: Icon,
+  className,
+  iconClassName,
+  ...props
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  className?: string;
+  iconClassName?: string;
+} & React.ComponentProps<"div">) {
+  return (
+    <div
+      className={cn(
+        "flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors group-data-[selected=true]:bg-primary-foreground/15 group-data-[selected=true]:text-primary-foreground group-data-[disabled=true]:opacity-50",
+        className,
+      )}
+      {...props}
+    >
+      <Icon className={cn("h-3.5 w-3.5 transition-colors", iconClassName)} />
+    </div>
   );
 }
 
@@ -183,7 +175,7 @@ function CommandShortcut({
   return (
     <span
       className={cn(
-        "ml-auto text-[10px] tracking-widest text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded border border-border",
+        "ml-auto text-[10px] tracking-widest text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded border border-border group-data-[selected=true]:bg-primary-foreground/20 group-data-[selected=true]:text-primary-foreground group-data-[selected=true]:border-primary-foreground/30",
         className,
       )}
       {...props}
@@ -199,6 +191,8 @@ export {
   CommandEmpty,
   CommandGroup,
   CommandItem,
+  CommandIcon,
   CommandShortcut,
   CommandSeparator,
 };
+

@@ -35,6 +35,7 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandItem,
+  CommandIcon,
   CommandShortcut,
 } from "@/components/ui/command";
 import { searchApi, SearchResultItemDto } from "@/lib/api/search-api";
@@ -71,6 +72,7 @@ const ALL_QUICK_ACTIONS = [
     href: "/components/new",
     category: "Inventory",
     permission: "Inventory.Create",
+    keywords: ["new component", "part", "item", "add component", "inventory", "part number"],
   },
   {
     title: "Receive Stock",
@@ -78,6 +80,7 @@ const ALL_QUICK_ACTIONS = [
     href: "/goods-receipts/new",
     category: "Inventory",
     permission: "Inventory.Create",
+    keywords: ["goods receipt", "inbound", "stock in", "receive", "grn", "stock receipt"],
   },
   {
     title: "Create Supplier",
@@ -85,6 +88,7 @@ const ALL_QUICK_ACTIONS = [
     href: "/suppliers",
     category: "Procurement",
     permission: "PurchaseOrders.Create",
+    keywords: ["vendor", "new supplier", "procurement", "partner", "add supplier"],
   },
   {
     title: "Create Purchase Order",
@@ -92,6 +96,7 @@ const ALL_QUICK_ACTIONS = [
     href: "/purchase-orders/new",
     category: "Procurement",
     permission: "PurchaseOrders.Create",
+    keywords: ["po", "new order", "buy", "procurement", "purchase order"],
   },
   {
     title: "Create Bill of Materials (BOM)",
@@ -99,6 +104,7 @@ const ALL_QUICK_ACTIONS = [
     href: "/boms/new",
     category: "Manufacturing",
     permission: "WorkOrders.Manage",
+    keywords: ["bom", "assembly", "recipe", "bill of materials", "manufacturing", "parts list"],
   },
   {
     title: "Create Work Order",
@@ -106,6 +112,7 @@ const ALL_QUICK_ACTIONS = [
     href: "/work-orders",
     category: "Manufacturing",
     permission: "WorkOrders.Manage",
+    keywords: ["wo", "build", "job", "production", "manufacturing", "work order"],
   },
   {
     title: "Create Project",
@@ -113,6 +120,7 @@ const ALL_QUICK_ACTIONS = [
     href: "/projects",
     category: "Projects",
     permission: "Projects.Manage",
+    keywords: ["new project", "job", "client project", "engagement"],
   },
   {
     title: "Open Analytics Hub",
@@ -120,6 +128,7 @@ const ALL_QUICK_ACTIONS = [
     href: "/reports",
     category: "Analytics",
     permission: "Reporting.Read",
+    keywords: ["reports", "analytics", "dashboard", "metrics", "charts"],
   },
   {
     title: "Open User Directory",
@@ -127,6 +136,7 @@ const ALL_QUICK_ACTIONS = [
     href: "/users",
     category: "Administration",
     permission: "Administration.Users",
+    keywords: ["users", "team", "people", "members", "staff", "permissions", "directory"],
   },
   {
     title: "Open Organization Settings",
@@ -134,6 +144,7 @@ const ALL_QUICK_ACTIONS = [
     href: "/settings",
     category: "Administration",
     permission: "Administration.Security",
+    keywords: ["settings", "preferences", "config", "org", "admin", "organization"],
   },
 ];
 
@@ -246,16 +257,16 @@ export function CommandPalette() {
         onValueChange={setQuery}
       />
       <CommandList>
+        <CommandEmpty>
+          {loading
+            ? "Searching across enterprise records..."
+            : `No matching records or actions found for "${query}".`}
+        </CommandEmpty>
+
         {loading && (
           <div className="py-6 text-center text-xs text-muted-foreground">
             Searching across enterprise records...
           </div>
-        )}
-
-        {!loading && query.trim() && results.length === 0 && (
-          <CommandEmpty>
-            No matching records or actions found for &quot;{query}&quot;.
-          </CommandEmpty>
         )}
 
         {/* Dynamic Search Results Grouped by Domain Category */}
@@ -271,90 +282,87 @@ export function CommandPalette() {
                 return (
                   <CommandItem
                     key={`${item.type}-${item.id}`}
+                    value={`${item.title} ${item.type} ${item.category} ${item.subtitle || ""} ${item.id}`}
+                    keywords={[query, item.type, item.category]}
                     onSelect={() => handleSelect(item.href, item.title)}
                     className="flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2.5 overflow-hidden">
-                      <div className="p-1.5 bg-muted/50 rounded-md text-muted-foreground shrink-0">
-                        <IconComponent className="w-3.5 h-3.5" />
-                      </div>
+                      <CommandIcon icon={IconComponent} />
                       <div className="truncate">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground text-xs">
+                          <span className="font-semibold text-foreground group-data-[selected=true]:text-primary-foreground text-xs">
                             {item.title}
                           </span>
-                          <span className="px-1.5 py-0.2 text-[10px] font-mono rounded bg-primary/10 text-primary border border-primary/20">
+                          <span className="px-1.5 py-0.2 text-[10px] font-mono rounded bg-primary/10 text-primary border border-primary/20 group-data-[selected=true]:bg-primary-foreground/20 group-data-[selected=true]:text-primary-foreground group-data-[selected=true]:border-primary-foreground/30">
                             {item.type}
                           </span>
                           {item.status && (
-                            <span className="px-1.5 py-0.2 text-[10px] font-mono rounded bg-muted text-muted-foreground">
+                            <span className="px-1.5 py-0.2 text-[10px] font-mono rounded bg-muted text-muted-foreground group-data-[selected=true]:bg-primary-foreground/20 group-data-[selected=true]:text-primary-foreground">
                               {item.status}
                             </span>
                           )}
                         </div>
                         {item.subtitle && (
-                          <p className="text-[11px] text-muted-foreground truncate">
+                          <p className="text-[11px] text-muted-foreground group-data-[selected=true]:text-primary-foreground/75 truncate">
                             {item.subtitle}
                           </p>
                         )}
                       </div>
                     </div>
-                    <CornerDownLeft className="w-3.5 h-3.5 text-muted-foreground shrink-0 opacity-50" />
+                    <CornerDownLeft className="w-3.5 h-3.5 text-muted-foreground group-data-[selected=true]:text-primary-foreground shrink-0 opacity-50 group-data-[selected=true]:opacity-90" />
                   </CommandItem>
                 );
               })}
             </CommandGroup>
           ))}
 
-        {/* Default Quick Actions & Recent Items */}
-        {!query.trim() && (
-          <>
-            {recentPages.length > 0 && (
-              <CommandGroup heading="Recent Pages">
-                {recentPages.map((p) => (
-                  <CommandItem
-                    key={p.href}
-                    onSelect={() => handleSelect(p.href, p.title)}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <History className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="font-medium text-foreground">
-                        {p.title}
-                      </span>
-                    </div>
-                    <CommandShortcut>{p.href}</CommandShortcut>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-
-            <CommandGroup heading="Quick Actions">
-              {quickActions.map((action) => {
-                const ActionIcon = action.icon;
-                return (
-                  <CommandItem
-                    key={action.title}
-                    onSelect={() => handleSelect(action.href, action.title)}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1 bg-primary/10 rounded text-primary">
-                        <ActionIcon className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="font-semibold text-foreground">
-                        {action.title}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground font-mono bg-muted/40 px-1.5 py-0.5 rounded">
-                      {action.category}
-                    </span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </>
+        {/* Quick Actions & Recent Pages - Always rendered so cmdk can filter them natively */}
+        {recentPages.length > 0 && (
+          <CommandGroup heading="Recent Pages">
+            {recentPages.map((p) => (
+              <CommandItem
+                key={p.href}
+                value={p.title}
+                keywords={[p.href]}
+                onSelect={() => handleSelect(p.href, p.title)}
+                className="flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2.5">
+                  <CommandIcon icon={History} />
+                  <span className="font-medium text-foreground group-data-[selected=true]:text-primary-foreground">
+                    {p.title}
+                  </span>
+                </div>
+                <CommandShortcut>{p.href}</CommandShortcut>
+              </CommandItem>
+            ))}
+          </CommandGroup>
         )}
+
+        <CommandGroup heading="Quick Actions">
+          {quickActions.map((action) => {
+            return (
+              <CommandItem
+                key={action.title}
+                value={action.title}
+                keywords={action.keywords}
+                onSelect={() => handleSelect(action.href, action.title)}
+                className="flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2.5">
+                  <CommandIcon icon={action.icon} />
+                  <span className="font-semibold text-foreground group-data-[selected=true]:text-primary-foreground">
+                    {action.title}
+                  </span>
+                </div>
+                <span className="text-[10px] text-muted-foreground font-mono bg-muted/40 px-1.5 py-0.5 rounded group-data-[selected=true]:bg-primary-foreground/20 group-data-[selected=true]:text-primary-foreground">
+                  {action.category}
+                </span>
+              </CommandItem>
+            );
+          })}
+        </CommandGroup>
       </CommandList>
     </CommandDialog>
   );
