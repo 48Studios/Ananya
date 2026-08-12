@@ -123,10 +123,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      # Public API URL baked into the Next.js build.
+      # Public API URL generated dynamically at container boot via runtime-config.js.
       # The browser communicates directly with this endpoint.
       # Docker service names (e.g. http://api:4000) must NEVER appear here.
-      NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:-http://localhost:4000}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:4000}
     networks:
       - internal
     depends_on:

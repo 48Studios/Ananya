@@ -131,6 +131,16 @@ API / Worker / migrate -> postgres:5432
 
 `API_PUBLIC_URL` must be browser-reachable. Do not set it to Docker service names such as `http://api:4000` or `http://ananya-api:4000`.
 
+### Web Image Immutability & Runtime Configuration
+
+- **Environment-Agnostic Web Image**: The `ananya-web` Docker image (`ghcr.io/48studios/ananya-web`) contains no environment-specific API URLs and does not require rebuilding when deploying across different domains.
+- **Container Boot Initialization**: At container startup, `/app/docker-entrypoint-web.sh` validates `API_PUBLIC_URL` and generates `/app/apps/web/public/runtime-config.js`:
+  ```javascript
+  window.__ANANYA_CONFIG__ = { apiUrl: "$API_PUBLIC_URL" };
+  ```
+- **Direct Browser Communication**: The browser loads `/runtime-config.js` before application hydration and issues requests directly to `API_PUBLIC_URL`. No Next.js proxy or rewrites are involved.
+- **Docker DNS Isolation**: Docker DNS names (e.g. `postgres:5432`) are used exclusively for container-to-container internal communication.
+
 The production reverse proxy, such as Caddy, lives outside this Compose stack and should route:
 
 ```text

@@ -26,6 +26,6 @@ services:
   web:
     image: ghcr.io/48studios/ananya-web:${ANANYA_VERSION:-latest}
     environment:
-      # Public API URL baked into the Next.js build at container start.
+      # Public API URL generated dynamically at container start via runtime-config.js.
       # Must be a URL the browser can reach. Never use Docker service names here.
-      NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?API_PUBLIC_URL must be set for production deployments}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:?API_PUBLIC_URL must be set for production deployments}
