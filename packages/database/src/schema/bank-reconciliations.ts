@@ -17,7 +17,7 @@ export const bankAccounts = pgTable(
     accountName: varchar("account_name", { length: 255 }).notNull(),
     accountNumber: varchar("account_number", { length: 50 }).notNull().unique(),
     bankName: varchar("bank_name", { length: 255 }).notNull(),
-    currency: varchar("currency", { length: 10 }).notNull().default("USD"),
+    currency: varchar("currency", { length: 10 }).notNull().default("INR"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

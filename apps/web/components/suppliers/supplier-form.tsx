@@ -67,7 +67,7 @@ export function SupplierForm({
       name: initialData?.name ?? "",
       taxId: initialData?.taxId ?? "",
       paymentTerms: initialData?.paymentTerms ?? "NET30",
-      currency: initialData?.currency ?? "USD",
+      currency: initialData?.currency ?? "INR",
     },
   });
 

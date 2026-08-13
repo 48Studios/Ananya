@@ -16,7 +16,7 @@ export const accounts = pgTable(
     name: varchar("name", { length: 255 }).notNull(),
     accountType: varchar("account_type", { length: 50 }).notNull(),
     parentAccountId: uuid("parent_account_id"),
-    currency: varchar("currency", { length: 10 }).notNull().default("USD"),
+    currency: varchar("currency", { length: 10 }).notNull().default("INR"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

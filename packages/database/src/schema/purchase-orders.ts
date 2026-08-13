@@ -21,7 +21,7 @@ export const purchaseOrders = pgTable(
       .notNull()
       .references(() => suppliers.id),
     status: varchar("status", { length: 32 }).notNull().default("DRAFT"),
-    currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+    currency: varchar("currency", { length: 3 }).notNull().default("INR"),
     subtotal: decimal("subtotal", { precision: 14, scale: 4 })
       .notNull()
       .default("0.0000"),

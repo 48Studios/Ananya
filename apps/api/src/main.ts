@@ -1,11 +1,5 @@
-import path from 'path';
-import fs from 'fs';
 import dotenv from 'dotenv';
 
-const rootEnvPath = path.resolve(__dirname, '../../../.env');
-if (fs.existsSync(rootEnvPath)) {
-  dotenv.config({ path: rootEnvPath });
-}
 dotenv.config();
 
 import { NestFactory } from '@nestjs/core';

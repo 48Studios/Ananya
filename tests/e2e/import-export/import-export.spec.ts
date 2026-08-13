@@ -156,4 +156,44 @@ test.describe("Import / Export Framework & Read Model Data Integrity", () => {
       page.locator("text=Pre-Import Validation Check"),
     ).toBeVisible();
   });
+
+  test("should open Purchase Order specific import wizard and avoid defaulting to Component", async ({
+    page,
+  }) => {
+    await page.goto("/purchase-orders");
+    const importBtn = page.locator('button:has-text("Import")');
+    await expect(importBtn).toBeVisible();
+    await importBtn.click();
+
+    // 1. Verify ImportWizard modal title is Purchase Order specific
+    const poWizardTitle = page.locator("text=Import Purchase Order Wizard");
+    await expect(poWizardTitle).toBeVisible();
+    await expect(
+      page.locator("text=Import Component Wizard"),
+    ).not.toBeVisible();
+
+    // 2. Verify Purchase Order specific upload title
+    await expect(
+      page.locator("text=Upload Purchase Order CSV, XLSX, or JSON file"),
+    ).toBeVisible();
+
+    // 3. Upload Purchase Order CSV and verify mapping step
+    const mockPoCsv =
+      "PO Number,Supplier Code,Component SKU,Quantity Ordered,Unit Purchase Price,Status\nPO-E2E-900,SUP-001,RES-10K-001,500,0.05,DRAFT";
+
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles({
+      name: "purchase_order_e2e.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(mockPoCsv),
+    });
+
+    await expect(page.locator("text=Column Mapping")).toBeVisible({
+      timeout: 5000,
+    });
+    await page.locator('button:has-text("Validate & Next")').click();
+    await expect(
+      page.locator("text=Pre-Import Validation Check"),
+    ).toBeVisible();
+  });
 });

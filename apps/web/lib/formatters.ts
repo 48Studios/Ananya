@@ -13,6 +13,16 @@ export function formatNumber(
   return num.toLocaleString();
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  INR: "₹",
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  JPY: "¥",
+  CAD: "C$",
+  AUD: "A$",
+};
+
 export function formatCurrency(
   val: number | string | null | undefined,
   currency = "INR",
@@ -22,8 +32,9 @@ export function formatCurrency(
   const num = typeof val === "number" ? val : Number(val);
   if (isNaN(num) || !isFinite(num)) return fallback;
 
-  const symbol = currency === "INR" ? "₹" : "$";
-  return `${symbol}${num.toLocaleString(undefined, {
+  const code = (currency || "INR").trim().toUpperCase();
+  const symbol = CURRENCY_SYMBOLS[code] ?? `${code} `;
+  return `${symbol}${num.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

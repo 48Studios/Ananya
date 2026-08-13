@@ -18,7 +18,7 @@ export const quotations = pgTable(
     customerId: uuid("customer_id")
       .notNull()
       .references(() => customers.id),
-    currency: varchar("currency", { length: 10 }).notNull().default("USD"),
+    currency: varchar("currency", { length: 10 }).notNull().default("INR"),
     validUntil: timestamp("valid_until", { withTimezone: true }).notNull(),
     status: varchar("status", { length: 50 }).notNull().default("DRAFT"),
     createdAt: timestamp("created_at", { withTimezone: true })

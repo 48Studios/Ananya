@@ -2,7 +2,11 @@
 
 import * as React from "react";
 import { Trash2, Archive, CheckCircle, Loader2, X } from "lucide-react";
-import { importExportApi, BulkActionType } from "@/lib/api/import-export-api";
+import {
+  importExportApi,
+  BulkActionType,
+  getEntityLabel,
+} from "@/lib/api/import-export-api";
 import { Button } from "@/components/ui/button";
 
 export interface BulkActionToolbarProps {
@@ -24,6 +28,8 @@ export function BulkActionToolbar({
   );
   const [msg, setMsg] = React.useState<string | null>(null);
 
+  const displayLabel = getEntityLabel(entityType);
+
   if (!selectedIds || selectedIds.length === 0) return null;
 
   const handleBulkExecute = async (action: BulkActionType) => {
@@ -38,7 +44,7 @@ export function BulkActionToolbar({
       });
 
       setMsg(
-        `Batch action '${action}' completed for ${res.affectedCount} ${entityType} records.`,
+        `Batch action '${action}' completed for ${res.affectedCount} ${displayLabel} records.`,
       );
       setTimeout(() => {
         setMsg(null);

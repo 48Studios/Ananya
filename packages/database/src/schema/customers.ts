@@ -20,7 +20,7 @@ export const customers = pgTable(
     email: varchar("email", { length: 255 }).notNull(),
     phone: varchar("phone", { length: 50 }),
     taxId: varchar("tax_id", { length: 100 }),
-    currency: varchar("currency", { length: 10 }).notNull().default("USD"),
+    currency: varchar("currency", { length: 10 }).notNull().default("INR"),
     status: varchar("status", { length: 50 }).notNull().default("DRAFT"),
     creditStatus: varchar("credit_status", { length: 50 })
       .notNull()

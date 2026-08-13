@@ -472,6 +472,7 @@ export default function PurchaseOrdersPage() {
       <EntityDataTable
         columns={columns}
         data={orders}
+        entityType="PurchaseOrder"
         searchKey="poNumber"
         searchPlaceholder="Search purchase orders by PO number..."
         filters={filterConfigs}

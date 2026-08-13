@@ -246,7 +246,7 @@ export class DrizzleSupplierRepository implements SupplierRepository {
       minimumOrderQuantity: mapping.minimumOrderQuantity ?? 1,
       orderMultiple: mapping.orderMultiple ?? 1,
       unitPrice: (mapping.unitPrice ?? 0).toString(),
-      currency: mapping.currency ?? 'USD',
+      currency: mapping.currency ?? 'INR',
     });
   }
 

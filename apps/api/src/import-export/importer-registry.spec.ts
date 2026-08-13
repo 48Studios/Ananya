@@ -6,6 +6,7 @@ import {
   getTemplate,
   generateTemplateCsv,
   generateTemplateXlsx,
+  getSystemFieldsWithAliases,
 } from './importer-registry';
 import { UploadedFileObj } from './dtos';
 
@@ -199,6 +200,168 @@ describe('Importer Registry & Template Generation (System-Wide)', () => {
       expect(preview.validRowsCount).toBe(2);
       expect(preview.invalidRowsCount).toBe(0);
       expect(preview.errors).toEqual([]);
+    });
+
+    it('should generate valid PurchaseOrder multi-line template CSV and parse cleanly in previewImport', () => {
+      const csv = generateTemplateCsv('PurchaseOrder');
+      expect(csv).toContain('PO-2026-001');
+      expect(csv).toContain('RES-10K-001');
+      expect(csv).toContain('CAP-10UF-002');
+
+      const mockFile: UploadedFileObj = {
+        originalname: 'purchase_order_template.csv',
+        mimetype: 'text/csv',
+        buffer: Buffer.from(csv),
+        size: Buffer.from(csv).length,
+      };
+
+      const preview = service.previewImport(mockFile, 'PurchaseOrder');
+      expect(preview.validRowsCount).toBe(2);
+      expect(preview.invalidRowsCount).toBe(0);
+      expect(preview.errors).toEqual([]);
+    });
+
+    it('should guarantee reverse contract matching for all canonical fields across all 25 importers', () => {
+      registeredEntities.forEach((entityType) => {
+        const def = getImporterDefinition(entityType);
+        const systemFieldsWithAliases = getSystemFieldsWithAliases(entityType);
+
+        def.fields.forEach((fieldDef) => {
+          const normName = fieldDef.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '');
+          const matchByName = systemFieldsWithAliases.find((item) =>
+            item.aliases.includes(normName),
+          );
+          expect(matchByName).toBeDefined();
+          expect(matchByName?.canonicalField).toBe(fieldDef.name);
+
+          const normLabel = fieldDef.label
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '');
+          const matchByLabel = systemFieldsWithAliases.find((item) =>
+            item.aliases.includes(normLabel),
+          );
+          expect(matchByLabel).toBeDefined();
+          expect(matchByLabel?.canonicalField).toBe(fieldDef.name);
+        });
+      });
+    });
+
+    it('should auto-map header variants "Components", "Component", "SKU", "Part Number" to componentSku for PurchaseOrder', () => {
+      const poAliases = getSystemFieldsWithAliases('PurchaseOrder');
+      const compSkuItem = poAliases.find(
+        (a) => a.canonicalField === 'componentSku',
+      );
+      expect(compSkuItem).toBeDefined();
+      expect(compSkuItem?.aliases).toContain('components');
+      expect(compSkuItem?.aliases).toContain('component');
+      expect(compSkuItem?.aliases).toContain('componentsku');
+      expect(compSkuItem?.aliases).toContain('sku');
+    });
+
+    it('should perform complete round-trip preview mapping verification for all 25 registered entities', () => {
+      registeredEntities.forEach((entityType) => {
+        const csvContent = generateTemplateCsv(entityType);
+        const headersLine = csvContent.split('\n')[0]!;
+        const headers = headersLine.split(',');
+
+        const mockFile: UploadedFileObj = {
+          originalname: `${entityType.toLowerCase()}_roundtrip.csv`,
+          mimetype: 'text/csv',
+          buffer: Buffer.from(csvContent),
+          size: Buffer.from(csvContent).length,
+        };
+
+        const preview = service.previewImport(mockFile, entityType);
+
+        expect(preview.totalRows).toBeGreaterThanOrEqual(1);
+        expect(preview.validRowsCount).toBe(preview.totalRows);
+        expect(preview.invalidRowsCount).toBe(0);
+        expect(preview.errors).toEqual([]);
+
+        // Ensure every generated header is correctly mapped to system fields
+        headers.forEach((h) => {
+          expect(preview.columnMapping[h]).toBeDefined();
+          expect(preview.systemFields).toContain(preview.columnMapping[h]);
+        });
+      });
+    });
+
+    it('should parse Purchase Order sample CSV when using alias header "Components" instead of "componentSku"', () => {
+      const csvContent = generateTemplateCsv('PurchaseOrder');
+      const modifiedCsv = csvContent.replace('componentSku', 'Components');
+
+      const mockFile: UploadedFileObj = {
+        originalname: 'po_alias_sample.csv',
+        mimetype: 'text/csv',
+        buffer: Buffer.from(modifiedCsv),
+        size: Buffer.from(modifiedCsv).length,
+      };
+
+      const preview = service.previewImport(mockFile, 'PurchaseOrder');
+
+      expect(preview.validRowsCount).toBe(2);
+      expect(preview.invalidRowsCount).toBe(0);
+      expect(preview.errors).toEqual([]);
+      expect(preview.columnMapping['Components']).toBe('componentSku');
+    });
+
+    describe('Purchase Order vs Component Contract Isolation & Round-Trip', () => {
+      it('should enforce that Purchase Order importer identity and definition is strictly separate from Component importer', () => {
+        const poDef = getImporterDefinition('PurchaseOrder');
+        const compDef = getImporterDefinition('Component');
+
+        // 1. Select/resolve Purchase Order importer & assert identity is Purchase Order
+        expect(poDef.entityType).toBe('PurchaseOrder');
+        expect(poDef.label).toBe('Purchase Order');
+
+        // 2. Assert Purchase Order importer !== Component importer
+        expect(poDef).not.toEqual(compDef);
+        expect(poDef.entityType).not.toBe(compDef.entityType);
+
+        // 3. Assert wizard metadata identifies Purchase Order
+        const templateMeta = getTemplate('PurchaseOrder');
+        expect(templateMeta.entityType).toBe('PurchaseOrder');
+        expect(templateMeta.label).toBe('Purchase Order');
+        expect(templateMeta.description).toContain(
+          'Procurement purchase order',
+        );
+
+        // 4 & 5. Generate/download Purchase Order sample and check filename convention
+        const csvContent = generateTemplateCsv('PurchaseOrder');
+        const expectedFilename = `${'PurchaseOrder'.toLowerCase()}_import_template.csv`;
+        expect(expectedFilename).toBe('purchaseorder_import_template.csv');
+
+        // 6. Assert sample headers are Purchase Order headers
+        const firstLine = csvContent.split('\n')[0]!;
+        const headers = firstLine.split(',');
+        expect(headers).toContain('orderNumber');
+        expect(headers).toContain('supplierCode');
+        expect(headers).toContain('componentSku');
+        expect(headers).toContain('quantity');
+        expect(headers).toContain('unitPrice');
+
+        // 7. Assert sample does NOT contain Component-only fields
+        expect(headers).not.toContain('categoryCode');
+        expect(headers).not.toContain('manufacturerCode');
+
+        // 8 & 9. Feed sample into the Purchase Order importer & verify parsing succeeds
+        const mockFile: UploadedFileObj = {
+          originalname: expectedFilename,
+          mimetype: 'text/csv',
+          buffer: Buffer.from(csvContent),
+          size: Buffer.from(csvContent).length,
+        };
+
+        const preview = service.previewImport(mockFile, 'PurchaseOrder');
+        expect(preview.entityType).toBe('PurchaseOrder');
+        expect(preview.label).toBe('Purchase Order');
+        expect(preview.totalRows).toBe(2);
+        expect(preview.validRowsCount).toBe(2);
+        expect(preview.invalidRowsCount).toBe(0);
+        expect(preview.errors).toEqual([]);
+      });
     });
   });
 });

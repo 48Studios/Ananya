@@ -108,7 +108,7 @@ export class PurchaseOrder {
       poNumber: input.poNumber.trim().toUpperCase(),
       supplierId: input.supplierId,
       status: "DRAFT",
-      currency: input.currency?.trim() || "USD",
+      currency: input.currency?.trim().toUpperCase() || "INR",
       subtotal: 0,
       taxTotal: 0,
       grandTotal: 0,

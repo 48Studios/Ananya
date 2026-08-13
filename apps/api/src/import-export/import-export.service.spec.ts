@@ -203,4 +203,57 @@ describe('ImportExportService', () => {
       );
     });
   });
+
+  describe('Purchase Order Import Validation', () => {
+    it('should validate valid Purchase Order rows and map aliases', () => {
+      const csv =
+        'PO Number,Supplier Code,Component SKU,Quantity Ordered,Unit Purchase Price,Status\nPO-2026-901,SUP-001,RES-10K-001,100,0.05,DRAFT';
+      const mockFile: UploadedFileObj = {
+        originalname: 'po_valid.csv',
+        mimetype: 'text/csv',
+        buffer: Buffer.from(csv),
+        size: Buffer.from(csv).length,
+      };
+
+      const preview = service.previewImport(mockFile, 'PurchaseOrder');
+
+      expect(preview.entityType).toBe('PurchaseOrder');
+      expect(preview.label).toBe('Purchase Order');
+      expect(preview.totalRows).toBe(1);
+      expect(preview.validRowsCount).toBe(1);
+      expect(preview.invalidRowsCount).toBe(0);
+      expect(preview.columnMapping['PO Number']).toBe('orderNumber');
+      expect(preview.columnMapping['Supplier Code']).toBe('supplierCode');
+      expect(preview.columnMapping['Component SKU']).toBe('componentSku');
+    });
+
+    it('should reject Purchase Order rows with invalid quantity or negative unit price', () => {
+      const csv =
+        'orderNumber,supplierCode,componentSku,quantity,unitPrice\nPO-2026-902,SUP-001,RES-10K-001,0,0.05\nPO-2026-903,SUP-001,RES-10K-001,10,-1.00';
+      const mockFile: UploadedFileObj = {
+        originalname: 'po_invalid_values.csv',
+        mimetype: 'text/csv',
+        buffer: Buffer.from(csv),
+        size: Buffer.from(csv).length,
+      };
+
+      const preview = service.previewImport(mockFile, 'PurchaseOrder');
+
+      expect(preview.totalRows).toBe(2);
+      expect(preview.validRowsCount).toBe(0);
+      expect(preview.invalidRowsCount).toBe(2);
+      expect(
+        preview.errors.some((e) =>
+          e.message.includes(
+            'Quantity ordered must be strictly greater than 0',
+          ),
+        ),
+      ).toBe(true);
+      expect(
+        preview.errors.some((e) =>
+          e.message.includes('Unit price must be non-negative'),
+        ),
+      ).toBe(true);
+    });
+  });
 });

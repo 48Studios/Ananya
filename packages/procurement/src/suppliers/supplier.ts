@@ -111,7 +111,7 @@ export class Supplier {
       name,
       taxId: input.taxId?.trim() ?? null,
       paymentTerms: input.paymentTerms?.trim() || "NET30",
-      currency: input.currency?.trim() || "USD",
+      currency: input.currency?.trim().toUpperCase() || "INR",
       rating: 5.0,
       isActive: true,
       contacts: [],
@@ -145,7 +145,7 @@ export class Supplier {
           : this.paymentTerms,
       currency:
         input.currency !== undefined
-          ? input.currency.trim() || "USD"
+          ? input.currency.trim() || "INR"
           : this.currency,
       rating: this.rating,
       isActive: input.isActive !== undefined ? input.isActive : this.isActive,

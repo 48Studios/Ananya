@@ -130,6 +130,11 @@ export class ImportExportController {
     return await this.service.getJobs(userId);
   }
 
+  @Get('jobs/:id')
+  async getJob(@Param('id') id: string) {
+    return await this.service.getJob(id);
+  }
+
   @Post('bulk-action')
   async executeBulkAction(@Body() dto: BulkActionDto) {
     return await this.service.executeBulkAction(dto);

@@ -8,5 +8,5 @@
     "outDir": "dist"
   },
   "include": ["src"],
-  "exclude": ["dist"]
+  "exclude": ["dist", "**/*.spec.ts", "**/*.test.ts"]
 }

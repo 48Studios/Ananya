@@ -96,7 +96,7 @@ export class Customer {
       email: input.email.trim(),
       phone: input.phone ?? null,
       taxId: input.taxId ?? null,
-      currency: input.currency || "USD",
+      currency: input.currency || "INR",
       status: "DRAFT",
       creditStatus: "OK",
       contacts: [],

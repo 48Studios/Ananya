@@ -73,7 +73,7 @@ export class Quotation {
       id: ObjectId.generate().value,
       quoteNumber: input.quoteNumber.toUpperCase(),
       customerId: input.customerId,
-      currency: input.currency || "USD",
+      currency: input.currency || "INR",
       validUntil: input.validUntil || defaultValidUntil,
       status: "DRAFT",
       lines: [],

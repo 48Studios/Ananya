@@ -106,7 +106,7 @@ export class OpportunitiesService {
         customer = await this.customersService.create({
           name: crmAccount.companyName,
           email: contactEmail,
-          currency: 'USD',
+          currency: 'INR',
         });
       }
 

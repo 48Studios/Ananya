@@ -61,7 +61,7 @@ export class Account implements AccountProps {
       name: props.name.trim(),
       accountType: props.accountType,
       parentAccountId: props.parentAccountId,
-      currency: props.currency || "USD",
+      currency: props.currency || "INR",
       isActive: true,
       createdAt: now,
       updatedAt: now,

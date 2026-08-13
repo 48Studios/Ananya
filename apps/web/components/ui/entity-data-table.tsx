@@ -76,11 +76,12 @@ export function EntityDataTable<TData, TValue>({
   emptyTitle = "No data found",
   emptyMessage = "No records match your criteria.",
   actionButton,
-  entityType = "Component",
+  entityType,
   onRefreshData,
 }: EntityDataTableProps<TData, TValue>) {
   const activeFilters = filters || filterConfigs;
   const activeLoading = loading || isLoading;
+  const canImportExport = Boolean(entityType && entityType.trim().length > 0);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
@@ -184,63 +185,69 @@ export function EntityDataTable<TData, TValue>({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsImportOpen(true)}
-            className="text-xs"
-          >
-            <Upload className="w-3.5 h-3.5 mr-1" />
-            Import
-          </Button>
+          {canImportExport && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsImportOpen(true)}
+                className="text-xs"
+              >
+                <Upload className="w-3.5 h-3.5 mr-1" />
+                Import
+              </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsExportOpen(true)}
-            className="text-xs"
-          >
-            <Download className="w-3.5 h-3.5 mr-1" />
-            Export
-          </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsExportOpen(true)}
+                className="text-xs"
+              >
+                <Download className="w-3.5 h-3.5 mr-1" />
+                Export
+              </Button>
+            </>
+          )}
 
           {actionButton && <div>{actionButton}</div>}
         </div>
       </div>
 
       {/* Export Dialog */}
-      <ExportDialog
-        isOpen={isExportOpen}
-        onClose={() => setIsExportOpen(false)}
-        entityType={entityType}
-        availableColumns={
-          availableCols.length > 0
-            ? availableCols
-            : ["id", "name", "code", "status"]
-        }
-        selectedIds={selectedIds}
-        totalRecordsCount={table.getFilteredRowModel().rows.length}
-      />
+      {canImportExport && entityType && (
+        <>
+          <ExportDialog
+            isOpen={isExportOpen}
+            onClose={() => setIsExportOpen(false)}
+            entityType={entityType}
+            availableColumns={
+              availableCols.length > 0
+                ? availableCols
+                : ["id", "name", "code", "status"]
+            }
+            selectedIds={selectedIds}
+            totalRecordsCount={table.getFilteredRowModel().rows.length}
+          />
 
-      {/* Import Wizard */}
-      <ImportWizard
-        isOpen={isImportOpen}
-        onClose={() => setIsImportOpen(false)}
-        entityType={entityType}
-        onImportComplete={() => {
-          if (onRefreshData) onRefreshData();
-        }}
-      />
+          <ImportWizard
+            isOpen={isImportOpen}
+            onClose={() => setIsImportOpen(false)}
+            entityType={entityType}
+            onImportComplete={() => {
+              if (onRefreshData) onRefreshData();
+            }}
+          />
 
-      {/* Bulk Action Toolbar */}
-      <BulkActionToolbar
-        entityType={entityType}
-        selectedIds={selectedIds}
-        onClearSelection={() => setRowSelection({})}
-        onActionComplete={() => {
-          if (onRefreshData) onRefreshData();
-        }}
-      />
+          <BulkActionToolbar
+            entityType={entityType}
+            selectedIds={selectedIds}
+            onClearSelection={() => setRowSelection({})}
+            onActionComplete={() => {
+              if (onRefreshData) onRefreshData();
+            }}
+          />
+        </>
+      )}
 
       {/* Table Container */}
       <div className="bg-card border border-border rounded-lg overflow-hidden shadow-xs">

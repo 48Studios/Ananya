@@ -21,7 +21,7 @@ export const suppliers = pgTable(
     paymentTerms: varchar("payment_terms", { length: 32 })
       .notNull()
       .default("NET30"),
-    currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+    currency: varchar("currency", { length: 3 }).notNull().default("INR"),
     rating: decimal("rating", { precision: 3, scale: 2 }).default("5.00"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -78,7 +78,7 @@ export const supplierComponents = pgTable(
     unitPrice: decimal("unit_price", { precision: 12, scale: 4 })
       .notNull()
       .default("0.0000"),
-    currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+    currency: varchar("currency", { length: 3 }).notNull().default("INR"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

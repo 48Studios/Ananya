@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   AlertTriangle,
+  XCircle,
   ArrowRight,
   Download,
   Loader2,
@@ -14,7 +15,10 @@ import {
 import {
   importExportApi,
   ImportPreviewResultDto,
+  ImportExportJobDto,
+  getEntityLabel,
 } from "@/lib/api/import-export-api";
+import { deriveImportJobState, isJobTerminal } from "@/lib/import-job-status";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -51,14 +55,27 @@ export function ImportWizard({
     Record<string, string>
   >({});
   const [loading, setLoading] = React.useState(false);
-  const [executionResult, setExecutionResult] = React.useState<{
-    total: number;
-    failed: number;
-  } | null>(null);
+  const [executionJob, setExecutionJob] =
+    React.useState<ImportExportJobDto | null>(null);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [importFile, setImportFile] = React.useState<File | null>(null);
 
   const fileUploaderRef = React.useRef<FileUploaderRef | null>(null);
+  const pollingRef = React.useRef<NodeJS.Timeout | null>(null);
+  const displayLabel = previewData?.label || getEntityLabel(entityType);
+
+  const stopPolling = React.useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      stopPolling();
+    };
+  }, [stopPolling]);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -66,12 +83,13 @@ export function ImportWizard({
       setPreviewData(null);
       setColumnMapping({});
       setLoading(false);
-      setExecutionResult(null);
+      setExecutionJob(null);
       setErrorMsg(null);
       setImportFile(null);
       fileUploaderRef.current?.reset();
+      stopPolling();
     }
-  }, [isOpen]);
+  }, [isOpen, stopPolling]);
 
   const handleFileUpload = async (file: File) => {
     setLoading(true);
@@ -116,31 +134,60 @@ export function ImportWizard({
     }
   };
 
+  const startPollingJob = React.useCallback(
+    (jobId: string) => {
+      stopPolling();
+      pollingRef.current = setInterval(async () => {
+        try {
+          const updatedJob = await importExportApi.getJob(jobId);
+          setExecutionJob(updatedJob);
+
+          if (isJobTerminal(updatedJob.status)) {
+            stopPolling();
+            setLoading(false);
+            setStep(5);
+            if (onImportComplete) onImportComplete();
+          }
+        } catch {
+          // Continue polling on transient errors
+        }
+      }, 1000);
+    },
+    [stopPolling, onImportComplete],
+  );
+
   const handleExecuteImport = async () => {
     if (!previewData || !importFile) return;
     setLoading(true);
+    setErrorMsg(null);
     setStep(4);
+
     try {
       const job = await importExportApi.executeImport(
         entityType,
         columnMapping,
         importFile,
       );
-      setExecutionResult({
-        total: job.totalRecords,
-        failed: job.failedRecords,
-      });
-      setStep(5);
-      if (onImportComplete) onImportComplete();
+      setExecutionJob(job);
+
+      if (isJobTerminal(job.status)) {
+        setLoading(false);
+        setStep(5);
+        if (onImportComplete) onImportComplete();
+      } else {
+        startPollingJob(job.id);
+      }
     } catch (err: unknown) {
       setErrorMsg(
         err instanceof Error ? err.message : "Import execution failed",
       );
       setStep(3);
-    } finally {
       setLoading(false);
     }
   };
+
+  const derivedState = executionJob ? deriveImportJobState(executionJob) : null;
+  const progressPercent = executionJob?.progressPercent ?? 50;
 
   return (
     <DialogShell
@@ -150,8 +197,8 @@ export function ImportWizard({
           onClose();
         }
       }}
-      title={`Import ${entityType} Wizard`}
-      description={`Upload a spreadsheet, map columns, validate rows, and import ${entityType.toLowerCase()} records through the production import framework.`}
+      title={`Import ${displayLabel} Wizard`}
+      description={`Upload a spreadsheet, map columns, validate rows, and import ${displayLabel.toLowerCase()} records through the production import framework.`}
       size="lg"
       closeDisabled={loading && step === 4}
     >
@@ -177,7 +224,7 @@ export function ImportWizard({
           </span>
           <span>→</span>
           <span className={step >= 5 ? "text-primary font-bold" : ""}>
-            4. Complete
+            4. Report
           </span>
         </div>
 
@@ -193,7 +240,7 @@ export function ImportWizard({
             <FileUploader
               ref={fileUploaderRef}
               accept=".csv,.xlsx,.json"
-              title={`Upload ${entityType} CSV, XLSX, or JSON file`}
+              title={`Upload ${displayLabel} CSV, XLSX, or JSON file`}
               description="Drag and drop your spreadsheet or click to browse (up to 50MB)"
               loading={loading}
               disabled={loading}
@@ -288,7 +335,7 @@ export function ImportWizard({
               </div>
               <p className="text-xs text-muted-foreground">
                 Ready to import {previewData.validRowsCount} valid records into{" "}
-                {entityType} database repository.
+                {displayLabel} database repository.
               </p>
               {previewData.errors.length > 0 && (
                 <div className="max-h-32 overflow-y-auto space-y-1.5 border border-destructive/20 bg-destructive/5 p-2.5 rounded-lg text-[11px] text-destructive">
@@ -308,30 +355,156 @@ export function ImportWizard({
 
         {/* STEP 4: Execution Progress */}
         {step === 4 && (
-          <div className="py-12 text-center space-y-3">
+          <div className="py-10 text-center space-y-4">
             <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
-            <p className="text-xs font-semibold text-foreground">
-              Executing Batch Import...
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Persisting records inside a database transaction.
-            </p>
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                Executing Batch Import ({progressPercent}%)
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Persisting records inside a database transaction.
+              </p>
+            </div>
+
+            <div className="w-full bg-muted rounded-full h-2 overflow-hidden border border-border">
+              <div
+                className="bg-primary h-full transition-all duration-300 ease-out"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
           </div>
         )}
 
-        {/* STEP 5: Completion Report */}
-        {step === 5 && executionResult && (
-          <div className="py-6 text-center space-y-4">
-            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
-            <div>
-              <h3 className="text-sm font-bold text-foreground">
-                Import Completed Successfully
-              </h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Processed {executionResult.total} {entityType} records into the
-                workspace database.
-              </p>
+        {/* STEP 5: Completion & Error Report */}
+        {step === 5 && executionJob && (
+          <div className="py-4 space-y-5">
+            {/* 1. SUCCESS STATE */}
+            {derivedState === "COMPLETED_SUCCESS" && (
+              <div className="text-center space-y-3">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    Import Completed Successfully
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Processed all {executionJob.totalRecords} {displayLabel}{" "}
+                    records into the workspace database.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 2. PARTIAL SUCCESS STATE */}
+            {derivedState === "COMPLETED_PARTIAL" && (
+              <div className="text-center space-y-3">
+                <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto" />
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    Import Completed with Partial Success
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Imported {executionJob.processedRecords} of{" "}
+                    {executionJob.totalRecords} {displayLabel} records.{" "}
+                    {executionJob.failedRecords} records failed.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 3. FAILED STATE */}
+            {derivedState === "FAILED" && (
+              <div className="text-center space-y-3">
+                <XCircle className="w-12 h-12 text-destructive mx-auto" />
+                <div>
+                  <h3 className="text-base font-bold text-destructive">
+                    Import Failed
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    0 records imported successfully. All{" "}
+                    {executionJob.failedRecords || executionJob.totalRecords}{" "}
+                    {displayLabel} records failed validation or database
+                    execution.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* METRICS SUMMARY GRID */}
+            <div className="grid grid-cols-3 gap-3 text-center bg-muted/20 p-3 rounded-lg border border-border text-xs">
+              <div className="space-y-0.5">
+                <span className="text-muted-foreground">Total Records</span>
+                <p className="text-sm font-bold text-foreground">
+                  {executionJob.totalRecords}
+                </p>
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-muted-foreground">Imported</span>
+                <p
+                  className={`text-sm font-bold ${
+                    executionJob.processedRecords > 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {executionJob.processedRecords}
+                </p>
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-muted-foreground">Failed</span>
+                <p
+                  className={`text-sm font-bold ${
+                    executionJob.failedRecords > 0
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {executionJob.failedRecords}
+                </p>
+              </div>
             </div>
+
+            {/* ROW ERROR REPORT DETAILS TABLE */}
+            {executionJob.errors && executionJob.errors.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+                  <span className="flex items-center gap-1 text-destructive">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Row-Level Errors ({executionJob.errors.length})
+                  </span>
+                  <span className="text-[11px] text-muted-foreground font-mono">
+                    Status: {executionJob.status}
+                  </span>
+                </div>
+
+                <div className="max-h-48 overflow-y-auto border border-border rounded-lg divide-y divide-border bg-muted/10 text-xs">
+                  {executionJob.errors.map((err, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 space-y-1 hover:bg-muted/20 transition-colors"
+                    >
+                      <div className="flex items-center justify-between font-mono text-[11px]">
+                        <span className="font-bold text-foreground">
+                          Row {err.row}
+                        </span>
+                        {err.column && (
+                          <span className="bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                            Column: {err.column}
+                          </span>
+                        )}
+                        {err.value !== undefined && err.value !== null && (
+                          <span className="truncate max-w-[150px] text-muted-foreground">
+                            Value: &quot;{String(err.value)}&quot;
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-destructive font-medium text-[11px]">
+                        {err.message}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </DialogShellBody>
@@ -392,7 +565,11 @@ export function ImportWizard({
         {step === 5 && (
           <>
             <DialogShellCancelButton>Cancel</DialogShellCancelButton>
-            <Button size="sm" onClick={onClose}>
+            <Button
+              size="sm"
+              variant={derivedState === "FAILED" ? "destructive" : "default"}
+              onClick={onClose}
+            >
               Done
             </Button>
           </>

@@ -84,12 +84,13 @@ export function PurchaseOrderForm({
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(poSchema),
     defaultValues: {
       supplierId: initialData?.supplierId ?? "",
-      currency: initialData?.currency ?? "USD",
+      currency: initialData?.currency ?? "INR",
       expectedDeliveryDate: initialData?.expectedDeliveryDate
         ? new Date(initialData.expectedDeliveryDate).toISOString().split("T")[0]
         : "",
@@ -120,7 +121,7 @@ export function PurchaseOrderForm({
   });
 
   const watchedLines = watch("lines");
-  const watchedCurrency = watch("currency") || "USD";
+  const watchedCurrency = watch("currency") || "INR";
 
   const totals = React.useMemo(() => {
     let subtotal = 0;
@@ -215,7 +216,13 @@ export function PurchaseOrderForm({
                 <Select
                   disabled={isEditing}
                   value={field.value}
-                  onValueChange={field.onChange}
+                  onValueChange={(val) => {
+                    field.onChange(val);
+                    const selectedSup = suppliers.find((s) => s.id === val);
+                    if (selectedSup) {
+                      setValue("currency", selectedSup.currency || "INR");
+                    }
+                  }}
                 >
                   <SelectTrigger id="po-supplier">
                     <SelectValue placeholder="Select Supplier..." />
@@ -242,7 +249,7 @@ export function PurchaseOrderForm({
             <Input
               id="po-currency"
               type="text"
-              placeholder="e.g. USD"
+              placeholder="e.g. INR"
               {...register("currency")}
               className="uppercase font-mono"
             />

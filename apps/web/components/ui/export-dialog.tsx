@@ -8,7 +8,11 @@ import {
   Check,
   Loader2,
 } from "lucide-react";
-import { importExportApi, ExportFormat } from "@/lib/api/import-export-api";
+import {
+  importExportApi,
+  ExportFormat,
+  getEntityLabel,
+} from "@/lib/api/import-export-api";
 import { Button } from "@/components/ui/button";
 import {
   DialogShell,
@@ -42,6 +46,8 @@ export function ExportDialog({
   );
   const [loading, setLoading] = React.useState(false);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
+
+  const displayLabel = getEntityLabel(entityType);
 
   React.useEffect(() => {
     setSelectedColumns(availableColumns);
@@ -78,7 +84,7 @@ export function ExportDialog({
       URL.revokeObjectURL(url);
 
       setSuccessMsg(
-        `Successfully exported ${res.recordCount} ${entityType} records.`,
+        `Successfully exported ${res.recordCount} ${displayLabel} records.`,
       );
       setTimeout(() => {
         onClose();
@@ -99,8 +105,8 @@ export function ExportDialog({
           onClose();
         }
       }}
-      title={`Export ${entityType} Data`}
-      description={`Choose the export format, scope, and columns for the ${entityType.toLowerCase()} dataset.`}
+      title={`Export ${displayLabel} Data`}
+      description={`Choose the export format, scope, and columns for the ${displayLabel.toLowerCase()} dataset.`}
       size="sm"
       closeDisabled={loading}
     >

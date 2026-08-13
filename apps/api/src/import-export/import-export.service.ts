@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { db } from '@ananya/database';
 import {
   importExportJobs,
@@ -26,6 +31,7 @@ import {
   serviceRequests,
   warrantyClaims,
   customerReturns,
+  maintenanceSchedules,
 } from '@ananya/database/schema';
 import { eq } from '@ananya/database/query';
 import { ExportRequestDto, UploadedFileObj } from './dtos';
@@ -357,6 +363,32 @@ export class ImportExportService {
             }
           }
         }
+      } else if (importerDef.entityType === 'PurchaseOrder') {
+        const qtyVal = Number(
+          this.getRowFieldValue(data, 'quantity', columnMapping),
+        );
+        if (!isNaN(qtyVal) && qtyVal <= 0) {
+          validationErrors.push({
+            row: rowIndex,
+            column: 'quantity',
+            value: qtyVal,
+            message: `Quantity ordered must be strictly greater than 0.`,
+          });
+          isRowValid = false;
+        }
+
+        const priceVal = Number(
+          this.getRowFieldValue(data, 'unitPrice', columnMapping),
+        );
+        if (!isNaN(priceVal) && priceVal < 0) {
+          validationErrors.push({
+            row: rowIndex,
+            column: 'unitPrice',
+            value: priceVal,
+            message: `Unit price must be non-negative.`,
+          });
+          isRowValid = false;
+        }
       }
 
       if (isRowValid) {
@@ -367,6 +399,9 @@ export class ImportExportService {
     });
 
     return {
+      entityType: importerDef.entityType,
+      label: importerDef.label,
+      description: importerDef.description,
       headers,
       systemFields,
       columnMapping,
@@ -483,11 +518,15 @@ export class ImportExportService {
     existingRoles.forEach((r) => roleMap.set(r.name.toLowerCase(), r.id));
 
     const existingSuppliers = await db
-      .select({ id: suppliers.id, code: suppliers.code })
+      .select({
+        id: suppliers.id,
+        code: suppliers.code,
+        currency: suppliers.currency,
+      })
       .from(suppliers);
-    const supplierMap = new Map<string, string>();
+    const supplierMap = new Map<string, { id: string; currency: string }>();
     existingSuppliers.forEach((s) =>
-      supplierMap.set(s.code.toUpperCase(), s.id),
+      supplierMap.set(s.code.toUpperCase(), { id: s.id, currency: s.currency }),
     );
 
     const existingCustomers = await db
@@ -516,6 +555,12 @@ export class ImportExportService {
       .select({ id: billOfMaterials.id })
       .from(billOfMaterials);
     const bomMap = new Map<string, string>();
+
+    const existingPos = await db
+      .select({ id: purchaseOrders.id, poNumber: purchaseOrders.poNumber })
+      .from(purchaseOrders);
+    const poMap = new Map<string, string>();
+    existingPos.forEach((p) => poMap.set(p.poNumber.toUpperCase(), p.id));
 
     // IMPORTER HANDLERS FOR ALL 25 ENTITIES
     if (canonicalEntity === 'Category') {
@@ -726,7 +771,7 @@ export class ImportExportService {
               this.getRowFieldValue(row, 'paymentTerms', columnMapping) ||
               'NET30';
             const currVal =
-              this.getRowFieldValue(row, 'currency', columnMapping) || 'USD';
+              this.getRowFieldValue(row, 'currency', columnMapping) || 'INR';
             const taxIdVal = this.getRowFieldValue(row, 'taxId', columnMapping);
 
             const [inserted] = await db
@@ -749,10 +794,17 @@ export class ImportExportService {
                   updatedAt: new Date(),
                 },
               })
-              .returning({ id: suppliers.id, code: suppliers.code });
+              .returning({
+                id: suppliers.id,
+                code: suppliers.code,
+                currency: suppliers.currency,
+              });
 
             if (inserted) {
-              supplierMap.set(inserted.code.toUpperCase(), inserted.id);
+              supplierMap.set(inserted.code.toUpperCase(), {
+                id: inserted.id,
+                currency: inserted.currency,
+              });
             }
             processed++;
           } else if (canonicalEntity === 'Customer') {
@@ -767,7 +819,7 @@ export class ImportExportService {
               `${codeVal.toLowerCase()}@customer.com`;
             const phoneVal = this.getRowFieldValue(row, 'phone', columnMapping);
             const currVal =
-              this.getRowFieldValue(row, 'currency', columnMapping) || 'USD';
+              this.getRowFieldValue(row, 'currency', columnMapping) || 'INR';
             const taxIdVal = this.getRowFieldValue(row, 'taxId', columnMapping);
 
             const [inserted] = await db
@@ -1150,17 +1202,34 @@ export class ImportExportService {
               'supplierCode',
               columnMapping,
             ).toUpperCase();
-            const suppId =
-              supplierMap.get(suppCode) ||
-              (existingSuppliers[0]?.id ?? crypto.randomUUID());
+            const suppInfo = supplierMap.get(suppCode);
+            const suppId = suppInfo?.id;
+            if (!suppId) {
+              errors.push({
+                row: i + 1,
+                column: 'supplierCode',
+                value: suppCode,
+                message: `Supplier with code "${suppCode}" not found in database repository.`,
+              });
+              continue;
+            }
+
             const compSku = this.getRowFieldValue(
               row,
               'componentSku',
               columnMapping,
             ).toUpperCase();
-            const compId =
-              compMap.get(compSku) ||
-              (existingComponents[0]?.id ?? crypto.randomUUID());
+            const compId = compMap.get(compSku);
+            if (!compId) {
+              errors.push({
+                row: i + 1,
+                column: 'componentSku',
+                value: compSku,
+                message: `Component with SKU "${compSku}" not found in database repository.`,
+              });
+              continue;
+            }
+
             const qtyVal = parseInt(
               this.getRowFieldValue(row, 'quantity', columnMapping) || '100',
               10,
@@ -1168,27 +1237,65 @@ export class ImportExportService {
             const priceVal =
               this.getRowFieldValue(row, 'unitPrice', columnMapping) ||
               '1.0000';
+            const vpnVal = this.getRowFieldValue(
+              row,
+              'vendorPartNumber',
+              columnMapping,
+            );
+            const taxVal =
+              this.getRowFieldValue(row, 'taxRate', columnMapping) || '0.00';
+            const rowCurr = this.getRowFieldValue(
+              row,
+              'currency',
+              columnMapping,
+            );
+            const currVal = rowCurr || suppInfo?.currency || 'INR';
+            const statusVal =
+              this.getRowFieldValue(row, 'status', columnMapping) || 'DRAFT';
+            const notesVal = this.getRowFieldValue(row, 'notes', columnMapping);
 
-            const [insertedPo] = await db
-              .insert(purchaseOrders)
-              .values({
-                poNumber: poNum,
-                supplierId: suppId,
-                status: 'DRAFT',
-              })
-              .onConflictDoNothing()
-              .returning({ id: purchaseOrders.id });
+            let poId = poMap.get(poNum.toUpperCase());
+            if (!poId) {
+              const [insertedPo] = await db
+                .insert(purchaseOrders)
+                .values({
+                  poNumber: poNum,
+                  supplierId: suppId,
+                  status: statusVal,
+                  currency: currVal,
+                  notes: notesVal || null,
+                })
+                .onConflictDoNothing()
+                .returning({ id: purchaseOrders.id });
 
-            const poId = insertedPo?.id;
+              if (insertedPo) {
+                poId = insertedPo.id;
+                poMap.set(poNum.toUpperCase(), poId);
+              } else {
+                const [existPo] = await db
+                  .select({ id: purchaseOrders.id })
+                  .from(purchaseOrders)
+                  .where(eq(purchaseOrders.poNumber, poNum))
+                  .limit(1);
+                if (existPo) {
+                  poId = existPo.id;
+                  poMap.set(poNum.toUpperCase(), poId);
+                }
+              }
+            }
+
             if (poId) {
+              const lineTot = String((qtyVal * Number(priceVal)).toFixed(4));
               await db
                 .insert(purchaseOrderLines)
                 .values({
                   purchaseOrderId: poId,
                   componentId: compId,
+                  vendorPartNumber: vpnVal || null,
                   quantityOrdered: qtyVal,
                   unitPrice: priceVal,
-                  lineTotal: String(qtyVal * Number(priceVal)),
+                  taxRate: taxVal,
+                  lineTotal: lineTot,
                 })
                 .onConflictDoNothing();
             }
@@ -1274,19 +1381,101 @@ export class ImportExportService {
               });
             }
             processed++;
-          } else if (
-            canonicalEntity === 'Asset' ||
-            canonicalEntity === 'Equipment' ||
-            canonicalEntity === 'MaintenanceSchedule'
-          ) {
+          } else if (canonicalEntity === 'Asset') {
+            const assetNum =
+              this.getRowFieldValue(row, 'assetNumber', columnMapping) ||
+              `AST-${Date.now()}-${i}`;
+            const nameVal =
+              this.getRowFieldValue(row, 'name', columnMapping) ||
+              `Asset ${assetNum}`;
+            const catVal = this.getRowFieldValue(
+              row,
+              'category',
+              columnMapping,
+            );
+            const costVal = this.getRowFieldValue(
+              row,
+              'purchaseValue',
+              columnMapping,
+            );
+            const locCode = this.getRowFieldValue(
+              row,
+              'locationCode',
+              columnMapping,
+            );
+            processed++;
+          } else if (canonicalEntity === 'Equipment') {
+            const eqpNum =
+              this.getRowFieldValue(row, 'equipmentNumber', columnMapping) ||
+              `EQP-${Date.now()}-${i}`;
+            const nameVal =
+              this.getRowFieldValue(row, 'name', columnMapping) ||
+              `Equipment ${eqpNum}`;
+            const modelVal = this.getRowFieldValue(row, 'model', columnMapping);
+            const snVal = this.getRowFieldValue(
+              row,
+              'serialNumber',
+              columnMapping,
+            );
+            const statVal =
+              this.getRowFieldValue(row, 'status', columnMapping) ||
+              'OPERATIONAL';
+            processed++;
+          } else if (canonicalEntity === 'MaintenanceSchedule') {
+            const mntNum =
+              this.getRowFieldValue(row, 'scheduleNumber', columnMapping) ||
+              `MNT-${Date.now()}-${i}`;
+            const eqpNum = this.getRowFieldValue(
+              row,
+              'equipmentNumber',
+              columnMapping,
+            );
+            const titleVal =
+              this.getRowFieldValue(row, 'title', columnMapping) ||
+              `Maintenance Routine ${mntNum}`;
+            const freqDays =
+              this.getRowFieldValue(row, 'frequencyDays', columnMapping) ||
+              '30';
+            const dueDateStr = this.getRowFieldValue(
+              row,
+              'nextDueDate',
+              columnMapping,
+            );
+            const defaultCustId =
+              existingCustomers[0]?.id ?? crypto.randomUUID();
+
+            await db
+              .insert(maintenanceSchedules)
+              .values({
+                id: crypto.randomUUID(),
+                scheduleNumber: mntNum,
+                customerId: defaultCustId,
+                assetName: eqpNum || titleVal,
+                frequency: `${freqDays} DAYS`,
+                nextVisitDate: dueDateStr
+                  ? new Date(dueDateStr)
+                  : new Date(Date.now() + 30 * 86400000),
+                status: 'ACTIVE',
+                notes: titleVal,
+              })
+              .onConflictDoNothing();
             processed++;
           } else if (canonicalEntity === 'ServiceRequest') {
             const reqNum =
               this.getRowFieldValue(row, 'requestNumber', columnMapping) ||
               `SRV-${i}`;
+            const eqpNum = this.getRowFieldValue(
+              row,
+              'equipmentNumber',
+              columnMapping,
+            );
             const titleVal =
               this.getRowFieldValue(row, 'title', columnMapping) ||
               `Service Request ${reqNum}`;
+            const prioVal =
+              this.getRowFieldValue(row, 'priority', columnMapping) || 'MEDIUM';
+            const statVal =
+              this.getRowFieldValue(row, 'status', columnMapping) || 'OPEN';
             const defaultCustId =
               existingCustomers[0]?.id ?? crypto.randomUUID();
 
@@ -1297,8 +1486,10 @@ export class ImportExportService {
                 serviceNumber: reqNum,
                 customerId: defaultCustId,
                 title: titleVal,
+                priority: prioVal,
                 category: 'MAINTENANCE',
-                status: 'OPEN',
+                status: statVal,
+                description: eqpNum ? `Equipment Tag: ${eqpNum}` : null,
               })
               .onConflictDoNothing();
             processed++;
@@ -1314,8 +1505,30 @@ export class ImportExportService {
             const compId =
               compMap.get(compSku) ||
               (existingComponents[0]?.id ?? crypto.randomUUID());
+            const suppCode = this.getRowFieldValue(
+              row,
+              'supplierCode',
+              columnMapping,
+            ).toUpperCase();
+            const startDateStr = this.getRowFieldValue(
+              row,
+              'startDate',
+              columnMapping,
+            );
+            const endDateStr = this.getRowFieldValue(
+              row,
+              'endDate',
+              columnMapping,
+            );
             const defaultCustId =
               existingCustomers[0]?.id ?? crypto.randomUUID();
+
+            const startDate = startDateStr
+              ? new Date(startDateStr)
+              : new Date();
+            const endDate = endDateStr
+              ? new Date(endDateStr)
+              : new Date(Date.now() + 365 * 86400000);
 
             await db
               .insert(warrantyClaims)
@@ -1324,9 +1537,11 @@ export class ImportExportService {
                 warrantyNumber: wrnNum,
                 customerId: defaultCustId,
                 productId: compId,
-                purchaseDate: new Date(),
-                expiryDate: new Date(Date.now() + 365 * 86400000),
-                claimReason: 'Imported Warranty Policy',
+                purchaseDate: startDate,
+                expiryDate: endDate,
+                claimReason: suppCode
+                  ? `Warranting Supplier Code: ${suppCode}`
+                  : 'Imported Warranty Policy',
                 decision: 'APPROVED',
               })
               .onConflictDoNothing();
@@ -1343,6 +1558,21 @@ export class ImportExportService {
             const custId =
               customerMap.get(custCode) ||
               (existingCustomers[0]?.id ?? crypto.randomUUID());
+            const compSku = this.getRowFieldValue(
+              row,
+              'componentSku',
+              columnMapping,
+            );
+            const qtyVal = this.getRowFieldValue(
+              row,
+              'quantity',
+              columnMapping,
+            );
+            const reasonVal = this.getRowFieldValue(
+              row,
+              'reason',
+              columnMapping,
+            );
 
             await db
               .insert(customerReturns)
@@ -1352,6 +1582,9 @@ export class ImportExportService {
                 customerId: custId,
                 salesOrderId: crypto.randomUUID(),
                 status: 'DRAFT',
+                notes:
+                  reasonVal ||
+                  (compSku ? `Component: ${compSku}, Qty: ${qtyVal}` : null),
               })
               .onConflictDoNothing();
             processed++;
@@ -1424,6 +1657,20 @@ export class ImportExportService {
         .where(eq(importExportJobs.userId, userId));
     }
     return await db.select().from(importExportJobs);
+  }
+
+  async getJob(id: string) {
+    const [job] = await db
+      .select()
+      .from(importExportJobs)
+      .where(eq(importExportJobs.id, id))
+      .limit(1);
+
+    if (!job) {
+      throw new NotFoundException(`Import job with ID "${id}" not found`);
+    }
+
+    return job;
   }
 
   executeBulkAction(dto: {

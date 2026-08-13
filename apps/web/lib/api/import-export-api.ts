@@ -31,6 +31,9 @@ export interface ImportExportJobDto {
 }
 
 export interface ImportPreviewResultDto {
+  entityType?: string;
+  label?: string;
+  description?: string;
   headers: string[];
   systemFields: string[];
   columnMapping: Record<string, string>;
@@ -44,6 +47,42 @@ export interface ImportPreviewResultDto {
     message: string;
   }>;
   sampleRows: Record<string, string>[];
+}
+
+export const ENTITY_LABEL_MAP: Record<string, string> = {
+  Category: "Category",
+  Component: "Component",
+  Manufacturer: "Manufacturer",
+  Supplier: "Supplier",
+  Customer: "Customer",
+  Warehouse: "Warehouse",
+  WarehouseBin: "Warehouse Bin",
+  Location: "Location",
+  Unit: "Unit of Measure",
+  User: "User Account",
+  Role: "Security Role",
+  Permission: "System Permission",
+  Project: "Project",
+  Task: "Project Task",
+  BOM: "Bill of Materials",
+  WorkOrder: "Work Order",
+  PurchaseOrder: "Purchase Order",
+  OpeningInventory: "Opening Inventory Balance",
+  StockAdjustment: "Stock Adjustment",
+  Asset: "Fixed Asset",
+  Equipment: "Equipment",
+  MaintenanceSchedule: "Maintenance Schedule",
+  ServiceRequest: "Service Request",
+  Warranty: "Warranty Coverage",
+  RMA: "Return Merchandise Authorization",
+};
+
+export function getEntityLabel(entityType: string): string {
+  if (!entityType) return "";
+  if (ENTITY_LABEL_MAP[entityType]) {
+    return ENTITY_LABEL_MAP[entityType]!;
+  }
+  return entityType.replace(/([A-Z])/g, " $1").trim();
 }
 
 export interface ExportResponseDto {
@@ -111,6 +150,10 @@ export const importExportApi = {
 
   getJobs: (): Promise<ImportExportJobDto[]> => {
     return apiClient.get<ImportExportJobDto[]>("/import-export/jobs");
+  },
+
+  getJob: (id: string): Promise<ImportExportJobDto> => {
+    return apiClient.get<ImportExportJobDto>(`/import-export/jobs/${id}`);
   },
 
   executeBulkAction: (params: {

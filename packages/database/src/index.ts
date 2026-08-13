@@ -1,23 +1,11 @@
-import path from "path";
-import fs from "fs";
-import dotenv from "dotenv";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
 let _pool: Pool | null = null;
 let _db: ReturnType<typeof drizzle> | null = null;
 
-function loadEnv() {
-  const rootEnvPath = path.resolve(__dirname, "../../../.env");
-  if (fs.existsSync(rootEnvPath)) {
-    dotenv.config({ path: rootEnvPath });
-  }
-  dotenv.config();
-}
-
 export function getPool(): Pool {
   if (!_pool) {
-    loadEnv();
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
       throw new Error("DATABASE_URL is not configured");
