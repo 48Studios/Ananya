@@ -28,6 +28,7 @@ import {
 } from "@/lib/api/purchase-orders-api";
 import { suppliersApi, type SupplierDto } from "@/lib/api/suppliers-api";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
+import { settingsApi } from "@/lib/api/settings-api";
 
 const poLineSchema = z.object({
   componentId: z.string().min(1, "Component is required"),
@@ -65,19 +66,30 @@ export function PurchaseOrderForm({
   const [availableComponents, setAvailableComponents] = React.useState<
     ComponentDto[]
   >([]);
+  const [baseCurrency, setBaseCurrency] = React.useState<string>("INR");
   const [serverError, setServerError] = React.useState<string | null>(null);
   const isEditing = Boolean(initialData);
 
   React.useEffect(() => {
-    Promise.all([suppliersApi.getAll(), componentsApi.getAll()])
-      .then(([supData, compData]) => {
+    Promise.all([
+      suppliersApi.getAll(),
+      componentsApi.getAll(),
+      settingsApi.getSystemSettings().catch(() => null),
+    ])
+      .then(([supData, compData, settingsData]) => {
         setSuppliers(supData);
         setAvailableComponents(compData);
+        if (settingsData?.baseCurrency) {
+          setBaseCurrency(settingsData.baseCurrency);
+          if (!initialData) {
+            setValue("currency", settingsData.baseCurrency);
+          }
+        }
       })
       .catch(() => {
         // Non-blocking load error
       });
-  }, []);
+  }, [initialData, setValue]);
 
   const {
     register,
@@ -220,7 +232,7 @@ export function PurchaseOrderForm({
                     field.onChange(val);
                     const selectedSup = suppliers.find((s) => s.id === val);
                     if (selectedSup) {
-                      setValue("currency", selectedSup.currency || "INR");
+                      setValue("currency", selectedSup.currency || baseCurrency);
                     }
                   }}
                 >

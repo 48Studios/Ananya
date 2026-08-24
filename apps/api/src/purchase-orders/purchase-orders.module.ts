@@ -6,7 +6,10 @@ import {
 } from './purchase-orders.service';
 import { DrizzlePurchaseOrderRepository } from '../infrastructure/repositories/drizzle-purchase-order.repository';
 
+import { SettingsModule } from '../settings/settings.module';
+
 @Module({
+  imports: [SettingsModule],
   controllers: [PurchaseOrdersController],
   providers: [
     PurchaseOrdersService,

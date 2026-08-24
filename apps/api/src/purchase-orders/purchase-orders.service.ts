@@ -13,6 +13,9 @@ import {
   AddPoLineDto,
 } from './dtos';
 
+import { SettingsService } from '../settings/settings.service';
+import { resolveCurrency } from '../common/utils/currency-resolver';
+
 export const PURCHASE_ORDER_REPOSITORY = 'PURCHASE_ORDER_REPOSITORY';
 
 @Injectable()
@@ -24,6 +27,7 @@ export class PurchaseOrdersService {
   constructor(
     @Inject(PURCHASE_ORDER_REPOSITORY)
     private readonly poRepository: PurchaseOrderRepository,
+    private readonly settingsService: SettingsService,
   ) {
     this.createPo = new CreatePurchaseOrder(poRepository);
     this.updatePo = new UpdatePurchaseOrder(poRepository);
@@ -31,10 +35,17 @@ export class PurchaseOrdersService {
   }
 
   async create(dto: CreatePurchaseOrderDto): Promise<PurchaseOrder> {
+    const settings = await this.settingsService.getSystemSettings();
+    const currency = resolveCurrency({
+      explicitCurrency: dto.currency,
+      organizationCurrency: settings?.baseCurrency,
+      fallbackCurrency: 'INR',
+    });
+
     return this.createPo.execute({
       poNumber: '',
       supplierId: dto.supplierId,
-      currency: dto.currency,
+      currency,
       notes: dto.notes,
       expectedDeliveryDate: dto.expectedDeliveryDate
         ? new Date(dto.expectedDeliveryDate)
