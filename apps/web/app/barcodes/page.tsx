@@ -78,7 +78,10 @@ export default function BarcodesHubPage() {
     qrPayload:
       sampleQr || `ANANYA:V1:COMPONENT:${activeComponent?.id || "sys-preview"}`,
     title: activeComponent?.name || "Inventory Item Label",
-    subtitle: `SKU: ${activeComponent?.sku || "N/A"} | Location: ${locations[0]?.name || "Unassigned"}`,
+    subtitle: `SKU: ${activeComponent?.sku || "N/A"}`,
+    attribute1: locations[0]?.name
+      ? `MAIN WAREHOUSE / ${locations[0].name.toUpperCase()}`
+      : "MAIN WAREHOUSE / RACK A / BIN 04",
   };
 
   const handleOpenBatchComponents = () => {

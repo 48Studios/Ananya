@@ -57,28 +57,34 @@ export function LabelPreview({
   }
 
   if (template === "SHELF_BIN") {
+    const locationDisplay =
+      label.attribute1 ||
+      (label.entityType === "LOCATION"
+        ? label.title
+        : label.subtitle || "SHELF / BIN STORAGE");
+
     return (
       <div
         className={`w-80 p-4 bg-white text-black border-2 border-slate-800 rounded-lg shadow-sm space-y-2 select-none print:shadow-none print:break-inside-avoid ${className}`}
       >
         <div className="flex items-center justify-between border-b border-slate-300 pb-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-            LOCATION SHELF / BIN TAG
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600 truncate">
+            {locationDisplay}
           </span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-0 flex-1">
             <h4 className="text-base font-extrabold text-slate-900 leading-tight">
               {label.title}
             </h4>
-            <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
+            <span className="inline-block font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
               {label.primaryCode}
             </span>
           </div>
           <QRCodeViewer
             value={label.qrPayload}
             size={70}
-            className="p-1 border-0"
+            className="p-1 border-0 shrink-0"
           />
         </div>
       </div>

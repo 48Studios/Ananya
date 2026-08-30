@@ -135,6 +135,7 @@ export class BarcodesService {
       details: {
         sku: comp.sku,
         unit: comp.unit,
+        defaultLocationId: comp.defaultLocationId,
         isActive: comp.isActive,
         description: comp.description,
       },
@@ -278,7 +279,35 @@ export class BarcodesService {
     };
   }
 
-  async generateBarcodePayload(entityType: EntityType, entityId: string) {
+  private async getLocationPath(locationId: string): Promise<string> {
+    const parts: string[] = [];
+    let currentId: string | null = locationId;
+    const visited = new Set<string>();
+
+    while (currentId && !visited.has(currentId)) {
+      visited.add(currentId);
+      const [loc] = await db
+        .select({
+          id: locations.id,
+          name: locations.name,
+          parentId: locations.parentId,
+        })
+        .from(locations)
+        .where(eq(locations.id, currentId))
+        .limit(1);
+
+      if (!loc) break;
+      parts.unshift(loc.name);
+      currentId = loc.parentId;
+    }
+
+    return parts.join(' / ');
+  }
+
+  async generateBarcodePayload(
+    entityType: EntityType,
+    entityId: string,
+  ): Promise<LabelData> {
     let result: BarcodeLookupResult;
     if (entityType === 'COMPONENT')
       result = await this.lookupComponent(entityId);
@@ -292,13 +321,27 @@ export class BarcodesService {
       result = await this.lookupProject(entityId);
     else throw new NotFoundException('Unsupported entity type.');
 
+    let locationPath: string | undefined;
+    if (entityType === 'LOCATION') {
+      locationPath = await this.getLocationPath(result.entityId);
+    } else if (
+      entityType === 'COMPONENT' &&
+      (result.details.defaultLocationId as string | undefined)
+    ) {
+      locationPath = await this.getLocationPath(
+        result.details.defaultLocationId as string,
+      );
+    }
+
     return {
+      id: result.entityId,
       entityType,
-      entityId: result.entityId,
       primaryCode: result.code,
       qrPayload: result.qrPayload,
       title: result.name,
       subtitle: result.subtitle,
+      attribute1:
+        locationPath || (entityType === 'LOCATION' ? result.name : undefined),
     };
   }
 
@@ -310,16 +353,9 @@ export class BarcodesService {
     for (const id of ids) {
       try {
         const payload = await this.generateBarcodePayload(entityType, id);
-        labels.push({
-          id: payload.entityId,
-          entityType: payload.entityType,
-          primaryCode: payload.primaryCode,
-          qrPayload: payload.qrPayload,
-          title: payload.title,
-          subtitle: payload.subtitle,
-        });
+        labels.push(payload);
       } catch {
-        // Skip unresolvable entity
+        // Continue processing batch
       }
     }
     return labels;
