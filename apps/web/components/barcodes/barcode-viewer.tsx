@@ -273,15 +273,16 @@ export function BarcodeViewer({
 
   return (
     <div
-      className={`inline-flex flex-col items-center select-none ${className}`}
+      className={`inline-flex flex-col items-center select-none bg-white p-1 rounded ${className}`}
     >
       <svg
         width="100%"
         height={height}
         viewBox={`0 0 ${svgWidth} ${height}`}
-        className="fill-current text-foreground"
+        className="block"
+        shapeRendering="crispEdges"
       >
-        <rect width={svgWidth} height={height} fill="transparent" />
+        <rect width={svgWidth} height={height} fill="#ffffff" />
         <g transform="translate(10, 0)">
           {bars.map((isBar, idx) =>
             isBar ? (
@@ -291,13 +292,14 @@ export function BarcodeViewer({
                 y={0}
                 width={barWidth}
                 height={height - (showText ? 14 : 0)}
+                fill="#000000"
               />
             ) : null,
           )}
         </g>
       </svg>
       {showText && (
-        <span className="font-mono text-[10px] tracking-widest text-foreground font-bold mt-0.5 uppercase">
+        <span className="font-mono text-[10px] tracking-widest text-slate-900 font-bold mt-0.5 uppercase">
           {displayValue}
         </span>
       )}

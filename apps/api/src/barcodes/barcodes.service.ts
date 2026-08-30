@@ -130,7 +130,7 @@ export class BarcodesService {
       code: comp.sku,
       qrPayload: `ANANYA:V1:COMPONENT:${comp.id}`,
       name: comp.name,
-      subtitle: `SKU: ${comp.sku} | Unit: ${comp.unit}`,
+      subtitle: `SKU: ${comp.sku}`,
       targetUrl: `/components/${comp.id}`,
       details: {
         sku: comp.sku,
@@ -232,7 +232,7 @@ export class BarcodesService {
       code: wo.productionNumber,
       qrPayload: `ANANYA:V1:WORK_ORDER:${wo.id}`,
       name: wo.productionNumber,
-      subtitle: `Status: ${wo.status} | Planned: ${wo.quantityPlanned} units`,
+      subtitle: `Status: ${wo.status} | Planned: ${wo.quantityPlanned}`,
       targetUrl: `/work-orders/${wo.id}`,
       details: {
         productionNumber: wo.productionNumber,
