@@ -9,6 +9,7 @@ export interface DashboardGridProps {
   attentionQueueWidget?: React.ReactNode;
   statsWidget?: React.ReactNode;
   healthChartsWidget?: React.ReactNode;
+  operationsPipelineWidget?: React.ReactNode;
   recentActivityWidget?: React.ReactNode;
   quickActionsWidget?: React.ReactNode;
   favoritesWidget?: React.ReactNode;
@@ -25,6 +26,7 @@ export function DashboardGrid({
   attentionQueueWidget,
   statsWidget,
   healthChartsWidget,
+  operationsPipelineWidget,
   recentActivityWidget,
   quickActionsWidget,
   favoritesWidget,
@@ -38,6 +40,10 @@ export function DashboardGrid({
     const found = widgets.find((w) => w.id === id);
     return found ? found.enabled : true;
   };
+
+  const hasActivity = Boolean(recentActivityWidget || activityFeedWidget);
+  const hasPipeline = Boolean(operationsPipelineWidget);
+  const hasFavorites = Boolean(favoritesWidget || favorites.length > 0);
 
   return (
     <div className="space-y-6">
@@ -59,29 +65,36 @@ export function DashboardGrid({
         <div>{quickActionsWidget}</div>
       )}
 
-      {/* 5. Split Section: Recent Activity & Pinned Favorites */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {(recentActivityWidget || activityFeedWidget) &&
-          (isWidgetEnabled("recent-activity") || isWidgetEnabled("activity-feed")) && (
-            <div>{recentActivityWidget || activityFeedWidget}</div>
-          )}
+      {/* 5. Two-Column Split: Recent Activity (Left) & Operations Execution Pipeline (Right) */}
+      {(hasActivity || hasPipeline) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {hasActivity &&
+            (isWidgetEnabled("recent-activity") || isWidgetEnabled("activity-feed")) && (
+              <div>{recentActivityWidget || activityFeedWidget}</div>
+            )}
 
-        {(favoritesWidget || favorites.length > 0) &&
-          (isWidgetEnabled("favorite-records") || isWidgetEnabled("favorites")) && (
-            <div>
-              {favoritesWidget || (
-                <FavoritesPanel
-                  favorites={favorites}
-                  onFavoriteRemoved={onFavoriteRemoved}
-                />
-              )}
-            </div>
+          {hasPipeline && isWidgetEnabled("operations-pipeline") && (
+            <div>{operationsPipelineWidget}</div>
           )}
+        </div>
+      )}
 
-        {/* Legacy slot support */}
-        {lowStockWidget && isWidgetEnabled("low-stock") && <div>{lowStockWidget}</div>}
-        {recentPosWidget && isWidgetEnabled("recent-pos") && <div>{recentPosWidget}</div>}
-      </div>
+      {/* 6. Pinned & Favorites Section (When user has favorites) */}
+      {hasFavorites &&
+        (isWidgetEnabled("favorite-records") || isWidgetEnabled("favorites")) && (
+          <div>
+            {favoritesWidget || (
+              <FavoritesPanel
+                favorites={favorites}
+                onFavoriteRemoved={onFavoriteRemoved}
+              />
+            )}
+          </div>
+        )}
+
+      {/* Legacy slots support */}
+      {lowStockWidget && isWidgetEnabled("low-stock") && <div>{lowStockWidget}</div>}
+      {recentPosWidget && isWidgetEnabled("recent-pos") && <div>{recentPosWidget}</div>}
     </div>
   );
 }

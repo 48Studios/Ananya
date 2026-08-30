@@ -25,6 +25,7 @@ import { BarChartWidget } from "@/components/charts/bar-chart-widget";
 import { DonutChartWidget } from "@/components/charts/donut-chart-widget";
 import { DashboardAttentionQueue } from "@/components/dashboard/dashboard-attention-queue";
 import { DashboardQuickActionsCard } from "@/components/dashboard/dashboard-quick-actions-card";
+import { DashboardOperationsPipeline } from "@/components/dashboard/dashboard-operations-pipeline";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import {
@@ -78,10 +79,16 @@ const DEFAULT_WIDGETS: DashboardWidgetConfig[] = [
     width: "half",
   },
   {
+    id: "operations-pipeline",
+    title: "Operations Execution Pipeline",
+    enabled: true,
+    width: "half",
+  },
+  {
     id: "favorite-records",
     title: "Pinned & Favorites",
     enabled: true,
-    width: "half",
+    width: "full",
   },
 ];
 
@@ -404,6 +411,15 @@ export default function DashboardPage() {
     </div>
   );
 
+  // 6. Operations Pipeline Widget (Production & Inbound Shipments)
+  const operationsPipelineWidget = (
+    <DashboardOperationsPipeline
+      workOrders={activeWorkOrders}
+      purchaseOrders={openPurchaseOrders}
+      loading={refreshing}
+    />
+  );
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -457,6 +473,7 @@ export default function DashboardPage() {
         healthChartsWidget={healthChartsWidget}
         quickActionsWidget={quickActionsWidget}
         recentActivityWidget={recentActivityWidget}
+        operationsPipelineWidget={operationsPipelineWidget}
         favorites={favorites}
         onFavoriteRemoved={() => loadData(false)}
       />
