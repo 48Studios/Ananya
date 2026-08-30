@@ -104,9 +104,23 @@ export function GoodsReceiptForm({
       componentsApi.getAll(),
     ])
       .then(([pos, locs, comps]) => {
-        const activePos = pos.filter(
-          (p) => p.status === "ISSUED" || p.status === "PARTIALLY_RECEIVED",
-        );
+        const activePos = pos.filter((p) => {
+          const isEligibleStatus =
+            p.status === "SUBMITTED" ||
+            p.status === "APPROVED" ||
+            p.status === "ISSUED" ||
+            p.status === "PARTIALLY_RECEIVED";
+          if (!isEligibleStatus) return false;
+
+          // If PO has line details, verify it has outstanding quantities remaining
+          if (p.lines && p.lines.length > 0) {
+            const hasRemaining = p.lines.some(
+              (l) => l.quantityOrdered - l.quantityReceived > 0,
+            );
+            if (!hasRemaining) return false;
+          }
+          return true;
+        });
         setOpenPos(activePos);
         setLocations(locs);
 
@@ -229,12 +243,21 @@ export function GoodsReceiptForm({
                   <SelectValue placeholder="Select an open Purchase Order..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {openPos.map((po) => (
-                    <SelectItem key={po.id} value={po.id}>
-                      {po.poNumber} — ({po.status}) {po.currency}{" "}
-                      {po.grandTotal.toFixed(2)}
-                    </SelectItem>
-                  ))}
+                  {openPos.length > 0 ? (
+                    openPos.map((po) => {
+                      const totalNum = Number(po.grandTotal) || 0;
+                      return (
+                        <SelectItem key={po.id} value={po.id}>
+                          {po.poNumber} — ({po.status}) {po.currency || "INR"}{" "}
+                          {totalNum.toFixed(2)}
+                        </SelectItem>
+                      );
+                    })
+                  ) : (
+                    <div className="p-2 text-xs text-muted-foreground italic text-center">
+                      No open Purchase Orders available for receiving
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             )}

@@ -32,8 +32,10 @@ import {
   warrantyClaims,
   customerReturns,
   maintenanceSchedules,
+  systemSettings,
 } from '@ananya/database/schema';
 import { eq } from '@ananya/database/query';
+import { resolveCurrency } from '../common/utils/currency-resolver';
 import { ExportRequestDto, UploadedFileObj } from './dtos';
 import {
   getImporterDefinition,
@@ -529,6 +531,9 @@ export class ImportExportService {
       supplierMap.set(s.code.toUpperCase(), { id: s.id, currency: s.currency }),
     );
 
+    const [sysSettings] = await db.select().from(systemSettings);
+    const orgCurrency = sysSettings?.baseCurrency;
+
     const existingCustomers = await db
       .select({ id: customers.id, customerNumber: customers.customerNumber })
       .from(customers);
@@ -818,8 +823,12 @@ export class ImportExportService {
               this.getRowFieldValue(row, 'email', columnMapping) ||
               `${codeVal.toLowerCase()}@customer.com`;
             const phoneVal = this.getRowFieldValue(row, 'phone', columnMapping);
-            const currVal =
-              this.getRowFieldValue(row, 'currency', columnMapping) || 'INR';
+            const rowCurr = this.getRowFieldValue(row, 'currency', columnMapping);
+            const currVal = resolveCurrency({
+              explicitCurrency: rowCurr,
+              organizationCurrency: orgCurrency,
+              fallbackCurrency: 'INR',
+            });
             const taxIdVal = this.getRowFieldValue(row, 'taxId', columnMapping);
 
             const [inserted] = await db
@@ -1249,7 +1258,11 @@ export class ImportExportService {
               'currency',
               columnMapping,
             );
-            const currVal = rowCurr || suppInfo?.currency || 'INR';
+            const currVal = resolveCurrency({
+              explicitCurrency: rowCurr,
+              organizationCurrency: orgCurrency,
+              fallbackCurrency: suppInfo?.currency || 'INR',
+            });
             const statusVal =
               this.getRowFieldValue(row, 'status', columnMapping) || 'DRAFT';
             const notesVal = this.getRowFieldValue(row, 'notes', columnMapping);
