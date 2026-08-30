@@ -4,6 +4,7 @@ import * as React from "react";
 import { BarcodeViewer } from "./barcode-viewer";
 import { QRCodeViewer } from "./qr-code-viewer";
 import { LabelData, BarcodeFormat } from "@/lib/api/barcodes-api";
+import { settingsApi } from "@/lib/api/settings-api";
 
 export type LabelTemplate = "COMPACT" | "STANDARD" | "DETAILED" | "SHELF_BIN";
 
@@ -11,6 +12,7 @@ export interface LabelPreviewProps {
   label: LabelData;
   template?: LabelTemplate;
   format?: BarcodeFormat;
+  organizationName?: string;
   className?: string;
 }
 
@@ -30,8 +32,28 @@ export function LabelPreview({
   label,
   template = "STANDARD",
   format = "CODE128",
+  organizationName,
   className = "",
 }: LabelPreviewProps) {
+  const [orgName, setOrgName] = React.useState<string>(
+    organizationName || "48 Studios",
+  );
+
+  React.useEffect(() => {
+    if (organizationName) {
+      setOrgName(organizationName);
+      return;
+    }
+    settingsApi
+      .getOrganizationProfile()
+      .then((profile) => {
+        if (profile?.companyName) {
+          setOrgName(profile.companyName);
+        }
+      })
+      .catch(() => { });
+  }, [organizationName]);
+
   const displaySubtitle = cleanSubtitle(label.subtitle);
 
   if (template === "COMPACT") {
@@ -100,7 +122,7 @@ export function LabelPreview({
       <div
         className={`w-96 p-4 bg-white text-black border border-slate-400 rounded-lg shadow-xs gap-2 select-none print:shadow-none print:break-inside-avoid ${className}`}
       >
-        <div className="flex items-start justify-between gap-2 border-b border-slate-200">
+        <div className="flex items-start justify-between gap-2 border-b border-slate-200 pb-2">
           <div className="space-y-0.5">
             <h4 className="text-sm font-extrabold text-slate-900 leading-snug">
               {label.title}
@@ -116,7 +138,7 @@ export function LabelPreview({
           />
         </div>
 
-        <div className="flex flex-col items-center justify-center mb-3">
+        <div className="flex flex-col items-center justify-center mb-3 mt-1">
           <BarcodeViewer
             value={label.primaryCode}
             format={format}
@@ -125,9 +147,9 @@ export function LabelPreview({
           />
         </div>
 
-        <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono border-t border-slate-200 pt-2">
+        <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono border-t border-slate-200 pt-3">
+          <span className="font-bold tracking-wider uppercase truncate">{orgName}</span>
           <span>TYPE: {label.entityType}</span>
-          <span>ANANYA ERP IMMUTABLE LABEL</span>
         </div>
       </div>
     );
