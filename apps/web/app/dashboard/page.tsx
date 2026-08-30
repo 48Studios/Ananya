@@ -1,108 +1,196 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
-  LayoutGrid,
-  TrendingUp,
-  AlertCircle,
-  Clock,
+  Boxes,
+  ShoppingCart,
+  Factory,
+  Layers,
   SlidersHorizontal,
-  Loader2,
+  RefreshCw,
+  Clock,
+  ExternalLink,
+  Activity,
+  ArrowRight,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { WidgetPicker } from "@/components/ui/widget-picker";
 import { DashboardGrid } from "@/components/ui/dashboard-grid";
+import { ChartCard } from "@/components/charts/chart-card";
+import { BarChartWidget } from "@/components/charts/bar-chart-widget";
+import { DonutChartWidget } from "@/components/charts/donut-chart-widget";
+import { DashboardAttentionQueue } from "@/components/dashboard/dashboard-attention-queue";
+import { DashboardQuickActionsCard } from "@/components/dashboard/dashboard-quick-actions-card";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   preferencesApi,
   DashboardWidgetConfig,
   FavoriteDto,
 } from "@/lib/api/preferences-api";
-import { componentsApi } from "@/lib/api/components-api";
-import { purchaseOrdersApi } from "@/lib/api/purchase-orders-api";
-import { notificationsApi } from "@/lib/api/notifications-api";
-import { workOrdersApi } from "@/lib/api/work-orders-api";
-import { categoriesApi, CategoryDto } from "@/lib/api/categories-api";
+import {
+  reportingApi,
+  InventorySummaryDto,
+  ProcurementSummaryDto,
+  ManufacturingSummaryDto,
+  TransactionSummaryDto,
+} from "@/lib/api/reporting-api";
+import { purchaseOrdersApi, PurchaseOrderDto } from "@/lib/api/purchase-orders-api";
+import { workOrdersApi, WorkOrderDto } from "@/lib/api/work-orders-api";
+import { stockAdjustmentsApi, StockAdjustmentDto } from "@/lib/api/stock-adjustments-api";
+import { notificationsApi, NotificationDto } from "@/lib/api/notifications-api";
 import { activityApi, ActivityEventDto } from "@/lib/api/activity-api";
+import { formatNumber, formatQuantity, formatCurrency } from "@/lib/utils";
+
+const DEFAULT_WIDGETS: DashboardWidgetConfig[] = [
+  {
+    id: "attention-queue",
+    title: "Operational Attention Queue",
+    enabled: true,
+    width: "full",
+  },
+  {
+    id: "stats-summary",
+    title: "Key Operational Metrics",
+    enabled: true,
+    width: "full",
+  },
+  {
+    id: "health-charts",
+    title: "Inventory & Operational Health",
+    enabled: true,
+    width: "full",
+  },
+  {
+    id: "quick-actions",
+    title: "Operational Quick Actions",
+    enabled: true,
+    width: "full",
+  },
+  {
+    id: "recent-activity",
+    title: "Real-Time Activity Stream",
+    enabled: true,
+    width: "half",
+  },
+  {
+    id: "favorite-records",
+    title: "Pinned & Favorites",
+    enabled: true,
+    width: "half",
+  },
+];
 
 export default function DashboardPage() {
-  const [widgets, setWidgets] = React.useState<DashboardWidgetConfig[]>([
-    { id: "stats-summary", title: "Key Metrics", enabled: true, width: "full" },
-    {
-      id: "low-stock",
-      title: "Top Component Categories",
-      enabled: true,
-      width: "half",
-    },
-    {
-      id: "recent-pos",
-      title: "Recent Activity Status",
-      enabled: true,
-      width: "half",
-    },
-    {
-      id: "activity-feed",
-      title: "Operational Queue",
-      enabled: true,
-      width: "half",
-    },
-    {
-      id: "favorite-records",
-      title: "Pinned & Favorites",
-      enabled: true,
-      width: "half",
-    },
-  ]);
+  const [widgets, setWidgets] = React.useState<DashboardWidgetConfig[]>(DEFAULT_WIDGETS);
   const [favorites, setFavorites] = React.useState<FavoriteDto[]>([]);
   const [isPickerOpen, setIsPickerOpen] = React.useState(false);
 
-  // Real API metrics state
-  const [componentCount, setComponentCount] = React.useState<number | null>(
-    null,
-  );
-  const [poCount, setPoCount] = React.useState<number | null>(null);
-  const [unreadAlerts, setUnreadAlerts] = React.useState<number | null>(null);
-  const [workOrderCount, setWorkOrderCount] = React.useState<number | null>(
-    null,
-  );
-  const [categories, setCategories] = React.useState<CategoryDto[]>([]);
-  const [recentActivities, setRecentActivities] = React.useState<
-    ActivityEventDto[]
-  >([]);
-  const [loadingMetrics, setLoadingMetrics] = React.useState(true);
+  // Live domain state
+  const [inventorySummary, setInventorySummary] = React.useState<InventorySummaryDto | null>(null);
+  const [procurementSummary, setProcurementSummary] = React.useState<ProcurementSummaryDto | null>(null);
+  const [manufacturingSummary, setManufacturingSummary] = React.useState<ManufacturingSummaryDto | null>(null);
+  const [transactionSummary, setTransactionSummary] = React.useState<TransactionSummaryDto | null>(null);
 
-  const loadData = React.useCallback(async () => {
-    setLoadingMetrics(true);
+  const [openPurchaseOrders, setOpenPurchaseOrders] = React.useState<PurchaseOrderDto[]>([]);
+  const [activeWorkOrders, setActiveWorkOrders] = React.useState<WorkOrderDto[]>([]);
+  const [pendingAdjustments, setPendingAdjustments] = React.useState<StockAdjustmentDto[]>([]);
+  const [notifications, setNotifications] = React.useState<NotificationDto[]>([]);
+  const [recentActivities, setRecentActivities] = React.useState<ActivityEventDto[]>([]);
+
+  const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [lastSyncTime, setLastSyncTime] = React.useState<Date | null>(null);
+
+  const loadData = React.useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+
     try {
-      const [layoutData, favData, comps, pos, unread, wos, cats, activities] =
-        await Promise.all([
-          preferencesApi.getDashboardLayout().catch(() => null),
-          preferencesApi.getFavorites().catch(() => []),
-          componentsApi.getAll().catch(() => []),
-          purchaseOrdersApi.getAll().catch(() => []),
-          notificationsApi.getUnreadCount().catch(() => 0),
-          workOrdersApi.getAll().catch(() => []),
-          categoriesApi.getAll().catch(() => []),
-          activityApi.getFeed().catch(() => []),
-        ]);
+      const [
+        layoutRes,
+        favRes,
+        invSummaryRes,
+        procSummaryRes,
+        mfgSummaryRes,
+        txSummaryRes,
+        poRes,
+        woRes,
+        adjRes,
+        notifRes,
+        activityRes,
+      ] = await Promise.allSettled([
+        preferencesApi.getDashboardLayout(),
+        preferencesApi.getFavorites(),
+        reportingApi.getInventorySummary(),
+        reportingApi.getProcurementSummary(),
+        reportingApi.getManufacturingSummary(),
+        reportingApi.getTransactionSummary(),
+        purchaseOrdersApi.getAll(),
+        workOrdersApi.getAll(),
+        stockAdjustmentsApi.getAll({ status: "PENDING" }),
+        notificationsApi.getUserNotifications(),
+        activityApi.getFeed({ limit: 8 }),
+      ]);
 
-      if (layoutData?.widgetsJson && layoutData.widgetsJson.length > 0) {
-        setWidgets(layoutData.widgetsJson);
+      // Layout preference
+      if (layoutRes.status === "fulfilled" && layoutRes.value?.widgetsJson?.length) {
+        setWidgets(layoutRes.value.widgetsJson);
       }
-      setFavorites(favData);
-      setComponentCount(comps.length);
-      setPoCount(pos.length);
-      const unreadCount =
-        typeof unread === "number"
-          ? unread
-          : ((unread as { unread?: number })?.unread ?? 0);
-      setUnreadAlerts(unreadCount);
-      setWorkOrderCount(wos.length);
-      setCategories(cats);
-      setRecentActivities(activities.slice(0, 5));
+
+      // Favorites
+      if (favRes.status === "fulfilled") {
+        setFavorites(favRes.value || []);
+      }
+
+      // Domain metrics
+      if (invSummaryRes.status === "fulfilled") {
+        setInventorySummary(invSummaryRes.value);
+      }
+      if (procSummaryRes.status === "fulfilled") {
+        setProcurementSummary(procSummaryRes.value);
+      }
+      if (mfgSummaryRes.status === "fulfilled") {
+        setManufacturingSummary(mfgSummaryRes.value);
+      }
+      if (txSummaryRes.status === "fulfilled") {
+        setTransactionSummary(txSummaryRes.value);
+      }
+
+      // Operational queues
+      if (poRes.status === "fulfilled") {
+        setOpenPurchaseOrders(poRes.value || []);
+      }
+      if (woRes.status === "fulfilled") {
+        setActiveWorkOrders(woRes.value || []);
+      }
+      if (adjRes.status === "fulfilled") {
+        setPendingAdjustments(adjRes.value || []);
+      }
+      if (notifRes.status === "fulfilled") {
+        setNotifications(notifRes.value || []);
+      }
+      if (activityRes.status === "fulfilled") {
+        setRecentActivities(activityRes.value || []);
+      }
+
+      setLastSyncTime(new Date());
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load operational dashboard data.",
+      );
     } finally {
-      setLoadingMetrics(false);
+      setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -116,179 +204,261 @@ export default function DashboardPage() {
     try {
       await preferencesApi.updateDashboardLayout(updated);
     } catch {
-      // ignore
+      // Ignore preference save error
     }
   };
 
   const handleRestoreDefaults = async () => {
-    const defaults: DashboardWidgetConfig[] = [
-      {
-        id: "stats-summary",
-        title: "Key Metrics",
-        enabled: true,
-        width: "full",
-      },
-      {
-        id: "low-stock",
-        title: "Top Component Categories",
-        enabled: true,
-        width: "half",
-      },
-      {
-        id: "recent-pos",
-        title: "Recent Activity Status",
-        enabled: true,
-        width: "half",
-      },
-      {
-        id: "activity-feed",
-        title: "Operational Queue",
-        enabled: true,
-        width: "half",
-      },
-      {
-        id: "favorite-records",
-        title: "Pinned & Favorites",
-        enabled: true,
-        width: "half",
-      },
-    ];
-    setWidgets(defaults);
+    setWidgets(DEFAULT_WIDGETS);
     try {
-      await preferencesApi.updateDashboardLayout(defaults);
+      await preferencesApi.updateDashboardLayout(DEFAULT_WIDGETS);
     } catch {
-      // ignore
+      // Ignore preference save error
     }
   };
 
+  if (loading) {
+    return <LoadingState message="Aggregating real-time operations dashboard..." />;
+  }
+
+  if (error && !inventorySummary) {
+    return (
+      <ErrorState
+        title="Operations Dashboard Error"
+        message={error}
+        onRetry={() => loadData(false)}
+      />
+    );
+  }
+
+  // 1. Attention Queue Widget
+  const attentionQueueWidget = (
+    <DashboardAttentionQueue
+      purchaseOrders={openPurchaseOrders}
+      workOrders={activeWorkOrders}
+      adjustments={pendingAdjustments}
+      notifications={notifications}
+      loading={refreshing}
+    />
+  );
+
+  // 2. High-Value Operational Summary (KPI Cards)
   const statsWidget = (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
-        icon={LayoutGrid}
-        title="Total Inventory Items"
-        value={loadingMetrics ? "..." : (componentCount ?? 0).toLocaleString()}
-        subtitle="Across active warehouse locations"
+        title="Catalog Items"
+        value={formatNumber(inventorySummary?.totalComponents)}
+        subtitle={`${formatNumber(inventorySummary?.activeComponents)} active components in storage`}
+        icon={Boxes}
       />
       <StatCard
-        icon={TrendingUp}
-        title="Purchase Orders"
-        value={loadingMetrics ? "..." : (poCount ?? 0).toLocaleString()}
-        subtitle="Active and pending orders"
+        title="Committed Stock"
+        value={formatQuantity(inventorySummary?.reservedQuantity, "units")}
+        subtitle="Reserved for work orders & projects"
+        icon={Layers}
       />
       <StatCard
-        icon={AlertCircle}
-        title="System Alerts"
-        value={loadingMetrics ? "..." : (unreadAlerts ?? 0).toLocaleString()}
-        subtitle="Unread system notifications"
+        title="Procurement Activity"
+        value={formatNumber(procurementSummary?.totalPurchaseOrders)}
+        subtitle={`${formatNumber(procurementSummary?.activePurchaseOrders)} open orders • ${formatCurrency(
+          procurementSummary?.pendingProcurementSpend || 0,
+        )} pending`}
+        icon={ShoppingCart}
       />
       <StatCard
-        icon={Clock}
-        title="Pending Work Orders"
-        value={loadingMetrics ? "..." : (workOrderCount ?? 0).toLocaleString()}
-        subtitle="Production & manufacturing queue"
+        title="Production Queue"
+        value={formatNumber(manufacturingSummary?.activeWorkOrders)}
+        subtitle={`${formatNumber(manufacturingSummary?.totalWorkOrders)} total orders (${formatNumber(
+          manufacturingSummary?.activeBoms,
+        )} active BOMs)`}
+        icon={Factory}
       />
     </div>
   );
 
-  const lowStockWidget = (
-    <div className="bg-card border border-border rounded-xl p-5 shadow-2xs space-y-3">
-      <h3 className="text-xs font-bold text-foreground">
-        Top Component Categories
-      </h3>
-      {loadingMetrics ? (
-        <div className="flex items-center justify-center p-4">
-          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-        </div>
-      ) : categories.length === 0 ? (
-        <p className="text-xs text-muted-foreground italic">
-          No component categories configured.
-        </p>
-      ) : (
-        <div className="space-y-3 text-xs">
-          {categories.slice(0, 4).map((cat) => (
-            <div key={cat.id} className="flex items-center justify-between">
-              <span className="font-medium text-foreground">{cat.name}</span>
-              <span className="font-mono text-muted-foreground">
-                {cat.code}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+  // 3. Operational Health & Distribution Charts
+  const movementChartData = [
+    { name: "Receipts", value: transactionSummary?.receiptCount ?? 0 },
+    { name: "Issues", value: transactionSummary?.issueCount ?? 0 },
+    { name: "Transfers", value: transactionSummary?.transferCount ?? 0 },
+    { name: "Adjustments", value: transactionSummary?.adjustmentCount ?? 0 },
+  ];
+
+  const statusDonutData = [
+    {
+      name: "Active Items",
+      value: inventorySummary?.activeComponents ?? 0,
+      color: "#10b981",
+    },
+    {
+      name: "Inactive Items",
+      value: Math.max(
+        0,
+        (inventorySummary?.totalComponents ?? 0) -
+          (inventorySummary?.activeComponents ?? 0),
+      ),
+      color: "#64748b",
+    },
+  ];
+
+  const healthChartsWidget = (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="md:col-span-2">
+        <ChartCard
+          title="Stock Ledger Movements"
+          subtitle="Immutable transaction audit counts across warehouse operations"
+        >
+          <BarChartWidget
+            data={movementChartData}
+            color="#1E90FF"
+            height={220}
+          />
+        </ChartCard>
+      </div>
+
+      <div>
+        <ChartCard
+          title="Catalog Status Ratio"
+          subtitle="Active vs inactive component records"
+        >
+          <DonutChartWidget data={statusDonutData} height={220} />
+        </ChartCard>
+      </div>
     </div>
   );
 
-  const recentPosWidget = (
-    <div className="bg-card border border-border rounded-xl p-5 shadow-2xs space-y-3">
-      <h3 className="text-xs font-bold text-foreground">
-        Recent Activity Status
-      </h3>
-      {loadingMetrics ? (
-        <div className="flex items-center justify-center p-4">
-          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+  // 4. Quick Actions Widget
+  const quickActionsWidget = <DashboardQuickActionsCard />;
+
+  // 5. Recent Activity Feed Widget
+  const recentActivityWidget = (
+    <div className="bg-card border border-border rounded-xl p-5 shadow-2xs space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">
+            Recent Operational Activity
+          </h3>
         </div>
-      ) : recentActivities.length === 0 ? (
-        <p className="text-xs text-muted-foreground italic">
-          No recent system activity recorded.
+        <Link href="/activity">
+          <Button variant="ghost" size="xs" className="h-7 text-xs text-muted-foreground gap-1">
+            View All
+            <ArrowRight className="w-3 h-3" />
+          </Button>
+        </Link>
+      </div>
+
+      {recentActivities.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic py-4 text-center">
+          No recent operational activity recorded in the audit log.
         </p>
       ) : (
-        <div className="space-y-2 text-xs">
+        <div className="divide-y divide-border border border-border rounded-lg overflow-hidden bg-muted/10">
           {recentActivities.map((act) => (
             <div
               key={act.id}
-              className="flex items-center justify-between p-2 bg-muted/20 border border-border rounded-lg"
+              className="p-3 flex items-start justify-between gap-3 text-xs hover:bg-muted/20 transition-colors"
             >
-              <span className="truncate pr-2">{act.description}</span>
-              <span className="font-mono text-[10px] text-muted-foreground whitespace-nowrap">
-                {new Date(act.createdAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-foreground truncate">
+                    {act.entityTitle || act.eventType}
+                  </span>
+                  <StatusBadge status={act.status} className="text-[10px] py-0 px-1.5" />
+                  <span className="font-mono text-[10px] text-muted-foreground uppercase bg-muted/50 px-1.5 py-0.2 rounded">
+                    {act.module}
+                  </span>
+                </div>
+                <p className="text-muted-foreground line-clamp-1">
+                  {act.description}
+                </p>
+                {act.userName && (
+                  <p className="text-[10px] text-muted-foreground">
+                    By {act.userName}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className="font-mono text-[10px] text-muted-foreground whitespace-nowrap inline-flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {new Date(act.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+                {act.href && (
+                  <Link
+                    href={act.href}
+                    className="text-[11px] text-primary hover:underline inline-flex items-center gap-0.5"
+                  >
+                    View
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </Link>
+                )}
+              </div>
             </div>
           ))}
         </div>
       )}
-    </div>
-  );
-
-  const activityFeedWidget = (
-    <div className="bg-card border border-border rounded-xl p-5 shadow-2xs space-y-3">
-      <h3 className="text-xs font-bold text-foreground">Operational Queue</h3>
-      <p className="text-xs text-muted-foreground">
-        All system services and background jobs operating within normal
-        parameters.
-      </p>
     </div>
   );
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Page Header */}
       <PageHeader
-        title="Operations Dashboard"
-        description="Real-time personalized operational summary and metrics across all enterprise domains."
+        title="Operations Control Center"
+        description="Real-time operational command center and synchronized metrics across inventory, procurement, and manufacturing."
         actions={
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsPickerOpen(true)}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5 text-primary" />
-            Customize Dashboard
-          </Button>
+          <div className="flex items-center gap-2">
+            {lastSyncTime && (
+              <span className="text-[11px] font-mono text-muted-foreground hidden sm:inline-block mr-1">
+                Synced at{" "}
+                {lastSyncTime.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+              </span>
+            )}
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => loadData(true)}
+              disabled={refreshing}
+              className="gap-1.5"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-primary" : ""}`}
+              />
+              Refresh
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsPickerOpen(true)}
+              className="gap-1.5"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
+              Customize
+            </Button>
+          </div>
         }
       />
 
-      {/* Reactive Dashboard Grid */}
+      {/* Reactive Operational Dashboard Grid */}
       <DashboardGrid
         widgets={widgets}
+        attentionQueueWidget={attentionQueueWidget}
         statsWidget={statsWidget}
-        lowStockWidget={lowStockWidget}
-        recentPosWidget={recentPosWidget}
-        activityFeedWidget={activityFeedWidget}
+        healthChartsWidget={healthChartsWidget}
+        quickActionsWidget={quickActionsWidget}
+        recentActivityWidget={recentActivityWidget}
         favorites={favorites}
-        onFavoriteRemoved={loadData}
+        onFavoriteRemoved={() => loadData(false)}
       />
 
       {/* Widget Picker Modal */}

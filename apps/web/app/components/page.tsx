@@ -25,10 +25,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ComponentForm } from "@/components/components/component-form";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
-import {
-  inventoryTransactionsApi,
-  type InventoryTransactionDto,
-} from "@/lib/api/inventory-transactions-api";
+import { inventoryTransactionsApi } from "@/lib/api/inventory-transactions-api";
 
 export default function ComponentsPage() {
   const [components, setComponents] = React.useState<ComponentDto[]>([]);
@@ -269,7 +266,7 @@ export default function ComponentsPage() {
         ),
       },
     ],
-    [locationMap],
+    [locationMap, stockMap],
   );
 
   const filterConfigs: FilterConfig[] = [

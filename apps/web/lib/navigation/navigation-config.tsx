@@ -27,6 +27,7 @@ import {
   Shield,
   Receipt,
   QrCode,
+  Bell,
   Zap,
   Warehouse,
 } from "lucide-react";
@@ -37,7 +38,7 @@ export const navigationModules: NavigationModule[] = [
     id: "dashboard",
     name: "Dashboard",
     icon: <LayoutDashboard className="w-4 h-4" />,
-    defaultRoute: "/",
+    defaultRoute: "/dashboard",
     sidebar: [
       {
         id: "dash-favorites",
@@ -45,15 +46,79 @@ export const navigationModules: NavigationModule[] = [
         type: "favorites",
       },
       {
+        id: "dash-quick-stats",
+        title: "Quick Stats",
+        type: "quick_stats",
+      },
+      {
+        id: "dash-quick-actions",
+        title: "Quick Actions",
+        type: "quick_actions",
+        quickActions: [
+          {
+            id: "act-dash-new-item",
+            label: "New Component",
+            href: "/components/new",
+            variant: "default",
+            icon: <Plus className="w-3.5 h-3.5" />,
+          },
+          {
+            id: "act-dash-create-po",
+            label: "Create Purchase Order",
+            href: "/purchase-orders/new",
+            variant: "outline",
+            icon: <ShoppingCart className="w-3.5 h-3.5" />,
+          },
+          {
+            id: "act-dash-receive-stock",
+            label: "Receive Stock",
+            href: "/goods-receipts/new",
+            variant: "outline",
+            icon: <ArrowDownLeft className="w-3.5 h-3.5" />,
+          },
+          {
+            id: "act-dash-barcode-studio",
+            label: "Barcode Studio",
+            href: "/barcodes",
+            variant: "outline",
+            icon: <QrCode className="w-3.5 h-3.5" />,
+          },
+        ],
+      },
+      {
         id: "dash-main",
-        title: "Workspace",
+        title: "Operations Hub",
         type: "nav",
         items: [
           {
             id: "dash-overview",
             title: "Overview",
-            href: "/",
+            href: "/dashboard",
             icon: <LayoutDashboard className="w-4 h-4" />,
+          },
+          {
+            id: "dash-activity",
+            title: "Operational Activity",
+            href: "/activity",
+            icon: <BarChart3 className="w-4 h-4" />,
+          },
+          {
+            id: "dash-audit",
+            title: "Audit Explorer",
+            href: "/audit",
+            icon: <ShieldCheck className="w-4 h-4" />,
+          },
+          {
+            id: "dash-notifications",
+            title: "Notification Center",
+            href: "/notifications",
+            icon: <Bell className="w-4 h-4" />,
+          },
+          {
+            id: "dash-barcodes",
+            title: "Barcode & QR Studio",
+            href: "/barcodes",
+            icon: <QrCode className="w-4 h-4" />,
           },
         ],
       },
@@ -665,7 +730,7 @@ export const navigationModules: NavigationModule[] = [
 
 export function getModuleForPath(pathname: string): NavigationModule {
   const fallback = navigationModules[0]!;
-  if (pathname === "/") {
+  if (pathname === "/" || pathname === "/dashboard") {
     return fallback;
   }
 

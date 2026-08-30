@@ -22,10 +22,7 @@ import {
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
-import {
-  inventoryTransactionsApi,
-  type InventoryTransactionDto,
-} from "@/lib/api/inventory-transactions-api";
+import { inventoryTransactionsApi } from "@/lib/api/inventory-transactions-api";
 
 export default function InventoryPage() {
   const [components, setComponents] = React.useState<ComponentDto[]>([]);
@@ -257,7 +254,7 @@ export default function InventoryPage() {
         <StatCard
           title="Total Items"
           value={loading ? "..." : components.length}
-          subtitle="Registered SKU records"
+          subtitle={`${activeItemsCount} active SKU records`}
           icon={Boxes}
         />
         <StatCard

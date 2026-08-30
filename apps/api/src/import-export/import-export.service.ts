@@ -740,7 +740,10 @@ export class ImportExportService {
 
             if (inserted) {
               compMap.set(inserted.sku.toUpperCase(), inserted.id);
-              createdEntities.push({ entityType: 'Component', id: inserted.id });
+              createdEntities.push({
+                entityType: 'Component',
+                id: inserted.id,
+              });
             }
             processed++;
           } else if (canonicalEntity === 'Manufacturer') {
@@ -773,7 +776,10 @@ export class ImportExportService {
 
             if (inserted) {
               mfgMap.set(inserted.code.toUpperCase(), inserted.id);
-              createdEntities.push({ entityType: 'Manufacturer', id: inserted.id });
+              createdEntities.push({
+                entityType: 'Manufacturer',
+                id: inserted.id,
+              });
             }
             processed++;
           } else if (canonicalEntity === 'Supplier') {
@@ -835,7 +841,11 @@ export class ImportExportService {
               this.getRowFieldValue(row, 'email', columnMapping) ||
               `${codeVal.toLowerCase()}@customer.com`;
             const phoneVal = this.getRowFieldValue(row, 'phone', columnMapping);
-            const rowCurr = this.getRowFieldValue(row, 'currency', columnMapping);
+            const rowCurr = this.getRowFieldValue(
+              row,
+              'currency',
+              columnMapping,
+            );
             const currVal = resolveCurrency({
               explicitCurrency: rowCurr,
               organizationCurrency: orgCurrency,
@@ -895,7 +905,10 @@ export class ImportExportService {
 
             if (inserted) {
               whMap.set(inserted.code.toUpperCase(), inserted.id);
-              createdEntities.push({ entityType: 'Warehouse', id: inserted.id });
+              createdEntities.push({
+                entityType: 'Warehouse',
+                id: inserted.id,
+              });
             }
             processed++;
           } else if (canonicalEntity === 'WarehouseBin') {
@@ -928,7 +941,10 @@ export class ImportExportService {
               .onConflictDoNothing()
               .returning({ id: warehouseBins.id });
             if (insertedBin) {
-              createdEntities.push({ entityType: 'WarehouseBin', id: insertedBin.id });
+              createdEntities.push({
+                entityType: 'WarehouseBin',
+                id: insertedBin.id,
+              });
             }
             processed++;
           } else if (canonicalEntity === 'Location') {
@@ -1149,7 +1165,10 @@ export class ImportExportService {
               .returning({ id: projectTasks.id });
 
             if (insertedTask) {
-              createdEntities.push({ entityType: 'ProjectTask', id: insertedTask.id });
+              createdEntities.push({
+                entityType: 'ProjectTask',
+                id: insertedTask.id,
+              });
             }
             processed++;
           } else if (canonicalEntity === 'BOM') {
@@ -1216,7 +1235,10 @@ export class ImportExportService {
               if (insertedBom) {
                 bomId = insertedBom.id;
                 bomMap.set(bomNum.toUpperCase(), bomId);
-                createdEntities.push({ entityType: 'BillOfMaterials', id: insertedBom.id });
+                createdEntities.push({
+                  entityType: 'BillOfMaterials',
+                  id: insertedBom.id,
+                });
               }
             }
 
@@ -1269,7 +1291,10 @@ export class ImportExportService {
               .onConflictDoNothing()
               .returning({ id: productionOrders.id });
             if (insertedWo) {
-              createdEntities.push({ entityType: 'WorkOrder', id: insertedWo.id });
+              createdEntities.push({
+                entityType: 'WorkOrder',
+                id: insertedWo.id,
+              });
             }
             processed++;
           } else if (canonicalEntity === 'PurchaseOrder') {
@@ -1311,7 +1336,8 @@ export class ImportExportService {
             let compId = compMap.get(compSku);
             if (!compId && compSku) {
               const normalizedSku = compSku.toUpperCase();
-              const componentName = compNameVal || (vpnVal ? `${compSku} (${vpnVal})` : compSku);
+              const componentName =
+                compNameVal || (vpnVal ? `${compSku} (${vpnVal})` : compSku);
               const [insertedComp] = await db
                 .insert(components)
                 .values({
@@ -1997,7 +2023,9 @@ export class ImportExportService {
     if (byType['InventoryTransaction']?.length) {
       await db
         .delete(inventoryTransactions)
-        .where(inArray(inventoryTransactions.id, byType['InventoryTransaction']));
+        .where(
+          inArray(inventoryTransactions.id, byType['InventoryTransaction']),
+        );
     }
     if (byType['ProjectTask']?.length) {
       await db
@@ -2005,9 +2033,7 @@ export class ImportExportService {
         .where(inArray(projectTasks.id, byType['ProjectTask']));
     }
     if (byType['Project']?.length) {
-      await db
-        .delete(projects)
-        .where(inArray(projects.id, byType['Project']));
+      await db.delete(projects).where(inArray(projects.id, byType['Project']));
     }
     if (byType['ServiceRequest']?.length) {
       await db
@@ -2070,19 +2096,13 @@ export class ImportExportService {
         .where(inArray(warehouses.id, byType['Warehouse']));
     }
     if (byType['Unit']?.length) {
-      await db
-        .delete(units)
-        .where(inArray(units.id, byType['Unit']));
+      await db.delete(units).where(inArray(units.id, byType['Unit']));
     }
     if (byType['Role']?.length) {
-      await db
-        .delete(roles)
-        .where(inArray(roles.id, byType['Role']));
+      await db.delete(roles).where(inArray(roles.id, byType['Role']));
     }
     if (byType['User']?.length) {
-      await db
-        .delete(users)
-        .where(inArray(users.id, byType['User']));
+      await db.delete(users).where(inArray(users.id, byType['User']));
     }
 
     const [updatedJob] = await db

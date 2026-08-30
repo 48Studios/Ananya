@@ -187,16 +187,14 @@ export class GoodsReceiptsService {
     if (typeof po.recordReceipt === 'function') {
       po.recordReceipt(poLineId, quantityReceived);
     } else {
-      const line = (po.lines as PurchaseOrderLineProps[])?.find(
+      const line = po.lines?.find(
         (l: PurchaseOrderLineProps) => l.id === poLineId,
       );
       if (line) {
         line.quantityReceived += quantityReceived;
         line.updatedAt = new Date();
       }
-      const allFulfilled = (
-        (po.lines as PurchaseOrderLineProps[]) || []
-      ).every(
+      const allFulfilled = (po.lines || []).every(
         (l: PurchaseOrderLineProps) => l.quantityReceived >= l.quantityOrdered,
       );
       (po as { status: string }).status = allFulfilled

@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Query } from '@nestjs/common';
 import {
   IsString,
   IsNotEmpty,
@@ -73,4 +67,3 @@ export class BarcodesController {
     return this.barcodesService.getBatchLabels(dto.entityType, dto.ids);
   }
 }
-

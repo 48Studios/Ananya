@@ -6,21 +6,32 @@ import { FavoritesPanel } from "./favorites-panel";
 
 export interface DashboardGridProps {
   widgets: DashboardWidgetConfig[];
-  statsWidget: React.ReactNode;
-  lowStockWidget: React.ReactNode;
-  recentPosWidget: React.ReactNode;
-  activityFeedWidget: React.ReactNode;
-  favorites: FavoriteDto[];
+  attentionQueueWidget?: React.ReactNode;
+  statsWidget?: React.ReactNode;
+  healthChartsWidget?: React.ReactNode;
+  recentActivityWidget?: React.ReactNode;
+  quickActionsWidget?: React.ReactNode;
+  favoritesWidget?: React.ReactNode;
+  // Legacy / backward compatibility
+  lowStockWidget?: React.ReactNode;
+  recentPosWidget?: React.ReactNode;
+  activityFeedWidget?: React.ReactNode;
+  favorites?: FavoriteDto[];
   onFavoriteRemoved?: () => void;
 }
 
 export function DashboardGrid({
   widgets,
+  attentionQueueWidget,
   statsWidget,
+  healthChartsWidget,
+  recentActivityWidget,
+  quickActionsWidget,
+  favoritesWidget,
   lowStockWidget,
   recentPosWidget,
   activityFeedWidget,
-  favorites,
+  favorites = [],
   onFavoriteRemoved,
 }: DashboardGridProps) {
   const isWidgetEnabled = (id: string) => {
@@ -30,22 +41,46 @@ export function DashboardGrid({
 
   return (
     <div className="space-y-6">
-      {/* Key Metrics Widget */}
-      {isWidgetEnabled("stats-summary") && <div>{statsWidget}</div>}
+      {/* 1. Attention Queue Widget (Critical Operations Triage) */}
+      {attentionQueueWidget && isWidgetEnabled("attention-queue") && (
+        <div>{attentionQueueWidget}</div>
+      )}
 
-      {/* Grid Layout for Half-Width Widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {isWidgetEnabled("low-stock") && <div>{lowStockWidget}</div>}
-        {isWidgetEnabled("recent-pos") && <div>{recentPosWidget}</div>}
-        {isWidgetEnabled("activity-feed") && <div>{activityFeedWidget}</div>}
-        {isWidgetEnabled("favorite-records") && (
-          <div>
-            <FavoritesPanel
-              favorites={favorites}
-              onFavoriteRemoved={onFavoriteRemoved}
-            />
-          </div>
-        )}
+      {/* 2. Key Metrics Widget */}
+      {statsWidget && isWidgetEnabled("stats-summary") && <div>{statsWidget}</div>}
+
+      {/* 3. Operational Health & Distribution Charts */}
+      {healthChartsWidget && isWidgetEnabled("health-charts") && (
+        <div>{healthChartsWidget}</div>
+      )}
+
+      {/* 4. Quick Actions Widget */}
+      {quickActionsWidget && isWidgetEnabled("quick-actions") && (
+        <div>{quickActionsWidget}</div>
+      )}
+
+      {/* 5. Split Section: Recent Activity & Pinned Favorites */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {(recentActivityWidget || activityFeedWidget) &&
+          (isWidgetEnabled("recent-activity") || isWidgetEnabled("activity-feed")) && (
+            <div>{recentActivityWidget || activityFeedWidget}</div>
+          )}
+
+        {(favoritesWidget || favorites.length > 0) &&
+          (isWidgetEnabled("favorite-records") || isWidgetEnabled("favorites")) && (
+            <div>
+              {favoritesWidget || (
+                <FavoritesPanel
+                  favorites={favorites}
+                  onFavoriteRemoved={onFavoriteRemoved}
+                />
+              )}
+            </div>
+          )}
+
+        {/* Legacy slot support */}
+        {lowStockWidget && isWidgetEnabled("low-stock") && <div>{lowStockWidget}</div>}
+        {recentPosWidget && isWidgetEnabled("recent-pos") && <div>{recentPosWidget}</div>}
       </div>
     </div>
   );
