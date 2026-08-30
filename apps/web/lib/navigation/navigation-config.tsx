@@ -634,6 +634,12 @@ export const navigationModules: NavigationModule[] = [
             icon: <Zap className="w-4 h-4" />,
           },
           {
+            id: "settings-data-operations",
+            title: "Data Operations & Imports",
+            href: "/data-operations",
+            icon: <RotateCcw className="w-4 h-4" />,
+          },
+          {
             id: "settings-activity",
             title: "Activity Center",
             href: "/activity",

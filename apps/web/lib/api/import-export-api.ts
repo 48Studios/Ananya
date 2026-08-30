@@ -14,7 +14,7 @@ export interface ImportExportJobDto {
   jobType: "IMPORT" | "EXPORT";
   entityType: string;
   format: ExportFormat;
-  status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
+  status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED" | "REVERSED";
   totalRecords: number;
   processedRecords: number;
   failedRecords: number;
@@ -27,7 +27,13 @@ export interface ImportExportJobDto {
     value?: unknown;
     message: string;
   }> | null;
+  createdEntities?: Array<{
+    entityType: string;
+    id: string;
+    isSideEffect?: boolean;
+  }> | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ImportPreviewResultDto {
@@ -154,6 +160,17 @@ export const importExportApi = {
 
   getJob: (id: string): Promise<ImportExportJobDto> => {
     return apiClient.get<ImportExportJobDto>(`/import-export/jobs/${id}`);
+  },
+
+  reverseImport: (
+    id: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    revertedCount: number;
+    job: ImportExportJobDto;
+  }> => {
+    return apiClient.post(`/import-export/jobs/${id}/reverse`, {});
   },
 
   executeBulkAction: (params: {

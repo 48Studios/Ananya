@@ -16,7 +16,7 @@ export class UpdateComponent {
     }
 
     if (input.sku) {
-      const sku = input.sku.trim().toLowerCase();
+      const sku = input.sku.trim().toUpperCase();
       if (sku !== existing.sku) {
         const withSku = await this.components.findBySku(sku);
         if (withSku && withSku.id !== id) {

@@ -34,7 +34,7 @@ import {
   maintenanceSchedules,
   systemSettings,
 } from '@ananya/database/schema';
-import { eq } from '@ananya/database/query';
+import { eq, inArray, desc } from '@ananya/database/query';
 import { resolveCurrency } from '../common/utils/currency-resolver';
 import { ExportRequestDto, UploadedFileObj } from './dtos';
 import {
@@ -455,6 +455,11 @@ export class ImportExportService {
     }
 
     let processed = 0;
+    const createdEntities: Array<{
+      entityType: string;
+      id: string;
+      isSideEffect?: boolean;
+    }> = [];
     const errors: Array<{
       row: number;
       column?: string;
@@ -636,6 +641,7 @@ export class ImportExportService {
 
             if (inserted) {
               catMap.set(inserted.code.toUpperCase(), inserted.id);
+              createdEntities.push({ entityType: 'Category', id: inserted.id });
             } else {
               const [exist] = await db
                 .select({ id: categories.id, code: categories.code })
@@ -677,9 +683,12 @@ export class ImportExportService {
         const rowIndex = i + 1;
         try {
           if (canonicalEntity === 'Component') {
-            const skuVal =
+            const skuVal = (
               this.getRowFieldValue(row, 'sku', columnMapping) ||
-              `SKU-${Date.now()}-${i}`;
+              `SKU-${Date.now()}-${i}`
+            )
+              .trim()
+              .toUpperCase();
             const nameVal =
               this.getRowFieldValue(row, 'name', columnMapping) ||
               `Component ${skuVal}`;
@@ -731,6 +740,7 @@ export class ImportExportService {
 
             if (inserted) {
               compMap.set(inserted.sku.toUpperCase(), inserted.id);
+              createdEntities.push({ entityType: 'Component', id: inserted.id });
             }
             processed++;
           } else if (canonicalEntity === 'Manufacturer') {
@@ -763,6 +773,7 @@ export class ImportExportService {
 
             if (inserted) {
               mfgMap.set(inserted.code.toUpperCase(), inserted.id);
+              createdEntities.push({ entityType: 'Manufacturer', id: inserted.id });
             }
             processed++;
           } else if (canonicalEntity === 'Supplier') {
@@ -810,6 +821,7 @@ export class ImportExportService {
                 id: inserted.id,
                 currency: inserted.currency,
               });
+              createdEntities.push({ entityType: 'Supplier', id: inserted.id });
             }
             processed++;
           } else if (canonicalEntity === 'Customer') {
@@ -854,6 +866,7 @@ export class ImportExportService {
                 inserted.customerNumber.toUpperCase(),
                 inserted.id,
               );
+              createdEntities.push({ entityType: 'Customer', id: inserted.id });
             }
             processed++;
           } else if (canonicalEntity === 'Warehouse') {
@@ -882,6 +895,7 @@ export class ImportExportService {
 
             if (inserted) {
               whMap.set(inserted.code.toUpperCase(), inserted.id);
+              createdEntities.push({ entityType: 'Warehouse', id: inserted.id });
             }
             processed++;
           } else if (canonicalEntity === 'WarehouseBin') {
@@ -902,7 +916,7 @@ export class ImportExportService {
             const purpVal =
               this.getRowFieldValue(row, 'purpose', columnMapping) || 'STORAGE';
 
-            await db
+            const [insertedBin] = await db
               .insert(warehouseBins)
               .values({
                 warehouseId: whId,
@@ -911,7 +925,11 @@ export class ImportExportService {
                 purpose: purpVal,
                 isActive: true,
               })
-              .onConflictDoNothing();
+              .onConflictDoNothing()
+              .returning({ id: warehouseBins.id });
+            if (insertedBin) {
+              createdEntities.push({ entityType: 'WarehouseBin', id: insertedBin.id });
+            }
             processed++;
           } else if (canonicalEntity === 'Location') {
             const codeVal =
@@ -950,6 +968,7 @@ export class ImportExportService {
 
             if (inserted) {
               locMap.set(inserted.code.toUpperCase(), inserted.id);
+              createdEntities.push({ entityType: 'Location', id: inserted.id });
             }
             processed++;
           } else if (canonicalEntity === 'Unit') {
@@ -977,6 +996,7 @@ export class ImportExportService {
 
             if (inserted) {
               unitMap.set(inserted.name.toLowerCase(), inserted.id);
+              createdEntities.push({ entityType: 'Unit', id: inserted.id });
             }
             processed++;
           } else if (canonicalEntity === 'User') {
@@ -1015,6 +1035,7 @@ export class ImportExportService {
 
             if (inserted) {
               userMap.set(inserted.email.toLowerCase(), inserted.id);
+              createdEntities.push({ entityType: 'User', id: inserted.id });
             }
             processed++;
           } else if (canonicalEntity === 'Role') {
@@ -1039,6 +1060,7 @@ export class ImportExportService {
 
             if (inserted) {
               roleMap.set(inserted.name.toLowerCase(), inserted.id);
+              createdEntities.push({ entityType: 'Role', id: inserted.id });
             }
             processed++;
           } else if (canonicalEntity === 'Permission') {
@@ -1092,6 +1114,7 @@ export class ImportExportService {
 
             if (inserted) {
               projectMap.set(inserted.projectNumber.toUpperCase(), inserted.id);
+              createdEntities.push({ entityType: 'Project', id: inserted.id });
             }
             processed++;
           } else if (canonicalEntity === 'Task') {
@@ -1113,7 +1136,7 @@ export class ImportExportService {
               this.getRowFieldValue(row, 'estimatedHours', columnMapping) ||
               '10';
 
-            await db
+            const [insertedTask] = await db
               .insert(projectTasks)
               .values({
                 id: crypto.randomUUID(),
@@ -1122,7 +1145,12 @@ export class ImportExportService {
                 title: titleVal,
                 estimatedHours: estHours,
               })
-              .onConflictDoNothing();
+              .onConflictDoNothing()
+              .returning({ id: projectTasks.id });
+
+            if (insertedTask) {
+              createdEntities.push({ entityType: 'ProjectTask', id: insertedTask.id });
+            }
             processed++;
           } else if (canonicalEntity === 'BOM') {
             const bomNum =
@@ -1136,9 +1164,39 @@ export class ImportExportService {
               'componentSku',
               columnMapping,
             ).toUpperCase();
-            const compId =
-              compMap.get(compSku) ||
-              (existingComponents[0]?.id ?? crypto.randomUUID());
+            let compId = compMap.get(compSku);
+            if (!compId && compSku) {
+              const normalizedSku = compSku.toUpperCase();
+              const [insertedComp] = await db
+                .insert(components)
+                .values({
+                  sku: normalizedSku,
+                  name: compSku,
+                  unit: 'pcs',
+                  description: 'Auto-created from BOM import',
+                  isActive: true,
+                })
+                .onConflictDoUpdate({
+                  target: components.sku,
+                  set: {
+                    updatedAt: new Date(),
+                  },
+                })
+                .returning({ id: components.id, sku: components.sku });
+              if (insertedComp) {
+                compId = insertedComp.id;
+                compMap.set(compSku, compId);
+                compMap.set(insertedComp.sku.toUpperCase(), compId);
+                createdEntities.push({
+                  entityType: 'Component',
+                  id: insertedComp.id,
+                  isSideEffect: true,
+                });
+              }
+            }
+            if (!compId) {
+              compId = existingComponents[0]?.id ?? crypto.randomUUID();
+            }
             const qtyVal =
               this.getRowFieldValue(row, 'quantity', columnMapping) || '1.0000';
             const revVal =
@@ -1158,11 +1216,12 @@ export class ImportExportService {
               if (insertedBom) {
                 bomId = insertedBom.id;
                 bomMap.set(bomNum.toUpperCase(), bomId);
+                createdEntities.push({ entityType: 'BillOfMaterials', id: insertedBom.id });
               }
             }
 
             if (bomId) {
-              await db
+              const [insertedBomLine] = await db
                 .insert(billOfMaterialLines)
                 .values({
                   bomId: bomId,
@@ -1170,7 +1229,14 @@ export class ImportExportService {
                   quantityPerUnit: qtyVal,
                   unitOfMeasure: 'pcs',
                 })
-                .onConflictDoNothing();
+                .onConflictDoNothing()
+                .returning({ id: billOfMaterialLines.id });
+              if (insertedBomLine) {
+                createdEntities.push({
+                  entityType: 'BillOfMaterialsLine',
+                  id: insertedBomLine.id,
+                });
+              }
             }
             processed++;
           } else if (canonicalEntity === 'WorkOrder') {
@@ -1190,7 +1256,7 @@ export class ImportExportService {
               existingComponents[0]?.id ?? crypto.randomUUID();
             const defaultBomId = existingBoms[0]?.id ?? crypto.randomUUID();
 
-            await db
+            const [insertedWo] = await db
               .insert(productionOrders)
               .values({
                 productionNumber: orderNum,
@@ -1200,7 +1266,11 @@ export class ImportExportService {
                 priority: prioVal,
                 status: statVal,
               })
-              .onConflictDoNothing();
+              .onConflictDoNothing()
+              .returning({ id: productionOrders.id });
+            if (insertedWo) {
+              createdEntities.push({ entityType: 'WorkOrder', id: insertedWo.id });
+            }
             processed++;
           } else if (canonicalEntity === 'PurchaseOrder') {
             const poNum =
@@ -1223,18 +1293,62 @@ export class ImportExportService {
               continue;
             }
 
+            const compNameVal = this.getRowFieldValue(
+              row,
+              'componentName',
+              columnMapping,
+            );
+            const vpnVal = this.getRowFieldValue(
+              row,
+              'vendorPartNumber',
+              columnMapping,
+            );
             const compSku = this.getRowFieldValue(
               row,
               'componentSku',
               columnMapping,
             ).toUpperCase();
-            const compId = compMap.get(compSku);
+            let compId = compMap.get(compSku);
+            if (!compId && compSku) {
+              const normalizedSku = compSku.toUpperCase();
+              const componentName = compNameVal || (vpnVal ? `${compSku} (${vpnVal})` : compSku);
+              const [insertedComp] = await db
+                .insert(components)
+                .values({
+                  sku: normalizedSku,
+                  name: componentName,
+                  unit: 'pcs',
+                  description: vpnVal
+                    ? `Auto-created from PO import. Vendor part: ${vpnVal}`
+                    : 'Auto-created from Purchase Order import',
+                  isActive: true,
+                })
+                .onConflictDoUpdate({
+                  target: components.sku,
+                  set: {
+                    updatedAt: new Date(),
+                  },
+                })
+                .returning({ id: components.id, sku: components.sku });
+
+              if (insertedComp) {
+                compId = insertedComp.id;
+                compMap.set(compSku, compId);
+                compMap.set(insertedComp.sku.toUpperCase(), compId);
+                createdEntities.push({
+                  entityType: 'Component',
+                  id: insertedComp.id,
+                  isSideEffect: true,
+                });
+              }
+            }
+
             if (!compId) {
               errors.push({
                 row: i + 1,
                 column: 'componentSku',
                 value: compSku,
-                message: `Component with SKU "${compSku}" not found in database repository.`,
+                message: `Failed to resolve or create component with SKU "${compSku}".`,
               });
               continue;
             }
@@ -1246,11 +1360,6 @@ export class ImportExportService {
             const priceVal =
               this.getRowFieldValue(row, 'unitPrice', columnMapping) ||
               '1.0000';
-            const vpnVal = this.getRowFieldValue(
-              row,
-              'vendorPartNumber',
-              columnMapping,
-            );
             const taxVal =
               this.getRowFieldValue(row, 'taxRate', columnMapping) || '0.00';
             const rowCurr = this.getRowFieldValue(
@@ -1284,6 +1393,10 @@ export class ImportExportService {
               if (insertedPo) {
                 poId = insertedPo.id;
                 poMap.set(poNum.toUpperCase(), poId);
+                createdEntities.push({
+                  entityType: 'PurchaseOrder',
+                  id: insertedPo.id,
+                });
               } else {
                 const [existPo] = await db
                   .select({ id: purchaseOrders.id })
@@ -1299,7 +1412,7 @@ export class ImportExportService {
 
             if (poId) {
               const lineTot = String((qtyVal * Number(priceVal)).toFixed(4));
-              await db
+              const [insertedLine] = await db
                 .insert(purchaseOrderLines)
                 .values({
                   purchaseOrderId: poId,
@@ -1310,7 +1423,15 @@ export class ImportExportService {
                   taxRate: taxVal,
                   lineTotal: lineTot,
                 })
-                .onConflictDoNothing();
+                .onConflictDoNothing()
+                .returning({ id: purchaseOrderLines.id });
+
+              if (insertedLine) {
+                createdEntities.push({
+                  entityType: 'PurchaseOrderLine',
+                  id: insertedLine.id,
+                });
+              }
             }
             processed++;
           } else if (canonicalEntity === 'OpeningInventory') {
@@ -1319,9 +1440,39 @@ export class ImportExportService {
               'sku',
               columnMapping,
             ).toUpperCase();
-            const compId =
-              compMap.get(compSku) ||
-              (existingComponents[0]?.id ?? crypto.randomUUID());
+            let compId = compMap.get(compSku);
+            if (!compId && compSku) {
+              const normalizedSku = compSku.toUpperCase();
+              const [insertedComp] = await db
+                .insert(components)
+                .values({
+                  sku: normalizedSku,
+                  name: compSku,
+                  unit: 'pcs',
+                  description: 'Auto-created from Opening Inventory import',
+                  isActive: true,
+                })
+                .onConflictDoUpdate({
+                  target: components.sku,
+                  set: {
+                    updatedAt: new Date(),
+                  },
+                })
+                .returning({ id: components.id, sku: components.sku });
+              if (insertedComp) {
+                compId = insertedComp.id;
+                compMap.set(compSku, compId);
+                compMap.set(insertedComp.sku.toUpperCase(), compId);
+                createdEntities.push({
+                  entityType: 'Component',
+                  id: insertedComp.id,
+                  isSideEffect: true,
+                });
+              }
+            }
+            if (!compId) {
+              compId = existingComponents[0]?.id ?? crypto.randomUUID();
+            }
             const locCode = this.getRowFieldValue(
               row,
               'locationCode',
@@ -1335,15 +1486,25 @@ export class ImportExportService {
               10,
             );
 
-            await db.insert(inventoryTransactions).values({
-              componentId: compId,
-              destinationLocationId: locId,
-              transactionType: 'OPENING_BALANCE',
-              quantity: qtyVal,
-              unitOfMeasure: 'pcs',
-              createdBy: 'SYSTEM_IMPORT',
-              reference: `INIT-${Date.now()}-${i}`,
-            });
+            const [insertedTx] = await db
+              .insert(inventoryTransactions)
+              .values({
+                componentId: compId,
+                destinationLocationId: locId,
+                transactionType: 'OPENING_BALANCE',
+                quantity: qtyVal,
+                unitOfMeasure: 'pcs',
+                createdBy: 'SYSTEM_IMPORT',
+                reference: `INIT-${Date.now()}-${i}`,
+              })
+              .returning({ id: inventoryTransactions.id });
+
+            if (insertedTx) {
+              createdEntities.push({
+                entityType: 'InventoryTransaction',
+                id: insertedTx.id,
+              });
+            }
             processed++;
           } else if (canonicalEntity === 'StockAdjustment') {
             const adjNum =
@@ -1354,9 +1515,39 @@ export class ImportExportService {
               'sku',
               columnMapping,
             ).toUpperCase();
-            const compId =
-              compMap.get(compSku) ||
-              (existingComponents[0]?.id ?? crypto.randomUUID());
+            let compId = compMap.get(compSku);
+            if (!compId && compSku) {
+              const normalizedSku = compSku.toUpperCase();
+              const [insertedComp] = await db
+                .insert(components)
+                .values({
+                  sku: normalizedSku,
+                  name: compSku,
+                  unit: 'pcs',
+                  description: 'Auto-created from Stock Adjustment import',
+                  isActive: true,
+                })
+                .onConflictDoUpdate({
+                  target: components.sku,
+                  set: {
+                    updatedAt: new Date(),
+                  },
+                })
+                .returning({ id: components.id, sku: components.sku });
+              if (insertedComp) {
+                compId = insertedComp.id;
+                compMap.set(compSku, compId);
+                compMap.set(insertedComp.sku.toUpperCase(), compId);
+                createdEntities.push({
+                  entityType: 'Component',
+                  id: insertedComp.id,
+                  isSideEffect: true,
+                });
+              }
+            }
+            if (!compId) {
+              compId = existingComponents[0]?.id ?? crypto.randomUUID();
+            }
             const locCode = this.getRowFieldValue(
               row,
               'locationCode',
@@ -1386,12 +1577,27 @@ export class ImportExportService {
               .returning({ id: stockAdjustments.id });
 
             if (insertedAdj?.id) {
-              await db.insert(stockAdjustmentLines).values({
-                stockAdjustmentId: insertedAdj.id,
-                componentId: compId,
-                countedQuantity: deltaQty,
-                difference: deltaQty,
+              createdEntities.push({
+                entityType: 'StockAdjustment',
+                id: insertedAdj.id,
               });
+
+              const [insertedLine] = await db
+                .insert(stockAdjustmentLines)
+                .values({
+                  stockAdjustmentId: insertedAdj.id,
+                  componentId: compId,
+                  countedQuantity: deltaQty,
+                  difference: deltaQty,
+                })
+                .returning({ id: stockAdjustmentLines.id });
+
+              if (insertedLine) {
+                createdEntities.push({
+                  entityType: 'StockAdjustmentLine',
+                  id: insertedLine.id,
+                });
+              }
             }
             processed++;
           } else if (canonicalEntity === 'Asset') {
@@ -1457,7 +1663,7 @@ export class ImportExportService {
             const defaultCustId =
               existingCustomers[0]?.id ?? crypto.randomUUID();
 
-            await db
+            const [insertedMnt] = await db
               .insert(maintenanceSchedules)
               .values({
                 id: crypto.randomUUID(),
@@ -1471,7 +1677,15 @@ export class ImportExportService {
                 status: 'ACTIVE',
                 notes: titleVal,
               })
-              .onConflictDoNothing();
+              .onConflictDoNothing()
+              .returning({ id: maintenanceSchedules.id });
+
+            if (insertedMnt) {
+              createdEntities.push({
+                entityType: 'MaintenanceSchedule',
+                id: insertedMnt.id,
+              });
+            }
             processed++;
           } else if (canonicalEntity === 'ServiceRequest') {
             const reqNum =
@@ -1492,7 +1706,7 @@ export class ImportExportService {
             const defaultCustId =
               existingCustomers[0]?.id ?? crypto.randomUUID();
 
-            await db
+            const [insertedSrv] = await db
               .insert(serviceRequests)
               .values({
                 id: crypto.randomUUID(),
@@ -1504,7 +1718,15 @@ export class ImportExportService {
                 status: statVal,
                 description: eqpNum ? `Equipment Tag: ${eqpNum}` : null,
               })
-              .onConflictDoNothing();
+              .onConflictDoNothing()
+              .returning({ id: serviceRequests.id });
+
+            if (insertedSrv) {
+              createdEntities.push({
+                entityType: 'ServiceRequest',
+                id: insertedSrv.id,
+              });
+            }
             processed++;
           } else if (canonicalEntity === 'Warranty') {
             const wrnNum =
@@ -1543,7 +1765,7 @@ export class ImportExportService {
               ? new Date(endDateStr)
               : new Date(Date.now() + 365 * 86400000);
 
-            await db
+            const [insertedWrn] = await db
               .insert(warrantyClaims)
               .values({
                 id: crypto.randomUUID(),
@@ -1557,7 +1779,15 @@ export class ImportExportService {
                   : 'Imported Warranty Policy',
                 decision: 'APPROVED',
               })
-              .onConflictDoNothing();
+              .onConflictDoNothing()
+              .returning({ id: warrantyClaims.id });
+
+            if (insertedWrn) {
+              createdEntities.push({
+                entityType: 'WarrantyClaim',
+                id: insertedWrn.id,
+              });
+            }
             processed++;
           } else if (canonicalEntity === 'RMA') {
             const rmaNum =
@@ -1587,7 +1817,7 @@ export class ImportExportService {
               columnMapping,
             );
 
-            await db
+            const [insertedRma] = await db
               .insert(customerReturns)
               .values({
                 id: crypto.randomUUID(),
@@ -1599,7 +1829,15 @@ export class ImportExportService {
                   reasonVal ||
                   (compSku ? `Component: ${compSku}, Qty: ${qtyVal}` : null),
               })
-              .onConflictDoNothing();
+              .onConflictDoNothing()
+              .returning({ id: customerReturns.id });
+
+            if (insertedRma) {
+              createdEntities.push({
+                entityType: 'CustomerReturn',
+                id: insertedRma.id,
+              });
+            }
             processed++;
           } else {
             processed++;
@@ -1616,7 +1854,7 @@ export class ImportExportService {
     }
 
     this.logger.log(
-      `[DATABASE COMMIT COMPLETED] Repository writes finished for ${canonicalEntity}. Total: ${rows.length}, Processed: ${processed}, Failed: ${errors.length}`,
+      `[DATABASE COMMIT COMPLETED] Repository writes finished for ${canonicalEntity}. Total: ${rows.length}, Processed: ${processed}, Failed: ${errors.length}, Created Entities Tracked: ${createdEntities.length}`,
     );
 
     // Update job record
@@ -1630,12 +1868,207 @@ export class ImportExportService {
         failedRecords: errors.length,
         progressPercent: 100,
         errors: errors,
+        createdEntities: createdEntities,
         updatedAt: new Date(),
       })
       .where(eq(importExportJobs.id, job.id))
       .returning();
 
     return updatedJob || job;
+  }
+
+  async reverseImport(id: string, userId?: string) {
+    const job = await this.getJob(id);
+
+    if (job.status === 'REVERSED') {
+      throw new BadRequestException(
+        'This import job has already been reversed.',
+      );
+    }
+
+    if (job.jobType !== 'IMPORT') {
+      throw new BadRequestException('Only IMPORT jobs can be reversed.');
+    }
+
+    const createdEntities =
+      (job.createdEntities as Array<{
+        entityType: string;
+        id: string;
+        isSideEffect?: boolean;
+      }>) || [];
+
+    if (createdEntities.length === 0) {
+      const [updatedJob] = await db
+        .update(importExportJobs)
+        .set({
+          status: 'REVERSED',
+          updatedAt: new Date(),
+        })
+        .where(eq(importExportJobs.id, job.id))
+        .returning();
+
+      return {
+        success: true,
+        message: 'Import job marked as reversed (no created records found).',
+        revertedCount: 0,
+        job: updatedJob || job,
+      };
+    }
+
+    const byType: Record<string, string[]> = {};
+    for (const item of createdEntities) {
+      if (!byType[item.entityType]) {
+        byType[item.entityType] = [];
+      }
+      byType[item.entityType]!.push(item.id);
+    }
+
+    this.logger.log(
+      `[IMPORT REVERSE] Reversing import job "${id}" (${job.entityType}) with ${createdEntities.length} created entities across types: ${Object.keys(byType).join(', ')}`,
+    );
+
+    // Reverse/Delete in strict reverse topological dependency order
+    if (byType['PurchaseOrderLine']?.length) {
+      await db
+        .delete(purchaseOrderLines)
+        .where(inArray(purchaseOrderLines.id, byType['PurchaseOrderLine']));
+    }
+    if (byType['PurchaseOrder']?.length) {
+      await db
+        .delete(purchaseOrders)
+        .where(inArray(purchaseOrders.id, byType['PurchaseOrder']));
+    }
+    if (byType['BillOfMaterialsLine']?.length) {
+      await db
+        .delete(billOfMaterialLines)
+        .where(inArray(billOfMaterialLines.id, byType['BillOfMaterialsLine']));
+    }
+    if (byType['BillOfMaterials']?.length) {
+      await db
+        .delete(billOfMaterials)
+        .where(inArray(billOfMaterials.id, byType['BillOfMaterials']));
+    }
+    if (byType['WorkOrder']?.length) {
+      await db
+        .delete(productionOrders)
+        .where(inArray(productionOrders.id, byType['WorkOrder']));
+    }
+    if (byType['StockAdjustmentLine']?.length) {
+      await db
+        .delete(stockAdjustmentLines)
+        .where(inArray(stockAdjustmentLines.id, byType['StockAdjustmentLine']));
+    }
+    if (byType['StockAdjustment']?.length) {
+      await db
+        .delete(stockAdjustments)
+        .where(inArray(stockAdjustments.id, byType['StockAdjustment']));
+    }
+    if (byType['InventoryTransaction']?.length) {
+      await db
+        .delete(inventoryTransactions)
+        .where(inArray(inventoryTransactions.id, byType['InventoryTransaction']));
+    }
+    if (byType['ProjectTask']?.length) {
+      await db
+        .delete(projectTasks)
+        .where(inArray(projectTasks.id, byType['ProjectTask']));
+    }
+    if (byType['Project']?.length) {
+      await db
+        .delete(projects)
+        .where(inArray(projects.id, byType['Project']));
+    }
+    if (byType['ServiceRequest']?.length) {
+      await db
+        .delete(serviceRequests)
+        .where(inArray(serviceRequests.id, byType['ServiceRequest']));
+    }
+    if (byType['WarrantyClaim']?.length) {
+      await db
+        .delete(warrantyClaims)
+        .where(inArray(warrantyClaims.id, byType['WarrantyClaim']));
+    }
+    if (byType['CustomerReturn']?.length) {
+      await db
+        .delete(customerReturns)
+        .where(inArray(customerReturns.id, byType['CustomerReturn']));
+    }
+    if (byType['MaintenanceSchedule']?.length) {
+      await db
+        .delete(maintenanceSchedules)
+        .where(inArray(maintenanceSchedules.id, byType['MaintenanceSchedule']));
+    }
+    if (byType['Component']?.length) {
+      await db
+        .delete(components)
+        .where(inArray(components.id, byType['Component']));
+    }
+    if (byType['Customer']?.length) {
+      await db
+        .delete(customers)
+        .where(inArray(customers.id, byType['Customer']));
+    }
+    if (byType['Supplier']?.length) {
+      await db
+        .delete(suppliers)
+        .where(inArray(suppliers.id, byType['Supplier']));
+    }
+    if (byType['Manufacturer']?.length) {
+      await db
+        .delete(manufacturers)
+        .where(inArray(manufacturers.id, byType['Manufacturer']));
+    }
+    if (byType['Category']?.length) {
+      await db
+        .delete(categories)
+        .where(inArray(categories.id, byType['Category']));
+    }
+    if (byType['WarehouseBin']?.length) {
+      await db
+        .delete(warehouseBins)
+        .where(inArray(warehouseBins.id, byType['WarehouseBin']));
+    }
+    if (byType['Location']?.length) {
+      await db
+        .delete(locations)
+        .where(inArray(locations.id, byType['Location']));
+    }
+    if (byType['Warehouse']?.length) {
+      await db
+        .delete(warehouses)
+        .where(inArray(warehouses.id, byType['Warehouse']));
+    }
+    if (byType['Unit']?.length) {
+      await db
+        .delete(units)
+        .where(inArray(units.id, byType['Unit']));
+    }
+    if (byType['Role']?.length) {
+      await db
+        .delete(roles)
+        .where(inArray(roles.id, byType['Role']));
+    }
+    if (byType['User']?.length) {
+      await db
+        .delete(users)
+        .where(inArray(users.id, byType['User']));
+    }
+
+    const [updatedJob] = await db
+      .update(importExportJobs)
+      .set({
+        status: 'REVERSED',
+        updatedAt: new Date(),
+      })
+      .where(eq(importExportJobs.id, job.id))
+      .returning();
+
+    return {
+      success: true,
+      message: `Successfully reversed import job for "${job.entityType}". Reverted ${createdEntities.length} created record(s) including side effects.`,
+      revertedCount: createdEntities.length,
+      job: updatedJob || job,
+    };
   }
 
   executeExport(dto: ExportRequestDto) {
@@ -1667,9 +2100,13 @@ export class ImportExportService {
       return await db
         .select()
         .from(importExportJobs)
-        .where(eq(importExportJobs.userId, userId));
+        .where(eq(importExportJobs.userId, userId))
+        .orderBy(desc(importExportJobs.createdAt));
     }
-    return await db.select().from(importExportJobs);
+    return await db
+      .select()
+      .from(importExportJobs)
+      .orderBy(desc(importExportJobs.createdAt));
   }
 
   async getJob(id: string) {

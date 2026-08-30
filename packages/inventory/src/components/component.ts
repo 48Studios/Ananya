@@ -74,7 +74,7 @@ export class Component {
    * Owns identity generation, timestamps, defaults, normalization, and invariants.
    */
   public static create(input: CreateComponentInput): Component {
-    const sku = input.sku.trim().toLowerCase();
+    const sku = input.sku.trim().toUpperCase();
     const name = input.name.trim();
     const unit = input.unit.trim();
 
@@ -114,7 +114,7 @@ export class Component {
    */
   public update(input: UpdateComponentInput): Component {
     const sku =
-      input.sku !== undefined ? input.sku.trim().toLowerCase() : this.sku;
+      input.sku !== undefined ? input.sku.trim().toUpperCase() : this.sku;
     const name = input.name !== undefined ? input.name.trim() : this.name;
     const unit = input.unit !== undefined ? input.unit.trim() : this.unit;
 

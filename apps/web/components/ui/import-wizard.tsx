@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Upload,
   FileSpreadsheet,
@@ -11,6 +12,8 @@ import {
   Download,
   Loader2,
   FileCheck,
+  RotateCcw,
+  History,
 } from "lucide-react";
 import {
   importExportApi,
@@ -59,6 +62,10 @@ export function ImportWizard({
     React.useState<ImportExportJobDto | null>(null);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [importFile, setImportFile] = React.useState<File | null>(null);
+  const [reversing, setReversing] = React.useState(false);
+  const [reverseSuccessMessage, setReverseSuccessMessage] = React.useState<
+    string | null
+  >(null);
 
   const fileUploaderRef = React.useRef<FileUploaderRef | null>(null);
   const pollingRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -86,6 +93,8 @@ export function ImportWizard({
       setExecutionJob(null);
       setErrorMsg(null);
       setImportFile(null);
+      setReversing(false);
+      setReverseSuccessMessage(null);
       fileUploaderRef.current?.reset();
       stopPolling();
     }
@@ -186,6 +195,28 @@ export function ImportWizard({
     }
   };
 
+  const handleReverseImport = async () => {
+    if (!executionJob) return;
+    setReversing(true);
+    setErrorMsg(null);
+    try {
+      const res = await importExportApi.reverseImport(executionJob.id);
+      setExecutionJob(res.job);
+      setReverseSuccessMessage(res.message);
+      if (onImportComplete) {
+        onImportComplete();
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg("Failed to reverse import");
+      }
+    } finally {
+      setReversing(false);
+    }
+  };
+
   const derivedState = executionJob ? deriveImportJobState(executionJob) : null;
   const progressPercent = executionJob?.progressPercent ?? 50;
 
@@ -251,15 +282,25 @@ export function ImportWizard({
               <span className="text-xs text-muted-foreground">
                 Need a starting template?
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDownloadTemplate}
-                className="text-xs text-primary"
-              >
-                <Download className="mr-1 size-3.5" />
-                Download Sample Template
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownloadTemplate}
+                  className="text-xs text-primary h-7 px-2"
+                >
+                  <Download className="mr-1 size-3.5" />
+                  Sample CSV
+                </Button>
+                <Link
+                  href="/data-operations"
+                  onClick={() => onClose()}
+                  className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                >
+                  <History className="size-3.5" />
+                  Past Operations
+                </Link>
+              </div>
             </div>
           </div>
         )}
@@ -353,10 +394,10 @@ export function ImportWizard({
           </div>
         )}
 
-        {/* STEP 4: Execution Progress */}
+        {/* STEP 4: Executing Progress */}
         {step === 4 && (
-          <div className="py-10 text-center space-y-4">
-            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+          <div className="py-8 space-y-4 text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
             <div>
               <p className="text-sm font-semibold text-foreground">
                 Executing Batch Import ({progressPercent}%)
@@ -378,6 +419,22 @@ export function ImportWizard({
         {/* STEP 5: Completion & Error Report */}
         {step === 5 && executionJob && (
           <div className="py-4 space-y-5">
+            {/* 0. REVERSED STATE */}
+            {derivedState === "REVERSED" && (
+              <div className="text-center space-y-3">
+                <RotateCcw className="w-12 h-12 text-amber-500 mx-auto" />
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    Import Reverted / Undone
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {reverseSuccessMessage ||
+                      `Successfully reverted all records created by this import job.`}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* 1. SUCCESS STATE */}
             {derivedState === "COMPLETED_SUCCESS" && (
               <div className="text-center space-y-3">
@@ -505,6 +562,17 @@ export function ImportWizard({
                 </div>
               </div>
             )}
+
+            <div className="pt-2 text-center">
+              <Link
+                href="/data-operations"
+                onClick={() => onClose()}
+                className="text-xs text-primary hover:underline inline-flex items-center gap-1 font-medium"
+              >
+                <History className="size-3.5" />
+                View all past imports in Data Operations & History
+              </Link>
+            </div>
           </div>
         )}
       </DialogShellBody>
@@ -564,11 +632,31 @@ export function ImportWizard({
         )}
         {step === 5 && (
           <>
-            <DialogShellCancelButton>Cancel</DialogShellCancelButton>
+            {derivedState !== "REVERSED" &&
+              executionJob &&
+              executionJob.processedRecords > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleReverseImport}
+                  disabled={reversing}
+                >
+                  {reversing ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <RotateCcw className="mr-1.5 size-3.5" />
+                  )}
+                  Undo / Revert Import
+                </Button>
+              )}
+            <DialogShellCancelButton disabled={reversing}>
+              Cancel
+            </DialogShellCancelButton>
             <Button
               size="sm"
               variant={derivedState === "FAILED" ? "destructive" : "default"}
               onClick={onClose}
+              disabled={reversing}
             >
               Done
             </Button>

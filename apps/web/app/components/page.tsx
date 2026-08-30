@@ -84,6 +84,7 @@ export default function ComponentsPage() {
 
   const handleDeleteConfirm = async () => {
     if (!deletingComponent) return;
+    const targetSku = deletingComponent.sku;
     setDeleteLoading(true);
     setApiAlert(null);
     try {
@@ -92,10 +93,9 @@ export default function ComponentsPage() {
         prev.filter((c) => c.id !== deletingComponent.id),
       );
       setToastMessage(
-        `Component "${deletingComponent.sku}" deleted successfully.`,
+        `Component "${targetSku}" deleted successfully.`,
       );
       setTimeout(() => setToastMessage(null), 4000);
-      setDeletingComponent(null);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setApiAlert(err.message);
@@ -103,6 +103,7 @@ export default function ComponentsPage() {
         setApiAlert("Failed to delete component");
       }
     } finally {
+      setDeletingComponent(null);
       setDeleteLoading(false);
     }
   };

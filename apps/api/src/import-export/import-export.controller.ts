@@ -135,6 +135,13 @@ export class ImportExportController {
     return await this.service.getJob(id);
   }
 
+  @Post('jobs/:id/reverse')
+  async reverseImport(@Param('id') id: string, @Req() req?: Request) {
+    const headerUserId = req?.headers?.['x-user-id'];
+    const userId = typeof headerUserId === 'string' ? headerUserId : undefined;
+    return await this.service.reverseImport(id, userId);
+  }
+
   @Post('bulk-action')
   async executeBulkAction(@Body() dto: BulkActionDto) {
     return await this.service.executeBulkAction(dto);

@@ -85,6 +85,7 @@ export default function ViewComponentPage() {
         setDeleteError("Failed to delete component");
       }
     } finally {
+      setIsDeleteOpen(false);
       setDeleteLoading(false);
     }
   };

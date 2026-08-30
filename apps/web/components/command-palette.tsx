@@ -25,6 +25,7 @@ import {
   History,
   CornerDownLeft,
   ArrowRightLeft,
+  RotateCcw,
 } from "lucide-react";
 import { useNavigation } from "@/lib/navigation/navigation-context";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -193,6 +194,24 @@ const ALL_QUICK_ACTIONS = [
       "org",
       "admin",
       "organization",
+    ],
+  },
+  {
+    title: "Data Operations & Import History",
+    icon: RotateCcw,
+    href: "/data-operations",
+    category: "Administration",
+    permission: "Administration.Security",
+    keywords: [
+      "import",
+      "export",
+      "history",
+      "data",
+      "operations",
+      "undo",
+      "revert",
+      "rollback",
+      "batch",
     ],
   },
 ];

@@ -70,6 +70,47 @@ export function PurchaseOrderForm({
   const [serverError, setServerError] = React.useState<string | null>(null);
   const isEditing = Boolean(initialData);
 
+  const {
+    register,
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<PurchaseOrderFormValues>({
+    resolver: zodResolver(poSchema),
+    defaultValues: {
+      supplierId: initialData?.supplierId ?? "",
+      currency: initialData?.currency ?? "INR",
+      expectedDeliveryDate: initialData?.expectedDeliveryDate
+        ? new Date(initialData.expectedDeliveryDate).toISOString().split("T")[0]
+        : "",
+      notes: initialData?.notes ?? "",
+      lines: initialData?.lines
+        ? initialData.lines.map((l) => ({
+          componentId: l.componentId,
+          vendorPartNumber: l.vendorPartNumber ?? "",
+          quantityOrdered: l.quantityOrdered,
+          unitPrice: l.unitPrice,
+          taxRate: l.taxRate ?? 0,
+        }))
+        : [
+          {
+            componentId: "",
+            vendorPartNumber: "",
+            quantityOrdered: 1,
+            unitPrice: 0,
+            taxRate: 0,
+          },
+        ],
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "lines",
+  });
+
   React.useEffect(() => {
     Promise.all([
       suppliersApi.getAll(),
@@ -90,47 +131,6 @@ export function PurchaseOrderForm({
         // Non-blocking load error
       });
   }, [initialData, setValue]);
-
-  const {
-    register,
-    control,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<PurchaseOrderFormValues>({
-    resolver: zodResolver(poSchema),
-    defaultValues: {
-      supplierId: initialData?.supplierId ?? "",
-      currency: initialData?.currency ?? "INR",
-      expectedDeliveryDate: initialData?.expectedDeliveryDate
-        ? new Date(initialData.expectedDeliveryDate).toISOString().split("T")[0]
-        : "",
-      notes: initialData?.notes ?? "",
-      lines: initialData?.lines
-        ? initialData.lines.map((l) => ({
-            componentId: l.componentId,
-            vendorPartNumber: l.vendorPartNumber ?? "",
-            quantityOrdered: l.quantityOrdered,
-            unitPrice: l.unitPrice,
-            taxRate: l.taxRate ?? 0,
-          }))
-        : [
-            {
-              componentId: "",
-              vendorPartNumber: "",
-              quantityOrdered: 1,
-              unitPrice: 0,
-              taxRate: 0,
-            },
-          ],
-    },
-  });
-
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "lines",
-  });
 
   const watchedLines = watch("lines");
   const watchedCurrency = watch("currency") || "INR";

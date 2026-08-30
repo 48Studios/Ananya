@@ -17,7 +17,7 @@ export const importExportJobs = pgTable(
     jobType: varchar("job_type", { length: 32 }).notNull(), // 'IMPORT' | 'EXPORT'
     entityType: varchar("entity_type", { length: 64 }).notNull(),
     format: varchar("format", { length: 32 }).notNull().default("CSV"), // 'CSV' | 'EXCEL' | 'JSON'
-    status: varchar("status", { length: 32 }).notNull().default("QUEUED"), // 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
+    status: varchar("status", { length: 32 }).notNull().default("QUEUED"), // 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'REVERSED'
     totalRecords: integer("total_records").notNull().default(0),
     processedRecords: integer("processed_records").notNull().default(0),
     failedRecords: integer("failed_records").notNull().default(0),
@@ -31,6 +31,15 @@ export const importExportJobs = pgTable(
           column?: string;
           value?: unknown;
           message: string;
+        }>
+      >()
+      .default([]),
+    createdEntities: jsonb("created_entities")
+      .$type<
+        Array<{
+          entityType: string;
+          id: string;
+          isSideEffect?: boolean;
         }>
       >()
       .default([]),

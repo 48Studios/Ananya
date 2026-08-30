@@ -26,7 +26,7 @@ const componentSchema = z.object({
   sku: z
     .string()
     .min(1, "SKU is required")
-    .transform((val) => val.trim().toLowerCase()),
+    .transform((val) => val.trim().toUpperCase()),
   name: z
     .string()
     .min(1, "Component name is required")
