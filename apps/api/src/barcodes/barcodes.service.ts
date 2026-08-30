@@ -9,8 +9,15 @@ import {
 } from '@ananya/database/schema';
 import { eq, or, ilike } from '@ananya/database/query';
 
-export type EntityType =
-  'COMPONENT' | 'LOCATION' | 'WORK_ORDER' | 'PURCHASE_ORDER' | 'PROJECT';
+export const ENTITY_TYPES = [
+  'COMPONENT',
+  'LOCATION',
+  'WORK_ORDER',
+  'PURCHASE_ORDER',
+  'PROJECT',
+] as const;
+
+export type EntityType = (typeof ENTITY_TYPES)[number];
 
 export interface BarcodeLookupResult {
   found: boolean;

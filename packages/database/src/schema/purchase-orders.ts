@@ -36,6 +36,10 @@ export const purchaseOrders = pgTable(
     expectedDeliveryDate: timestamp("expected_delivery_date", {
       withTimezone: true,
     }),
+    trackingNumber: varchar("tracking_number", { length: 128 }),
+    carrier: varchar("carrier", { length: 64 }),
+    shippingProvider: varchar("shipping_provider", { length: 64 }),
+    trackingUrl: text("tracking_url"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

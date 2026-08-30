@@ -40,6 +40,10 @@ export interface PurchaseOrderProps {
   notes?: string | null;
   issuedAt?: Date | null;
   expectedDeliveryDate?: Date | null;
+  trackingNumber?: string | null;
+  carrier?: string | null;
+  shippingProvider?: string | null;
+  trackingUrl?: string | null;
   lines?: PurchaseOrderLineProps[];
   createdAt: Date;
   updatedAt: Date;
@@ -51,11 +55,19 @@ export interface CreatePurchaseOrderInput {
   currency?: string;
   notes?: string | null;
   expectedDeliveryDate?: Date | null;
+  trackingNumber?: string | null;
+  carrier?: string | null;
+  shippingProvider?: string | null;
+  trackingUrl?: string | null;
 }
 
 export interface UpdatePurchaseOrderInput {
   notes?: string | null;
   expectedDeliveryDate?: Date | null;
+  trackingNumber?: string | null;
+  carrier?: string | null;
+  shippingProvider?: string | null;
+  trackingUrl?: string | null;
 }
 
 export interface AddPoLineInput {
@@ -78,6 +90,10 @@ export class PurchaseOrder {
   public notes?: string | null;
   public issuedAt?: Date | null;
   public expectedDeliveryDate?: Date | null;
+  public trackingNumber?: string | null;
+  public carrier?: string | null;
+  public shippingProvider?: string | null;
+  public trackingUrl?: string | null;
   public lines: PurchaseOrderLineProps[];
   public readonly createdAt: Date;
   public updatedAt: Date;
@@ -94,6 +110,10 @@ export class PurchaseOrder {
     this.notes = props.notes;
     this.issuedAt = props.issuedAt;
     this.expectedDeliveryDate = props.expectedDeliveryDate;
+    this.trackingNumber = props.trackingNumber;
+    this.carrier = props.carrier;
+    this.shippingProvider = props.shippingProvider;
+    this.trackingUrl = props.trackingUrl;
     this.lines = props.lines ?? [];
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
@@ -114,6 +134,10 @@ export class PurchaseOrder {
       grandTotal: 0,
       notes: input.notes?.trim() ?? null,
       expectedDeliveryDate: input.expectedDeliveryDate ?? null,
+      trackingNumber: input.trackingNumber?.trim() ?? null,
+      carrier: input.carrier?.trim() ?? null,
+      shippingProvider: input.shippingProvider?.trim() ?? null,
+      trackingUrl: input.trackingUrl?.trim() ?? null,
       lines: [],
       createdAt,
       updatedAt: createdAt,
@@ -121,14 +145,31 @@ export class PurchaseOrder {
   }
 
   public updateHeader(input: UpdatePurchaseOrderInput): void {
-    if (this.status !== "DRAFT") {
+    if (this.status === "CANCELLED") {
       throw new InvalidPoStatusTransitionError(this.status, "EDIT");
     }
-    this.notes = input.notes !== undefined ? input.notes : this.notes;
-    this.expectedDeliveryDate =
-      input.expectedDeliveryDate !== undefined
-        ? input.expectedDeliveryDate
-        : this.expectedDeliveryDate;
+    if (input.notes !== undefined) this.notes = input.notes;
+    if (input.expectedDeliveryDate !== undefined)
+      this.expectedDeliveryDate = input.expectedDeliveryDate;
+    if (input.trackingNumber !== undefined)
+      this.trackingNumber = input.trackingNumber;
+    if (input.carrier !== undefined) this.carrier = input.carrier;
+    if (input.shippingProvider !== undefined)
+      this.shippingProvider = input.shippingProvider;
+    if (input.trackingUrl !== undefined) this.trackingUrl = input.trackingUrl;
+    this.updatedAt = new Date();
+  }
+
+  public recordReceipt(poLineId: string, quantityReceived: number): void {
+    const line = this.lines.find((l) => l.id === poLineId);
+    if (line) {
+      line.quantityReceived += quantityReceived;
+      line.updatedAt = new Date();
+    }
+    const allFulfilled = this.lines.every(
+      (l) => l.quantityReceived >= l.quantityOrdered,
+    );
+    this.status = allFulfilled ? "FULFILLED" : "PARTIALLY_RECEIVED";
     this.updatedAt = new Date();
   }
 

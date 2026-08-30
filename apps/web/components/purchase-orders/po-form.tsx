@@ -4,7 +4,7 @@ import * as React from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, ExternalLink, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DialogShellBody,
@@ -29,6 +29,10 @@ import {
 import { suppliersApi, type SupplierDto } from "@/lib/api/suppliers-api";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { settingsApi } from "@/lib/api/settings-api";
+import {
+  SHIPPING_PROVIDERS,
+  getAutoTrackingUrl,
+} from "@/lib/shipping-carriers";
 
 const poLineSchema = z.object({
   componentId: z.string().min(1, "Component is required"),
@@ -45,6 +49,9 @@ const poSchema = z.object({
     .min(1, "Currency is required")
     .transform((val) => val.trim().toUpperCase()),
   expectedDeliveryDate: z.string().optional().nullable(),
+  shippingProvider: z.string().optional().nullable(),
+  trackingNumber: z.string().optional().nullable(),
+  trackingUrl: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   lines: z.array(poLineSchema).min(1, "At least one line item is required"),
 });
@@ -69,6 +76,7 @@ export function PurchaseOrderForm({
   const [baseCurrency, setBaseCurrency] = React.useState<string>("INR");
   const [serverError, setServerError] = React.useState<string | null>(null);
   const isEditing = Boolean(initialData);
+  const isDraft = !initialData || initialData.status === "DRAFT";
 
   const {
     register,
@@ -85,24 +93,27 @@ export function PurchaseOrderForm({
       expectedDeliveryDate: initialData?.expectedDeliveryDate
         ? new Date(initialData.expectedDeliveryDate).toISOString().split("T")[0]
         : "",
+      shippingProvider: initialData?.shippingProvider ?? "",
+      trackingNumber: initialData?.trackingNumber ?? "",
+      trackingUrl: initialData?.trackingUrl ?? "",
       notes: initialData?.notes ?? "",
-      lines: initialData?.lines
+      lines: initialData?.lines && initialData.lines.length > 0
         ? initialData.lines.map((l) => ({
-          componentId: l.componentId,
-          vendorPartNumber: l.vendorPartNumber ?? "",
-          quantityOrdered: l.quantityOrdered,
-          unitPrice: l.unitPrice,
-          taxRate: l.taxRate ?? 0,
-        }))
+            componentId: l.componentId,
+            vendorPartNumber: l.vendorPartNumber ?? "",
+            quantityOrdered: l.quantityOrdered,
+            unitPrice: l.unitPrice,
+            taxRate: l.taxRate ?? 0,
+          }))
         : [
-          {
-            componentId: "",
-            vendorPartNumber: "",
-            quantityOrdered: 1,
-            unitPrice: 0,
-            taxRate: 0,
-          },
-        ],
+            {
+              componentId: "",
+              vendorPartNumber: "",
+              quantityOrdered: 1,
+              unitPrice: 0,
+              taxRate: 0,
+            },
+          ],
     },
   });
 
@@ -134,6 +145,17 @@ export function PurchaseOrderForm({
 
   const watchedLines = watch("lines");
   const watchedCurrency = watch("currency") || "INR";
+  const watchedProvider = watch("shippingProvider");
+  const watchedTrackingNo = watch("trackingNumber");
+  const watchedTrackingUrl = watch("trackingUrl");
+
+  const computedTrackingUrl = React.useMemo(() => {
+    return getAutoTrackingUrl(
+      watchedProvider,
+      watchedTrackingNo,
+      watchedTrackingUrl,
+    );
+  }, [watchedProvider, watchedTrackingNo, watchedTrackingUrl]);
 
   const totals = React.useMemo(() => {
     let subtotal = 0;
@@ -159,17 +181,30 @@ export function PurchaseOrderForm({
   const onSubmit = async (values: PurchaseOrderFormValues) => {
     setServerError(null);
     try {
+      const finalTrackingUrl =
+        getAutoTrackingUrl(
+          values.shippingProvider,
+          values.trackingNumber,
+          values.trackingUrl,
+        ) || values.trackingUrl || null;
+
       if (isEditing && initialData) {
         const payload: UpdatePurchaseOrderPayload = {
           expectedDeliveryDate: values.expectedDeliveryDate || null,
+          shippingProvider: values.shippingProvider || null,
+          trackingNumber: values.trackingNumber || null,
+          carrier: values.shippingProvider || null,
+          trackingUrl: finalTrackingUrl,
           notes: values.notes || null,
-          lines: values.lines.map((l) => ({
-            componentId: l.componentId,
-            vendorPartNumber: l.vendorPartNumber || null,
-            quantityOrdered: l.quantityOrdered,
-            unitPrice: l.unitPrice,
-            taxRate: l.taxRate,
-          })),
+          lines: isDraft
+            ? values.lines.map((l) => ({
+                componentId: l.componentId,
+                vendorPartNumber: l.vendorPartNumber || null,
+                quantityOrdered: l.quantityOrdered,
+                unitPrice: l.unitPrice,
+                taxRate: l.taxRate,
+              }))
+            : undefined,
         };
         const updated = await purchaseOrdersApi.update(initialData.id, payload);
         onSuccess(updated);
@@ -178,6 +213,10 @@ export function PurchaseOrderForm({
           supplierId: values.supplierId,
           currency: values.currency,
           expectedDeliveryDate: values.expectedDeliveryDate || null,
+          shippingProvider: values.shippingProvider || null,
+          trackingNumber: values.trackingNumber || null,
+          carrier: values.shippingProvider || null,
+          trackingUrl: finalTrackingUrl,
           notes: values.notes || null,
           lines: values.lines.map((l) => ({
             componentId: l.componentId,
@@ -262,13 +301,14 @@ export function PurchaseOrderForm({
               id="po-currency"
               type="text"
               placeholder="e.g. INR"
+              disabled={isEditing && !isDraft}
               {...register("currency")}
               className="uppercase font-mono"
             />
           </Field>
         </div>
 
-        {/* Expected Delivery Date & Notes */}
+        {/* Delivery Date & Notes */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field>
             <FieldLabel htmlFor="po-delivery-date">
@@ -293,29 +333,115 @@ export function PurchaseOrderForm({
           </Field>
         </div>
 
+        {/* Shipping & Logistics Tracking Section */}
+        <div className="p-3 bg-muted/20 border border-border rounded-xl space-y-3">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <Truck className="w-3.5 h-3.5 text-primary" />
+            <span>Shipment & Logistics Tracking</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Shipping Provider Select */}
+            <Field>
+              <FieldLabel htmlFor="po-shipping-provider">
+                Shipping Provider / Courier
+              </FieldLabel>
+              <Controller
+                name="shippingProvider"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value || "none"}
+                    onValueChange={(val) => {
+                      const selected = val === "none" ? "" : val || "";
+                      field.onChange(selected);
+                    }}
+                  >
+                    <SelectTrigger id="po-shipping-provider" className="text-xs">
+                      <SelectValue placeholder="Select Shipping Provider..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">-- Not Assigned --</SelectItem>
+                      {SHIPPING_PROVIDERS.map((provider) => (
+                        <SelectItem key={provider.code} value={provider.code}>
+                          {provider.name} ({provider.category})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </Field>
+
+            {/* Tracking Number */}
+            <Field>
+              <FieldLabel htmlFor="po-tracking-number">
+                Tracking / AWB Number
+              </FieldLabel>
+              <Input
+                id="po-tracking-number"
+                type="text"
+                placeholder="e.g. 1234567890"
+                {...register("trackingNumber")}
+                className="font-mono uppercase text-xs"
+              />
+            </Field>
+          </div>
+
+          {/* Auto URL Constructor preview or manual link */}
+          {computedTrackingUrl && (
+            <div className="flex items-center justify-between p-2 bg-card rounded border border-border text-xs">
+              <span className="text-muted-foreground truncate max-w-[280px]">
+                Tracking Link:{" "}
+                <span className="font-mono text-[11px] text-foreground">
+                  {computedTrackingUrl}
+                </span>
+              </span>
+              <a
+                href={computedTrackingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline font-medium inline-flex items-center gap-1 shrink-0 ml-2"
+              >
+                <span>Track Shipment</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          )}
+        </div>
+
         {/* Line Items Editor Section */}
         <div className="space-y-2 pt-2 border-t border-border">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
-              Line Items <span className="text-destructive">*</span>
-            </label>
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={() =>
-                append({
-                  componentId: "",
-                  vendorPartNumber: "",
-                  quantityOrdered: 1,
-                  unitPrice: 0,
-                  taxRate: 0,
-                })
-              }
-            >
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Add Line Item
-            </Button>
+            <div>
+              <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                Line Items
+              </label>
+              {!isDraft && (
+                <span className="ml-2 text-[11px] text-muted-foreground font-normal">
+                  (Items locked in {initialData?.status} status)
+                </span>
+              )}
+            </div>
+            {isDraft && (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() =>
+                  append({
+                    componentId: "",
+                    vendorPartNumber: "",
+                    quantityOrdered: 1,
+                    unitPrice: 0,
+                    taxRate: 0,
+                  })
+                }
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Add Line Item
+              </Button>
+            )}
           </div>
 
           <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
@@ -335,6 +461,7 @@ export function PurchaseOrderForm({
                       control={control}
                       render={({ field: compField }) => (
                         <Select
+                          disabled={!isDraft}
                           value={compField.value}
                           onValueChange={compField.onChange}
                         >
@@ -361,6 +488,7 @@ export function PurchaseOrderForm({
                     <Input
                       type="number"
                       min={1}
+                      disabled={!isDraft}
                       {...register(`lines.${index}.quantityOrdered`, {
                         valueAsNumber: true,
                       })}
@@ -377,6 +505,7 @@ export function PurchaseOrderForm({
                       type="number"
                       step="0.01"
                       min={0}
+                      disabled={!isDraft}
                       {...register(`lines.${index}.unitPrice`, {
                         valueAsNumber: true,
                       })}
@@ -393,6 +522,7 @@ export function PurchaseOrderForm({
                       type="number"
                       step="0.1"
                       min={0}
+                      disabled={!isDraft}
                       {...register(`lines.${index}.taxRate`, {
                         valueAsNumber: true,
                       })}
@@ -402,7 +532,7 @@ export function PurchaseOrderForm({
 
                   {/* Delete Line */}
                   <div className="sm:col-span-1 flex items-center justify-end pb-1">
-                    {fields.length > 1 && (
+                    {isDraft && fields.length > 1 && (
                       <button
                         type="button"
                         onClick={() => remove(index)}

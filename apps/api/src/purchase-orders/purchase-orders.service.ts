@@ -50,6 +50,10 @@ export class PurchaseOrdersService {
       expectedDeliveryDate: dto.expectedDeliveryDate
         ? new Date(dto.expectedDeliveryDate)
         : null,
+      trackingNumber: dto.trackingNumber,
+      carrier: dto.carrier,
+      shippingProvider: dto.shippingProvider,
+      trackingUrl: dto.trackingUrl,
       lines: dto.lines,
     });
   }
@@ -60,9 +64,16 @@ export class PurchaseOrdersService {
   ): Promise<PurchaseOrder> {
     return this.updatePo.execute(id, {
       notes: dto.notes,
-      expectedDeliveryDate: dto.expectedDeliveryDate
-        ? new Date(dto.expectedDeliveryDate)
-        : undefined,
+      expectedDeliveryDate:
+        dto.expectedDeliveryDate !== undefined
+          ? dto.expectedDeliveryDate
+            ? new Date(dto.expectedDeliveryDate)
+            : null
+          : undefined,
+      trackingNumber: dto.trackingNumber,
+      carrier: dto.carrier,
+      shippingProvider: dto.shippingProvider,
+      trackingUrl: dto.trackingUrl,
       lines: dto.lines,
     });
   }

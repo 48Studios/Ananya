@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
@@ -12,6 +12,13 @@ import {
   DialogShellFooter,
 } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   suppliersApi,
@@ -19,6 +26,35 @@ import {
   type CreateSupplierPayload,
   type UpdateSupplierPayload,
 } from "@/lib/api/suppliers-api";
+
+export const STANDARD_PAYMENT_TERMS = [
+  { value: "PREPAID", label: "PREPAID — 100% Advance / Upfront" },
+  { value: "PIA", label: "PIA — Payment In Advance" },
+  { value: "COD", label: "COD — Cash On Delivery" },
+  { value: "NET7", label: "NET 7 — Net 7 Days" },
+  { value: "NET15", label: "NET 15 — Net 15 Days" },
+  { value: "NET30", label: "NET 30 — Net 30 Days (Standard)" },
+  { value: "NET45", label: "NET 45 — Net 45 Days" },
+  { value: "NET60", label: "NET 60 — Net 60 Days" },
+  { value: "NET90", label: "NET 90 — Net 90 Days" },
+  { value: "EOM", label: "EOM — End of Month" },
+  { value: "2/10 NET 30", label: "2/10 NET 30 — 2% 10 Days, Net 30" },
+  { value: "CUSTOM", label: "Custom Payment Term..." },
+] as const;
+
+const STANDARD_TERM_VALUES = new Set<string>([
+  "PREPAID",
+  "PIA",
+  "COD",
+  "NET7",
+  "NET15",
+  "NET30",
+  "NET45",
+  "NET60",
+  "NET90",
+  "EOM",
+  "2/10 NET 30",
+]);
 
 const supplierSchema = z.object({
   code: z
@@ -56,9 +92,21 @@ export function SupplierForm({
   const [serverError, setServerError] = React.useState<string | null>(null);
   const isEditing = Boolean(initialData);
 
+  const initialTerm = initialData?.paymentTerms?.trim().toUpperCase() ?? "NET30";
+  const isInitialCustom = initialTerm !== "" && !STANDARD_TERM_VALUES.has(initialTerm);
+
+  const [selectedTermCategory, setSelectedTermCategory] = React.useState<string>(
+    isInitialCustom ? "CUSTOM" : initialTerm,
+  );
+  const [customTermText, setCustomTermText] = React.useState<string>(
+    isInitialCustom ? initialTerm : "",
+  );
+
   const {
     register,
     handleSubmit,
+    control,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SupplierFormValues>({
     resolver: zodResolver(supplierSchema),
@@ -66,10 +114,26 @@ export function SupplierForm({
       code: initialData?.code ?? "",
       name: initialData?.name ?? "",
       taxId: initialData?.taxId ?? "",
-      paymentTerms: initialData?.paymentTerms ?? "NET30",
+      paymentTerms: initialTerm,
       currency: initialData?.currency ?? "INR",
     },
   });
+
+  const handleSelectTerm = (val: string | null) => {
+    const selected = val || "NET30";
+    setSelectedTermCategory(selected);
+    if (selected === "CUSTOM") {
+      setValue("paymentTerms", customTermText || "");
+    } else {
+      setValue("paymentTerms", selected);
+    }
+  };
+
+  const handleCustomTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.toUpperCase();
+    setCustomTermText(val);
+    setValue("paymentTerms", val);
+  };
 
   const onSubmit = async (values: SupplierFormValues) => {
     setServerError(null);
@@ -163,19 +227,48 @@ export function SupplierForm({
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
-          {/* Payment Terms */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Payment Terms Select */}
           <Field>
             <FieldLabel htmlFor="supplier-terms">
               Payment Terms <span className="text-destructive">*</span>
             </FieldLabel>
-            <Input
-              id="supplier-terms"
-              type="text"
-              placeholder="e.g. NET30, NET60, COD"
-              {...register("paymentTerms")}
-              className="uppercase font-mono"
+            <Controller
+              name="paymentTerms"
+              control={control}
+              render={() => (
+                <Select
+                  value={selectedTermCategory}
+                  onValueChange={handleSelectTerm}
+                >
+                  <SelectTrigger id="supplier-terms" className="text-xs">
+                    <SelectValue placeholder="Select Payment Terms" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STANDARD_PAYMENT_TERMS.map((term) => (
+                      <SelectItem key={term.value} value={term.value}>
+                        {term.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             />
+
+            {/* Custom Payment Term Input (when CUSTOM is chosen) */}
+            {selectedTermCategory === "CUSTOM" && (
+              <div className="mt-2">
+                <Input
+                  type="text"
+                  placeholder="Enter custom terms (e.g. 50% ADV, 50% BL)"
+                  value={customTermText}
+                  onChange={handleCustomTermChange}
+                  className="text-xs uppercase font-mono h-8"
+                  autoFocus
+                />
+              </div>
+            )}
+
             {errors.paymentTerms?.message && (
               <FieldError>{errors.paymentTerms.message}</FieldError>
             )}
@@ -189,9 +282,9 @@ export function SupplierForm({
             <Input
               id="supplier-currency"
               type="text"
-              placeholder="e.g. USD, EUR, INR"
+              placeholder="e.g. INR, USD, EUR"
               {...register("currency")}
-              className="uppercase font-mono"
+              className="uppercase font-mono text-xs"
             />
             {errors.currency?.message && (
               <FieldError>{errors.currency.message}</FieldError>
@@ -209,3 +302,4 @@ export function SupplierForm({
     </form>
   );
 }
+

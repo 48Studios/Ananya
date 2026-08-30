@@ -18,6 +18,6 @@ import { SettingsModule } from '../settings/settings.module';
       useClass: DrizzlePurchaseOrderRepository,
     },
   ],
-  exports: [PurchaseOrdersService],
+  exports: [PurchaseOrdersService, PURCHASE_ORDER_REPOSITORY],
 })
 export class PurchaseOrdersModule {}

@@ -194,3 +194,61 @@
   scrollbar-width: thin;
   scrollbar-color: var(--muted) transparent;
 }
+
+/* Global Print Styles */
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  /* Universal reset for clean print outputs (suppresses browser headers and footers) */
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide application navigation, header, footer, dialog backdrops and print:hidden elements */
+  nav,
+  header,
+  footer,
+  aside,
+  [data-slot="dialog-overlay"],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Reset main viewport scroll wrappers */
+  main {
+    overflow: visible !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  /* Modal print adjustments */
+  [data-slot="dialog-content"] {
+    position: static !important;
+    transform: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  [data-slot="dialog-header"],
+  [data-slot="dialog-footer"] {
+    display: none !important;
+  }
+}

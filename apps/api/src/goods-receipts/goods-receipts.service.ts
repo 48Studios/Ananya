@@ -9,11 +9,17 @@ import {
   GoodsReceiptRepository,
   CreateGoodsReceipt,
   ExceededRemainingQuantityError,
+  PurchaseOrder,
+  PurchaseOrderLineProps,
+  PurchaseOrderRepository,
 } from '@ananya/procurement';
 import { CreateGoodsReceiptDto, AddGoodsReceiptLineDto } from './dtos';
 import { InventoryTransactionsService } from '../inventory-transactions/inventory-transactions.service';
 import { InventoryProjectionsService } from '../inventory-projections/inventory-projections.service';
-import { PurchaseOrdersService } from '../purchase-orders/purchase-orders.service';
+import {
+  PurchaseOrdersService,
+  PURCHASE_ORDER_REPOSITORY,
+} from '../purchase-orders/purchase-orders.service';
 
 export const GOODS_RECEIPT_REPOSITORY = 'GOODS_RECEIPT_REPOSITORY';
 
@@ -24,6 +30,8 @@ export class GoodsReceiptsService {
   constructor(
     @Inject(GOODS_RECEIPT_REPOSITORY)
     private readonly grRepository: GoodsReceiptRepository,
+    @Inject(PURCHASE_ORDER_REPOSITORY)
+    private readonly poRepository: PurchaseOrderRepository,
     private readonly inventoryTransactionsService: InventoryTransactionsService,
     private readonly inventoryProjectionsService: InventoryProjectionsService,
     private readonly purchaseOrdersService: PurchaseOrdersService,
@@ -91,20 +99,11 @@ export class GoodsReceiptsService {
           createdAt: gr.receivedAt,
         });
 
-        // 2. Update PO line received quantity
-        const poLine = po.lines.find((l) => l.id === line.poLineId);
-        if (poLine) {
-          poLine.quantityReceived += line.quantityReceived;
-        }
+        // 2. Update PO line and status
+        this.recordPoReceipt(po, line.poLineId, line.quantityReceived);
       }
 
-      // 3. Update PO status
-      const allLinesFulfilled = po.lines.every(
-        (l) => l.quantityReceived >= l.quantityOrdered,
-      );
-      po.status = allLinesFulfilled ? 'FULFILLED' : 'PARTIALLY_RECEIVED';
-      await this.purchaseOrdersService.approve(po.id);
-
+      await this.poRepository.save(po);
       gr.markCompleted();
     }
 
@@ -167,17 +166,10 @@ export class GoodsReceiptsService {
         createdAt: gr.receivedAt,
       });
 
-      const poLine = po.lines.find((l) => l.id === line.poLineId);
-      if (poLine) {
-        poLine.quantityReceived += line.quantityReceived;
-      }
+      this.recordPoReceipt(po, line.poLineId, line.quantityReceived);
     }
 
-    const allLinesFulfilled = po.lines.every(
-      (l) => l.quantityReceived >= l.quantityOrdered,
-    );
-    po.status = allLinesFulfilled ? 'FULFILLED' : 'PARTIALLY_RECEIVED';
-    await this.purchaseOrdersService.approve(po.id);
+    await this.poRepository.save(po);
 
     gr.markCompleted();
     await this.grRepository.save(gr);
@@ -185,5 +177,32 @@ export class GoodsReceiptsService {
     await this.inventoryProjectionsService.rebuild();
 
     return gr;
+  }
+
+  private recordPoReceipt(
+    po: PurchaseOrder,
+    poLineId: string,
+    quantityReceived: number,
+  ): void {
+    if (typeof po.recordReceipt === 'function') {
+      po.recordReceipt(poLineId, quantityReceived);
+    } else {
+      const line = (po.lines as PurchaseOrderLineProps[])?.find(
+        (l: PurchaseOrderLineProps) => l.id === poLineId,
+      );
+      if (line) {
+        line.quantityReceived += quantityReceived;
+        line.updatedAt = new Date();
+      }
+      const allFulfilled = (
+        (po.lines as PurchaseOrderLineProps[]) || []
+      ).every(
+        (l: PurchaseOrderLineProps) => l.quantityReceived >= l.quantityOrdered,
+      );
+      (po as { status: string }).status = allFulfilled
+        ? 'FULFILLED'
+        : 'PARTIALLY_RECEIVED';
+      (po as { updatedAt: Date }).updatedAt = new Date();
+    }
   }
 }

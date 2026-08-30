@@ -35,6 +35,10 @@ export interface PurchaseOrderDto {
   notes?: string | null;
   issuedAt?: string | null;
   expectedDeliveryDate?: string | null;
+  trackingNumber?: string | null;
+  carrier?: string | null;
+  shippingProvider?: string | null;
+  trackingUrl?: string | null;
   lines: PurchaseOrderLineDto[];
   createdAt: string;
   updatedAt: string;
@@ -53,12 +57,20 @@ export interface CreatePurchaseOrderPayload {
   currency?: string;
   notes?: string | null;
   expectedDeliveryDate?: string | null;
+  trackingNumber?: string | null;
+  carrier?: string | null;
+  shippingProvider?: string | null;
+  trackingUrl?: string | null;
   lines?: AddPoLinePayload[];
 }
 
 export interface UpdatePurchaseOrderPayload {
   notes?: string | null;
   expectedDeliveryDate?: string | null;
+  trackingNumber?: string | null;
+  carrier?: string | null;
+  shippingProvider?: string | null;
+  trackingUrl?: string | null;
   lines?: AddPoLinePayload[];
 }
 

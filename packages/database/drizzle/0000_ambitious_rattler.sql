@@ -189,6 +189,10 @@ CREATE TABLE "purchase_orders" (
 	"notes" text,
 	"issued_at" timestamp with time zone,
 	"expected_delivery_date" timestamp with time zone,
+	"tracking_number" varchar(128),
+	"carrier" varchar(64),
+	"shipping_provider" varchar(64),
+	"tracking_url" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -1274,6 +1278,7 @@ CREATE TABLE "import_export_jobs" (
 	"file_name" varchar(255),
 	"file_url" text,
 	"errors" jsonb DEFAULT '[]'::jsonb,
+	"created_entities" jsonb DEFAULT '[]'::jsonb,
 	"user_id" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL

@@ -24,6 +24,20 @@ import { BarcodeFormat, LabelData, EntityType } from "@/lib/api/barcodes-api";
 import { componentsApi, ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, LocationDto } from "@/lib/api/locations-api";
 
+const TEMPLATE_OPTIONS: Record<LabelTemplate, string> = {
+  STANDARD: 'Standard (2" x 4")',
+  COMPACT: 'Compact (1" x 2")',
+  DETAILED: 'Detailed (3" x 4")',
+  SHELF_BIN: "Shelf Bin Tag",
+};
+
+const FORMAT_OPTIONS: Record<BarcodeFormat, string> = {
+  CODE128: "Code 128 (High Density)",
+  CODE39: "Code 39 (Alphanumeric)",
+  EAN13: "EAN-13 (13 Digits)",
+  UPCA: "UPC-A (12 Digits)",
+};
+
 export default function BarcodesHubPage() {
   const [components, setComponents] = React.useState<ComponentDto[]>([]);
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
@@ -82,29 +96,31 @@ export default function BarcodesHubPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <PageHeader
-        title="Barcode & QR Operations Studio"
-        description="Barcode generation, versioned QR code payloads, hardware scanner lookup, and printable label templates."
-        actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsScanOpen(true)}
-            >
-              <Scan className="w-4 h-4 mr-1.5" />
-              Quick Scan
-            </Button>
-            <Button size="sm" onClick={handleOpenBatchComponents}>
-              <Printer className="w-4 h-4 mr-1.5" />
-              Batch Print Studio
-            </Button>
-          </div>
-        }
-      />
+      <div className="print:hidden">
+        <PageHeader
+          title="Barcode & QR Operations Studio"
+          description="Barcode generation, versioned QR code payloads, hardware scanner lookup, and printable label templates."
+          actions={
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsScanOpen(true)}
+              >
+                <Scan className="w-4 h-4 mr-1.5" />
+                Quick Scan
+              </Button>
+              <Button size="sm" onClick={handleOpenBatchComponents}>
+                <Printer className="w-4 h-4 mr-1.5" />
+                Batch Print Studio
+              </Button>
+            </div>
+          }
+        />
+      </div>
 
       {/* KPI Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
         <StatCard
           title="Printable Components"
           value={components.length}
@@ -132,9 +148,9 @@ export default function BarcodesHubPage() {
       </div>
 
       {/* Main Studio Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:block">
         {/* Generator Controls & Live Vector Preview */}
-        <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
+        <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs print:hidden">
           <div className="border-b border-border pb-3">
             <h3 className="text-base font-semibold text-foreground">
               Barcode & QR Generator Studio
@@ -170,23 +186,31 @@ export default function BarcodesHubPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field>
-                <FieldLabel className="text-xs">Barcode Symbology</FieldLabel>
+                <FieldLabel className="text-xs">
+                  Barcode Symbology
+                  {(template === "COMPACT" || template === "SHELF_BIN") && (
+                    <span className="text-[10px] text-muted-foreground font-normal ml-1">
+                      (QR-only template)
+                    </span>
+                  )}
+                </FieldLabel>
                 <Select
+                  items={FORMAT_OPTIONS}
                   value={format}
+                  disabled={template === "COMPACT" || template === "SHELF_BIN"}
                   onValueChange={(val) => setFormat(val as BarcodeFormat)}
                 >
                   <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Select format" />
+                    <SelectValue placeholder="Select format">
+                      {(val) => FORMAT_OPTIONS[val as BarcodeFormat] || val}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="CODE128">
-                      Code 128 (High Density)
-                    </SelectItem>
-                    <SelectItem value="CODE39">
-                      Code 39 (Alphanumeric)
-                    </SelectItem>
-                    <SelectItem value="EAN13">EAN-13 (13 Digits)</SelectItem>
-                    <SelectItem value="UPCA">UPC-A (12 Digits)</SelectItem>
+                    {Object.entries(FORMAT_OPTIONS).map(([val, label]) => (
+                      <SelectItem key={val} value={val}>
+                        {label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -194,23 +218,21 @@ export default function BarcodesHubPage() {
               <Field>
                 <FieldLabel className="text-xs">Label Template</FieldLabel>
                 <Select
+                  items={TEMPLATE_OPTIONS}
                   value={template}
                   onValueChange={(val) => setTemplate(val as LabelTemplate)}
                 >
                   <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Select template" />
+                    <SelectValue placeholder="Select template">
+                      {(val) => TEMPLATE_OPTIONS[val as LabelTemplate] || val}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="STANDARD">
-                      Standard (2&quot; x 4&quot;)
-                    </SelectItem>
-                    <SelectItem value="COMPACT">
-                      Compact (1&quot; x 2&quot;)
-                    </SelectItem>
-                    <SelectItem value="DETAILED">
-                      Detailed (3&quot; x 4&quot;)
-                    </SelectItem>
-                    <SelectItem value="SHELF_BIN">Shelf Bin Tag</SelectItem>
+                    {Object.entries(TEMPLATE_OPTIONS).map(([val, label]) => (
+                      <SelectItem key={val} value={val}>
+                        {label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -229,11 +251,11 @@ export default function BarcodesHubPage() {
         </div>
 
         {/* Live Vector Label Preview */}
-        <div className="bg-card border border-border rounded-xl p-6 flex flex-col items-center justify-center space-y-4 shadow-xs min-h-[360px]">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="bg-card border border-border rounded-xl p-6 flex flex-col items-center justify-center space-y-4 shadow-xs min-h-[360px] print:border-0 print:bg-transparent print:p-6 print:shadow-none print:min-h-0 print:items-start">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider print:hidden">
             Live Label Template Preview
           </span>
-          <div className="p-4 bg-muted/20 border border-border rounded-xl flex items-center justify-center w-full">
+          <div className="p-4 bg-muted/20 border border-border rounded-xl flex items-center justify-center w-full print:border-0 print:bg-transparent print:p-0 print:justify-start">
             <LabelPreview
               label={sampleLabel}
               template={template}
@@ -244,7 +266,7 @@ export default function BarcodesHubPage() {
       </div>
 
       {/* Batch Print Launcher Grid */}
-      <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
+      <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs print:hidden">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
             <h3 className="text-base font-semibold text-foreground">

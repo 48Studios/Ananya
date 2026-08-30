@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
+  ExternalLink,
+  PackageCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -25,11 +27,16 @@ import {
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PurchaseOrderForm } from "@/components/purchase-orders/po-form";
+import { GoodsReceiptForm } from "@/components/goods-receipts/gr-form";
 import {
   purchaseOrdersApi,
   type PurchaseOrderDto,
 } from "@/lib/api/purchase-orders-api";
 import { suppliersApi, type SupplierDto } from "@/lib/api/suppliers-api";
+import {
+  getAutoTrackingUrl,
+  getShippingProviderName,
+} from "@/lib/shipping-carriers";
 
 export default function PurchaseOrdersPage() {
   const [orders, setOrders] = React.useState<PurchaseOrderDto[]>([]);
@@ -40,6 +47,9 @@ export default function PurchaseOrdersPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingPo, setEditingPo] = React.useState<PurchaseOrderDto | null>(
+    null,
+  );
+  const [receivingPo, setReceivingPo] = React.useState<PurchaseOrderDto | null>(
     null,
   );
   const [deletingPo, setDeletingPo] = React.useState<PurchaseOrderDto | null>(
@@ -206,11 +216,23 @@ export default function PurchaseOrdersPage() {
       {
         accessorKey: "grandTotal",
         header: "Grand Total",
-        cell: ({ row }) => (
-          <span className="font-mono text-xs font-semibold text-foreground">
-            {row.original.currency} {row.original.grandTotal.toFixed(2)}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const po = row.original;
+          let total = Number(po.grandTotal) || 0;
+          if (total === 0 && po.lines && po.lines.length > 0) {
+            total = po.lines.reduce((sum, l) => {
+              const base =
+                (Number(l.unitPrice) || 0) * (Number(l.quantityOrdered) || 0);
+              const tax = base * ((Number(l.taxRate) || 0) / 100);
+              return sum + base + tax;
+            }, 0);
+          }
+          return (
+            <span className="font-mono text-xs font-semibold text-foreground">
+              {po.currency} {total.toFixed(2)}
+            </span>
+          );
+        },
       },
       {
         accessorKey: "expectedDeliveryDate",
@@ -222,6 +244,48 @@ export default function PurchaseOrdersPage() {
               : "—"}
           </span>
         ),
+      },
+      {
+        accessorKey: "trackingNumber",
+        header: "Shipment / Tracking",
+        cell: ({ row }) => {
+          const po = row.original;
+          if (!po.trackingNumber) {
+            return <span className="text-xs text-muted-foreground">—</span>;
+          }
+          const providerName = getShippingProviderName(
+            po.shippingProvider || po.carrier,
+          );
+          const trackUrl = getAutoTrackingUrl(
+            po.shippingProvider || po.carrier,
+            po.trackingNumber,
+            po.trackingUrl,
+          );
+
+          return (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-medium text-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+                {providerName !== "—" ? providerName : "Courier"}
+              </span>
+              {trackUrl ? (
+                <a
+                  href={trackUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-xs text-primary hover:underline inline-flex items-center gap-0.5"
+                  title="Track shipment package"
+                >
+                  <span>{po.trackingNumber}</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              ) : (
+                <span className="font-mono text-xs text-muted-foreground">
+                  {po.trackingNumber}
+                </span>
+              )}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "createdAt",
@@ -238,6 +302,7 @@ export default function PurchaseOrdersPage() {
         cell: ({ row }) => {
           const po = row.original;
           const isDraft = po.status === "DRAFT";
+          const canEdit = po.status !== "CANCELLED";
           const canCancel = ![
             "FULFILLED",
             "CANCELLED",
@@ -254,27 +319,39 @@ export default function PurchaseOrdersPage() {
               </Link>
 
               {isDraft && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    title="Submit PO"
-                    onClick={() => handleSubmitPo(po)}
-                  >
-                    <Send className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    title="Edit draft PO"
-                    onClick={() => {
-                      setEditingPo(po);
-                      setIsFormOpen(true);
-                    }}
-                  >
-                    <Edit3 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-                  </Button>
-                </>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  title="Submit PO"
+                  onClick={() => handleSubmitPo(po)}
+                >
+                  <Send className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700" />
+                </Button>
+              )}
+
+              {po.status !== "CANCELLED" && po.status !== "FULFILLED" && (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  title="Receive Goods against PO"
+                  onClick={() => setReceivingPo(po)}
+                >
+                  <PackageCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700" />
+                </Button>
+              )}
+
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  title={isDraft ? "Edit PO" : "Edit tracking & delivery"}
+                  onClick={() => {
+                    setEditingPo(po);
+                    setIsFormOpen(true);
+                  }}
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                </Button>
               )}
 
               {canCancel && !isDraft && (
@@ -284,7 +361,7 @@ export default function PurchaseOrdersPage() {
                   title="Cancel PO"
                   onClick={() => setCancellingPo(po)}
                 >
-                  <Ban className="w-3.5 h-3.5 text-amber-500 hover:text-amber-600" />
+                  <Ban className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 hover:text-amber-700" />
                 </Button>
               )}
 
@@ -442,6 +519,33 @@ export default function PurchaseOrdersPage() {
             setEditingPo(null);
           }}
         />
+      </DialogShell>
+
+      {/* Receive Goods Dialog */}
+      <DialogShell
+        open={Boolean(receivingPo)}
+        onOpenChange={(open) => {
+          if (!open) setReceivingPo(null);
+        }}
+        title={`Receive Goods against ${receivingPo?.poNumber}`}
+        description="Process physical inventory receipt and post items to warehouse stock."
+        size="md"
+      >
+        {receivingPo && (
+          <GoodsReceiptForm
+            initialPo={receivingPo}
+            initialPurchaseOrderId={receivingPo.id}
+            onSuccess={(savedGr) => {
+              setReceivingPo(null);
+              setToastMessage(
+                `Goods receipt "${savedGr.grNumber}" processed successfully for ${receivingPo.poNumber}.`,
+              );
+              setTimeout(() => setToastMessage(null), 4000);
+              fetchOrders();
+            }}
+            onCancel={() => setReceivingPo(null)}
+          />
+        )}
       </DialogShell>
 
       {/* Cancel Dialog */}

@@ -23,7 +23,7 @@ export function LabelPreview({
   if (template === "COMPACT") {
     return (
       <div
-        className={`w-64 p-3 bg-white text-black border border-slate-300 rounded-md shadow-xs flex items-center justify-between gap-2 select-none print:shadow-none print:border-black ${className}`}
+        className={`w-64 p-3 bg-white text-black border border-slate-300 rounded-md shadow-xs flex items-center justify-between gap-2 select-none print:shadow-none print:border-black print:break-inside-avoid ${className}`}
       >
         <div className="space-y-0.5 min-w-0 flex-1">
           <p className="text-xs font-bold text-slate-900 truncate uppercase">
@@ -45,7 +45,7 @@ export function LabelPreview({
   if (template === "SHELF_BIN") {
     return (
       <div
-        className={`w-80 p-4 bg-white text-black border-2 border-slate-800 rounded-lg shadow-sm space-y-2 select-none print:shadow-none ${className}`}
+        className={`w-80 p-4 bg-white text-black border-2 border-slate-800 rounded-lg shadow-sm space-y-2 select-none print:shadow-none print:break-inside-avoid ${className}`}
       >
         <div className="flex items-center justify-between border-b border-slate-300 pb-2">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
@@ -77,7 +77,7 @@ export function LabelPreview({
   if (template === "DETAILED") {
     return (
       <div
-        className={`w-96 p-4 bg-white text-black border border-slate-400 rounded-lg shadow-xs space-y-3 select-none print:shadow-none ${className}`}
+        className={`w-96 p-4 bg-white text-black border border-slate-400 rounded-lg shadow-xs space-y-3 select-none print:shadow-none print:break-inside-avoid ${className}`}
       >
         <div className="flex items-start justify-between gap-2 border-b border-slate-200 pb-2">
           <div className="space-y-0.5">
@@ -113,7 +113,7 @@ export function LabelPreview({
   // Standard Template (Default)
   return (
     <div
-      className={`w-80 p-4 bg-white text-black border border-slate-300 rounded-lg shadow-xs space-y-3 select-none print:shadow-none ${className}`}
+      className={`w-80 p-4 bg-white text-black border border-slate-300 rounded-lg shadow-xs space-y-3 select-none print:shadow-none print:break-inside-avoid ${className}`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="space-y-1 min-w-0 flex-1">

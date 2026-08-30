@@ -16,6 +16,9 @@ import {
   FileText,
   CheckCircle2,
   Package,
+  Truck,
+  ExternalLink,
+  PackageCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -25,6 +28,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { PurchaseOrderForm } from "@/components/purchase-orders/po-form";
+import { GoodsReceiptForm } from "@/components/goods-receipts/gr-form";
 import {
   purchaseOrdersApi,
   type PurchaseOrderDto,
@@ -32,6 +36,10 @@ import {
 } from "@/lib/api/purchase-orders-api";
 import { suppliersApi, type SupplierDto } from "@/lib/api/suppliers-api";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
+import {
+  getAutoTrackingUrl,
+  getShippingProviderName,
+} from "@/lib/shipping-carriers";
 
 const statusSteps: PurchaseOrderStatus[] = [
   "DRAFT",
@@ -51,15 +59,51 @@ export default function ViewPurchaseOrderPage() {
   const [supplier, setSupplier] = React.useState<SupplierDto | null>(null);
   const [componentMap, setComponentMap] = React.useState<
     Record<string, ComponentDto>
-  >({});
+  >({} );
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
+  const [isReceiveOpen, setIsReceiveOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const [isCancelOpen, setIsCancelOpen] = React.useState(false);
   const [actionLoading, setActionLoading] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+
+  const financialTotals = React.useMemo(() => {
+    if (!po) return { subtotal: 0, taxTotal: 0, grandTotal: 0 };
+    const storedGrand = Number(po.grandTotal) || 0;
+    const storedSub = Number(po.subtotal) || 0;
+    const storedTax = Number(po.taxTotal) || 0;
+
+    if (
+      storedGrand > 0 ||
+      (storedSub > 0 && (!po.lines || po.lines.length === 0))
+    ) {
+      return {
+        subtotal: storedSub,
+        taxTotal: storedTax,
+        grandTotal: storedGrand || storedSub + storedTax,
+      };
+    }
+
+    let sub = 0;
+    let tax = 0;
+    for (const line of po.lines || []) {
+      const uPrice = Number(line.unitPrice) || 0;
+      const qOrd = Number(line.quantityOrdered) || 0;
+      const tRate = Number(line.taxRate) || 0;
+      const base = uPrice * qOrd;
+      const lineTax = base * (tRate / 100);
+      sub += base;
+      tax += lineTax;
+    }
+    return {
+      subtotal: sub,
+      taxTotal: tax,
+      grandTotal: sub + tax,
+    };
+  }, [po]);
 
   const fetchData = React.useCallback(async () => {
     if (!id) return;
@@ -205,25 +249,37 @@ export default function ViewPurchaseOrderPage() {
             </Button>
 
             {isDraft && (
-              <>
-                <Button
-                  size="sm"
-                  onClick={handleSubmit}
-                  disabled={actionLoading}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  <Send className="w-4 h-4 mr-1.5" />
-                  Submit PO
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditOpen(true)}
-                >
-                  <Edit3 className="w-4 h-4 mr-1.5" />
-                  Edit
-                </Button>
-              </>
+              <Button
+                size="sm"
+                onClick={handleSubmit}
+                disabled={actionLoading}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <Send className="w-4 h-4 mr-1.5" />
+                Submit PO
+              </Button>
+            )}
+
+            {po.status !== "CANCELLED" && po.status !== "FULFILLED" && (
+              <Button
+                size="sm"
+                onClick={() => setIsReceiveOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <PackageCheck className="w-4 h-4 mr-1.5" />
+                Receive Goods
+              </Button>
+            )}
+
+            {po.status !== "CANCELLED" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditOpen(true)}
+              >
+                <Edit3 className="w-4 h-4 mr-1.5" />
+                Edit
+              </Button>
             )}
 
             {canCancel && !isDraft && (
@@ -431,6 +487,50 @@ export default function ViewPurchaseOrderPage() {
                   : "—"}
               </dd>
             </div>
+
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Truck className="w-3.5 h-3.5" /> Shipping Provider
+              </dt>
+              <dd className="mt-1 text-xs text-foreground font-medium">
+                {getShippingProviderName(po.shippingProvider || po.carrier)}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground">
+                Tracking / AWB #
+              </dt>
+              <dd className="mt-1 text-xs font-mono text-foreground flex items-center gap-2">
+                {po.trackingNumber ? (
+                  <>
+                    <span className="font-semibold">{po.trackingNumber}</span>
+                    {(() => {
+                      const trackUrl = getAutoTrackingUrl(
+                        po.shippingProvider || po.carrier,
+                        po.trackingNumber,
+                        po.trackingUrl,
+                      );
+                      return trackUrl ? (
+                        <a
+                          href={trackUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-sans font-medium bg-primary/10 px-2 py-0.5 rounded"
+                        >
+                          <span>Track Shipment</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ) : null;
+                    })()}
+                  </>
+                ) : (
+                  <span className="text-muted-foreground font-sans">
+                    Unassigned
+                  </span>
+                )}
+              </dd>
+            </div>
           </dl>
 
           {po.notes && (
@@ -455,113 +555,141 @@ export default function ViewPurchaseOrderPage() {
           <h3 className="text-base font-semibold text-foreground">
             Financial Summary
           </h3>
-          <div className="space-y-3 font-mono text-sm">
-            <div className="flex justify-between items-center pb-2 border-b border-border text-muted-foreground">
-              <span>Subtotal:</span>
-              <span className="text-foreground">
-                {po.currency} {po.subtotal.toFixed(2)}
-              </span>
+          <dl className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground text-xs">Subtotal</dt>
+              <dd className="font-mono text-xs text-foreground">
+                {po.currency} {financialTotals.subtotal.toFixed(2)}
+              </dd>
             </div>
-            <div className="flex justify-between items-center pb-2 border-b border-border text-muted-foreground">
-              <span>Tax Total:</span>
-              <span className="text-foreground">
-                {po.currency} {po.taxTotal.toFixed(2)}
-              </span>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground text-xs">Tax Total</dt>
+              <dd className="font-mono text-xs text-foreground">
+                {po.currency} {financialTotals.taxTotal.toFixed(2)}
+              </dd>
             </div>
-            <div className="flex justify-between items-center pt-2 text-base font-bold text-foreground">
-              <span>Grand Total:</span>
-              <span className="text-primary">
-                {po.currency} {po.grandTotal.toFixed(2)}
-              </span>
+            <div className="pt-3 border-t border-border flex justify-between items-baseline">
+              <dt className="text-sm font-semibold text-foreground">
+                Grand Total
+              </dt>
+              <dd className="font-mono text-base font-bold text-foreground">
+                {po.currency} {financialTotals.grandTotal.toFixed(2)}
+              </dd>
             </div>
-          </div>
+          </dl>
         </div>
       </div>
 
       {/* Line Items Table Card */}
-      <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
-        <h3 className="text-base font-semibold text-foreground">
-          Line Items ({po.lines.length})
-        </h3>
-
-        {po.lines.length > 0 ? (
-          <div className="overflow-x-auto border border-border rounded-lg">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-muted/50 text-muted-foreground font-medium border-b border-border uppercase">
-                <tr>
-                  <th className="p-3">#</th>
-                  <th className="p-3">Component</th>
-                  <th className="p-3">Vendor Part #</th>
-                  <th className="p-3 text-right">Qty Ordered</th>
-                  <th className="p-3 text-right">Qty Received</th>
-                  <th className="p-3 text-right">Unit Price</th>
-                  <th className="p-3 text-right">Tax Rate</th>
-                  <th className="p-3 text-right">Line Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {po.lines.map((line, idx) => {
-                  const comp = componentMap[line.componentId];
-                  return (
-                    <tr
-                      key={line.id}
-                      className="hover:bg-muted/30 transition-colors"
-                    >
-                      <td className="p-3 text-muted-foreground font-mono">
-                        {idx + 1}
-                      </td>
-                      <td className="p-3">
-                        {comp ? (
-                          <Link
-                            href={`/components/${comp.id}`}
-                            className="font-medium text-foreground hover:underline"
-                          >
-                            {comp.name}{" "}
-                            <span className="font-mono text-muted-foreground text-[11px]">
-                              ({comp.sku})
-                            </span>
-                          </Link>
-                        ) : (
-                          <span className="font-mono">{line.componentId}</span>
-                        )}
-                      </td>
-                      <td className="p-3 font-mono text-muted-foreground">
-                        {line.vendorPartNumber || "—"}
-                      </td>
-                      <td className="p-3 text-right font-mono font-medium">
-                        {line.quantityOrdered}
-                      </td>
-                      <td className="p-3 text-right font-mono text-muted-foreground">
-                        {line.quantityReceived}
-                      </td>
-                      <td className="p-3 text-right font-mono">
-                        {po.currency} {line.unitPrice.toFixed(2)}
-                      </td>
-                      <td className="p-3 text-right font-mono text-muted-foreground">
-                        {line.taxRate}%
-                      </td>
-                      <td className="p-3 text-right font-mono font-bold text-foreground">
-                        {po.currency} {line.lineTotal.toFixed(2)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      <div className="bg-card border border-border rounded-xl shadow-xs overflow-hidden">
+        <div className="p-6 border-b border-border flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-foreground">
+              Ordered Component Lines
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Specific parts, target order quantities, and received totals.
+            </p>
           </div>
-        ) : (
-          <p className="text-xs text-muted-foreground italic">
-            No line items in this purchase order.
-          </p>
-        )}
+          <span className="text-xs font-mono text-muted-foreground">
+            {po.lines.length} items
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-muted/40 text-muted-foreground font-medium text-xs border-b border-border">
+              <tr>
+                <th className="px-6 py-3">Component / Part</th>
+                <th className="px-6 py-3">Vendor SKU</th>
+                <th className="px-6 py-3 text-right">Unit Price</th>
+                <th className="px-6 py-3 text-center">Ordered</th>
+                <th className="px-6 py-3 text-center">Received</th>
+                <th className="px-6 py-3 text-right">Tax Rate</th>
+                <th className="px-6 py-3 text-right">Line Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {po.lines.map((line) => {
+                const comp = componentMap[line.componentId];
+                const isFullyReceived =
+                  line.quantityReceived >= line.quantityOrdered;
+                return (
+                  <tr key={line.id} className="hover:bg-muted/20">
+                    <td className="px-6 py-3.5">
+                      <div className="font-medium text-foreground">
+                        {comp ? comp.name : line.componentId}
+                      </div>
+                      <div className="font-mono text-xs text-muted-foreground">
+                        {comp?.sku}
+                      </div>
+                    </td>
+                    <td className="px-6 py-3.5 font-mono text-xs text-muted-foreground">
+                      {line.vendorPartNumber || "—"}
+                    </td>
+                    <td className="px-6 py-3.5 font-mono text-xs text-right text-foreground">
+                      {po.currency} {line.unitPrice.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-3.5 font-mono text-xs text-center text-foreground font-medium">
+                      {line.quantityOrdered} {comp?.unit || "units"}
+                    </td>
+                    <td className="px-6 py-3.5 text-center">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 text-xs font-mono font-medium rounded-full ${
+                          isFullyReceived
+                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                            : line.quantityReceived > 0
+                              ? "bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                              : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {line.quantityReceived} / {line.quantityOrdered}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3.5 font-mono text-xs text-right text-muted-foreground">
+                      {line.taxRate}%
+                    </td>
+                    <td className="px-6 py-3.5 font-mono text-xs font-semibold text-right text-foreground">
+                      {po.currency} {line.lineTotal.toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* Receive Goods Modal */}
+      <DialogShell
+        open={isReceiveOpen}
+        onOpenChange={setIsReceiveOpen}
+        title={`Receive Goods against ${po.poNumber}`}
+        description={`Capture incoming shipment and stock line items into inventory storage locations.`}
+        size="md"
+        contentClassName="print:hidden"
+      >
+        <GoodsReceiptForm
+          initialPo={po}
+          initialPurchaseOrderId={po.id}
+          onSuccess={() => {
+            setIsReceiveOpen(false);
+            fetchData();
+            setToastMessage(
+              `Goods received and inventory stocked successfully for ${po.poNumber}.`,
+            );
+            setTimeout(() => setToastMessage(null), 4000);
+          }}
+          onCancel={() => setIsReceiveOpen(false)}
+        />
+      </DialogShell>
 
       {/* Edit Modal */}
       <DialogShell
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         title={`Edit Purchase Order (${po.poNumber})`}
-        description={`Revise purchase order "${po.poNumber}" using the shared procurement dialog layout.`}
+        description={`Revise purchase order "${po.poNumber}" commercial and tracking details.`}
         size="lg"
         contentClassName="print:hidden"
       >

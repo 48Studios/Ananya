@@ -1857,6 +1857,37 @@ export class ImportExportService {
       `[DATABASE COMMIT COMPLETED] Repository writes finished for ${canonicalEntity}. Total: ${rows.length}, Processed: ${processed}, Failed: ${errors.length}, Created Entities Tracked: ${createdEntities.length}`,
     );
 
+    // For PurchaseOrder imports: finalize subtotal, taxTotal, and grandTotal on purchaseOrders table
+    if (canonicalEntity === 'PurchaseOrder' && poMap.size > 0) {
+      for (const poId of poMap.values()) {
+        const poLines = await db
+          .select()
+          .from(purchaseOrderLines)
+          .where(eq(purchaseOrderLines.purchaseOrderId, poId));
+
+        let subtotal = 0;
+        let taxTotal = 0;
+        for (const pl of poLines) {
+          const base =
+            (parseFloat(pl.unitPrice) || 0) * (pl.quantityOrdered || 0);
+          const tax = base * ((parseFloat(pl.taxRate) || 0) / 100);
+          subtotal += base;
+          taxTotal += tax;
+        }
+        const grandTotal = subtotal + taxTotal;
+
+        await db
+          .update(purchaseOrders)
+          .set({
+            subtotal: subtotal.toFixed(4),
+            taxTotal: taxTotal.toFixed(4),
+            grandTotal: grandTotal.toFixed(4),
+            updatedAt: new Date(),
+          })
+          .where(eq(purchaseOrders.id, poId));
+      }
+    }
+
     // Update job record
     const finalStatus =
       errors.length === rows.length && rows.length > 0 ? 'FAILED' : 'COMPLETED';

@@ -25,10 +25,15 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ComponentForm } from "@/components/components/component-form";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
+import {
+  inventoryTransactionsApi,
+  type InventoryTransactionDto,
+} from "@/lib/api/inventory-transactions-api";
 
 export default function ComponentsPage() {
   const [components, setComponents] = React.useState<ComponentDto[]>([]);
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [stockMap, setStockMap] = React.useState<Record<string, number>>({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
@@ -44,12 +49,33 @@ export default function ComponentsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [comps, locs] = await Promise.all([
+      const [comps, locs, txs] = await Promise.all([
         componentsApi.getAll(),
         locationsApi.getAll().catch(() => []),
+        inventoryTransactionsApi.getAll().catch(() => []),
       ]);
       setComponents(comps);
       setLocations(locs);
+
+      const computedStock: Record<string, number> = {};
+      for (const tx of txs) {
+        const qty = Number(tx.quantity) || 0;
+        const current = computedStock[tx.componentId] ?? 0;
+        if (
+          ["Receipt", "Return", "Production", "InitialStock"].includes(
+            tx.transactionType,
+          )
+        ) {
+          computedStock[tx.componentId] = current + qty;
+        } else if (
+          ["Issue", "Consumption"].includes(tx.transactionType)
+        ) {
+          computedStock[tx.componentId] = current - qty;
+        } else if (tx.transactionType === "Adjustment") {
+          computedStock[tx.componentId] = current + qty;
+        }
+      }
+      setStockMap(computedStock);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -151,6 +177,24 @@ export default function ComponentsPage() {
             {row.original.unit}
           </span>
         ),
+      },
+      {
+        id: "stockOnHand",
+        header: "Stock On Hand",
+        cell: ({ row }) => {
+          const qty = stockMap[row.original.id] || 0;
+          return (
+            <span
+              className={`font-mono text-xs font-semibold px-2 py-0.5 rounded ${
+                qty > 0
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {qty} {row.original.unit}
+            </span>
+          );
+        },
       },
       {
         accessorKey: "defaultLocationId",

@@ -48,6 +48,22 @@ export class CreatePurchaseOrderDto {
   @IsOptional()
   expectedDeliveryDate?: string;
 
+  @IsString()
+  @IsOptional()
+  trackingNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  carrier?: string;
+
+  @IsString()
+  @IsOptional()
+  shippingProvider?: string;
+
+  @IsString()
+  @IsOptional()
+  trackingUrl?: string;
+
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
@@ -63,6 +79,22 @@ export class UpdatePurchaseOrderDto {
   @IsDateString()
   @IsOptional()
   expectedDeliveryDate?: string;
+
+  @IsString()
+  @IsOptional()
+  trackingNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  carrier?: string;
+
+  @IsString()
+  @IsOptional()
+  shippingProvider?: string;
+
+  @IsString()
+  @IsOptional()
+  trackingUrl?: string;
 
   @IsOptional()
   @IsArray()

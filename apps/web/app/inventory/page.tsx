@@ -22,24 +22,50 @@ import {
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
+import {
+  inventoryTransactionsApi,
+  type InventoryTransactionDto,
+} from "@/lib/api/inventory-transactions-api";
 
 export default function InventoryPage() {
   const [components, setComponents] = React.useState<ComponentDto[]>([]);
   const [categories, setCategories] = React.useState<CategoryDto[]>([]);
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [stockMap, setStockMap] = React.useState<Record<string, number>>({});
   const [loading, setLoading] = React.useState(true);
 
   const fetchData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [comps, cats, locs] = await Promise.all([
+      const [comps, cats, locs, txs] = await Promise.all([
         componentsApi.getAll(),
         categoriesApi.getAll().catch(() => []),
         locationsApi.getAll().catch(() => []),
+        inventoryTransactionsApi.getAll().catch(() => []),
       ]);
       setComponents(comps);
       setCategories(cats);
       setLocations(locs);
+
+      const computedStock: Record<string, number> = {};
+      for (const tx of txs) {
+        const qty = Number(tx.quantity) || 0;
+        const current = computedStock[tx.componentId] ?? 0;
+        if (
+          ["Receipt", "Return", "Production", "InitialStock"].includes(
+            tx.transactionType,
+          )
+        ) {
+          computedStock[tx.componentId] = current + qty;
+        } else if (
+          ["Issue", "Consumption"].includes(tx.transactionType)
+        ) {
+          computedStock[tx.componentId] = current - qty;
+        } else if (tx.transactionType === "Adjustment") {
+          computedStock[tx.componentId] = current + qty;
+        }
+      }
+      setStockMap(computedStock);
     } catch {
       // ignore
     } finally {
@@ -112,6 +138,24 @@ export default function InventoryPage() {
         },
       },
       {
+        id: "stockOnHand",
+        header: "Stock On Hand",
+        cell: ({ row }) => {
+          const qty = stockMap[row.original.id] || 0;
+          return (
+            <span
+              className={`font-mono text-xs font-semibold px-2 py-0.5 rounded ${
+                qty > 0
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {qty} {row.original.unit}
+            </span>
+          );
+        },
+      },
+      {
         accessorKey: "defaultLocationId",
         header: "Default Location",
         cell: ({ row }) => {
@@ -164,7 +208,7 @@ export default function InventoryPage() {
         ),
       },
     ],
-    [categoryMap, locationMap],
+    [categoryMap, locationMap, stockMap],
   );
 
   const filterConfigs: FilterConfig[] = React.useMemo(
@@ -179,6 +223,7 @@ export default function InventoryPage() {
   );
 
   const activeItemsCount = components.filter((c) => c.isActive).length;
+  const totalStockUnits = Object.values(stockMap).reduce((s, v) => s + v, 0);
 
   return (
     <div className="space-y-6">
@@ -216,9 +261,9 @@ export default function InventoryPage() {
           icon={Boxes}
         />
         <StatCard
-          title="Active SKUs"
-          value={loading ? "..." : activeItemsCount}
-          subtitle="Active inventory items"
+          title="Total Stock Units"
+          value={loading ? "..." : totalStockUnits}
+          subtitle="In warehouse inventory"
           icon={Package}
         />
         <StatCard

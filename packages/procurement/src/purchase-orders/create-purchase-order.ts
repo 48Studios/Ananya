@@ -25,6 +25,10 @@ export class CreatePurchaseOrder {
       currency: input.currency,
       notes: input.notes,
       expectedDeliveryDate: input.expectedDeliveryDate,
+      trackingNumber: input.trackingNumber,
+      carrier: input.carrier,
+      shippingProvider: input.shippingProvider,
+      trackingUrl: input.trackingUrl,
     });
 
     if (input.lines && input.lines.length > 0) {

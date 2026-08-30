@@ -16,31 +16,61 @@ function toDomain(
   row: PurchaseOrderRecord,
   lines: PurchaseOrderLineRecord[] = [],
 ): PurchaseOrder {
+  const mappedLines = lines.map((l) => {
+    const uPrice = parseFloat(l.unitPrice) || 0;
+    const qOrdered = l.quantityOrdered || 0;
+    const tRate = parseFloat(l.taxRate) || 0;
+    const lTotal =
+      parseFloat(l.lineTotal) || uPrice * qOrdered * (1 + tRate / 100);
+
+    return {
+      id: l.id,
+      purchaseOrderId: l.purchaseOrderId,
+      componentId: l.componentId,
+      vendorPartNumber: l.vendorPartNumber,
+      unitPrice: uPrice,
+      quantityOrdered: qOrdered,
+      quantityReceived: l.quantityReceived || 0,
+      taxRate: tRate,
+      lineTotal: lTotal,
+      createdAt: l.createdAt,
+      updatedAt: l.updatedAt,
+    };
+  });
+
+  let subtotal = parseFloat(row.subtotal) || 0;
+  let taxTotal = parseFloat(row.taxTotal) || 0;
+  let grandTotal = parseFloat(row.grandTotal) || 0;
+
+  if (grandTotal === 0 && mappedLines.length > 0) {
+    subtotal = 0;
+    taxTotal = 0;
+    for (const line of mappedLines) {
+      const base = line.unitPrice * line.quantityOrdered;
+      const tax = base * (line.taxRate / 100);
+      subtotal += base;
+      taxTotal += tax;
+    }
+    grandTotal = subtotal + taxTotal;
+  }
+
   return PurchaseOrder.rehydrate({
     id: row.id,
     poNumber: row.poNumber,
     supplierId: row.supplierId,
     status: row.status as PurchaseOrderStatus,
     currency: row.currency,
-    subtotal: parseFloat(row.subtotal),
-    taxTotal: parseFloat(row.taxTotal),
-    grandTotal: parseFloat(row.grandTotal),
+    subtotal,
+    taxTotal,
+    grandTotal,
     notes: row.notes,
     issuedAt: row.issuedAt,
     expectedDeliveryDate: row.expectedDeliveryDate,
-    lines: lines.map((l) => ({
-      id: l.id,
-      purchaseOrderId: l.purchaseOrderId,
-      componentId: l.componentId,
-      vendorPartNumber: l.vendorPartNumber,
-      unitPrice: parseFloat(l.unitPrice),
-      quantityOrdered: l.quantityOrdered,
-      quantityReceived: l.quantityReceived,
-      taxRate: parseFloat(l.taxRate),
-      lineTotal: parseFloat(l.lineTotal),
-      createdAt: l.createdAt,
-      updatedAt: l.updatedAt,
-    })),
+    trackingNumber: row.trackingNumber,
+    carrier: row.carrier,
+    shippingProvider: row.shippingProvider,
+    trackingUrl: row.trackingUrl,
+    lines: mappedLines,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
@@ -125,6 +155,10 @@ export class DrizzlePurchaseOrderRepository implements PurchaseOrderRepository {
         notes: po.notes ?? null,
         issuedAt: po.issuedAt ?? null,
         expectedDeliveryDate: po.expectedDeliveryDate ?? null,
+        trackingNumber: po.trackingNumber ?? null,
+        carrier: po.carrier ?? null,
+        shippingProvider: po.shippingProvider ?? null,
+        trackingUrl: po.trackingUrl ?? null,
       })
       .onConflictDoUpdate({
         target: purchaseOrders.id,
@@ -136,27 +170,42 @@ export class DrizzlePurchaseOrderRepository implements PurchaseOrderRepository {
           notes: po.notes ?? null,
           issuedAt: po.issuedAt ?? null,
           expectedDeliveryDate: po.expectedDeliveryDate ?? null,
+          trackingNumber: po.trackingNumber ?? null,
+          carrier: po.carrier ?? null,
+          shippingProvider: po.shippingProvider ?? null,
+          trackingUrl: po.trackingUrl ?? null,
           updatedAt: new Date(),
         },
       });
 
-    // Synchronize lines: delete existing and insert new
-    await db
-      .delete(purchaseOrderLines)
-      .where(eq(purchaseOrderLines.purchaseOrderId, po.id));
-
+    // Safely upsert lines
     for (const line of po.lines) {
-      await db.insert(purchaseOrderLines).values({
-        id: line.id,
-        purchaseOrderId: po.id,
-        componentId: line.componentId,
-        vendorPartNumber: line.vendorPartNumber ?? null,
-        unitPrice: line.unitPrice.toString(),
-        quantityOrdered: line.quantityOrdered,
-        quantityReceived: line.quantityReceived,
-        taxRate: line.taxRate.toString(),
-        lineTotal: line.lineTotal.toString(),
-      });
+      await db
+        .insert(purchaseOrderLines)
+        .values({
+          id: line.id,
+          purchaseOrderId: po.id,
+          componentId: line.componentId,
+          vendorPartNumber: line.vendorPartNumber ?? null,
+          unitPrice: line.unitPrice.toString(),
+          quantityOrdered: line.quantityOrdered,
+          quantityReceived: line.quantityReceived,
+          taxRate: line.taxRate.toString(),
+          lineTotal: line.lineTotal.toString(),
+        })
+        .onConflictDoUpdate({
+          target: purchaseOrderLines.id,
+          set: {
+            componentId: line.componentId,
+            vendorPartNumber: line.vendorPartNumber ?? null,
+            unitPrice: line.unitPrice.toString(),
+            quantityOrdered: line.quantityOrdered,
+            quantityReceived: line.quantityReceived,
+            taxRate: line.taxRate.toString(),
+            lineTotal: line.lineTotal.toString(),
+            updatedAt: new Date(),
+          },
+        });
     }
   }
 

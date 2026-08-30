@@ -12,6 +12,7 @@ import {
   MapPin,
   Activity,
   CheckCircle2,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -23,6 +24,14 @@ import { ErrorState } from "@/components/ui/error-state";
 import { ComponentForm } from "@/components/components/component-form";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
+import {
+  inventoryProjectionsApi,
+  type InventoryProjectionDto,
+} from "@/lib/api/inventory-projections-api";
+import {
+  inventoryTransactionsApi,
+  type InventoryTransactionDto,
+} from "@/lib/api/inventory-transactions-api";
 
 export default function ViewComponentPage() {
   const params = useParams();
@@ -32,6 +41,13 @@ export default function ViewComponentPage() {
   const [component, setComponent] = React.useState<ComponentDto | null>(null);
   const [defaultLocation, setDefaultLocation] =
     React.useState<LocationDto | null>(null);
+  const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [projections, setProjections] = React.useState<
+    InventoryProjectionDto[]
+  >([]);
+  const [transactions, setTransactions] = React.useState<
+    InventoryTransactionDto[]
+  >([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
@@ -45,14 +61,22 @@ export default function ViewComponentPage() {
     setLoading(true);
     setError(null);
     try {
-      const comp = await componentsApi.getById(id);
+      const [comp, compProjections, compTransactions, allLocs] =
+        await Promise.all([
+          componentsApi.getById(id),
+          inventoryProjectionsApi.getByComponent(id).catch(() => []),
+          inventoryTransactionsApi.getAll({ componentId: id }).catch(() => []),
+          locationsApi.getAll().catch(() => []),
+        ]);
+
       setComponent(comp);
+      setProjections(compProjections);
+      setTransactions(compTransactions);
+      setLocations(allLocs);
 
       if (comp.defaultLocationId) {
-        locationsApi
-          .getById(comp.defaultLocationId)
-          .then(setDefaultLocation)
-          .catch(() => setDefaultLocation(null));
+        const foundDef = allLocs.find((l) => l.id === comp.defaultLocationId);
+        setDefaultLocation(foundDef || null);
       } else {
         setDefaultLocation(null);
       }
@@ -70,6 +94,43 @@ export default function ViewComponentPage() {
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const locationMap = React.useMemo(() => {
+    const map = new Map<string, LocationDto>();
+    for (const loc of locations) {
+      map.set(loc.id, loc);
+    }
+    return map;
+  }, [locations]);
+
+  const currentStock = React.useMemo(() => {
+    if (projections.length > 0) {
+      return projections.reduce((sum, p) => sum + Number(p.quantity), 0);
+    }
+    // Fallback compute directly from transaction history if projections haven't built yet
+    if (transactions.length > 0) {
+      return transactions.reduce((sum, tx) => {
+        const qty = Number(tx.quantity) || 0;
+        if (
+          ["Receipt", "Return", "Production", "InitialStock"].includes(
+            tx.transactionType,
+          )
+        ) {
+          return sum + qty;
+        } else if (
+          ["Issue", "Consumption"].includes(tx.transactionType)
+        ) {
+          return sum - qty;
+        } else if (tx.transactionType === "Adjustment") {
+          return sum + qty;
+        }
+        return sum;
+      }, 0);
+    }
+    return 0;
+  }, [projections, transactions]);
+
+  const availableStock = currentStock;
 
   const handleDelete = async () => {
     if (!id) return;
@@ -165,37 +226,37 @@ export default function ViewComponentPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatCard
           title="Current Stock"
-          value="0"
-          subtitle={`Unit: ${component.unit}`}
+          value={`${currentStock} ${component.unit}`}
+          subtitle="On-hand ledger total"
           icon={Package}
         />
         <StatCard
           title="Reserved"
-          value="0"
+          value={`0 ${component.unit}`}
           subtitle="Allocated orders"
           icon={Layers}
         />
         <StatCard
           title="Available"
-          value="0"
-          subtitle="Net downloadable"
+          value={`${availableStock} ${component.unit}`}
+          subtitle="Net unallocated stock"
           icon={Package}
         />
         <StatCard
           title="Reorder Level"
-          value="10"
+          value={`10 ${component.unit}`}
           subtitle="Safety threshold"
           icon={Activity}
         />
         <StatCard
           title="Min Stock"
-          value="5"
+          value={`5 ${component.unit}`}
           subtitle="Floor balance"
           icon={Activity}
         />
         <StatCard
           title="Max Stock"
-          value="100"
+          value={`100 ${component.unit}`}
           subtitle="Ceiling limit"
           icon={Activity}
         />
@@ -302,16 +363,49 @@ export default function ViewComponentPage() {
 
         {/* Location & Recent Activity Card */}
         <div className="space-y-6">
-          {/* Storage Assignment */}
+          {/* Storage Assignment & Breakdown */}
           <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-foreground">
-                Default Storage
+                Storage Stock Balances
               </h3>
               <MapPin className="w-4 h-4 text-muted-foreground" />
             </div>
 
-            {defaultLocation ? (
+            {projections.length > 0 ? (
+              <div className="space-y-2">
+                {projections.map((proj) => {
+                  const loc = locationMap.get(proj.locationId);
+                  return (
+                    <div
+                      key={proj.id}
+                      className="flex items-center justify-between p-3 bg-muted/30 border border-border rounded-lg"
+                    >
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs font-semibold text-foreground">
+                            {loc ? loc.code : proj.locationId}
+                          </span>
+                          {loc && (
+                            <span className="text-[10px] capitalize px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
+                              {loc.kind}
+                            </span>
+                          )}
+                        </div>
+                        {loc && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {loc.name}
+                          </p>
+                        )}
+                      </div>
+                      <span className="font-mono text-sm font-bold text-foreground">
+                        {proj.quantity} {component.unit}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : defaultLocation ? (
               <div className="space-y-2 p-3 bg-muted/30 border border-border rounded-lg">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs font-semibold text-foreground">
@@ -324,33 +418,124 @@ export default function ViewComponentPage() {
                 <p className="text-sm font-medium text-foreground">
                   {defaultLocation.name}
                 </p>
-                <Link href={`/locations/${defaultLocation.id}`}>
-                  <Button
-                    variant="link"
-                    size="xs"
-                    className="px-0 text-primary"
-                  >
-                    View Storage Location →
-                  </Button>
-                </Link>
+                <div className="flex justify-between items-center pt-2 border-t border-border/60 text-xs">
+                  <span className="text-muted-foreground">Stock On Hand:</span>
+                  <span className="font-mono font-bold text-foreground">
+                    {currentStock} {component.unit}
+                  </span>
+                </div>
               </div>
             ) : (
               <p className="text-xs text-muted-foreground italic">
-                No default storage location assigned to this component.
+                No stock stored in warehouse locations yet.
               </p>
             )}
           </div>
-
-          {/* Recent Inventory Transactions Placeholder */}
-          <div className="bg-card border border-border rounded-xl p-6 space-y-3 shadow-xs">
-            <h3 className="text-base font-semibold text-foreground">
-              Recent Transactions
-            </h3>
-            <div className="p-4 border border-dashed border-border rounded-lg text-center text-xs text-muted-foreground">
-              No inventory movements recorded yet.
-            </div>
-          </div>
         </div>
+      </div>
+
+      {/* Transaction Movement Ledger Card */}
+      <div className="bg-card border border-border rounded-xl shadow-xs overflow-hidden">
+        <div className="p-6 border-b border-border flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+              <History className="w-4 h-4 text-muted-foreground" />
+              Inventory Transaction Ledger
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Auditable movement history posted to the inventory ledger.
+            </p>
+          </div>
+          <span className="text-xs font-mono text-muted-foreground">
+            {transactions.length} movements
+          </span>
+        </div>
+
+        {transactions.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-muted/40 text-muted-foreground font-medium text-xs border-b border-border">
+                <tr>
+                  <th className="px-6 py-3">Date</th>
+                  <th className="px-6 py-3">Type</th>
+                  <th className="px-6 py-3 text-right">Quantity</th>
+                  <th className="px-6 py-3">Location</th>
+                  <th className="px-6 py-3">Reference / Reason</th>
+                  <th className="px-6 py-3">Created By</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {transactions.map((tx) => {
+                  const targetLoc = tx.destinationLocationId
+                    ? locationMap.get(tx.destinationLocationId)
+                    : tx.sourceLocationId
+                      ? locationMap.get(tx.sourceLocationId)
+                      : null;
+
+                  const isPositive = [
+                    "Receipt",
+                    "Return",
+                    "Production",
+                    "InitialStock",
+                  ].includes(tx.transactionType);
+
+                  return (
+                    <tr key={tx.id} className="hover:bg-muted/20">
+                      <td className="px-6 py-3.5 text-xs text-muted-foreground font-mono">
+                        {new Date(tx.createdAt).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+                            tx.transactionType === "Receipt"
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                              : tx.transactionType === "Issue"
+                                ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                                : "bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                          }`}
+                        >
+                          {tx.transactionType}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3.5 text-right font-mono text-xs font-bold">
+                        <span
+                          className={
+                            isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
+                          }
+                        >
+                          {isPositive ? "+" : ""}
+                          {tx.quantity} {tx.unitOfMeasure || component.unit}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3.5 text-xs text-foreground font-mono">
+                        {targetLoc
+                          ? `${targetLoc.code} (${targetLoc.name})`
+                          : "—"}
+                      </td>
+                      <td className="px-6 py-3.5 text-xs">
+                        <div className="font-mono text-foreground font-medium">
+                          {tx.reference || "—"}
+                        </div>
+                        {tx.reason && (
+                          <div className="text-[11px] text-muted-foreground">
+                            {tx.reason}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-3.5 text-xs text-muted-foreground">
+                        {tx.createdBy}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-8 text-center text-xs text-muted-foreground italic">
+            No inventory transactions recorded for this component yet.
+          </div>
+        )}
       </div>
 
       {/* Edit Form Modal */}

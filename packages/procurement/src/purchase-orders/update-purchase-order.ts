@@ -26,9 +26,13 @@ export class UpdatePurchaseOrder {
     existing.updateHeader({
       notes: input.notes,
       expectedDeliveryDate: input.expectedDeliveryDate,
+      trackingNumber: input.trackingNumber,
+      carrier: input.carrier,
+      shippingProvider: input.shippingProvider,
+      trackingUrl: input.trackingUrl,
     });
 
-    if (input.lines !== undefined) {
+    if (input.lines !== undefined && existing.status === "DRAFT") {
       existing.clearLines();
       for (const line of input.lines) {
         existing.addLine(line);

@@ -25,6 +25,20 @@ import {
   BarcodeFormat,
 } from "@/lib/api/barcodes-api";
 
+const TEMPLATE_OPTIONS: Record<LabelTemplate, string> = {
+  STANDARD: 'Standard (2" x 4")',
+  COMPACT: 'Compact (1" x 2")',
+  DETAILED: 'Detailed (3" x 4")',
+  SHELF_BIN: "Shelf Bin Tag",
+};
+
+const FORMAT_OPTIONS: Record<BarcodeFormat, string> = {
+  CODE128: "Code 128 (High Density)",
+  CODE39: "Code 39 (Standard Alphanumeric)",
+  EAN13: "EAN-13 (13 Digits)",
+  UPCA: "UPC-A (12 Digits)",
+};
+
 export interface BatchPrintDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -84,73 +98,81 @@ export function BatchPrintDialog({
       description={`Review and print ${entityIds.length} ${entityType.toLowerCase()} label(s) with standardized barcode output settings.`}
       size="lg"
     >
-      <DialogShellBody className="space-y-4">
-        <div className="flex items-center gap-2 text-primary">
+      <DialogShellBody className="space-y-4 print:p-0 print:overflow-visible">
+        <div className="flex items-center gap-2 text-primary print:hidden">
           <Printer className="size-5" />
           <span className="text-sm font-medium text-foreground">
             Printing {entityIds.length} {entityType.toLowerCase()} label(s)
           </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-2 print:hidden">
           <Field>
             <FieldLabel className="text-xs">Label Template</FieldLabel>
             <Select
+              items={TEMPLATE_OPTIONS}
               value={template}
               onValueChange={(val) => setTemplate(val as LabelTemplate)}
             >
               <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Select template" />
+                <SelectValue placeholder="Select template">
+                  {(val) => TEMPLATE_OPTIONS[val as LabelTemplate] || val}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="STANDARD">
-                  Standard (2&quot; x 4&quot;)
-                </SelectItem>
-                <SelectItem value="COMPACT">
-                  Compact (1&quot; x 2&quot;)
-                </SelectItem>
-                <SelectItem value="DETAILED">
-                  Detailed (3&quot; x 4&quot;)
-                </SelectItem>
-                <SelectItem value="SHELF_BIN">Shelf Bin Tag</SelectItem>
+                {Object.entries(TEMPLATE_OPTIONS).map(([val, label]) => (
+                  <SelectItem key={val} value={val}>
+                    {label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Field>
 
           <Field>
-            <FieldLabel className="text-xs">Barcode Format</FieldLabel>
+            <FieldLabel className="text-xs">
+              Barcode Format
+              {(template === "COMPACT" || template === "SHELF_BIN") && (
+                <span className="text-[10px] text-muted-foreground font-normal ml-1">
+                  (QR-only template)
+                </span>
+              )}
+            </FieldLabel>
             <Select
+              items={FORMAT_OPTIONS}
               value={format}
+              disabled={template === "COMPACT" || template === "SHELF_BIN"}
               onValueChange={(val) => setFormat(val as BarcodeFormat)}
             >
               <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Select format" />
+                <SelectValue placeholder="Select format">
+                  {(val) => FORMAT_OPTIONS[val as BarcodeFormat] || val}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="CODE128">Code 128 (High Density)</SelectItem>
-                <SelectItem value="CODE39">
-                  Code 39 (Standard Alphanumeric)
-                </SelectItem>
-                <SelectItem value="EAN13">EAN-13 (13 Digits)</SelectItem>
-                <SelectItem value="UPCA">UPC-A (12 Digits)</SelectItem>
+                {Object.entries(FORMAT_OPTIONS).map(([val, label]) => (
+                  <SelectItem key={val} value={val}>
+                    {label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Field>
         </div>
 
-        <div className="min-h-[300px] rounded-xl border border-border bg-muted/10 p-4">
+        <div className="min-h-[300px] rounded-xl border border-border bg-muted/10 p-4 print:min-h-0 print:border-0 print:bg-transparent print:p-0">
           {loading ? (
-            <div className="h-full flex items-center justify-center p-8 text-xs text-muted-foreground">
+            <div className="h-full flex items-center justify-center p-8 text-xs text-muted-foreground print:hidden">
               <Loader2 className="w-4 h-4 mr-2 animate-spin text-primary" />
               Generating barcode & QR label queue...
             </div>
           ) : error ? (
-            <div className="p-4 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2">
+            <div className="p-4 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2 print:hidden">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-4 justify-center">
+            <div className="flex flex-wrap gap-4 justify-center print:gap-4 print:justify-start">
               {labels.map((lbl) => (
                 <LabelPreview
                   key={lbl.id}
@@ -163,7 +185,7 @@ export function BatchPrintDialog({
           )}
         </div>
       </DialogShellBody>
-      <DialogShellFooter>
+      <DialogShellFooter className="print:hidden">
         <span className="mr-auto text-xs font-mono text-muted-foreground">
           Ready to print {labels.length} label(s)
         </span>

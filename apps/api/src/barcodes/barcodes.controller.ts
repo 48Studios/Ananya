@@ -4,18 +4,51 @@ import {
   Post,
   Body,
   Query,
-  BadRequestException,
 } from '@nestjs/common';
-import { BarcodesService, EntityType } from './barcodes.service';
+import {
+  IsString,
+  IsNotEmpty,
+  IsArray,
+  ArrayNotEmpty,
+  IsIn,
+} from 'class-validator';
+import {
+  BarcodesService,
+  type EntityType,
+  ENTITY_TYPES,
+} from './barcodes.service';
 
 export class GenerateBarcodeDto {
+  @IsIn(ENTITY_TYPES, {
+    message:
+      'entityType must be one of: COMPONENT, LOCATION, WORK_ORDER, PURCHASE_ORDER, PROJECT',
+  })
+  @IsNotEmpty()
   entityType!: EntityType;
+
+  @IsString()
+  @IsNotEmpty()
   entityId!: string;
 }
 
 export class BatchLabelsDto {
+  @IsIn(ENTITY_TYPES, {
+    message:
+      'entityType must be one of: COMPONENT, LOCATION, WORK_ORDER, PURCHASE_ORDER, PROJECT',
+  })
+  @IsNotEmpty()
   entityType!: EntityType;
+
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
   ids!: string[];
+}
+
+export class BarcodeLookupQueryDto {
+  @IsString()
+  @IsNotEmpty()
+  code!: string;
 }
 
 @Controller('barcodes')
@@ -23,18 +56,12 @@ export class BarcodesController {
   constructor(private readonly barcodesService: BarcodesService) {}
 
   @Get('lookup')
-  lookup(@Query('code') code: string) {
-    if (!code) {
-      throw new BadRequestException('Query parameter "code" is required.');
-    }
-    return this.barcodesService.lookup(code);
+  lookup(@Query() query: BarcodeLookupQueryDto) {
+    return this.barcodesService.lookup(query.code);
   }
 
   @Post('generate')
   generate(@Body() dto: GenerateBarcodeDto) {
-    if (!dto.entityType || !dto.entityId) {
-      throw new BadRequestException('entityType and entityId are required.');
-    }
     return this.barcodesService.generateBarcodePayload(
       dto.entityType,
       dto.entityId,
@@ -43,11 +70,7 @@ export class BarcodesController {
 
   @Post('batch-labels')
   getBatchLabels(@Body() dto: BatchLabelsDto) {
-    if (!dto.entityType || !Array.isArray(dto.ids) || dto.ids.length === 0) {
-      throw new BadRequestException(
-        'entityType and non-empty ids array are required.',
-      );
-    }
     return this.barcodesService.getBatchLabels(dto.entityType, dto.ids);
   }
 }
+
