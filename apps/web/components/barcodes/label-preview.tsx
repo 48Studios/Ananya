@@ -57,11 +57,15 @@ export function LabelPreview({
   }
 
   if (template === "SHELF_BIN") {
-    const locationDisplay =
-      label.attribute1 ||
-      (label.entityType === "LOCATION"
-        ? label.title
-        : label.subtitle || "SHELF / BIN STORAGE");
+    let locationText = "";
+    if (label.attribute1) {
+      locationText = label.attribute1;
+    } else if (label.entityType === "LOCATION") {
+      locationText = label.title;
+    } else {
+      locationText = "STORAGE LOCATION";
+    }
+    const locationDisplay = cleanSubtitle(locationText).toUpperCase();
 
     return (
       <div
@@ -94,9 +98,9 @@ export function LabelPreview({
   if (template === "DETAILED") {
     return (
       <div
-        className={`w-96 p-4 bg-white text-black border border-slate-400 rounded-lg shadow-xs space-y-3 select-none print:shadow-none print:break-inside-avoid ${className}`}
+        className={`w-96 p-4 bg-white text-black border border-slate-400 rounded-lg shadow-xs gap-2 select-none print:shadow-none print:break-inside-avoid ${className}`}
       >
-        <div className="flex items-start justify-between gap-2 border-b border-slate-200 pb-2">
+        <div className="flex items-start justify-between gap-2 border-b border-slate-200">
           <div className="space-y-0.5">
             <h4 className="text-sm font-extrabold text-slate-900 leading-snug">
               {label.title}
@@ -112,7 +116,7 @@ export function LabelPreview({
           />
         </div>
 
-        <div className="flex flex-col items-center justify-center pt-1">
+        <div className="flex flex-col items-center justify-center mb-3">
           <BarcodeViewer
             value={label.primaryCode}
             format={format}
@@ -132,9 +136,9 @@ export function LabelPreview({
   // Standard Template (Default)
   return (
     <div
-      className={`w-80 p-4 bg-white text-black border border-slate-300 rounded-lg shadow-xs space-y-3 select-none print:shadow-none print:break-inside-avoid ${className}`}
+      className={`w-80 p-4 bg-white text-black border border-slate-300 rounded-lg shadow-xs space-y-2 select-none print:shadow-none print:break-inside-avoid ${className}`}
     >
-      <div className="flex items-start justify-between gap-2 border-b border-slate-200 pb-2">
+      <div className="flex items-start justify-between gap-2 border-b border-slate-200 m-0">
         <div className="space-y-1 min-w-0 flex-1">
           <h4 className="text-xs font-bold text-slate-900 truncate">
             {label.title}
@@ -150,7 +154,7 @@ export function LabelPreview({
         />
       </div>
 
-      <div className="flex flex-col items-center justify-center pt-1">
+      <div className="flex flex-col items-center justify-center">
         <BarcodeViewer
           value={label.primaryCode}
           format={format}

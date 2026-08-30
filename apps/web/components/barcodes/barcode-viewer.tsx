@@ -273,7 +273,7 @@ export function BarcodeViewer({
 
   return (
     <div
-      className={`inline-flex flex-col items-center select-none bg-white p-1 rounded ${className}`}
+      className={`inline-flex flex-col items-center select-none bg-white rounded ${className}`}
     >
       <svg
         width="100%"

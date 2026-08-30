@@ -6,6 +6,7 @@ import {
   purchaseOrders,
   productionOrders,
   projects,
+  inventoryProjections,
 } from '@ananya/database/schema';
 import { eq, or, ilike } from '@ananya/database/query';
 
@@ -164,7 +165,7 @@ export class BarcodesService {
       code: loc.code,
       qrPayload: `ANANYA:V1:LOCATION:${loc.id}`,
       name: loc.name,
-      subtitle: `Code: ${loc.code} | Kind: ${loc.kind}`,
+      subtitle: loc.code,
       targetUrl: `/locations/${loc.id}`,
       details: {
         code: loc.code,
@@ -324,13 +325,21 @@ export class BarcodesService {
     let locationPath: string | undefined;
     if (entityType === 'LOCATION') {
       locationPath = await this.getLocationPath(result.entityId);
-    } else if (
-      entityType === 'COMPONENT' &&
-      (result.details.defaultLocationId as string | undefined)
-    ) {
-      locationPath = await this.getLocationPath(
-        result.details.defaultLocationId as string,
-      );
+    } else if (entityType === 'COMPONENT') {
+      let locId = result.details.defaultLocationId as string | undefined;
+      if (!locId) {
+        const [proj] = await db
+          .select({ locationId: inventoryProjections.locationId })
+          .from(inventoryProjections)
+          .where(eq(inventoryProjections.componentId, result.entityId))
+          .limit(1);
+        if (proj) {
+          locId = proj.locationId;
+        }
+      }
+      if (locId) {
+        locationPath = await this.getLocationPath(locId);
+      }
     }
 
     return {
