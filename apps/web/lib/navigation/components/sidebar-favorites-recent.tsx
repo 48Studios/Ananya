@@ -96,7 +96,7 @@ export function SidebarFavoritesRecent({
   } = useNavigation();
 
   // Default to favorites if available, otherwise recent
-  const [activeTab, setActiveTab] = useState<"favorites" | "recent">("favorites");
+  const [activeTab, setActiveTab] = useState<"favorites" | "recent">("recent");
 
   if (isCollapsed) return null;
 
@@ -150,7 +150,7 @@ export function SidebarFavoritesRecent({
     <div className="space-y-1.5 pb-1 select-none">
       {/* Segmented Pill Switcher */}
       <div className="px-1">
-        <div className="flex items-center p-1 text-xs border border-solid border-secondary rounded-md">
+        <div className="flex items-center h-9 p-1 text-xs border border-solid border-secondary rounded-md">
           <button
             type="button"
             onClick={() => setActiveTab("favorites")}
