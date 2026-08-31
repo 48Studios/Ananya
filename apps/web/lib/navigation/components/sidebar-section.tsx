@@ -66,7 +66,10 @@ export function SidebarSection({
   ) {
     return (
       <div className={cn(dividerClass)}>
-        <SidebarFavoritesRecent isCollapsed={isCollapsed} />
+        <SidebarFavoritesRecent
+          isCollapsed={isCollapsed}
+          onItemClick={onItemClick}
+        />
       </div>
     );
   }
