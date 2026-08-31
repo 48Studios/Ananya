@@ -150,7 +150,7 @@ export function SidebarFavoritesRecent({
     <div className="space-y-1.5 pb-1 select-none">
       {/* Segmented Pill Switcher */}
       <div className="px-1">
-        <div className="flex items-center p-0.5 text-xs">
+        <div className="flex items-center p-1 text-xs border border-solid border-secondary rounded-md">
           <button
             type="button"
             onClick={() => setActiveTab("favorites")}
@@ -174,7 +174,7 @@ export function SidebarFavoritesRecent({
               </span>
             )}
           </button>
-          <Separator orientation="vertical" className="h-full grow" />
+          <Separator orientation="vertical" className="h-full" />
           <button
             type="button"
             onClick={() => setActiveTab("recent")}
