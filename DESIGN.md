@@ -590,17 +590,17 @@ All UI components derive colors strictly from semantic CSS tokens defined in `ap
 | :----------------------- | :---------- | :--------- | :------------------------------------- |
 | `--primary`              | `#1E90FF`   | `#1E90FF`  | Primary brand color (Dodger Blue)      |
 | `--primary-foreground`   | `#FFFFFF`   | `#FFFFFF`  | Text on primary brand backgrounds      |
-| `--secondary`            | `#F1F5F9`   | `#2D2D2D`  | Muted background actions               |
-| `--secondary-foreground` | `#0F172A`   | `#FFFFFF`  | Text on secondary backgrounds          |
-| `--muted`                | `#CBD5E1`   | `#404040`  | Secondary backgrounds & scrollbars     |
-| `--muted-foreground`     | `#64748b`   | `#A0A0A0`  | Subtitles, captions, disabled text     |
+| `--secondary`            | `#F1F5F9`   | `#202226`  | Muted background actions & subsurfaces |
+| `--secondary-foreground` | `#0F172A`   | `#F2F3F5`  | Text on secondary backgrounds          |
+| `--muted`                | `#CBD5E1`   | `#26292E`  | Secondary backgrounds & scrollbars     |
+| `--muted-foreground`     | `#64748B`   | `#9CA0A6`  | Subtitles, captions, disabled text     |
 | `--accent`               | `#1E90FF`   | `#1E90FF`  | Interactive highlights & hover states  |
 | `--accent-foreground`    | `#FFFFFF`   | `#FFFFFF`  | Text on accent backgrounds             |
-| `--destructive`          | `#DC2626`   | `#FF4444`  | High-risk/delete actions & alerts      |
-| `--border`               | `#E2E8F0`   | `#2D2D2D`  | Divider and card border lines          |
-| `--input`                | `#F1F5F9`   | `#2D2D2D`  | Form input backgrounds                 |
+| `--destructive`          | `#DC2626`   | `#EF4444`  | High-risk/delete actions & alerts      |
+| `--border`               | `#E2E8F0`   | `#26292E`  | Divider and card border lines          |
+| `--input`                | `#F1F5F9`   | `#202226`  | Form input backgrounds                 |
 | `--ring`                 | `#1E90FF`   | `#1E90FF`  | Focus rings & active selection borders |
-| `--sidebar`              | `#FFFFFF`   | `#0D0D0D`  | Application navigation container       |
+| `--sidebar`              | `#FFFFFF`   | `#0F1012`  | Application navigation container       |
 | `--sidebar-primary`      | `#1E90FF`   | `#1E90FF`  | Active rail item & sidebar selection   |
 
 ---

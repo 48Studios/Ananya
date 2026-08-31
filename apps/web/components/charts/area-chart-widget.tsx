@@ -78,7 +78,8 @@ export function AreaChartWidget({
               borderRadius: "8px",
               color: "var(--foreground)",
               fontSize: "12px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              boxShadow: "0 8px 24px -4px rgba(0,0,0,0.35)",
+              padding: "8px 12px",
             }}
           />
           <Area
