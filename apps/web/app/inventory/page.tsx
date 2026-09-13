@@ -95,10 +95,15 @@ export default function InventoryPage() {
       {
         accessorKey: "sku",
         header: "SKU / Part No.",
+        meta: {
+          width: "17%",
+          minWidth: "140px",
+        },
         cell: ({ row }) => (
           <Link
             href={`/components/${row.original.id}`}
-            className="font-mono text-xs text-primary font-semibold hover:underline"
+            className="font-mono text-xs text-primary font-semibold hover:underline block truncate"
+            title={row.original.sku}
           >
             {row.original.sku}
           </Link>
@@ -107,13 +112,23 @@ export default function InventoryPage() {
       {
         accessorKey: "name",
         header: "Description",
+        meta: {
+          width: "26%",
+          minWidth: "180px",
+        },
         cell: ({ row }) => (
-          <div>
-            <span className="font-medium text-foreground text-xs">
+          <div className="min-w-0">
+            <span
+              className="font-medium text-foreground text-xs block truncate"
+              title={row.original.name}
+            >
               {row.original.name}
             </span>
             {row.original.description && (
-              <p className="text-[11px] text-muted-foreground truncate max-w-xs">
+              <p
+                className="text-[11px] text-muted-foreground block truncate"
+                title={row.original.description}
+              >
                 {row.original.description}
               </p>
             )}
@@ -123,12 +138,19 @@ export default function InventoryPage() {
       {
         accessorKey: "categoryId",
         header: "Category",
+        meta: {
+          width: "11%",
+          minWidth: "100px",
+        },
         cell: ({ row }) => {
           const catName = row.original.categoryId
             ? categoryMap.get(row.original.categoryId)
             : undefined;
           return (
-            <span className="text-xs text-muted-foreground">
+            <span
+              className="text-xs text-muted-foreground block truncate"
+              title={catName || "Unassigned"}
+            >
               {catName || "Unassigned"}
             </span>
           );
@@ -137,11 +159,15 @@ export default function InventoryPage() {
       {
         id: "stockOnHand",
         header: "Stock On Hand",
+        meta: {
+          width: "11%",
+          minWidth: "110px",
+        },
         cell: ({ row }) => {
           const qty = stockMap[row.original.id] || 0;
           return (
             <span
-              className={`font-mono text-xs font-semibold px-2 py-0.5 rounded ${
+              className={`font-mono text-xs font-semibold px-2 py-0.5 rounded whitespace-nowrap inline-block ${
                 qty > 0
                   ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                   : "text-muted-foreground"
@@ -155,12 +181,19 @@ export default function InventoryPage() {
       {
         accessorKey: "defaultLocationId",
         header: "Default Location",
+        meta: {
+          width: "12%",
+          minWidth: "120px",
+        },
         cell: ({ row }) => {
           const locName = row.original.defaultLocationId
             ? locationMap.get(row.original.defaultLocationId)
             : undefined;
           return (
-            <span className="text-xs text-muted-foreground">
+            <span
+              className="text-xs text-muted-foreground block truncate"
+              title={locName || "Unassigned"}
+            >
               {locName || "Unassigned"}
             </span>
           );
@@ -168,19 +201,27 @@ export default function InventoryPage() {
       },
       {
         accessorKey: "unit",
-        header: "Unit",
+        header: () => <span className="whitespace-nowrap">Unit</span>,
+        meta: {
+          width: "8%",
+          minWidth: "85px",
+        },
         cell: ({ row }) => (
-          <span className="font-mono text-xs uppercase">
+          <span className="font-mono text-xs uppercase whitespace-nowrap">
             {row.original.unit}
           </span>
         ),
       },
       {
         accessorKey: "isActive",
-        header: "Status",
+        header: () => <span className="whitespace-nowrap">Status</span>,
+        meta: {
+          width: "8%",
+          minWidth: "85px",
+        },
         cell: ({ row }) => (
           <span
-            className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full ${
+            className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full whitespace-nowrap ${
               row.original.isActive
                 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                 : "bg-muted text-muted-foreground"
@@ -193,11 +234,15 @@ export default function InventoryPage() {
       {
         id: "actions",
         header: () => <span className="sr-only">Actions</span>,
+        meta: {
+          width: "7%",
+          minWidth: "85px",
+        },
         cell: ({ row }) => (
-          <div className="flex justify-end">
+          <div className="flex justify-end pr-1">
             <Link href={`/components/${row.original.id}`}>
-              <Button size="sm" variant="ghost">
-                <Eye className="w-3.5 h-3.5 mr-1" />
+              <Button size="sm" variant="ghost" className="h-7 px-2.5 text-xs gap-1">
+                <Eye className="size-3.5" />
                 View
               </Button>
             </Link>
@@ -287,6 +332,7 @@ export default function InventoryPage() {
         loading={loading}
         emptyTitle="No Inventory Items"
         emptyMessage="No inventory components have been registered yet."
+        minWidth={920}
       />
     </div>
   );

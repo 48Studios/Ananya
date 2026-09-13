@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   type ColumnDef,
   type ColumnFiltersState,
+  type RowData,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -35,6 +36,27 @@ import { ExportDialog } from "@/components/ui/export-dialog";
 import { ImportWizard } from "@/components/ui/import-wizard";
 import { BulkActionToolbar } from "@/components/ui/bulk-action-toolbar";
 
+export interface ColumnMetaConfig {
+  width?: string | number;
+  minWidth?: string | number;
+  maxWidth?: string | number;
+  className?: string;
+  headerClassName?: string;
+  cellClassName?: string;
+}
+
+declare module "@tanstack/react-table" {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData extends RowData, TValue> {
+    width?: string | number;
+    minWidth?: string | number;
+    maxWidth?: string | number;
+    className?: string;
+    headerClassName?: string;
+    cellClassName?: string;
+  }
+}
+
 export interface FilterOption {
   label: string;
   value: string;
@@ -62,6 +84,8 @@ export interface EntityDataTableProps<TData, TValue> {
   actionButton?: React.ReactNode;
   entityType?: string;
   onRefreshData?: () => void;
+  tableClassName?: string;
+  minWidth?: string | number;
 }
 
 export function EntityDataTable<TData, TValue>({
@@ -78,6 +102,8 @@ export function EntityDataTable<TData, TValue>({
   actionButton,
   entityType,
   onRefreshData,
+  tableClassName,
+  minWidth,
 }: EntityDataTableProps<TData, TValue>) {
   const activeFilters = filters || filterConfigs;
   const activeLoading = loading || isLoading;
@@ -123,6 +149,15 @@ export function EntityDataTable<TData, TValue>({
         "",
     )
     .filter(Boolean);
+
+  const hasCustomSizing = React.useMemo(() => {
+    return columns.some((col) => {
+      const meta = (col as { meta?: ColumnMetaConfig }).meta;
+      return Boolean(
+        meta?.width || meta?.minWidth || (col.size && col.size !== 150),
+      );
+    });
+  }, [columns]);
 
   return (
     <div className="space-y-4">
@@ -252,7 +287,50 @@ export function EntityDataTable<TData, TValue>({
       {/* Table Container */}
       <div className="bg-card border border-border rounded-lg overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left border-collapse">
+          <table
+            className={cn(
+              "w-full text-sm text-left border-collapse",
+              hasCustomSizing && "table-fixed",
+              tableClassName,
+            )}
+            style={{
+              minWidth: minWidth
+                ? typeof minWidth === "number"
+                  ? `${minWidth}px`
+                  : minWidth
+                : undefined,
+            }}
+          >
+            {hasCustomSizing && (
+              <colgroup>
+                {table.getVisibleLeafColumns().map((col) => {
+                  const colMeta = col.columnDef.meta as ColumnMetaConfig | undefined;
+                  const colWidth =
+                    colMeta?.width ??
+                    (col.columnDef.size !== 150 ? col.columnDef.size : undefined);
+                  const colMinWidth = colMeta?.minWidth;
+                  return (
+                    <col
+                      key={col.id}
+                      style={{
+                        width:
+                          colWidth !== undefined
+                            ? typeof colWidth === "number"
+                              ? `${colWidth}px`
+                              : colWidth
+                            : undefined,
+                        minWidth:
+                          colMinWidth !== undefined
+                            ? typeof colMinWidth === "number"
+                              ? `${colMinWidth}px`
+                              : colMinWidth
+                            : undefined,
+                      }}
+                    />
+                  );
+                })}
+              </colgroup>
+            )}
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr
@@ -261,26 +339,54 @@ export function EntityDataTable<TData, TValue>({
                 >
                   {headerGroup.headers.map((header) => {
                     const canSort = header.column.getCanSort();
+                    const colMeta = header.column.columnDef.meta as ColumnMetaConfig | undefined;
+                    const colWidth =
+                      colMeta?.width ??
+                      (header.column.columnDef.size !== 150
+                        ? header.column.columnDef.size
+                        : undefined);
+                    const colMinWidth = colMeta?.minWidth;
+
                     return (
                       <th
                         key={header.id}
-                        className="px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider select-none"
+                        style={{
+                          width:
+                            colWidth !== undefined
+                              ? typeof colWidth === "number"
+                                ? `${colWidth}px`
+                                : colWidth
+                              : undefined,
+                          minWidth:
+                            colMinWidth !== undefined
+                              ? typeof colMinWidth === "number"
+                                ? `${colMinWidth}px`
+                                : colMinWidth
+                              : undefined,
+                        }}
+                        className={cn(
+                          "px-3.5 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider select-none align-middle",
+                          colMeta?.className,
+                          colMeta?.headerClassName,
+                        )}
                       >
                         {header.isPlaceholder ? null : (
                           <div
                             className={cn(
-                              "flex items-center gap-1.5",
+                              "inline-flex items-center gap-1.5 max-w-full",
                               canSort &&
                                 "cursor-pointer hover:text-foreground transition-colors",
                             )}
                             onClick={header.column.getToggleSortingHandler()}
                           >
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
+                            <span className="leading-tight">
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                            </span>
                             {canSort && (
-                              <ArrowUpDown className="w-3 h-3 text-muted-foreground/70" />
+                              <ArrowUpDown className="size-3 text-muted-foreground/70 shrink-0 inline-block" />
                             )}
                           </div>
                         )}
@@ -295,11 +401,35 @@ export function EntityDataTable<TData, TValue>({
                 // Skeleton Rows
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={`skeleton-${idx}`} className="animate-pulse">
-                    {columns.map((_, cIdx) => (
-                      <td key={`skeleton-cell-${cIdx}`} className="px-4 py-3.5">
-                        <div className="h-4 bg-muted/60 rounded-md w-3/4" />
-                      </td>
-                    ))}
+                    {columns.map((col, cIdx) => {
+                      const colMeta = (col as { meta?: ColumnMetaConfig }).meta;
+                      const colWidth =
+                        colMeta?.width ??
+                        (col.size !== 150 ? col.size : undefined);
+                      const colMinWidth = colMeta?.minWidth;
+                      return (
+                        <td
+                          key={`skeleton-cell-${cIdx}`}
+                          className="px-3.5 py-3.5"
+                          style={{
+                            width:
+                              colWidth !== undefined
+                                ? typeof colWidth === "number"
+                                  ? `${colWidth}px`
+                                  : colWidth
+                                : undefined,
+                            minWidth:
+                              colMinWidth !== undefined
+                                ? typeof colMinWidth === "number"
+                                  ? `${colMinWidth}px`
+                                  : colMinWidth
+                                : undefined,
+                          }}
+                        >
+                          <div className="h-4 bg-muted/60 rounded-md w-3/4" />
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))
               ) : table.getRowModel().rows.length > 0 ? (
@@ -308,14 +438,45 @@ export function EntityDataTable<TData, TValue>({
                     key={row.id}
                     className="hover:bg-muted/30 transition-colors"
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3.5 text-foreground">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </td>
-                    ))}
+                    {row.getVisibleCells().map((cell) => {
+                      const colMeta = cell.column.columnDef.meta as ColumnMetaConfig | undefined;
+                      const colWidth =
+                        colMeta?.width ??
+                        (cell.column.columnDef.size !== 150
+                          ? cell.column.columnDef.size
+                          : undefined);
+                      const colMinWidth = colMeta?.minWidth;
+
+                      return (
+                        <td
+                          key={cell.id}
+                          className={cn(
+                            "px-3.5 py-3.5 text-foreground align-middle",
+                            colMeta?.className,
+                            colMeta?.cellClassName,
+                          )}
+                          style={{
+                            width:
+                              colWidth !== undefined
+                                ? typeof colWidth === "number"
+                                  ? `${colWidth}px`
+                                  : colWidth
+                                : undefined,
+                            minWidth:
+                              colMinWidth !== undefined
+                                ? typeof colMinWidth === "number"
+                                  ? `${colMinWidth}px`
+                                  : colMinWidth
+                                : undefined,
+                          }}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))
               ) : (

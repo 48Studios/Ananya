@@ -136,10 +136,12 @@ export default function ComponentsPage() {
       {
         accessorKey: "sku",
         header: "SKU / Part No.",
+        meta: { width: "17%", minWidth: "140px" },
         cell: ({ row }) => (
           <Link
             href={`/components/${row.original.id}`}
-            className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors"
+            className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors block truncate"
+            title={row.original.sku}
           >
             {row.original.sku}
           </Link>
@@ -148,10 +150,12 @@ export default function ComponentsPage() {
       {
         accessorKey: "name",
         header: "Component Name",
+        meta: { width: "21%", minWidth: "150px" },
         cell: ({ row }) => (
           <Link
             href={`/components/${row.original.id}`}
-            className="font-medium text-foreground hover:underline"
+            className="font-medium text-foreground hover:underline block truncate"
+            title={row.original.name}
           >
             {row.original.name}
           </Link>
@@ -160,17 +164,22 @@ export default function ComponentsPage() {
       {
         accessorKey: "description",
         header: "Description",
+        meta: { width: "22%", minWidth: "160px" },
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground truncate max-w-xs block">
+          <span
+            className="text-xs text-muted-foreground truncate block"
+            title={row.original.description || ""}
+          >
             {row.original.description || "—"}
           </span>
         ),
       },
       {
         accessorKey: "unit",
-        header: "Unit",
+        header: () => <span className="whitespace-nowrap">Unit</span>,
+        meta: { width: "8%", minWidth: "85px" },
         cell: ({ row }) => (
-          <span className="font-mono text-xs uppercase px-2 py-0.5 border border-border rounded bg-card text-foreground">
+          <span className="font-mono text-xs uppercase px-2 py-0.5 border border-border rounded bg-card text-foreground whitespace-nowrap">
             {row.original.unit}
           </span>
         ),
@@ -178,11 +187,12 @@ export default function ComponentsPage() {
       {
         id: "stockOnHand",
         header: "Stock On Hand",
+        meta: { width: "11%", minWidth: "110px" },
         cell: ({ row }) => {
           const qty = stockMap[row.original.id] || 0;
           return (
             <span
-              className={`font-mono text-xs font-semibold px-2 py-0.5 rounded ${
+              className={`font-mono text-xs font-semibold px-2 py-0.5 rounded whitespace-nowrap inline-block ${
                 qty > 0
                   ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                   : "text-muted-foreground"
@@ -196,6 +206,7 @@ export default function ComponentsPage() {
       {
         accessorKey: "defaultLocationId",
         header: "Default Storage",
+        meta: { width: "11%", minWidth: "110px" },
         cell: ({ row }) => {
           const locId = row.original.defaultLocationId;
           if (!locId)
@@ -206,7 +217,8 @@ export default function ComponentsPage() {
           return locCode ? (
             <Link
               href={`/locations/${locId}`}
-              className="font-mono text-xs text-muted-foreground hover:text-foreground"
+              className="font-mono text-xs text-muted-foreground hover:text-foreground block truncate"
+              title={locCode}
             >
               {locCode}
             </Link>
@@ -217,10 +229,11 @@ export default function ComponentsPage() {
       },
       {
         accessorKey: "isActive",
-        header: "Status",
+        header: () => <span className="whitespace-nowrap">Status</span>,
+        meta: { width: "8%", minWidth: "80px" },
         cell: ({ row }) => (
           <span
-            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${
               row.original.isActive
                 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                 : "bg-muted text-muted-foreground"
@@ -233,6 +246,7 @@ export default function ComponentsPage() {
       {
         id: "actions",
         header: "Actions",
+        meta: { width: "4%", minWidth: "65px" },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/components/${row.original.id}`}>
@@ -419,6 +433,7 @@ export default function ComponentsPage() {
         loading={loading}
         emptyTitle="No components found"
         emptyMessage="Get started by adding your first inventory component."
+        minWidth={880}
       />
     </div>
   );

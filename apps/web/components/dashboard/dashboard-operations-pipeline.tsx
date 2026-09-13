@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { WorkOrderDto } from "@/lib/api/work-orders-api";
 import { PurchaseOrderDto } from "@/lib/api/purchase-orders-api";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
 interface DashboardOperationsPipelineProps {
   workOrders?: WorkOrderDto[];
@@ -61,20 +61,34 @@ export function DashboardOperationsPipeline({
   return (
     <div className="bg-card border border-border rounded-xl p-5 shadow-2xs space-y-4">
       {/* Header with Segmented Navigation Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-lg border border-border/80 w-fit">
+      <div className="flex flex-wrap items-center justify-between gap-y-2.5 gap-x-3">
+        {/* Tab Selector (fixed/stable width, equal-width tabs) */}
+        <div className="grid grid-cols-2 p-1 gap-1 bg-muted/60 rounded-lg border border-border/80 w-full sm:w-[330px] shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab("production")}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
+            className={cn(
+              "h-8 px-2.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 whitespace-nowrap border select-none outline-none focus-visible:ring-1 focus-visible:ring-ring/50",
               activeTab === "production"
-                ? "bg-background text-foreground shadow-2xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+                ? "bg-background text-foreground shadow-2xs border-border/60 font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/40 border-transparent",
+            )}
           >
-            <Factory className="w-3.5 h-3.5 text-primary" />
-            <span>Production Queue</span>
-            <span className="font-mono text-[10px] bg-muted px-1.5 py-0.2 rounded-full">
+            <Factory
+              className={cn(
+                "size-3.5 shrink-0 transition-colors",
+                activeTab === "production" ? "text-primary" : "text-muted-foreground",
+              )}
+            />
+            <span className="truncate">Production Queue</span>
+            <span
+              className={cn(
+                "font-mono text-[10px] px-1.5 py-0.5 rounded-full leading-none shrink-0 transition-colors",
+                activeTab === "production"
+                  ? "bg-muted text-foreground font-semibold"
+                  : "bg-muted/80 text-muted-foreground",
+              )}
+            >
               {activeWorkOrders.length}
             </span>
           </button>
@@ -82,45 +96,63 @@ export function DashboardOperationsPipeline({
           <button
             type="button"
             onClick={() => setActiveTab("inbound")}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
+            className={cn(
+              "h-8 px-2.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 whitespace-nowrap border select-none outline-none focus-visible:ring-1 focus-visible:ring-ring/50",
               activeTab === "inbound"
-                ? "bg-background text-foreground shadow-2xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+                ? "bg-background text-foreground shadow-2xs border-border/60 font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/40 border-transparent",
+            )}
           >
-            <ShoppingCart className="w-3.5 h-3.5 text-blue-500" />
-            <span>Inbound Deliveries</span>
-            <span className="font-mono text-[10px] bg-muted px-1.5 py-0.2 rounded-full">
+            <ShoppingCart
+              className={cn(
+                "size-3.5 shrink-0 transition-colors",
+                activeTab === "inbound" ? "text-primary" : "text-muted-foreground",
+              )}
+            />
+            <span className="truncate">Inbound Deliveries</span>
+            <span
+              className={cn(
+                "font-mono text-[10px] px-1.5 py-0.5 rounded-full leading-none shrink-0 transition-colors",
+                activeTab === "inbound"
+                  ? "bg-muted text-foreground font-semibold"
+                  : "bg-muted/80 text-muted-foreground",
+              )}
+            >
               {activePurchaseOrders.length}
             </span>
           </button>
         </div>
 
-        <Link
-          href={activeTab === "production" ? "/work-orders" : "/purchase-orders"}
-          className="text-xs text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1 self-end sm:self-center"
-        >
-          <span>View All {activeTab === "production" ? "Work Orders" : "Orders"}</span>
-          <ArrowRight className="w-3 h-3" />
-        </Link>
+        {/* Action Link (flexibly positioned with stable slot width) */}
+        <div className="flex items-center justify-end shrink-0 min-w-[145px]">
+          <Link
+            href={activeTab === "production" ? "/work-orders" : "/purchase-orders"}
+            className="text-xs text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1 whitespace-nowrap self-center"
+          >
+            <span>View All {activeTab === "production" ? "Work Orders" : "Orders"}</span>
+            <ArrowRight className="size-3.5 shrink-0" />
+          </Link>
+        </div>
       </div>
 
       {/* Production Tab Content */}
       {activeTab === "production" && (
         <div className="space-y-3">
           {activeWorkOrders.length === 0 ? (
-            <div className="p-6 text-center border border-dashed border-border rounded-lg bg-muted/10 space-y-2">
-              <Layers className="w-6 h-6 text-muted-foreground mx-auto" />
-              <p className="text-xs font-medium text-foreground">
-                No active production orders on the shop floor
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                All manufacturing runs are completed or pending BOM release.
-              </p>
-              <div className="pt-2">
+            <div className="p-6 text-center border border-dashed border-border rounded-lg bg-muted/10 space-y-2.5">
+              <Layers className="size-6 text-muted-foreground mx-auto" />
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-foreground">
+                  No active production orders on the shop floor
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  All manufacturing runs are completed or pending BOM release.
+                </p>
+              </div>
+              <div className="pt-1">
                 <Link href="/work-orders/new">
-                  <Button size="xs" variant="outline" className="h-7 text-xs gap-1">
-                    <Plus className="w-3 h-3" />
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs">
+                    <Plus className="size-3.5" />
                     New Work Order
                   </Button>
                 </Link>
@@ -152,7 +184,7 @@ export function DashboardOperationsPipeline({
                         </Link>
                         <StatusBadge status={wo.status} className="text-[10px] py-0 px-1.5" />
                         {wo.priority === "URGENT" && (
-                          <span className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20 text-[10px] font-bold px-1.5 py-0.2 rounded">
+                          <span className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20 text-[10px] font-bold px-1.5 py-0.5 rounded">
                             URGENT
                           </span>
                         )}
@@ -194,18 +226,20 @@ export function DashboardOperationsPipeline({
       {activeTab === "inbound" && (
         <div className="space-y-3">
           {activePurchaseOrders.length === 0 ? (
-            <div className="p-6 text-center border border-dashed border-border rounded-lg bg-muted/10 space-y-2">
-              <ShoppingCart className="w-6 h-6 text-muted-foreground mx-auto" />
-              <p className="text-xs font-medium text-foreground">
-                No open purchase orders pending delivery
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                All procurement orders have been fulfilled or received into storage.
-              </p>
-              <div className="pt-2">
+            <div className="p-6 text-center border border-dashed border-border rounded-lg bg-muted/10 space-y-2.5">
+              <ShoppingCart className="size-6 text-muted-foreground mx-auto" />
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-foreground">
+                  No open purchase orders pending delivery
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  All procurement orders have been fulfilled or received into storage.
+                </p>
+              </div>
+              <div className="pt-1">
                 <Link href="/purchase-orders/new">
-                  <Button size="xs" variant="outline" className="h-7 text-xs gap-1">
-                    <Plus className="w-3 h-3" />
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs">
+                    <Plus className="size-3.5" />
                     Create Purchase Order
                   </Button>
                 </Link>
@@ -236,8 +270,8 @@ export function DashboardOperationsPipeline({
                   </div>
 
                   <Link href={`/goods-receipts/new?poId=${po.id}`}>
-                    <Button size="xs" variant="outline" className="h-7 text-xs gap-1 shrink-0">
-                      <ArrowDownLeft className="w-3 h-3" />
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs shrink-0">
+                      <ArrowDownLeft className="size-3.5" />
                       Receive
                     </Button>
                   </Link>
