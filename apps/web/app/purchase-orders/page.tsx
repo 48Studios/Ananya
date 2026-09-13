@@ -174,7 +174,7 @@ export default function PurchaseOrdersPage() {
         cell: ({ row }) => (
           <Link
             href={`/purchase-orders/${row.original.id}`}
-            className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase"
+            className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase whitespace-nowrap inline-block"
           >
             {row.original.poNumber}
           </Link>
@@ -186,7 +186,10 @@ export default function PurchaseOrdersPage() {
         cell: ({ row }) => {
           const sup = suppliersMap[row.original.supplierId];
           return (
-            <span className="font-medium text-foreground">
+            <span
+              className="font-medium text-foreground truncate block"
+              title={sup ? sup.name : row.original.supplierId}
+            >
               {sup ? sup.name : row.original.supplierId.slice(0, 8)}
             </span>
           );
@@ -197,7 +200,7 @@ export default function PurchaseOrdersPage() {
         header: "Status",
         cell: ({ row }) => (
           <span
-            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${
               row.original.status === "DRAFT"
                 ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
                 : row.original.status === "SUBMITTED"
@@ -228,7 +231,7 @@ export default function PurchaseOrdersPage() {
             }, 0);
           }
           return (
-            <span className="font-mono text-xs font-semibold text-foreground">
+            <span className="font-mono text-xs font-semibold text-foreground whitespace-nowrap inline-block">
               {po.currency} {total.toFixed(2)}
             </span>
           );
@@ -238,7 +241,7 @@ export default function PurchaseOrdersPage() {
         accessorKey: "expectedDeliveryDate",
         header: "Expected Delivery",
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
             {row.original.expectedDeliveryDate
               ? new Date(row.original.expectedDeliveryDate).toLocaleDateString()
               : "—"}
@@ -263,8 +266,8 @@ export default function PurchaseOrdersPage() {
           );
 
           return (
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-medium text-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="text-[11px] font-medium text-foreground bg-muted/60 px-1.5 py-0.5 rounded shrink-0">
                 {providerName !== "—" ? providerName : "Courier"}
               </span>
               {trackUrl ? (
@@ -272,14 +275,14 @@ export default function PurchaseOrdersPage() {
                   href={trackUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-mono text-xs text-primary hover:underline inline-flex items-center gap-0.5"
+                  className="font-mono text-xs text-primary hover:underline inline-flex items-center gap-0.5 truncate"
                   title="Track shipment package"
                 >
                   <span>{po.trackingNumber}</span>
-                  <ExternalLink className="w-3 h-3" />
+                  <ExternalLink className="w-3 h-3 shrink-0" />
                 </a>
               ) : (
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className="font-mono text-xs text-muted-foreground truncate">
                   {po.trackingNumber}
                 </span>
               )}
@@ -291,7 +294,7 @@ export default function PurchaseOrdersPage() {
         accessorKey: "createdAt",
         header: "Order Date",
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
             {new Date(row.original.createdAt).toLocaleDateString()}
           </span>
         ),
@@ -299,6 +302,9 @@ export default function PurchaseOrdersPage() {
       {
         id: "actions",
         header: "Actions",
+        meta: {
+          headerClassName: "text-right",
+        },
         cell: ({ row }) => {
           const po = row.original;
           const isDraft = po.status === "DRAFT";
@@ -311,7 +317,7 @@ export default function PurchaseOrdersPage() {
           const canDelete = ["DRAFT", "CANCELLED"].includes(po.status);
 
           return (
-            <div className="flex items-center justify-end gap-1">
+            <div className="flex items-center justify-end gap-1 whitespace-nowrap">
               <Link href={`/purchase-orders/${po.id}`}>
                 <Button variant="ghost" size="icon-xs" title="View PO details">
                   <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -583,6 +589,7 @@ export default function PurchaseOrdersPage() {
         loading={loading}
         emptyTitle="No purchase orders found"
         emptyMessage="Get started by creating your first purchase order."
+        minWidth={1000}
       />
     </div>
   );
