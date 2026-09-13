@@ -14,7 +14,12 @@ import {
 import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImportExportService } from './import-export.service';
-import { ExportRequestDto, BulkActionDto, UploadedFileObj } from './dtos';
+import {
+  ExportRequestDto,
+  ExportResponseDto,
+  BulkActionDto,
+  UploadedFileObj,
+} from './dtos';
 
 @Controller('import-export')
 export class ImportExportController {
@@ -121,7 +126,9 @@ export class ImportExportController {
   }
 
   @Post('export')
-  async executeExport(@Body() dto: ExportRequestDto) {
+  async executeExport(
+    @Body() dto: ExportRequestDto,
+  ): Promise<ExportResponseDto> {
     return await this.service.executeExport(dto);
   }
 

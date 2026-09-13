@@ -48,6 +48,27 @@ export class ExportRequestDto {
   filters?: Record<string, unknown>;
 }
 
+export interface ExportJobInfo {
+  id: string;
+  jobType: string;
+  entityType: string;
+  format: string;
+  status: string;
+  totalRecords: number;
+  processedRecords: number;
+  failedRecords: number;
+  progressPercent: number;
+  createdAt: string | Date;
+}
+
+export interface ExportResponseDto {
+  job: ExportJobInfo;
+  fileName: string;
+  format: ExportFormat;
+  recordCount: number;
+  fileContent: string;
+}
+
 export class ImportPreviewDto {
   @IsString()
   entityType!: string;

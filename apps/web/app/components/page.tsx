@@ -136,7 +136,7 @@ export default function ComponentsPage() {
       {
         accessorKey: "sku",
         header: "SKU / Part No.",
-        meta: { width: "17%", minWidth: "140px" },
+        meta: { width: "16%", minWidth: "140px" },
         cell: ({ row }) => (
           <Link
             href={`/components/${row.original.id}`}
@@ -150,7 +150,7 @@ export default function ComponentsPage() {
       {
         accessorKey: "name",
         header: "Component Name",
-        meta: { width: "21%", minWidth: "150px" },
+        meta: { width: "20%", minWidth: "150px" },
         cell: ({ row }) => (
           <Link
             href={`/components/${row.original.id}`}
@@ -164,7 +164,7 @@ export default function ComponentsPage() {
       {
         accessorKey: "description",
         header: "Description",
-        meta: { width: "22%", minWidth: "160px" },
+        meta: { width: "20%", minWidth: "150px" },
         cell: ({ row }) => (
           <span
             className="text-xs text-muted-foreground truncate block"
@@ -177,7 +177,7 @@ export default function ComponentsPage() {
       {
         accessorKey: "unit",
         header: () => <span className="whitespace-nowrap">Unit</span>,
-        meta: { width: "8%", minWidth: "85px" },
+        meta: { width: "7%", minWidth: "75px" },
         cell: ({ row }) => (
           <span className="font-mono text-xs uppercase px-2 py-0.5 border border-border rounded bg-card text-foreground whitespace-nowrap">
             {row.original.unit}
@@ -187,7 +187,7 @@ export default function ComponentsPage() {
       {
         id: "stockOnHand",
         header: "Stock On Hand",
-        meta: { width: "11%", minWidth: "110px" },
+        meta: { width: "10%", minWidth: "105px" },
         cell: ({ row }) => {
           const qty = stockMap[row.original.id] || 0;
           return (
@@ -245,10 +245,10 @@ export default function ComponentsPage() {
       },
       {
         id: "actions",
-        header: "Actions",
-        meta: { width: "4%", minWidth: "65px" },
+        header: () => <span className="whitespace-nowrap">Actions</span>,
+        meta: { width: "8%", minWidth: "116px", headerClassName: "text-right" },
         cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-1 whitespace-nowrap">
             <Link href={`/components/${row.original.id}`}>
               <Button variant="ghost" size="icon-xs" title="View details">
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -433,7 +433,7 @@ export default function ComponentsPage() {
         loading={loading}
         emptyTitle="No components found"
         emptyMessage="Get started by adding your first inventory component."
-        minWidth={880}
+        minWidth={940}
       />
     </div>
   );

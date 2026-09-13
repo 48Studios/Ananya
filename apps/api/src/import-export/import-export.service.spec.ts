@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ImportExportService } from './import-export.service';
-import { UploadedFileObj } from './dtos';
+import { UploadedFileObj, ExportFormat } from './dtos';
 
 describe('ImportExportService', () => {
   let service: ImportExportService;
@@ -254,6 +254,35 @@ describe('ImportExportService', () => {
           e.message.includes('Unit price must be non-negative'),
         ),
       ).toBe(true);
+    });
+  });
+
+  describe('executeExport', () => {
+    it('should generate non-empty CSV export with header line', async () => {
+      const result = await service.executeExport({
+        entityType: 'Component',
+        format: ExportFormat.CSV,
+      });
+
+      expect(result.fileContent).toBeDefined();
+      expect(result.fileContent.length).toBeGreaterThan(0);
+      expect(result.fileContent).toContain('sku');
+      expect(result.fileName).toBe('component_export.csv');
+      expect(result.format).toBe(ExportFormat.CSV);
+    });
+
+    it('should generate valid JSON export with specified columns', async () => {
+      const result = await service.executeExport({
+        entityType: 'Category',
+        format: ExportFormat.JSON,
+        columns: ['code', 'name'],
+      });
+
+      expect(result.fileContent).toBeDefined();
+      expect(result.fileContent.length).toBeGreaterThan(0);
+      expect(result.fileName).toBe('category_export.json');
+      expect(result.format).toBe(ExportFormat.JSON);
+      expect(() => JSON.parse(result.fileContent) as unknown).not.toThrow();
     });
   });
 });

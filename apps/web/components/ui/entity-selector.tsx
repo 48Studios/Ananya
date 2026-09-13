@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Search, Plus, Check, Loader2, ChevronDown } from "lucide-react";
+import { Search, Plus, Check, Loader2, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,6 +36,7 @@ export interface EntitySelectorProps {
   placeholder?: string;
   disabled?: boolean;
   creatable?: boolean;
+  clearable?: boolean;
   className?: string;
   id?: string;
 }
@@ -53,6 +54,7 @@ export function EntitySelector({
   placeholder,
   disabled = false,
   creatable = true,
+  clearable = true,
   className = "",
   id,
 }: EntitySelectorProps) {
@@ -120,7 +122,7 @@ export function EntitySelector({
       } else if (entity === "manufacturer") {
         const res = await manufacturersApi.getAll();
         items = res.map((m) => ({
-          value: m.name,
+          value: m.id,
           label: `${m.code} - ${m.name}`,
         }));
       } else if (entity === "supplier") {
@@ -212,7 +214,7 @@ export function EntitySelector({
       } else if (entity === "manufacturer") {
         const code = query.toUpperCase().replace(/\s+/g, "-").slice(0, 10);
         const newMfg = await manufacturersApi.create({ code, name: query });
-        createdVal = newMfg.name;
+        createdVal = newMfg.id;
         createdLabel = `${newMfg.code} - ${newMfg.name}`;
       } else if (entity === "supplier") {
         const code = `SUP-${query.toUpperCase().replace(/\s+/g, "-").slice(0, 6)}`;
@@ -284,7 +286,29 @@ export function EntitySelector({
         <span className="truncate">
           {selectedOption ? selectedOption.label : value || defaultPlaceholder}
         </span>
-        <ChevronDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+        <div className="flex items-center gap-1 ml-2 shrink-0">
+          {clearable && Boolean(value) && !disabled && (
+            <span
+              role="button"
+              tabIndex={0}
+              title="Clear selection"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onChange) onChange("", "");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  if (onChange) onChange("", "");
+                }
+              }}
+              className="p-0.5 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              <X className="h-3 w-3" />
+            </span>
+          )}
+          <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+        </div>
       </PopoverTrigger>
       <PopoverContent className="w-[320px] p-2 space-y-2 text-xs" align="start">
         <div className="relative">
@@ -300,6 +324,19 @@ export function EntitySelector({
         </div>
 
         <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
+          {clearable && Boolean(value) && (
+            <button
+              type="button"
+              onClick={() => {
+                if (onChange) onChange("", "");
+                setOpen(false);
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left transition-colors text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive italic border-b border-border/50 mb-1"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>None (Clear selection)</span>
+            </button>
+          )}
           {loading ? (
             <div className="p-4 text-center text-muted-foreground flex items-center justify-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

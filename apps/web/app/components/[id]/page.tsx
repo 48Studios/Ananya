@@ -23,6 +23,11 @@ import { ErrorState } from "@/components/ui/error-state";
 import { ComponentForm } from "@/components/components/component-form";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
+import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
+import {
+  manufacturersApi,
+  type ManufacturerDto,
+} from "@/lib/api/manufacturers-api";
 import {
   inventoryProjectionsApi,
   type InventoryProjectionDto,
@@ -41,6 +46,10 @@ export default function ViewComponentPage() {
   const [defaultLocation, setDefaultLocation] =
     React.useState<LocationDto | null>(null);
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [categories, setCategories] = React.useState<CategoryDto[]>([]);
+  const [manufacturers, setManufacturers] = React.useState<ManufacturerDto[]>(
+    [],
+  );
   const [projections, setProjections] = React.useState<
     InventoryProjectionDto[]
   >([]);
@@ -60,18 +69,22 @@ export default function ViewComponentPage() {
     setLoading(true);
     setError(null);
     try {
-      const [comp, compProjections, compTransactions, allLocs] =
+      const [comp, compProjections, compTransactions, allLocs, allCats, allMfgs] =
         await Promise.all([
           componentsApi.getById(id),
           inventoryProjectionsApi.getByComponent(id).catch(() => []),
           inventoryTransactionsApi.getAll({ componentId: id }).catch(() => []),
           locationsApi.getAll().catch(() => []),
+          categoriesApi.getAll().catch(() => []),
+          manufacturersApi.getAll().catch(() => []),
         ]);
 
       setComponent(comp);
       setProjections(compProjections);
       setTransactions(compTransactions);
       setLocations(allLocs);
+      setCategories(allCats);
+      setManufacturers(allMfgs);
 
       if (comp.defaultLocationId) {
         const foundDef = allLocs.find((l) => l.id === comp.defaultLocationId);
@@ -101,6 +114,22 @@ export default function ViewComponentPage() {
     }
     return map;
   }, [locations]);
+
+  const categoryMap = React.useMemo(() => {
+    const map = new Map<string, CategoryDto>();
+    for (const cat of categories) {
+      map.set(cat.id, cat);
+    }
+    return map;
+  }, [categories]);
+
+  const manufacturerMap = React.useMemo(() => {
+    const map = new Map<string, ManufacturerDto>();
+    for (const mfg of manufacturers) {
+      map.set(mfg.id, mfg);
+    }
+    return map;
+  }, [manufacturers]);
 
   const currentStock = React.useMemo(() => {
     if (projections.length > 0) {
@@ -323,10 +352,20 @@ export default function ViewComponentPage() {
               <dt className="text-xs font-medium text-muted-foreground">
                 Manufacturer
               </dt>
-              <dd className="mt-1 text-xs text-muted-foreground">
-                {component.manufacturerId
-                  ? component.manufacturerId
-                  : "Unassigned"}
+              <dd className="mt-1 text-xs text-foreground">
+                {component.manufacturerId ? (
+                  manufacturerMap.get(component.manufacturerId) ? (
+                    `${manufacturerMap.get(component.manufacturerId)!.code} - ${manufacturerMap.get(component.manufacturerId)!.name}`
+                  ) : (
+                    <span className="font-mono text-muted-foreground">
+                      {component.manufacturerId}
+                    </span>
+                  )
+                ) : (
+                  <span className="text-muted-foreground italic">
+                    Unassigned
+                  </span>
+                )}
               </dd>
             </div>
 
@@ -334,8 +373,20 @@ export default function ViewComponentPage() {
               <dt className="text-xs font-medium text-muted-foreground">
                 Category
               </dt>
-              <dd className="mt-1 text-xs text-muted-foreground">
-                {component.categoryId ? component.categoryId : "Unassigned"}
+              <dd className="mt-1 text-xs text-foreground">
+                {component.categoryId ? (
+                  categoryMap.get(component.categoryId) ? (
+                    `${categoryMap.get(component.categoryId)!.code} - ${categoryMap.get(component.categoryId)!.name}`
+                  ) : (
+                    <span className="font-mono text-muted-foreground">
+                      {component.categoryId}
+                    </span>
+                  )
+                ) : (
+                  <span className="text-muted-foreground italic">
+                    Unassigned
+                  </span>
+                )}
               </dd>
             </div>
 

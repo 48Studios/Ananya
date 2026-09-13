@@ -73,8 +73,12 @@ export function ExportDialog({
       });
 
       // Trigger browser file download
+      const mimeType =
+        format === "JSON"
+          ? "application/json;charset=utf-8"
+          : "text/csv;charset=utf-8";
       const blob = new Blob([res.fileContent], {
-        type: "text/plain;charset=utf-8",
+        type: mimeType,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

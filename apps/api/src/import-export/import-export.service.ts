@@ -33,10 +33,21 @@ import {
   customerReturns,
   maintenanceSchedules,
   systemSettings,
+  goodsReceipts,
+  salesOrders,
+  quotations,
+  crmLeads,
+  cycleCounts,
+  warehouseTransfers,
 } from '@ananya/database/schema';
 import { eq, inArray, desc } from '@ananya/database/query';
 import { resolveCurrency } from '../common/utils/currency-resolver';
-import { ExportRequestDto, UploadedFileObj } from './dtos';
+import {
+  ExportRequestDto,
+  ExportResponseDto,
+  ExportFormat,
+  UploadedFileObj,
+} from './dtos';
 import {
   getImporterDefinition,
   getTemplate as getRegistryTemplate,
@@ -1328,6 +1339,99 @@ export class ImportExportService {
               'vendorPartNumber',
               columnMapping,
             );
+            const compCatVal = this.getRowFieldValue(
+              row,
+              'componentCategory',
+              columnMapping,
+            )?.trim();
+            const compMfgVal = this.getRowFieldValue(
+              row,
+              'componentManufacturer',
+              columnMapping,
+            )?.trim();
+
+            let categoryId: string | undefined = undefined;
+            if (compCatVal) {
+              categoryId =
+                catMap.get(compCatVal.toUpperCase()) ||
+                catMap.get(compCatVal.toLowerCase());
+              if (!categoryId) {
+                const cleanCatCode =
+                  compCatVal
+                    .toUpperCase()
+                    .replace(/\s+/g, '-')
+                    .replace(/[^A-Z0-9_-]/g, '')
+                    .slice(0, 50) || `CAT-${Date.now()}`;
+                const [newCat] = await db
+                  .insert(categories)
+                  .values({
+                    code: cleanCatCode,
+                    name: compCatVal,
+                    isActive: true,
+                  })
+                  .onConflictDoUpdate({
+                    target: categories.code,
+                    set: { updatedAt: new Date() },
+                  })
+                  .returning({
+                    id: categories.id,
+                    code: categories.code,
+                    name: categories.name,
+                  });
+                if (newCat) {
+                  categoryId = newCat.id;
+                  catMap.set(newCat.code.toUpperCase(), categoryId);
+                  catMap.set(newCat.name.toLowerCase(), categoryId);
+                  createdEntities.push({
+                    entityType: 'Category',
+                    id: newCat.id,
+                    isSideEffect: true,
+                  });
+                }
+              }
+            }
+
+            let manufacturerId: string | undefined = undefined;
+            if (compMfgVal) {
+              manufacturerId =
+                mfgMap.get(compMfgVal.toUpperCase()) ||
+                mfgMap.get(compMfgVal.toLowerCase());
+              if (!manufacturerId) {
+                const cleanMfgCode =
+                  compMfgVal
+                    .toUpperCase()
+                    .replace(/\s+/g, '-')
+                    .replace(/[^A-Z0-9_-]/g, '')
+                    .slice(0, 50) || `MFG-${Date.now()}`;
+                const [newMfg] = await db
+                  .insert(manufacturers)
+                  .values({
+                    code: cleanMfgCode,
+                    name: compMfgVal,
+                    isActive: true,
+                  })
+                  .onConflictDoUpdate({
+                    target: manufacturers.code,
+                    set: { updatedAt: new Date() },
+                  })
+                  .returning({
+                    id: manufacturers.id,
+                    code: manufacturers.code,
+                    name: manufacturers.name,
+                  });
+                if (newMfg) {
+                  manufacturerId = newMfg.id;
+                  mfgMap.set(newMfg.code.toUpperCase(), manufacturerId);
+                  mfgMap.set(newMfg.name.toLowerCase(), manufacturerId);
+                  createdEntities.push({
+                    entityType: 'Manufacturer',
+                    id: newMfg.id,
+                    isSideEffect: true,
+                  });
+                }
+              }
+            }
+
             const compSku = this.getRowFieldValue(
               row,
               'componentSku',
@@ -1347,11 +1451,15 @@ export class ImportExportService {
                   description: vpnVal
                     ? `Auto-created from PO import. Vendor part: ${vpnVal}`
                     : 'Auto-created from Purchase Order import',
+                  categoryId: categoryId || null,
+                  manufacturerId: manufacturerId || null,
                   isActive: true,
                 })
                 .onConflictDoUpdate({
                   target: components.sku,
                   set: {
+                    ...(categoryId ? { categoryId } : {}),
+                    ...(manufacturerId ? { manufacturerId } : {}),
                     updatedAt: new Date(),
                   },
                 })
@@ -1367,6 +1475,15 @@ export class ImportExportService {
                   isSideEffect: true,
                 });
               }
+            } else if (compId && (categoryId || manufacturerId)) {
+              await db
+                .update(components)
+                .set({
+                  ...(categoryId ? { categoryId } : {}),
+                  ...(manufacturerId ? { manufacturerId } : {}),
+                  updatedAt: new Date(),
+                })
+                .where(eq(components.id, compId));
             }
 
             if (!compId) {
@@ -2086,28 +2203,315 @@ export class ImportExportService {
     };
   }
 
-  executeExport(dto: ExportRequestDto) {
+  async executeExport(dto: ExportRequestDto): Promise<ExportResponseDto> {
     this.logger.log(
       `Executing export request for entity ${dto.entityType} with format ${dto.format}`,
     );
-    return Promise.resolve({
-      job: {
+
+    const entityTypeUpper = (dto.entityType || '').trim();
+    let rawRows: Record<string, unknown>[] = [];
+
+    try {
+      switch (entityTypeUpper.toLowerCase()) {
+        case 'component':
+        case 'components':
+          rawRows = await db.select().from(components);
+          break;
+        case 'category':
+        case 'categories':
+          rawRows = await db.select().from(categories);
+          break;
+        case 'supplier':
+        case 'suppliers':
+          rawRows = await db.select().from(suppliers);
+          break;
+        case 'manufacturer':
+        case 'manufacturers':
+          rawRows = await db.select().from(manufacturers);
+          break;
+        case 'customer':
+        case 'customers':
+          rawRows = await db.select().from(customers);
+          break;
+        case 'warehouse':
+        case 'warehouses':
+          rawRows = await db.select().from(warehouses);
+          break;
+        case 'warehousebin':
+        case 'warehousebins':
+          rawRows = await db.select().from(warehouseBins);
+          break;
+        case 'location':
+        case 'locations':
+          rawRows = await db.select().from(locations);
+          break;
+        case 'unit':
+        case 'units':
+          rawRows = await db.select().from(units);
+          break;
+        case 'user':
+        case 'users': {
+          const uList = await db.select().from(users);
+          rawRows = uList.map((u) => {
+            const copy = { ...u } as Record<string, unknown>;
+            delete copy.passwordHash;
+            return copy;
+          });
+          break;
+        }
+        case 'role':
+        case 'roles':
+          rawRows = await db.select().from(roles);
+          break;
+        case 'project':
+        case 'projects':
+          rawRows = await db.select().from(projects);
+          break;
+        case 'task':
+        case 'tasks':
+        case 'projecttask':
+        case 'projecttasks':
+          rawRows = await db.select().from(projectTasks);
+          break;
+        case 'bom':
+        case 'boms':
+        case 'billofmaterials':
+          rawRows = await db.select().from(billOfMaterials);
+          break;
+        case 'workorder':
+        case 'workorders':
+        case 'productionorder':
+        case 'productionorders':
+        case 'manufacturing':
+          rawRows = await db.select().from(productionOrders);
+          break;
+        case 'purchaseorder':
+        case 'purchaseorders':
+        case 'procurement':
+          rawRows = await db.select().from(purchaseOrders);
+          break;
+        case 'goodsreceipt':
+        case 'goodsreceipts':
+          rawRows = await db.select().from(goodsReceipts);
+          break;
+        case 'openinginventory':
+        case 'inventorytransaction':
+        case 'inventorytransactions':
+          rawRows = await db.select().from(inventoryTransactions);
+          break;
+        case 'stockadjustment':
+        case 'stockadjustments':
+          rawRows = await db.select().from(stockAdjustments);
+          break;
+        case 'cyclecount':
+        case 'cyclecounts':
+          rawRows = await db.select().from(cycleCounts);
+          break;
+        case 'warehousetransfer':
+        case 'warehousetransfers':
+          rawRows = await db.select().from(warehouseTransfers);
+          break;
+        case 'maintenanceschedule':
+        case 'maintenanceschedules':
+        case 'maintenance':
+          rawRows = await db.select().from(maintenanceSchedules);
+          break;
+        case 'servicerequest':
+        case 'servicerequests':
+        case 'service':
+          rawRows = await db.select().from(serviceRequests);
+          break;
+        case 'warranty':
+        case 'warranties':
+        case 'warrantyclaim':
+        case 'warrantyclaims':
+          rawRows = await db.select().from(warrantyClaims);
+          break;
+        case 'rma':
+        case 'rmas':
+        case 'customerreturn':
+        case 'customerreturns':
+          rawRows = await db.select().from(customerReturns);
+          break;
+        case 'salesorder':
+        case 'salesorders':
+          rawRows = await db.select().from(salesOrders);
+          break;
+        case 'quotation':
+        case 'quotations':
+          rawRows = await db.select().from(quotations);
+          break;
+        case 'lead':
+        case 'leads':
+        case 'crmlead':
+        case 'crmleads':
+          rawRows = await db.select().from(crmLeads);
+          break;
+        default:
+          try {
+            const def = getImporterDefinition(dto.entityType);
+            if (
+              def?.entityType &&
+              def.entityType.toLowerCase() !== entityTypeUpper.toLowerCase()
+            ) {
+              return await this.executeExport({
+                ...dto,
+                entityType: def.entityType,
+              });
+            }
+          } catch {
+            // Unregistered entity
+          }
+          rawRows = [];
+          break;
+      }
+    } catch (err) {
+      this.logger.error(
+        `Failed to query records for entity "${dto.entityType}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+      rawRows = [];
+    }
+
+    let filteredRows = rawRows;
+    if (dto.selectedIds && dto.selectedIds.length > 0) {
+      const idSet = new Set(dto.selectedIds.map(String));
+      filteredRows = rawRows.filter((r) => idSet.has(String(r.id)));
+    }
+
+    // Determine export columns
+    let exportColumns: string[] = [];
+    if (dto.columns && dto.columns.length > 0) {
+      exportColumns = dto.columns.filter((c) => Boolean(c && c.trim()));
+    }
+
+    if (exportColumns.length === 0) {
+      try {
+        const def = getImporterDefinition(dto.entityType);
+        if (def?.fields && def.fields.length > 0) {
+          exportColumns = ['id', ...def.fields.map((f) => f.name)];
+        }
+      } catch {
+        // Fall back to row keys
+      }
+      if (exportColumns.length === 0 && filteredRows.length > 0) {
+        exportColumns = Object.keys(filteredRows[0] || {});
+      }
+    }
+
+    if (exportColumns.length === 0) {
+      exportColumns = ['id', 'name', 'code', 'status', 'createdAt'];
+    }
+
+    const formatRowValue = (
+      row: Record<string, unknown>,
+      col: string,
+    ): unknown => {
+      if (row[col] !== undefined) {
+        return row[col];
+      }
+      const colLower = col.toLowerCase();
+      for (const key of Object.keys(row)) {
+        if (key.toLowerCase() === colLower) {
+          return row[key];
+        }
+      }
+      return '';
+    };
+
+    const escapeCsvValue = (val: unknown): string => {
+      if (val === null || val === undefined) {
+        return '';
+      }
+      let str: string;
+      if (val instanceof Date) {
+        str = val.toISOString();
+      } else if (typeof val === 'object') {
+        str = JSON.stringify(val);
+      } else if (typeof val === 'string') {
+        str = val;
+      } else if (typeof val === 'number' || typeof val === 'boolean') {
+        str = String(val);
+      } else {
+        str = '';
+      }
+      if (
+        str.includes(',') ||
+        str.includes('"') ||
+        str.includes('\n') ||
+        str.includes('\r')
+      ) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    let fileContent = '';
+    let fileName = '';
+
+    if (dto.format === ExportFormat.JSON) {
+      const jsonRows = filteredRows.map((row) => {
+        const obj: Record<string, unknown> = {};
+        for (const col of exportColumns) {
+          obj[col] = formatRowValue(row, col);
+        }
+        return obj;
+      });
+      fileContent = JSON.stringify(jsonRows, null, 2);
+      fileName = `${dto.entityType.toLowerCase()}_export.json`;
+    } else {
+      // CSV and EXCEL: prepended with UTF-8 BOM for full Excel/Sheets compatibility
+      const headerLine = exportColumns.map(escapeCsvValue).join(',');
+      const dataLines = filteredRows.map((row) =>
+        exportColumns
+          .map((col) => escapeCsvValue(formatRowValue(row, col)))
+          .join(','),
+      );
+      fileContent = '\uFEFF' + [headerLine, ...dataLines].join('\n');
+      fileName = `${dto.entityType.toLowerCase()}_export.csv`;
+    }
+
+    let createdJob: typeof importExportJobs.$inferSelect | null = null;
+    try {
+      const [inserted] = await db
+        .insert(importExportJobs)
+        .values({
+          id: crypto.randomUUID(),
+          jobType: 'EXPORT',
+          entityType: dto.entityType,
+          format: dto.format || ExportFormat.CSV,
+          status: 'COMPLETED',
+          totalRecords: filteredRows.length,
+          processedRecords: filteredRows.length,
+          failedRecords: 0,
+          progressPercent: 100,
+          fileName,
+        })
+        .returning();
+      createdJob = inserted ?? null;
+    } catch (e) {
+      this.logger.warn(
+        `Failed to record export job in database: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+
+    return {
+      job: createdJob || {
         id: crypto.randomUUID(),
         jobType: 'EXPORT' as const,
         entityType: dto.entityType,
         format: dto.format,
         status: 'COMPLETED' as const,
-        totalRecords: 0,
-        processedRecords: 0,
+        totalRecords: filteredRows.length,
+        processedRecords: filteredRows.length,
         failedRecords: 0,
         progressPercent: 100,
         createdAt: new Date().toISOString(),
       },
-      fileName: `${dto.entityType.toLowerCase()}_export.csv`,
+      fileName,
       format: dto.format,
-      recordCount: 0,
-      fileContent: '',
-    });
+      recordCount: filteredRows.length,
+      fileContent,
+    };
   }
 
   async getJobs(userId?: string) {

@@ -258,6 +258,20 @@ describe('Importer Registry & Template Generation (System-Wide)', () => {
       expect(compSkuItem?.aliases).toContain('component');
       expect(compSkuItem?.aliases).toContain('componentsku');
       expect(compSkuItem?.aliases).toContain('sku');
+
+      const compCatItem = poAliases.find(
+        (a) => a.canonicalField === 'componentCategory',
+      );
+      expect(compCatItem).toBeDefined();
+      expect(compCatItem?.aliases).toContain('componentcategory');
+      expect(compCatItem?.aliases).toContain('category');
+
+      const compMfgItem = poAliases.find(
+        (a) => a.canonicalField === 'componentManufacturer',
+      );
+      expect(compMfgItem).toBeDefined();
+      expect(compMfgItem?.aliases).toContain('componentmanufacturer');
+      expect(compMfgItem?.aliases).toContain('manufacturer');
     });
 
     it('should perform complete round-trip preview mapping verification for all 25 registered entities', () => {
@@ -339,6 +353,8 @@ describe('Importer Registry & Template Generation (System-Wide)', () => {
         expect(headers).toContain('orderNumber');
         expect(headers).toContain('supplierCode');
         expect(headers).toContain('componentSku');
+        expect(headers).toContain('componentCategory');
+        expect(headers).toContain('componentManufacturer');
         expect(headers).toContain('quantity');
         expect(headers).toContain('unitPrice');
 

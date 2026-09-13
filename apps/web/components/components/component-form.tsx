@@ -32,6 +32,8 @@ const componentSchema = z.object({
     .min(1, "Component name is required")
     .transform((val) => val.trim()),
   description: z.string().optional().nullable(),
+  categoryId: z.string().optional().nullable(),
+  manufacturerId: z.string().optional().nullable(),
   unit: z
     .string()
     .min(1, "Unit of measure is required")
@@ -59,6 +61,7 @@ export function ComponentForm({
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<ComponentFormValues>({
     resolver: zodResolver(componentSchema),
@@ -66,10 +69,24 @@ export function ComponentForm({
       sku: initialData?.sku ?? "",
       name: initialData?.name ?? "",
       description: initialData?.description ?? "",
+      categoryId: initialData?.categoryId ?? "",
+      manufacturerId: initialData?.manufacturerId ?? "",
       unit: initialData?.unit ?? "pcs",
       defaultLocationId: initialData?.defaultLocationId ?? "",
     },
   });
+
+  React.useEffect(() => {
+    reset({
+      sku: initialData?.sku ?? "",
+      name: initialData?.name ?? "",
+      description: initialData?.description ?? "",
+      categoryId: initialData?.categoryId ?? "",
+      manufacturerId: initialData?.manufacturerId ?? "",
+      unit: initialData?.unit ?? "pcs",
+      defaultLocationId: initialData?.defaultLocationId ?? "",
+    });
+  }, [initialData, reset]);
 
   const onSubmit = async (values: ComponentFormValues) => {
     setServerError(null);
@@ -79,6 +96,8 @@ export function ComponentForm({
           sku: values.sku,
           name: values.name,
           description: values.description || null,
+          categoryId: values.categoryId || null,
+          manufacturerId: values.manufacturerId || null,
           unit: values.unit,
           defaultLocationId: values.defaultLocationId || null,
         };
@@ -89,6 +108,8 @@ export function ComponentForm({
           sku: values.sku,
           name: values.name,
           description: values.description || null,
+          categoryId: values.categoryId || null,
+          manufacturerId: values.manufacturerId || null,
           unit: values.unit,
           defaultLocationId: values.defaultLocationId || null,
         };
@@ -120,21 +141,48 @@ export function ComponentForm({
           </div>
         )}
 
-        {/* SKU */}
-        <Field>
-          <FieldLabel htmlFor="component-sku">
-            SKU / Internal Part Number{" "}
-            <span className="text-destructive">*</span>
-          </FieldLabel>
-          <Input
-            id="component-sku"
-            type="text"
-            placeholder="e.g. MCU-STM32F4-01"
-            {...register("sku")}
-            className="font-mono"
-          />
-          {errors.sku?.message && <FieldError>{errors.sku.message}</FieldError>}
-        </Field>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* SKU */}
+          <Field>
+            <FieldLabel htmlFor="component-sku">
+              SKU / Part Number <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="component-sku"
+              type="text"
+              placeholder="e.g. MCU-STM32F4-01"
+              {...register("sku")}
+              className="font-mono"
+            />
+            {errors.sku?.message && (
+              <FieldError>{errors.sku.message}</FieldError>
+            )}
+          </Field>
+
+          {/* Unit */}
+          <Field>
+            <FieldLabel htmlFor="component-unit">
+              Default Unit <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Controller
+              name="unit"
+              control={control}
+              render={({ field }) => (
+                <EntitySelector
+                  id="component-unit"
+                  entity="unit"
+                  value={field.value}
+                  onChange={(val) => field.onChange(val)}
+                  creatable
+                  clearable={false}
+                />
+              )}
+            />
+            {errors.unit?.message && (
+              <FieldError>{errors.unit.message}</FieldError>
+            )}
+          </Field>
+        </div>
 
         {/* Name */}
         <Field>
@@ -152,40 +200,56 @@ export function ComponentForm({
           )}
         </Field>
 
-        {/* Unit */}
-        <Field>
-          <FieldLabel htmlFor="component-unit">
-            Default Unit of Measure <span className="text-destructive">*</span>
-          </FieldLabel>
-          <Controller
-            name="unit"
-            control={control}
-            render={({ field }) => (
-              <EntitySelector
-                id="component-unit"
-                entity="unit"
-                value={field.value}
-                onChange={(val) => field.onChange(val)}
-                creatable
-              />
+        {/* Category and Manufacturer */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Category */}
+          <Field>
+            <FieldLabel htmlFor="component-category">Category</FieldLabel>
+            <Controller
+              name="categoryId"
+              control={control}
+              render={({ field }) => (
+                <EntitySelector
+                  id="component-category"
+                  entity="category"
+                  value={field.value ?? ""}
+                  onChange={(val) => field.onChange(val)}
+                  placeholder="Select or search category..."
+                  creatable
+                  clearable
+                />
+              )}
+            />
+            {errors.categoryId?.message && (
+              <FieldError>{errors.categoryId.message}</FieldError>
             )}
-          />
-          {errors.unit?.message && (
-            <FieldError>{errors.unit.message}</FieldError>
-          )}
-        </Field>
+          </Field>
 
-        {/* Description */}
-        <Field>
-          <FieldLabel htmlFor="component-desc">Description</FieldLabel>
-          <Textarea
-            id="component-desc"
-            rows={3}
-            placeholder="Detailed component specification..."
-            {...register("description")}
-            className="resize-none"
-          />
-        </Field>
+          {/* Manufacturer */}
+          <Field>
+            <FieldLabel htmlFor="component-manufacturer">
+              Manufacturer
+            </FieldLabel>
+            <Controller
+              name="manufacturerId"
+              control={control}
+              render={({ field }) => (
+                <EntitySelector
+                  id="component-manufacturer"
+                  entity="manufacturer"
+                  value={field.value ?? ""}
+                  onChange={(val) => field.onChange(val)}
+                  placeholder="Select or search manufacturer..."
+                  creatable
+                  clearable
+                />
+              )}
+            />
+            {errors.manufacturerId?.message && (
+              <FieldError>{errors.manufacturerId.message}</FieldError>
+            )}
+          </Field>
+        </div>
 
         {/* Default Location */}
         <Field>
@@ -201,9 +265,23 @@ export function ComponentForm({
                 entity="location"
                 value={field.value ?? ""}
                 onChange={(val) => field.onChange(val)}
+                placeholder="Select storage location..."
                 creatable
+                clearable
               />
             )}
+          />
+        </Field>
+
+        {/* Description */}
+        <Field>
+          <FieldLabel htmlFor="component-desc">Description</FieldLabel>
+          <Textarea
+            id="component-desc"
+            rows={3}
+            placeholder="Detailed component specification..."
+            {...register("description")}
+            className="resize-none"
           />
         </Field>
       </DialogShellBody>
