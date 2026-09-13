@@ -18,9 +18,13 @@ COLOR_YELLOW="\033[1;33m"
 COLOR_RED="\033[1;31m"
 
 IS_UPGRADE=false
-if [ "$1" = "--upgrade" ] || [ "$1" = "-u" ]; then
-  IS_UPGRADE=true
-fi
+for arg in "$@"; do
+  case "$arg" in
+    --upgrade|-u)
+      IS_UPGRADE=true
+      ;;
+  esac
+done
 
 log_info() {
   echo -e "${COLOR_CYAN}[INFO]${COLOR_RESET} $1"
@@ -95,17 +99,42 @@ ANANYA_VERSION="${ANANYA_VERSION:-latest}"
 API_PUBLIC_URL="${API_PUBLIC_URL:-http://localhost:4000}"
 
 log_info "Deployment Configuration:"
-echo "  - Release Tag (ANANYA_VERSION) : ${ANANYA_VERSION}"
+echo "  - Release Tag (ANANYA_VERSION)    : ${ANANYA_VERSION}"
 echo "  - Browser API URL (API_PUBLIC_URL): ${API_PUBLIC_URL}"
+echo "  - Upgrade Mode (IS_UPGRADE)       : ${IS_UPGRADE}"
 
 # ------------------------------------------------------------------------------
 # 3. Pull Published Images & Build Web Image
 # ------------------------------------------------------------------------------
-log_info "Pulling published API and Worker images from GHCR..."
-docker compose -f compose.yml -f compose.prod.yml pull api worker migrate
+if [ "$IS_UPGRADE" = true ]; then
+  if [ -d .git ] && command -v git &> /dev/null; then
+    log_info "Fetching latest repository updates (including frontend source code)..."
+    git fetch --all --prune 2>/dev/null || log_warn "git fetch failed. Proceeding with existing local files."
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    if [ "$CURRENT_BRANCH" != "HEAD" ]; then
+      log_info "Pulling latest code on branch '${CURRENT_BRANCH}'..."
+      git pull --ff-only origin "$CURRENT_BRANCH" 2>/dev/null || log_warn "git pull was not fast-forwardable. Continuing with existing local source files."
+    else
+      git pull --ff-only 2>/dev/null || log_warn "git pull failed. Continuing with existing local source files."
+    fi
+  else
+    log_info "No .git directory found. Skipping git repository update."
+  fi
+fi
 
-log_info "Building Web application image with API_PUBLIC_URL=${API_PUBLIC_URL}..."
-docker compose -f compose.yml -f compose.prod.yml build web
+log_info "Pulling published container images from GHCR..."
+docker compose -f compose.yml -f compose.prod.yml pull api worker migrate web 2>/dev/null || {
+  log_warn "Pulling 'web' image directly from registry was skipped or unavailable; pulling remaining published images (api, worker, migrate)..."
+  docker compose -f compose.yml -f compose.prod.yml pull api worker migrate
+}
+
+if [ "$IS_UPGRADE" = true ]; then
+  log_info "Rebuilding Web frontend image with latest changes (API_PUBLIC_URL=${API_PUBLIC_URL})..."
+  docker compose -f compose.yml -f compose.prod.yml build --pull --no-cache web
+else
+  log_info "Building Web application image with API_PUBLIC_URL=${API_PUBLIC_URL}..."
+  docker compose -f compose.yml -f compose.prod.yml build web
+fi
 
 # ------------------------------------------------------------------------------
 # 4. Start PostgreSQL & Wait for Health
@@ -135,7 +164,12 @@ fi
 # 5. Database Schema Migrations
 # ------------------------------------------------------------------------------
 log_info "Executing database schema migrations..."
-if docker compose -f compose.yml -f compose.prod.yml run --rm migrate; then
+MIGRATE_VOL_OPTS=()
+if [ -d "packages/database/drizzle" ]; then
+  MIGRATE_VOL_OPTS=(-v "$(pwd)/packages/database/drizzle:/app/packages/database/drizzle:ro")
+fi
+
+if docker compose -f compose.yml -f compose.prod.yml run --rm "${MIGRATE_VOL_OPTS[@]}" migrate; then
   log_success "Database schema migrations applied successfully."
 else
   log_error "Database schema migration failed. Aborting installation."
@@ -146,12 +180,12 @@ fi
 # 6. Start Application Stack
 # ------------------------------------------------------------------------------
 if [ "$IS_UPGRADE" = true ]; then
-  log_info "Upgrading Ananya ERP application containers..."
+  log_info "Upgrading Ananya ERP application containers with recreated images..."
+  docker compose -f compose.yml -f compose.prod.yml --profile worker up -d --force-recreate
 else
   log_info "Starting Ananya ERP application stack..."
+  docker compose -f compose.yml -f compose.prod.yml --profile worker up -d
 fi
-
-docker compose -f compose.yml -f compose.prod.yml --profile worker up -d
 
 # ------------------------------------------------------------------------------
 # 7. Health Probe Verification

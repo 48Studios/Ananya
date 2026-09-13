@@ -601,12 +601,12 @@ export default function ViewPurchaseOrderPage() {
             <thead className="bg-muted/40 text-muted-foreground font-medium text-xs border-b border-border">
               <tr>
                 <th className="px-6 py-3">Component / Part</th>
-                <th className="px-6 py-3">Vendor SKU</th>
-                <th className="px-6 py-3 text-right">Unit Price</th>
-                <th className="px-6 py-3 text-center">Ordered</th>
-                <th className="px-6 py-3 text-center">Received</th>
-                <th className="px-6 py-3 text-right">Tax Rate</th>
-                <th className="px-6 py-3 text-right">Line Total</th>
+                <th className="px-6 py-3 whitespace-nowrap">Vendor SKU</th>
+                <th className="px-6 py-3 text-right whitespace-nowrap">Unit Price</th>
+                <th className="px-6 py-3 text-center whitespace-nowrap">Ordered</th>
+                <th className="px-6 py-3 text-center whitespace-nowrap">Received</th>
+                <th className="px-6 py-3 text-right whitespace-nowrap">Tax Rate</th>
+                <th className="px-6 py-3 text-right whitespace-nowrap">Line Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -624,18 +624,18 @@ export default function ViewPurchaseOrderPage() {
                         {comp?.sku}
                       </div>
                     </td>
-                    <td className="px-6 py-3.5 font-mono text-xs text-muted-foreground">
+                    <td className="px-6 py-3.5 font-mono text-xs text-muted-foreground whitespace-nowrap">
                       {line.vendorPartNumber || "—"}
                     </td>
-                    <td className="px-6 py-3.5 font-mono text-xs text-right text-foreground">
+                    <td className="px-6 py-3.5 font-mono text-xs text-right text-foreground whitespace-nowrap">
                       {po.currency} {line.unitPrice.toFixed(2)}
                     </td>
-                    <td className="px-6 py-3.5 font-mono text-xs text-center text-foreground font-medium">
+                    <td className="px-6 py-3.5 font-mono text-xs text-center text-foreground font-medium whitespace-nowrap">
                       {line.quantityOrdered} {comp?.unit || "units"}
                     </td>
-                    <td className="px-6 py-3.5 text-center">
+                    <td className="px-6 py-3.5 text-center whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 text-xs font-mono font-medium rounded-full ${
+                        className={`inline-flex items-center justify-center px-2.5 py-0.5 text-xs font-mono font-medium rounded-full whitespace-nowrap ${
                           isFullyReceived
                             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                             : line.quantityReceived > 0
@@ -646,10 +646,10 @@ export default function ViewPurchaseOrderPage() {
                         {line.quantityReceived} / {line.quantityOrdered}
                       </span>
                     </td>
-                    <td className="px-6 py-3.5 font-mono text-xs text-right text-muted-foreground">
+                    <td className="px-6 py-3.5 font-mono text-xs text-right text-muted-foreground whitespace-nowrap">
                       {line.taxRate}%
                     </td>
-                    <td className="px-6 py-3.5 font-mono text-xs font-semibold text-right text-foreground">
+                    <td className="px-6 py-3.5 font-mono text-xs font-semibold text-right text-foreground whitespace-nowrap">
                       {po.currency} {line.lineTotal.toFixed(2)}
                     </td>
                   </tr>

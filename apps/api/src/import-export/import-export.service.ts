@@ -1627,44 +1627,8 @@ export class ImportExportService {
             }
             processed++;
           } else if (canonicalEntity === 'Asset') {
-            const assetNum =
-              this.getRowFieldValue(row, 'assetNumber', columnMapping) ||
-              `AST-${Date.now()}-${i}`;
-            const nameVal =
-              this.getRowFieldValue(row, 'name', columnMapping) ||
-              `Asset ${assetNum}`;
-            const catVal = this.getRowFieldValue(
-              row,
-              'category',
-              columnMapping,
-            );
-            const costVal = this.getRowFieldValue(
-              row,
-              'purchaseValue',
-              columnMapping,
-            );
-            const locCode = this.getRowFieldValue(
-              row,
-              'locationCode',
-              columnMapping,
-            );
             processed++;
           } else if (canonicalEntity === 'Equipment') {
-            const eqpNum =
-              this.getRowFieldValue(row, 'equipmentNumber', columnMapping) ||
-              `EQP-${Date.now()}-${i}`;
-            const nameVal =
-              this.getRowFieldValue(row, 'name', columnMapping) ||
-              `Equipment ${eqpNum}`;
-            const modelVal = this.getRowFieldValue(row, 'model', columnMapping);
-            const snVal = this.getRowFieldValue(
-              row,
-              'serialNumber',
-              columnMapping,
-            );
-            const statVal =
-              this.getRowFieldValue(row, 'status', columnMapping) ||
-              'OPERATIONAL';
             processed++;
           } else if (canonicalEntity === 'MaintenanceSchedule') {
             const mntNum =
@@ -1981,7 +1945,7 @@ export class ImportExportService {
     }
 
     this.logger.log(
-      `[IMPORT REVERSE] Reversing import job "${id}" (${job.entityType}) with ${createdEntities.length} created entities across types: ${Object.keys(byType).join(', ')}`,
+      `[IMPORT REVERSE] Reversing import job "${id}" (${job.entityType}) by user "${userId || 'system'}" with ${createdEntities.length} created entities across types: ${Object.keys(byType).join(', ')}`,
     );
 
     // Reverse/Delete in strict reverse topological dependency order

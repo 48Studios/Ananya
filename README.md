@@ -116,10 +116,11 @@ To upgrade your installation to a newer release:
 
 The upgrade script automatically:
 
-1. Re-builds the Web image with your `API_PUBLIC_URL`.
-2. Pulls updated published API and Worker images from GHCR.
-3. Applies pending database schema migrations.
-4. Safely updates running application containers.
+1. Fetches latest repository updates (including frontend source code) if deployed via Git.
+2. Pulls updated published images (`api`, `worker`, `migrate`, `web`) from GHCR.
+3. Re-builds the Web frontend image cleanly (`--pull --no-cache`) with your `API_PUBLIC_URL`.
+4. Applies all pending database schema migrations directly to PostgreSQL.
+5. Safely updates and recreates running application containers (`--force-recreate`).
 
 Existing PostgreSQL database data, uploaded files, and `.env` credentials are preserved. No data volumes are deleted.
 

@@ -5,7 +5,6 @@ import {
 } from './purchase-orders.service';
 import { SettingsService } from '../settings/settings.service';
 import { resolveCurrency } from '../common/utils/currency-resolver';
-import { PurchaseOrder } from '@ananya/procurement';
 
 describe('Currency Resolution & PurchaseOrdersService', () => {
   describe('resolveCurrency Utility', () => {
@@ -57,20 +56,27 @@ describe('Currency Resolution & PurchaseOrdersService', () => {
 
   describe('PurchaseOrdersService.create Integration', () => {
     let service: PurchaseOrdersService;
-    let mockPoRepository: any;
-    let mockSettingsService: any;
+
+    const mockPoRepository = {
+      generateNextPoNumber: jest.fn().mockResolvedValue('PO-2026-000001'),
+      save: jest.fn().mockImplementation((po: unknown) => Promise.resolve(po)),
+    };
+
+    const mockSettingsService = {
+      getSystemSettings: jest.fn().mockResolvedValue({
+        baseCurrency: 'INR',
+      }),
+    };
 
     beforeEach(async () => {
-      mockPoRepository = {
-        generateNextPoNumber: jest.fn().mockResolvedValue('PO-2026-000001'),
-        save: jest.fn().mockImplementation((po) => Promise.resolve(po)),
-      };
-
-      mockSettingsService = {
-        getSystemSettings: jest.fn().mockResolvedValue({
-          baseCurrency: 'INR',
-        }),
-      };
+      jest.clearAllMocks();
+      mockPoRepository.generateNextPoNumber.mockResolvedValue('PO-2026-000001');
+      mockPoRepository.save.mockImplementation((po: unknown) =>
+        Promise.resolve(po),
+      );
+      mockSettingsService.getSystemSettings.mockResolvedValue({
+        baseCurrency: 'INR',
+      });
 
       const module: TestingModule = await Test.createTestingModule({
         providers: [
