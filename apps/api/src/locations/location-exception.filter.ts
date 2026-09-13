@@ -58,11 +58,11 @@ export class LocationExceptionFilter implements ExceptionFilter {
         message =
           typeof res === 'string'
             ? res
-            : ((res as { message?: string | string[] }).message
-                ? Array.isArray((res as { message: string | string[] }).message)
-                  ? (res as { message: string[] }).message.join(', ')
-                  : (res as { message: string }).message
-                : exception.message);
+            : (res as { message?: string | string[] }).message
+              ? Array.isArray((res as { message: string | string[] }).message)
+                ? (res as { message: string[] }).message.join(', ')
+                : (res as { message: string }).message
+              : exception.message;
       }
     }
 
@@ -73,4 +73,3 @@ export class LocationExceptionFilter implements ExceptionFilter {
     });
   }
 }
-

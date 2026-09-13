@@ -14,7 +14,10 @@ import {
 import type { Location, LocationRepository } from '@ananya/inventory';
 import { eq, or } from '@ananya/database/query';
 import type { Location as LocationRow } from '@ananya/database/schema';
-import { Location as LocationAggregate, LocationInUseError } from '@ananya/inventory';
+import {
+  Location as LocationAggregate,
+  LocationInUseError,
+} from '@ananya/inventory';
 
 function toDomain(row: LocationRow): Location {
   return LocationAggregate.rehydrate({
