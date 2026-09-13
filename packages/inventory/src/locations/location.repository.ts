@@ -10,4 +10,5 @@ export interface LocationRepository {
   save(location: Location): Promise<Location>;
   update(location: Location): Promise<Location>;
   delete(id: string): Promise<void>;
+  isInUse(id: string): Promise<boolean>;
 }

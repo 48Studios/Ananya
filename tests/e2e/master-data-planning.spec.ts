@@ -6,24 +6,25 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
     await page.goto("/");
   });
 
-  test("1. Warehouse Bins & Storage Locations (/warehouse-bins)", async ({
+  test("1. Warehouse Bins & Storage Locations (/locations)", async ({
     page,
   }) => {
     await page.goto("/warehouse-bins");
+    await expect(page).toHaveURL(/\/locations/);
     await expect(page.locator("h1")).toContainText(
-      "Warehouse Bins & Storage Locations",
+      "Storage Locations & Bins",
     );
 
     // Verify StatCards are present and render values
-    await expect(page.getByText("Total Bins")).toBeVisible();
-    await expect(page.getByText("Available Active Bins")).toBeVisible();
+    await expect(page.getByText("Total Storage Nodes")).toBeVisible();
+    await expect(page.getByText("Active Locations")).toBeVisible();
 
     // Verify Create Bin button opens dialog
-    const createBtn = page.getByRole("button", { name: "Create Bin Location" });
+    const createBtn = page.getByRole("button", { name: "Add Location / Bin" });
     await expect(createBtn).toBeVisible();
     await createBtn.click();
     await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page.getByText("Create Location Node")).toBeVisible();
+    await expect(page.getByText("Create New Location")).toBeVisible();
   });
 
   test("2. Warehouse Policies & Picking Rules (/warehouse-policies)", async ({

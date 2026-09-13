@@ -15,7 +15,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -170,11 +172,29 @@ export function LocationForm({
                   <SelectValue placeholder="Select location kind" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="warehouse">Warehouse</SelectItem>
-                  <SelectItem value="aisle">Aisle</SelectItem>
-                  <SelectItem value="rack">Rack</SelectItem>
-                  <SelectItem value="shelf">Shelf</SelectItem>
-                  <SelectItem value="bin">Bin</SelectItem>
+                  <SelectGroup>
+                    <SelectLabel>Facilities & Zones</SelectLabel>
+                    <SelectItem value="warehouse">Warehouse / Facility</SelectItem>
+                    <SelectItem value="room">Room / Area</SelectItem>
+                    <SelectItem value="aisle">Aisle</SelectItem>
+                  </SelectGroup>
+                  <SelectGroup>
+                    <SelectLabel>Racks, Shelves & Cabinets</SelectLabel>
+                    <SelectItem value="rack">Rack</SelectItem>
+                    <SelectItem value="shelf">Shelf</SelectItem>
+                    <SelectItem value="cabinet">Component Cabinet</SelectItem>
+                    <SelectItem value="dry_cabinet">Dry Cabinet (MSD)</SelectItem>
+                  </SelectGroup>
+                  <SelectGroup>
+                    <SelectLabel>Containers & SMD Micro-Locations</SelectLabel>
+                    <SelectItem value="bin">Bin</SelectItem>
+                    <SelectItem value="drawer">Drawer</SelectItem>
+                    <SelectItem value="compartment">Compartment (Sub-bin)</SelectItem>
+                    <SelectItem value="reel_rack">Reel Rack / Cart</SelectItem>
+                    <SelectItem value="reel_slot">Reel Slot (Tape & Reel)</SelectItem>
+                    <SelectItem value="tray">Matrix Tray (JEDEC)</SelectItem>
+                    <SelectItem value="tube">IC Tube / Rail</SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             )}

@@ -11,6 +11,8 @@ import {
   MapPin,
   CheckCircle2,
   AlertCircle,
+  Boxes,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -27,12 +29,49 @@ import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 const kindBadgeColors: Record<string, string> = {
   warehouse:
     "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
+  room:
+    "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20",
   aisle:
     "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20",
-  rack: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
+  rack:
+    "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
   shelf:
     "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20",
-  bin: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+  cabinet:
+    "bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20",
+  dry_cabinet:
+    "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20",
+  bin:
+    "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+  drawer:
+    "bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20",
+  compartment:
+    "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+  reel_rack:
+    "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20",
+  reel_slot:
+    "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
+  tray:
+    "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20",
+  tube:
+    "bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-500/20",
+};
+
+const kindLabels: Record<string, string> = {
+  warehouse: "Warehouse",
+  room: "Room / Area",
+  aisle: "Aisle",
+  rack: "Rack",
+  shelf: "Shelf",
+  cabinet: "Cabinet",
+  dry_cabinet: "Dry Cabinet (MSD)",
+  bin: "Bin",
+  drawer: "Drawer",
+  compartment: "Compartment",
+  reel_rack: "Reel Rack",
+  reel_slot: "Reel Slot",
+  tray: "Matrix Tray",
+  tube: "IC Tube / Rail",
 };
 
 export default function LocationsPage() {
@@ -82,8 +121,28 @@ export default function LocationsPage() {
     () => locations.filter((l) => l.isActive).length,
     [locations],
   );
-  const topLevelCount = React.useMemo(
-    () => locations.filter((l) => !l.parentId).length,
+  const facilityCount = React.useMemo(
+    () =>
+      locations.filter(
+        (l) =>
+          ["warehouse", "room", "aisle"].includes(l.kind.toLowerCase()) ||
+          !l.parentId,
+      ).length,
+    [locations],
+  );
+  const microLocationCount = React.useMemo(
+    () =>
+      locations.filter((l) =>
+        [
+          "bin",
+          "drawer",
+          "compartment",
+          "reel_slot",
+          "reel_rack",
+          "tray",
+          "tube",
+        ].includes(l.kind.toLowerCase()),
+      ).length,
     [locations],
   );
 
@@ -144,11 +203,12 @@ export default function LocationsPage() {
           const badgeClass =
             kindBadgeColors[kind] ||
             "bg-muted text-muted-foreground border-border";
+          const label = kindLabels[kind] || kind;
           return (
             <span
-              className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium border rounded-full capitalize ${badgeClass}`}
+              className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium border rounded-full ${badgeClass}`}
             >
-              {kind}
+              {label}
             </span>
           );
         },
@@ -238,10 +298,27 @@ export default function LocationsPage() {
       title: "Kind",
       options: [
         { label: "Warehouse", value: "warehouse" },
+        { label: "Room / Area", value: "room" },
         { label: "Aisle", value: "aisle" },
         { label: "Rack", value: "rack" },
         { label: "Shelf", value: "shelf" },
+        { label: "Cabinet", value: "cabinet" },
+        { label: "Dry Cabinet (MSD)", value: "dry_cabinet" },
         { label: "Bin", value: "bin" },
+        { label: "Drawer", value: "drawer" },
+        { label: "Compartment", value: "compartment" },
+        { label: "Reel Rack", value: "reel_rack" },
+        { label: "Reel Slot", value: "reel_slot" },
+        { label: "Matrix Tray", value: "tray" },
+        { label: "IC Tube / Rail", value: "tube" },
+      ],
+    },
+    {
+      columnId: "isActive",
+      title: "Status",
+      options: [
+        { label: "Active", value: "true" },
+        { label: "Inactive", value: "false" },
       ],
     },
   ];
@@ -265,8 +342,8 @@ export default function LocationsPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Locations Management"
-        description="Manage storage hierarchy, warehouses, aisles, racks, shelves, and bins."
+        title="Storage Locations & Bins"
+        description="Manage facilities, aisles, racks, shelves, bins, SMD reel slots, and storage compartments."
         actions={
           <Button
             size="sm"
@@ -276,30 +353,36 @@ export default function LocationsPage() {
             }}
           >
             <Plus className="w-4 h-4 mr-1.5" />
-            Add Location
+            Add Location / Bin
           </Button>
         }
       />
 
       {/* KPI Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Total Locations"
+          title="Total Storage Nodes"
           value={locations.length}
-          subtitle="All storage facilities"
-          icon={MapPin}
+          subtitle="All storage facilities & bins"
+          icon={Boxes}
         />
         <StatCard
           title="Active Locations"
           value={activeCount}
-          subtitle="Currently operational"
+          subtitle="Operational"
+          icon={CheckCircle2}
+        />
+        <StatCard
+          title="Facilities & Zones"
+          value={facilityCount}
+          subtitle="Warehouses, rooms & aisles"
           icon={MapPin}
         />
         <StatCard
-          title="Top Level Warehouses"
-          value={topLevelCount}
-          subtitle="Root storage entities"
-          icon={MapPin}
+          title="Bins & Micro-Locations"
+          value={microLocationCount}
+          subtitle="Bins, drawers, reels & trays"
+          icon={Layers}
         />
       </div>
 
@@ -376,11 +459,11 @@ export default function LocationsPage() {
         data={locations}
         entityType="Location"
         searchKey="code"
-        searchPlaceholder="Search locations by code..."
+        searchPlaceholder="Search locations & bins by code..."
         filters={filterConfigs}
         loading={loading}
-        emptyTitle="No locations found"
-        emptyMessage="Get started by creating your first storage location."
+        emptyTitle="No storage locations or bins found"
+        emptyMessage="Get started by creating your first storage location or bin."
       />
     </div>
   );

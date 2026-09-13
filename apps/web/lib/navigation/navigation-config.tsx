@@ -202,32 +202,20 @@ export const navigationModules: NavigationModule[] = [
           {
             id: "inv-warehouses-group",
             title: "Warehouses & Storage",
-            href: "/warehouses",
+            href: "/locations",
             icon: <Warehouse className="w-4 h-4" />,
             children: [
               {
-                id: "inv-warehouses",
-                title: "Facilities Directory",
-                href: "/warehouses",
-                icon: <Warehouse className="w-4 h-4" />,
-              },
-              {
-                id: "inv-storage-bins",
-                title: "Storage Bins",
-                href: "/warehouse-bins",
-                icon: <Boxes className="w-4 h-4" />,
+                id: "inv-locations",
+                title: "Storage Locations & Bins",
+                href: "/locations",
+                icon: <MapPin className="w-4 h-4" />,
               },
               {
                 id: "inv-storage-policies",
                 title: "Storage Policies",
                 href: "/warehouse-policies",
                 icon: <ShieldCheck className="w-4 h-4" />,
-              },
-              {
-                id: "inv-locations",
-                title: "Locations Directory",
-                href: "/locations",
-                icon: <MapPin className="w-4 h-4" />,
               },
             ],
           },

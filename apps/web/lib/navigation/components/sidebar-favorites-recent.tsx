@@ -23,6 +23,7 @@ import {
   ClipboardList,
   Layers,
   Tag,
+  MapPin,
   ArrowDownLeft,
   Receipt,
   Wrench,
@@ -48,6 +49,7 @@ const ROUTE_ICON_MAP: Record<string, React.ReactNode> = {
   "/components": <Boxes className="size-4" />,
   "/transactions": <ArrowRightLeft className="size-4" />,
   "/warehouses": <Warehouse className="size-4" />,
+  "/locations": <MapPin className="size-4" />,
   "/warehouse-transfers": <ArrowRightLeft className="size-4" />,
   "/stock-counts": <ClipboardList className="size-4" />,
   "/cycle-counts": <ClipboardList className="size-4" />,
@@ -96,7 +98,7 @@ export function SidebarFavoritesRecent({
   } = useNavigation();
 
   // Default to favorites if available, otherwise recent
-  const [activeTab, setActiveTab] = useState<"favorites" | "recent">("recent");
+  const [activeTab, setActiveTab] = useState<"favorites" | "recent">("favorites");
 
   if (isCollapsed) return null;
 

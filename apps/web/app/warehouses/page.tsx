@@ -1,7 +1,5 @@
-"use client";
-
-import WarehousePage from "../warehouse/page";
+import { redirect } from "next/navigation";
 
 export default function WarehousesAliasPage() {
-  return <WarehousePage />;
+  redirect("/locations");
 }

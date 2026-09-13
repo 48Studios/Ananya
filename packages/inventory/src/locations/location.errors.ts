@@ -53,3 +53,11 @@ export class CannotParentToSelfError extends DomainError {
     super(`Location '${id}' cannot be set as its own parent.`);
   }
 }
+
+export class LocationInUseError extends DomainError {
+  constructor(identifier: string) {
+    super(
+      `Cannot delete location '${identifier}' because it is in use by inventory records, receipts, or transactions.`,
+    );
+  }
+}
