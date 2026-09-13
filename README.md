@@ -308,4 +308,4 @@ Keep changes scoped, preserve module boundaries, and run the relevant checks bef
 
 Ananya ERP is licensed under the [MIT License](LICENSE).
 
-Made with <3 in Kolkata, India.
+Made with ❤️ in Kolkata, India.
