@@ -5,8 +5,25 @@ import { Select as SelectPrimitive } from "@base-ui/react/select";
 
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
+import { extractSelectItems } from "@/lib/select-utils";
 
-const Select = SelectPrimitive.Root;
+function Select<Value = unknown, Multiple extends boolean | undefined = false>({
+  items: itemsProp,
+  children,
+  ...props
+}: SelectPrimitive.Root.Props<Value, Multiple>) {
+  const items = React.useMemo(() => {
+    if (itemsProp !== undefined) return itemsProp;
+    const extracted = extractSelectItems(children);
+    return extracted.length > 0 ? extracted : undefined;
+  }, [itemsProp, children]);
+
+  return (
+    <SelectPrimitive.Root items={items} {...props}>
+      {children}
+    </SelectPrimitive.Root>
+  );
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (
@@ -199,4 +216,5 @@ export {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
+  extractSelectItems,
 };

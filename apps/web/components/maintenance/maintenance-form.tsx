@@ -141,9 +141,13 @@ export function MaintenanceForm({
                     <SelectValue placeholder="Select task type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PREVENTIVE">PREVENTIVE</SelectItem>
-                    <SelectItem value="CALIBRATION">CALIBRATION</SelectItem>
-                    <SelectItem value="OVERHAUL">OVERHAUL</SelectItem>
+                    <SelectItem value="PREVENTIVE">
+                      Preventive Maintenance
+                    </SelectItem>
+                    <SelectItem value="CALIBRATION">Calibration</SelectItem>
+                    <SelectItem value="OVERHAUL">
+                      Overhaul / Rebuild
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               )}

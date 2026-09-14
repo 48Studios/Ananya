@@ -216,8 +216,8 @@ export function WorkflowBuilder({
                     <SelectValue placeholder="Operator" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="EQUALS">EQUALS</SelectItem>
-                    <SelectItem value="GREATER_THAN">GREATER THAN</SelectItem>
+                    <SelectItem value="EQUALS">Equals (=)</SelectItem>
+                    <SelectItem value="GREATER_THAN">Greater Than (&gt;)</SelectItem>
                   </SelectContent>
                 </Select>
                 <Input

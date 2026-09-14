@@ -119,10 +119,10 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
                     <SelectValue placeholder="Select priority..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="LOW">LOW</SelectItem>
-                    <SelectItem value="NORMAL">NORMAL</SelectItem>
-                    <SelectItem value="HIGH">HIGH</SelectItem>
-                    <SelectItem value="URGENT">URGENT</SelectItem>
+                    <SelectItem value="LOW">Low</SelectItem>
+                    <SelectItem value="NORMAL">Normal</SelectItem>
+                    <SelectItem value="HIGH">High</SelectItem>
+                    <SelectItem value="URGENT">Urgent</SelectItem>
                   </SelectContent>
                 </Select>
               )}

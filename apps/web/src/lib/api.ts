@@ -43,7 +43,20 @@ async function fetchApi<T>(
     throw new Error(errorMessage);
   }
 
-  return response.json();
+  if (response.status === 204) {
+    return undefined as unknown as T;
+  }
+
+  const text = await response.text();
+  if (!text || !text.trim()) {
+    return undefined as unknown as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as unknown as T;
+  }
 }
 
 export const api = {

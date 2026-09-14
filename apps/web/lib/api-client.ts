@@ -113,7 +113,16 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     return undefined as unknown as T;
   }
 
-  return response.json() as Promise<T>;
+  const text = await response.text();
+  if (!text || !text.trim()) {
+    return undefined as unknown as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as unknown as T;
+  }
 }
 
 export const apiClient = {
@@ -207,6 +216,15 @@ export const apiClient = {
       return undefined as unknown as T;
     }
 
-    return response.json() as Promise<T>;
+    const text = await response.text();
+    if (!text || !text.trim()) {
+      return undefined as unknown as T;
+    }
+
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      return text as unknown as T;
+    }
   },
 };

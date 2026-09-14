@@ -159,8 +159,8 @@ export default function SecurityAuditPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Categories</SelectItem>
-            <SelectItem value="SECURITY">SECURITY</SelectItem>
-            <SelectItem value="AUTHENTICATION">AUTHENTICATION</SelectItem>
+            <SelectItem value="SECURITY">Security</SelectItem>
+            <SelectItem value="AUTHENTICATION">Authentication</SelectItem>
           </SelectContent>
         </Select>
       </div>

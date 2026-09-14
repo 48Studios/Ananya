@@ -113,10 +113,10 @@ export function ServiceRequestForm({
                     <SelectValue placeholder="Select category..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="MAINTENANCE">MAINTENANCE</SelectItem>
-                    <SelectItem value="REPAIR">REPAIR</SelectItem>
-                    <SelectItem value="INSTALLATION">INSTALLATION</SelectItem>
-                    <SelectItem value="INSPECTION">INSPECTION</SelectItem>
+                    <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                    <SelectItem value="REPAIR">Repair</SelectItem>
+                    <SelectItem value="INSTALLATION">Installation</SelectItem>
+                    <SelectItem value="INSPECTION">Inspection</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -134,9 +134,9 @@ export function ServiceRequestForm({
                     <SelectValue placeholder="Select priority..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="LOW">LOW</SelectItem>
-                    <SelectItem value="MEDIUM">MEDIUM</SelectItem>
-                    <SelectItem value="HIGH">HIGH</SelectItem>
+                    <SelectItem value="LOW">Low</SelectItem>
+                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                    <SelectItem value="HIGH">High</SelectItem>
                   </SelectContent>
                 </Select>
               )}

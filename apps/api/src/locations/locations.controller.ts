@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Put,
@@ -43,6 +45,7 @@ export class LocationsController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param('id') id: string): Promise<void> {
     return this.locationsService.delete(id);
   }
