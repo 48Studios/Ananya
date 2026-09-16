@@ -43,10 +43,26 @@ export interface BatchLabelsPayload {
 }
 
 export const barcodesApi = {
-  lookup: (code: string): Promise<BarcodeLookupResult> =>
-    apiClient.get<BarcodeLookupResult>(
-      `/barcodes/lookup?code=${encodeURIComponent(code)}`,
-    ),
+  lookup: (code: string): Promise<BarcodeLookupResult> => {
+    let cleanCode = code.trim();
+    if (cleanCode.includes("?code=") || cleanCode.includes("&code=")) {
+      try {
+        const dummyBase = cleanCode.startsWith("http")
+          ? cleanCode
+          : `http://localhost/${cleanCode.replace(/^\/+/, "")}`;
+        const parsed = new URL(dummyBase);
+        const inner = parsed.searchParams.get("code");
+        if (inner && inner.trim()) {
+          cleanCode = decodeURIComponent(inner.trim());
+        }
+      } catch {
+        // Fall back to cleanCode as-is
+      }
+    }
+    return apiClient.get<BarcodeLookupResult>(
+      `/barcodes/lookup?code=${encodeURIComponent(cleanCode)}`,
+    );
+  },
 
   generatePayload: (
     entityType: EntityType,

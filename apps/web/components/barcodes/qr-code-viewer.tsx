@@ -7,22 +7,51 @@ export interface QRCodeViewerProps {
   value: string;
   size?: number;
   className?: string;
+  ensureActionableUrl?: boolean;
+}
+
+/**
+ * Transforms an internal code or payload into an actionable web URL
+ * so native phone cameras (iOS / Android) recognize the QR code as a clickable link.
+ */
+export function getActionableQrUrl(value: string): string {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  if (typeof window !== "undefined" && window.location?.origin) {
+    const origin = window.location.origin.replace(/\/+$/, "");
+    return `${origin}/scan?code=${encodeURIComponent(trimmed)}`;
+  }
+  const envAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (envAppUrl) {
+    const origin = envAppUrl.replace(/\/+$/, "");
+    return `${origin}/scan?code=${encodeURIComponent(trimmed)}`;
+  }
+  return trimmed;
 }
 
 export function QRCodeViewer({
   value,
   size = 120,
   className = "",
+  ensureActionableUrl = true,
 }: QRCodeViewerProps) {
+  const finalValue = React.useMemo(() => {
+    if (!ensureActionableUrl) return value;
+    return getActionableQrUrl(value);
+  }, [value, ensureActionableUrl]);
+
   const qr = React.useMemo(() => {
     try {
-      return QRCode.create(value || "ANANYA", {
+      return QRCode.create(finalValue || "ANANYA", {
         errorCorrectionLevel: "M",
       });
     } catch {
       return QRCode.create("ANANYA", { errorCorrectionLevel: "M" });
     }
-  }, [value]);
+  }, [finalValue]);
 
   const moduleCount = qr.modules.size;
   const margin = 4; // Standard ISO 4-module quiet zone

@@ -60,7 +60,23 @@ export class BarcodesService {
       );
     }
 
-    // 0. Check if input is a URL like /locations/... or /components/...
+    // 0. Check if input is a URL containing ?code= (e.g. /scan?code=... or full URL)
+    if (code.includes('?code=') || code.includes('&code=')) {
+      try {
+        const dummyBase = code.startsWith('http')
+          ? code
+          : `http://localhost/${code.replace(/^\/+/, '')}`;
+        const parsed = new URL(dummyBase);
+        const extracted = parsed.searchParams.get('code');
+        if (extracted && extracted.trim()) {
+          return this.lookup(decodeURIComponent(extracted.trim()));
+        }
+      } catch {
+        // Fall back to direct regex matching
+      }
+    }
+
+    // 0b. Check if input is a direct resource URL like /locations/... or /components/...
     const urlMatch = code.match(
       /(?:locations|components|purchase-orders|work-orders|projects)\/([a-zA-Z0-9_-]+)/i,
     );
