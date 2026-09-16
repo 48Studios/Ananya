@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ComponentForm } from "@/components/components/component-form";
+import { PrintLabelDialog } from "@/components/barcodes/print-label-dialog";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 import { inventoryTransactionsApi } from "@/lib/api/inventory-transactions-api";
@@ -37,6 +39,8 @@ export default function ComponentsPage() {
   const [editingComponent, setEditingComponent] =
     React.useState<ComponentDto | null>(null);
   const [deletingComponent, setDeletingComponent] =
+    React.useState<ComponentDto | null>(null);
+  const [printingComponent, setPrintingComponent] =
     React.useState<ComponentDto | null>(null);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
@@ -249,6 +253,14 @@ export default function ComponentsPage() {
         meta: { width: "8%", minWidth: "116px", headerClassName: "text-right" },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              title="Print component label"
+              onClick={() => setPrintingComponent(row.original)}
+            >
+              <Printer className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+            </Button>
             <Link href={`/components/${row.original.id}`}>
               <Button variant="ghost" size="icon-xs" title="View details">
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -435,6 +447,18 @@ export default function ComponentsPage() {
         emptyMessage="Get started by adding your first inventory component."
         minWidth={940}
       />
+
+      {/* Print Component Label Modal */}
+      {printingComponent && (
+        <PrintLabelDialog
+          isOpen={!!printingComponent}
+          onClose={() => setPrintingComponent(null)}
+          entityType="COMPONENT"
+          entityId={printingComponent.id}
+          defaultTemplate="STANDARD"
+          title={`Print Component Label: ${printingComponent.sku}`}
+        />
+      )}
     </div>
   );
 }

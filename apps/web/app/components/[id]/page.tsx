@@ -12,6 +12,7 @@ import {
   Activity,
   CheckCircle2,
   History,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -21,6 +22,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { ComponentForm } from "@/components/components/component-form";
+import { PrintLabelDialog } from "@/components/barcodes/print-label-dialog";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
@@ -63,6 +65,7 @@ export default function ViewComponentPage() {
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  const [isPrintOpen, setIsPrintOpen] = React.useState(false);
 
   const fetchData = React.useCallback(async () => {
     if (!id) return;
@@ -212,6 +215,14 @@ export default function ViewComponentPage() {
             >
               <ArrowLeft className="w-4 h-4 mr-1.5" />
               Back
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPrintOpen(true)}
+            >
+              <Printer className="w-4 h-4 mr-1.5" />
+              Print Label
             </Button>
             <Button
               variant="outline"
@@ -619,6 +630,18 @@ export default function ViewComponentPage() {
         onConfirm={handleDelete}
         onCancel={() => setIsDeleteOpen(false)}
       />
+
+      {/* Print Component Label Modal */}
+      {component && (
+        <PrintLabelDialog
+          isOpen={isPrintOpen}
+          onClose={() => setIsPrintOpen(false)}
+          entityType="COMPONENT"
+          entityId={component.id}
+          defaultTemplate="STANDARD"
+          title={`Print Component Label: ${component.sku}`}
+        />
+      )}
     </div>
   );
 }

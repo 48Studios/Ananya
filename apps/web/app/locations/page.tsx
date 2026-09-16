@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Boxes,
   Layers,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LocationForm } from "@/components/locations/location-form";
+import { PrintLabelDialog } from "@/components/barcodes/print-label-dialog";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 
 const kindBadgeColors: Record<string, string> = {
@@ -82,6 +84,8 @@ export default function LocationsPage() {
   const [editingLocation, setEditingLocation] =
     React.useState<LocationDto | null>(null);
   const [deletingLocation, setDeletingLocation] =
+    React.useState<LocationDto | null>(null);
+  const [printingLocation, setPrintingLocation] =
     React.useState<LocationDto | null>(null);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
@@ -258,6 +262,14 @@ export default function LocationsPage() {
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              title="Print location tag"
+              onClick={() => setPrintingLocation(row.original)}
+            >
+              <Printer className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+            </Button>
             <Link href={`/locations/${row.original.id}`}>
               <Button variant="ghost" size="icon-xs" title="View details">
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -465,6 +477,18 @@ export default function LocationsPage() {
         emptyTitle="No storage locations or bins found"
         emptyMessage="Get started by creating your first storage location or bin."
       />
+
+      {/* Print Location Tag Modal */}
+      {printingLocation && (
+        <PrintLabelDialog
+          isOpen={!!printingLocation}
+          onClose={() => setPrintingLocation(null)}
+          entityType="LOCATION"
+          entityId={printingLocation.id}
+          defaultTemplate="SHELF_BIN"
+          title={`Print Location Tag: ${printingLocation.code}`}
+        />
+      )}
     </div>
   );
 }

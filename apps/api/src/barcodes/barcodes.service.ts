@@ -43,6 +43,13 @@ export interface LabelData {
   attribute2?: string;
 }
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(val: string): boolean {
+  return UUID_REGEX.test(val);
+}
+
 @Injectable()
 export class BarcodesService {
   async lookup(rawCode: string): Promise<BarcodeLookupResult> {
@@ -51,6 +58,22 @@ export class BarcodesService {
       throw new NotFoundException(
         'Barcode or QR input string cannot be empty.',
       );
+    }
+
+    // 0. Check if input is a URL like /locations/... or /components/...
+    const urlMatch = code.match(
+      /(?:locations|components|purchase-orders|work-orders|projects)\/([a-zA-Z0-9_-]+)/i,
+    );
+    if (urlMatch && urlMatch[1]) {
+      const lower = code.toLowerCase();
+      const entityId = urlMatch[1];
+      if (lower.includes('/locations/')) return this.lookupLocation(entityId);
+      if (lower.includes('/components/')) return this.lookupComponent(entityId);
+      if (lower.includes('/purchase-orders/'))
+        return this.lookupPurchaseOrder(entityId);
+      if (lower.includes('/work-orders/'))
+        return this.lookupWorkOrder(entityId);
+      if (lower.includes('/projects/')) return this.lookupProject(entityId);
     }
 
     // 1. Check if input is a structured QR payload: ANANYA:V1:TYPE:IDENTIFIER
@@ -112,17 +135,35 @@ export class BarcodesService {
   private async lookupComponent(
     identifier: string,
   ): Promise<BarcodeLookupResult> {
-    const [comp] = await db
-      .select()
-      .from(components)
-      .where(
-        or(eq(components.id, identifier), ilike(components.sku, identifier)),
-      )
-      .limit(1);
+    const condition = isUuid(identifier)
+      ? or(eq(components.id, identifier), ilike(components.sku, identifier))
+      : ilike(components.sku, identifier);
+
+    const [comp] = await db.select().from(components).where(condition).limit(1);
 
     if (!comp) {
       throw new NotFoundException(`Component "${identifier}" not found.`);
     }
+
+    let defaultLocPath: string | undefined;
+    if (comp.defaultLocationId) {
+      defaultLocPath = await this.getLocationPath(comp.defaultLocationId);
+    }
+
+    // Get total stock projections across locations
+    const stockProjections = await db
+      .select({
+        locationId: inventoryProjections.locationId,
+        quantity: inventoryProjections.quantity,
+        unitOfMeasure: inventoryProjections.unitOfMeasure,
+      })
+      .from(inventoryProjections)
+      .where(eq(inventoryProjections.componentId, comp.id));
+
+    const totalStock = stockProjections.reduce(
+      (sum, p) => sum + Number(p.quantity),
+      0,
+    );
 
     return {
       found: true,
@@ -131,12 +172,14 @@ export class BarcodesService {
       code: comp.sku,
       qrPayload: `ANANYA:V1:COMPONENT:${comp.id}`,
       name: comp.name,
-      subtitle: `SKU: ${comp.sku}`,
+      subtitle: `SKU: ${comp.sku} | Stock: ${totalStock} ${comp.unit}`,
       targetUrl: `/components/${comp.id}`,
       details: {
         sku: comp.sku,
         unit: comp.unit,
         defaultLocationId: comp.defaultLocationId,
+        defaultLocationPath: defaultLocPath,
+        totalStock,
         isActive: comp.isActive,
         description: comp.description,
       },
@@ -146,17 +189,49 @@ export class BarcodesService {
   private async lookupLocation(
     identifier: string,
   ): Promise<BarcodeLookupResult> {
-    const [loc] = await db
-      .select()
-      .from(locations)
-      .where(
-        or(eq(locations.id, identifier), ilike(locations.code, identifier)),
-      )
-      .limit(1);
+    const condition = isUuid(identifier)
+      ? or(
+          eq(locations.id, identifier),
+          ilike(locations.code, identifier),
+          ilike(locations.name, identifier),
+        )
+      : or(
+          ilike(locations.code, identifier),
+          ilike(locations.name, identifier),
+        );
+
+    const [loc] = await db.select().from(locations).where(condition).limit(1);
 
     if (!loc) {
       throw new NotFoundException(`Location "${identifier}" not found.`);
     }
+
+    const locationPath = await this.getLocationPath(loc.id);
+
+    // Query containing components from inventory projections
+    const items = await db
+      .select({
+        componentId: inventoryProjections.componentId,
+        quantity: inventoryProjections.quantity,
+        unitOfMeasure: inventoryProjections.unitOfMeasure,
+        componentSku: components.sku,
+        componentName: components.name,
+        componentUnit: components.unit,
+      })
+      .from(inventoryProjections)
+      .innerJoin(
+        components,
+        eq(inventoryProjections.componentId, components.id),
+      )
+      .where(eq(inventoryProjections.locationId, loc.id));
+
+    const containingComponents = items.map((item) => ({
+      componentId: item.componentId,
+      sku: item.componentSku,
+      name: item.componentName,
+      quantity: Number(item.quantity),
+      unit: item.unitOfMeasure || item.componentUnit,
+    }));
 
     return {
       found: true,
@@ -165,11 +240,15 @@ export class BarcodesService {
       code: loc.code,
       qrPayload: `ANANYA:V1:LOCATION:${loc.id}`,
       name: loc.name,
-      subtitle: loc.code,
+      subtitle: `${loc.kind.toUpperCase()} • ${loc.code}`,
       targetUrl: `/locations/${loc.id}`,
       details: {
         code: loc.code,
+        name: loc.name,
         kind: loc.kind,
+        locationPath,
+        containingComponents,
+        componentCount: containingComponents.length,
       },
     };
   }
@@ -177,15 +256,17 @@ export class BarcodesService {
   private async lookupPurchaseOrder(
     identifier: string,
   ): Promise<BarcodeLookupResult> {
+    const condition = isUuid(identifier)
+      ? or(
+          eq(purchaseOrders.id, identifier),
+          ilike(purchaseOrders.poNumber, identifier),
+        )
+      : ilike(purchaseOrders.poNumber, identifier);
+
     const [po] = await db
       .select()
       .from(purchaseOrders)
-      .where(
-        or(
-          eq(purchaseOrders.id, identifier),
-          ilike(purchaseOrders.poNumber, identifier),
-        ),
-      )
+      .where(condition)
       .limit(1);
 
     if (!po) {
@@ -212,15 +293,17 @@ export class BarcodesService {
   private async lookupWorkOrder(
     identifier: string,
   ): Promise<BarcodeLookupResult> {
+    const condition = isUuid(identifier)
+      ? or(
+          eq(productionOrders.id, identifier),
+          ilike(productionOrders.productionNumber, identifier),
+        )
+      : ilike(productionOrders.productionNumber, identifier);
+
     const [wo] = await db
       .select()
       .from(productionOrders)
-      .where(
-        or(
-          eq(productionOrders.id, identifier),
-          ilike(productionOrders.productionNumber, identifier),
-        ),
-      )
+      .where(condition)
       .limit(1);
 
     if (!wo) {
@@ -248,16 +331,14 @@ export class BarcodesService {
   private async lookupProject(
     identifier: string,
   ): Promise<BarcodeLookupResult> {
-    const [proj] = await db
-      .select()
-      .from(projects)
-      .where(
-        or(
+    const condition = isUuid(identifier)
+      ? or(
           eq(projects.id, identifier),
           ilike(projects.projectNumber, identifier),
-        ),
-      )
-      .limit(1);
+        )
+      : ilike(projects.projectNumber, identifier);
+
+    const [proj] = await db.select().from(projects).where(condition).limit(1);
 
     if (!proj) {
       throw new NotFoundException(`Project "${identifier}" not found.`);

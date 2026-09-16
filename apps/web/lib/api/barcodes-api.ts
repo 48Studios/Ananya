@@ -51,9 +51,9 @@ export const barcodesApi = {
   generatePayload: (
     entityType: EntityType,
     entityId: string,
-  ): Promise<BarcodePayloadResult> =>
+  ): Promise<LabelData> =>
     apiClient.post<
-      BarcodePayloadResult,
+      LabelData,
       { entityType: EntityType; entityId: string }
     >("/barcodes/generate", {
       entityType,
