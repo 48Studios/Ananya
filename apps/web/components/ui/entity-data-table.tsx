@@ -337,7 +337,7 @@ export function EntityDataTable<TData, TValue>({
                   key={headerGroup.id}
                   className="border-b border-border bg-muted/40"
                 >
-                  {headerGroup.headers.map((header) => {
+                  {headerGroup.headers.map((header, hIdx) => {
                     const canSort = header.column.getCanSort();
                     const colMeta = header.column.columnDef.meta as ColumnMetaConfig | undefined;
                     const colWidth =
@@ -346,6 +346,10 @@ export function EntityDataTable<TData, TValue>({
                         ? header.column.columnDef.size
                         : undefined);
                     const colMinWidth = colMeta?.minWidth;
+                    const isLastCol = hIdx === headerGroup.headers.length - 1;
+                    const isRightAligned =
+                      header.id === "actions" ||
+                      colMeta?.headerClassName?.includes("text-right");
 
                     return (
                       <th
@@ -365,7 +369,9 @@ export function EntityDataTable<TData, TValue>({
                               : undefined,
                         }}
                         className={cn(
-                          "px-3.5 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider select-none align-middle",
+                          "px-3.5 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider select-none align-middle whitespace-nowrap overflow-hidden",
+                          isLastCol && "pr-4 sm:pr-5",
+                          isRightAligned && "text-right",
                           colMeta?.className,
                           colMeta?.headerClassName,
                         )}
@@ -373,13 +379,16 @@ export function EntityDataTable<TData, TValue>({
                         {header.isPlaceholder ? null : (
                           <div
                             className={cn(
-                              "inline-flex items-center gap-1.5 max-w-full",
+                              "inline-flex items-center gap-1.5 max-w-full min-w-0",
+                              isRightAligned && "w-full justify-end text-right",
+                              colMeta?.headerClassName?.includes("text-center") &&
+                                "w-full justify-center text-center",
                               canSort &&
                                 "cursor-pointer hover:text-foreground transition-colors",
                             )}
                             onClick={header.column.getToggleSortingHandler()}
                           >
-                            <span className="leading-tight">
+                            <span className="leading-tight whitespace-nowrap truncate">
                               {flexRender(
                                 header.column.columnDef.header,
                                 header.getContext(),
@@ -407,77 +416,85 @@ export function EntityDataTable<TData, TValue>({
                         colMeta?.width ??
                         (col.size !== 150 ? col.size : undefined);
                       const colMinWidth = colMeta?.minWidth;
+                      const isLastCol = cIdx === columns.length - 1;
                       return (
                         <td
                           key={`skeleton-cell-${cIdx}`}
-                          className="px-3.5 py-3.5"
-                          style={{
-                            width:
-                              colWidth !== undefined
-                                ? typeof colWidth === "number"
-                                  ? `${colWidth}px`
-                                  : colWidth
-                                : undefined,
-                            minWidth:
-                              colMinWidth !== undefined
-                                ? typeof colMinWidth === "number"
-                                  ? `${colMinWidth}px`
-                                  : colMinWidth
-                                : undefined,
-                          }}
-                        >
-                          <div className="h-4 bg-muted/60 rounded-md w-3/4" />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))
-              ) : table.getRowModel().rows.length > 0 ? (
-                table.getRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="hover:bg-muted/30 transition-colors"
-                  >
-                    {row.getVisibleCells().map((cell) => {
-                      const colMeta = cell.column.columnDef.meta as ColumnMetaConfig | undefined;
-                      const colWidth =
-                        colMeta?.width ??
-                        (cell.column.columnDef.size !== 150
-                          ? cell.column.columnDef.size
-                          : undefined);
-                      const colMinWidth = colMeta?.minWidth;
-
-                      return (
-                        <td
-                          key={cell.id}
                           className={cn(
-                            "px-3.5 py-3.5 text-foreground align-middle",
-                            colMeta?.className,
-                            colMeta?.cellClassName,
+                            "px-3.5 py-3.5",
+                            isLastCol && "pr-4 sm:pr-5",
                           )}
                           style={{
                             width:
                               colWidth !== undefined
                                 ? typeof colWidth === "number"
-                                  ? `${colWidth}px`
-                                  : colWidth
-                                : undefined,
-                            minWidth:
-                              colMinWidth !== undefined
-                                ? typeof colMinWidth === "number"
-                                  ? `${colMinWidth}px`
-                                  : colMinWidth
-                                : undefined,
-                          }}
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
+                                ? `${colWidth}px`
+                                : colWidth
+                              : undefined,
+                          minWidth:
+                            colMinWidth !== undefined
+                              ? typeof colMinWidth === "number"
+                                ? `${colMinWidth}px`
+                                : colMinWidth
+                              : undefined,
+                        }}
+                      >
+                        <div className="h-4 bg-muted/60 rounded-md w-3/4" />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))
+            ) : table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="hover:bg-muted/30 transition-colors"
+                >
+                  {row.getVisibleCells().map((cell, cIdx) => {
+                    const colMeta = cell.column.columnDef.meta as ColumnMetaConfig | undefined;
+                    const colWidth =
+                      colMeta?.width ??
+                      (cell.column.columnDef.size !== 150
+                        ? cell.column.columnDef.size
+                        : undefined);
+                    const colMinWidth = colMeta?.minWidth;
+                    const isLastCol = cIdx === row.getVisibleCells().length - 1;
+                    const isActionsCol = cell.column.id === "actions";
+
+                    return (
+                      <td
+                        key={cell.id}
+                        className={cn(
+                          "px-3.5 py-3.5 text-foreground align-middle",
+                          isLastCol && "pr-4 sm:pr-5",
+                          isActionsCol && "text-right",
+                          colMeta?.className,
+                          colMeta?.cellClassName,
+                        )}
+                        style={{
+                          width:
+                            colWidth !== undefined
+                              ? typeof colWidth === "number"
+                                ? `${colWidth}px`
+                                : colWidth
+                              : undefined,
+                          minWidth:
+                            colMinWidth !== undefined
+                              ? typeof colMinWidth === "number"
+                                ? `${colMinWidth}px`
+                                : colMinWidth
+                              : undefined,
+                        }}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
                 ))
               ) : (
                 // Empty State

@@ -87,21 +87,24 @@ export default function TransactionReportsPage() {
       {
         accessorKey: "id",
         header: "Transaction ID",
+        meta: { width: "16%" },
         cell: ({ row }) => (
           <Link
             href={`/transactions/${row.original.id}`}
-            className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted font-bold inline-flex items-center gap-1 uppercase"
+            className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted font-bold inline-flex items-center gap-1 uppercase whitespace-nowrap"
+            title={row.original.id}
           >
             {row.original.id.slice(0, 8)}...
-            <ExternalLink className="w-3 h-3 text-muted-foreground" />
+            <ExternalLink className="w-3 h-3 text-muted-foreground shrink-0" />
           </Link>
         ),
       },
       {
         accessorKey: "transactionType",
         header: "Type",
+        meta: { width: "14%" },
         cell: ({ row }) => (
-          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-500/20">
+          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
             {row.original.transactionType}
           </span>
         ),
@@ -109,11 +112,12 @@ export default function TransactionReportsPage() {
       {
         accessorKey: "quantity",
         header: "Quantity",
+        meta: { width: "14%" },
         cell: ({ row }) => {
           const isNegative = row.original.quantity < 0;
           return (
             <span
-              className={`font-mono text-xs font-bold ${
+              className={`font-mono text-xs font-bold whitespace-nowrap ${
                 isNegative
                   ? "text-rose-600 dark:text-rose-400"
                   : "text-emerald-600 dark:text-emerald-400"
@@ -128,8 +132,12 @@ export default function TransactionReportsPage() {
       {
         accessorKey: "reference",
         header: "Reference / Document",
+        meta: { width: "26%" },
         cell: ({ row }) => (
-          <span className="text-xs text-foreground font-mono">
+          <span
+            className="text-xs text-foreground font-mono truncate block"
+            title={row.original.reference || undefined}
+          >
             {row.original.reference || "N/A"}
           </span>
         ),
@@ -137,8 +145,12 @@ export default function TransactionReportsPage() {
       {
         accessorKey: "createdAt",
         header: "Recorded Date",
+        meta: { width: "18%" },
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground font-mono">
+          <span
+            className="text-xs text-muted-foreground font-mono whitespace-nowrap block truncate"
+            title={new Date(row.original.createdAt).toLocaleString()}
+          >
             {formatDate(row.original.createdAt)}
           </span>
         ),
@@ -146,12 +158,15 @@ export default function TransactionReportsPage() {
       {
         id: "actions",
         header: "Action",
+        meta: { width: "12%", headerClassName: "text-right" },
         cell: ({ row }) => (
-          <Link href={`/transactions/${row.original.id}`}>
-            <Button variant="ghost" size="xs">
-              View Log
-            </Button>
-          </Link>
+          <div className="flex items-center justify-end">
+            <Link href={`/transactions/${row.original.id}`}>
+              <Button variant="ghost" size="xs">
+                View Log
+              </Button>
+            </Link>
+          </div>
         ),
       },
     ],

@@ -514,15 +514,23 @@ export default function ViewComponentPage() {
 
         {transactions.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm table-fixed">
+              <colgroup>
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "22%" }} />
+                <col style={{ width: "20%" }} />
+                <col style={{ width: "14%" }} />
+              </colgroup>
               <thead className="bg-muted/40 text-muted-foreground font-medium text-xs border-b border-border">
                 <tr>
-                  <th className="px-6 py-3">Date</th>
-                  <th className="px-6 py-3">Type</th>
-                  <th className="px-6 py-3 text-right">Quantity</th>
-                  <th className="px-6 py-3">Location</th>
-                  <th className="px-6 py-3">Reference / Reason</th>
-                  <th className="px-6 py-3">Created By</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3 text-right">Quantity</th>
+                  <th className="px-4 py-3">Location</th>
+                  <th className="px-4 py-3">Reference / Reason</th>
+                  <th className="px-4 py-3">Created By</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -542,12 +550,15 @@ export default function ViewComponentPage() {
 
                   return (
                     <tr key={tx.id} className="hover:bg-muted/20">
-                      <td className="px-6 py-3.5 text-xs text-muted-foreground font-mono">
-                        {new Date(tx.createdAt).toLocaleString()}
+                      <td
+                        className="px-4 py-3 text-xs text-muted-foreground font-mono whitespace-nowrap truncate"
+                        title={new Date(tx.createdAt).toLocaleString()}
+                      >
+                        {new Date(tx.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-3.5">
+                      <td className="px-4 py-3">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+                          className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${
                             tx.transactionType === "Receipt"
                               ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                               : tx.transactionType === "Issue"
@@ -558,7 +569,7 @@ export default function ViewComponentPage() {
                           {tx.transactionType}
                         </span>
                       </td>
-                      <td className="px-6 py-3.5 text-right font-mono text-xs font-bold">
+                      <td className="px-4 py-3 text-right font-mono text-xs font-bold whitespace-nowrap">
                         <span
                           className={
                             isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
@@ -568,22 +579,38 @@ export default function ViewComponentPage() {
                           {tx.quantity} {tx.unitOfMeasure || component.unit}
                         </span>
                       </td>
-                      <td className="px-6 py-3.5 text-xs text-foreground font-mono">
+                      <td
+                        className="px-4 py-3 text-xs text-foreground font-mono truncate"
+                        title={
+                          targetLoc
+                            ? `${targetLoc.code} (${targetLoc.name})`
+                            : undefined
+                        }
+                      >
                         {targetLoc
                           ? `${targetLoc.code} (${targetLoc.name})`
                           : "—"}
                       </td>
-                      <td className="px-6 py-3.5 text-xs">
-                        <div className="font-mono text-foreground font-medium">
+                      <td className="px-4 py-3 text-xs min-w-0">
+                        <div
+                          className="font-mono text-foreground font-medium truncate"
+                          title={tx.reference || undefined}
+                        >
                           {tx.reference || "—"}
                         </div>
                         {tx.reason && (
-                          <div className="text-[11px] text-muted-foreground">
+                          <div
+                            className="text-[11px] text-muted-foreground truncate"
+                            title={tx.reason}
+                          >
                             {tx.reason}
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-3.5 text-xs text-muted-foreground">
+                      <td
+                        className="px-4 py-3 text-xs text-muted-foreground truncate"
+                        title={tx.createdBy}
+                      >
                         {tx.createdBy}
                       </td>
                     </tr>

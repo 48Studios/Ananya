@@ -153,10 +153,12 @@ export default function WarehouseTransfersPage() {
       {
         accessorKey: "transferNumber",
         header: "Transfer #",
+        meta: { width: "16%" },
         cell: ({ row }) => (
           <Link
             href={`/warehouse-transfers/${row.original.id}`}
-            className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold"
+            className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold whitespace-nowrap inline-block"
+            title={row.original.transferNumber}
           >
             {row.original.transferNumber}
           </Link>
@@ -165,17 +167,25 @@ export default function WarehouseTransfersPage() {
       {
         accessorKey: "sourceLocationId",
         header: "Source Location",
+        meta: { width: "23%" },
         cell: ({ row }) => {
           const loc = locationsMap[row.original.sourceLocationId];
+          const name = loc ? loc.name : row.original.sourceLocationId.slice(0, 8);
+          const code = loc ? loc.code : "";
           return (
-            <span className="text-xs font-medium text-foreground flex items-center gap-1">
-              <MapPin className="w-3 h-3 text-muted-foreground" />
-              {loc ? loc.name : row.original.sourceLocationId.slice(0, 8)}{" "}
-              {loc && (
-                <span className="font-mono text-muted-foreground text-[11px]">
-                  ({loc.code})
-                </span>
-              )}
+            <span
+              className="text-xs font-medium text-foreground flex items-center gap-1 min-w-0"
+              title={code ? `${name} (${code})` : name}
+            >
+              <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />
+              <span className="truncate">
+                {name}{" "}
+                {code && (
+                  <span className="font-mono text-muted-foreground text-[11px]">
+                    ({code})
+                  </span>
+                )}
+              </span>
             </span>
           );
         },
@@ -183,19 +193,27 @@ export default function WarehouseTransfersPage() {
       {
         accessorKey: "destinationLocationId",
         header: "Destination Location",
+        meta: { width: "23%" },
         cell: ({ row }) => {
           const loc = locationsMap[row.original.destinationLocationId];
+          const name = loc
+            ? loc.name
+            : row.original.destinationLocationId.slice(0, 8);
+          const code = loc ? loc.code : "";
           return (
-            <span className="text-xs font-medium text-foreground flex items-center gap-1">
-              <ArrowRight className="w-3 h-3 text-muted-foreground" />
-              {loc
-                ? loc.name
-                : row.original.destinationLocationId.slice(0, 8)}{" "}
-              {loc && (
-                <span className="font-mono text-muted-foreground text-[11px]">
-                  ({loc.code})
-                </span>
-              )}
+            <span
+              className="text-xs font-medium text-foreground flex items-center gap-1 min-w-0"
+              title={code ? `${name} (${code})` : name}
+            >
+              <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+              <span className="truncate">
+                {name}{" "}
+                {code && (
+                  <span className="font-mono text-muted-foreground text-[11px]">
+                    ({code})
+                  </span>
+                )}
+              </span>
             </span>
           );
         },
@@ -203,8 +221,9 @@ export default function WarehouseTransfersPage() {
       {
         id: "lineCount",
         header: "Line Items",
+        meta: { width: "12%" },
         cell: ({ row }) => (
-          <span className="font-mono text-xs text-foreground font-bold">
+          <span className="font-mono text-xs text-foreground font-bold whitespace-nowrap">
             {row.original.lines.length} items
           </span>
         ),
@@ -212,13 +231,18 @@ export default function WarehouseTransfersPage() {
       {
         accessorKey: "status",
         header: "Status",
+        meta: { width: "12%" },
         cell: ({ row }) => getStatusBadge(row.original.status),
       },
       {
         accessorKey: "createdAt",
         header: "Date Created",
+        meta: { width: "10%" },
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
+          <span
+            className="text-xs text-muted-foreground whitespace-nowrap block truncate font-mono"
+            title={new Date(row.original.createdAt).toLocaleString()}
+          >
             {new Date(row.original.createdAt).toLocaleDateString()}
           </span>
         ),
@@ -226,6 +250,7 @@ export default function WarehouseTransfersPage() {
       {
         id: "actions",
         header: "Actions",
+        meta: { width: "4%", headerClassName: "text-right" },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/warehouse-transfers/${row.original.id}`}>

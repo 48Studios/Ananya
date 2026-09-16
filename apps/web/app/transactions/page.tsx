@@ -35,44 +35,44 @@ function getTransactionBadge(type: TransactionType) {
     case "Receipt":
     case "InitialStock":
       return (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-          <ArrowDownLeft className="w-3 h-3 mr-1" />
+        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
+          <ArrowDownLeft className="w-3 h-3 mr-1 shrink-0" />
           {type}
         </span>
       );
     case "Issue":
     case "Consumption":
       return (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
-          <ArrowUpRight className="w-3 h-3 mr-1" />
+        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20 whitespace-nowrap">
+          <ArrowUpRight className="w-3 h-3 mr-1 shrink-0" />
           {type}
         </span>
       );
     case "Transfer":
       return (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
-          <ArrowRightLeft className="w-3 h-3 mr-1" />
+        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 whitespace-nowrap">
+          <ArrowRightLeft className="w-3 h-3 mr-1 shrink-0" />
           {type}
         </span>
       );
     case "Adjustment":
     case "ManualCorrection":
       return (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-          <Wrench className="w-3 h-3 mr-1" />
+        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap">
+          <Wrench className="w-3 h-3 mr-1 shrink-0" />
           {type}
         </span>
       );
     case "Return":
       return (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
-          <RotateCcw className="w-3 h-3 mr-1" />
+        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20 whitespace-nowrap">
+          <RotateCcw className="w-3 h-3 mr-1 shrink-0" />
           {type}
         </span>
       );
     default:
       return (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-muted text-muted-foreground border border-border">
+        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-muted text-muted-foreground border border-border whitespace-nowrap">
           {type}
         </span>
       );
@@ -148,11 +148,13 @@ export default function TransactionsPage() {
     () => [
       {
         accessorKey: "id",
-        header: "Transaction ID",
+        header: () => <span className="whitespace-nowrap">Transaction ID</span>,
+        meta: { width: "135px", minWidth: "135px" },
         cell: ({ row }) => (
           <Link
             href={`/transactions/${row.original.id}`}
-            className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase"
+            className="font-mono text-xs text-foreground bg-muted/50 px-1.5 py-0.5 rounded hover:bg-muted transition-colors uppercase whitespace-nowrap inline-block"
+            title={row.original.id}
           >
             {row.original.id.slice(0, 8)}
           </Link>
@@ -160,32 +162,40 @@ export default function TransactionsPage() {
       },
       {
         accessorKey: "transactionType",
-        header: "Type",
+        header: () => <span className="whitespace-nowrap">Type</span>,
+        meta: { width: "100px", minWidth: "95px" },
         cell: ({ row }) => getTransactionBadge(row.original.transactionType),
       },
       {
         accessorKey: "componentId",
-        header: "Component",
+        header: () => <span className="whitespace-nowrap">Component</span>,
+        meta: { minWidth: "180px" },
         cell: ({ row }) => {
           const comp = componentsMap[row.original.componentId];
+          const fullName = comp
+            ? `${comp.name} (${comp.sku})`
+            : row.original.componentId;
           return (
-            <Link
-              href={`/components/${row.original.componentId}`}
-              className="font-medium text-xs text-foreground hover:underline"
-            >
-              {comp ? comp.name : row.original.componentId.slice(0, 8)}{" "}
-              {comp && (
-                <span className="font-mono text-muted-foreground text-[11px]">
-                  ({comp.sku})
-                </span>
-              )}
-            </Link>
+            <div className="min-w-0" title={fullName}>
+              <Link
+                href={`/components/${row.original.componentId}`}
+                className="font-medium text-xs text-foreground hover:underline truncate block"
+              >
+                {comp ? comp.name : row.original.componentId.slice(0, 8)}{" "}
+                {comp && (
+                  <span className="font-mono text-muted-foreground text-[11px]">
+                    ({comp.sku})
+                  </span>
+                )}
+              </Link>
+            </div>
           );
         },
       },
       {
         accessorKey: "quantity",
-        header: "Quantity",
+        header: () => <span className="whitespace-nowrap">Quantity</span>,
+        meta: { width: "105px", minWidth: "95px" },
         cell: ({ row }) => {
           const type = row.original.quantity;
           const sign = ["Issue", "Consumption"].includes(
@@ -194,7 +204,7 @@ export default function TransactionsPage() {
             ? "-"
             : "+";
           return (
-            <span className="font-mono text-xs font-bold text-foreground">
+            <span className="font-mono text-xs font-bold text-foreground whitespace-nowrap">
               {sign}
               {type} {row.original.unitOfMeasure}
             </span>
@@ -203,7 +213,8 @@ export default function TransactionsPage() {
       },
       {
         id: "location",
-        header: "Location",
+        header: () => <span className="whitespace-nowrap">Location</span>,
+        meta: { width: "180px", minWidth: "150px" },
         cell: ({ row }) => {
           const src = row.original.sourceLocationId
             ? locationsMap[row.original.sourceLocationId]
@@ -213,18 +224,30 @@ export default function TransactionsPage() {
             : null;
 
           if (src && dest) {
+            const locText = `${src.code} → ${dest.code}`;
             return (
-              <span className="text-xs text-foreground font-medium flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-muted-foreground" />
-                {src.code} → {dest.code}
+              <span
+                className="text-xs text-foreground font-medium flex items-center gap-1 min-w-0"
+                title={`${src.name} (${src.code}) → ${dest.name} (${dest.code})`}
+              >
+                <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="truncate">{locText}</span>
               </span>
             );
           }
           const activeLoc = dest || src;
           return activeLoc ? (
-            <span className="text-xs text-foreground font-medium flex items-center gap-1">
-              <MapPin className="w-3 h-3 text-muted-foreground" />
-              {activeLoc.name} ({activeLoc.code})
+            <span
+              className="text-xs text-foreground font-medium flex items-center gap-1 min-w-0"
+              title={`${activeLoc.name} (${activeLoc.code})`}
+            >
+              <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />
+              <span className="truncate">
+                {activeLoc.name}{" "}
+                <span className="font-mono text-muted-foreground text-[11px]">
+                  ({activeLoc.code})
+                </span>
+              </span>
             </span>
           ) : (
             <span className="text-xs text-muted-foreground font-mono">—</span>
@@ -233,36 +256,47 @@ export default function TransactionsPage() {
       },
       {
         accessorKey: "reference",
-        header: "Reference",
+        header: () => <span className="whitespace-nowrap">Reference</span>,
+        meta: { width: "125px", minWidth: "115px" },
         cell: ({ row }) => (
-          <span className="font-mono text-xs text-muted-foreground uppercase">
+          <span
+            className="font-mono text-xs text-muted-foreground uppercase truncate block"
+            title={row.original.reference ? `Ref: ${row.original.reference} (By: ${row.original.createdBy})` : `By: ${row.original.createdBy}`}
+          >
             {row.original.reference || "—"}
           </span>
         ),
       },
       {
-        accessorKey: "createdBy",
-        header: "Performed By",
-        cell: ({ row }) => (
-          <span className="text-xs text-foreground">
-            {row.original.createdBy}
-          </span>
-        ),
-      },
-      {
         accessorKey: "createdAt",
-        header: "Timestamp",
-        cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
-            {new Date(row.original.createdAt).toLocaleString()}
-          </span>
-        ),
+        header: () => <span className="whitespace-nowrap">Timestamp</span>,
+        meta: { width: "115px", minWidth: "110px" },
+        cell: ({ row }) => {
+          const d = new Date(row.original.createdAt);
+          return (
+            <span
+              className="text-xs text-muted-foreground whitespace-nowrap block truncate font-mono"
+              title={`${d.toLocaleString()} (By: ${row.original.createdBy})`}
+            >
+              {d.toLocaleDateString()}
+            </span>
+          );
+        },
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => (
+          <span className="whitespace-nowrap text-right block w-full">
+            Actions
+          </span>
+        ),
+        meta: {
+          width: "75px",
+          minWidth: "75px",
+          headerClassName: "text-right",
+        },
         cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end">
             <Link href={`/transactions/${row.original.id}`}>
               <Button
                 variant="ghost"

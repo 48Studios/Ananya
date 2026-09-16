@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
@@ -13,6 +14,7 @@ import {
   AlertCircle,
   RefreshCw,
   Printer,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -23,6 +25,13 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { ComponentForm } from "@/components/components/component-form";
 import { PrintLabelDialog } from "@/components/barcodes/print-label-dialog";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
@@ -30,6 +39,7 @@ import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 import { inventoryTransactionsApi } from "@/lib/api/inventory-transactions-api";
 
 export default function ComponentsPage() {
+  const router = useRouter();
   const [components, setComponents] = React.useState<ComponentDto[]>([]);
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
   const [stockMap, setStockMap] = React.useState<Record<string, number>>({});
@@ -139,8 +149,12 @@ export default function ComponentsPage() {
     () => [
       {
         accessorKey: "sku",
-        header: "SKU / Part No.",
-        meta: { width: "16%", minWidth: "140px" },
+        header: () => (
+          <span className="whitespace-nowrap" title="SKU / Part Number">
+            SKU
+          </span>
+        ),
+        meta: { width: "14%" },
         cell: ({ row }) => (
           <Link
             href={`/components/${row.original.id}`}
@@ -153,8 +167,10 @@ export default function ComponentsPage() {
       },
       {
         accessorKey: "name",
-        header: "Component Name",
-        meta: { width: "20%", minWidth: "150px" },
+        header: () => (
+          <span className="whitespace-nowrap">Component Name</span>
+        ),
+        meta: { width: "20%" },
         cell: ({ row }) => (
           <Link
             href={`/components/${row.original.id}`}
@@ -167,8 +183,10 @@ export default function ComponentsPage() {
       },
       {
         accessorKey: "description",
-        header: "Description",
-        meta: { width: "20%", minWidth: "150px" },
+        header: () => (
+          <span className="whitespace-nowrap">Description</span>
+        ),
+        meta: { width: "18%" },
         cell: ({ row }) => (
           <span
             className="text-xs text-muted-foreground truncate block"
@@ -181,7 +199,7 @@ export default function ComponentsPage() {
       {
         accessorKey: "unit",
         header: () => <span className="whitespace-nowrap">Unit</span>,
-        meta: { width: "7%", minWidth: "75px" },
+        meta: { width: "7%" },
         cell: ({ row }) => (
           <span className="font-mono text-xs uppercase px-2 py-0.5 border border-border rounded bg-card text-foreground whitespace-nowrap">
             {row.original.unit}
@@ -190,8 +208,12 @@ export default function ComponentsPage() {
       },
       {
         id: "stockOnHand",
-        header: "Stock On Hand",
-        meta: { width: "10%", minWidth: "105px" },
+        header: () => (
+          <span className="whitespace-nowrap" title="Stock On Hand">
+            On Hand
+          </span>
+        ),
+        meta: { width: "11%" },
         cell: ({ row }) => {
           const qty = stockMap[row.original.id] || 0;
           return (
@@ -209,8 +231,12 @@ export default function ComponentsPage() {
       },
       {
         accessorKey: "defaultLocationId",
-        header: "Default Storage",
-        meta: { width: "11%", minWidth: "110px" },
+        header: () => (
+          <span className="whitespace-nowrap" title="Default Storage Location">
+            Storage
+          </span>
+        ),
+        meta: { width: "11%" },
         cell: ({ row }) => {
           const locId = row.original.defaultLocationId;
           if (!locId)
@@ -234,7 +260,7 @@ export default function ComponentsPage() {
       {
         accessorKey: "isActive",
         header: () => <span className="whitespace-nowrap">Status</span>,
-        meta: { width: "8%", minWidth: "80px" },
+        meta: { width: "10%" },
         cell: ({ row }) => (
           <span
             className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${
@@ -249,50 +275,74 @@ export default function ComponentsPage() {
       },
       {
         id: "actions",
-        header: () => <span className="whitespace-nowrap">Actions</span>,
-        meta: { width: "8%", minWidth: "116px", headerClassName: "text-right" },
-        cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-1 whitespace-nowrap">
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              title="Print component label"
-              onClick={() => setPrintingComponent(row.original)}
-            >
-              <Printer className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-            </Button>
-            <Link href={`/components/${row.original.id}`}>
-              <Button variant="ghost" size="icon-xs" title="View details">
-                <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-              </Button>
-            </Link>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              title="Edit component"
-              onClick={() => {
-                setEditingComponent(row.original);
-                setIsFormOpen(true);
-              }}
-            >
-              <Edit3 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              title="Delete component"
-              onClick={() => {
-                setApiAlert(null);
-                setDeletingComponent(row.original);
-              }}
-            >
-              <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-            </Button>
-          </div>
+        header: () => (
+          <span className="whitespace-nowrap text-right block w-full">
+            Actions
+          </span>
         ),
+        meta: {
+          width: "9%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
+        cell: ({ row }) => {
+          const comp = row.original;
+          return (
+            <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                title="Edit component"
+                onClick={() => {
+                  setEditingComponent(comp);
+                  setIsFormOpen(true);
+                }}
+              >
+                <Edit3 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="More actions"
+                      className="data-open:bg-muted"
+                    >
+                      <MoreVertical className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => router.push(`/components/${comp.id}`)}
+                  >
+                    <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>View Details</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setPrintingComponent(comp)}>
+                    <Printer className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Print Label</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => {
+                      setApiAlert(null);
+                      setDeletingComponent(comp);
+                    }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    <span>Delete</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          );
+        },
       },
     ],
-    [locationMap, stockMap],
+    [locationMap, stockMap, router],
   );
 
   const filterConfigs: FilterConfig[] = [
