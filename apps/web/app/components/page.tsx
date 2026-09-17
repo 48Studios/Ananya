@@ -15,8 +15,6 @@ import {
   RefreshCw,
   Printer,
   MoreVertical,
-  X,
-  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -34,23 +32,15 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { ComponentForm } from "@/components/components/component-form";
 import { PrintLabelDialog } from "@/components/barcodes/print-label-dialog";
+import {
+  ComponentsFilterCard,
+  type AttributeFilterCriteria,
+} from "@/components/components/components-filter-card";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
-import {
-  attributesApi,
-  type ResolvedCategoryAttributeDto,
-} from "@/lib/api/attributes-api";
 import { inventoryTransactionsApi } from "@/lib/api/inventory-transactions-api";
 
 export default function ComponentsPage() {
@@ -79,14 +69,13 @@ export default function ComponentsPage() {
     }
   }, [toastMessage, apiAlert, error]);
 
-  // Dynamic Specifications Filter State
+  // Dynamic Specifications & Category Filter State
   const [selectedCategoryId, setSelectedCategoryId] = React.useState<string>("");
-  const [categoryAttributes, setCategoryAttributes] = React.useState<
-    ResolvedCategoryAttributeDto[]
-  >([]);
   const [attributeFilters, setAttributeFilters] = React.useState<
-    Record<string, { min?: string; max?: string; value?: string; booleanVal?: string }>
+    Record<string, AttributeFilterCriteria>
   >({});
+  const [inStockOnly, setInStockOnly] = React.useState(false);
+  const [activeOnly, setActiveOnly] = React.useState(false);
 
   const fetchData = React.useCallback(async () => {
     setLoading(true);
@@ -136,24 +125,6 @@ export default function ComponentsPage() {
     fetchData();
   }, [fetchData]);
 
-  // Load applicable category attribute definitions when a category is selected
-  React.useEffect(() => {
-    if (!selectedCategoryId) {
-      setCategoryAttributes([]);
-      setAttributeFilters({});
-      return;
-    }
-    attributesApi
-      .getByCategory(selectedCategoryId)
-      .then((attrs) => {
-        setCategoryAttributes(attrs.filter((a) => a.attributeDefinition.isFilterable));
-        setAttributeFilters({});
-      })
-      .catch(() => {
-        setCategoryAttributes([]);
-      });
-  }, [selectedCategoryId]);
-
   const locationMap = React.useMemo(() => {
     const map = new Map<string, string>();
     for (const loc of locations) {
@@ -173,33 +144,59 @@ export default function ComponentsPage() {
   // Real-time dynamic attribute & category filtering
   const filteredComponents = React.useMemo(() => {
     return components.filter((comp) => {
+      // In stock only
+      if (inStockOnly && (stockMap[comp.id] || 0) <= 0) {
+        return false;
+      }
+
+      // Active only
+      if (activeOnly && !comp.isActive) {
+        return false;
+      }
+
       // Category filter
       if (selectedCategoryId && comp.categoryId !== selectedCategoryId) {
         return false;
       }
 
       // Attribute specifications filters
-      for (const [code, filter] of Object.entries(attributeFilters)) {
-        if (!filter) continue;
+      for (const [code, criteria] of Object.entries(attributeFilters)) {
+        if (!criteria) continue;
         const compAttr = comp.attributes?.[code];
 
-        // Select / Multi-Select / Text match
-        if (filter.value && filter.value !== "ALL") {
+        // Option-based filter (SELECT / MULTI_SELECT / Discrete values)
+        if (criteria.selectedOptions && criteria.selectedOptions.length > 0) {
           if (!compAttr) return false;
-          const searchLower = filter.value.toLowerCase();
-          const optCodeMatch = compAttr.optionCode?.toLowerCase() === searchLower;
-          const optLabelMatch = compAttr.optionLabel?.toLowerCase() === searchLower;
-          const dispValMatch = compAttr.displayValue?.toLowerCase().includes(searchLower);
-          const rawValMatch = String(compAttr.value ?? "").toLowerCase().includes(searchLower);
-          if (!optCodeMatch && !optLabelMatch && !dispValMatch && !rawValMatch) {
-            return false;
+          const searchCodes = criteria.selectedOptions.map((s) =>
+            s.toLowerCase(),
+          );
+          const optCode = compAttr.optionCode?.toLowerCase();
+          const optLabel = compAttr.optionLabel?.toLowerCase();
+          const dispVal = compAttr.displayValue?.toLowerCase();
+          const rawVal = String(compAttr.value ?? "").toLowerCase();
+
+          const matchesSingle =
+            (optCode && searchCodes.includes(optCode)) ||
+            (optLabel && searchCodes.includes(optLabel)) ||
+            (dispVal && searchCodes.includes(dispVal)) ||
+            searchCodes.includes(rawVal);
+
+          if (!matchesSingle) {
+            if (Array.isArray(compAttr.value)) {
+              const arr = compAttr.value.map((v) => String(v).toLowerCase());
+              if (!arr.some((v) => searchCodes.includes(v))) {
+                return false;
+              }
+            } else {
+              return false;
+            }
           }
         }
 
         // Boolean filter
-        if (filter.booleanVal && filter.booleanVal !== "ALL") {
+        if (criteria.booleanVal && criteria.booleanVal !== "ALL") {
           if (!compAttr) return false;
-          const expected = filter.booleanVal === "true";
+          const expected = criteria.booleanVal === "true";
           const actual =
             compAttr.value === true ||
             compAttr.displayValue === "Yes" ||
@@ -207,59 +204,66 @@ export default function ComponentsPage() {
           if (actual !== expected) return false;
         }
 
-        // Numeric min filter
-        if (filter.min !== undefined && filter.min !== "") {
-          const minNum = parseFloat(filter.min);
-          if (!isNaN(minNum)) {
-            if (!compAttr) return false;
-            const valNum =
-              compAttr.normalizedValue !== null && compAttr.normalizedValue !== undefined
-                ? compAttr.normalizedValue
-                : typeof compAttr.value === "number"
-                  ? compAttr.value
-                  : parseFloat(String(compAttr.value));
-            if (isNaN(valNum) || valNum < minNum) return false;
+        // Numeric / Quantity Relational filter
+        const op = criteria.numericOperator || "BETWEEN";
+        const hasMin = criteria.min !== undefined && criteria.min !== "";
+        const hasMax = criteria.max !== undefined && criteria.max !== "";
+        const hasTarget =
+          criteria.targetValue !== undefined && criteria.targetValue !== "";
+
+        if (hasMin || hasMax || hasTarget) {
+          if (!compAttr) return false;
+          const valNum =
+            compAttr.normalizedValue !== null &&
+            compAttr.normalizedValue !== undefined
+              ? compAttr.normalizedValue
+              : typeof compAttr.value === "number"
+                ? compAttr.value
+                : parseFloat(String(compAttr.value));
+
+          if (isNaN(valNum)) return false;
+
+          if (op === "BETWEEN") {
+            if (hasMin && valNum < parseFloat(criteria.min!)) return false;
+            if (hasMax && valNum > parseFloat(criteria.max!)) return false;
+          } else if (op === "EQ") {
+            if (
+              hasTarget &&
+              Math.abs(valNum - parseFloat(criteria.targetValue!)) > 0.0001
+            ) {
+              return false;
+            }
+          } else if (op === "GTE") {
+            const threshold = parseFloat(
+              criteria.targetValue || criteria.min || "0",
+            );
+            if (!isNaN(threshold) && valNum < threshold) return false;
+          } else if (op === "LTE") {
+            const threshold = parseFloat(
+              criteria.targetValue || criteria.max || "0",
+            );
+            if (!isNaN(threshold) && valNum > threshold) return false;
           }
         }
 
-        // Numeric max filter
-        if (filter.max !== undefined && filter.max !== "") {
-          const maxNum = parseFloat(filter.max);
-          if (!isNaN(maxNum)) {
-            if (!compAttr) return false;
-            const valNum =
-              compAttr.normalizedValue !== null && compAttr.normalizedValue !== undefined
-                ? compAttr.normalizedValue
-                : typeof compAttr.value === "number"
-                  ? compAttr.value
-                  : parseFloat(String(compAttr.value));
-            if (isNaN(valNum) || valNum > maxNum) return false;
-          }
+        // Text search filter
+        if (criteria.textSearch && criteria.textSearch.trim() !== "") {
+          if (!compAttr) return false;
+          const q = criteria.textSearch.toLowerCase().trim();
+          const combined = `${compAttr.displayValue} ${compAttr.value} ${compAttr.optionLabel}`.toLowerCase();
+          if (!combined.includes(q)) return false;
         }
       }
 
       return true;
     });
-  }, [components, selectedCategoryId, attributeFilters]);
-
-  const activeFilterCount = React.useMemo(() => {
-    let count = selectedCategoryId ? 1 : 0;
-    for (const filter of Object.values(attributeFilters)) {
-      if (
-        (filter.value && filter.value !== "ALL") ||
-        (filter.booleanVal && filter.booleanVal !== "ALL") ||
-        (filter.min !== undefined && filter.min !== "") ||
-        (filter.max !== undefined && filter.max !== "")
-      ) {
-        count++;
-      }
-    }
-    return count;
-  }, [selectedCategoryId, attributeFilters]);
+  }, [components, inStockOnly, activeOnly, stockMap, selectedCategoryId, attributeFilters]);
 
   const handleClearAllFilters = () => {
     setSelectedCategoryId("");
     setAttributeFilters({});
+    setInStockOnly(false);
+    setActiveOnly(false);
   };
 
   const activeCount = React.useMemo(
@@ -679,208 +683,21 @@ export default function ComponentsPage() {
         onCancel={() => setDeletingComponent(null)}
       />
 
-      {/* Dynamic Specifications & Category Filter Bar */}
-      <div className="bg-card border border-border rounded-xl p-4 space-y-3 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">
-              Specifications & Category Filter
-            </span>
-            {activeFilterCount > 0 && (
-              <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                {activeFilterCount} active
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Category Dropdown */}
-            <div className="w-56">
-              <Select
-                value={selectedCategoryId || "ALL"}
-                onValueChange={(val) =>
-                  setSelectedCategoryId(val === "ALL" ? "" : (val ?? ""))
-                }
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Categories</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name} ({cat.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {activeFilterCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClearAllFilters}
-                className="h-8 text-xs text-muted-foreground hover:text-foreground px-2"
-              >
-                <X className="w-3.5 h-3.5 mr-1" />
-                Clear
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Category-Specific Dynamic Specification Filters */}
-        {selectedCategoryId && categoryAttributes.length > 0 && (
-          <div className="pt-2 border-t border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {categoryAttributes.map((attr) => {
-              const def = attr.attributeDefinition;
-              const current = attributeFilters[def.code] || {};
-
-              if (def.dataType === "SELECT" || def.dataType === "MULTI_SELECT") {
-                return (
-                  <div key={def.code} className="space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground block truncate">
-                      {def.name}
-                    </label>
-                    <Select
-                      value={current.value || "ALL"}
-                      onValueChange={(val) =>
-                        setAttributeFilters((prev) => ({
-                          ...prev,
-                          [def.code]: {
-                            ...prev[def.code],
-                            value: val === "ALL" || !val ? "" : val,
-                          },
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="h-8 text-xs font-mono">
-                        <SelectValue placeholder={`All ${def.name}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">All {def.name}</SelectItem>
-                        {attr.options.map((opt) => (
-                          <SelectItem key={opt.id} value={opt.code}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                );
-              }
-
-              if (
-                def.dataType === "QUANTITY" ||
-                def.dataType === "NUMBER" ||
-                def.dataType === "INTEGER"
-              ) {
-                return (
-                  <div key={def.code} className="space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground block truncate">
-                      {def.name}{" "}
-                      {def.defaultUnit ? `(${def.defaultUnit})` : ""}
-                    </label>
-                    <div className="flex items-center gap-1.5">
-                      <Input
-                        type="number"
-                        placeholder="Min"
-                        value={current.min || ""}
-                        onChange={(e) =>
-                          setAttributeFilters((prev) => ({
-                            ...prev,
-                            [def.code]: {
-                              ...prev[def.code],
-                              min: e.target.value,
-                            },
-                          }))
-                        }
-                        className="h-8 text-xs font-mono"
-                      />
-                      <span className="text-xs text-muted-foreground">–</span>
-                      <Input
-                        type="number"
-                        placeholder="Max"
-                        value={current.max || ""}
-                        onChange={(e) =>
-                          setAttributeFilters((prev) => ({
-                            ...prev,
-                            [def.code]: {
-                              ...prev[def.code],
-                              max: e.target.value,
-                            },
-                          }))
-                        }
-                        className="h-8 text-xs font-mono"
-                      />
-                    </div>
-                  </div>
-                );
-              }
-
-              if (def.dataType === "BOOLEAN") {
-                return (
-                  <div key={def.code} className="space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground block truncate">
-                      {def.name}
-                    </label>
-                    <Select
-                      value={current.booleanVal || "ALL"}
-                      onValueChange={(val) =>
-                        setAttributeFilters((prev) => ({
-                          ...prev,
-                          [def.code]: {
-                            ...prev[def.code],
-                            booleanVal: val === "ALL" || !val ? "" : val,
-                          },
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Any" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">Any</SelectItem>
-                        <SelectItem value="true">Yes</SelectItem>
-                        <SelectItem value="false">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                );
-              }
-
-              if (def.dataType === "TEXT") {
-                return (
-                  <div key={def.code} className="space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground block truncate">
-                      {def.name}
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder={`Search ${def.name}...`}
-                      value={current.value || ""}
-                      onChange={(e) =>
-                        setAttributeFilters((prev) => ({
-                          ...prev,
-                          [def.code]: {
-                            ...prev[def.code],
-                            value: e.target.value,
-                          },
-                        }))
-                      }
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                );
-              }
-
-              return null;
-            })}
-          </div>
-        )}
-      </div>
+      {/* Dynamic Specifications & Category Filter Card */}
+      <ComponentsFilterCard
+        components={components}
+        categories={categories}
+        selectedCategoryId={selectedCategoryId}
+        onCategoryChange={setSelectedCategoryId}
+        attributeFilters={attributeFilters}
+        onAttributeFiltersChange={setAttributeFilters}
+        filteredComponents={filteredComponents}
+        onClearAll={handleClearAllFilters}
+        inStockOnly={inStockOnly}
+        onInStockOnlyChange={setInStockOnly}
+        activeOnly={activeOnly}
+        onActiveOnlyChange={setActiveOnly}
+      />
 
       {/* Data Table */}
       <EntityDataTable
