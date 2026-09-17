@@ -175,7 +175,14 @@ export function SidebarFavoritesRecent({
             />
             <span>Favorites</span>
             {pinnedItems.length > 0 && (
-              <span className="font-mono text-[9px] px-1 py-0.2 rounded-full bg-muted text-muted-foreground leading-none">
+              <span
+                className={cn(
+                  "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-mono font-medium leading-none",
+                  activeTab === "favorites"
+                    ? "bg-muted-foreground/20 text-foreground"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
                 {pinnedItems.length}
               </span>
             )}
@@ -194,7 +201,14 @@ export function SidebarFavoritesRecent({
             <Clock className="size-3 shrink-0 text-muted-foreground" />
             <span>Recent</span>
             {recentItems.length > 0 && (
-              <span className="font-mono text-[9px] px-1 py-0.2 rounded-full bg-muted text-muted-foreground leading-none">
+              <span
+                className={cn(
+                  "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-mono font-medium leading-none",
+                  activeTab === "recent"
+                    ? "bg-muted-foreground/20 text-foreground"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
                 {recentItems.length}
               </span>
             )}

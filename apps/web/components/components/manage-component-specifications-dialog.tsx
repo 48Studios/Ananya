@@ -132,24 +132,15 @@ function AttributeValueEditor({
   if (dataType === "BOOLEAN") {
     const isChecked = Boolean(value);
     return (
-      <div className="flex h-9 items-center gap-3">
+      <div className="flex h-9 items-center justify-end gap-2.5">
+        <span className="text-xs text-muted-foreground select-none">
+          {isChecked ? "Yes" : "No"}
+        </span>
         <Switch
           id={`switch-${attribute.code}`}
           checked={isChecked}
           onCheckedChange={(v) => onChange({ value: v })}
         />
-        <label
-          htmlFor={`switch-${attribute.code}`}
-          className="cursor-pointer text-xs font-medium text-foreground select-none"
-        >
-          {isChecked ? (
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-              Yes / Enabled
-            </span>
-          ) : (
-            <span className="text-muted-foreground">No / Disabled</span>
-          )}
-        </label>
       </div>
     );
   }
@@ -162,7 +153,7 @@ function AttributeValueEditor({
           onChange({ optionId: v === "none" ? "" : (v ?? "") })
         }
       >
-        <SelectTrigger className="h-9 w-full text-xs">
+        <SelectTrigger className="!h-9 w-full text-xs">
           <SelectValue placeholder="Choose an option…" />
         </SelectTrigger>
         <SelectContent>
@@ -187,10 +178,10 @@ function AttributeValueEditor({
   if (dataType === "MULTI_SELECT") {
     const selected = selectedOptionIds ?? [];
     return (
-      <div className="flex flex-wrap gap-1.5 py-0.5">
+      <div className="flex flex-wrap justify-end gap-1.5 py-0.5">
         {(options ?? []).length === 0 ? (
           <span className="text-xs text-muted-foreground italic">
-            No predefined choices configured
+            No options defined
           </span>
         ) : (
           options.map((o) => {
@@ -213,7 +204,7 @@ function AttributeValueEditor({
                     : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
                 )}
               >
-                {active && <Check className="w-3 h-3 shrink-0" />}
+                {active && <Check className="size-3 shrink-0" />}
                 <span>{o.label}</span>
               </button>
             );
@@ -225,39 +216,41 @@ function AttributeValueEditor({
 
   if (dataType === "QUANTITY") {
     return (
-      <div className="grid grid-cols-2 gap-2">
+      <div className="flex items-center gap-2">
         <Input
           type="number"
           step="any"
-          placeholder="Value (e.g. 100)"
+          placeholder="0"
           value={value !== undefined && value !== null ? String(value) : ""}
           onChange={(e) =>
             onChange({
               value: e.target.value === "" ? "" : Number(e.target.value),
             })
           }
-          className="h-9 text-xs font-mono"
+          className="!h-9 text-xs font-mono text-left flex-1 min-w-0"
         />
-        <Select
-          value={(unit as string) || "none"}
-          onValueChange={(v) =>
-            onChange({ unit: v === "none" ? "" : (v ?? "") })
-          }
-        >
-          <SelectTrigger className="h-9 text-xs font-mono">
-            <SelectValue placeholder="Unit" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">
-              <span className="text-muted-foreground italic">No unit</span>
-            </SelectItem>
-            {filteredUnits.map((u) => (
-              <SelectItem key={u.id || u.name} value={u.name}>
-                <span className="font-mono text-xs">{u.name}</span>
+        <div className="w-20 shrink-0">
+          <Select
+            value={(unit as string) || "none"}
+            onValueChange={(v) =>
+              onChange({ unit: v === "none" ? "" : (v ?? "") })
+            }
+          >
+            <SelectTrigger className="!h-9 w-full text-xs font-mono">
+              <SelectValue placeholder="Unit" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">
+                <span className="text-muted-foreground italic">No unit</span>
               </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              {filteredUnits.map((u) => (
+                <SelectItem key={u.id || u.name} value={u.name}>
+                  <span className="font-mono text-xs">{u.name}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     );
   }
@@ -267,14 +260,14 @@ function AttributeValueEditor({
       <Input
         type="number"
         step={dataType === "INTEGER" ? "1" : "any"}
-        placeholder={`Enter ${dataType.toLowerCase()}…`}
+        placeholder="0"
         value={value !== undefined && value !== null ? String(value) : ""}
         onChange={(e) =>
           onChange({
             value: e.target.value === "" ? "" : Number(e.target.value),
           })
         }
-        className="h-9 text-xs font-mono"
+        className="!h-9 text-xs font-mono text-left w-full"
       />
     );
   }
@@ -285,7 +278,7 @@ function AttributeValueEditor({
         type="date"
         value={value !== undefined && value !== null ? String(value) : ""}
         onChange={(e) => onChange({ value: e.target.value })}
-        className="h-9 text-xs"
+        className="!h-9 text-xs text-left w-full"
       />
     );
   }
@@ -294,10 +287,10 @@ function AttributeValueEditor({
   return (
     <Input
       type="text"
-      placeholder="Enter value…"
+      placeholder="Value…"
       value={value !== undefined && value !== null ? String(value) : ""}
       onChange={(e) => onChange({ value: e.target.value })}
-      className="h-9 text-xs"
+      className="!h-9 text-xs text-left w-full"
     />
   );
 }
@@ -744,15 +737,10 @@ export function ManageComponentSpecificationsDialog({
             <Sliders className="size-4" />
           </div>
           <span>Manage Attributes</span>
-          {totalAssignedCount > 0 && (
-            <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-[11px] font-medium text-muted-foreground border border-border">
-              {totalAssignedCount} configured
-            </span>
-          )}
         </div>
       }
       description={`Configure technical specifications and dynamic attributes for ${componentName}.`}
-      size="lg"
+      size="md"
     >
       <DialogShellBody className="space-y-4">
         {/* Error / Success alert banners */}
@@ -843,74 +831,73 @@ export function ManageComponentSpecificationsDialog({
             )}
 
             {/* ── Toolbar: Search, Filters, + Add Attribute Popover ──── */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
-              {/* Search & Filter pills */}
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="relative flex-1 max-w-xs min-w-[160px]">
-                  <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Search attributes…"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-8 pl-8 text-xs"
-                  />
-                </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
+              {/* Search input fills all available space */}
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  type="text"
+                  placeholder="Search attributes…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="!h-9 pl-9 text-xs w-full"
+                />
+              </div>
 
-                {totalAssignedCount > 0 && (
-                  <div className="flex items-center rounded-lg border border-border p-0.5 bg-muted/30 text-xs shrink-0">
+              {/* Filter tab pills */}
+              {totalAssignedCount > 0 && (
+                <div className="!h-9 flex items-center rounded-lg border border-border p-1 bg-muted/40 shrink-0 box-border">
+                  <button
+                    type="button"
+                    onClick={() => setFilterTab("all")}
+                    className={cn(
+                      "h-full inline-flex items-center px-3 rounded-md text-xs font-medium transition-colors cursor-pointer select-none",
+                      filterTab === "all"
+                        ? "bg-background text-foreground shadow-2xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    All ({totalAssignedCount})
+                  </button>
+                  {categoryAssignedCount > 0 && (
                     <button
                       type="button"
-                      onClick={() => setFilterTab("all")}
+                      onClick={() => setFilterTab("category")}
                       className={cn(
-                        "px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer select-none",
-                        filterTab === "all"
+                        "h-full inline-flex items-center px-3 rounded-md text-xs font-medium transition-colors cursor-pointer select-none",
+                        filterTab === "category"
                           ? "bg-background text-foreground shadow-2xs font-semibold"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      All ({totalAssignedCount})
+                      Category ({categoryAssignedCount})
                     </button>
-                    {categoryAssignedCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setFilterTab("category")}
-                        className={cn(
-                          "px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer select-none",
-                          filterTab === "category"
-                            ? "bg-background text-foreground shadow-2xs font-semibold"
-                            : "text-muted-foreground hover:text-foreground",
-                        )}
-                      >
-                        Category ({categoryAssignedCount})
-                      </button>
-                    )}
-                    {customAssignedCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setFilterTab("custom")}
-                        className={cn(
-                          "px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer select-none",
-                          filterTab === "custom"
-                            ? "bg-background text-foreground shadow-2xs font-semibold"
-                            : "text-muted-foreground hover:text-foreground",
-                        )}
-                      >
-                        Custom ({customAssignedCount})
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+                  )}
+                  {customAssignedCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setFilterTab("custom")}
+                      className={cn(
+                        "h-full inline-flex items-center px-3 rounded-md text-xs font-medium transition-colors cursor-pointer select-none",
+                        filterTab === "custom"
+                          ? "bg-background text-foreground shadow-2xs font-semibold"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      Custom ({customAssignedCount})
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Add Attribute Button with Dropdown Popover */}
               <Popover open={addPopoverOpen} onOpenChange={setAddPopoverOpen}>
                 <PopoverTrigger
                   type="button"
                   disabled={availableDefinitionsToAdd.length === 0}
-                  className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-xs font-medium rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50 cursor-pointer shrink-0"
+                  className="!h-9 inline-flex items-center justify-center gap-1.5 px-3.5 text-xs font-medium rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50 cursor-pointer shrink-0"
                 >
-                  <Plus className="size-3.5" />
+                  <Plus className="size-4" />
                   <span>Add Attribute</span>
                 </PopoverTrigger>
 
@@ -1047,93 +1034,77 @@ export function ManageComponentSpecificationsDialog({
                 No attributes match “{searchQuery}”
               </div>
             ) : (
-              <div className="space-y-2.5">
-                {filteredAssignedList.map((attr) => {
-                  const typeInfo = TYPE_CONFIG[attr.dataType] ?? {
-                    label: attr.dataType,
-                    badgeClass: "bg-muted text-muted-foreground border-border",
-                  };
-
-                  return (
-                    <div
+              <div className="space-y-3">
+                {filteredAssignedList.map((attr) => (
+                  <div
                       key={attr.code}
-                      className="group rounded-xl border border-border/80 bg-card p-3.5 transition-all hover:border-border hover:shadow-xs"
+                      className={cn(
+                        "group rounded-xl border border-border/80 bg-card/70 p-4 transition-all hover:bg-card hover:border-border hover:shadow-xs",
+                        attr.isCategorySpec && "border-l-[3px] border-l-primary",
+                      )}
                     >
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
-                        {/* Left column: Attribute Metadata (5 cols) */}
-                        <div className="md:col-span-5 space-y-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-semibold text-foreground leading-snug">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                        {/* Left column: Attribute Metadata */}
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold text-foreground tracking-tight">
                               {attr.name}
                             </span>
                             {attr.isRequired && (
-                              <span className="rounded bg-destructive/10 px-1 py-px text-[9px] font-bold text-destructive border border-destructive/20 uppercase tracking-wider">
+                              <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold text-destructive border border-destructive/20 uppercase tracking-wider">
                                 Required
                               </span>
                             )}
                             {attr.isCategorySpec && (
-                              <span className="inline-flex items-center gap-0.5 rounded bg-primary/10 px-1.5 py-px text-[9px] font-medium text-primary border border-primary/20">
-                                <Sparkles className="size-2.5" />
+                              <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary border border-primary/20">
+                                <Sparkles className="size-3" />
                                 Category
                               </span>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                            <span className="font-mono text-[10px] text-muted-foreground/80 bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
-                              {attr.code}
-                            </span>
-                            <span
-                              className={cn(
-                                "rounded px-1.5 py-0.5 text-[9px] font-mono font-medium border",
-                                typeInfo.badgeClass,
-                              )}
-                            >
-                              {typeInfo.label}
-                            </span>
-                          </div>
-
                           {attr.description && (
-                            <p className="text-[11px] text-muted-foreground/80 leading-relaxed pt-0.5">
+                            <p
+                              className="text-xs text-muted-foreground/80 leading-relaxed pt-0.5 line-clamp-1"
+                              title={attr.description}
+                            >
                               {attr.description}
                             </p>
                           )}
                         </div>
 
-                        {/* Middle column: Value Input Control (6 cols) */}
-                        <div className="md:col-span-6 min-w-0">
-                          <AttributeValueEditor
-                            attribute={attr}
-                            units={units}
-                            onChange={(patch) =>
-                              setAssignedAttrs((prev) => ({
-                                ...prev,
-                                [attr.code]: {
-                                  ...prev[attr.code]!,
-                                  ...patch,
-                                },
-                              }))
-                            }
-                          />
-                        </div>
+                        {/* Right column: Value Input Control (Right-Aligned) + Trash Button */}
+                        <div className="flex items-center gap-2 shrink-0 justify-end w-full sm:w-auto">
+                          <div className="w-full sm:w-56 md:w-60">
+                            <AttributeValueEditor
+                              attribute={attr}
+                              units={units}
+                              onChange={(patch) =>
+                                setAssignedAttrs((prev) => ({
+                                  ...prev,
+                                  [attr.code]: {
+                                    ...prev[attr.code]!,
+                                    ...patch,
+                                  },
+                                }))
+                              }
+                            />
+                          </div>
 
-                        {/* Right column: Remove Button (1 col) */}
-                        <div className="md:col-span-1 flex justify-end">
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon-sm"
                             onClick={() => handleRemoveAttribute(attr.code)}
                             title={`Remove ${attr.name}`}
-                            className="text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            className="size-9 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
                           >
-                            <Trash2 className="size-3.5" />
+                            <Trash2 className="size-4" />
                           </Button>
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+                  ))}
               </div>
             )}
           </>

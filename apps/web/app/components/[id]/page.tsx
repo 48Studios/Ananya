@@ -439,22 +439,15 @@ export default function ViewComponentPage() {
                   Category-driven technical specifications and properties.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                {component.attributes && Object.keys(component.attributes).length > 0 && (
-                  <span className="text-xs font-mono font-medium px-2 py-0.5 bg-muted text-muted-foreground rounded-full border border-border">
-                    {Object.keys(component.attributes).length} configured
-                  </span>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsSpecsOpen(true)}
-                  className="h-8 text-xs gap-1.5"
-                >
-                  <Sliders className="w-3.5 h-3.5 text-primary" />
-                  Manage Attributes
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSpecsOpen(true)}
+                className="h-8 text-xs gap-1.5"
+              >
+                <Sliders className="w-3.5 h-3.5 text-primary" />
+                Manage Attributes
+              </Button>
             </div>
 
             {component.attributes && Object.keys(component.attributes).length > 0 ? (
