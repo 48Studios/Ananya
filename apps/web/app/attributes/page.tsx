@@ -18,6 +18,7 @@ import {
   X,
   RefreshCw,
   FolderTree,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -27,6 +28,13 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { AttributeFormDialog } from "@/components/attributes/attribute-form-dialog";
 import { AttributeOptionsDialog } from "@/components/attributes/attribute-options-dialog";
 import { AttributeCategoriesDialog } from "@/components/attributes/attribute-categories-dialog";
@@ -163,9 +171,10 @@ export default function AttributesPage() {
       {
         accessorKey: "name",
         header: "Attribute Name",
+        meta: { width: "20%" },
         cell: ({ row }) => (
-          <div className="space-y-0.5">
-            <span className="font-medium text-foreground">
+          <div className="space-y-0.5 min-w-0">
+            <span className="font-medium text-foreground truncate block">
               {row.original.name}
             </span>
             {row.original.description && (
@@ -179,8 +188,9 @@ export default function AttributesPage() {
       {
         accessorKey: "code",
         header: "Code",
+        meta: { width: "11%" },
         cell: ({ row }) => (
-          <span className="font-mono text-[11px] font-semibold text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20">
+          <span className="font-mono text-[11px] font-semibold text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20 truncate">
             {row.original.code}
           </span>
         ),
@@ -188,6 +198,7 @@ export default function AttributesPage() {
       {
         accessorKey: "dataType",
         header: "Data Type",
+        meta: { width: "10%" },
         cell: ({ row }) => {
           const dt = row.original.dataType;
           const isQty = dt === "QUANTITY";
@@ -211,6 +222,7 @@ export default function AttributesPage() {
       {
         id: "unitConfig",
         header: "Unit / Category",
+        meta: { width: "10%" },
         cell: ({ row }) => {
           const { unitCategory, defaultUnit, dataType } = row.original;
           if (dataType !== "QUANTITY") {
@@ -229,6 +241,7 @@ export default function AttributesPage() {
       {
         id: "optionsCount",
         header: "Options",
+        meta: { width: "8%" },
         cell: ({ row }) => {
           const { dataType, options } = row.original;
           if (dataType !== "SELECT" && dataType !== "MULTI_SELECT") {
@@ -245,6 +258,7 @@ export default function AttributesPage() {
       {
         id: "categories",
         header: "Categories",
+        meta: { width: "14%" },
         cell: ({ row }) => {
           const attr = row.original;
           const bindings = attr.categoryBindings || [];
@@ -289,6 +303,7 @@ export default function AttributesPage() {
       },
       {
         accessorKey: "isFilterable",
+        meta: { width: "9%" },
         header: "Filterable",
         cell: ({ row }) => (
           <span
@@ -312,6 +327,7 @@ export default function AttributesPage() {
       },
       {
         accessorKey: "isActive",
+        meta: { width: "8%" },
         header: "Status",
         cell: ({ row }) => (
           <span
@@ -332,7 +348,8 @@ export default function AttributesPage() {
       },
       {
         id: "actions",
-        header: () => <div className="text-right">Actions</div>,
+        meta: { width: "6.5rem" },
+        header: () => <div className="text-right sr-only">Actions</div>,
         cell: ({ row }) => {
           const attr = row.original;
           const isSelectType =
@@ -362,28 +379,39 @@ export default function AttributesPage() {
                 <FolderTree className="w-3.5 h-3.5" />
               </Button>
 
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                title="Edit Definition"
-                onClick={() => {
-                  setEditingAttribute(attr);
-                  setIsFormOpen(true);
-                }}
-                className="text-muted-foreground hover:text-foreground hover:bg-muted"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                title="Delete Definition"
-                onClick={() => setDeletingAttribute(attr)}
-                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="More actions"
+                      className="data-open:bg-muted"
+                    >
+                      <MoreVertical className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setEditingAttribute(attr);
+                      setIsFormOpen(true);
+                    }}
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Edit Definition</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => setDeletingAttribute(attr)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    <span>Delete</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           );
         },
