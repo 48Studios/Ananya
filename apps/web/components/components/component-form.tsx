@@ -442,18 +442,20 @@ export function ComponentForm({
         )}
 
         {categoryAttributes.length > 0 && (
-          <div className="space-y-3 pt-3 border-t border-border">
-            <div className="flex items-center gap-1.5">
-              <Sliders className="size-3.5 text-primary" />
-              <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                Category Specifications
-              </h4>
+          <div className="space-y-4 pt-4 border-t border-border">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <Sliders className="size-3.5 text-primary" />
+                <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                  Category Specifications
+                </h4>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Dynamic technical parameters defined for this category and its hierarchy.
+              </p>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Dynamic technical parameters defined for this category and its hierarchy.
-            </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-4">
               {categoryAttributes.map((attr) => {
                 const def = attr.attributeDefinition;
                 const code = def.code;

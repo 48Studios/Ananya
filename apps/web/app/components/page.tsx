@@ -216,8 +216,8 @@ export default function ComponentsPage() {
               compAttr.normalizedValue !== null && compAttr.normalizedValue !== undefined
                 ? compAttr.normalizedValue
                 : typeof compAttr.value === "number"
-                ? compAttr.value
-                : parseFloat(String(compAttr.value));
+                  ? compAttr.value
+                  : parseFloat(String(compAttr.value));
             if (isNaN(valNum) || valNum < minNum) return false;
           }
         }
@@ -231,8 +231,8 @@ export default function ComponentsPage() {
               compAttr.normalizedValue !== null && compAttr.normalizedValue !== undefined
                 ? compAttr.normalizedValue
                 : typeof compAttr.value === "number"
-                ? compAttr.value
-                : parseFloat(String(compAttr.value));
+                  ? compAttr.value
+                  : parseFloat(String(compAttr.value));
             if (isNaN(valNum) || valNum > maxNum) return false;
           }
         }
@@ -327,8 +327,8 @@ export default function ComponentsPage() {
           const attrs = row.original.attributes;
           const specBadges = attrs
             ? Object.values(attrs)
-                .filter((a) => Boolean(a.displayValue))
-                .slice(0, 3)
+              .filter((a) => Boolean(a.displayValue))
+              .slice(0, 3)
             : [];
 
           return (
@@ -413,11 +413,10 @@ export default function ComponentsPage() {
           const qty = stockMap[row.original.id] || 0;
           return (
             <span
-              className={`font-mono text-xs font-semibold px-2 py-0.5 rounded whitespace-nowrap inline-block ${
-                qty > 0
-                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                  : "text-muted-foreground"
-              }`}
+              className={`font-mono text-xs font-semibold px-2 py-0.5 rounded whitespace-nowrap inline-block ${qty > 0
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "text-muted-foreground"
+                }`}
             >
               {qty} {row.original.unit}
             </span>
@@ -458,11 +457,10 @@ export default function ComponentsPage() {
         meta: { width: "9%" },
         cell: ({ row }) => (
           <span
-            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${
-              row.original.isActive
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                : "bg-muted text-muted-foreground"
-            }`}
+            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${row.original.isActive
+              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+              : "bg-muted text-muted-foreground"
+              }`}
           >
             {row.original.isActive ? "Active" : "Inactive"}
           </span>

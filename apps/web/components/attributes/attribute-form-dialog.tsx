@@ -581,7 +581,7 @@ export function AttributeFormDialog({
           )}
 
           {/* Switches for Filterable & Active */}
-          <div className="pt-2 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="pt-4 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex items-center justify-between p-3 bg-card border border-border rounded-xl">
               <div>
                 <p className="text-xs font-semibold text-foreground">

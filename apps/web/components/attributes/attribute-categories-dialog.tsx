@@ -252,39 +252,6 @@ export function AttributeCategoriesDialog({
             </div>
           )}
 
-          {/* Context Header Strip */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
-                <FolderTree className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-foreground">
-                    {attribute?.name}
-                  </span>
-                  <span className="font-mono text-[11px] bg-background px-1.5 py-0.5 rounded border border-border text-muted-foreground">
-                    {attribute?.code}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className="text-[11px] text-muted-foreground">Type:</span>
-                  <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-background border border-border font-mono text-[10px] text-foreground leading-none">
-                    {attribute?.dataType}
-                  </span>
-                  {attribute?.defaultUnit && (
-                    <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-background border border-border font-mono text-[10px] text-muted-foreground leading-none">
-                      {attribute.defaultUnit}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <span className="text-xs font-mono font-medium text-muted-foreground bg-background px-2.5 py-1 rounded-md border border-border">
-              {bindings.length} {bindings.length === 1 ? "category" : "categories"} bound
-            </span>
-          </div>
-
           {/* Add Category Binding Section */}
           <div className="p-4 bg-card border border-border rounded-xl space-y-3.5 shadow-2xs">
             <div className="flex items-center justify-between">
@@ -299,7 +266,7 @@ export function AttributeCategoriesDialog({
               )}
             </div>
 
-            <form onSubmit={handleBindCategory} className="space-y-3">
+            <form onSubmit={handleBindCategory} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                 {/* Category Select */}
                 <div className="sm:col-span-8">
@@ -345,7 +312,7 @@ export function AttributeCategoriesDialog({
               </div>
 
               {/* Requirement Switch & Submit Row */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-border/40">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/40">
                 <div className="flex items-center gap-2">
                   <Switch
                     id="dialog-bind-required"
@@ -411,33 +378,23 @@ export function AttributeCategoriesDialog({
                     return (
                       <div
                         key={binding.id}
-                        className="p-3.5 bg-primary/5 border-l-2 border-l-primary flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        className="p-3.5 border-l-2 border-l-primary bg-primary/[0.03] flex flex-col sm:grid sm:grid-cols-12 sm:items-center gap-2"
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-foreground">
-                            {binding.categoryName}
-                          </span>
-                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
-                            {binding.categoryCode}
-                          </span>
+                        {/* Category Info (5 cols) */}
+                        <div className="sm:col-span-5 space-y-0.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-xs text-foreground">
+                              {binding.categoryName}
+                            </span>
+                            <span className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border text-muted-foreground">
+                              {binding.categoryCode}
+                            </span>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-3 self-end sm:self-auto flex-wrap">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-muted-foreground">
-                              Order:
-                            </span>
-                            <Input
-                              type="number"
-                              value={editSortOrder}
-                              onChange={(e) =>
-                                setEditSortOrder(Number(e.target.value))
-                              }
-                              className="h-8 w-20 text-xs font-mono"
-                            />
-                          </div>
-
-                          <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-background border border-border">
+                        {/* Requirement Toggle (3 cols) */}
+                        <div className="sm:col-span-3">
+                          <div className="flex items-center gap-2">
                             <Switch
                               id={`edit-req-${binding.id}`}
                               checked={editIsRequired}
@@ -445,38 +402,51 @@ export function AttributeCategoriesDialog({
                             />
                             <label
                               htmlFor={`edit-req-${binding.id}`}
-                              className="text-xs font-medium cursor-pointer"
+                              className="text-[11px] font-medium cursor-pointer select-none text-foreground"
                             >
                               Required
                             </label>
                           </div>
+                        </div>
 
-                          <div className="flex items-center gap-1">
-                            <Button
-                              size="xs"
-                              variant="default"
-                              disabled={isUpdating}
-                              onClick={() => handleSaveEdit(binding)}
-                              className="gap-1 h-8 text-xs"
-                            >
-                              {isUpdating ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Check className="w-3.5 h-3.5" />
-                              )}
-                              Save
-                            </Button>
+                        {/* Sort Order Input (2 cols) */}
+                        <div className="sm:col-span-2">
+                          <Input
+                            type="number"
+                            value={editSortOrder}
+                            onChange={(e) =>
+                              setEditSortOrder(Number(e.target.value))
+                            }
+                            className="h-7 w-16 text-xs font-mono"
+                          />
+                        </div>
 
-                            <Button
-                              size="xs"
-                              variant="ghost"
-                              disabled={isUpdating}
-                              onClick={() => setEditingBindingId(null)}
-                              className="h-8 text-xs"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
+                        {/* Save / Cancel Actions (2 cols) */}
+                        <div className="sm:col-span-2 flex items-center sm:justify-end gap-1 self-end sm:self-auto">
+                          <Button
+                            size="xs"
+                            variant="default"
+                            disabled={isUpdating}
+                            onClick={() => handleSaveEdit(binding)}
+                            className="gap-1 h-7 text-xs px-2.5"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Check className="w-3 h-3" />
+                            )}
+                            Save
+                          </Button>
+
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            disabled={isUpdating}
+                            onClick={() => setEditingBindingId(null)}
+                            className="h-7 text-xs px-2"
+                          >
+                            Cancel
+                          </Button>
                         </div>
                       </div>
                     );
@@ -503,8 +473,8 @@ export function AttributeCategoriesDialog({
                       <div className="sm:col-span-3">
                         <span
                           className={`inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-full border ${binding.isRequired
-                              ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 font-medium"
-                              : "bg-muted text-muted-foreground border-border"
+                            ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 font-medium"
+                            : "bg-muted text-muted-foreground border-border"
                             }`}
                         >
                           {binding.isRequired && (
