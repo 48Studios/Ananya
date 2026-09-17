@@ -509,7 +509,7 @@ export function ComponentsFilterCard({
           <div className="flex items-center gap-2 self-start lg:self-auto flex-wrap">
             {/* Quick stock toggles */}
             {onInStockOnlyChange && (
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer select-none px-2 py-1 rounded-md border border-border/60 bg-background/60">
+              <label className="flex items-center gap-3 text-xs text-muted-foreground hover:text-foreground cursor-pointer select-none px-3 py-2 h-9 rounded-md border border-border/60 bg-background/60">
                 <Checkbox
                   checked={inStockOnly}
                   onCheckedChange={(c) => onInStockOnlyChange(Boolean(c))}
@@ -520,7 +520,7 @@ export function ComponentsFilterCard({
             )}
 
             {onActiveOnlyChange && (
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer select-none px-2 py-1 rounded-md border border-border/60 bg-background/60">
+              <label className="flex items-center gap-3 text-xs text-muted-foreground hover:text-foreground cursor-pointer select-none px-3 py-2 h-9 rounded-md border border-border/60 bg-background/60">
                 <Checkbox
                   checked={activeOnly}
                   onCheckedChange={(c) => onActiveOnlyChange(Boolean(c))}
@@ -931,12 +931,12 @@ export function ComponentsFilterCard({
                         title={meta.name}
                       >
                         {meta.name}
+                        {meta.defaultUnit && (
+                          <span className="ml-2 inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
+                            {meta.defaultUnit}
+                          </span>
+                        )}
                       </p>
-                      {meta.defaultUnit && (
-                        <p className="text-[10px] text-muted-foreground font-mono">
-                          {meta.defaultUnit}
-                        </p>
-                      )}
                     </div>
                     {activeColCount > 0 && (
                       <button
