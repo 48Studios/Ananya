@@ -86,6 +86,8 @@ export interface EntityDataTableProps<TData, TValue> {
   onRefreshData?: () => void;
   tableClassName?: string;
   minWidth?: string | number;
+  initialPageSize?: number;
+  pageSizeOptions?: number[];
 }
 
 export function EntityDataTable<TData, TValue>({
@@ -104,6 +106,8 @@ export function EntityDataTable<TData, TValue>({
   onRefreshData,
   tableClassName,
   minWidth,
+  initialPageSize = 10,
+  pageSizeOptions = [10, 20, 50, 100],
 }: EntityDataTableProps<TData, TValue>) {
   const activeFilters = filters || filterConfigs;
   const activeLoading = loading || isLoading;
@@ -120,6 +124,11 @@ export function EntityDataTable<TData, TValue>({
   const table = useReactTable({
     data,
     columns,
+    initialState: {
+      pagination: {
+        pageSize: initialPageSize,
+      },
+    },
     state: {
       sorting,
       columnFilters,
@@ -526,7 +535,7 @@ export function EntityDataTable<TData, TValue>({
 
         {/* Pagination Bar */}
         {!loading && table.getRowModel().rows.length > 0 && (
-          <div className="px-4 py-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground bg-muted/20">
+          <div className="px-4 py-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground bg-muted/20">
             <div>
               Showing{" "}
               <span className="font-medium text-foreground">
@@ -548,29 +557,56 @@ export function EntityDataTable<TData, TValue>({
               </span>{" "}
               entries
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                <ChevronLeft className="w-3.5 h-3.5 mr-1" />
-                Previous
-              </Button>
-              <span className="text-xs font-medium px-2">
-                Page {table.getState().pagination.pageIndex + 1} of{" "}
-                {table.getPageCount()}
-              </span>
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                Next
-                <ChevronRight className="w-3.5 h-3.5 ml-1" />
-              </Button>
+            <div className="flex items-center gap-4 flex-wrap justify-center sm:justify-end">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  Rows per page
+                </span>
+                <Select
+                  value={String(table.getState().pagination.pageSize)}
+                  onValueChange={(val) => {
+                    if (val) {
+                      table.setPageSize(Number(val));
+                      table.setPageIndex(0);
+                    }
+                  }}
+                >
+                  <SelectTrigger size="sm" className="h-7 w-[72px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent side="top" align="end" className="min-w-[72px]">
+                    {pageSizeOptions.map((size) => (
+                      <SelectItem key={size} value={String(size)} className="text-xs">
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+                  Previous
+                </Button>
+                <span className="text-xs font-medium px-2 whitespace-nowrap">
+                  Page {table.getState().pagination.pageIndex + 1} of{" "}
+                  {Math.max(1, table.getPageCount())}
+                </span>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
+                >
+                  Next
+                  <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
+              </div>
             </div>
           </div>
         )}
