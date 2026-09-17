@@ -328,7 +328,7 @@ export function ComponentsFilterCard({
         if (!compAttr) return false;
         const valNum =
           compAttr.normalizedValue !== null &&
-          compAttr.normalizedValue !== undefined
+            compAttr.normalizedValue !== undefined
             ? compAttr.normalizedValue
             : typeof compAttr.value === "number"
               ? compAttr.value
@@ -675,8 +675,8 @@ export function ComponentsFilterCard({
                     ? "bg-primary text-primary-foreground border-primary shadow-xs"
                     : "bg-muted/40 text-muted-foreground border-border/60 hover:bg-muted hover:text-foreground",
                   count === 0 &&
-                    !isSelected &&
-                    "opacity-50 hover:opacity-100",
+                  !isSelected &&
+                  "opacity-50 hover:opacity-100",
                 )}
               >
                 <span>{cat.name}</span>
@@ -700,7 +700,7 @@ export function ComponentsFilterCard({
               <Select
                 value={
                   selectedCategoryId &&
-                  !topCategories.some((c) => c.id === selectedCategoryId)
+                    !topCategories.some((c) => c.id === selectedCategoryId)
                     ? selectedCategoryId
                     : ""
                 }
@@ -808,8 +808,8 @@ export function ComponentsFilterCard({
 
       {/* ── DigiKey Parametric Filter Columns Container ─────────────── */}
       {isExpanded && activeAttrCodes.length > 0 && (
-        <div className="p-4 overflow-x-auto">
-          <div className="grid grid-flow-col auto-cols-[220px] md:auto-cols-[240px] gap-3 min-w-full pb-2">
+        <div className="overflow-x-auto px-4 pb-4 pt-4 scrollbar-thin">
+          <div className="flex items-stretch gap-3 min-w-full w-max">
             {activeAttrCodes.map((code) => {
               const meta = attributeMetaMap.get(code);
               if (!meta) return null;
@@ -847,7 +847,7 @@ export function ComponentsFilterCard({
                 // Numeric bounds tracking
                 const num =
                   compAttr.normalizedValue !== null &&
-                  compAttr.normalizedValue !== undefined
+                    compAttr.normalizedValue !== undefined
                     ? compAttr.normalizedValue
                     : typeof compAttr.value === "number"
                       ? compAttr.value
@@ -917,14 +917,14 @@ export function ComponentsFilterCard({
                 <div
                   key={code}
                   className={cn(
-                    "flex flex-col rounded-lg border bg-card/60 transition-all shadow-2xs overflow-hidden",
+                    "flex flex-col rounded-lg border bg-card/60 transition-all shadow-2xs overflow-hidden w-[220px] md:w-[240px] shrink-0 h-[280px]",
                     activeColCount > 0
                       ? "border-primary/50 ring-1 ring-primary/20"
                       : "border-border/80",
                   )}
                 >
                   {/* Column Header */}
-                  <div className="p-2.5 bg-muted/40 border-b border-border/60 flex items-center justify-between gap-1">
+                  <div className="shrink-0 p-2.5 bg-muted/40 border-b border-border/60 flex items-center justify-between gap-1">
                     <div className="min-w-0">
                       <p
                         className="text-xs font-semibold text-foreground truncate"
@@ -952,7 +952,7 @@ export function ComponentsFilterCard({
 
                   {/* Mode Selector for Numeric Parameters (Values vs Range) */}
                   {isNumeric && (
-                    <div className="grid grid-cols-2 p-1 bg-muted/20 border-b border-border/40 text-[11px] font-medium">
+                    <div className="shrink-0 grid grid-cols-2 p-1 bg-muted/20 border-b border-border/40 text-[11px] font-medium">
                       <button
                         type="button"
                         onClick={() =>
@@ -992,7 +992,7 @@ export function ComponentsFilterCard({
 
                   {/* Search inside column */}
                   {columnMode === "values" && optionsList.length > 5 && (
-                    <div className="p-1.5 border-b border-border/40 bg-background/50">
+                    <div className="shrink-0 p-1.5 border-b border-border/40 bg-background/50">
                       <div className="relative">
                         <Search className="size-3 absolute left-2 top-2 text-muted-foreground" />
                         <Input
@@ -1013,7 +1013,7 @@ export function ComponentsFilterCard({
 
                   {/* Listbox Body */}
                   {columnMode === "values" ? (
-                    <div className="h-44 overflow-y-auto p-1 space-y-0.5 scrollbar-thin text-xs">
+                    <div className="flex-1 min-h-0 overflow-y-auto p-1 space-y-0.5 scrollbar-thin text-xs">
                       {filteredOptions.length === 0 ? (
                         <div className="p-4 text-center text-muted-foreground text-[11px]">
                           No options match
@@ -1035,8 +1035,8 @@ export function ComponentsFilterCard({
                                   ? "bg-primary/10 text-primary font-medium"
                                   : "hover:bg-muted/60 text-foreground",
                                 count === 0 &&
-                                  !isChecked &&
-                                  "opacity-40 text-muted-foreground hover:opacity-80",
+                                !isChecked &&
+                                "opacity-40 text-muted-foreground hover:opacity-80",
                               )}
                             >
                               <div className="flex items-center gap-2 truncate pr-1">
@@ -1074,7 +1074,7 @@ export function ComponentsFilterCard({
                     </div>
                   ) : (
                     /* Range Input Mode for Numeric Parameter */
-                    <div className="p-3 space-y-2.5 h-44 flex flex-col justify-center text-xs">
+                    <div className="flex-1 min-h-0 p-3 space-y-2.5 flex flex-col justify-center text-xs">
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase font-mono text-muted-foreground">
                           Minimum
@@ -1128,8 +1128,8 @@ export function ComponentsFilterCard({
                     </div>
                   )}
 
-                  {/* Column Footer: Selection count */}
-                  <div className="p-1.5 bg-muted/30 border-t border-border/60 text-[10px] font-mono text-muted-foreground flex items-center justify-between">
+                  {/* Column Footer: Selection count - stuck firmly to bottom */}
+                  <div className="mt-auto shrink-0 p-2 bg-muted/30 border-t border-border/60 text-[10px] font-mono text-muted-foreground flex items-center justify-between">
                     <span>
                       {selectedSet.size > 0
                         ? `${selectedSet.size} selected`
