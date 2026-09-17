@@ -499,7 +499,7 @@ export function ComponentForm({
                 if (def.dataType === "MULTI_SELECT") {
                   const selected = current.selectedOptionCodes || [];
                   return (
-                    <Field key={code} className="sm:col-span-2 space-y-1.5">
+                    <Field key={code} className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <FieldLabel htmlFor={inputId}>
                           {def.name}{" "}
@@ -524,11 +524,10 @@ export function ComponentForm({
                                 onClick={() =>
                                   toggleMultiSelectOption(code, opt.code)
                                 }
-                                className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
-                                  isChecked
+                                className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border transition-all cursor-pointer ${isChecked
                                     ? "bg-primary text-primary-foreground border-primary font-medium shadow-xs"
                                     : "bg-muted/40 hover:bg-muted text-foreground border-border hover:border-border/80"
-                                }`}
+                                  }`}
                               >
                                 {isChecked ? (
                                   <Check className="w-3 h-3 shrink-0" />
@@ -593,7 +592,7 @@ export function ComponentForm({
                           <span className="text-destructive">*</span>
                         )}
                       </FieldLabel>
-                      <div className="flex gap-2">
+                      <div className="flex w-full gap-2">
                         <Input
                           id={inputId}
                           type="number"
@@ -603,16 +602,16 @@ export function ComponentForm({
                           onChange={(e) =>
                             handleAttrChange(code, "value", e.target.value)
                           }
-                          className="flex-1 font-mono"
+                          className="flex-1 min-w-0 font-mono"
                         />
-                        <div className="w-28">
+                        <div className="w-24 shrink-0">
                           <Select
                             value={current.unit || def.defaultUnit || unitOptions[0] || ""}
                             onValueChange={(val) =>
                               handleAttrChange(code, "unit", val)
                             }
                           >
-                            <SelectTrigger className="h-9">
+                            <SelectTrigger className="h-9 w-full">
                               <SelectValue placeholder="Unit" />
                             </SelectTrigger>
                             <SelectContent>
