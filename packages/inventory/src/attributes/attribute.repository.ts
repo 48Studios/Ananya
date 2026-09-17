@@ -27,6 +27,10 @@ export interface AttributeOptionRepository {
 export interface CategoryAttributeRepository {
   findByCategoryId(categoryId: string): Promise<CategoryAttribute[]>;
   findByCategoryIds(categoryIds: string[]): Promise<CategoryAttribute[]>;
+  findByAttributeDefinitionId(
+    attributeDefinitionId: string,
+  ): Promise<CategoryAttribute[]>;
+  findMany(): Promise<CategoryAttribute[]>;
   save(categoryAttribute: CategoryAttribute): Promise<CategoryAttribute>;
   delete(categoryId: string, attributeDefinitionId: string): Promise<void>;
 }

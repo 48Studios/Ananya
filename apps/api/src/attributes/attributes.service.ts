@@ -25,7 +25,21 @@ import { CreateAttributeDefinitionDto } from './dtos/create-attribute-definition
 import { UpdateAttributeDefinitionDto } from './dtos/update-attribute-definition.dto';
 import { CreateAttributeOptionDto } from './dtos/create-attribute-option.dto';
 import { AssignCategoryAttributeDto } from './dtos/assign-category-attribute.dto';
+import { BindCategoryDto } from './dtos/bind-category.dto';
+import { UpdateCategoryBindingDto } from './dtos/update-category-binding.dto';
 import { ComponentAttributeInput } from '@ananya/inventory';
+
+export interface AttributeCategoryBinding {
+  id: string;
+  categoryId: string;
+  categoryCode: string;
+  categoryName: string;
+  isRequired: boolean;
+  sortOrder: number;
+  defaultValue?: Record<string, unknown> | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface PopulatedComponentAttribute {
   definitionId: string;
@@ -75,17 +89,74 @@ export class AttributesService {
   }
 
   async getAllDefinitions(): Promise<
-    (AttributeDefinition & { options: AttributeOption[] })[]
+    (AttributeDefinition & {
+      options: AttributeOption[];
+      categoryBindings: Array<{
+        id: string;
+        categoryId: string;
+        categoryCode: string;
+        categoryName: string;
+        isRequired: boolean;
+        sortOrder: number;
+      }>;
+    })[]
   > {
-    const defs = await this.attrDefRepo.findMany();
-    const result: (AttributeDefinition & { options: AttributeOption[] })[] = [];
+    const [defs, allCategoryAttrs, allCategories] = await Promise.all([
+      this.attrDefRepo.findMany(),
+      this.categoryAttrRepo.findMany().catch(() => []),
+      this.categoryRepo.findMany().catch(() => []),
+    ]);
+
+    const categoryMap = new Map<string, { code: string; name: string }>();
+    for (const cat of allCategories) {
+      categoryMap.set(cat.id, { code: cat.code, name: cat.name });
+    }
+
+    const bindingsByDefId = new Map<
+      string,
+      Array<{
+        id: string;
+        categoryId: string;
+        categoryCode: string;
+        categoryName: string;
+        isRequired: boolean;
+        sortOrder: number;
+      }>
+    >();
+
+    for (const ca of allCategoryAttrs) {
+      const catInfo = categoryMap.get(ca.categoryId);
+      const list = bindingsByDefId.get(ca.attributeDefinitionId) ?? [];
+      list.push({
+        id: ca.id,
+        categoryId: ca.categoryId,
+        categoryCode: catInfo?.code ?? '',
+        categoryName: catInfo?.name ?? '',
+        isRequired: ca.isRequired,
+        sortOrder: ca.sortOrder,
+      });
+      bindingsByDefId.set(ca.attributeDefinitionId, list);
+    }
+
+    const result: (AttributeDefinition & {
+      options: AttributeOption[];
+      categoryBindings: Array<{
+        id: string;
+        categoryId: string;
+        categoryCode: string;
+        categoryName: string;
+        isRequired: boolean;
+        sortOrder: number;
+      }>;
+    })[] = [];
 
     for (const def of defs) {
       const options =
         def.dataType === 'SELECT' || def.dataType === 'MULTI_SELECT'
           ? await this.attrOptionRepo.findByDefinitionId(def.id)
           : [];
-      result.push(Object.assign(def, { options }));
+      const categoryBindings = bindingsByDefId.get(def.id) ?? [];
+      result.push(Object.assign(def, { options, categoryBindings }));
     }
 
     return result;
@@ -135,6 +206,19 @@ export class AttributesService {
         });
         const savedOpt = await this.attrOptionRepo.save(option);
         createdOptions.push(savedOpt);
+      }
+    }
+
+    if (dto.categoryBindings && dto.categoryBindings.length > 0) {
+      for (const cb of dto.categoryBindings) {
+        const catAttr = CategoryAttribute.create({
+          categoryId: cb.categoryId,
+          attributeDefinitionId: saved.id,
+          isRequired: cb.isRequired ?? false,
+          sortOrder: cb.sortOrder ?? 0,
+          defaultValue: cb.defaultValue ?? null,
+        });
+        await this.categoryAttrRepo.save(catAttr);
       }
     }
 
@@ -216,6 +300,123 @@ export class AttributesService {
   async unassignCategoryAttribute(
     categoryId: string,
     attributeDefinitionId: string,
+  ): Promise<void> {
+    await this.categoryAttrRepo.delete(categoryId, attributeDefinitionId);
+  }
+
+  async getAttributeCategories(
+    attributeDefinitionId: string,
+  ): Promise<AttributeCategoryBinding[]> {
+    const def = await this.attrDefRepo.findById(attributeDefinitionId);
+    if (!def) {
+      throw new NotFoundException(
+        `Attribute definition '${attributeDefinitionId}' not found`,
+      );
+    }
+
+    const bindings = await this.categoryAttrRepo.findByAttributeDefinitionId(
+      attributeDefinitionId,
+    );
+    if (bindings.length === 0) return [];
+
+    const result: AttributeCategoryBinding[] = [];
+    for (const b of bindings) {
+      const cat = await this.categoryRepo.findById(b.categoryId);
+      result.push({
+        id: b.id,
+        categoryId: b.categoryId,
+        categoryCode: cat?.code ?? '',
+        categoryName: cat?.name ?? '',
+        isRequired: b.isRequired,
+        sortOrder: b.sortOrder,
+        defaultValue: b.defaultValue,
+        createdAt: b.createdAt,
+        updatedAt: b.updatedAt,
+      });
+    }
+
+    return result;
+  }
+
+  async bindCategoryToAttribute(
+    attributeDefinitionId: string,
+    dto: BindCategoryDto,
+  ): Promise<AttributeCategoryBinding> {
+    const def = await this.attrDefRepo.findById(attributeDefinitionId);
+    if (!def) {
+      throw new NotFoundException(
+        `Attribute definition '${attributeDefinitionId}' not found`,
+      );
+    }
+
+    const cat = await this.categoryRepo.findById(dto.categoryId);
+    if (!cat) {
+      throw new NotFoundException(`Category '${dto.categoryId}' not found`);
+    }
+
+    const catAttr = CategoryAttribute.create({
+      categoryId: dto.categoryId,
+      attributeDefinitionId,
+      isRequired: dto.isRequired ?? false,
+      sortOrder: dto.sortOrder ?? 0,
+      defaultValue: dto.defaultValue ?? null,
+    });
+
+    const saved = await this.categoryAttrRepo.save(catAttr);
+    return {
+      id: saved.id,
+      categoryId: saved.categoryId,
+      categoryCode: cat.code,
+      categoryName: cat.name,
+      isRequired: saved.isRequired,
+      sortOrder: saved.sortOrder,
+      defaultValue: saved.defaultValue,
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt,
+    };
+  }
+
+  async updateCategoryBinding(
+    attributeDefinitionId: string,
+    categoryId: string,
+    dto: UpdateCategoryBindingDto,
+  ): Promise<AttributeCategoryBinding> {
+    const existingList =
+      await this.categoryAttrRepo.findByAttributeDefinitionId(
+        attributeDefinitionId,
+      );
+    const existing = existingList.find((b) => b.categoryId === categoryId);
+
+    if (!existing) {
+      throw new NotFoundException(
+        `Binding between attribute '${attributeDefinitionId}' and category '${categoryId}' not found`,
+      );
+    }
+
+    const cat = await this.categoryRepo.findById(categoryId);
+    const updated = existing.update({
+      isRequired: dto.isRequired,
+      sortOrder: dto.sortOrder,
+      defaultValue: dto.defaultValue,
+    });
+
+    const saved = await this.categoryAttrRepo.save(updated);
+    return {
+      id: saved.id,
+      categoryId: saved.categoryId,
+      categoryCode: cat?.code ?? '',
+      categoryName: cat?.name ?? '',
+      isRequired: saved.isRequired,
+      sortOrder: saved.sortOrder,
+      defaultValue: saved.defaultValue,
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt,
+    };
+  }
+
+  async unbindCategoryFromAttribute(
+    attributeDefinitionId: string,
+    categoryId: string,
   ): Promise<void> {
     await this.categoryAttrRepo.delete(categoryId, attributeDefinitionId);
   }

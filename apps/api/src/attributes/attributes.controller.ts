@@ -12,6 +12,8 @@ import { CreateAttributeDefinitionDto } from './dtos/create-attribute-definition
 import { UpdateAttributeDefinitionDto } from './dtos/update-attribute-definition.dto';
 import { CreateAttributeOptionDto } from './dtos/create-attribute-option.dto';
 import { AssignCategoryAttributeDto } from './dtos/assign-category-attribute.dto';
+import { BindCategoryDto } from './dtos/bind-category.dto';
+import { UpdateCategoryBindingDto } from './dtos/update-category-binding.dto';
 import { SetComponentAttributesDto } from './dtos/set-component-attributes.dto';
 
 @Controller()
@@ -44,6 +46,36 @@ export class AttributesController {
   @Delete('attributes/:id')
   deleteDefinition(@Param('id') id: string) {
     return this.attributesService.deleteDefinition(id);
+  }
+
+  @Get('attributes/:id/categories')
+  getAttributeCategories(@Param('id') id: string) {
+    return this.attributesService.getAttributeCategories(id);
+  }
+
+  @Post('attributes/:id/categories')
+  bindCategoryToAttribute(
+    @Param('id') id: string,
+    @Body() dto: BindCategoryDto,
+  ) {
+    return this.attributesService.bindCategoryToAttribute(id, dto);
+  }
+
+  @Put('attributes/:id/categories/:categoryId')
+  updateCategoryBinding(
+    @Param('id') id: string,
+    @Param('categoryId') categoryId: string,
+    @Body() dto: UpdateCategoryBindingDto,
+  ) {
+    return this.attributesService.updateCategoryBinding(id, categoryId, dto);
+  }
+
+  @Delete('attributes/:id/categories/:categoryId')
+  unbindCategoryFromAttribute(
+    @Param('id') id: string,
+    @Param('categoryId') categoryId: string,
+  ) {
+    return this.attributesService.unbindCategoryFromAttribute(id, categoryId);
   }
 
   @Post('attributes/:id/options')

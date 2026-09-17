@@ -4,7 +4,7 @@ import * as React from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DialogShell,
@@ -30,6 +30,7 @@ import {
   type UpdateAttributeDefinitionPayload,
 } from "@/lib/api/attributes-api";
 import { unitsApi, type UnitDto } from "@/lib/api/units-api";
+import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
 
 const attributeSchema = z.object({
   code: z
@@ -71,16 +72,25 @@ export function AttributeFormDialog({
   onCancel,
 }: AttributeFormDialogProps) {
   const [units, setUnits] = React.useState<UnitDto[]>([]);
+  const [categories, setCategories] = React.useState<CategoryDto[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = React.useState<string[]>([]);
+  const [bindAsRequired, setBindAsRequired] = React.useState<boolean>(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
   const isEditing = Boolean(initialData);
 
-  // Fetch units for quantity selection
+  // Fetch units for quantity selection and categories for initial binding
   React.useEffect(() => {
     if (isOpen) {
       unitsApi
         .getAll()
         .then((all) => setUnits(all.filter((u) => u.isActive)))
-        .catch(() => {});
+        .catch(() => { });
+      categoriesApi
+        .getAll()
+        .then((all) => setCategories(all.filter((c) => c.isActive)))
+        .catch(() => { });
+      setSelectedCategoryIds([]);
+      setBindAsRequired(false);
     }
   }, [isOpen]);
 
@@ -162,16 +172,25 @@ export function AttributeFormDialog({
       } else {
         const options =
           (values.dataType === "SELECT" || values.dataType === "MULTI_SELECT") &&
-          values.initialOptions
+            values.initialOptions
             ? values.initialOptions
-                .split(",")
-                .map((o) => o.trim())
-                .filter((o) => o.length > 0)
-                .map((opt, idx) => ({
-                  code: opt.toLowerCase().replace(/[^a-z0-9_-]/g, "_"),
-                  label: opt,
-                  sortOrder: idx,
-                }))
+              .split(",")
+              .map((o) => o.trim())
+              .filter((o) => o.length > 0)
+              .map((opt, idx) => ({
+                code: opt.toLowerCase().replace(/[^a-z0-9_-]/g, "_"),
+                label: opt,
+                sortOrder: idx,
+              }))
+            : undefined;
+
+        const categoryBindings =
+          selectedCategoryIds.length > 0
+            ? selectedCategoryIds.map((catId, idx) => ({
+              categoryId: catId,
+              isRequired: bindAsRequired,
+              sortOrder: (idx + 1) * 10,
+            }))
             : undefined;
 
         const payload: CreateAttributeDefinitionPayload = {
@@ -183,6 +202,7 @@ export function AttributeFormDialog({
           defaultUnit: values.defaultUnit || undefined,
           isFilterable: values.isFilterable,
           options,
+          categoryBindings,
         };
         const created = await attributesApi.createDefinition(payload);
         onSuccess(created);
@@ -212,10 +232,13 @@ export function AttributeFormDialog({
           ? "Modify metadata, unit configuration, and active state for this specification."
           : "Define a reusable dynamic specification for products, materials, or components."
       }
-      size="md"
+      size="sm"
       closeDisabled={isSubmitting}
     >
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
         <DialogShellBody className="space-y-4">
           {serverError && (
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-xs text-destructive flex items-center gap-2">
@@ -288,20 +311,70 @@ export function AttributeFormDialog({
                       <SelectValue placeholder="Select attribute data type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="TEXT">TEXT (Freeform String)</SelectItem>
-                      <SelectItem value="NUMBER">NUMBER (Decimal Value)</SelectItem>
-                      <SelectItem value="INTEGER">INTEGER (Whole Number)</SelectItem>
-                      <SelectItem value="BOOLEAN">BOOLEAN (Yes / No Flag)</SelectItem>
+                      <SelectItem value="TEXT">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">TEXT</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 text-[10px] text-muted-foreground leading-none">
+                            Freeform String
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="NUMBER">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">NUMBER</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 text-[10px] text-muted-foreground leading-none">
+                            Decimal Value
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="INTEGER">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">INTEGER</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 text-[10px] text-muted-foreground leading-none">
+                            Whole Number
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="BOOLEAN">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">BOOLEAN</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 text-[10px] text-muted-foreground leading-none">
+                            Yes / No Flag
+                          </span>
+                        </div>
+                      </SelectItem>
                       <SelectItem value="QUANTITY">
-                        QUANTITY (Value with Physical Unit)
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">QUANTITY</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 text-[10px] text-muted-foreground leading-none">
+                            Value with Physical Unit
+                          </span>
+                        </div>
                       </SelectItem>
                       <SelectItem value="SELECT">
-                        SELECT (Single Choice Dropdown)
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">SELECT</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 text-[10px] text-muted-foreground leading-none">
+                            Single Choice Dropdown
+                          </span>
+                        </div>
                       </SelectItem>
                       <SelectItem value="MULTI_SELECT">
-                        MULTI_SELECT (Multiple Choice)
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">MULTI_SELECT</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 text-[10px] text-muted-foreground leading-none">
+                            Multiple Choice
+                          </span>
+                        </div>
                       </SelectItem>
-                      <SelectItem value="DATE">DATE (Calendar Date)</SelectItem>
+                      <SelectItem value="DATE">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">DATE</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 text-[10px] text-muted-foreground leading-none">
+                            Calendar Date
+                          </span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -317,64 +390,71 @@ export function AttributeFormDialog({
           {/* Unit Settings for QUANTITY */}
           {(selectedDataType === "QUANTITY" ||
             initialData?.dataType === "QUANTITY") && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-muted/40 border border-border rounded-xl">
-              <Field>
-                <FieldLabel htmlFor="attr-unit-cat">Unit Category</FieldLabel>
-                <Controller
-                  name="unitCategory"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value || "none"}
-                      onValueChange={(val) =>
-                        field.onChange(val === "none" ? "" : val)
-                      }
-                    >
-                      <SelectTrigger id="attr-unit-cat">
-                        <SelectValue placeholder="Select unit category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None / Any Category</SelectItem>
-                        {unitCategories.map((cat) => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-muted/40 border border-border rounded-xl">
+                <Field>
+                  <FieldLabel htmlFor="attr-unit-cat">Unit Category</FieldLabel>
+                  <Controller
+                    name="unitCategory"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value || "none"}
+                        onValueChange={(val) =>
+                          field.onChange(val === "none" ? "" : val)
+                        }
+                      >
+                        <SelectTrigger id="attr-unit-cat">
+                          <SelectValue placeholder="Select unit category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None / Any Category</SelectItem>
+                          {unitCategories.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </Field>
 
-              <Field>
-                <FieldLabel htmlFor="attr-default-unit">Default Unit</FieldLabel>
-                <Controller
-                  name="defaultUnit"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value || "none"}
-                      onValueChange={(val) =>
-                        field.onChange(val === "none" ? "" : val)
-                      }
-                    >
-                      <SelectTrigger id="attr-default-unit">
-                        <SelectValue placeholder="Select default unit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No default</SelectItem>
-                        {availableUnitsForCategory.map((u) => (
-                          <SelectItem key={u.name} value={u.name}>
-                            {u.name} {u.category ? `(${u.category})` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-            </div>
-          )}
+                <Field>
+                  <FieldLabel htmlFor="attr-default-unit">Default Unit</FieldLabel>
+                  <Controller
+                    name="defaultUnit"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value || "none"}
+                        onValueChange={(val) =>
+                          field.onChange(val === "none" ? "" : val)
+                        }
+                      >
+                        <SelectTrigger id="attr-default-unit">
+                          <SelectValue placeholder="Select default unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No default</SelectItem>
+                          {availableUnitsForCategory.map((u) => (
+                            <SelectItem key={u.name} value={u.name}>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{u.name}</span>
+                                {u.category && (
+                                  <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
+                                    {u.category}
+                                  </span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </Field>
+              </div>
+            )}
 
           {/* Initial options for SELECT / MULTI_SELECT on Create */}
           {!isEditing &&
@@ -405,6 +485,121 @@ export function AttributeFormDialog({
               {...register("description")}
             />
           </Field>
+
+          {/* Category Binding on Creation (Optional) */}
+          {!isEditing && categories.length > 0 && (
+            <div className="space-y-2">
+              <Field>
+                <FieldLabel
+                  htmlFor="attr-category-select"
+                  className="flex items-center justify-between"
+                >
+                  <span>
+                    Category Bindings{" "}
+                    <span className="text-muted-foreground font-normal">
+                      (Optional)
+                    </span>
+                  </span>
+                  {selectedCategoryIds.length > 0 && (
+                    <span className="text-[11px] font-mono text-muted-foreground">
+                      {selectedCategoryIds.length} selected
+                    </span>
+                  )}
+                </FieldLabel>
+                <Select
+                  value="placeholder"
+                  onValueChange={(catId) => {
+                    if (
+                      catId &&
+                      catId !== "placeholder" &&
+                      !selectedCategoryIds.includes(catId)
+                    ) {
+                      setSelectedCategoryIds((prev) => [...prev, catId]);
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    id="attr-category-select"
+                    className="h-9 text-xs"
+                  >
+                    <SelectValue placeholder="Select categories to assign..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="placeholder" disabled>
+                      Choose a category to bind...
+                    </SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem
+                        key={c.id}
+                        value={c.id}
+                        disabled={selectedCategoryIds.includes(c.id)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{c.name}</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
+                            {c.code}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Components in selected categories will automatically inherit this specification.
+                </p>
+              </Field>
+
+              {selectedCategoryIds.length > 0 && (
+                <div className="p-3 bg-muted/20 border border-border/70 rounded-lg space-y-2.5">
+                  <div className="flex flex-wrap gap-2">
+                    {selectedCategoryIds.map((id) => {
+                      const cat = categories.find((c) => c.id === id);
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex items-center h-8 gap-2 text-xs bg-background border border-border pl-2.5 pr-1.5 rounded-md text-foreground font-medium shadow-2xs leading-none"
+                        >
+                          <span className="leading-none">{cat?.name || id}</span>
+                          {cat?.code && (
+                            <span className="inline-flex items-center justify-center h-5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] font-normal text-muted-foreground leading-none">
+                              {cat.code}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedCategoryIds((prev) =>
+                                prev.filter((i) => i !== id),
+                              )
+                            }
+                            className="inline-flex items-center justify-center size-5 rounded hover:bg-muted text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                            title="Remove category"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
+                    <div className="space-y-0.5">
+                      <span className="font-medium text-foreground block">
+                        Mandatory Specification
+                      </span>
+                      <span className="text-[11px] text-muted-foreground block">
+                        Require values on components in these categories
+                      </span>
+                    </div>
+                    <Switch
+                      checked={bindAsRequired}
+                      onCheckedChange={setBindAsRequired}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Switches for Filterable & Active */}
           <div className="pt-2 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 gap-4">

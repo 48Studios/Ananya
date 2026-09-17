@@ -92,11 +92,32 @@ describe('AttributesService', () => {
         mockCategoryAttrs.filter((ca) => catIds.includes(ca.categoryId)),
       ),
     ),
+    findByAttributeDefinitionId: jest.fn((defId) =>
+      Promise.resolve(
+        mockCategoryAttrs.filter((ca) => ca.attributeDefinitionId === defId),
+      ),
+    ),
+    findMany: jest.fn(() => Promise.resolve([...mockCategoryAttrs])),
     save: jest.fn((ca) => {
-      mockCategoryAttrs.push(ca);
+      const idx = mockCategoryAttrs.findIndex(
+        (m) =>
+          m.categoryId === ca.categoryId &&
+          m.attributeDefinitionId === ca.attributeDefinitionId,
+      );
+      if (idx >= 0) {
+        mockCategoryAttrs[idx] = ca;
+      } else {
+        mockCategoryAttrs.push(ca);
+      }
       return Promise.resolve(ca);
     }),
-    delete: jest.fn(() => Promise.resolve()),
+    delete: jest.fn((catId, defId) => {
+      const idx = mockCategoryAttrs.findIndex(
+        (m) => m.categoryId === catId && m.attributeDefinitionId === defId,
+      );
+      if (idx >= 0) mockCategoryAttrs.splice(idx, 1);
+      return Promise.resolve();
+    }),
   };
 
   const mockComponentAttrRepo: ComponentAttributeRepository = {
@@ -196,6 +217,30 @@ describe('AttributesService', () => {
       }),
     );
 
+    // Seed categories
+    mockCategories.push(
+      Category.rehydrate({
+        id: 'cat-resistors',
+        code: 'ELEC-RES',
+        name: 'Resistors',
+        description: 'Resistors category',
+        parentId: null,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+      Category.rehydrate({
+        id: 'cat-capacitors',
+        code: 'ELEC-CAP',
+        name: 'Capacitors',
+        description: 'Capacitors category',
+        parentId: null,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    );
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AttributesService,
@@ -269,5 +314,92 @@ describe('AttributesService', () => {
     expect(compAttrs.resistance!.unit).toBe('kohm');
     expect(compAttrs.resistance!.normalizedValue).toBe(10000);
     expect(compAttrs.resistance!.displayValue).toBe('10 kohm');
+  });
+
+  describe('Attribute Category Binding Operations', () => {
+    it('should bind category to attribute, update binding, list bindings, and unbind', async () => {
+      // 1. Create definition
+      const def = await service.createDefinition({
+        code: 'tolerance',
+        name: 'Tolerance',
+        dataType: 'SELECT',
+      });
+
+      // 2. Bind to category cat-resistors
+      const binding = await service.bindCategoryToAttribute(def.id, {
+        categoryId: 'cat-resistors',
+        isRequired: true,
+        sortOrder: 15,
+      });
+
+      expect(binding).toBeDefined();
+      expect(binding.categoryId).toBe('cat-resistors');
+      expect(binding.categoryName).toBe('Resistors');
+      expect(binding.isRequired).toBe(true);
+      expect(binding.sortOrder).toBe(15);
+
+      // 3. Retrieve category bindings for definition
+      const bindings = await service.getAttributeCategories(def.id);
+      expect(bindings).toHaveLength(1);
+      expect(bindings[0]!.categoryId).toBe('cat-resistors');
+
+      // 4. Update category binding
+      const updated = await service.updateCategoryBinding(
+        def.id,
+        'cat-resistors',
+        {
+          isRequired: false,
+          sortOrder: 25,
+        },
+      );
+      expect(updated.isRequired).toBe(false);
+      expect(updated.sortOrder).toBe(25);
+
+      // 5. Unbind category from attribute
+      await service.unbindCategoryFromAttribute(def.id, 'cat-resistors');
+      const bindingsAfterUnbind = await service.getAttributeCategories(def.id);
+      expect(bindingsAfterUnbind).toHaveLength(0);
+    });
+
+    it('should create an attribute definition with initial category bindings', async () => {
+      const created = await service.createDefinition({
+        code: 'voltage_rating',
+        name: 'Voltage Rating',
+        dataType: 'QUANTITY',
+        categoryBindings: [
+          {
+            categoryId: 'cat-capacitors',
+            isRequired: true,
+            sortOrder: 10,
+          },
+        ],
+      });
+
+      const bindings = await service.getAttributeCategories(created.id);
+      expect(bindings).toHaveLength(1);
+      expect(bindings[0]!.categoryId).toBe('cat-capacitors');
+      expect(bindings[0]!.isRequired).toBe(true);
+    });
+
+    it('should include categoryBindings summary in getAllDefinitions', async () => {
+      const def = await service.createDefinition({
+        code: 'capacitance',
+        name: 'Capacitance',
+        dataType: 'QUANTITY',
+      });
+
+      await service.bindCategoryToAttribute(def.id, {
+        categoryId: 'cat-capacitors',
+        isRequired: true,
+        sortOrder: 10,
+      });
+
+      const all = await service.getAllDefinitions();
+      const capDef = all.find((d) => d.id === def.id);
+      expect(capDef).toBeDefined();
+      expect(capDef?.categoryBindings).toHaveLength(1);
+      expect(capDef?.categoryBindings[0]!.categoryId).toBe('cat-capacitors');
+      expect(capDef?.categoryBindings[0]!.categoryName).toBe('Capacitors');
+    });
   });
 });

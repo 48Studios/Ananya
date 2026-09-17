@@ -29,6 +29,41 @@ export interface AttributeDefinitionDto {
   sortOrder: number;
   options?: AttributeOptionDto[];
   isActive: boolean;
+  categoryBindings?: CategoryBindingSummary[];
+}
+
+export interface CategoryBindingSummary {
+  id: string;
+  categoryId: string;
+  categoryCode: string;
+  categoryName: string;
+  isRequired: boolean;
+  sortOrder: number;
+}
+
+export interface AttributeCategoryBindingDto {
+  id: string;
+  categoryId: string;
+  categoryCode: string;
+  categoryName: string;
+  isRequired: boolean;
+  sortOrder: number;
+  defaultValue?: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BindCategoryToAttributePayload {
+  categoryId: string;
+  isRequired?: boolean;
+  sortOrder?: number;
+  defaultValue?: Record<string, unknown> | null;
+}
+
+export interface UpdateCategoryBindingPayload {
+  isRequired?: boolean;
+  sortOrder?: number;
+  defaultValue?: Record<string, unknown> | null;
 }
 
 export interface ResolvedCategoryAttributeDto {
@@ -88,6 +123,12 @@ export interface CreateAttributeDefinitionPayload {
   isRequired?: boolean;
   sortOrder?: number;
   options?: Array<{ code: string; label: string; sortOrder?: number }>;
+  categoryBindings?: Array<{
+    categoryId: string;
+    isRequired?: boolean;
+    sortOrder?: number;
+    defaultValue?: Record<string, unknown>;
+  }>;
 }
 
 export interface CreateAttributeOptionPayload {
@@ -139,6 +180,36 @@ export const attributesApi = {
     apiClient.post<AttributeOptionDto>(`/attributes/${id}/options`, dto),
   deleteOption: (optionId: string): Promise<void> =>
     apiClient.delete<void>(`/attributes/options/${optionId}`),
+  getAttributeCategories: (
+    attributeDefinitionId: string,
+  ): Promise<AttributeCategoryBindingDto[]> =>
+    apiClient.get<AttributeCategoryBindingDto[]>(
+      `/attributes/${encodeURIComponent(attributeDefinitionId)}/categories`,
+    ),
+  bindCategory: (
+    attributeDefinitionId: string,
+    payload: BindCategoryToAttributePayload,
+  ): Promise<AttributeCategoryBindingDto> =>
+    apiClient.post<AttributeCategoryBindingDto>(
+      `/attributes/${encodeURIComponent(attributeDefinitionId)}/categories`,
+      payload,
+    ),
+  updateCategoryBinding: (
+    attributeDefinitionId: string,
+    categoryId: string,
+    payload: UpdateCategoryBindingPayload,
+  ): Promise<AttributeCategoryBindingDto> =>
+    apiClient.put<AttributeCategoryBindingDto>(
+      `/attributes/${encodeURIComponent(attributeDefinitionId)}/categories/${encodeURIComponent(categoryId)}`,
+      payload,
+    ),
+  unbindCategory: (
+    attributeDefinitionId: string,
+    categoryId: string,
+  ): Promise<void> =>
+    apiClient.delete<void>(
+      `/attributes/${encodeURIComponent(attributeDefinitionId)}/categories/${encodeURIComponent(categoryId)}`,
+    ),
   getByCategory: (
     categoryId: string,
   ): Promise<ResolvedCategoryAttributeDto[]> =>

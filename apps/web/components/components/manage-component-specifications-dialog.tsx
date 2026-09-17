@@ -162,12 +162,12 @@ function AttributeValueEditor({
           </SelectItem>
           {(options ?? []).map((o) => (
             <SelectItem key={o.id} value={o.id}>
-              <span className="inline-flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <span>{o.label}</span>
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  ({o.code})
+                <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
+                  {o.code}
                 </span>
-              </span>
+              </div>
             </SelectItem>
           ))}
         </SelectContent>

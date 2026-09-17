@@ -17,6 +17,7 @@ import {
   Check,
   X,
   RefreshCw,
+  FolderTree,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -28,6 +29,7 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AttributeFormDialog } from "@/components/attributes/attribute-form-dialog";
 import { AttributeOptionsDialog } from "@/components/attributes/attribute-options-dialog";
+import { AttributeCategoriesDialog } from "@/components/attributes/attribute-categories-dialog";
 import {
   attributesApi,
   type AttributeDefinitionDto,
@@ -56,6 +58,8 @@ export default function AttributesPage() {
   const [editingAttribute, setEditingAttribute] =
     React.useState<AttributeDefinitionDto | null>(null);
   const [optionsAttribute, setOptionsAttribute] =
+    React.useState<AttributeDefinitionDto | null>(null);
+  const [categoriesAttribute, setCategoriesAttribute] =
     React.useState<AttributeDefinitionDto | null>(null);
   const [deletingAttribute, setDeletingAttribute] =
     React.useState<AttributeDefinitionDto | null>(null);
@@ -239,6 +243,51 @@ export default function AttributesPage() {
         },
       },
       {
+        id: "categories",
+        header: "Categories",
+        cell: ({ row }) => {
+          const attr = row.original;
+          const bindings = attr.categoryBindings || [];
+          if (bindings.length === 0) {
+            return (
+              <button
+                type="button"
+                onClick={() => setCategoriesAttribute(attr)}
+                className="text-[11px] text-muted-foreground/60 hover:text-primary transition-colors cursor-pointer font-mono"
+                title="Click to bind to categories"
+              >
+                + Bind
+              </button>
+            );
+          }
+          const displayCategories = bindings.slice(0, 2);
+          const remainingCount = bindings.length - 2;
+
+          return (
+            <button
+              type="button"
+              onClick={() => setCategoriesAttribute(attr)}
+              className="flex items-center gap-1 flex-wrap max-w-[200px] text-left hover:opacity-80 transition-opacity cursor-pointer"
+              title="Click to manage category bindings"
+            >
+              {displayCategories.map((b) => (
+                <span
+                  key={b.categoryId}
+                  className="inline-flex items-center text-[10px] font-medium bg-muted px-1.5 py-0.5 rounded border border-border text-foreground truncate max-w-[90px]"
+                >
+                  {b.categoryName}
+                </span>
+              ))}
+              {remainingCount > 0 && (
+                <span className="text-[10px] font-mono text-muted-foreground bg-muted/60 px-1 py-0.5 rounded border border-border">
+                  +{remainingCount}
+                </span>
+              )}
+            </button>
+          );
+        },
+      },
+      {
         accessorKey: "isFilterable",
         header: "Filterable",
         cell: ({ row }) => (
@@ -302,6 +351,16 @@ export default function AttributesPage() {
                   <ListOrdered className="w-3.5 h-3.5" />
                 </Button>
               )}
+
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                title="Manage Category Bindings"
+                onClick={() => setCategoriesAttribute(attr)}
+                className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+              >
+                <FolderTree className="w-3.5 h-3.5" />
+              </Button>
 
               <Button
                 variant="ghost"
@@ -485,6 +544,14 @@ export default function AttributesPage() {
         attribute={optionsAttribute}
         onClose={() => setOptionsAttribute(null)}
         onOptionsUpdated={fetchAttributes}
+      />
+
+      {/* Category Bindings Dialog */}
+      <AttributeCategoriesDialog
+        isOpen={Boolean(categoriesAttribute)}
+        attribute={categoriesAttribute}
+        onClose={() => setCategoriesAttribute(null)}
+        onBindingsUpdated={fetchAttributes}
       />
 
       {/* Confirm Deletion Dialog */}

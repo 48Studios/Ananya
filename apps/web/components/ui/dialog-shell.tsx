@@ -108,11 +108,11 @@ export function DialogShellFooter({
 }: React.ComponentProps<"div">) {
   return (
     <>
-      <Separator />
+      <Separator className="shrink-0" />
       <DialogFooter
         className={cn(
+          "mx-0 mb-0 flex-row items-center justify-end gap-2 rounded-none border-0 bg-transparent px-6 py-5 shrink-0",
           className,
-          "mx-0 mb-0 flex-row items-center justify-end gap-2 rounded-none border-0 bg-transparent px-6 py-5",
         )}
         {...props}
       />

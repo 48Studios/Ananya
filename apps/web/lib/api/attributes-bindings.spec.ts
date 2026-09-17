@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type {
   PopulatedComponentAttributeDto,
   ResolvedCategoryAttributeDto,
+  AttributeCategoryBindingDto,
 } from "./attributes-api";
 
 describe("Dynamic Product Attributes Frontend Logic", () => {
@@ -333,6 +334,100 @@ describe("Dynamic Product Attributes Frontend Logic", () => {
       expect(mockElectronicsPack.categories.map((c) => c.name)).toContain("Resistors");
       expect(mockElectronicsPack.categories.map((c) => c.name)).toContain("Capacitors");
       expect(mockElectronicsPack.units.filter((u) => u.category === "Resistance")).toHaveLength(2);
+    });
+  });
+
+  describe("Attribute Library Category Binding Management", () => {
+    it("sorts category bindings by sortOrder ascending", () => {
+      const mockBindings: AttributeCategoryBindingDto[] = [
+        {
+          id: "b-2",
+          categoryId: "cat-2",
+          categoryCode: "ELEC-CAP",
+          categoryName: "Capacitors",
+          isRequired: false,
+          sortOrder: 30,
+          createdAt: "2026-09-17T00:00:00Z",
+          updatedAt: "2026-09-17T00:00:00Z",
+        },
+        {
+          id: "b-1",
+          categoryId: "cat-1",
+          categoryCode: "ELEC-RES",
+          categoryName: "Resistors",
+          isRequired: true,
+          sortOrder: 10,
+          createdAt: "2026-09-17T00:00:00Z",
+          updatedAt: "2026-09-17T00:00:00Z",
+        },
+        {
+          id: "b-3",
+          categoryId: "cat-3",
+          categoryCode: "ELEC-IND",
+          categoryName: "Inductors",
+          isRequired: false,
+          sortOrder: 20,
+          createdAt: "2026-09-17T00:00:00Z",
+          updatedAt: "2026-09-17T00:00:00Z",
+        },
+      ];
+
+      const sorted = [...mockBindings].sort((a, b) => a.sortOrder - b.sortOrder);
+      expect(sorted.map((b) => b.categoryCode)).toEqual([
+        "ELEC-RES",
+        "ELEC-IND",
+        "ELEC-CAP",
+      ]);
+    });
+
+    it("filters out already bound categories from available category list", () => {
+      const allCategories = [
+        { id: "cat-1", code: "ELEC-RES", name: "Resistors" },
+        { id: "cat-2", code: "ELEC-CAP", name: "Capacitors" },
+        { id: "cat-3", code: "ELEC-DIO", name: "Diodes" },
+      ];
+
+      const existingBindings: AttributeCategoryBindingDto[] = [
+        {
+          id: "b-1",
+          categoryId: "cat-1",
+          categoryCode: "ELEC-RES",
+          categoryName: "Resistors",
+          isRequired: true,
+          sortOrder: 10,
+          createdAt: "2026-09-17T00:00:00Z",
+          updatedAt: "2026-09-17T00:00:00Z",
+        },
+      ];
+
+      const boundIds = new Set(existingBindings.map((b) => b.categoryId));
+      const available = allCategories.filter((c) => !boundIds.has(c.id));
+
+      expect(available).toHaveLength(2);
+      expect(available.map((c) => c.id)).toEqual(["cat-2", "cat-3"]);
+    });
+
+    it("formats initial category bindings correctly for create definition payload", () => {
+      const selectedCategoryIds = ["cat-1", "cat-2"];
+      const bindAsRequired = true;
+
+      const categoryBindings = selectedCategoryIds.map((catId, idx) => ({
+        categoryId: catId,
+        isRequired: bindAsRequired,
+        sortOrder: (idx + 1) * 10,
+      }));
+
+      expect(categoryBindings).toHaveLength(2);
+      expect(categoryBindings[0]).toEqual({
+        categoryId: "cat-1",
+        isRequired: true,
+        sortOrder: 10,
+      });
+      expect(categoryBindings[1]).toEqual({
+        categoryId: "cat-2",
+        isRequired: true,
+        sortOrder: 20,
+      });
     });
   });
 });

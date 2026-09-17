@@ -374,11 +374,20 @@ export function CategoryAttributesManager({
                         value={def.id}
                         disabled={isAssigned}
                       >
-                        <span className="font-medium">{def.name}</span>
-                        <span className="text-xs text-muted-foreground font-mono ml-2">
-                          ({def.code} · {def.dataType})
-                        </span>
-                        {isAssigned && " (Already assigned)"}
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{def.name}</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
+                            {def.code}
+                          </span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 text-[10px] text-muted-foreground leading-none">
+                            {def.dataType}
+                          </span>
+                          {isAssigned && (
+                            <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-600 dark:text-amber-400 leading-none">
+                              Already assigned
+                            </span>
+                          )}
+                        </div>
                       </SelectItem>
                     );
                   })}

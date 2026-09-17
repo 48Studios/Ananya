@@ -357,6 +357,51 @@ export class DrizzleCategoryAttributeRepository implements CategoryAttributeRepo
     );
   }
 
+  async findByAttributeDefinitionId(
+    attributeDefinitionId: string,
+  ): Promise<CategoryAttribute[]> {
+    const rows = await db
+      .select()
+      .from(categoryAttributes)
+      .where(
+        eq(categoryAttributes.attributeDefinitionId, attributeDefinitionId),
+      )
+      .orderBy(categoryAttributes.sortOrder);
+
+    return rows.map((row) =>
+      CategoryAttributeAggregate.rehydrate({
+        id: row.id,
+        categoryId: row.categoryId,
+        attributeDefinitionId: row.attributeDefinitionId,
+        isRequired: row.isRequired,
+        sortOrder: row.sortOrder,
+        defaultValue: row.defaultValue as Record<string, unknown> | null,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      }),
+    );
+  }
+
+  async findMany(): Promise<CategoryAttribute[]> {
+    const rows = await db
+      .select()
+      .from(categoryAttributes)
+      .orderBy(categoryAttributes.sortOrder);
+
+    return rows.map((row) =>
+      CategoryAttributeAggregate.rehydrate({
+        id: row.id,
+        categoryId: row.categoryId,
+        attributeDefinitionId: row.attributeDefinitionId,
+        isRequired: row.isRequired,
+        sortOrder: row.sortOrder,
+        defaultValue: row.defaultValue as Record<string, unknown> | null,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      }),
+    );
+  }
+
   async save(catAttr: CategoryAttribute): Promise<CategoryAttribute> {
     const [row] = await db
       .insert(categoryAttributes)

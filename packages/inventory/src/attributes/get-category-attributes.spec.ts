@@ -68,6 +68,18 @@ class MockCategoryAttrRepo implements CategoryAttributeRepository {
     return this.items.filter((i) => categoryIds.includes(i.categoryId));
   }
 
+  async findByAttributeDefinitionId(
+    attributeDefinitionId: string,
+  ): Promise<CategoryAttribute[]> {
+    return this.items.filter(
+      (i) => i.attributeDefinitionId === attributeDefinitionId,
+    );
+  }
+
+  async findMany(): Promise<CategoryAttribute[]> {
+    return [...this.items];
+  }
+
   async save(categoryAttribute: CategoryAttribute): Promise<CategoryAttribute> {
     this.items.push(categoryAttribute);
     return categoryAttribute;

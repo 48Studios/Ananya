@@ -78,4 +78,27 @@ export class CreateAttributeDefinitionDto {
   @ValidateNested({ each: true })
   @Type(() => AttributeOptionInputDto)
   options?: AttributeOptionInputDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CategoryBindingInputDto)
+  categoryBindings?: CategoryBindingInputDto[];
+}
+
+export class CategoryBindingInputDto {
+  @IsString()
+  @IsNotEmpty()
+  categoryId!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isRequired?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+
+  @IsOptional()
+  defaultValue?: Record<string, unknown>;
 }
