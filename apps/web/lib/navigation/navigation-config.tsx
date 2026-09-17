@@ -1,10 +1,11 @@
 import React from "react";
 import {
   LayoutDashboard,
-  Boxes,
+  Archive,
+  Package,
   ShoppingCart,
   Factory,
-  FolderKanban,
+  Kanban,
   BarChart3,
   Settings,
   Plus,
@@ -12,6 +13,7 @@ import {
   ArrowUpRight,
   ArrowRightLeft,
   ClipboardList,
+  ClipboardCheck,
   Tag,
   MapPin,
   Building2,
@@ -30,6 +32,9 @@ import {
   Bell,
   Zap,
   Warehouse,
+  Sliders,
+  Box,
+  Database,
 } from "lucide-react";
 import { NavigationModule } from "./types";
 
@@ -127,7 +132,7 @@ export const navigationModules: NavigationModule[] = [
   {
     id: "inventory",
     name: "Inventory",
-    icon: <Boxes className="w-4 h-4" />,
+    icon: <Package className="w-4 h-4" />,
     defaultRoute: "/inventory",
     permissions: ["Inventory.Read"],
     sidebar: [
@@ -191,7 +196,7 @@ export const navigationModules: NavigationModule[] = [
             id: "inv-components",
             title: "Components Catalog",
             href: "/components",
-            icon: <Boxes className="w-4 h-4" />,
+            icon: <Archive className="w-4 h-4" />,
           },
           {
             id: "inv-transactions",
@@ -293,7 +298,7 @@ export const navigationModules: NavigationModule[] = [
             id: "inv-master-data",
             title: "Master Data",
             href: "/categories",
-            icon: <Tag className="w-4 h-4" />,
+            icon: <Database className="w-4 h-4" />,
             children: [
               {
                 id: "inv-categories",
@@ -312,6 +317,12 @@ export const navigationModules: NavigationModule[] = [
                 title: "Units of Measure",
                 href: "/units",
                 icon: <ListFilter className="w-4 h-4" />,
+              },
+              {
+                id: "inv-attributes",
+                title: "Attribute Library",
+                href: "/attributes",
+                icon: <Sliders className="w-4 h-4" />,
               },
             ],
           },
@@ -389,7 +400,7 @@ export const navigationModules: NavigationModule[] = [
             id: "proc-master-data",
             title: "Master Data",
             href: "/suppliers",
-            icon: <Users className="w-4 h-4" />,
+            icon: <Database className="w-4 h-4" />,
             children: [
               {
                 id: "proc-suppliers",
@@ -455,7 +466,7 @@ export const navigationModules: NavigationModule[] = [
             id: "mfg-prods",
             title: "Production Orders",
             href: "/production-orders",
-            icon: <Factory className="w-4 h-4" />,
+            icon: <ClipboardCheck className="w-4 h-4" />,
           },
           {
             id: "mfg-works",
@@ -504,7 +515,7 @@ export const navigationModules: NavigationModule[] = [
                 id: "mfg-mrp-shortages",
                 title: "Material Shortages",
                 href: "/mrp/materials",
-                icon: <Boxes className="w-4 h-4" />,
+                icon: <Package className="w-4 h-4" />,
               },
               {
                 id: "mfg-mrp-purchases",
@@ -533,7 +544,7 @@ export const navigationModules: NavigationModule[] = [
   {
     id: "projects",
     name: "Projects & Services",
-    icon: <FolderKanban className="w-4 h-4" />,
+    icon: <Kanban className="w-4 h-4" />,
     defaultRoute: "/projects",
     permissions: ["Projects.Read"],
     sidebar: [
@@ -551,7 +562,7 @@ export const navigationModules: NavigationModule[] = [
             id: "proj-list",
             title: "Projects",
             href: "/projects",
-            icon: <FolderKanban className="w-4 h-4" />,
+            icon: <Kanban className="w-4 h-4" />,
           },
           {
             id: "proj-tasks",
@@ -615,7 +626,7 @@ export const navigationModules: NavigationModule[] = [
             id: "rep-inventory",
             title: "Inventory Reports",
             href: "/reports/inventory",
-            icon: <Boxes className="w-4 h-4" />,
+            icon: <Package className="w-4 h-4" />,
           },
           {
             id: "rep-procurement",
@@ -633,7 +644,7 @@ export const navigationModules: NavigationModule[] = [
             id: "rep-projects",
             title: "Project Reports",
             href: "/reports/projects",
-            icon: <FolderKanban className="w-4 h-4" />,
+            icon: <Kanban className="w-4 h-4" />,
           },
           {
             id: "rep-transactions",
@@ -691,6 +702,12 @@ export const navigationModules: NavigationModule[] = [
             title: "Data Operations & Imports",
             href: "/data-operations",
             icon: <RotateCcw className="w-4 h-4" />,
+          },
+          {
+            id: "settings-data-packs",
+            title: "Data Packs & Extensions",
+            href: "/data-packs",
+            icon: <Box className="w-4 h-4" />,
           },
           {
             id: "settings-activity",

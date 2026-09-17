@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   History,
   Printer,
+  Sliders,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -22,7 +23,9 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { ComponentForm } from "@/components/components/component-form";
+import { ManageComponentSpecificationsDialog } from "@/components/components/manage-component-specifications-dialog";
 import { PrintLabelDialog } from "@/components/barcodes/print-label-dialog";
+import { cn } from "@/lib/utils";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
@@ -66,6 +69,7 @@ export default function ViewComponentPage() {
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [isPrintOpen, setIsPrintOpen] = React.useState(false);
+  const [isSpecsOpen, setIsSpecsOpen] = React.useState(false);
 
   const fetchData = React.useCallback(async () => {
     if (!id) return;
@@ -303,122 +307,249 @@ export default function ViewComponentPage() {
 
       {/* Main Details Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Basic Information Card */}
-        <div className="md:col-span-2 bg-card border border-border rounded-xl p-6 space-y-6 shadow-xs">
-          <div>
-            <h3 className="text-base font-semibold text-foreground">
-              Basic Information
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Core inventory master parameters and classification.
-            </p>
+        <div className="md:col-span-2 space-y-6">
+          {/* Basic Information Card */}
+          <div className="bg-card border border-border rounded-xl p-6 space-y-6 shadow-xs">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">
+                Basic Information
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Core inventory master parameters and classification.
+              </p>
+            </div>
+
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+              <div>
+                <dt className="text-xs font-medium text-muted-foreground">
+                  Component ID
+                </dt>
+                <dd className="mt-1 font-mono text-xs text-foreground bg-muted/40 px-2 py-1 rounded inline-block">
+                  {component.id}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-medium text-muted-foreground">
+                  Status
+                </dt>
+                <dd className="mt-1">
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${
+                      component.isActive
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {component.isActive ? "Active" : "Inactive"}
+                  </span>
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-medium text-muted-foreground">
+                  SKU / Part Number
+                </dt>
+                <dd className="mt-1 font-mono text-xs font-semibold text-foreground">
+                  {component.sku}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-medium text-muted-foreground">
+                  Default Unit
+                </dt>
+                <dd className="mt-1 font-mono text-xs uppercase text-foreground">
+                  {component.unit}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-medium text-muted-foreground">
+                  Manufacturer
+                </dt>
+                <dd className="mt-1 text-xs text-foreground">
+                  {component.manufacturerId ? (
+                    manufacturerMap.get(component.manufacturerId) ? (
+                      `${manufacturerMap.get(component.manufacturerId)!.code} - ${manufacturerMap.get(component.manufacturerId)!.name}`
+                    ) : (
+                      <span className="font-mono text-muted-foreground">
+                        {component.manufacturerId}
+                      </span>
+                    )
+                  ) : (
+                    <span className="text-muted-foreground italic">
+                      Unassigned
+                    </span>
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-medium text-muted-foreground">
+                  Category
+                </dt>
+                <dd className="mt-1 text-xs text-foreground">
+                  {component.categoryId ? (
+                    categoryMap.get(component.categoryId) ? (
+                      `${categoryMap.get(component.categoryId)!.code} - ${categoryMap.get(component.categoryId)!.name}`
+                    ) : (
+                      <span className="font-mono text-muted-foreground">
+                        {component.categoryId}
+                      </span>
+                    )
+                  ) : (
+                    <span className="text-muted-foreground italic">
+                      Unassigned
+                    </span>
+                  )}
+                </dd>
+              </div>
+
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-medium text-muted-foreground">
+                  Description
+                </dt>
+                <dd className="mt-1 text-sm text-foreground">
+                  {component.description || "No description provided."}
+                </dd>
+              </div>
+            </dl>
+
+            {/* Audit Timestamps */}
+            <div className="pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                Created: {new Date(component.createdAt).toLocaleString()}
+              </span>
+              <span>
+                Updated: {new Date(component.updatedAt).toLocaleString()}
+              </span>
+            </div>
           </div>
 
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
-            <div>
-              <dt className="text-xs font-medium text-muted-foreground">
-                Component ID
-              </dt>
-              <dd className="mt-1 font-mono text-xs text-foreground bg-muted/40 px-2 py-1 rounded inline-block">
-                {component.id}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-xs font-medium text-muted-foreground">
-                Status
-              </dt>
-              <dd className="mt-1">
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${
-                    component.isActive
-                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                      : "bg-muted text-muted-foreground"
-                  }`}
+          {/* Specifications & Dynamic Attributes Card */}
+          <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-primary" />
+                  Product Specifications
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Category-driven technical specifications and properties.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {component.attributes && Object.keys(component.attributes).length > 0 && (
+                  <span className="text-xs font-mono font-medium px-2 py-0.5 bg-muted text-muted-foreground rounded-full border border-border">
+                    {Object.keys(component.attributes).length} configured
+                  </span>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsSpecsOpen(true)}
+                  className="h-8 text-xs gap-1.5"
                 >
-                  {component.isActive ? "Active" : "Inactive"}
-                </span>
-              </dd>
+                  <Sliders className="w-3.5 h-3.5 text-primary" />
+                  Manage Specifications
+                </Button>
+              </div>
             </div>
 
-            <div>
-              <dt className="text-xs font-medium text-muted-foreground">
-                SKU / Part Number
-              </dt>
-              <dd className="mt-1 font-mono text-xs font-semibold text-foreground">
-                {component.sku}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-xs font-medium text-muted-foreground">
-                Default Unit
-              </dt>
-              <dd className="mt-1 font-mono text-xs uppercase text-foreground">
-                {component.unit}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-xs font-medium text-muted-foreground">
-                Manufacturer
-              </dt>
-              <dd className="mt-1 text-xs text-foreground">
-                {component.manufacturerId ? (
-                  manufacturerMap.get(component.manufacturerId) ? (
-                    `${manufacturerMap.get(component.manufacturerId)!.code} - ${manufacturerMap.get(component.manufacturerId)!.name}`
-                  ) : (
-                    <span className="font-mono text-muted-foreground">
-                      {component.manufacturerId}
+            {component.attributes && Object.keys(component.attributes).length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+                {Object.entries(component.attributes).map(([code, attr]) => (
+                  <div
+                    key={code}
+                    className="p-3 bg-muted/20 border border-border rounded-lg space-y-1.5"
+                  >
+                    <span className="text-[11px] font-medium text-muted-foreground block truncate">
+                      {attr.name || code}
                     </span>
-                  )
-                ) : (
-                  <span className="text-muted-foreground italic">
-                    Unassigned
-                  </span>
-                )}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-xs font-medium text-muted-foreground">
-                Category
-              </dt>
-              <dd className="mt-1 text-xs text-foreground">
-                {component.categoryId ? (
-                  categoryMap.get(component.categoryId) ? (
-                    `${categoryMap.get(component.categoryId)!.code} - ${categoryMap.get(component.categoryId)!.name}`
-                  ) : (
-                    <span className="font-mono text-muted-foreground">
-                      {component.categoryId}
-                    </span>
-                  )
-                ) : (
-                  <span className="text-muted-foreground italic">
-                    Unassigned
-                  </span>
-                )}
-              </dd>
-            </div>
-
-            <div className="sm:col-span-2">
-              <dt className="text-xs font-medium text-muted-foreground">
-                Description
-              </dt>
-              <dd className="mt-1 text-sm text-foreground">
-                {component.description || "No description provided."}
-              </dd>
-            </div>
-          </dl>
-
-          {/* Audit Timestamps */}
-          <div className="pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-            <span>
-              Created: {new Date(component.createdAt).toLocaleString()}
-            </span>
-            <span>
-              Updated: {new Date(component.updatedAt).toLocaleString()}
-            </span>
+                    {attr.dataType === "MULTI_SELECT" ? (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {(attr.displayValue || String(attr.value || ""))
+                          .split(",")
+                          .filter(Boolean)
+                          .map((item) => (
+                            <span
+                              key={item.trim()}
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-muted text-foreground border border-border"
+                            >
+                              {item.trim()}
+                            </span>
+                          ))}
+                      </div>
+                    ) : attr.dataType === "BOOLEAN" ? (
+                      <div>
+                        <span
+                          className={cn(
+                            "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border",
+                            attr.value === true ||
+                              attr.displayValue === "Yes" ||
+                              attr.displayValue === "true"
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                              : "bg-muted text-muted-foreground border-border",
+                          )}
+                        >
+                          {attr.value === true ||
+                          attr.displayValue === "Yes" ||
+                          attr.displayValue === "true"
+                            ? "Yes"
+                            : "No"}
+                        </span>
+                      </div>
+                    ) : attr.dataType === "QUANTITY" ? (
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-mono text-sm font-semibold text-foreground">
+                          {attr.displayValue || String(attr.value ?? "—")}
+                        </span>
+                        {attr.unit &&
+                          !attr.displayValue?.includes(attr.unit) && (
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {attr.unit}
+                            </span>
+                          )}
+                      </div>
+                    ) : attr.dataType === "DATE" ? (
+                      <span className="font-mono text-sm font-semibold text-foreground block">
+                        {typeof attr.value === "string" &&
+                        !isNaN(Date.parse(attr.value))
+                          ? new Date(attr.value).toLocaleDateString()
+                          : attr.displayValue || String(attr.value ?? "—")}
+                      </span>
+                    ) : (
+                      <span className="font-mono text-sm font-semibold text-foreground block truncate">
+                        {attr.optionLabel ||
+                          attr.displayValue ||
+                          String(attr.value ?? "—")}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-6 text-center border border-dashed border-border rounded-lg bg-muted/5 space-y-2">
+                <Sliders className="w-7 h-7 text-muted-foreground/40 mx-auto" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  No specifications recorded
+                </p>
+                <p className="text-xs text-muted-foreground/70">
+                  Assign category-driven attributes and technical specifications
+                  to this product.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsSpecsOpen(true)}
+                  className="h-8 text-xs gap-1.5 mt-2"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-primary" />
+                  Add Specifications
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -667,6 +798,18 @@ export default function ViewComponentPage() {
           entityId={component.id}
           defaultTemplate="STANDARD"
           title={`Print Component Label: ${component.sku}`}
+        />
+      )}
+
+      {/* Manage Dynamic Specifications Dialog */}
+      {component && (
+        <ManageComponentSpecificationsDialog
+          isOpen={isSpecsOpen}
+          componentId={component.id}
+          componentName={component.name}
+          categoryId={component.categoryId}
+          onClose={() => setIsSpecsOpen(false)}
+          onUpdated={fetchData}
         />
       )}
     </div>

@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2, Sliders } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DialogShellBody,
@@ -13,14 +13,26 @@ import {
 } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
 import { EntitySelector } from "@/components/ui/entity-selector";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   componentsApi,
   type ComponentDto,
   type CreateComponentPayload,
   type UpdateComponentPayload,
 } from "@/lib/api/components-api";
+import {
+  attributesApi,
+  type ResolvedCategoryAttributeDto,
+} from "@/lib/api/attributes-api";
 
 const componentSchema = z.object({
   sku: z
@@ -49,6 +61,18 @@ interface ComponentFormProps {
   onCancel: () => void;
 }
 
+const COMPATIBLE_UNITS: Record<string, string[]> = {
+  Resistance: ["ohm", "kohm", "Mohm"],
+  Capacitance: ["uF", "nF", "pF", "F"],
+  Voltage: ["V", "mV", "kV"],
+  Power: ["W", "mW", "kW"],
+  Current: ["mA", "A", "uA"],
+  Inductance: ["uH", "mH", "H"],
+  Length: ["mm", "cm", "m"],
+  Percentage: ["%"],
+  Temperature: ["°C"],
+};
+
 export function ComponentForm({
   initialData,
   onSuccess,
@@ -56,6 +80,22 @@ export function ComponentForm({
 }: ComponentFormProps) {
   const [serverError, setServerError] = React.useState<string | null>(null);
   const isEditing = Boolean(initialData);
+
+  const [categoryAttributes, setCategoryAttributes] = React.useState<
+    ResolvedCategoryAttributeDto[]
+  >([]);
+  const [loadingAttrs, setLoadingAttrs] = React.useState(false);
+  const [attrValues, setAttrValues] = React.useState<
+    Record<
+      string,
+      {
+        value?: unknown;
+        unit?: string | null;
+        optionCode?: string;
+        selectedOptionCodes?: string[];
+      }
+    >
+  >({});
 
   const {
     register,
@@ -76,6 +116,9 @@ export function ComponentForm({
     },
   });
 
+  const selectedCategoryId = useWatch({ control, name: "categoryId" });
+
+  // Initialize form and attribute state from initialData
   React.useEffect(() => {
     reset({
       sku: initialData?.sku ?? "",
@@ -86,10 +129,147 @@ export function ComponentForm({
       unit: initialData?.unit ?? "pcs",
       defaultLocationId: initialData?.defaultLocationId ?? "",
     });
+
+    if (initialData?.attributes) {
+      const initialAttrs: Record<
+        string,
+        {
+          value?: unknown;
+          unit?: string | null;
+          optionCode?: string;
+          selectedOptionCodes?: string[];
+        }
+      > = {};
+      for (const [code, item] of Object.entries(initialData.attributes)) {
+        let selectedOptionCodes: string[] | undefined;
+        if (Array.isArray(item.value)) {
+          selectedOptionCodes = item.value.map(String);
+        }
+        initialAttrs[code] = {
+          value: item.value,
+          unit: item.unit,
+          optionCode:
+            item.optionCode ??
+            (typeof item.value === "string" ? item.value : ""),
+          selectedOptionCodes,
+        };
+      }
+      setAttrValues(initialAttrs);
+    }
   }, [initialData, reset]);
+
+  // Load category attributes when category changes
+  React.useEffect(() => {
+    let isCurrent = true;
+    if (!selectedCategoryId) {
+      setCategoryAttributes([]);
+      return;
+    }
+
+    setLoadingAttrs(true);
+    attributesApi
+      .getByCategory(selectedCategoryId)
+      .then((data) => {
+        if (isCurrent) {
+          setCategoryAttributes(data);
+          // Set default units for QUANTITY attributes if not already populated
+          setAttrValues((prev) => {
+            const next = { ...prev };
+            for (const item of data) {
+              const code = item.attributeDefinition.code;
+              if (
+                item.attributeDefinition.dataType === "QUANTITY" &&
+                !next[code]?.unit
+              ) {
+                const defUnit =
+                  item.attributeDefinition.defaultUnit ||
+                  (item.attributeDefinition.unitCategory &&
+                    COMPATIBLE_UNITS[item.attributeDefinition.unitCategory]?.[0]) ||
+                  "";
+                next[code] = {
+                  ...next[code],
+                  unit: defUnit,
+                };
+              }
+            }
+            return next;
+          });
+        }
+      })
+      .catch(() => {
+        if (isCurrent) setCategoryAttributes([]);
+      })
+      .finally(() => {
+        if (isCurrent) setLoadingAttrs(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [selectedCategoryId]);
+
+  const handleAttrChange = (code: string, field: string, val: unknown) => {
+    setAttrValues((prev) => ({
+      ...prev,
+      [code]: {
+        ...prev[code],
+        [field]: val,
+      },
+    }));
+  };
+
+  const toggleMultiSelectOption = (code: string, optCode: string) => {
+    setAttrValues((prev) => {
+      const currentList = prev[code]?.selectedOptionCodes ?? [];
+      const exists = currentList.includes(optCode);
+      const nextList = exists
+        ? currentList.filter((c) => c !== optCode)
+        : [...currentList, optCode];
+      return {
+        ...prev,
+        [code]: {
+          ...prev[code],
+          value: nextList,
+          selectedOptionCodes: nextList,
+        },
+      };
+    });
+  };
 
   const onSubmit = async (values: ComponentFormValues) => {
     setServerError(null);
+
+    // Validate required dynamic attributes
+    for (const item of categoryAttributes) {
+      if (item.isRequired) {
+        const current = attrValues[item.attributeDefinition.code];
+        const val = current?.value;
+        const opt = current?.optionCode;
+        const multi = current?.selectedOptionCodes;
+
+        if (item.attributeDefinition.dataType === "MULTI_SELECT") {
+          if (!multi || multi.length === 0) {
+            setServerError(
+              `Required specification missing: "${item.attributeDefinition.name}" requires at least one selection.`,
+            );
+            return;
+          }
+        } else if (item.attributeDefinition.dataType === "SELECT") {
+          if (!opt || opt === "") {
+            setServerError(
+              `Required specification missing: "${item.attributeDefinition.name}" is required for this category.`,
+            );
+            return;
+          }
+        } else if (val === undefined || val === null || val === "") {
+          setServerError(
+            `Required specification missing: "${item.attributeDefinition.name}" is required for this category.`,
+          );
+          return;
+        }
+      }
+    }
+
     try {
       if (isEditing && initialData) {
         const payload: UpdateComponentPayload = {
@@ -100,6 +280,7 @@ export function ComponentForm({
           manufacturerId: values.manufacturerId || null,
           unit: values.unit,
           defaultLocationId: values.defaultLocationId || null,
+          attributes: attrValues,
         };
         const updated = await componentsApi.update(initialData.id, payload);
         onSuccess(updated);
@@ -112,6 +293,7 @@ export function ComponentForm({
           manufacturerId: values.manufacturerId || null,
           unit: values.unit,
           defaultLocationId: values.defaultLocationId || null,
+          attributes: attrValues,
         };
         const created = await componentsApi.create(payload);
         onSuccess(created);
@@ -150,7 +332,7 @@ export function ComponentForm({
             <Input
               id="component-sku"
               type="text"
-              placeholder="e.g. MCU-STM32F4-01"
+              placeholder="e.g. RES-10K-0805"
               {...register("sku")}
               className="font-mono"
             />
@@ -192,7 +374,7 @@ export function ComponentForm({
           <Input
             id="component-name"
             type="text"
-            placeholder="e.g. Microcontroller Unit 32-bit ARM Cortex-M4"
+            placeholder="e.g. 10k Ohm 0805 SMD Resistor"
             {...register("name")}
           />
           {errors.name?.message && (
@@ -250,6 +432,282 @@ export function ComponentForm({
             )}
           </Field>
         </div>
+
+        {/* Dynamic Category Specifications Section */}
+        {loadingAttrs && (
+          <div className="py-2 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+            <Loader2 className="size-3.5 animate-spin" />
+            Loading category specifications...
+          </div>
+        )}
+
+        {categoryAttributes.length > 0 && (
+          <div className="space-y-3 pt-3 border-t border-border">
+            <div className="flex items-center gap-1.5">
+              <Sliders className="size-3.5 text-primary" />
+              <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                Category Specifications
+              </h4>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Dynamic technical parameters defined for this category and its hierarchy.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {categoryAttributes.map((attr) => {
+                const def = attr.attributeDefinition;
+                const code = def.code;
+                const current = attrValues[code] ?? {};
+                const inputId = `attr-${code}`;
+
+                // Render control based on data type
+                if (def.dataType === "SELECT") {
+                  return (
+                    <Field key={code}>
+                      <FieldLabel htmlFor={inputId}>
+                        {def.name}{" "}
+                        {attr.isRequired && (
+                          <span className="text-destructive">*</span>
+                        )}
+                      </FieldLabel>
+                      <Select
+                        value={current.optionCode ?? ""}
+                        onValueChange={(val) =>
+                          handleAttrChange(code, "optionCode", val)
+                        }
+                      >
+                        <SelectTrigger id={inputId} className="h-9">
+                          <SelectValue placeholder={`Select ${def.name.toLowerCase()}...`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {attr.options.map((opt) => (
+                            <SelectItem key={opt.id} value={opt.code}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {def.description && (
+                        <FieldDescription>{def.description}</FieldDescription>
+                      )}
+                    </Field>
+                  );
+                }
+
+                if (def.dataType === "MULTI_SELECT") {
+                  const selected = current.selectedOptionCodes || [];
+                  return (
+                    <Field key={code} className="sm:col-span-2 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <FieldLabel htmlFor={inputId}>
+                          {def.name}{" "}
+                          {attr.isRequired && (
+                            <span className="text-destructive">*</span>
+                          )}
+                        </FieldLabel>
+                        {selected.length > 0 && (
+                          <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            {selected.length} selected
+                          </span>
+                        )}
+                      </div>
+                      {attr.options && attr.options.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                          {attr.options.map((opt) => {
+                            const isChecked = selected.includes(opt.code);
+                            return (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() =>
+                                  toggleMultiSelectOption(code, opt.code)
+                                }
+                                className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
+                                  isChecked
+                                    ? "bg-primary text-primary-foreground border-primary font-medium shadow-xs"
+                                    : "bg-muted/40 hover:bg-muted text-foreground border-border hover:border-border/80"
+                                }`}
+                              >
+                                {isChecked ? (
+                                  <Check className="w-3 h-3 shrink-0" />
+                                ) : (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
+                                )}
+                                <span>{opt.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">
+                          No options configured for this specification.
+                        </p>
+                      )}
+                      {def.description && (
+                        <FieldDescription>{def.description}</FieldDescription>
+                      )}
+                    </Field>
+                  );
+                }
+
+                if (def.dataType === "BOOLEAN") {
+                  return (
+                    <Field
+                      key={code}
+                      className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs"
+                    >
+                      <div className="space-y-0.5">
+                        <FieldLabel htmlFor={inputId}>
+                          {def.name}{" "}
+                          {attr.isRequired && (
+                            <span className="text-destructive">*</span>
+                          )}
+                        </FieldLabel>
+                        {def.description && (
+                          <FieldDescription>{def.description}</FieldDescription>
+                        )}
+                      </div>
+                      <Switch
+                        id={inputId}
+                        checked={Boolean(current.value)}
+                        onCheckedChange={(checked) =>
+                          handleAttrChange(code, "value", checked)
+                        }
+                      />
+                    </Field>
+                  );
+                }
+
+                if (def.dataType === "QUANTITY") {
+                  const unitOptions =
+                    (def.unitCategory && COMPATIBLE_UNITS[def.unitCategory]) ||
+                    (def.defaultUnit ? [def.defaultUnit] : ["pcs"]);
+
+                  return (
+                    <Field key={code}>
+                      <FieldLabel htmlFor={inputId}>
+                        {def.name}{" "}
+                        {attr.isRequired && (
+                          <span className="text-destructive">*</span>
+                        )}
+                      </FieldLabel>
+                      <div className="flex gap-2">
+                        <Input
+                          id={inputId}
+                          type="number"
+                          step="any"
+                          placeholder="e.g. 10"
+                          value={(current.value as string | number) ?? ""}
+                          onChange={(e) =>
+                            handleAttrChange(code, "value", e.target.value)
+                          }
+                          className="flex-1 font-mono"
+                        />
+                        <div className="w-28">
+                          <Select
+                            value={current.unit || def.defaultUnit || unitOptions[0] || ""}
+                            onValueChange={(val) =>
+                              handleAttrChange(code, "unit", val)
+                            }
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {unitOptions.map((u) => (
+                                <SelectItem key={u} value={u}>
+                                  {u}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      {def.description && (
+                        <FieldDescription>{def.description}</FieldDescription>
+                      )}
+                    </Field>
+                  );
+                }
+
+                if (def.dataType === "NUMBER" || def.dataType === "INTEGER") {
+                  return (
+                    <Field key={code}>
+                      <FieldLabel htmlFor={inputId}>
+                        {def.name}{" "}
+                        {attr.isRequired && (
+                          <span className="text-destructive">*</span>
+                        )}
+                      </FieldLabel>
+                      <Input
+                        id={inputId}
+                        type="number"
+                        step={def.dataType === "INTEGER" ? "1" : "any"}
+                        placeholder="e.g. 64"
+                        value={(current.value as string | number) ?? ""}
+                        onChange={(e) =>
+                          handleAttrChange(code, "value", e.target.value)
+                        }
+                        className="font-mono"
+                      />
+                      {def.description && (
+                        <FieldDescription>{def.description}</FieldDescription>
+                      )}
+                    </Field>
+                  );
+                }
+
+                if (def.dataType === "DATE") {
+                  return (
+                    <Field key={code}>
+                      <FieldLabel htmlFor={inputId}>
+                        {def.name}{" "}
+                        {attr.isRequired && (
+                          <span className="text-destructive">*</span>
+                        )}
+                      </FieldLabel>
+                      <Input
+                        id={inputId}
+                        type="date"
+                        value={(current.value as string | number) ?? ""}
+                        onChange={(e) =>
+                          handleAttrChange(code, "value", e.target.value)
+                        }
+                      />
+                      {def.description && (
+                        <FieldDescription>{def.description}</FieldDescription>
+                      )}
+                    </Field>
+                  );
+                }
+
+                // Default: TEXT
+                return (
+                  <Field key={code}>
+                    <FieldLabel htmlFor={inputId}>
+                      {def.name}{" "}
+                      {attr.isRequired && (
+                        <span className="text-destructive">*</span>
+                      )}
+                    </FieldLabel>
+                    <Input
+                      id={inputId}
+                      type="text"
+                      placeholder={`Enter ${def.name.toLowerCase()}...`}
+                      value={(current.value as string | number) ?? ""}
+                      onChange={(e) =>
+                        handleAttrChange(code, "value", e.target.value)
+                      }
+                    />
+                    {def.description && (
+                      <FieldDescription>{def.description}</FieldDescription>
+                    )}
+                  </Field>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Default Location */}
         <Field>

@@ -38,4 +38,7 @@ export class CreateComponentDto {
   @IsNotEmpty()
   @MaxLength(50)
   unit!: string;
+
+  @IsOptional()
+  attributes?: Record<string, any> | Array<any>;
 }

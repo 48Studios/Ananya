@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertTriangle, CheckCircle2, Boxes } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Package } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
@@ -89,7 +89,7 @@ export default function MrpMaterialsPage() {
         <StatCard
           title="Total Reorder Quantity"
           value={`${totalSuggestedPoQty} Units`}
-          icon={Boxes}
+          icon={Package}
         />
         <StatCard
           title="Actionable Requisitions"

@@ -51,3 +51,4 @@ export * from "./documents";
 export * from "./notifications";
 export * from "./settings";
 export * from "./preferences";
+export * from "./attributes";

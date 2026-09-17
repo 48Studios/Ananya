@@ -14,7 +14,6 @@ import {
   NumberingSeriesDto,
   FeatureFlagDto,
 } from "@/lib/api/settings-api";
-import { DataPacksGallery } from "@/components/ui/data-packs-gallery";
 import { ResetOrganizationDialog } from "@/components/ui/reset-organization-dialog";
 import {
   Building2,
@@ -24,7 +23,6 @@ import {
   Save,
   CheckCircle2,
   Loader2,
-  Package,
   ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,7 +39,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = React.useState<
-    "organization" | "system" | "numbering" | "flags" | "datapacks" | "danger"
+    "organization" | "system" | "numbering" | "flags" | "danger"
   >("organization");
 
   const [profile, setProfile] = React.useState<OrganizationProfileDto | null>(
@@ -171,21 +169,10 @@ export default function SettingsPage() {
             Feature Flags
           </button>
           <button
-            onClick={() => setActiveTab("datapacks")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              activeTab === "datapacks"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            }`}
-          >
-            <Package className="w-3.5 h-3.5" />
-            Data Packs
-          </button>
-          <button
             onClick={() => setActiveTab("danger")}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               activeTab === "danger"
-                ? "bg-destructive text-destructive-foreground"
+                ? "bg-destructive text-white"
                 : "text-destructive hover:bg-destructive/10"
             }`}
           >
@@ -386,9 +373,6 @@ export default function SettingsPage() {
             {activeTab === "flags" && (
               <FeatureFlagTable flags={flags} onFlagToggled={loadData} />
             )}
-
-            {/* Data Packs Tab */}
-            {activeTab === "datapacks" && <DataPacksGallery />}
 
             {/* Danger Zone Tab */}
             {activeTab === "danger" && <ResetOrganizationDialog />}

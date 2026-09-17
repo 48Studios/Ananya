@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import {
-  Boxes,
+  Package,
   ShoppingCart,
   Factory,
   Layers,
@@ -256,7 +256,7 @@ export default function DashboardPage() {
         title="Catalog Items"
         value={formatNumber(inventorySummary?.totalComponents)}
         subtitle={`${formatNumber(inventorySummary?.activeComponents)} active components in storage`}
-        icon={Boxes}
+        icon={Package}
       />
       <StatCard
         title="Committed Stock"

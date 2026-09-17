@@ -20,7 +20,7 @@ export const units = pgTable(
 
     isBaseUnit: boolean("is_base_unit").notNull().default(false),
 
-    conversionFactor: numeric("conversion_factor", { precision: 10, scale: 4 }),
+    conversionFactor: numeric("conversion_factor", { precision: 28, scale: 12 }),
 
     precision: numeric("precision", { precision: 10, scale: 0 })
       .notNull()

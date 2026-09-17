@@ -32,4 +32,7 @@ export class UpdateComponentDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  attributes?: Record<string, any> | Array<any>;
 }

@@ -20,17 +20,21 @@ export class ComponentsController {
   constructor(private readonly componentsService: ComponentsService) {}
 
   @Post()
-  create(@Body() input: CreateComponentDto): Promise<Component> {
+  create(
+    @Body() input: CreateComponentDto,
+  ): Promise<Component & { attributes?: Record<string, any> }> {
     return this.componentsService.create(input);
   }
 
   @Get()
-  getAll(): Promise<Component[]> {
+  getAll(): Promise<(Component & { attributes?: Record<string, any> })[]> {
     return this.componentsService.getAllComponents();
   }
 
   @Get(':id')
-  get(@Param('id') id: string): Promise<Component> {
+  get(
+    @Param('id') id: string,
+  ): Promise<Component & { attributes: Record<string, any> }> {
     return this.componentsService.getComponent(id);
   }
 
@@ -38,7 +42,7 @@ export class ComponentsController {
   update(
     @Param('id') id: string,
     @Body() input: UpdateComponentDto,
-  ): Promise<Component> {
+  ): Promise<Component & { attributes?: Record<string, any> }> {
     return this.componentsService.update(id, input);
   }
 

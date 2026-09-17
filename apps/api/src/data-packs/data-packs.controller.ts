@@ -6,7 +6,7 @@ export class DataPacksController {
   constructor(private readonly dataPacksService: DataPacksService) {}
 
   @Get()
-  getCatalog() {
+  async getCatalog() {
     return this.dataPacksService.getCatalog();
   }
 

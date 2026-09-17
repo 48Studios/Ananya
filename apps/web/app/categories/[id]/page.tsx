@@ -20,6 +20,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { CategoryForm } from "@/components/categories/category-form";
+import { CategoryAttributesManager } from "@/components/categories/category-attributes-manager";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 
@@ -351,6 +352,12 @@ export default function ViewCategoryPage() {
           </div>
         </div>
       </div>
+
+      {/* Category Specifications & Attributes Section */}
+      <CategoryAttributesManager
+        categoryId={id}
+        categoryName={category.name}
+      />
 
       {/* Associated Components Listing */}
       <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">

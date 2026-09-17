@@ -75,6 +75,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { SettingsModule } from './settings/settings.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { DataPacksModule } from './data-packs/data-packs.module';
+import { AttributesModule } from './attributes/attributes.module';
 import { DatabaseModule } from './database/database.module';
 
 @Module({
@@ -155,6 +156,7 @@ import { DatabaseModule } from './database/database.module';
     SettingsModule,
     PreferencesModule,
     DataPacksModule,
+    AttributesModule,
   ],
   controllers: [AppController],
 })

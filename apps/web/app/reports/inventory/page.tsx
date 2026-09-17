@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
-  Boxes,
+  Package,
   MapPin,
   Layers,
   ArrowLeft,
@@ -218,7 +218,7 @@ export default function InventoryReportsPage() {
           title="Total Catalog Items"
           value={formatNumber(summary.totalComponents)}
           subtitle={`${formatNumber(summary.activeComponents)} active components`}
-          icon={Boxes}
+          icon={Package}
         />
         <StatCard
           title="Storage Locations"

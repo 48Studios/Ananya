@@ -15,6 +15,8 @@ import {
   RefreshCw,
   Printer,
   MoreVertical,
+  X,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -32,16 +34,30 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { ComponentForm } from "@/components/components/component-form";
 import { PrintLabelDialog } from "@/components/barcodes/print-label-dialog";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
+import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
+import {
+  attributesApi,
+  type ResolvedCategoryAttributeDto,
+} from "@/lib/api/attributes-api";
 import { inventoryTransactionsApi } from "@/lib/api/inventory-transactions-api";
 
 export default function ComponentsPage() {
   const router = useRouter();
   const [components, setComponents] = React.useState<ComponentDto[]>([]);
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [categories, setCategories] = React.useState<CategoryDto[]>([]);
   const [stockMap, setStockMap] = React.useState<Record<string, number>>({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -56,17 +72,28 @@ export default function ComponentsPage() {
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [apiAlert, setApiAlert] = React.useState<string | null>(null);
 
+  // Dynamic Specifications Filter State
+  const [selectedCategoryId, setSelectedCategoryId] = React.useState<string>("");
+  const [categoryAttributes, setCategoryAttributes] = React.useState<
+    ResolvedCategoryAttributeDto[]
+  >([]);
+  const [attributeFilters, setAttributeFilters] = React.useState<
+    Record<string, { min?: string; max?: string; value?: string; booleanVal?: string }>
+  >({});
+
   const fetchData = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [comps, locs, txs] = await Promise.all([
+      const [comps, locs, txs, cats] = await Promise.all([
         componentsApi.getAll(),
         locationsApi.getAll().catch(() => []),
         inventoryTransactionsApi.getAll().catch(() => []),
+        categoriesApi.getAll().catch(() => []),
       ]);
       setComponents(comps);
       setLocations(locs);
+      setCategories(cats);
 
       const computedStock: Record<string, number> = {};
       for (const tx of txs) {
@@ -102,6 +129,24 @@ export default function ComponentsPage() {
     fetchData();
   }, [fetchData]);
 
+  // Load applicable category attribute definitions when a category is selected
+  React.useEffect(() => {
+    if (!selectedCategoryId) {
+      setCategoryAttributes([]);
+      setAttributeFilters({});
+      return;
+    }
+    attributesApi
+      .getByCategory(selectedCategoryId)
+      .then((attrs) => {
+        setCategoryAttributes(attrs.filter((a) => a.attributeDefinition.isFilterable));
+        setAttributeFilters({});
+      })
+      .catch(() => {
+        setCategoryAttributes([]);
+      });
+  }, [selectedCategoryId]);
+
   const locationMap = React.useMemo(() => {
     const map = new Map<string, string>();
     for (const loc of locations) {
@@ -109,6 +154,106 @@ export default function ComponentsPage() {
     }
     return map;
   }, [locations]);
+
+  const categoryMap = React.useMemo(() => {
+    const map = new Map<string, CategoryDto>();
+    for (const cat of categories) {
+      map.set(cat.id, cat);
+    }
+    return map;
+  }, [categories]);
+
+  // Real-time dynamic attribute & category filtering
+  const filteredComponents = React.useMemo(() => {
+    return components.filter((comp) => {
+      // Category filter
+      if (selectedCategoryId && comp.categoryId !== selectedCategoryId) {
+        return false;
+      }
+
+      // Attribute specifications filters
+      for (const [code, filter] of Object.entries(attributeFilters)) {
+        if (!filter) continue;
+        const compAttr = comp.attributes?.[code];
+
+        // Select / Multi-Select / Text match
+        if (filter.value && filter.value !== "ALL") {
+          if (!compAttr) return false;
+          const searchLower = filter.value.toLowerCase();
+          const optCodeMatch = compAttr.optionCode?.toLowerCase() === searchLower;
+          const optLabelMatch = compAttr.optionLabel?.toLowerCase() === searchLower;
+          const dispValMatch = compAttr.displayValue?.toLowerCase().includes(searchLower);
+          const rawValMatch = String(compAttr.value ?? "").toLowerCase().includes(searchLower);
+          if (!optCodeMatch && !optLabelMatch && !dispValMatch && !rawValMatch) {
+            return false;
+          }
+        }
+
+        // Boolean filter
+        if (filter.booleanVal && filter.booleanVal !== "ALL") {
+          if (!compAttr) return false;
+          const expected = filter.booleanVal === "true";
+          const actual =
+            compAttr.value === true ||
+            compAttr.displayValue === "Yes" ||
+            compAttr.displayValue === "true";
+          if (actual !== expected) return false;
+        }
+
+        // Numeric min filter
+        if (filter.min !== undefined && filter.min !== "") {
+          const minNum = parseFloat(filter.min);
+          if (!isNaN(minNum)) {
+            if (!compAttr) return false;
+            const valNum =
+              compAttr.normalizedValue !== null && compAttr.normalizedValue !== undefined
+                ? compAttr.normalizedValue
+                : typeof compAttr.value === "number"
+                ? compAttr.value
+                : parseFloat(String(compAttr.value));
+            if (isNaN(valNum) || valNum < minNum) return false;
+          }
+        }
+
+        // Numeric max filter
+        if (filter.max !== undefined && filter.max !== "") {
+          const maxNum = parseFloat(filter.max);
+          if (!isNaN(maxNum)) {
+            if (!compAttr) return false;
+            const valNum =
+              compAttr.normalizedValue !== null && compAttr.normalizedValue !== undefined
+                ? compAttr.normalizedValue
+                : typeof compAttr.value === "number"
+                ? compAttr.value
+                : parseFloat(String(compAttr.value));
+            if (isNaN(valNum) || valNum > maxNum) return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }, [components, selectedCategoryId, attributeFilters]);
+
+  const activeFilterCount = React.useMemo(() => {
+    let count = selectedCategoryId ? 1 : 0;
+    for (const filter of Object.values(attributeFilters)) {
+      if (
+        (filter.value && filter.value !== "ALL") ||
+        (filter.booleanVal && filter.booleanVal !== "ALL") ||
+        (filter.min !== undefined && filter.min !== "") ||
+        (filter.max !== undefined && filter.max !== "")
+      ) {
+        count++;
+      }
+    }
+    return count;
+  }, [selectedCategoryId, attributeFilters]);
+
+  const handleClearAllFilters = () => {
+    setSelectedCategoryId("");
+    setAttributeFilters({});
+  };
 
   const activeCount = React.useMemo(
     () => components.filter((c) => c.isActive).length,
@@ -154,7 +299,7 @@ export default function ComponentsPage() {
             SKU
           </span>
         ),
-        meta: { width: "14%" },
+        meta: { width: "12%" },
         cell: ({ row }) => (
           <Link
             href={`/components/${row.original.id}`}
@@ -168,25 +313,68 @@ export default function ComponentsPage() {
       {
         accessorKey: "name",
         header: () => (
-          <span className="whitespace-nowrap">Component Name</span>
+          <span className="whitespace-nowrap">Component</span>
         ),
-        meta: { width: "20%" },
-        cell: ({ row }) => (
-          <Link
-            href={`/components/${row.original.id}`}
-            className="font-medium text-foreground hover:underline block truncate"
-            title={row.original.name}
-          >
-            {row.original.name}
-          </Link>
-        ),
+        meta: { width: "18%" },
+        cell: ({ row }) => {
+          const attrs = row.original.attributes;
+          const specBadges = attrs
+            ? Object.values(attrs)
+                .filter((a) => Boolean(a.displayValue))
+                .slice(0, 3)
+            : [];
+
+          return (
+            <div className="space-y-1">
+              <Link
+                href={`/components/${row.original.id}`}
+                className="font-medium text-foreground hover:underline block truncate"
+                title={row.original.name}
+              >
+                {row.original.name}
+              </Link>
+              {specBadges.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {specBadges.map((badge, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted/60 text-muted-foreground border border-border/50"
+                    >
+                      {badge.displayValue}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "categoryId",
+        header: () => <span className="whitespace-nowrap">Category</span>,
+        meta: { width: "12%" },
+        cell: ({ row }) => {
+          const catId = row.original.categoryId;
+          const cat = catId ? categoryMap.get(catId) : undefined;
+          return cat ? (
+            <Link
+              href={`/categories/${cat.id}`}
+              className="text-xs font-medium text-foreground hover:underline block truncate"
+              title={cat.name}
+            >
+              {cat.name}
+            </Link>
+          ) : (
+            <span className="text-xs text-muted-foreground italic">—</span>
+          );
+        },
       },
       {
         accessorKey: "description",
         header: () => (
           <span className="whitespace-nowrap">Description</span>
         ),
-        meta: { width: "18%" },
+        meta: { width: "15%" },
         cell: ({ row }) => (
           <span
             className="text-xs text-muted-foreground truncate block"
@@ -199,7 +387,7 @@ export default function ComponentsPage() {
       {
         accessorKey: "unit",
         header: () => <span className="whitespace-nowrap">Unit</span>,
-        meta: { width: "7%" },
+        meta: { width: "6%" },
         cell: ({ row }) => (
           <span className="font-mono text-xs uppercase px-2 py-0.5 border border-border rounded bg-card text-foreground whitespace-nowrap">
             {row.original.unit}
@@ -213,7 +401,7 @@ export default function ComponentsPage() {
             On Hand
           </span>
         ),
-        meta: { width: "11%" },
+        meta: { width: "10%" },
         cell: ({ row }) => {
           const qty = stockMap[row.original.id] || 0;
           return (
@@ -236,7 +424,7 @@ export default function ComponentsPage() {
             Storage
           </span>
         ),
-        meta: { width: "11%" },
+        meta: { width: "10%" },
         cell: ({ row }) => {
           const locId = row.original.defaultLocationId;
           if (!locId)
@@ -260,7 +448,7 @@ export default function ComponentsPage() {
       {
         accessorKey: "isActive",
         header: () => <span className="whitespace-nowrap">Status</span>,
-        meta: { width: "10%" },
+        meta: { width: "9%" },
         cell: ({ row }) => (
           <span
             className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${
@@ -281,7 +469,7 @@ export default function ComponentsPage() {
           </span>
         ),
         meta: {
-          width: "9%",
+          width: "8%",
           headerClassName: "text-right",
           cellClassName: "text-right",
         },
@@ -342,7 +530,7 @@ export default function ComponentsPage() {
         },
       },
     ],
-    [locationMap, stockMap, router],
+    [locationMap, categoryMap, stockMap, router],
   );
 
   const filterConfigs: FilterConfig[] = [
@@ -484,10 +672,213 @@ export default function ComponentsPage() {
         onCancel={() => setDeletingComponent(null)}
       />
 
+      {/* Dynamic Specifications & Category Filter Bar */}
+      <div className="bg-card border border-border rounded-xl p-4 space-y-3 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold text-foreground">
+              Specifications & Category Filter
+            </span>
+            {activeFilterCount > 0 && (
+              <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                {activeFilterCount} active
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Category Dropdown */}
+            <div className="w-56">
+              <Select
+                value={selectedCategoryId || "ALL"}
+                onValueChange={(val) =>
+                  setSelectedCategoryId(val === "ALL" ? "" : (val ?? ""))
+                }
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Categories</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name} ({cat.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearAllFilters}
+                className="h-8 text-xs text-muted-foreground hover:text-foreground px-2"
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Category-Specific Dynamic Specification Filters */}
+        {selectedCategoryId && categoryAttributes.length > 0 && (
+          <div className="pt-2 border-t border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {categoryAttributes.map((attr) => {
+              const def = attr.attributeDefinition;
+              const current = attributeFilters[def.code] || {};
+
+              if (def.dataType === "SELECT" || def.dataType === "MULTI_SELECT") {
+                return (
+                  <div key={def.code} className="space-y-1">
+                    <label className="text-[11px] font-medium text-muted-foreground block truncate">
+                      {def.name}
+                    </label>
+                    <Select
+                      value={current.value || "ALL"}
+                      onValueChange={(val) =>
+                        setAttributeFilters((prev) => ({
+                          ...prev,
+                          [def.code]: {
+                            ...prev[def.code],
+                            value: val === "ALL" || !val ? "" : val,
+                          },
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-xs font-mono">
+                        <SelectValue placeholder={`All ${def.name}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">All {def.name}</SelectItem>
+                        {attr.options.map((opt) => (
+                          <SelectItem key={opt.id} value={opt.code}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              }
+
+              if (
+                def.dataType === "QUANTITY" ||
+                def.dataType === "NUMBER" ||
+                def.dataType === "INTEGER"
+              ) {
+                return (
+                  <div key={def.code} className="space-y-1">
+                    <label className="text-[11px] font-medium text-muted-foreground block truncate">
+                      {def.name}{" "}
+                      {def.defaultUnit ? `(${def.defaultUnit})` : ""}
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        placeholder="Min"
+                        value={current.min || ""}
+                        onChange={(e) =>
+                          setAttributeFilters((prev) => ({
+                            ...prev,
+                            [def.code]: {
+                              ...prev[def.code],
+                              min: e.target.value,
+                            },
+                          }))
+                        }
+                        className="h-8 text-xs font-mono"
+                      />
+                      <span className="text-xs text-muted-foreground">–</span>
+                      <Input
+                        type="number"
+                        placeholder="Max"
+                        value={current.max || ""}
+                        onChange={(e) =>
+                          setAttributeFilters((prev) => ({
+                            ...prev,
+                            [def.code]: {
+                              ...prev[def.code],
+                              max: e.target.value,
+                            },
+                          }))
+                        }
+                        className="h-8 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                );
+              }
+
+              if (def.dataType === "BOOLEAN") {
+                return (
+                  <div key={def.code} className="space-y-1">
+                    <label className="text-[11px] font-medium text-muted-foreground block truncate">
+                      {def.name}
+                    </label>
+                    <Select
+                      value={current.booleanVal || "ALL"}
+                      onValueChange={(val) =>
+                        setAttributeFilters((prev) => ({
+                          ...prev,
+                          [def.code]: {
+                            ...prev[def.code],
+                            booleanVal: val === "ALL" || !val ? "" : val,
+                          },
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">Any</SelectItem>
+                        <SelectItem value="true">Yes</SelectItem>
+                        <SelectItem value="false">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              }
+
+              if (def.dataType === "TEXT") {
+                return (
+                  <div key={def.code} className="space-y-1">
+                    <label className="text-[11px] font-medium text-muted-foreground block truncate">
+                      {def.name}
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder={`Search ${def.name}...`}
+                      value={current.value || ""}
+                      onChange={(e) =>
+                        setAttributeFilters((prev) => ({
+                          ...prev,
+                          [def.code]: {
+                            ...prev[def.code],
+                            value: e.target.value,
+                          },
+                        }))
+                      }
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                );
+              }
+
+              return null;
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Data Table */}
       <EntityDataTable
         columns={columns}
-        data={components}
+        data={filteredComponents}
         entityType="Component"
         searchKey="name"
         searchPlaceholder="Search components by name..."

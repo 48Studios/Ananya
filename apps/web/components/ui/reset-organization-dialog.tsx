@@ -8,8 +8,13 @@ import {
   Field,
   FieldLabel,
   FieldDescription,
-  FieldError,
 } from "@/components/ui/field";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellFooter,
+  DialogShellCancelButton,
+} from "@/components/ui/dialog-shell";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -20,6 +25,7 @@ import {
 } from "lucide-react";
 
 export function ResetOrganizationDialog() {
+  const [open, setOpen] = React.useState(false);
   const [confirmText, setConfirmText] = React.useState("");
   const [passwordConfirm, setPasswordConfirm] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -46,6 +52,7 @@ export function ResetOrganizationDialog() {
       setSuccessMsg(res.message);
       setConfirmText("");
       setPasswordConfirm("");
+      setOpen(false);
     } catch (err: unknown) {
       setErrorMsg(
         err instanceof Error
@@ -57,123 +64,223 @@ export function ResetOrganizationDialog() {
     }
   };
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && loading) return;
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setConfirmText("");
+      setPasswordConfirm("");
+      setErrorMsg(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="p-6 bg-destructive/5 border border-destructive/20 rounded-xl space-y-4">
-        <div className="flex items-center gap-2 text-destructive font-semibold text-sm border-b border-destructive/20 pb-3">
-          <ShieldAlert className="w-5 h-5 text-destructive" />
-          <span>Danger Zone — Organization Data Reset</span>
-        </div>
-
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Executing Organization Reset permanently purges all operational
-          business data while keeping your organization profile, administrator
-          accounts, roles, and settings intact.
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">Danger Zone</h3>
+        <p className="text-xs text-muted-foreground">
+          Destructive actions and irreversible operations for this organization.
         </p>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg space-y-1.5 text-destructive">
-            <h5 className="font-semibold flex items-center gap-1.5">
-              <Trash2 className="w-3.5 h-3.5" />
-              Will Be Permanently Removed:
-            </h5>
-            <ul className="list-disc list-inside space-y-0.5 text-[11px] opacity-90 font-mono">
-              <li>Components, Inventory & Transactions</li>
-              <li>Suppliers, Customers & Contacts</li>
-              <li>BOMs, Work Orders & Manufacturing Output</li>
-              <li>Projects, Tasks, Milestones & Timesheets</li>
-              <li>Purchase Orders & Goods Receipts</li>
-              <li>Stock Adjustments, Transfers & Cycle Counts</li>
-              <li>Assets, Equipment, Service Requests & RMA</li>
-            </ul>
+      {successMsg && (
+        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-2.5">
+          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      {/* Danger Zone Action Card */}
+      <div className="border border-destructive/20 rounded-xl bg-card overflow-hidden">
+        {/* Main Action Row */}
+        <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1.5 max-w-2xl">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/20 uppercase tracking-wider text-[10px]">
+                High Impact
+              </span>
+              <h4 className="text-sm font-semibold text-foreground">
+                Reset Organization Operational Data
+              </h4>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Permanently purge all operational business data (components, inventory ledger transactions, BOMs, orders, and contacts) while retaining your organization profile, administrator accounts, roles, and system configuration.
+            </p>
           </div>
 
-          <div className="p-3 bg-muted/40 border border-border rounded-lg space-y-1.5 text-foreground">
-            <h5 className="font-semibold flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Will Be Preserved (Tenant Survives):
-            </h5>
-            <ul className="list-disc list-inside space-y-0.5 text-[11px] text-muted-foreground font-mono">
-              <li>Organization Profile & Setup Status</li>
-              <li>Root Administrator Account & User Directory</li>
-              <li>User Sessions & Active Invitations</li>
-              <li>System Roles & Permission Matrix</li>
-              <li>System Defaults, Numbering Series & Flags</li>
-              <li>Security Audit Logs & Security History</li>
-            </ul>
-          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => setOpen(true)}
+            className="gap-2 shrink-0 self-start md:self-center font-medium"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Reset Organization Data...
+          </Button>
         </div>
 
-        {successMsg && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span>{successMsg}</span>
+        {/* Impact Scope Details Grid */}
+        <div className="border-t border-border bg-muted/20 px-6 py-5">
+          <div className="text-[11px] font-medium text-muted-foreground mb-3 uppercase tracking-wider">
+            Impact Scope &amp; Retention Guarantee
           </div>
-        )}
-
-        {errorMsg && (
-          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-xs font-medium text-destructive flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
-        <form
-          onSubmit={handleReset}
-          className="space-y-4 pt-2 border-t border-destructive/20"
-        >
-          <Field>
-            <FieldLabel className="text-xs font-semibold text-foreground">
-              Confirmation Text Verification
-            </FieldLabel>
-            <FieldDescription className="text-[11px]">
-              Type{" "}
-              <strong className="font-mono text-destructive select-all">
-                RESET MY ORGANIZATION
-              </strong>{" "}
-              below to confirm.
-            </FieldDescription>
-            <Input
-              type="text"
-              placeholder="RESET MY ORGANIZATION"
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              className="font-mono text-xs"
-            />
-          </Field>
-
-          <Field>
-            <FieldLabel className="text-xs font-semibold text-foreground">
-              Administrator Password Re-Authentication
-            </FieldLabel>
-            <FieldDescription className="text-[11px]">
-              Re-enter your administrator account password to authorize this
-              destructive operation.
-            </FieldDescription>
-            <div className="relative">
-              <Input
-                type="password"
-                placeholder="Enter account password"
-                value={passwordConfirm}
-                onChange={(e) => setPasswordConfirm(e.target.value)}
-                className="pr-9"
-              />
-              <Lock className="w-4 h-4 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 rounded-lg bg-background border border-border space-y-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Permanently Removed</span>
+              </div>
+              <ul className="space-y-1.5 text-xs text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
+                  <span>Components, inventory stock &amp; ledger transactions</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
+                  <span>Suppliers, customers &amp; address contacts</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
+                  <span>BOMs, work orders &amp; manufacturing logs</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
+                  <span>Projects, milestones, tasks &amp; timesheets</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
+                  <span>Purchase orders, goods receipts &amp; adjustments</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
+                  <span>Assets, equipment, service requests &amp; RMA</span>
+                </li>
+              </ul>
             </div>
-            {passwordConfirm && passwordConfirm.length < 4 && (
-              <FieldError>
-                Password is required for security verification
-              </FieldError>
-            )}
-          </Field>
 
-          <div className="flex justify-end pt-2">
+            <div className="p-4 rounded-lg bg-background border border-border space-y-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Preserved (Tenant Survives)</span>
+              </div>
+              <ul className="space-y-1.5 text-xs text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Organization profile &amp; setup status</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Root administrator credentials &amp; user directory</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Active user sessions &amp; team invitations</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>System roles &amp; RBAC permission matrix</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>System defaults, numbering series &amp; feature flags</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Security audit logs &amp; security history</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation DialogShell */}
+      <DialogShell
+        open={open}
+        onOpenChange={handleOpenChange}
+        size="md"
+        title={
+          <div className="flex items-center gap-2 text-destructive">
+            <ShieldAlert className="w-4 h-4" />
+            <span>Confirm Organization Reset</span>
+          </div>
+        }
+        description="This action is irreversible. All selected operational business data will be permanently wiped."
+        closeDisabled={loading}
+      >
+        <form onSubmit={handleReset}>
+          <DialogShellBody className="space-y-4">
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-xs text-destructive space-y-1">
+              <div className="font-semibold flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                Warning: This action cannot be undone
+              </div>
+              <p className="text-[11px] leading-relaxed text-destructive/90">
+                Executing this reset will immediately purge all inventory, purchase orders, BOMs, and manufacturing records. Ensure you have exported any needed data before proceeding.
+              </p>
+            </div>
+
+            {errorMsg && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-xs font-medium text-destructive flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            <Field>
+              <FieldLabel className="text-xs font-semibold text-foreground">
+                Confirmation Phrase
+              </FieldLabel>
+              <FieldDescription className="text-xs">
+                To proceed, type{" "}
+                <span className="font-mono font-bold text-destructive select-all px-1 py-0.5 rounded bg-destructive/10 border border-destructive/20">
+                  RESET MY ORGANIZATION
+                </span>{" "}
+                in the box below.
+              </FieldDescription>
+              <Input
+                type="text"
+                placeholder="RESET MY ORGANIZATION"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                className="font-mono text-xs"
+                disabled={loading}
+                autoFocus
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel className="text-xs font-semibold text-foreground">
+                Administrator Password
+              </FieldLabel>
+              <FieldDescription className="text-xs">
+                Enter your administrator account password to verify your identity.
+              </FieldDescription>
+              <div className="relative">
+                <Input
+                  type="password"
+                  placeholder="Enter administrator password"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  className="pr-9 text-xs"
+                  disabled={loading}
+                />
+                <Lock className="w-4 h-4 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
+              </div>
+            </Field>
+          </DialogShellBody>
+
+          <DialogShellFooter>
+            <DialogShellCancelButton disabled={loading}>
+              Cancel
+            </DialogShellCancelButton>
             <Button
               type="submit"
               variant="destructive"
               size="sm"
               disabled={!isFormValid || loading}
-              className="gap-1.5 text-xs font-semibold"
+              className="gap-1.5 font-medium"
             >
               {loading ? (
                 <>
@@ -183,13 +290,13 @@ export function ResetOrganizationDialog() {
               ) : (
                 <>
                   <Trash2 className="w-3.5 h-3.5" />
-                  Reset Organization Data
+                  Permanently Reset Organization
                 </>
               )}
             </Button>
-          </div>
+          </DialogShellFooter>
         </form>
-      </div>
+      </DialogShell>
     </div>
   );
 }

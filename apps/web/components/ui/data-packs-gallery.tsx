@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { dataPacksApi, DataPackCatalogDto } from "@/lib/api/data-packs-api";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,8 @@ import {
   Layers,
   Loader2,
   PackageCheck,
+  Sliders,
+  ArrowRight,
 } from "lucide-react";
 
 export function DataPacksGallery() {
@@ -26,6 +29,8 @@ export function DataPacksGallery() {
     try {
       const data = await dataPacksApi.getCatalog();
       setPacks(data);
+      const serverInstalled = data.filter((p) => p.isInstalled).map((p) => p.id);
+      setInstalledPacks((prev) => Array.from(new Set([...serverInstalled, ...prev])));
     } catch {
       setErrorMsg("Failed to load Data Packs catalog.");
     } finally {
@@ -47,6 +52,9 @@ export function DataPacksGallery() {
       setMsg(
         `Successfully installed '${name}' (${res.processedRecords} records imported).`,
       );
+      const refreshed = await dataPacksApi.getCatalog();
+      setPacks(refreshed);
+      setInstalledPacks(refreshed.filter((p) => p.isInstalled).map((p) => p.id));
     } catch (err: unknown) {
       setErrorMsg(
         err instanceof Error ? err.message : "Failed to install Data Pack.",
@@ -81,12 +89,31 @@ export function DataPacksGallery() {
             Engine.
           </p>
         </div>
+        <Link href="/data-packs">
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+            Open Full Hub <ArrowRight className="w-3.5 h-3.5" />
+          </Button>
+        </Link>
       </div>
 
       {msg && (
-        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-          <span>{msg}</span>
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs font-medium text-emerald-600 dark:text-emerald-400 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>{msg}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/categories">
+              <Button variant="outline" size="xs" className="h-6 text-[11px] gap-1">
+                Categories <ArrowRight className="w-3 h-3" />
+              </Button>
+            </Link>
+            <Link href="/components">
+              <Button variant="outline" size="xs" className="h-6 text-[11px] gap-1">
+                Components <ArrowRight className="w-3 h-3" />
+              </Button>
+            </Link>
+          </div>
         </div>
       )}
 
@@ -98,45 +125,67 @@ export function DataPacksGallery() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {packs.map((pack) => {
-          const isInstalled = installedPacks.includes(pack.id);
+          const isInstalled = Boolean(pack.isInstalled) || installedPacks.includes(pack.id);
           const isInstalling = installingId === pack.id;
 
           return (
             <div
               key={pack.id}
-              className="p-5 bg-card border border-border rounded-xl space-y-3 hover:border-primary/50 transition-all flex flex-col justify-between"
+              className="p-5 bg-card border border-border rounded-xl flex flex-col justify-between hover:border-border/80 transition-colors space-y-4"
             >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-muted text-muted-foreground border border-border">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-medium bg-muted text-muted-foreground border border-border">
                     {pack.category === "Core Lookup" ? (
-                      <Database className="w-3 h-3 text-blue-500" />
+                      <Database className="w-3.5 h-3.5 text-blue-500" />
                     ) : pack.category === "Infrastructure" ? (
-                      <Layers className="w-3 h-3 text-amber-500" />
+                      <Layers className="w-3.5 h-3.5 text-amber-500" />
+                    ) : pack.category === "Domain Specifications" ? (
+                      <Sliders className="w-3.5 h-3.5 text-primary" />
                     ) : (
-                      <Box className="w-3 h-3 text-emerald-500" />
+                      <Box className="w-3.5 h-3.5 text-purple-500" />
                     )}
                     {pack.category}
                   </span>
-                  <span className="text-[11px] font-mono text-muted-foreground">
-                    {pack.recordCount} Records
-                  </span>
+
+                  {isInstalled ? (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Installed
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-muted/60 text-muted-foreground border border-border/60">
+                      Available
+                    </span>
+                  )}
                 </div>
 
-                <h4 className="text-sm font-semibold text-foreground">
-                  {pack.name}
-                </h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {pack.description}
-                </p>
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground">
+                    {pack.name}
+                  </h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-1 line-clamp-2 min-h-[2.25rem]">
+                    {pack.description}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between text-xs bg-muted/20 border border-border/60 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                    <span>Target:</span>
+                    <strong className="text-foreground font-semibold">
+                      {pack.entityType}
+                    </strong>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground">
+                    <strong className="text-foreground font-semibold">
+                      {pack.recordCount}
+                    </strong>{" "}
+                    records
+                  </div>
+                </div>
               </div>
 
-              <div className="pt-3 border-t border-border/50 flex items-center justify-between">
-                <span className="text-[11px] text-muted-foreground font-mono">
-                  Target Entity:{" "}
-                  <strong className="text-foreground">{pack.entityType}</strong>
-                </span>
-
+              <div className="pt-3 border-t border-border/60 flex items-center justify-end gap-2">
                 <Button
                   size="sm"
                   variant={isInstalled ? "outline" : "default"}
@@ -152,12 +201,12 @@ export function DataPacksGallery() {
                   ) : isInstalled ? (
                     <>
                       <PackageCheck className="w-3.5 h-3.5 text-emerald-500" />
-                      Re-Install Pack
+                      Re-Install
                     </>
                   ) : (
                     <>
                       <Download className="w-3.5 h-3.5" />
-                      Install Data Pack
+                      Install Pack
                     </>
                   )}
                 </Button>

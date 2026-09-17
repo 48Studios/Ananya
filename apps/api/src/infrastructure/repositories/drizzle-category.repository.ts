@@ -32,6 +32,13 @@ function toRow(
 
 export class DrizzleCategoryRepository implements CategoryRepository {
   async findById(id: string): Promise<Category | null> {
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        id,
+      )
+    ) {
+      return this.findByCode(id);
+    }
     const [row] = await db
       .select()
       .from(categories)

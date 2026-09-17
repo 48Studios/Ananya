@@ -4,9 +4,14 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   Boxes,
+  Package,
+  Cpu,
+  Archive,
   Truck,
   Factory,
   FolderKanban,
+  Kanban,
+  ClipboardCheck,
   ShoppingCart,
   UserCheck,
   Shield,
@@ -26,6 +31,7 @@ import {
   CornerDownLeft,
   ArrowRightLeft,
   RotateCcw,
+  Database,
 } from "lucide-react";
 import { useNavigation } from "@/lib/navigation/navigation-context";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -43,9 +49,14 @@ import { searchApi, SearchResultItemDto } from "@/lib/api/search-api";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Boxes,
+  Package,
+  Cpu,
+  Archive,
   Truck,
   Factory,
   FolderKanban,
+  Kanban,
+  ClipboardCheck,
   ShoppingCart,
   UserCheck,
   Shield,
@@ -61,6 +72,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   FileText,
   LayoutGrid,
   Settings,
+  Database,
 };
 
 const RECENT_SEARCHES_KEY = "ananya_recent_searches";
@@ -346,7 +358,7 @@ export function CommandPalette() {
             >
               {items.map((item) => {
                 const IconComponent =
-                  (item.iconName && ICON_MAP[item.iconName]) || Boxes;
+                  (item.iconName && ICON_MAP[item.iconName]) || Package;
                 return (
                   <CommandItem
                     key={`${item.type}-${item.id}`}

@@ -1,4 +1,9 @@
 import path from "path";
+import dotenv from "dotenv";
+dotenv.config({ path: path.resolve(__dirname, "../../../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 import { Client } from "pg";
 import { db, pool } from "../index";
 import { migrate } from "drizzle-orm/node-postgres/migrator";

@@ -1,4 +1,8 @@
 import { apiClient } from "../api-client";
+import type {
+  PopulatedComponentAttributeDto,
+  SetComponentAttributeItem,
+} from "./attributes-api";
 
 export interface ComponentDto {
   id: string;
@@ -10,6 +14,7 @@ export interface ComponentDto {
   defaultLocationId?: string | null;
   unit: string;
   isActive: boolean;
+  attributes?: Record<string, PopulatedComponentAttributeDto>;
   createdAt: string;
   updatedAt: string;
 }
@@ -22,6 +27,7 @@ export interface CreateComponentPayload {
   categoryId?: string | null;
   defaultLocationId?: string | null;
   unit: string;
+  attributes?: Record<string, unknown> | SetComponentAttributeItem[];
 }
 
 export interface UpdateComponentPayload {
@@ -33,6 +39,7 @@ export interface UpdateComponentPayload {
   defaultLocationId?: string | null;
   unit?: string;
   isActive?: boolean;
+  attributes?: Record<string, unknown> | SetComponentAttributeItem[];
 }
 
 export const componentsApi = {

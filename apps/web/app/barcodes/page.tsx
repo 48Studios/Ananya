@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Scan,
   Printer,
-  Boxes,
+  Cpu,
   MapPin,
   QrCode,
   Sparkles,
@@ -271,7 +271,7 @@ export default function BarcodesHubPage() {
           title="Printable Components"
           value={components.length}
           subtitle="Catalog component labels"
-          icon={Boxes}
+          icon={Cpu}
         />
         <StatCard
           title="Supported Formats"
@@ -349,7 +349,7 @@ export default function BarcodesHubPage() {
                   onClick={() => handleEntityTypeChange("COMPONENT")}
                   className="justify-center"
                 >
-                  <Boxes className="w-3.5 h-3.5 mr-1.5" />
+                  <Cpu className="w-3.5 h-3.5 mr-1.5" />
                   Component / Item
                 </Button>
               </div>
@@ -658,7 +658,7 @@ export default function BarcodesHubPage() {
 
           <div className="p-5 bg-muted/20 border border-border rounded-xl space-y-3">
             <div className="flex items-center gap-2">
-              <Boxes className="w-5 h-5 text-sky-500" />
+              <Cpu className="w-5 h-5 text-sky-500" />
               <h4 className="text-sm font-bold text-foreground">
                 Component Catalog Labels
               </h4>

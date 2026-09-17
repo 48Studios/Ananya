@@ -1,0 +1,1 @@
+ALTER TABLE "units" ALTER COLUMN "conversion_factor" SET DATA TYPE numeric(28, 12);

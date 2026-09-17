@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  Boxes,
+  Package,
   ShoppingCart,
   Factory,
   FolderKanban,
@@ -27,7 +27,7 @@ const REPORT_SECTIONS = [
     description:
       "Current stock, valuation, low stock alerts, and storage location analytics.",
     href: "/reports/inventory",
-    icon: Boxes,
+    icon: Package,
     color: "text-sky-500 bg-sky-500/10",
   },
   {
@@ -135,7 +135,7 @@ export default function ReportsHubPage() {
           title="Total Components"
           value={formatNumber(metrics.totalComponents)}
           subtitle={`${formatNumber(metrics.totalLocations)} active storage locations`}
-          icon={Boxes}
+          icon={Package}
         />
         <StatCard
           title="Purchase Spend"

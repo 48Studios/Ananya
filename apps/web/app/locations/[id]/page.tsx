@@ -12,7 +12,7 @@ import {
   ArrowLeft,
   Printer,
   Package,
-  Boxes,
+  Cpu,
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -276,7 +276,7 @@ export default function ViewLocationPage() {
         <div className="p-6 border-b border-border flex items-center justify-between">
           <div>
             <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-              <Boxes className="w-4 h-4 text-primary" />
+              <Cpu className="w-4 h-4 text-primary" />
               Containing Components & Stock
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">

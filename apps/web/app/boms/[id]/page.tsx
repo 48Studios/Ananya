@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Printer,
-  Boxes,
+  Cpu,
   CheckCircle2,
   Clock,
   XCircle,
@@ -271,7 +271,7 @@ export default function ViewBomPage() {
           title="Component Line Items"
           value={`${bom.lines.length} items`}
           subtitle="Required assembly materials"
-          icon={Boxes}
+          icon={Cpu}
         />
         <StatCard
           title="Revision Status"
@@ -333,7 +333,7 @@ export default function ViewBomPage() {
                     href={`/components/${productComp.id}`}
                     className="hover:underline flex items-center gap-1"
                   >
-                    <Boxes className="w-3.5 h-3.5 text-muted-foreground" />
+                    <Cpu className="w-3.5 h-3.5 text-muted-foreground" />
                     {productComp.name}{" "}
                     <span className="font-mono text-xs text-muted-foreground">
                       ({productComp.sku})

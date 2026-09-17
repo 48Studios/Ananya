@@ -36,6 +36,78 @@ export interface ImportEntityDefinition {
 }
 
 export const IMPORT_ENTITY_REGISTRY: Record<string, ImportEntityDefinition> = {
+  AttributeDefinition: {
+    entityType: 'AttributeDefinition',
+    label: 'Attribute Definition',
+    description:
+      'Dynamic product specification definitions (e.g. Resistance, Package, Voltage)',
+    identityKeys: ['code'],
+    writeMode: 'UPSERT',
+    fields: [
+      {
+        name: 'code',
+        label: 'Attribute Code',
+        type: 'string',
+        required: true,
+        description: 'Unique stable attribute code (e.g. resistance, package)',
+        aliases: ['code', 'attributecode', 'attrcode', 'property'],
+        sampleValue: 'resistance',
+        sampleValue2: 'package',
+      },
+      {
+        name: 'name',
+        label: 'Attribute Name',
+        type: 'string',
+        required: true,
+        description: 'Human-readable attribute name',
+        aliases: ['name', 'attributename', 'title', 'label'],
+        sampleValue: 'Resistance',
+        sampleValue2: 'Package / Case',
+      },
+      {
+        name: 'dataType',
+        label: 'Data Type',
+        type: 'string',
+        required: true,
+        description:
+          'Type: TEXT, NUMBER, INTEGER, BOOLEAN, SELECT, MULTI_SELECT, QUANTITY, DATE',
+        aliases: ['datatype', 'type'],
+        sampleValue: 'QUANTITY',
+        sampleValue2: 'SELECT',
+      },
+      {
+        name: 'unitCategory',
+        label: 'Unit Category',
+        type: 'string',
+        required: false,
+        description:
+          'Associated unit category for QUANTITY (e.g. Resistance, Capacitance, Length)',
+        aliases: ['unitcategory', 'uomcategory'],
+        sampleValue: 'Resistance',
+        sampleValue2: '',
+      },
+      {
+        name: 'defaultUnit',
+        label: 'Default Unit',
+        type: 'string',
+        required: false,
+        description: 'Default unit of measure (e.g. ohm, uF, V)',
+        aliases: ['defaultunit', 'uom', 'unit'],
+        sampleValue: 'ohm',
+        sampleValue2: '',
+      },
+      {
+        name: 'description',
+        label: 'Description',
+        type: 'string',
+        required: false,
+        description: 'Optional attribute description',
+        aliases: ['description', 'desc'],
+        sampleValue: 'Nominal electrical resistance',
+        sampleValue2: 'SMD package footprint code',
+      },
+    ],
+  },
   Category: {
     entityType: 'Category',
     label: 'Category',

@@ -39,6 +39,7 @@ import {
   crmLeads,
   cycleCounts,
   warehouseTransfers,
+  attributeDefinitions,
 } from '@ananya/database/schema';
 import { eq, inArray, desc } from '@ananya/database/query';
 import { resolveCurrency } from '../common/utils/currency-resolver';
@@ -753,6 +754,72 @@ export class ImportExportService {
               compMap.set(inserted.sku.toUpperCase(), inserted.id);
               createdEntities.push({
                 entityType: 'Component',
+                id: inserted.id,
+              });
+            }
+            processed++;
+          } else if (canonicalEntity === 'AttributeDefinition') {
+            const codeVal = this.getRowFieldValue(row, 'code', columnMapping)
+              ?.toLowerCase()
+              .replace(/[\s-]+/g, '_');
+            const nameVal = this.getRowFieldValue(row, 'name', columnMapping);
+            const typeVal = (
+              this.getRowFieldValue(row, 'dataType', columnMapping) || 'TEXT'
+            ).toUpperCase();
+            const unitCatVal = this.getRowFieldValue(
+              row,
+              'unitCategory',
+              columnMapping,
+            );
+            const defUnitVal = this.getRowFieldValue(
+              row,
+              'defaultUnit',
+              columnMapping,
+            );
+            const descVal = this.getRowFieldValue(
+              row,
+              'description',
+              columnMapping,
+            );
+
+            if (!codeVal || !nameVal) {
+              errors.push({
+                row: rowIndex,
+                message: 'Missing required field: code or name',
+              });
+              continue;
+            }
+
+            const [inserted] = await db
+              .insert(attributeDefinitions)
+              .values({
+                code: codeVal,
+                name: nameVal,
+                dataType: typeVal,
+                unitCategory: unitCatVal || null,
+                defaultUnit: defUnitVal || null,
+                description: descVal || null,
+                isActive: true,
+              })
+              .onConflictDoUpdate({
+                target: attributeDefinitions.code,
+                set: {
+                  name: nameVal,
+                  dataType: typeVal,
+                  unitCategory: unitCatVal || null,
+                  defaultUnit: defUnitVal || null,
+                  description: descVal || null,
+                  updatedAt: new Date(),
+                },
+              })
+              .returning({
+                id: attributeDefinitions.id,
+                code: attributeDefinitions.code,
+              });
+
+            if (inserted) {
+              createdEntities.push({
+                entityType: 'AttributeDefinition',
                 id: inserted.id,
               });
             }
@@ -2248,6 +2315,12 @@ export class ImportExportService {
         case 'unit':
         case 'units':
           rawRows = await db.select().from(units);
+          break;
+        case 'attributedefinition':
+        case 'attributedefinitions':
+        case 'attribute':
+        case 'attributes':
+          rawRows = await db.select().from(attributeDefinitions);
           break;
         case 'user':
         case 'users': {

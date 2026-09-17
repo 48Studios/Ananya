@@ -4,7 +4,10 @@ import { DrizzleComponentRepository } from '../infrastructure/repositories/drizz
 import { ComponentsController } from './components.controller';
 import { ComponentsService } from './components.service';
 
+import { AttributesModule } from '../attributes/attributes.module';
+
 @Module({
+  imports: [AttributesModule],
   controllers: [ComponentsController],
   providers: [
     ComponentsService,

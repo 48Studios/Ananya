@@ -88,6 +88,10 @@ export class OrganizationResetService {
       'stock_adjustments',
       'cycle_counts',
       'stock_counts',
+      'component_attribute_values',
+      'category_attributes',
+      'attribute_options',
+      'attribute_definitions',
       'components',
       'categories',
       'units',
@@ -102,6 +106,9 @@ export class OrganizationResetService {
       ).join(', ');
       await pool.query(
         `TRUNCATE TABLE ${truncateStatements} RESTART IDENTITY CASCADE;`,
+      );
+      await pool.query(
+        `DELETE FROM "activity_events" WHERE "entity_type" = 'DataPack';`,
       );
 
       await this.activityService.createEvent({

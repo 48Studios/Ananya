@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   Edit2,
   Trash2,
-  Boxes,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -225,7 +225,7 @@ export default function WarehousePoliciesPage() {
         <StatCard
           title="FEFO Expiry Rules"
           value={`${fefoCount} Policies`}
-          icon={Boxes}
+          icon={Package}
         />
       </div>
 

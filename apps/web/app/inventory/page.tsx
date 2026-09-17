@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
-  Boxes,
   Package,
   MapPin,
   Tags,
@@ -300,7 +299,7 @@ export default function InventoryPage() {
           title="Total Items"
           value={loading ? "..." : components.length}
           subtitle={`${activeItemsCount} active SKU records`}
-          icon={Boxes}
+          icon={Package}
         />
         <StatCard
           title="Total Stock Units"

@@ -3,7 +3,7 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
-  Boxes,
+  Package,
   RefreshCw,
   CheckCircle2,
   AlertCircle,
@@ -165,7 +165,7 @@ export default function BatchesPage() {
         <StatCard
           title="Total Registered Batches"
           value={batches.length}
-          icon={Boxes}
+          icon={Package}
         />
         <StatCard
           title="Non-Expired Batches"

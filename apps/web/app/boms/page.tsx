@@ -9,7 +9,7 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  Boxes,
+  Cpu,
   Layers,
   Copy,
   Pencil,
@@ -160,7 +160,7 @@ export default function BomsPage() {
               href={`/boms/${row.original.id}`}
               className="text-xs font-semibold text-foreground hover:underline flex items-center gap-1.5"
             >
-              <Boxes className="w-3.5 h-3.5 text-muted-foreground" />
+              <Cpu className="w-3.5 h-3.5 text-muted-foreground" />
               {comp ? comp.name : row.original.componentId.slice(0, 8)}{" "}
               {comp && (
                 <span className="font-mono text-muted-foreground text-[11px]">

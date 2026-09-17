@@ -3,10 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  Boxes,
+  Package,
   Truck,
   Factory,
-  FolderKanban,
+  Kanban,
   UserCheck,
   Shield,
   FileText,
@@ -41,10 +41,10 @@ export function ActivityIcon({
   className?: string;
 }) {
   const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-    Inventory: Boxes,
+    Inventory: Package,
     Procurement: Truck,
     Manufacturing: Factory,
-    Projects: FolderKanban,
+    Projects: Kanban,
     Administration: UserCheck,
     Security: Shield,
     Reports: FileText,

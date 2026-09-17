@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ShoppingCart, CheckCircle2, Boxes } from "lucide-react";
+import { ShoppingCart, CheckCircle2, Package } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
@@ -94,7 +94,7 @@ export default function MrpPurchasesPage() {
         <StatCard
           title="Total Component Demand"
           value={`${totalOrderQty} Units`}
-          icon={Boxes}
+          icon={Package}
         />
         <StatCard
           title="Vendor Allocation"

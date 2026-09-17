@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Boxes, Plus, CheckCircle2 } from "lucide-react";
+import { Package, Plus, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -112,7 +112,7 @@ export default function MaterialConsumptionPage() {
         <StatCard
           title="Total Issues Logged"
           value={consumptions.length}
-          icon={Boxes}
+          icon={Package}
         />
         <StatCard
           title="Component SKUs Issued"

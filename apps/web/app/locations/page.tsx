@@ -11,7 +11,7 @@ import {
   MapPin,
   CheckCircle2,
   AlertCircle,
-  Boxes,
+  Package,
   Layers,
   Printer,
 } from "lucide-react";
@@ -376,7 +376,7 @@ export default function LocationsPage() {
           title="Total Storage Nodes"
           value={locations.length}
           subtitle="All storage facilities & bins"
-          icon={Boxes}
+          icon={Package}
         />
         <StatCard
           title="Active Locations"
