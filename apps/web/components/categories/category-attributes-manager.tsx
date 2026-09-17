@@ -265,11 +265,10 @@ export function CategoryAttributesManager({
 
                   {/* Required / Optional Badge */}
                   <span
-                    className={`text-[11px] font-mono px-2 py-0.5 rounded border ${
-                      item.isRequired
+                    className={`text-[11px] font-mono px-2 py-0.5 rounded border ${item.isRequired
                         ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 font-medium"
                         : "bg-muted/50 text-muted-foreground border-border"
-                    }`}
+                      }`}
                   >
                     {item.isRequired ? "Required" : "Optional"}
                   </span>
