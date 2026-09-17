@@ -31,6 +31,7 @@ const TEMPLATE_OPTIONS: Record<LabelTemplate, string> = {
   DETAILED: 'Detailed (3" x 4")',
   SHELF_BIN: "Shelf Bin Tag",
   SQUARE: 'Square Tag (2" x 2")',
+  QR_ONLY: 'QR Only (1" x 1")',
 };
 
 const FORMAT_OPTIONS: Record<BarcodeFormat, string> = {
@@ -133,7 +134,7 @@ export function BatchPrintDialog({
           <Field>
             <FieldLabel className="text-xs">
               Barcode Format
-              {(template === "COMPACT" || template === "SHELF_BIN" || template === "SQUARE") && (
+              {(template === "COMPACT" || template === "SHELF_BIN" || template === "SQUARE" || template === "QR_ONLY") && (
                 <span className="text-[10px] text-muted-foreground font-normal ml-1">
                   (QR-only template)
                 </span>
@@ -142,7 +143,7 @@ export function BatchPrintDialog({
             <Select
               items={FORMAT_OPTIONS}
               value={format}
-              disabled={template === "COMPACT" || template === "SHELF_BIN" || template === "SQUARE"}
+              disabled={template === "COMPACT" || template === "SHELF_BIN" || template === "SQUARE" || template === "QR_ONLY"}
               onValueChange={(val) => setFormat(val as BarcodeFormat)}
             >
               <SelectTrigger className="h-8 text-xs">

@@ -7,7 +7,13 @@ import { LabelData, BarcodeFormat } from "@/lib/api/barcodes-api";
 import { settingsApi } from "@/lib/api/settings-api";
 import { cn } from "@/lib/utils";
 
-export type LabelTemplate = "COMPACT" | "STANDARD" | "DETAILED" | "SHELF_BIN" | "SQUARE";
+export type LabelTemplate =
+  | "COMPACT"
+  | "STANDARD"
+  | "DETAILED"
+  | "SHELF_BIN"
+  | "SQUARE"
+  | "QR_ONLY";
 
 export interface LabelPreviewProps {
   label: LabelData;
@@ -57,6 +63,20 @@ export function LabelPreview({
 
   const displaySubtitle = cleanSubtitle(label.subtitle);
 
+  if (template === "QR_ONLY") {
+    return (
+      <div
+        className={`w-32 h-32 p-2 bg-white text-black border border-slate-300 rounded-lg shadow-xs flex items-center justify-center select-none print:shadow-none print:border-black print:break-inside-avoid ${className}`}
+      >
+        <QRCodeViewer
+          value={label.qrPayload}
+          size={112}
+          className="p-0 border-0"
+        />
+      </div>
+    );
+  }
+
   if (template === "SQUARE") {
     return (
       <div
@@ -77,18 +97,21 @@ export function LabelPreview({
           />
         </div>
 
-        <div className="flex col justify-between items-center w-full text-center space-y-0.5 border-t border-slate-200 pt-1.5">
+        <div className="flex justify-between items-center w-full text-center border-t border-slate-200 pt-1.5 gap-1.5">
           <h4
-            className={cn('text-xs font-extrabold text-slate-900 leading-tight truncate px-1 text-center', label.entityType === "COMPONENT" && "grow")}
+            className={cn(
+              "text-xs font-extrabold text-slate-900 leading-tight truncate px-1 text-center",
+              label.entityType === "COMPONENT" && "grow",
+            )}
             title={label.entityType === "COMPONENT" ? label.primaryCode : label.title}
           >
             {label.entityType === "COMPONENT" ? label.primaryCode : label.title}
           </h4>
-          {label.entityType !== "COMPONENT" &&
-            <span className="inline-block font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+          {label.entityType !== "COMPONENT" && (
+            <span className="inline-block font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 shrink-0">
               {label.primaryCode}
             </span>
-          }
+          )}
         </div>
       </div>
     );
