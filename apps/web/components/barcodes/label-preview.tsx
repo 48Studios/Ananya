@@ -5,8 +5,9 @@ import { BarcodeViewer } from "./barcode-viewer";
 import { QRCodeViewer } from "./qr-code-viewer";
 import { LabelData, BarcodeFormat } from "@/lib/api/barcodes-api";
 import { settingsApi } from "@/lib/api/settings-api";
+import { cn } from "@/lib/utils";
 
-export type LabelTemplate = "COMPACT" | "STANDARD" | "DETAILED" | "SHELF_BIN";
+export type LabelTemplate = "COMPACT" | "STANDARD" | "DETAILED" | "SHELF_BIN" | "SQUARE";
 
 export interface LabelPreviewProps {
   label: LabelData;
@@ -56,6 +57,43 @@ export function LabelPreview({
 
   const displaySubtitle = cleanSubtitle(label.subtitle);
 
+  if (template === "SQUARE") {
+    return (
+      <div
+        className={`w-56 h-56 p-3 bg-white text-black border border-slate-300 rounded-lg shadow-xs flex flex-col justify-between items-center select-none print:shadow-none print:border-black print:break-inside-avoid ${className}`}
+      >
+        <div className="w-full text-center space-y-0.5 border-b border-slate-200 pb-1.5">
+          <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-slate-500">
+            <span className="truncate max-w-[110px]">{orgName}</span>
+            <span className="font-mono text-slate-400">{label.entityType}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center w-full h-full">
+          <QRCodeViewer
+            value={label.qrPayload}
+            size={140}
+            className="p-1 border-0"
+          />
+        </div>
+
+        <div className="flex col justify-between items-center w-full text-center space-y-0.5 border-t border-slate-200 pt-1.5">
+          <h4
+            className={cn('text-xs font-extrabold text-slate-900 leading-tight truncate px-1 text-center', label.entityType === "COMPONENT" && "grow")}
+            title={label.entityType === "COMPONENT" ? label.primaryCode : label.title}
+          >
+            {label.entityType === "COMPONENT" ? label.primaryCode : label.title}
+          </h4>
+          {label.entityType !== "COMPONENT" &&
+            <span className="inline-block font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+              {label.primaryCode}
+            </span>
+          }
+        </div>
+      </div>
+    );
+  }
+
   if (template === "COMPACT") {
     return (
       <div
@@ -93,8 +131,9 @@ export function LabelPreview({
       <div
         className={`w-80 p-4 bg-white text-black border-2 border-slate-800 rounded-lg shadow-sm space-y-2 select-none print:shadow-none print:break-inside-avoid ${className}`}
       >
-        <div className="flex items-center justify-between border-b border-slate-300 pb-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600 truncate">
+        <div className="flex items-center justify-between border-b border-slate-300 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <span className="truncate max-w-[110px]">{orgName}</span>
+          <span className="truncate">
             {locationDisplay}
           </span>
         </div>
@@ -147,9 +186,9 @@ export function LabelPreview({
           />
         </div>
 
-        <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono border-t border-slate-200 pt-3">
+        <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono tracking-wider border-t border-slate-200 pt-3">
           <span className="font-bold tracking-wider uppercase truncate">{orgName}</span>
-          <span>TYPE: {label.entityType}</span>
+          <span>{label.entityType}</span>
         </div>
       </div>
     );

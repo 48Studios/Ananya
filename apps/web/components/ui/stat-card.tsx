@@ -33,29 +33,32 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "bg-card border border-border rounded-xl p-5 shadow-xs transition-colors hover:border-border/80",
+        "bg-card border border-border rounded-xl p-4 shadow-xs transition-colors hover:border-border/80 flex flex-col justify-between",
         className,
       )}
     >
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className="text-xs font-medium text-muted-foreground truncate"
+          title={title}
+        >
           {title}
-        </p>
+        </span>
         {icon && (
-          <div className="p-2 bg-muted/50 rounded-lg text-muted-foreground">
+          <div className="size-7 flex items-center justify-center rounded-md bg-muted/50 text-muted-foreground shrink-0">
             {renderIcon()}
           </div>
         )}
       </div>
 
-      <div className="mt-2 flex items-baseline justify-between">
-        <h3 className="text-2xl font-bold tracking-tight text-foreground">
+      <div className="mt-2.5 flex items-baseline justify-between gap-2">
+        <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate">
           {value}
         </h3>
         {trend && (
           <span
             className={cn(
-              "text-xs font-medium px-1.5 py-0.5 rounded",
+              "text-xs font-medium px-1.5 py-0.5 rounded shrink-0",
               trend.positive
                 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                 : "bg-rose-500/10 text-rose-700 dark:text-rose-400",
@@ -67,7 +70,9 @@ export function StatCard({
       </div>
 
       {subtitle && (
-        <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+        <p className="text-xs text-muted-foreground mt-1 truncate" title={subtitle}>
+          {subtitle}
+        </p>
       )}
     </div>
   );
