@@ -215,10 +215,12 @@ export function EntityDataTable<TData, TValue>({
                 <SelectTrigger className="w-40 !h-9 text-xs">
                   <SelectValue placeholder={`All ${filter.title}`} />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All {filter.title}</SelectItem>
+                <SelectContent className="p-1.5">
+                  <SelectItem value="ALL" className="text-xs">
+                    All {filter.title}
+                  </SelectItem>
                   {filter.options.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
+                    <SelectItem key={opt.value} value={opt.value} className="text-xs">
                       {opt.label}
                     </SelectItem>
                   ))}
@@ -574,7 +576,7 @@ export function EntityDataTable<TData, TValue>({
                   <SelectTrigger size="sm" className="h-7 w-[72px] text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent side="top" align="end" className="min-w-[72px]">
+                  <SelectContent side="top" align="end" className="min-w-[72px] p-1">
                     {pageSizeOptions.map((size) => (
                       <SelectItem key={size} value={String(size)} className="text-xs">
                         {size}
