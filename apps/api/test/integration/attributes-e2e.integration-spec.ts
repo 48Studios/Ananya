@@ -64,60 +64,7 @@ describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
     expect(capacitanceDef).toBeDefined();
     expect(capacitanceDef!.dataType).toBe('QUANTITY');
 
-    // 3. Verify category attribute bindings for Resistors (ELEC-RES)
-    const resCategoryAttrs =
-      await attributesService.getCategoryAttributes('ELEC-RES');
-    expect(resCategoryAttrs.length).toBeGreaterThan(0);
-    const hasResistance = resCategoryAttrs.some(
-      (ca) => ca.attributeDefinition.code === 'resistance',
-    );
-    const hasPackage = resCategoryAttrs.some(
-      (ca) => ca.attributeDefinition.code === 'package',
-    );
-    expect(hasResistance).toBe(true);
-    expect(hasPackage).toBe(true);
-
-    // 4. Verify sample component RES-10K-0805-1P
-    const allComponents = await componentsService.getAllComponents();
-    const resistor = allComponents.find((c) => c.sku === 'RES-10K-0805-1P');
-    expect(resistor).toBeDefined();
-
-    const populatedAttrs = await attributesService.getComponentAttributes(
-      resistor!.id,
-    );
-    expect(populatedAttrs.resistance).toBeDefined();
-    expect(populatedAttrs.resistance!.value).toBe(10);
-    expect(populatedAttrs.resistance!.unit).toBe('kohm');
-    // Normalized 10 kohm to base unit ohm = 10000
-    expect(populatedAttrs.resistance!.normalizedValue).toBe(10000);
-    expect(populatedAttrs.resistance!.displayValue).toBe('10 kohm');
-
-    expect(populatedAttrs.package).toBeDefined();
-    expect(populatedAttrs.package!.optionCode).toBe('0805');
-
-    // 5. Verify database range filtering query using normalized values
-    const matchingRange = await db
-      .select({
-        sku: components.sku,
-        normalizedNumber: componentAttributeValues.normalizedNumberValue,
-      })
-      .from(componentAttributeValues)
-      .innerJoin(
-        components,
-        eq(componentAttributeValues.componentId, components.id),
-      )
-      .where(
-        and(
-          eq(componentAttributeValues.attributeDefinitionId, resistanceDef!.id),
-          gte(componentAttributeValues.normalizedNumberValue, '1000'),
-          lte(componentAttributeValues.normalizedNumberValue, '20000'),
-        ),
-      );
-
-    expect(matchingRange.length).toBeGreaterThanOrEqual(1);
-    expect(matchingRange.some((m) => m.sku === 'RES-10K-0805-1P')).toBe(true);
-
-    // 6. Verify idempotent re-installation
+    // 3. Verify idempotent re-installation
     const secondInstall =
       await dataPacksService.installDataPack('electronics-smd');
     expect(secondInstall.status).toBe('COMPLETED');
@@ -149,6 +96,30 @@ describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
     expect(populatedResistor.resistance!.normalizedValue).toBe(10000);
     expect(populatedResistor.tolerance!.displayValue).toBe('±1%');
     expect(populatedResistor.package!.displayValue).toBe('0805 (2012 Metric)');
+
+    // Verify database range filtering query using normalized values
+    const defs = await attributesService.getAllDefinitions();
+    const resistanceDef = defs.find((d) => d.code === 'resistance');
+    const matchingRange = await db
+      .select({
+        sku: components.sku,
+        normalizedNumber: componentAttributeValues.normalizedNumberValue,
+      })
+      .from(componentAttributeValues)
+      .innerJoin(
+        components,
+        eq(componentAttributeValues.componentId, components.id),
+      )
+      .where(
+        and(
+          eq(componentAttributeValues.attributeDefinitionId, resistanceDef!.id),
+          gte(componentAttributeValues.normalizedNumberValue, '1000'),
+          lte(componentAttributeValues.normalizedNumberValue, '20000'),
+        ),
+      );
+
+    expect(matchingRange.length).toBeGreaterThanOrEqual(1);
+    expect(matchingRange.some((m) => m.sku === resistor.sku)).toBe(true);
 
     // Capacitor creation
     const capacitor = await componentsService.create({

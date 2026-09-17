@@ -37,6 +37,13 @@ export default function CategoriesPage() {
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [apiAlert, setApiAlert] = React.useState<string | null>(null);
+  const noticeRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (toastMessage || apiAlert || error) {
+      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [toastMessage, apiAlert, error]);
 
   const fetchCategories = React.useCallback(async () => {
     setLoading(true);
@@ -78,22 +85,30 @@ export default function CategoriesPage() {
 
   const handleDeleteConfirm = async () => {
     if (!deletingCategory) return;
+    const categoryToDelete = deletingCategory;
     setDeleteLoading(true);
     setApiAlert(null);
     try {
-      await categoriesApi.delete(deletingCategory.id);
-      setCategories((prev) => prev.filter((c) => c.id !== deletingCategory.id));
+      await categoriesApi.delete(categoryToDelete.id);
+      setCategories((prev) => prev.filter((c) => c.id !== categoryToDelete.id));
       setToastMessage(
-        `Category "${deletingCategory.code}" deleted successfully.`,
+        `Category "${categoryToDelete.name || categoryToDelete.code}" deleted successfully.`,
       );
       setTimeout(() => setToastMessage(null), 4000);
       setDeletingCategory(null);
     } catch (err: unknown) {
+      setDeletingCategory(null);
+      let message = "Failed to delete category";
       if (err instanceof Error) {
-        setApiAlert(err.message);
-      } else {
-        setApiAlert("Failed to delete category");
+        message = err.message.includes(categoryToDelete.id)
+          ? err.message.replace(
+              categoryToDelete.id,
+              categoryToDelete.name || categoryToDelete.code,
+            )
+          : err.message;
       }
+      setApiAlert(message);
+      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     } finally {
       setDeleteLoading(false);
     }
@@ -226,14 +241,19 @@ export default function CategoriesPage() {
       setCategories((prev) =>
         prev.map((c) => (c.id === savedCategory.id ? savedCategory : c)),
       );
-      setToastMessage(`Category "${savedCategory.code}" updated successfully.`);
+      setToastMessage(
+        `Category "${savedCategory.name || savedCategory.code}" updated successfully.`,
+      );
     } else {
       setCategories((prev) => [savedCategory, ...prev]);
-      setToastMessage(`Category "${savedCategory.code}" created successfully.`);
+      setToastMessage(
+        `Category "${savedCategory.name || savedCategory.code}" created successfully.`,
+      );
     }
     setIsFormOpen(false);
     setEditingCategory(null);
     setTimeout(() => setToastMessage(null), 4000);
+    noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   return (
@@ -279,32 +299,34 @@ export default function CategoriesPage() {
       </div>
 
       {/* Notifications */}
-      {toastMessage && (
-        <div className="flex items-center gap-2 p-3 text-sm text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-          <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {apiAlert && (
-        <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{apiAlert}</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-center justify-between p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
+      <div ref={noticeRef} className="space-y-3">
+        {toastMessage && (
+          <div className="flex items-center gap-2 p-3 text-sm text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>{toastMessage}</span>
           </div>
-          <Button variant="ghost" size="xs" onClick={fetchCategories}>
-            <RefreshCw className="w-3.5 h-3.5 mr-1" />
-            Retry
-          </Button>
-        </div>
-      )}
+        )}
+
+        {apiAlert && (
+          <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{apiAlert}</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-center justify-between p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+            <Button variant="ghost" size="xs" onClick={fetchCategories}>
+              <RefreshCw className="w-3.5 h-3.5 mr-1" />
+              Retry
+            </Button>
+          </div>
+        )}
+      </div>
 
       {/* Form Modal */}
       <DialogShell

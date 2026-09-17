@@ -43,6 +43,13 @@ export default function ViewCategoryPage() {
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  const noticeRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (toastMessage || deleteError) {
+      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [toastMessage, deleteError]);
 
   const fetchData = React.useCallback(async () => {
     if (!id) return;
@@ -92,11 +99,16 @@ export default function ViewCategoryPage() {
       await categoriesApi.delete(id);
       router.push("/categories");
     } catch (err: unknown) {
+      setIsDeleteOpen(false);
+      let message = "Failed to delete category";
       if (err instanceof Error) {
-        setDeleteError(err.message);
-      } else {
-        setDeleteError("Failed to delete category");
+        message =
+          category && err.message.includes(id)
+            ? err.message.replace(id, category.name || category.code)
+            : err.message;
       }
+      setDeleteError(message);
+      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     } finally {
       setDeleteLoading(false);
     }
@@ -160,18 +172,20 @@ export default function ViewCategoryPage() {
       />
 
       {/* Notifications */}
-      {toastMessage && (
-        <div className="flex items-center gap-2 p-3 text-sm text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-          <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
+      <div ref={noticeRef} className="space-y-3">
+        {toastMessage && (
+          <div className="flex items-center gap-2 p-3 text-sm text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
 
-      {deleteError && (
-        <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
-          {deleteError}
-        </div>
-      )}
+        {deleteError && (
+          <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
+            {deleteError}
+          </div>
+        )}
+      </div>
 
       {/* Stat Cards Overview Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

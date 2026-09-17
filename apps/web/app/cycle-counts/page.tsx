@@ -98,6 +98,13 @@ export default function CycleCountsPage() {
   const [deletingCount, setDeletingCount] =
     React.useState<CycleCountDto | null>(null);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  const noticeRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (toastMessage || error) {
+      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [toastMessage, error]);
 
   const fetchCycleCounts = React.useCallback(async () => {
     setLoading(true);
@@ -149,13 +156,14 @@ export default function CycleCountsPage() {
     try {
       await cycleCountsApi.delete(deletingCount.id);
       setToastMessage(`Cycle Count "${deletingCount.countNumber}" deleted.`);
-      setDeletingCount(null);
       setTimeout(() => setToastMessage(null), 4000);
       fetchCycleCounts();
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Failed to delete cycle count",
       );
+    } finally {
+      setDeletingCount(null);
     }
   };
 

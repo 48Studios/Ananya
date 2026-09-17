@@ -15,16 +15,19 @@ export class DeleteCategory {
       throw new CategoryNotFoundError(id);
     }
 
-    const hasChildren = await this.categories.hasChildren(id);
+    const targetId = existing.id;
+    const categoryLabel = existing.name || existing.code;
+
+    const hasChildren = await this.categories.hasChildren(targetId);
     if (hasChildren) {
-      throw new CategoryHasChildrenError(id);
+      throw new CategoryHasChildrenError(categoryLabel);
     }
 
-    const hasComponents = await this.categories.hasComponents(id);
+    const hasComponents = await this.categories.hasComponents(targetId);
     if (hasComponents) {
-      throw new CategoryReferencedByComponentsError(id);
+      throw new CategoryReferencedByComponentsError(categoryLabel);
     }
 
-    await this.categories.delete(id);
+    await this.categories.delete(targetId);
   }
 }

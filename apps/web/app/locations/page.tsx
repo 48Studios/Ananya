@@ -90,6 +90,13 @@ export default function LocationsPage() {
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [apiAlert, setApiAlert] = React.useState<string | null>(null);
+  const noticeRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (toastMessage || apiAlert || error) {
+      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [toastMessage, apiAlert, error]);
 
   const fetchLocations = React.useCallback(async () => {
     setLoading(true);
@@ -161,7 +168,6 @@ export default function LocationsPage() {
         `Location "${deletingLocation.code}" deleted successfully.`,
       );
       setTimeout(() => setToastMessage(null), 4000);
-      setDeletingLocation(null);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setApiAlert(err.message);
@@ -169,6 +175,7 @@ export default function LocationsPage() {
         setApiAlert("Failed to delete location");
       }
     } finally {
+      setDeletingLocation(null);
       setDeleteLoading(false);
     }
   };
@@ -399,31 +406,33 @@ export default function LocationsPage() {
       </div>
 
       {/* Notifications */}
-      {toastMessage && (
-        <div className="flex items-center gap-2 p-3 text-sm text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-          <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {apiAlert && (
-        <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{apiAlert}</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-center justify-between p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
+      <div ref={noticeRef} className="space-y-3">
+        {toastMessage && (
+          <div className="flex items-center gap-2 p-3 text-sm text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>{toastMessage}</span>
           </div>
-          <Button variant="ghost" size="xs" onClick={fetchLocations}>
-            Retry
-          </Button>
-        </div>
-      )}
+        )}
+
+        {apiAlert && (
+          <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{apiAlert}</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-center justify-between p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+            <Button variant="ghost" size="xs" onClick={fetchLocations}>
+              Retry
+            </Button>
+          </div>
+        )}
+      </div>
 
       {/* Modal / Slide-over for Creating or Editing Location */}
       <DialogShell

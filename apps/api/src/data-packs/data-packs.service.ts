@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ImportExportService } from '../import-export/import-export.service';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { ActivityService } from '../activity/activity.service';
-import { AttributesService } from '../attributes/attributes.service';
 import { ELECTRONICS_SMD_PACK } from './packs/electronics-smd-pack';
 import { db } from '@ananya/database';
 import {
@@ -10,8 +9,6 @@ import {
   categories,
   attributeDefinitions,
   attributeOptions,
-  categoryAttributes,
-  components,
   activityEvents,
 } from '@ananya/database/schema';
 import { and, eq, desc } from '@ananya/database/query';
@@ -243,7 +240,6 @@ export class DataPacksService {
     private readonly importExportService: ImportExportService,
     private readonly auditService: SecurityAuditService,
     private readonly activityService: ActivityService,
-    private readonly attributesService: AttributesService,
   ) {}
 
   async getCatalog(): Promise<DataPackCatalogItem[]> {
@@ -318,10 +314,7 @@ export class DataPacksService {
 
   getPackById(id: string): DataPackDefinition {
     if (id === ELECTRONICS_SMD_PACK.id) {
-      return {
-        ...ELECTRONICS_SMD_PACK,
-        categoryMappings: ELECTRONICS_SMD_PACK.categoryBindings,
-      } as unknown as DataPackDefinition;
+      return ELECTRONICS_SMD_PACK;
     }
     const pack = DATA_PACKS.find((p) => p.id === id);
     if (!pack) {
@@ -435,72 +428,7 @@ export class DataPacksService {
       processedRecords++;
     }
 
-    // 2. Install / Upsert Categories
-    const catMap = new Map<string, string>();
-
-    // First ensure root category ELEC exists
-    const [rootCat] = await db
-      .insert(categories)
-      .values({
-        code: 'ELEC',
-        name: 'Electronic Components',
-        description:
-          'Master electronics category for passive and active components',
-        parentId: null,
-        isActive: true,
-      })
-      .onConflictDoUpdate({
-        target: categories.code,
-        set: {
-          name: 'Electronic Components',
-          isActive: true,
-          updatedAt: new Date(),
-        },
-      })
-      .returning({ id: categories.id, code: categories.code });
-
-    if (rootCat) {
-      catMap.set(rootCat.code, rootCat.id);
-      processedRecords++;
-    }
-
-    // Insert child categories
-    for (const cat of ELECTRONICS_SMD_PACK.categories) {
-      if (cat.code === 'ELEC') continue;
-      const parentId = cat.parentCode
-        ? (catMap.get(cat.parentCode) ?? null)
-        : null;
-
-      const [c] = await db
-        .insert(categories)
-        .values({
-          code: cat.code,
-          name: cat.name,
-          description: cat.description ?? null,
-          parentId,
-          isActive: true,
-        })
-        .onConflictDoUpdate({
-          target: categories.code,
-          set: {
-            name: cat.name,
-            description: cat.description ?? null,
-            parentId,
-            isActive: true,
-            updatedAt: new Date(),
-          },
-        })
-        .returning({ id: categories.id, code: categories.code });
-
-      if (c) {
-        catMap.set(c.code, c.id);
-        processedRecords++;
-      }
-    }
-
-    // 3. Install / Upsert Attribute Definitions and Options
-    const defMap = new Map<string, string>();
-
+    // 2. Install / Upsert Attribute Definitions and Options
     for (const def of ELECTRONICS_SMD_PACK.attributeDefinitions) {
       const [savedDef] = await db
         .insert(attributeDefinitions)
@@ -535,7 +463,6 @@ export class DataPacksService {
         });
 
       if (savedDef) {
-        defMap.set(savedDef.code, savedDef.id);
         processedRecords++;
 
         // Install options if defined
@@ -565,98 +492,6 @@ export class DataPacksService {
             processedRecords++;
           }
         }
-      }
-    }
-
-    // 4. Install / Upsert Category Attribute Bindings
-    for (const binding of ELECTRONICS_SMD_PACK.categoryBindings) {
-      const catId = catMap.get(binding.categoryCode);
-      const defId = defMap.get(binding.attributeCode);
-
-      if (catId && defId) {
-        await db
-          .insert(categoryAttributes)
-          .values({
-            categoryId: catId,
-            attributeDefinitionId: defId,
-            isRequired: binding.isRequired ?? false,
-            sortOrder: binding.sortOrder ?? 0,
-          })
-          .onConflictDoUpdate({
-            target: [
-              categoryAttributes.categoryId,
-              categoryAttributes.attributeDefinitionId,
-            ],
-            set: {
-              isRequired: binding.isRequired ?? false,
-              sortOrder: binding.sortOrder ?? 0,
-              updatedAt: new Date(),
-            },
-          });
-        processedRecords++;
-      }
-    }
-
-    // 5. Install / Upsert Sample Products with dynamic attributes
-    for (const sample of ELECTRONICS_SMD_PACK.sampleComponents) {
-      const catId = catMap.get(sample.categoryCode) ?? null;
-
-      const [comp] = await db
-        .insert(components)
-        .values({
-          sku: sample.sku,
-          name: sample.name,
-          unit: sample.unit,
-          description: sample.description,
-          categoryId: catId,
-          isActive: true,
-        })
-        .onConflictDoUpdate({
-          target: components.sku,
-          set: {
-            name: sample.name,
-            unit: sample.unit,
-            description: sample.description,
-            categoryId: catId,
-            updatedAt: new Date(),
-          },
-        })
-        .returning({ id: components.id });
-
-      if (comp && sample.attributes) {
-        const rawAttrs = sample.attributes as Record<string, unknown>;
-        const attrInputs = Object.entries(rawAttrs).map(([code, val]) => {
-          if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
-            const obj = val as {
-              value?: unknown;
-              numberValue?: unknown;
-              textValue?: unknown;
-              unit?: string;
-              code?: string;
-              optionCode?: string;
-            };
-            return {
-              code,
-              value: obj.value ?? obj.numberValue ?? obj.textValue,
-              unit: obj.unit,
-              optionCode:
-                obj.optionCode ??
-                obj.code ??
-                (typeof obj.value === 'string' ? obj.value : undefined),
-            };
-          }
-          return {
-            code,
-            value: val,
-            optionCode: String(val),
-          };
-        });
-
-        await this.attributesService.saveComponentAttributes(
-          comp.id,
-          attrInputs,
-        );
-        processedRecords++;
       }
     }
 

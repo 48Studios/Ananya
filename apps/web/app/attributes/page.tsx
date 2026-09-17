@@ -43,6 +43,13 @@ export default function AttributesPage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const noticeRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (statusAlert || error) {
+      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [statusAlert, error]);
 
   // Dialog states
   const [isFormOpen, setIsFormOpen] = React.useState(false);
@@ -392,39 +399,41 @@ export default function AttributesPage() {
       </div>
 
       {/* Notifications */}
-      {statusAlert && (
-        <div
-          className={`p-4 rounded-xl border flex items-center justify-between gap-3 text-sm font-medium ${
-            statusAlert.type === "success"
-              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-              : "bg-destructive/10 border-destructive/20 text-destructive"
-          }`}
-        >
-          <div className="flex items-center gap-2.5">
-            {statusAlert.type === "success" ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-            ) : (
-              <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
-            )}
-            <span>{statusAlert.text}</span>
-          </div>
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={() => setStatusAlert(null)}
-            className="text-xs"
+      <div ref={noticeRef} className="space-y-3">
+        {statusAlert && (
+          <div
+            className={`p-4 rounded-xl border flex items-center justify-between gap-3 text-sm font-medium ${
+              statusAlert.type === "success"
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                : "bg-destructive/10 border-destructive/20 text-destructive"
+            }`}
           >
-            Dismiss
-          </Button>
-        </div>
-      )}
+            <div className="flex items-center gap-2.5">
+              {statusAlert.type === "success" ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
+              )}
+              <span>{statusAlert.text}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => setStatusAlert(null)}
+              className="text-xs"
+            >
+              Dismiss
+            </Button>
+          </div>
+        )}
 
-      {error && (
-        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
+        {error && (
+          <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+      </div>
 
       {/* Attributes Table */}
       <EntityDataTable

@@ -30,13 +30,12 @@ function toRow(
   };
 }
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export class DrizzleCategoryRepository implements CategoryRepository {
   async findById(id: string): Promise<Category | null> {
-    if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        id,
-      )
-    ) {
+    if (!UUID_REGEX.test(id)) {
       return this.findByCode(id);
     }
     const [row] = await db
@@ -109,24 +108,36 @@ export class DrizzleCategoryRepository implements CategoryRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await db.delete(categories).where(eq(categories.id, id));
+    if (!UUID_REGEX.test(id)) {
+      await db.delete(categories).where(eq(categories.code, id));
+    } else {
+      await db.delete(categories).where(eq(categories.id, id));
+    }
   }
 
   async hasChildren(id: string): Promise<boolean> {
+    const targetId = UUID_REGEX.test(id) ? id : (await this.findByCode(id))?.id;
+
+    if (!targetId) return false;
+
     const [row] = await db
       .select({ id: categories.id })
       .from(categories)
-      .where(eq(categories.parentId, id))
+      .where(eq(categories.parentId, targetId))
       .limit(1);
 
     return Boolean(row);
   }
 
   async hasComponents(id: string): Promise<boolean> {
+    const targetId = UUID_REGEX.test(id) ? id : (await this.findByCode(id))?.id;
+
+    if (!targetId) return false;
+
     const [row] = await db
       .select({ id: components.id })
       .from(components)
-      .where(eq(components.categoryId, id))
+      .where(eq(components.categoryId, targetId))
       .limit(1);
 
     return Boolean(row);
