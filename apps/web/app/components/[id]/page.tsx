@@ -452,7 +452,7 @@ export default function ViewComponentPage() {
                   className="h-8 text-xs gap-1.5"
                 >
                   <Sliders className="w-3.5 h-3.5 text-primary" />
-                  Manage Specifications
+                  Manage Attributes
                 </Button>
               </div>
             </div>
@@ -546,7 +546,7 @@ export default function ViewComponentPage() {
                   className="h-8 text-xs gap-1.5 mt-2"
                 >
                   <Sliders className="w-3.5 h-3.5 text-primary" />
-                  Add Specifications
+                  Add Attributes
                 </Button>
               </div>
             )}

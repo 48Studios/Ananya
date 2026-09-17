@@ -17,7 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   attributesApi,
   type AttributeDefinitionDto,
@@ -25,6 +29,7 @@ import {
   type SetComponentAttributeItem,
 } from "@/lib/api/attributes-api";
 import { unitsApi, type UnitDto } from "@/lib/api/units-api";
+import { cn } from "@/lib/utils";
 import {
   Sliders,
   Plus,
@@ -32,7 +37,12 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  Save,
   Sparkles,
+  Search,
+  RotateCcw,
+  Tag,
+  Check,
 } from "lucide-react";
 
 interface ManageComponentSpecificationsDialogProps {
@@ -56,8 +66,243 @@ interface EditableAttributeState {
   options: Array<{ id: string; code: string; label: string }>;
   unitCategory?: string | null;
   defaultUnit?: string | null;
+  description?: string | null;
+  isCategorySpec: boolean;
+  isRequired: boolean;
+  sortOrder: number;
 }
 
+const TYPE_CONFIG: Record<
+  string,
+  { label: string; badgeClass: string }
+> = {
+  TEXT: {
+    label: "Text",
+    badgeClass: "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20",
+  },
+  NUMBER: {
+    label: "Number",
+    badgeClass: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20",
+  },
+  INTEGER: {
+    label: "Integer",
+    badgeClass: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20",
+  },
+  BOOLEAN: {
+    label: "Boolean",
+    badgeClass: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20",
+  },
+  DATE: {
+    label: "Date",
+    badgeClass: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20",
+  },
+  SELECT: {
+    label: "Select",
+    badgeClass: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20",
+  },
+  MULTI_SELECT: {
+    label: "Multi-Select",
+    badgeClass: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20",
+  },
+  QUANTITY: {
+    label: "Quantity",
+    badgeClass: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20",
+  },
+};
+
+// ─── Value Editor Component ────────────────────────────────────────────────
+function AttributeValueEditor({
+  attribute,
+  units,
+  onChange,
+}: {
+  attribute: EditableAttributeState;
+  units: UnitDto[];
+  onChange: (patch: Partial<EditableAttributeState>) => void;
+}) {
+  const { dataType, value, unit, optionId, selectedOptionIds, options, unitCategory } =
+    attribute;
+
+  const filteredUnits = React.useMemo(() => {
+    if (!unitCategory) return units;
+    const matched = units.filter((u) => u.category === unitCategory);
+    return matched.length > 0 ? matched : units;
+  }, [units, unitCategory]);
+
+  if (dataType === "BOOLEAN") {
+    const isChecked = Boolean(value);
+    return (
+      <div className="flex h-9 items-center gap-3">
+        <Switch
+          id={`switch-${attribute.code}`}
+          checked={isChecked}
+          onCheckedChange={(v) => onChange({ value: v })}
+        />
+        <label
+          htmlFor={`switch-${attribute.code}`}
+          className="cursor-pointer text-xs font-medium text-foreground select-none"
+        >
+          {isChecked ? (
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+              Yes / Enabled
+            </span>
+          ) : (
+            <span className="text-muted-foreground">No / Disabled</span>
+          )}
+        </label>
+      </div>
+    );
+  }
+
+  if (dataType === "SELECT") {
+    return (
+      <Select
+        value={(optionId as string) || "none"}
+        onValueChange={(v) =>
+          onChange({ optionId: v === "none" ? "" : (v ?? "") })
+        }
+      >
+        <SelectTrigger className="h-9 w-full text-xs">
+          <SelectValue placeholder="Choose an option…" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">
+            <span className="text-muted-foreground italic">— None specified —</span>
+          </SelectItem>
+          {(options ?? []).map((o) => (
+            <SelectItem key={o.id} value={o.id}>
+              <span className="inline-flex items-center gap-1.5">
+                <span>{o.label}</span>
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  ({o.code})
+                </span>
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
+
+  if (dataType === "MULTI_SELECT") {
+    const selected = selectedOptionIds ?? [];
+    return (
+      <div className="flex flex-wrap gap-1.5 py-0.5">
+        {(options ?? []).length === 0 ? (
+          <span className="text-xs text-muted-foreground italic">
+            No predefined choices configured
+          </span>
+        ) : (
+          options.map((o) => {
+            const active = selected.includes(o.id);
+            return (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    selectedOptionIds: active
+                      ? selected.filter((id) => id !== o.id)
+                      : [...selected, o.id],
+                  })
+                }
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium border transition-all cursor-pointer select-none",
+                  active
+                    ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                    : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
+                )}
+              >
+                {active && <Check className="w-3 h-3 shrink-0" />}
+                <span>{o.label}</span>
+              </button>
+            );
+          })
+        )}
+      </div>
+    );
+  }
+
+  if (dataType === "QUANTITY") {
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          type="number"
+          step="any"
+          placeholder="Value (e.g. 100)"
+          value={value !== undefined && value !== null ? String(value) : ""}
+          onChange={(e) =>
+            onChange({
+              value: e.target.value === "" ? "" : Number(e.target.value),
+            })
+          }
+          className="h-9 text-xs font-mono"
+        />
+        <Select
+          value={(unit as string) || "none"}
+          onValueChange={(v) =>
+            onChange({ unit: v === "none" ? "" : (v ?? "") })
+          }
+        >
+          <SelectTrigger className="h-9 text-xs font-mono">
+            <SelectValue placeholder="Unit" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">
+              <span className="text-muted-foreground italic">No unit</span>
+            </SelectItem>
+            {filteredUnits.map((u) => (
+              <SelectItem key={u.id || u.name} value={u.name}>
+                <span className="font-mono text-xs">{u.name}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
+
+  if (dataType === "NUMBER" || dataType === "INTEGER") {
+    return (
+      <Input
+        type="number"
+        step={dataType === "INTEGER" ? "1" : "any"}
+        placeholder={`Enter ${dataType.toLowerCase()}…`}
+        value={value !== undefined && value !== null ? String(value) : ""}
+        onChange={(e) =>
+          onChange({
+            value: e.target.value === "" ? "" : Number(e.target.value),
+          })
+        }
+        className="h-9 text-xs font-mono"
+      />
+    );
+  }
+
+  if (dataType === "DATE") {
+    return (
+      <Input
+        type="date"
+        value={value !== undefined && value !== null ? String(value) : ""}
+        onChange={(e) => onChange({ value: e.target.value })}
+        className="h-9 text-xs"
+      />
+    );
+  }
+
+  // Default: TEXT
+  return (
+    <Input
+      type="text"
+      placeholder="Enter value…"
+      value={value !== undefined && value !== null ? String(value) : ""}
+      onChange={(e) => onChange({ value: e.target.value })}
+      className="h-9 text-xs"
+    />
+  );
+}
+
+// ─── Main Manage Dialog ────────────────────────────────────────────────────
 export function ManageComponentSpecificationsDialog({
   isOpen,
   componentId,
@@ -71,7 +316,6 @@ export function ManageComponentSpecificationsDialog({
   const [error, setError] = React.useState<string | null>(null);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
 
-  // Data from backend
   const [allDefinitions, setAllDefinitions] = React.useState<
     AttributeDefinitionDto[]
   >([]);
@@ -80,24 +324,27 @@ export function ManageComponentSpecificationsDialog({
   >([]);
   const [units, setUnits] = React.useState<UnitDto[]>([]);
 
-  // Local state of assigned attributes for editing
+  // Staged attribute state: map of code -> EditableAttributeState
   const [assignedAttrs, setAssignedAttrs] = React.useState<
     Record<string, EditableAttributeState>
   >({});
 
-  // Adding state
-  const [selectedAddDefId, setSelectedAddDefId] = React.useState<string>("");
-  const [newVal, setNewVal] = React.useState<unknown>("");
-  const [newUnit, setNewUnit] = React.useState<string>("");
-  const [newOptionId, setNewOptionId] = React.useState<string>("");
-  const [newSelectedOptionIds, setNewSelectedOptionIds] = React.useState<
-    string[]
+  // Original definition IDs present when dialog opened (to compute deletions on save)
+  const [initialAssignedDefIds, setInitialAssignedDefIds] = React.useState<
+    Map<string, string>
+  >(new Map());
+  // Staged removed attribute codes/names for undo notice
+  const [stagedRemovals, setStagedRemovals] = React.useState<
+    Array<{ code: string; name: string; state: EditableAttributeState }>
   >([]);
 
-  // Deletion state
-  const [removingAttr, setRemovingAttr] =
-    React.useState<EditableAttributeState | null>(null);
-  const [removeLoading, setRemoveLoading] = React.useState(false);
+  // Toolbar state
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [filterTab, setFilterTab] = React.useState<
+    "all" | "category" | "custom"
+  >("all");
+  const [addPopoverOpen, setAddPopoverOpen] = React.useState(false);
+  const [popoverSearch, setPopoverSearch] = React.useState("");
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
@@ -116,29 +363,41 @@ export function ManageComponentSpecificationsDialog({
       setCategoryAttributes(catAttrs);
       setUnits(allUnits);
 
-      // Construct map of assigned editable items
+      const initialMap = new Map<string, string>();
       const map: Record<string, EditableAttributeState> = {};
+
       Object.entries(currentAttrs).forEach(([code, populated]) => {
         const def = allDefs.find(
           (d) => d.id === populated.definitionId || d.code === code,
         );
-        const options = def?.options || [];
+        const catSpec = catAttrs.find(
+          (c) => c.attributeDefinition.id === (def?.id || populated.definitionId),
+        );
+        const options = def?.options ?? [];
 
         let selectedOptionIds: string[] = [];
         if (populated.dataType === "MULTI_SELECT") {
           if (Array.isArray(populated.value)) {
             selectedOptionIds = populated.value as string[];
           } else if (typeof populated.value === "string") {
-            selectedOptionIds = populated.value.split(",").map((s) => s.trim());
+            selectedOptionIds = populated.value
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
           }
+        }
+
+        const defId = populated.definitionId || def?.id || "";
+        if (defId) {
+          initialMap.set(code, defId);
         }
 
         map[code] = {
           code,
-          definitionId: populated.definitionId,
+          definitionId: defId,
           name: populated.name || def?.name || code,
           dataType: populated.dataType,
-          value: populated.value,
+          value: populated.value ?? "",
           unit: populated.unit || def?.defaultUnit || "",
           optionId: populated.optionId || "",
           selectedOptionIds,
@@ -149,12 +408,18 @@ export function ManageComponentSpecificationsDialog({
           })),
           unitCategory: def?.unitCategory,
           defaultUnit: def?.defaultUnit,
+          description: def?.description,
+          isCategorySpec: Boolean(catSpec),
+          isRequired: Boolean(catSpec?.isRequired),
+          sortOrder: catSpec?.sortOrder ?? def?.sortOrder ?? 999,
         };
       });
 
       setAssignedAttrs(map);
+      setInitialAssignedDefIds(initialMap);
+      setStagedRemovals([]);
     } catch {
-      setError("Failed to load specifications data.");
+      setError("Failed to load specifications and attributes.");
     } finally {
       setLoading(false);
     }
@@ -165,68 +430,228 @@ export function ManageComponentSpecificationsDialog({
       loadData();
       setError(null);
       setSuccessMsg(null);
-      setSelectedAddDefId("");
-      setNewVal("");
-      setNewUnit("");
-      setNewOptionId("");
-      setNewSelectedOptionIds([]);
+      setSearchQuery("");
+      setFilterTab("all");
+      setAddPopoverOpen(false);
+      setPopoverSearch("");
     }
   }, [isOpen, loadData]);
 
-  // Unassigned attributes available to add
-  const availableToAdd = React.useMemo(() => {
-    const assignedCodes = new Set(Object.keys(assignedAttrs));
-    return allDefinitions.filter(
-      (d) => !assignedCodes.has(d.code) && d.isActive,
+  // Unassigned category attributes that haven't been added to assignedAttrs yet
+  const unassignedCategorySpecs = React.useMemo(() => {
+    return categoryAttributes.filter(
+      (cat) => !assignedAttrs[cat.attributeDefinition.code],
     );
+  }, [categoryAttributes, assignedAttrs]);
+
+  // Global attributes available to add (not yet in assignedAttrs)
+  const availableDefinitionsToAdd = React.useMemo(() => {
+    const assignedCodes = new Set(Object.keys(assignedAttrs));
+    return allDefinitions
+      .filter((d) => d.isActive && !assignedCodes.has(d.code))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [allDefinitions, assignedAttrs]);
 
-  const selectedAddDef = React.useMemo(
-    () => allDefinitions.find((d) => d.id === selectedAddDefId),
-    [allDefinitions, selectedAddDefId],
+  // Filtered available definitions inside popover search
+  const filteredAvailable = React.useMemo(() => {
+    if (!popoverSearch.trim()) return availableDefinitionsToAdd;
+    const q = popoverSearch.toLowerCase().trim();
+    return availableDefinitionsToAdd.filter(
+      (d) =>
+        d.name.toLowerCase().includes(q) ||
+        d.code.toLowerCase().includes(q) ||
+        (d.description && d.description.toLowerCase().includes(q)),
+    );
+  }, [availableDefinitionsToAdd, popoverSearch]);
+
+  // Add a specific attribute definition to staged state
+  const handleAddDefinition = React.useCallback(
+    (
+      def: AttributeDefinitionDto,
+      catSpec?: ResolvedCategoryAttributeDto | null,
+    ) => {
+      const options = (def.options ?? []).map((o) => ({
+        id: o.id,
+        code: o.code,
+        label: o.label,
+      }));
+
+      const isCat = Boolean(
+        catSpec ||
+          categoryAttributes.some((c) => c.attributeDefinition.id === def.id),
+      );
+      const isReq = Boolean(
+        catSpec?.isRequired ||
+          categoryAttributes.find((c) => c.attributeDefinition.id === def.id)
+            ?.isRequired,
+      );
+
+      const newState: EditableAttributeState = {
+        code: def.code,
+        definitionId: def.id,
+        name: def.name,
+        dataType: def.dataType,
+        value: def.dataType === "BOOLEAN" ? false : "",
+        unit: def.defaultUnit ?? "",
+        optionId: def.dataType === "SELECT" ? options[0]?.id ?? "" : "",
+        selectedOptionIds: [],
+        options,
+        unitCategory: def.unitCategory,
+        defaultUnit: def.defaultUnit,
+        description: def.description,
+        isCategorySpec: isCat,
+        isRequired: isReq,
+        sortOrder: catSpec?.sortOrder ?? def.sortOrder ?? 999,
+      };
+
+      setAssignedAttrs((prev) => ({
+        ...prev,
+        [def.code]: newState,
+      }));
+
+      // Remove from staged removals if it was previously removed
+      setStagedRemovals((prev) => prev.filter((r) => r.code !== def.code));
+      setAddPopoverOpen(false);
+      setPopoverSearch("");
+      setError(null);
+    },
+    [categoryAttributes],
   );
 
-  // When selectedAddDefId changes, reset add inputs with smart defaults
-  React.useEffect(() => {
-    if (selectedAddDef) {
-      setNewUnit(selectedAddDef.defaultUnit || "");
-      if (
-        selectedAddDef.dataType === "SELECT" &&
-        selectedAddDef.options &&
-        selectedAddDef.options.length > 0
-      ) {
-        setNewOptionId(selectedAddDef.options[0]!.id);
-      } else {
-        setNewOptionId("");
-      }
-      setNewSelectedOptionIds([]);
-      setNewVal(selectedAddDef.dataType === "BOOLEAN" ? false : "");
-    }
-  }, [selectedAddDef]);
+  // Add all unassigned category specifications in one click
+  const handleAddAllCategorySpecs = React.useCallback(() => {
+    setAssignedAttrs((prev) => {
+      const next = { ...prev };
+      unassignedCategorySpecs.forEach((cat) => {
+        const def = cat.attributeDefinition;
+        const options = (def.options ?? []).map((o) => ({
+          id: o.id,
+          code: o.code,
+          label: o.label,
+        }));
 
-  // Helper for units belonging to an attribute
-  const getUnitsForAttribute = (attr: {
-    unitCategory?: string | null;
-    defaultUnit?: string | null;
-  }) => {
-    if (!attr.unitCategory) return units;
-    return units.filter((u) => u.category === attr.unitCategory);
-  };
+        next[def.code] = {
+          code: def.code,
+          definitionId: def.id,
+          name: def.name,
+          dataType: def.dataType,
+          value: def.dataType === "BOOLEAN" ? false : "",
+          unit: def.defaultUnit ?? "",
+          optionId: def.dataType === "SELECT" ? options[0]?.id ?? "" : "",
+          selectedOptionIds: [],
+          options,
+          unitCategory: def.unitCategory,
+          defaultUnit: def.defaultUnit,
+          description: def.description,
+          isCategorySpec: true,
+          isRequired: cat.isRequired,
+          sortOrder: cat.sortOrder,
+        };
+      });
+      return next;
+    });
 
-  // Handle saving modified values for already assigned attributes
-  const handleSaveAssigned = async () => {
+    // Clear any matching staged removals
+    const addedCodes = new Set(
+      unassignedCategorySpecs.map((c) => c.attributeDefinition.code),
+    );
+    setStagedRemovals((prev) => prev.filter((r) => !addedCodes.has(r.code)));
+    setError(null);
+  }, [unassignedCategorySpecs]);
+
+  // Remove an attribute from staged state
+  const handleRemoveAttribute = React.useCallback(
+    (code: string) => {
+      const target = assignedAttrs[code];
+      if (!target) return;
+
+      setStagedRemovals((prev) => [
+        ...prev.filter((r) => r.code !== code),
+        { code, name: target.name, state: target },
+      ]);
+
+      setAssignedAttrs((prev) => {
+        const next = { ...prev };
+        delete next[code];
+        return next;
+      });
+    },
+    [assignedAttrs],
+  );
+
+  // Undo removal of an attribute
+  const handleUndoRemoval = React.useCallback(
+    (code: string) => {
+      const staged = stagedRemovals.find((r) => r.code === code);
+      if (!staged) return;
+
+      setAssignedAttrs((prev) => ({
+        ...prev,
+        [code]: staged.state,
+      }));
+      setStagedRemovals((prev) => prev.filter((r) => r.code !== code));
+    },
+    [stagedRemovals],
+  );
+
+  // Save all changes atomically
+  const handleSave = async () => {
     setSaving(true);
     setError(null);
     setSuccessMsg(null);
+
     try {
-      const items: SetComponentAttributeItem[] = Object.values(
-        assignedAttrs,
-      ).map((item) => {
+      const currentList = Object.values(assignedAttrs);
+
+      // Validate required category attributes
+      for (const attr of currentList) {
+        if (attr.isRequired) {
+          if (attr.dataType === "SELECT" && !attr.optionId) {
+            throw new Error(`'${attr.name}' is a required specification.`);
+          }
+          if (
+            attr.dataType === "MULTI_SELECT" &&
+            attr.selectedOptionIds.length === 0
+          ) {
+            throw new Error(
+              `'${attr.name}' requires at least one option selected.`,
+            );
+          }
+          if (
+            attr.dataType === "QUANTITY" &&
+            (attr.value === "" || attr.value === undefined || attr.value === null)
+          ) {
+            throw new Error(`'${attr.name}' quantity value is required.`);
+          }
+          if (
+            attr.dataType !== "BOOLEAN" &&
+            attr.dataType !== "SELECT" &&
+            attr.dataType !== "MULTI_SELECT" &&
+            attr.dataType !== "QUANTITY" &&
+            (attr.value === "" || attr.value === undefined || attr.value === null)
+          ) {
+            throw new Error(`'${attr.name}' specification is required.`);
+          }
+        }
+      }
+
+      // 1. Identify which original attributes were removed and delete them
+      const currentCodes = new Set(Object.keys(assignedAttrs));
+      const defsToDelete: string[] = [];
+      initialAssignedDefIds.forEach((defId, code) => {
+        if (!currentCodes.has(code)) {
+          defsToDelete.push(defId);
+        }
+      });
+
+      for (const defId of defsToDelete) {
+        await attributesApi.deleteComponentAttribute(componentId, defId);
+      }
+
+      // 2. Prepare payload for saving assigned attributes
+      const itemsToSave: SetComponentAttributeItem[] = currentList.map((item) => {
         if (item.dataType === "SELECT") {
-          return {
-            code: item.code,
-            optionId: item.optionId,
-          };
+          return { code: item.code, optionId: item.optionId || undefined };
         }
         if (item.dataType === "MULTI_SELECT") {
           return {
@@ -237,624 +662,511 @@ export function ManageComponentSpecificationsDialog({
         if (item.dataType === "QUANTITY") {
           return {
             code: item.code,
-            value: item.value,
+            value: item.value === "" ? undefined : Number(item.value),
             unit: item.unit || undefined,
+          };
+        }
+        if (item.dataType === "BOOLEAN") {
+          return { code: item.code, value: Boolean(item.value) };
+        }
+        if (item.dataType === "NUMBER" || item.dataType === "INTEGER") {
+          return {
+            code: item.code,
+            value: item.value === "" ? undefined : Number(item.value),
           };
         }
         return {
           code: item.code,
-          value: item.value,
+          value: item.value === "" ? undefined : item.value,
         };
       });
 
-      await attributesApi.saveComponentAttributes(componentId, items);
-      setSuccessMsg("Successfully updated product specifications.");
-      onUpdated();
-      await loadData();
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to save specifications changes.",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Handle adding a new attribute to this product
-  const handleAddAttribute = async () => {
-    if (!selectedAddDef) return;
-    setSaving(true);
-    setError(null);
-    setSuccessMsg(null);
-    try {
-      let item: SetComponentAttributeItem;
-
-      if (selectedAddDef.dataType === "SELECT") {
-        if (!newOptionId) {
-          throw new Error("Please select an option value.");
-        }
-        item = {
-          code: selectedAddDef.code,
-          optionId: newOptionId,
-        };
-      } else if (selectedAddDef.dataType === "MULTI_SELECT") {
-        if (newSelectedOptionIds.length === 0) {
-          throw new Error("Please select at least one option.");
-        }
-        item = {
-          code: selectedAddDef.code,
-          selectedOptionIds: newSelectedOptionIds,
-        };
-      } else if (selectedAddDef.dataType === "QUANTITY") {
-        if (newVal === "" || newVal === undefined) {
-          throw new Error("Please enter a numeric quantity value.");
-        }
-        item = {
-          code: selectedAddDef.code,
-          value: Number(newVal),
-          unit: newUnit || undefined,
-        };
-      } else if (selectedAddDef.dataType === "BOOLEAN") {
-        item = {
-          code: selectedAddDef.code,
-          value: Boolean(newVal),
-        };
-      } else if (
-        selectedAddDef.dataType === "NUMBER" ||
-        selectedAddDef.dataType === "INTEGER"
-      ) {
-        if (newVal === "" || newVal === undefined) {
-          throw new Error("Please enter a number.");
-        }
-        item = {
-          code: selectedAddDef.code,
-          value: Number(newVal),
-        };
-      } else {
-        if (newVal === "" || newVal === undefined) {
-          throw new Error("Please enter a value.");
-        }
-        item = {
-          code: selectedAddDef.code,
-          value: String(newVal),
-        };
+      if (itemsToSave.length > 0) {
+        await attributesApi.saveComponentAttributes(componentId, itemsToSave);
       }
 
-      await attributesApi.saveComponentAttributes(componentId, [item]);
-      setSuccessMsg(`Added '${selectedAddDef.name}' specification to product.`);
-      setSelectedAddDefId("");
+      setSuccessMsg("Attributes updated successfully.");
       onUpdated();
-      await loadData();
+      onClose();
     } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to add specification to product.",
-      );
+      setError(err instanceof Error ? err.message : "Failed to save attributes.");
     } finally {
       setSaving(false);
     }
   };
 
-  // Handle removing attribute from this component only (safe delete from component_attribute_values)
-  const handleConfirmRemove = async () => {
-    if (!removingAttr) return;
-    setRemoveLoading(true);
-    setError(null);
-    setSuccessMsg(null);
-    try {
-      await attributesApi.deleteComponentAttribute(
-        componentId,
-        removingAttr.definitionId,
-      );
-      setSuccessMsg(
-        `Removed specification '${removingAttr.name}' from this product.`,
-      );
-      setRemovingAttr(null);
-      onUpdated();
-      await loadData();
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to remove specification from product.",
-      );
-      setRemovingAttr(null);
-    } finally {
-      setRemoveLoading(false);
+  // Filtered assigned attributes list based on toolbar search and tabs
+  const filteredAssignedList = React.useMemo(() => {
+    let list = Object.values(assignedAttrs);
+
+    if (filterTab === "category") {
+      list = list.filter((a) => a.isCategorySpec);
+    } else if (filterTab === "custom") {
+      list = list.filter((a) => !a.isCategorySpec);
     }
-  };
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (a) =>
+          a.name.toLowerCase().includes(q) ||
+          a.code.toLowerCase().includes(q) ||
+          (a.description && a.description.toLowerCase().includes(q)),
+      );
+    }
+
+    // Sort: Category specs first by sortOrder, then custom alphabetically
+    return list.sort((a, b) => {
+      if (a.isCategorySpec && !b.isCategorySpec) return -1;
+      if (!a.isCategorySpec && b.isCategorySpec) return 1;
+      if (a.isCategorySpec && b.isCategorySpec) {
+        return a.sortOrder - b.sortOrder;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [assignedAttrs, filterTab, searchQuery]);
+
+  const totalAssignedCount = Object.keys(assignedAttrs).length;
+  const categoryAssignedCount = Object.values(assignedAttrs).filter(
+    (a) => a.isCategorySpec,
+  ).length;
+  const customAssignedCount = totalAssignedCount - categoryAssignedCount;
 
   return (
-    <>
-      <DialogShell
-        open={isOpen}
-        onOpenChange={(open) => {
-          if (!open) onClose();
-        }}
-        title={
-          <div className="flex items-center gap-2">
-            <Sliders className="w-5 h-5 text-primary" />
-            <span>Manage Specifications: {componentName}</span>
+    <DialogShell
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !saving) onClose();
+      }}
+      title={
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Sliders className="size-4" />
           </div>
-        }
-        description="Add, modify, or remove technical specifications and dynamic attributes for this component. Removing an attribute here does not delete the global definition."
-        size="lg"
-      >
-        <DialogShellBody className="space-y-6">
-          {error && (
-            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-xs text-destructive flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
-            </div>
+          <span>Manage Attributes</span>
+          {totalAssignedCount > 0 && (
+            <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-[11px] font-medium text-muted-foreground border border-border">
+              {totalAssignedCount} configured
+            </span>
           )}
+        </div>
+      }
+      description={`Configure technical specifications and dynamic attributes for ${componentName}.`}
+      size="lg"
+    >
+      <DialogShellBody className="space-y-4">
+        {/* Error / Success alert banners */}
+        {error && (
+          <div className="flex items-center gap-2 rounded-lg border border-destructive/25 bg-destructive/10 px-3.5 py-2.5 text-xs text-destructive">
+            <AlertCircle className="size-4 shrink-0" />
+            <span className="font-medium">{error}</span>
+          </div>
+        )}
+        {successMsg && (
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="size-4 shrink-0" />
+            <span className="font-medium">{successMsg}</span>
+          </div>
+        )}
 
-          {successMsg && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>{successMsg}</span>
-            </div>
-          )}
-
-          {loading ? (
-            <div className="py-12 text-center space-y-2">
-              <Loader2 className="w-6 h-6 text-primary animate-spin mx-auto" />
-              <p className="text-xs text-muted-foreground">
-                Loading specifications...
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Section 1: Assigned Specifications */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-primary" />
-                    Currently Assigned Specifications (
-                    {Object.keys(assignedAttrs).length})
-                  </h4>
-                  {Object.keys(assignedAttrs).length > 0 && (
-                    <Button
-                      size="xs"
-                      onClick={handleSaveAssigned}
-                      disabled={saving}
-                      className="h-7 text-xs gap-1.5"
-                    >
-                      {saving && (
-                        <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                      )}
-                      Save Changes
-                    </Button>
-                  )}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+            <Loader2 className="size-6 animate-spin text-primary" />
+            <span className="text-xs font-medium">Loading attributes…</span>
+          </div>
+        ) : (
+          <>
+            {/* ── Category Suggestions Callout ────────────────────────── */}
+            {unassignedCategorySpecs.length > 0 && (
+              <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-start gap-2.5">
+                    <div className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-primary shrink-0 mt-0.5">
+                      <Sparkles className="size-3.5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">
+                        Recommended Category Specifications
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        This product’s category defines{" "}
+                        <span className="font-semibold text-foreground">
+                          {unassignedCategorySpecs.length}
+                        </span>{" "}
+                        {unassignedCategorySpecs.length === 1
+                          ? "specification"
+                          : "specifications"}{" "}
+                        not yet assigned.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleAddAllCategorySpecs}
+                    className="h-8 text-xs gap-1.5 shrink-0 self-start sm:self-auto"
+                  >
+                    <Plus className="size-3.5" />
+                    Add All Category Specs
+                  </Button>
                 </div>
 
-                {Object.keys(assignedAttrs).length === 0 ? (
-                  <div className="py-6 text-center border border-dashed border-border rounded-xl bg-muted/20">
-                    <Sliders className="w-6 h-6 text-muted-foreground/40 mx-auto mb-1.5" />
-                    <p className="text-xs font-medium text-foreground">
-                      No specifications currently assigned
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Use the section below to assign attributes from category or library.
-                    </p>
+                <div className="flex flex-wrap gap-1.5 pt-0.5 border-t border-primary/15">
+                  {unassignedCategorySpecs.map((catSpec) => (
+                    <button
+                      key={catSpec.attributeDefinition.id}
+                      type="button"
+                      onClick={() =>
+                        handleAddDefinition(
+                          catSpec.attributeDefinition,
+                          catSpec,
+                        )
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-background/90 px-2.5 py-1 text-xs text-foreground hover:border-primary hover:bg-primary/10 transition-colors cursor-pointer select-none"
+                    >
+                      <Plus className="size-3 text-primary" />
+                      <span className="font-medium">
+                        {catSpec.attributeDefinition.name}
+                      </span>
+                      {catSpec.isRequired && (
+                        <span className="text-[10px] text-destructive font-bold">
+                          *
+                        </span>
+                      )}
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        ({catSpec.attributeDefinition.dataType})
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Toolbar: Search, Filters, + Add Attribute Popover ──── */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
+              {/* Search & Filter pills */}
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="relative flex-1 max-w-xs min-w-[160px]">
+                  <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search attributes…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-8 pl-8 text-xs"
+                  />
+                </div>
+
+                {totalAssignedCount > 0 && (
+                  <div className="flex items-center rounded-lg border border-border p-0.5 bg-muted/30 text-xs shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setFilterTab("all")}
+                      className={cn(
+                        "px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer select-none",
+                        filterTab === "all"
+                          ? "bg-background text-foreground shadow-2xs font-semibold"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      All ({totalAssignedCount})
+                    </button>
+                    {categoryAssignedCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setFilterTab("category")}
+                        className={cn(
+                          "px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer select-none",
+                          filterTab === "category"
+                            ? "bg-background text-foreground shadow-2xs font-semibold"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        Category ({categoryAssignedCount})
+                      </button>
+                    )}
+                    {customAssignedCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setFilterTab("custom")}
+                        className={cn(
+                          "px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer select-none",
+                          filterTab === "custom"
+                            ? "bg-background text-foreground shadow-2xs font-semibold"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        Custom ({customAssignedCount})
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <div className="border border-border rounded-xl divide-y divide-border/60 overflow-hidden">
-                    {Object.values(assignedAttrs).map((attr) => {
-                      const attrUnits = getUnitsForAttribute(attr);
+                )}
+              </div>
 
-                      return (
-                        <div
-                          key={attr.code}
-                          className="p-3.5 bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/20 transition-colors"
-                        >
-                          <div className="sm:w-1/3 space-y-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-semibold text-foreground">
-                                {attr.name}
-                              </span>
-                              <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.2 rounded">
-                                {attr.code}
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-muted-foreground font-mono">
-                              Type: {attr.dataType}
-                            </span>
-                          </div>
+              {/* Add Attribute Button with Dropdown Popover */}
+              <Popover open={addPopoverOpen} onOpenChange={setAddPopoverOpen}>
+                <PopoverTrigger
+                  type="button"
+                  disabled={availableDefinitionsToAdd.length === 0}
+                  className="inline-flex items-center justify-center gap-1.5 h-8 px-3 text-xs font-medium rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50 cursor-pointer shrink-0"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Add Attribute</span>
+                </PopoverTrigger>
 
-                          {/* Typed Input Control for editing */}
-                          <div className="sm:w-1/2 flex items-center gap-2">
-                            {attr.dataType === "QUANTITY" ? (
-                              <div className="flex items-center gap-1.5 w-full">
-                                <Input
-                                  type="number"
-                                  step="any"
-                                  value={
-                                    attr.value !== undefined &&
-                                    attr.value !== null
-                                      ? String(attr.value)
-                                      : ""
-                                  }
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setAssignedAttrs((prev) => ({
-                                      ...prev,
-                                      [attr.code]: {
-                                        ...prev[attr.code]!,
-                                        value: val === "" ? "" : Number(val),
-                                      },
-                                    }));
-                                  }}
-                                  className="h-8 text-xs font-mono w-28"
-                                />
-                                <Select
-                                  value={attr.unit || "none"}
-                                  onValueChange={(val) => {
-                                    const safeVal = val === "none" || !val ? "" : val;
-                                    setAssignedAttrs((prev) => ({
-                                      ...prev,
-                                      [attr.code]: {
-                                        ...prev[attr.code]!,
-                                        unit: safeVal,
-                                      },
-                                    }));
-                                  }}
-                                >
-                                  <SelectTrigger className="h-8 text-xs font-mono flex-1">
-                                    <SelectValue placeholder="Unit" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="none">No Unit</SelectItem>
-                                    {attrUnits.map((u) => (
-                                      <SelectItem key={u.name} value={u.name}>
-                                        {u.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            ) : attr.dataType === "SELECT" ? (
-                              <Select
-                                value={attr.optionId || "none"}
-                                onValueChange={(val) => {
-                                  const safeVal = val === "none" || !val ? "" : val;
-                                  setAssignedAttrs((prev) => ({
-                                    ...prev,
-                                    [attr.code]: {
-                                      ...prev[attr.code]!,
-                                      optionId: safeVal,
-                                    },
-                                  }));
-                                }}
-                              >
-                                <SelectTrigger className="h-8 text-xs w-full">
-                                  <SelectValue placeholder="Select choice" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">
-                                    -- Select Choice --
-                                  </SelectItem>
-                                  {attr.options.map((opt) => (
-                                    <SelectItem key={opt.id} value={opt.id}>
-                                      {opt.label} ({opt.code})
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : attr.dataType === "MULTI_SELECT" ? (
-                              <div className="flex flex-wrap gap-1.5 max-w-xs">
-                                {attr.options.map((opt) => {
-                                  const isSelected =
-                                    attr.selectedOptionIds.includes(opt.id);
-                                  return (
-                                    <button
-                                      type="button"
-                                      key={opt.id}
-                                      onClick={() => {
-                                        const next = isSelected
-                                          ? attr.selectedOptionIds.filter(
-                                              (id) => id !== opt.id,
-                                            )
-                                          : [...attr.selectedOptionIds, opt.id];
-                                        setAssignedAttrs((prev) => ({
-                                          ...prev,
-                                          [attr.code]: {
-                                            ...prev[attr.code]!,
-                                            selectedOptionIds: next,
-                                          },
-                                        }));
-                                      }}
-                                      className={`px-2 py-0.5 rounded text-[11px] font-mono border transition-colors ${
-                                        isSelected
-                                          ? "bg-primary text-primary-foreground border-primary"
-                                          : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
-                                      }`}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            ) : attr.dataType === "BOOLEAN" ? (
-                              <div className="flex items-center gap-2">
-                                <Switch
-                                  checked={Boolean(attr.value)}
-                                  onCheckedChange={(checked) => {
-                                    setAssignedAttrs((prev) => ({
-                                      ...prev,
-                                      [attr.code]: {
-                                        ...prev[attr.code]!,
-                                        value: checked,
-                                      },
-                                    }));
-                                  }}
-                                />
-                                <span className="text-xs font-mono">
-                                  {attr.value ? "Yes" : "No"}
+                <PopoverContent className="w-80 p-0 shadow-lg border-border" align="end">
+                  <div className="p-2 border-b border-border">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Search available attributes…"
+                        value={popoverSearch}
+                        onChange={(e) => setPopoverSearch(e.target.value)}
+                        className="h-8 pl-8 text-xs"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto p-1.5 space-y-1">
+                    {filteredAvailable.length === 0 ? (
+                      <div className="py-6 text-center text-xs text-muted-foreground">
+                        No matching attributes found
+                      </div>
+                    ) : (
+                      filteredAvailable.map((def) => {
+                        const isCat = categoryAttributes.some(
+                          (c) => c.attributeDefinition.id === def.id,
+                        );
+                        const typeInfo = TYPE_CONFIG[def.dataType] ?? {
+                          label: def.dataType,
+                          badgeClass: "bg-muted text-muted-foreground border-border",
+                        };
+
+                        return (
+                          <button
+                            key={def.id}
+                            type="button"
+                            onClick={() => handleAddDefinition(def)}
+                            className="w-full flex items-center justify-between p-2 rounded-md hover:bg-muted/60 transition-colors text-left group cursor-pointer"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <div className="flex items-center gap-1.5">
+                                {isCat && (
+                                  <Sparkles className="size-3 text-primary shrink-0" />
+                                )}
+                                <span className="text-xs font-medium text-foreground truncate">
+                                  {def.name}
                                 </span>
                               </div>
-                            ) : (
-                              <Input
-                                type={
-                                  attr.dataType === "NUMBER" ||
-                                  attr.dataType === "INTEGER"
-                                    ? "number"
-                                    : attr.dataType === "DATE"
-                                      ? "date"
-                                      : "text"
-                                }
-                                value={
-                                  attr.value !== undefined &&
-                                  attr.value !== null
-                                    ? String(attr.value)
-                                    : ""
-                                }
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  setAssignedAttrs((prev) => ({
-                                    ...prev,
-                                    [attr.code]: {
-                                      ...prev[attr.code]!,
-                                      value:
-                                        attr.dataType === "NUMBER" ||
-                                        attr.dataType === "INTEGER"
-                                          ? v === ""
-                                            ? ""
-                                            : Number(v)
-                                          : v,
-                                    },
-                                  }));
-                                }}
-                                className="h-8 text-xs font-mono w-full"
-                              />
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="font-mono text-[10px] text-muted-foreground">
+                                  {def.code}
+                                </span>
+                                {def.description && (
+                                  <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+                                    • {def.description}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <span
+                              className={cn(
+                                "shrink-0 rounded px-1.5 py-0.5 text-[9px] font-mono font-medium border",
+                                typeInfo.badgeClass,
+                              )}
+                            >
+                              {typeInfo.label}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* ── Staged Removal Undo Strip ───────────────────────────── */}
+            {stagedRemovals.length > 0 && (
+              <div className="flex items-center justify-between rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                <div className="flex items-center gap-2">
+                  <Tag className="size-3.5 shrink-0" />
+                  <span>
+                    {stagedRemovals.length}{" "}
+                    {stagedRemovals.length === 1 ? "attribute" : "attributes"}{" "}
+                    staged for removal.
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {stagedRemovals.map((r) => (
+                    <Button
+                      key={r.code}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleUndoRemoval(r.code)}
+                      className="h-6 text-[11px] gap-1 px-2 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300"
+                    >
+                      <RotateCcw className="size-3" />
+                      Undo {r.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Attributes Cards List ────────────────────────────────── */}
+            {totalAssignedCount === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border py-12 text-center bg-card/40">
+                <div className="flex size-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
+                  <Sliders className="size-5" />
+                </div>
+                <p className="text-sm font-semibold text-foreground">
+                  No attributes configured
+                </p>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  Technical specifications help filter, organize, and inspect
+                  components. Add attributes from the toolbar above.
+                </p>
+                {unassignedCategorySpecs.length > 0 && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleAddAllCategorySpecs}
+                    className="mt-2 text-xs gap-1.5"
+                  >
+                    <Sparkles className="size-3.5" />
+                    Add Category Specifications
+                  </Button>
+                )}
+              </div>
+            ) : filteredAssignedList.length === 0 ? (
+              <div className="py-10 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl">
+                No attributes match “{searchQuery}”
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {filteredAssignedList.map((attr) => {
+                  const typeInfo = TYPE_CONFIG[attr.dataType] ?? {
+                    label: attr.dataType,
+                    badgeClass: "bg-muted text-muted-foreground border-border",
+                  };
+
+                  return (
+                    <div
+                      key={attr.code}
+                      className="group rounded-xl border border-border/80 bg-card p-3.5 transition-all hover:border-border hover:shadow-xs"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                        {/* Left column: Attribute Metadata (5 cols) */}
+                        <div className="md:col-span-5 space-y-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-semibold text-foreground leading-snug">
+                              {attr.name}
+                            </span>
+                            {attr.isRequired && (
+                              <span className="rounded bg-destructive/10 px-1 py-px text-[9px] font-bold text-destructive border border-destructive/20 uppercase tracking-wider">
+                                Required
+                              </span>
+                            )}
+                            {attr.isCategorySpec && (
+                              <span className="inline-flex items-center gap-0.5 rounded bg-primary/10 px-1.5 py-px text-[9px] font-medium text-primary border border-primary/20">
+                                <Sparkles className="size-2.5" />
+                                Category
+                              </span>
                             )}
                           </div>
 
-                          {/* Remove button */}
-                          <div className="flex justify-end">
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              title="Remove specification from this product"
-                              onClick={() => setRemovingAttr(attr)}
-                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Section 2: Add New Specification */}
-              <div className="p-4 bg-muted/30 border border-border rounded-xl space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Plus className="w-3.5 h-3.5 text-primary" />
-                    Add Specification to Product
-                  </h4>
-                  {categoryAttributes.length > 0 && (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <Sparkles className="w-3 h-3 text-primary" />
-                      Category recommendations available
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground">
-                      Select Attribute Definition
-                    </label>
-                    <Select
-                      value={selectedAddDefId || "none"}
-                      onValueChange={(val) =>
-                        setSelectedAddDefId(val === "none" || !val ? "" : val)
-                      }
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="-- Choose an attribute to add --" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">
-                          -- Choose attribute --
-                        </SelectItem>
-                        {availableToAdd.map((def) => {
-                          const isCatAttr = categoryAttributes.some(
-                            (c) => c.attributeDefinition.id === def.id,
-                          );
-                          return (
-                            <SelectItem key={def.id} value={def.id}>
-                              {def.name} ({def.code}){" "}
-                              {isCatAttr ? "★ [Category Spec]" : ""}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Value input based on selected attribute */}
-                  {selectedAddDef && (
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-medium text-muted-foreground">
-                        Value ({selectedAddDef.dataType})
-                      </label>
-                      {selectedAddDef.dataType === "QUANTITY" ? (
-                        <div className="flex items-center gap-1.5">
-                          <Input
-                            type="number"
-                            step="any"
-                            placeholder="Value"
-                            value={String(newVal || "")}
-                            onChange={(e) => setNewVal(e.target.value)}
-                            className="h-9 text-xs font-mono flex-1"
-                          />
-                          <Select
-                            value={newUnit || "none"}
-                            onValueChange={(val) =>
-                              setNewUnit(val === "none" || !val ? "" : val)
-                            }
-                          >
-                            <SelectTrigger className="h-9 text-xs font-mono w-28">
-                              <SelectValue placeholder="Unit" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">No Unit</SelectItem>
-                              {getUnitsForAttribute(selectedAddDef).map(
-                                (u) => (
-                                  <SelectItem key={u.name} value={u.name}>
-                                    {u.name}
-                                  </SelectItem>
-                                ),
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                            <span className="font-mono text-[10px] text-muted-foreground/80 bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
+                              {attr.code}
+                            </span>
+                            <span
+                              className={cn(
+                                "rounded px-1.5 py-0.5 text-[9px] font-mono font-medium border",
+                                typeInfo.badgeClass,
                               )}
-                            </SelectContent>
-                          </Select>
+                            >
+                              {typeInfo.label}
+                            </span>
+                          </div>
+
+                          {attr.description && (
+                            <p className="text-[11px] text-muted-foreground/80 leading-relaxed pt-0.5">
+                              {attr.description}
+                            </p>
+                          )}
                         </div>
-                      ) : selectedAddDef.dataType === "SELECT" ? (
-                        <Select
-                          value={newOptionId || "none"}
-                          onValueChange={(val) =>
-                            setNewOptionId(val === "none" || !val ? "" : val)
-                          }
-                        >
-                          <SelectTrigger className="h-9 text-xs">
-                            <SelectValue placeholder="Select choice" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">
-                              -- Choose Option --
-                            </SelectItem>
-                            {selectedAddDef.options?.map((opt) => (
-                              <SelectItem key={opt.id} value={opt.id}>
-                                {opt.label} ({opt.code})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : selectedAddDef.dataType === "MULTI_SELECT" ? (
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {selectedAddDef.options?.map((opt) => {
-                            const isSelected =
-                              newSelectedOptionIds.includes(opt.id);
-                            return (
-                              <button
-                                type="button"
-                                key={opt.id}
-                                onClick={() => {
-                                  setNewSelectedOptionIds((prev) =>
-                                    isSelected
-                                      ? prev.filter((id) => id !== opt.id)
-                                      : [...prev, opt.id],
-                                  );
-                                }}
-                                className={`px-2 py-0.5 rounded text-[11px] font-mono border transition-colors ${
-                                  isSelected
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-muted text-muted-foreground border-border"
-                                }`}
-                              >
-                                {opt.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : selectedAddDef.dataType === "BOOLEAN" ? (
-                        <div className="flex items-center gap-2 pt-1.5">
-                          <Switch
-                            checked={Boolean(newVal)}
-                            onCheckedChange={(c) => setNewVal(c)}
+
+                        {/* Middle column: Value Input Control (6 cols) */}
+                        <div className="md:col-span-6 min-w-0">
+                          <AttributeValueEditor
+                            attribute={attr}
+                            units={units}
+                            onChange={(patch) =>
+                              setAssignedAttrs((prev) => ({
+                                ...prev,
+                                [attr.code]: {
+                                  ...prev[attr.code]!,
+                                  ...patch,
+                                },
+                              }))
+                            }
                           />
-                          <span className="text-xs font-mono">
-                            {newVal ? "Yes" : "No"}
-                          </span>
                         </div>
-                      ) : (
-                        <Input
-                          type={
-                            selectedAddDef.dataType === "NUMBER" ||
-                            selectedAddDef.dataType === "INTEGER"
-                              ? "number"
-                              : selectedAddDef.dataType === "DATE"
-                                ? "date"
-                                : "text"
-                          }
-                          placeholder={`Enter ${selectedAddDef.name}`}
-                          value={String(newVal || "")}
-                          onChange={(e) => setNewVal(e.target.value)}
-                          className="h-9 text-xs font-mono"
-                        />
-                      )}
+
+                        {/* Right column: Remove Button (1 col) */}
+                        <div className="md:col-span-1 flex justify-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleRemoveAttribute(attr.code)}
+                            title={`Remove ${attr.name}`}
+                            className="text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                {selectedAddDef && (
-                  <div className="flex items-center justify-between pt-2">
-                    <p className="text-[11px] text-muted-foreground">
-                      {selectedAddDef.description ||
-                        `Dynamic attribute: ${selectedAddDef.code}`}
-                    </p>
-                    <Button
-                      size="sm"
-                      onClick={handleAddAttribute}
-                      disabled={saving}
-                      className="h-8 text-xs gap-1.5"
-                    >
-                      {saving && (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                      )}
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Specification
-                    </Button>
-                  </div>
-                )}
+                  );
+                })}
               </div>
-            </div>
-          )}
-        </DialogShellBody>
+            )}
+          </>
+        )}
+      </DialogShellBody>
 
-        <DialogShellFooter>
-          <DialogShellCancelButton>Close</DialogShellCancelButton>
-        </DialogShellFooter>
-      </DialogShell>
-
-      {/* Confirmation for removing attribute from this component */}
-      <ConfirmDialog
-        isOpen={Boolean(removingAttr)}
-        title="Remove Specification from Product"
-        description={`Are you sure you want to remove '${removingAttr?.name}' from this product? The global definition '${removingAttr?.code}' in the Attribute Library will remain completely untouched.`}
-        confirmText="Remove from Product"
-        variant="destructive"
-        loading={removeLoading}
-        onConfirm={handleConfirmRemove}
-        onCancel={() => setRemovingAttr(null)}
-      />
-    </>
+      <DialogShellFooter>
+        <div className="flex items-center justify-between w-full">
+          <span className="text-[11px] text-muted-foreground">
+            {totalAssignedCount}{" "}
+            {totalAssignedCount === 1 ? "specification" : "specifications"}{" "}
+            active
+          </span>
+          <div className="flex items-center gap-2">
+            <DialogShellCancelButton disabled={saving}>
+              Cancel
+            </DialogShellCancelButton>
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || loading}
+              className="gap-1.5"
+            >
+              {saving ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Save className="size-3.5" />
+              )}
+              Save Changes
+            </Button>
+          </div>
+        </div>
+      </DialogShellFooter>
+    </DialogShell>
   );
 }
