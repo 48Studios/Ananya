@@ -35,6 +35,13 @@ export default function StockCountsPage() {
     message: string;
     type: "success" | "error";
   } | null>(null);
+  const noticeRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (banner) {
+      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [banner]);
 
   const fetchCounts = React.useCallback(async () => {
     setLoading(true);
@@ -221,17 +228,19 @@ export default function StockCountsPage() {
 
   return (
     <div className="space-y-6">
-      {banner && (
-        <div
-          className={`p-3 text-xs border rounded-md ${
-            banner.type === "error"
-              ? "bg-destructive/10 border-destructive/20 text-destructive"
-              : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-          }`}
-        >
-          {banner.message}
-        </div>
-      )}
+      <div ref={noticeRef}>
+        {banner && (
+          <div
+            className={`p-3 text-xs border rounded-md ${
+              banner.type === "error"
+                ? "bg-destructive/10 border-destructive/20 text-destructive"
+                : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+            }`}
+          >
+            {banner.message}
+          </div>
+        )}
+      </div>
 
       <PageHeader
         title="Stock Audits & Cycle Counting"
