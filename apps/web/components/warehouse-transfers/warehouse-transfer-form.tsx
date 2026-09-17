@@ -17,13 +17,7 @@ import {
   DialogShellFooter,
 } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   warehouseTransfersApi,
@@ -230,18 +224,18 @@ export function WarehouseTransferForm({
               name="sourceLocationId"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="transfer-source-loc">
-                    <SelectValue placeholder="Select dispatch location..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>
-                        {loc.code} — {loc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  id="transfer-source-loc"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  placeholder="Select dispatch location..."
+                  searchPlaceholder="Search locations..."
+                  options={locations.map((loc) => ({
+                    value: loc.id,
+                    label: loc.name,
+                    chip: loc.code,
+                  }))}
+                />
               )}
             />
             {errors.sourceLocationId?.message && (
@@ -257,18 +251,18 @@ export function WarehouseTransferForm({
               name="destinationLocationId"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="transfer-dest-loc">
-                    <SelectValue placeholder="Select receiving location..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>
-                        {loc.code} — {loc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  id="transfer-dest-loc"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  placeholder="Select receiving location..."
+                  searchPlaceholder="Search locations..."
+                  options={locations.map((loc) => ({
+                    value: loc.id,
+                    label: loc.name,
+                    chip: loc.code,
+                  }))}
+                />
               )}
             />
             {errors.destinationLocationId?.message && (
@@ -347,24 +341,21 @@ export function WarehouseTransferForm({
                     name={`lines.${idx}.componentId` as const}
                     control={control}
                     render={({ field: compField }) => (
-                      <Select
+                      <SearchableSelect
                         value={compField.value}
                         onValueChange={(val) => {
                           compField.onChange(val ?? "");
                           handleComponentChange(idx, val ?? "");
                         }}
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Select component..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {components.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.sku} — {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Select component..."
+                        searchPlaceholder="Search components..."
+                        triggerClassName="h-8 text-xs"
+                        options={components.map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                          chip: c.sku,
+                        }))}
+                      />
                     )}
                   />
                   {errors.lines?.[idx]?.componentId?.message && (

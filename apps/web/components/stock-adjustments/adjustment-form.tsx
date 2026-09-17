@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   stockAdjustmentsApi,
@@ -189,18 +190,18 @@ export function StockAdjustmentForm({
             name="locationId"
             control={control}
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="adj-location">
-                  <SelectValue placeholder="Select location..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>
-                      {loc.code} - {loc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                id="adj-location"
+                value={field.value}
+                onValueChange={field.onChange}
+                placeholder="Select location..."
+                searchPlaceholder="Search locations..."
+                options={locations.map((loc) => ({
+                  value: loc.id,
+                  label: loc.name,
+                  chip: loc.code,
+                }))}
+              />
             )}
           />
           {errors.locationId?.message && (
@@ -301,23 +302,20 @@ export function StockAdjustmentForm({
                   {/* Component Select */}
                   <Field className="pr-6">
                     <FieldLabel className="text-[10px]">Component</FieldLabel>
-                    <Select
+                    <SearchableSelect
                       value={watchedLines[index]?.componentId || ""}
                       onValueChange={(val) =>
                         handleComponentSelect(index, val ?? "")
                       }
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select component..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {components.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.sku} — {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select component..."
+                      searchPlaceholder="Search components..."
+                      triggerClassName="h-8 text-xs"
+                      options={components.map((c) => ({
+                        value: c.id,
+                        label: c.name,
+                        chip: c.sku,
+                      }))}
+                    />
                   </Field>
 
                   {/* Quantities & Preview Grid */}

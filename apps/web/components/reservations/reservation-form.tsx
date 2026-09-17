@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   reservationsApi,
@@ -338,24 +339,21 @@ export function ReservationForm({
                   name={`lines.${idx}.componentId` as const}
                   control={control}
                   render={({ field: compField }) => (
-                    <Select
+                    <SearchableSelect
                       value={compField.value}
                       onValueChange={(val) => {
                         compField.onChange(val ?? "");
                         handleLineComponentChange(idx, val ?? "");
                       }}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select component..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {components.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.sku} — {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select component..."
+                      searchPlaceholder="Search components..."
+                      triggerClassName="h-8 text-xs"
+                      options={components.map((c) => ({
+                        value: c.id,
+                        label: c.name,
+                        chip: c.sku,
+                      }))}
+                    />
                   )}
                 />
                 {errors.lines?.[idx]?.componentId && (
@@ -373,21 +371,18 @@ export function ReservationForm({
                   name={`lines.${idx}.locationId` as const}
                   control={control}
                   render={({ field: locField }) => (
-                    <Select
+                    <SearchableSelect
                       value={locField.value}
                       onValueChange={locField.onChange}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select warehouse location..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locations.map((loc) => (
-                          <SelectItem key={loc.id} value={loc.id}>
-                            {loc.code} — {loc.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select warehouse location..."
+                      searchPlaceholder="Search locations..."
+                      triggerClassName="h-8 text-xs"
+                      options={locations.map((loc) => ({
+                        value: loc.id,
+                        label: loc.name,
+                        chip: loc.code,
+                      }))}
+                    />
                   )}
                 />
                 {errors.lines?.[idx]?.locationId && (

@@ -316,10 +316,38 @@ export default function CreateOrganizationPage() {
                       <SelectValue placeholder="INR" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="INR">INR (₹)</SelectItem>
-                      <SelectItem value="USD">USD ($)</SelectItem>
-                      <SelectItem value="EUR">EUR (€)</SelectItem>
-                      <SelectItem value="GBP">GBP (£)</SelectItem>
+                      <SelectItem value="INR">
+                        <div className="flex items-center gap-2">
+                          <span>INR</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
+                            ₹
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="USD">
+                        <div className="flex items-center gap-2">
+                          <span>USD</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
+                            $
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="EUR">
+                        <div className="flex items-center gap-2">
+                          <span>EUR</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
+                            €
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="GBP">
+                        <div className="flex items-center gap-2">
+                          <span>GBP</span>
+                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
+                            £
+                          </span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </Field>

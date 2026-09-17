@@ -7,13 +7,7 @@ import { z } from "zod";
 import { Loader2, AlertCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   DialogShell,
@@ -141,25 +135,28 @@ export function RecordScrapModal({
               name="componentId"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="scrap-component">
-                    <SelectValue placeholder="Select item" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={workOrder.componentId}>
-                      Finished Product —{" "}
-                      {componentsMap.get(workOrder.componentId)?.name ||
-                        "Finished Product"}
-                    </SelectItem>
-                    {materials.map((m) => (
-                      <SelectItem key={m.componentId} value={m.componentId}>
-                        Raw Material —{" "}
-                        {componentsMap.get(m.componentId)?.name ||
-                          m.componentId}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  id="scrap-component"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  placeholder="Select item..."
+                  searchPlaceholder="Search items..."
+                  options={[
+                    {
+                      value: workOrder.componentId,
+                      label:
+                        componentsMap.get(workOrder.componentId)?.name ||
+                        "Finished Product",
+                      chip: "Finished Product",
+                    },
+                    ...materials.map((m) => ({
+                      value: m.componentId,
+                      label:
+                        componentsMap.get(m.componentId)?.name || m.componentId,
+                      chip: "Raw Material",
+                    })),
+                  ]}
+                />
               )}
             />
             {errors.componentId?.message && (

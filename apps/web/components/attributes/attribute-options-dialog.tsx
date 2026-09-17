@@ -21,7 +21,6 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  ListOrdered,
   Tag,
   Hash,
 } from "lucide-react";
@@ -212,8 +211,8 @@ export function AttributeOptionsDialog({
                     <Input
                       value={newCode}
                       onChange={(e) => setNewCode(e.target.value)}
-                      placeholder="Auto-generated"
-                      className="h-9 text-xs font-mono"
+                      placeholder="Auto Generated"
+                      className="h-9 text-xs"
                       disabled={addingOption}
                     />
                   </Field>

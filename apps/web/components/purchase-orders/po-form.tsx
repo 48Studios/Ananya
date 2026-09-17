@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   purchaseOrdersApi,
@@ -264,7 +265,8 @@ export function PurchaseOrderForm({
               name="supplierId"
               control={control}
               render={({ field }) => (
-                <Select
+                <SearchableSelect
+                  id="po-supplier"
                   disabled={isEditing}
                   value={field.value}
                   onValueChange={(val) => {
@@ -274,18 +276,14 @@ export function PurchaseOrderForm({
                       setValue("currency", selectedSup.currency || baseCurrency);
                     }
                   }}
-                >
-                  <SelectTrigger id="po-supplier">
-                    <SelectValue placeholder="Select Supplier..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {suppliers.map((sup) => (
-                      <SelectItem key={sup.id} value={sup.id}>
-                        {sup.code} - {sup.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select Supplier..."
+                  searchPlaceholder="Search suppliers..."
+                  options={suppliers.map((sup) => ({
+                    value: sup.id,
+                    label: sup.name,
+                    chip: sup.code,
+                  }))}
+                />
               )}
             />
             {errors.supplierId?.message && (
@@ -460,22 +458,20 @@ export function PurchaseOrderForm({
                       name={`lines.${index}.componentId`}
                       control={control}
                       render={({ field: compField }) => (
-                        <Select
+                        <SearchableSelect
                           disabled={!isDraft}
                           value={compField.value}
                           onValueChange={compField.onChange}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Select component..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableComponents.map((comp) => (
-                              <SelectItem key={comp.id} value={comp.id}>
-                                {comp.sku} - {comp.name} ({comp.unit})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Select component..."
+                          searchPlaceholder="Search components..."
+                          triggerClassName="h-8 text-xs"
+                          options={availableComponents.map((comp) => ({
+                            value: comp.id,
+                            label: comp.name,
+                            chip: comp.sku,
+                            sublabel: comp.unit ? `Unit: ${comp.unit}` : undefined,
+                          }))}
+                        />
                       )}
                     />
                   </div>

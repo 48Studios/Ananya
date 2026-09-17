@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   workOrdersApi,
@@ -211,22 +212,19 @@ export function WorkOrderForm({
               name="componentId"
               control={control}
               render={({ field }) => (
-                <Select
+                <SearchableSelect
+                  id="wo-product"
                   disabled={isEdit}
                   value={field.value}
                   onValueChange={field.onChange}
-                >
-                  <SelectTrigger id="wo-product">
-                    <SelectValue placeholder="Select finished product..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {components.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.sku} — {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select finished product..."
+                  searchPlaceholder="Search products..."
+                  options={components.map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                    chip: c.sku,
+                  }))}
+                />
               )}
             />
             {errors.componentId?.message && (
@@ -243,31 +241,25 @@ export function WorkOrderForm({
               name="bomId"
               control={control}
               render={({ field }) => (
-                <Select
+                <SearchableSelect
+                  id="wo-bom"
                   disabled={isEdit || loadingBoms || availableBoms.length === 0}
                   value={field.value}
                   onValueChange={field.onChange}
-                >
-                  <SelectTrigger id="wo-bom">
-                    <SelectValue
-                      placeholder={
-                        loadingBoms
-                          ? "Loading BOMs..."
-                          : availableBoms.length === 0
-                            ? "No BOMs found for product"
-                            : "Select BOM revision..."
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableBoms.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.revision} — Status: {b.status} ({b.lines.length}{" "}
-                        lines)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder={
+                    loadingBoms
+                      ? "Loading BOMs..."
+                      : availableBoms.length === 0
+                        ? "No BOMs found for product"
+                        : "Select BOM revision..."
+                  }
+                  searchPlaceholder="Search BOMs..."
+                  options={availableBoms.map((b) => ({
+                    value: b.id,
+                    label: `Rev: ${b.revision}`,
+                    sublabel: `Status: ${b.status} (${b.lines.length} lines)`,
+                  }))}
+                />
               )}
             />
             {errors.bomId?.message && (
@@ -287,18 +279,18 @@ export function WorkOrderForm({
               name="locationId"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="wo-location">
-                    <SelectValue placeholder="Select production facility / warehouse..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>
-                        {loc.code} — {loc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  id="wo-location"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  placeholder="Select production facility / warehouse..."
+                  searchPlaceholder="Search locations..."
+                  options={locations.map((loc) => ({
+                    value: loc.id,
+                    label: loc.name,
+                    chip: loc.code,
+                  }))}
+                />
               )}
             />
             {errors.locationId?.message && (

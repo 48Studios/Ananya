@@ -17,13 +17,7 @@ import {
   DialogShellFooter,
 } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   cycleCountsApi,
@@ -226,18 +220,18 @@ export function CycleCountForm({
               name="locationId"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="count-loc">
-                    <SelectValue placeholder="Select facility location..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>
-                        {loc.code} — {loc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  id="count-loc"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  placeholder="Select facility location..."
+                  searchPlaceholder="Search locations..."
+                  options={locations.map((loc) => ({
+                    value: loc.id,
+                    label: loc.name,
+                    chip: loc.code,
+                  }))}
+                />
               )}
             />
             {errors.locationId?.message && (
@@ -328,24 +322,21 @@ export function CycleCountForm({
                     name={`lines.${idx}.componentId` as const}
                     control={control}
                     render={({ field: compField }) => (
-                      <Select
+                      <SearchableSelect
                         value={compField.value}
                         onValueChange={(val) => {
                           compField.onChange(val ?? "");
                           handleComponentChange(idx, val ?? "");
                         }}
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Select component..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {components.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.sku} — {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Select component..."
+                        searchPlaceholder="Search components..."
+                        triggerClassName="h-8 text-xs"
+                        options={components.map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                          chip: c.sku,
+                        }))}
+                      />
                     )}
                   />
                   {errors.lines?.[idx]?.componentId?.message && (

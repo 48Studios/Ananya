@@ -18,13 +18,6 @@ import {
   DialogShellFooter,
 } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
@@ -417,21 +410,18 @@ export function GoodsReceiptForm({
                             name={`lines.${index}.locationId`}
                             control={control}
                             render={({ field: locField }) => (
-                              <Select
+                              <SearchableSelect
                                 value={locField.value || ""}
                                 onValueChange={locField.onChange}
-                              >
-                                <SelectTrigger className="h-8 text-xs">
-                                  <SelectValue placeholder="Select location..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {locations.map((loc) => (
-                                    <SelectItem key={loc.id} value={loc.id}>
-                                      {loc.code} - {loc.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                placeholder="Select location..."
+                                searchPlaceholder="Search locations..."
+                                triggerClassName="h-8 text-xs"
+                                options={locations.map((loc) => ({
+                                  value: loc.id,
+                                  label: loc.name,
+                                  chip: loc.code,
+                                }))}
+                              />
                             )}
                           />
                           {lineErr?.locationId?.message && (

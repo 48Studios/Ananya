@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Popover,
   PopoverContent,
@@ -120,8 +121,16 @@ function AttributeValueEditor({
   units: UnitDto[];
   onChange: (patch: Partial<EditableAttributeState>) => void;
 }) {
-  const { dataType, value, unit, optionId, selectedOptionIds, options, unitCategory } =
-    attribute;
+  const {
+    dataType,
+    value,
+    unit,
+    optionId,
+    selectedOptionIds,
+    options,
+    unitCategory,
+    isRequired,
+  } = attribute;
 
   const filteredUnits = React.useMemo(() => {
     if (!unitCategory) return units;
@@ -147,31 +156,19 @@ function AttributeValueEditor({
 
   if (dataType === "SELECT") {
     return (
-      <Select
-        value={(optionId as string) || "none"}
-        onValueChange={(v) =>
-          onChange({ optionId: v === "none" ? "" : (v ?? "") })
-        }
-      >
-        <SelectTrigger className="!h-9 w-full text-xs">
-          <SelectValue placeholder="Choose an option…" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">
-            <span className="text-muted-foreground italic">— None specified —</span>
-          </SelectItem>
-          {(options ?? []).map((o) => (
-            <SelectItem key={o.id} value={o.id}>
-              <div className="flex items-center gap-2">
-                <span>{o.label}</span>
-                <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
-                  {o.code}
-                </span>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <SearchableSelect
+        value={(optionId as string) || ""}
+        onValueChange={(v) => onChange({ optionId: v ?? "" })}
+        placeholder="Choose an option…"
+        searchPlaceholder="Search options…"
+        triggerClassName="!h-9 w-full text-xs"
+        clearable={!isRequired}
+        options={(options ?? []).map((o) => ({
+          value: o.id,
+          label: o.label,
+          chip: o.code !== o.label ? o.code : undefined,
+        }))}
+      />
     );
   }
 
@@ -936,7 +933,7 @@ export function ManageComponentSpecificationsDialog({
                             key={def.id}
                             type="button"
                             onClick={() => handleAddDefinition(def)}
-                            className="w-full flex items-center justify-between p-2 rounded-md hover:bg-muted/60 transition-colors text-left group cursor-pointer"
+                            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-muted/60 transition-colors text-left group cursor-pointer"
                           >
                             <div className="min-w-0 pr-2">
                               <div className="flex items-center gap-1.5">

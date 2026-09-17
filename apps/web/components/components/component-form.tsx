@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   componentsApi,
   type ComponentDto,
@@ -472,23 +473,22 @@ export function ComponentForm({
                           <span className="text-destructive">*</span>
                         )}
                       </FieldLabel>
-                      <Select
+                      <SearchableSelect
+                        id={inputId}
                         value={current.optionCode ?? ""}
                         onValueChange={(val) =>
                           handleAttrChange(code, "optionCode", val)
                         }
-                      >
-                        <SelectTrigger id={inputId} className="h-9">
-                          <SelectValue placeholder={`Select ${def.name.toLowerCase()}...`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {attr.options.map((opt) => (
-                            <SelectItem key={opt.id} value={opt.code}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder={`Select ${def.name.toLowerCase()}...`}
+                        searchPlaceholder={`Search ${def.name.toLowerCase()}...`}
+                        triggerClassName="h-9"
+                        clearable={!attr.isRequired}
+                        options={attr.options.map((opt) => ({
+                          value: opt.code,
+                          label: opt.label,
+                          chip: opt.code !== opt.label ? opt.code : undefined,
+                        }))}
+                      />
                       {def.description && (
                         <FieldDescription>{def.description}</FieldDescription>
                       )}
