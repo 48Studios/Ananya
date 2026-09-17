@@ -212,7 +212,7 @@ export function EntityDataTable<TData, TValue>({
                   column.setFilterValue(val === "ALL" ? undefined : val)
                 }
               >
-                <SelectTrigger className="w-40 h-9 text-xs">
+                <SelectTrigger className="w-40 !h-9 text-xs">
                   <SelectValue placeholder={`All ${filter.title}`} />
                 </SelectTrigger>
                 <SelectContent>
@@ -233,7 +233,7 @@ export function EntityDataTable<TData, TValue>({
             <>
               <Button
                 variant="outline"
-                size="sm"
+                size="default"
                 onClick={() => setIsImportOpen(true)}
                 className="text-xs"
               >
@@ -243,7 +243,7 @@ export function EntityDataTable<TData, TValue>({
 
               <Button
                 variant="outline"
-                size="sm"
+                size="default"
                 onClick={() => setIsExportOpen(true)}
                 className="text-xs"
               >
@@ -391,9 +391,9 @@ export function EntityDataTable<TData, TValue>({
                               "inline-flex items-center gap-1.5 max-w-full min-w-0",
                               isRightAligned && "w-full justify-end text-right",
                               colMeta?.headerClassName?.includes("text-center") &&
-                                "w-full justify-center text-center",
+                              "w-full justify-center text-center",
                               canSort &&
-                                "cursor-pointer hover:text-foreground transition-colors",
+                              "cursor-pointer hover:text-foreground transition-colors",
                             )}
                             onClick={header.column.getToggleSortingHandler()}
                           >
@@ -437,73 +437,73 @@ export function EntityDataTable<TData, TValue>({
                             width:
                               colWidth !== undefined
                                 ? typeof colWidth === "number"
-                                ? `${colWidth}px`
-                                : colWidth
-                              : undefined,
-                          minWidth:
-                            colMinWidth !== undefined
-                              ? typeof colMinWidth === "number"
-                                ? `${colMinWidth}px`
-                                : colMinWidth
-                              : undefined,
-                        }}
-                      >
-                        <div className="h-4 bg-muted/60 rounded-md w-3/4" />
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))
-            ) : table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-muted/30 transition-colors"
-                >
-                  {row.getVisibleCells().map((cell, cIdx) => {
-                    const colMeta = cell.column.columnDef.meta as ColumnMetaConfig | undefined;
-                    const colWidth =
-                      colMeta?.width ??
-                      (cell.column.columnDef.size !== 150
-                        ? cell.column.columnDef.size
-                        : undefined);
-                    const colMinWidth = colMeta?.minWidth;
-                    const isLastCol = cIdx === row.getVisibleCells().length - 1;
-                    const isActionsCol = cell.column.id === "actions";
+                                  ? `${colWidth}px`
+                                  : colWidth
+                                : undefined,
+                            minWidth:
+                              colMinWidth !== undefined
+                                ? typeof colMinWidth === "number"
+                                  ? `${colMinWidth}px`
+                                  : colMinWidth
+                                : undefined,
+                          }}
+                        >
+                          <div className="h-4 bg-muted/60 rounded-md w-3/4" />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
+              ) : table.getRowModel().rows.length > 0 ? (
+                table.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="hover:bg-muted/30 transition-colors"
+                  >
+                    {row.getVisibleCells().map((cell, cIdx) => {
+                      const colMeta = cell.column.columnDef.meta as ColumnMetaConfig | undefined;
+                      const colWidth =
+                        colMeta?.width ??
+                        (cell.column.columnDef.size !== 150
+                          ? cell.column.columnDef.size
+                          : undefined);
+                      const colMinWidth = colMeta?.minWidth;
+                      const isLastCol = cIdx === row.getVisibleCells().length - 1;
+                      const isActionsCol = cell.column.id === "actions";
 
-                    return (
-                      <td
-                        key={cell.id}
-                        className={cn(
-                          "px-3.5 py-3.5 text-foreground align-middle",
-                          isLastCol && "pr-4 sm:pr-5",
-                          isActionsCol && "text-right",
-                          colMeta?.className,
-                          colMeta?.cellClassName,
-                        )}
-                        style={{
-                          width:
-                            colWidth !== undefined
-                              ? typeof colWidth === "number"
-                                ? `${colWidth}px`
-                                : colWidth
-                              : undefined,
-                          minWidth:
-                            colMinWidth !== undefined
-                              ? typeof colMinWidth === "number"
-                                ? `${colMinWidth}px`
-                                : colMinWidth
-                              : undefined,
-                        }}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
+                      return (
+                        <td
+                          key={cell.id}
+                          className={cn(
+                            "px-3.5 py-3.5 text-foreground align-middle",
+                            isLastCol && "pr-4 sm:pr-5",
+                            isActionsCol && "text-right",
+                            colMeta?.className,
+                            colMeta?.cellClassName,
+                          )}
+                          style={{
+                            width:
+                              colWidth !== undefined
+                                ? typeof colWidth === "number"
+                                  ? `${colWidth}px`
+                                  : colWidth
+                                : undefined,
+                            minWidth:
+                              colMinWidth !== undefined
+                                ? typeof colMinWidth === "number"
+                                  ? `${colMinWidth}px`
+                                  : colMinWidth
+                                : undefined,
+                          }}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
                 ))
               ) : (
                 // Empty State
@@ -547,7 +547,7 @@ export function EntityDataTable<TData, TValue>({
               <span className="font-medium text-foreground">
                 {Math.min(
                   (table.getState().pagination.pageIndex + 1) *
-                    table.getState().pagination.pageSize,
+                  table.getState().pagination.pageSize,
                   table.getFilteredRowModel().rows.length,
                 )}
               </span>{" "}
