@@ -471,12 +471,12 @@ export function ManageComponentSpecificationsDialog({
 
       const isCat = Boolean(
         catSpec ||
-          categoryAttributes.some((c) => c.attributeDefinition.id === def.id),
+        categoryAttributes.some((c) => c.attributeDefinition.id === def.id),
       );
       const isReq = Boolean(
         catSpec?.isRequired ||
-          categoryAttributes.find((c) => c.attributeDefinition.id === def.id)
-            ?.isRequired,
+        categoryAttributes.find((c) => c.attributeDefinition.id === def.id)
+          ?.isRequired,
       );
 
       const newState: EditableAttributeState = {
@@ -766,7 +766,7 @@ export function ManageComponentSpecificationsDialog({
           <>
             {/* ── Category Suggestions Callout ────────────────────────── */}
             {unassignedCategorySpecs.length > 0 && (
-              <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3 shadow-xs">
+              <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-4 shadow-xs">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex items-start gap-2.5">
                     <div className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-primary shrink-0 mt-0.5">
@@ -799,7 +799,7 @@ export function ManageComponentSpecificationsDialog({
                   </Button>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 pt-0.5 border-t border-primary/15">
+                <div className="flex flex-wrap gap-1.5 pt-3 border-t border-primary/15">
                   {unassignedCategorySpecs.map((catSpec) => (
                     <button
                       key={catSpec.attributeDefinition.id}
@@ -821,8 +821,8 @@ export function ManageComponentSpecificationsDialog({
                           *
                         </span>
                       )}
-                      <span className="font-mono text-[10px] text-muted-foreground">
-                        ({catSpec.attributeDefinition.dataType})
+                      <span className="inline-flex items-center justify-center h-5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] font-normal text-muted-foreground leading-none">
+                        {catSpec.attributeDefinition.dataType}
                       </span>
                     </button>
                   ))}
@@ -1037,74 +1037,74 @@ export function ManageComponentSpecificationsDialog({
               <div className="space-y-3">
                 {filteredAssignedList.map((attr) => (
                   <div
-                      key={attr.code}
-                      className={cn(
-                        "group rounded-xl border border-border/80 bg-card/70 p-4 transition-all hover:bg-card hover:border-border hover:shadow-xs",
-                        attr.isCategorySpec && "border-l-[3px] border-l-primary",
-                      )}
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-                        {/* Left column: Attribute Metadata */}
-                        <div className="min-w-0 flex-1 space-y-0.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-semibold text-foreground tracking-tight">
-                              {attr.name}
+                    key={attr.code}
+                    className={cn(
+                      "group rounded-xl border border-border/80 bg-card/70 p-4 transition-all hover:bg-card hover:border-border hover:shadow-xs",
+                      attr.isCategorySpec && "border-l-[3px] border-l-primary",
+                    )}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                      {/* Left column: Attribute Metadata */}
+                      <div className="min-w-0 flex-1 space-y-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-foreground tracking-tight">
+                            {attr.name}
+                          </span>
+                          {attr.isRequired && (
+                            <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold text-destructive border border-destructive/20 uppercase tracking-wider">
+                              Required
                             </span>
-                            {attr.isRequired && (
-                              <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold text-destructive border border-destructive/20 uppercase tracking-wider">
-                                Required
-                              </span>
-                            )}
-                            {attr.isCategorySpec && (
-                              <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary border border-primary/20">
-                                <Sparkles className="size-3" />
-                                Category
-                              </span>
-                            )}
-                          </div>
-
-                          {attr.description && (
-                            <p
-                              className="text-xs text-muted-foreground/80 leading-relaxed pt-0.5 line-clamp-1"
-                              title={attr.description}
-                            >
-                              {attr.description}
-                            </p>
+                          )}
+                          {attr.isCategorySpec && (
+                            <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary border border-primary/20">
+                              <Sparkles className="size-3" />
+                              Category
+                            </span>
                           )}
                         </div>
 
-                        {/* Right column: Value Input Control (Right-Aligned) + Trash Button */}
-                        <div className="flex items-center gap-2 shrink-0 justify-end w-full sm:w-auto">
-                          <div className="w-full sm:w-56 md:w-60">
-                            <AttributeValueEditor
-                              attribute={attr}
-                              units={units}
-                              onChange={(patch) =>
-                                setAssignedAttrs((prev) => ({
-                                  ...prev,
-                                  [attr.code]: {
-                                    ...prev[attr.code]!,
-                                    ...patch,
-                                  },
-                                }))
-                              }
-                            />
-                          </div>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => handleRemoveAttribute(attr.code)}
-                            title={`Remove ${attr.name}`}
-                            className="size-9 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                        {attr.description && (
+                          <p
+                            className="text-xs text-muted-foreground/80 leading-relaxed pt-0.5 line-clamp-1"
+                            title={attr.description}
                           >
-                            <Trash2 className="size-4" />
-                          </Button>
+                            {attr.description}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Right column: Value Input Control (Right-Aligned) + Trash Button */}
+                      <div className="flex items-center gap-2 shrink-0 justify-end w-full sm:w-auto">
+                        <div className="w-full sm:w-56 md:w-60">
+                          <AttributeValueEditor
+                            attribute={attr}
+                            units={units}
+                            onChange={(patch) =>
+                              setAssignedAttrs((prev) => ({
+                                ...prev,
+                                [attr.code]: {
+                                  ...prev[attr.code]!,
+                                  ...patch,
+                                },
+                              }))
+                            }
+                          />
                         </div>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleRemoveAttribute(attr.code)}
+                          title={`Remove ${attr.name}`}
+                          className="size-9 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
                       </div>
                     </div>
-                  ))}
+                  </div>
+                ))}
               </div>
             )}
           </>
