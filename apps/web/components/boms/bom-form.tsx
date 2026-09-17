@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   bomsApi,
@@ -204,22 +205,20 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
               name="componentId"
               control={control}
               render={({ field }) => (
-                <Select
+                <SearchableSelect
+                  id="bom-product"
                   disabled={isEdit}
+                  placeholder="Select finished product component..."
+                  searchPlaceholder="Search components by name or SKU..."
                   value={field.value}
                   onValueChange={field.onChange}
-                >
-                  <SelectTrigger id="bom-product">
-                    <SelectValue placeholder="Select finished product component..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {components.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.sku} — {c.name} ({c.unit})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={components.map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                    chip: c.sku,
+                    sublabel: c.unit ? `(${c.unit})` : undefined,
+                  }))}
+                />
               )}
             />
             {errors.componentId?.message && (
@@ -314,26 +313,24 @@ export function BomForm({ initialData, onSuccess, onCancel }: BomFormProps) {
                     name={`lines.${index}.componentId`}
                     control={control}
                     render={({ field: lineCompField }) => (
-                      <Select
+                      <SearchableSelect
+                        placeholder="Select component..."
+                        searchPlaceholder="Search components..."
+                        triggerClassName="h-8 text-xs"
                         value={lineCompField.value}
                         onValueChange={(val) => {
                           lineCompField.onChange(val ?? "");
                           handleLineComponentChange(index, val ?? "");
                         }}
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Select component..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {components
-                            .filter((c) => c.id !== selectedFinishedProductId)
-                            .map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.sku} — {c.name} ({c.unit})
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                        options={components
+                          .filter((c) => c.id !== selectedFinishedProductId)
+                          .map((c) => ({
+                            value: c.id,
+                            label: c.name,
+                            chip: c.sku,
+                            sublabel: c.unit ? `(${c.unit})` : undefined,
+                          }))}
+                      />
                     )}
                   />
                 </div>

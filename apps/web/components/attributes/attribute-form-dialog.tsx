@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
@@ -506,44 +507,22 @@ export function AttributeFormDialog({
                     </span>
                   )}
                 </FieldLabel>
-                <Select
-                  value="placeholder"
+                <SearchableSelect
+                  id="attr-category-select"
+                  placeholder="Select categories to assign..."
+                  searchPlaceholder="Search categories..."
+                  options={categories.map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                    chip: c.code,
+                    disabled: selectedCategoryIds.includes(c.id),
+                  }))}
                   onValueChange={(catId) => {
-                    if (
-                      catId &&
-                      catId !== "placeholder" &&
-                      !selectedCategoryIds.includes(catId)
-                    ) {
+                    if (catId && !selectedCategoryIds.includes(catId)) {
                       setSelectedCategoryIds((prev) => [...prev, catId]);
                     }
                   }}
-                >
-                  <SelectTrigger
-                    id="attr-category-select"
-                    className="h-9 text-xs"
-                  >
-                    <SelectValue placeholder="Select categories to assign..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="placeholder" disabled>
-                      Choose a category to bind...
-                    </SelectItem>
-                    {categories.map((c) => (
-                      <SelectItem
-                        key={c.id}
-                        value={c.id}
-                        disabled={selectedCategoryIds.includes(c.id)}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{c.name}</span>
-                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
-                            {c.code}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
                 <p className="text-[11px] text-muted-foreground">
                   Components in selected categories will automatically inherit this specification.
                 </p>

@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   locationsApi,
@@ -211,24 +212,19 @@ export function LocationForm({
             name="parentId"
             control={control}
             render={({ field }) => (
-              <Select
-                value={field.value ?? "none"}
-                onValueChange={(val) =>
-                  field.onChange(val === "none" ? "" : val)
-                }
-              >
-                <SelectTrigger id="location-parent">
-                  <SelectValue placeholder="Select parent location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None (Top Level)</SelectItem>
-                  {availableParents.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>
-                      {loc.code} - {loc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                id="location-parent"
+                placeholder="Select parent location (or leave empty for top-level)"
+                searchPlaceholder="Search locations..."
+                clearable
+                value={field.value ?? ""}
+                onValueChange={(val) => field.onChange(val || null)}
+                options={availableParents.map((loc) => ({
+                  value: loc.id,
+                  label: loc.name,
+                  chip: loc.code,
+                }))}
+              />
             )}
           />
         </Field>

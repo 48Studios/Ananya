@@ -357,10 +357,10 @@ export function EntitySelector({
                     if (onChange) onChange(opt.value, opt.label);
                     setOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-left transition-colors text-xs ${
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-left transition-colors text-xs cursor-pointer ${
                     isSelected
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "hover:bg-accent text-foreground"
+                      ? "bg-accent text-accent-foreground font-medium"
+                      : "hover:bg-accent hover:text-accent-foreground text-foreground"
                   }`}
                 >
                   <div className="truncate">
@@ -372,7 +372,7 @@ export function EntitySelector({
                     )}
                   </div>
                   {isSelected && (
-                    <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-accent-foreground shrink-0" />
                   )}
                 </button>
               );

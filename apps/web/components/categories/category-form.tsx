@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   categoriesApi,
@@ -173,26 +174,21 @@ export function CategoryForm({
             name="parentId"
             control={control}
             render={({ field }) => (
-              <Select
-                value={field.value ?? "none"}
-                onValueChange={(val) =>
-                  field.onChange(val === "none" ? "" : val)
-                }
-              >
-                <SelectTrigger id="category-parent">
-                  <SelectValue placeholder="Select parent category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">
-                    None (Top-Level Root Category)
-                  </SelectItem>
-                  {allCategories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.code} - {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                id="category-parent"
+                placeholder="Select parent category (or leave empty for top-level)"
+                searchPlaceholder="Search categories..."
+                clearable
+                value={field.value ?? ""}
+                onValueChange={(val) => field.onChange(val || undefined)}
+                options={allCategories
+                  .filter((cat) => !initialData || cat.id !== initialData.id)
+                  .map((cat) => ({
+                    value: cat.id,
+                    label: cat.name,
+                    chip: cat.code,
+                  }))}
+              />
             )}
           />
         </Field>

@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   goodsReceiptsApi,
@@ -314,34 +315,26 @@ export function GoodsReceiptForm({
             name="purchaseOrderId"
             control={control}
             render={({ field }) => (
-              <Select
+              <SearchableSelect
+                id="gr-po"
+                placeholder="Select an open Purchase Order..."
+                searchPlaceholder="Search PO number or supplier..."
+                emptyText="No open Purchase Orders available for receiving"
                 value={field.value || ""}
                 onValueChange={(val) => {
                   field.onChange(val ?? "");
                   handlePoSelect(val ?? "");
                 }}
-              >
-                <SelectTrigger id="gr-po">
-                  <SelectValue placeholder="Select an open Purchase Order..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {openPos.length > 0 ? (
-                    openPos.map((po) => {
-                      const totalNum = Number(po.grandTotal) || 0;
-                      return (
-                        <SelectItem key={po.id} value={po.id}>
-                          {po.poNumber} — ({po.status}) {po.currency || "INR"}{" "}
-                          {totalNum.toFixed(2)}
-                        </SelectItem>
-                      );
-                    })
-                  ) : (
-                    <div className="p-2 text-xs text-muted-foreground italic text-center">
-                      No open Purchase Orders available for receiving
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
+                options={openPos.map((po) => {
+                  const totalNum = Number(po.grandTotal) || 0;
+                  return {
+                    value: po.id,
+                    label: po.poNumber,
+                    chip: po.status,
+                    sublabel: `${po.currency || "INR"} ${totalNum.toFixed(2)}`,
+                  };
+                })}
+              />
             )}
           />
           {errors.purchaseOrderId?.message && (

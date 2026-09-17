@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   attributesApi,
@@ -306,34 +307,23 @@ export function AttributeCategoriesDialog({
                     <FieldLabel className="text-[11px] font-medium">
                       Category <span className="text-destructive">*</span>
                     </FieldLabel>
-                    <Select
+                    <SearchableSelect
+                      id="dialog-bind-category"
+                      placeholder="Choose a category to bind..."
+                      searchPlaceholder="Search categories..."
+                      emptyText={
+                        allCategories.length === 0
+                          ? "No categories found"
+                          : "All categories are already bound"
+                      }
                       value={selectedCategoryId}
-                      onValueChange={(val) => val && setSelectedCategoryId(val)}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Choose a category to bind..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableCategories.length === 0 ? (
-                          <div className="p-2 text-xs text-muted-foreground text-center">
-                            {allCategories.length === 0
-                              ? "No categories found"
-                              : "All categories are already bound"}
-                          </div>
-                        ) : (
-                          availableCategories.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{c.name}</span>
-                                <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
-                                  {c.code}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
+                      onValueChange={(val) => setSelectedCategoryId(val)}
+                      options={availableCategories.map((c) => ({
+                        value: c.id,
+                        label: c.name,
+                        chip: c.code,
+                      }))}
+                    />
                   </Field>
                 </div>
 

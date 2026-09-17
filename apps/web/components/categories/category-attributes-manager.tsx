@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   attributesApi,
   type AttributeDefinitionDto,
@@ -358,41 +359,24 @@ export function CategoryAttributesManager({
               <FieldLabel>
                 Attribute Definition <span className="text-destructive">*</span>
               </FieldLabel>
-              <Select
+              <SearchableSelect
+                placeholder="Select an attribute definition..."
+                searchPlaceholder="Search definitions by name or code..."
                 value={selectedDefinitionId}
-                onValueChange={(val) => val && setSelectedDefinitionId(val)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select an attribute definition..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {allDefinitions.map((def) => {
-                    const isAssigned = directlyAssignedIds.has(def.id) && def.id !== selectedDefinitionId;
-                    return (
-                      <SelectItem
-                        key={def.id}
-                        value={def.id}
-                        disabled={isAssigned}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{def.name}</span>
-                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 font-mono text-[10px] text-muted-foreground leading-none">
-                            {def.code}
-                          </span>
-                          <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-muted border border-border/70 text-[10px] text-muted-foreground leading-none">
-                            {def.dataType}
-                          </span>
-                          {isAssigned && (
-                            <span className="inline-flex items-center justify-center h-4.5 px-1.5 rounded bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-600 dark:text-amber-400 leading-none">
-                              Already assigned
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+                onValueChange={(val) => setSelectedDefinitionId(val)}
+                options={allDefinitions.map((def) => {
+                  const isAssigned =
+                    directlyAssignedIds.has(def.id) &&
+                    def.id !== selectedDefinitionId;
+                  return {
+                    value: def.id,
+                    label: def.name,
+                    chip: def.code,
+                    sublabel: isAssigned ? "(Already assigned)" : def.dataType,
+                    disabled: isAssigned,
+                  };
+                })}
+              />
             </Field>
 
             <Field>
