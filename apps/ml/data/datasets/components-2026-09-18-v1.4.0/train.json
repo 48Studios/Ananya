@@ -1,0 +1,452 @@
+[
+  {
+    "text": "GRM188R71C104KA01D CAP CER 0.1UF 16V X7R 0603 SMD Murata Manufacturing",
+    "category": "Capacitors",
+    "mpn": "GRM188R71C104KA01D",
+    "manufacturer": "Murata Manufacturing",
+    "base_family": "GRM188",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "MURATA-GRM-0603-X7R",
+      "sourceUrl": "https://www.murata.com/products/productdetail?partno=GRM188R71C104KA01%23",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "GRM188R71C104KA01J CAP CER 0.1UF 16V X7R 0603 330MM REEL Murata Manufacturing",
+    "category": "Capacitors",
+    "mpn": "GRM188R71C104KA01J",
+    "manufacturer": "Murata Manufacturing",
+    "base_family": "GRM188",
+    "provenance": {
+      "sourceType": "manufacturer_catalog",
+      "sourceIdentifier": "MURATA-CATALOG-2024",
+      "sourceUrl": "https://www.murata.com/catalog/c02e.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "catalog_cross_check"
+    }
+  },
+  {
+    "text": "GRM21BR61A226ME51L CAP CER 22UF 10V X5R 0805 SMD Murata Manufacturing",
+    "category": "Capacitors",
+    "mpn": "GRM21BR61A226ME51L",
+    "manufacturer": "Murata Manufacturing",
+    "base_family": "GRM21B",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "MURATA-GRM21B-X5R",
+      "sourceUrl": "https://www.murata.com/products/productdetail?partno=GRM21BR61A226ME51%23",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "C0603C104K5RACTU CAP CER 0.1UF 50V X7R 0603 SMD Kemet Electronics",
+    "category": "Capacitors",
+    "mpn": "C0603C104K5RACTU",
+    "manufacturer": "Kemet Electronics",
+    "base_family": "C0603C",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "KEMET-C0603-X7R",
+      "sourceUrl": "https://content.kemet.com/datasheets/KEM_C1002_X7R_SMD.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "RC0805FR0710KL RES SMD 10K OHM 1% 1/8W 0805 Yageo",
+    "category": "Resistors",
+    "mpn": "RC0805FR-0710KL",
+    "manufacturer": "Yageo",
+    "base_family": "RC0805",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "YAGEO-PYU-RC_Group_51_RoHS_L_11.pdf",
+      "sourceUrl": "https://www.yageo.com/en/Product/Index/datasheet/pyu-rc",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "RC0805FR-0710KL RES SMD 10K OHM 1% 1/8W 0805 Yageo",
+    "category": "Resistors",
+    "mpn": "RC0805FR-0710KL",
+    "manufacturer": "Yageo",
+    "base_family": "RC0805",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "YAGEO-PYU-RC_Group_51_RoHS_L_11.pdf",
+      "sourceUrl": "https://www.yageo.com/en/Product/Index/datasheet/pyu-rc",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "RC0805FR07100KL RES SMD 100K OHM 1% 1/8W 0805 Yageo",
+    "category": "Resistors",
+    "mpn": "RC0805FR-07100KL",
+    "manufacturer": "Yageo",
+    "base_family": "RC0805",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "YAGEO-PYU-RC_Group_51_RoHS_L_11.pdf",
+      "sourceUrl": "https://www.yageo.com/en/Product/Index/datasheet/pyu-rc",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "RC0805FR-07100KL RES SMD 100K OHM 1% 1/8W 0805 Yageo",
+    "category": "Resistors",
+    "mpn": "RC0805FR-07100KL",
+    "manufacturer": "Yageo",
+    "base_family": "RC0805",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "YAGEO-PYU-RC_Group_51_RoHS_L_11.pdf",
+      "sourceUrl": "https://www.yageo.com/en/Product/Index/datasheet/pyu-rc",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "CRCW080510K0FKEA RES SMD 10K OHM 1% 1/8W 0805 Vishay Dale",
+    "category": "Resistors",
+    "mpn": "CRCW080510K0FKEA",
+    "manufacturer": "Vishay Dale",
+    "base_family": "CRCW0805",
+    "provenance": {
+      "sourceType": "distributor_catalog",
+      "sourceIdentifier": "DIGIKEY-541-10.0KCCT-ND",
+      "sourceUrl": "https://www.digikey.com/en/products/detail/vishay-dale/CRCW080510K0FKEA",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "catalog_cross_check"
+    }
+  },
+  {
+    "text": "SWPA4020S100MT IND SMD 10UH 1.5A SHIELDED 4020 Sunlord Electronics",
+    "category": "Inductors",
+    "mpn": "SWPA4020S100MT",
+    "manufacturer": "Sunlord Electronics",
+    "base_family": "SWPA4020",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "SUNLORD-SWPA-SERIES",
+      "sourceUrl": "https://www.sunlordinc.com/ProductDetail.aspx?id=SWPA4020",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "BLM21PG121SN1D FERRITE BEAD 120 OHM 0805 1LN 3A Murata Manufacturing",
+    "category": "Inductors",
+    "mpn": "BLM21PG121SN1D",
+    "manufacturer": "Murata Manufacturing",
+    "base_family": "BLM21P",
+    "provenance": {
+      "sourceType": "manufacturer_catalog",
+      "sourceIdentifier": "MURATA-EMIFIL-CATALOG",
+      "sourceUrl": "https://www.murata.com/products/emiconfun/ferrite",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "catalog_cross_check"
+    }
+  },
+  {
+    "text": "BLM21PG121SN1D FERRITE BEAD 120\u03a9 0805 1LN 3A Murata Manufacturing",
+    "category": "Inductors",
+    "mpn": "BLM21PG121SN1D",
+    "manufacturer": "Murata Manufacturing",
+    "base_family": "BLM21P",
+    "provenance": {
+      "sourceType": "manufacturer_catalog",
+      "sourceIdentifier": "MURATA-EMIFIL-CATALOG",
+      "sourceUrl": "https://www.murata.com/products/emiconfun/ferrite",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "catalog_cross_check"
+    }
+  },
+  {
+    "text": "SS34-E3/57T DIODE SCHOTTKY 40V 3A DO214AB SMC Vishay Semiconductors",
+    "category": "Diodes",
+    "mpn": "SS34-E3/57T",
+    "manufacturer": "Vishay Semiconductors",
+    "base_family": "SS34",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "VISHAY-SS32-SS36",
+      "sourceUrl": "https://www.vishay.com/docs/88746/ss32.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "SS34E357T DIODE SCHOTTKY 40V 3A DO214AB SMC Vishay Semiconductors",
+    "category": "Diodes",
+    "mpn": "SS34-E3/57T",
+    "manufacturer": "Vishay Semiconductors",
+    "base_family": "SS34",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "VISHAY-SS32-SS36",
+      "sourceUrl": "https://www.vishay.com/docs/88746/ss32.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "BSS138 MOSFET N-CH 50V 220MA SOT-23 onsemi",
+    "category": "Transistors",
+    "mpn": "BSS138",
+    "manufacturer": "onsemi",
+    "base_family": "BSS138",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "ONSEMI-BSS138-D",
+      "sourceUrl": "https://www.onsemi.com/pdf/datasheet/bss138-d.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "SI2302CDST1GE3 MOSFET N-CH 20V 2.6A SOT23 Vishay Siliconix",
+    "category": "Transistors",
+    "mpn": "SI2302CDS-T1-GE3",
+    "manufacturer": "Vishay Siliconix",
+    "base_family": "SI2302",
+    "provenance": {
+      "sourceType": "distributor_catalog",
+      "sourceIdentifier": "MOUSER-SI2302CDS",
+      "sourceUrl": "https://www.mouser.com/ProductDetail/Vishay-Siliconix/SI2302CDS-T1-GE3",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "catalog_cross_check"
+    }
+  },
+  {
+    "text": "SI2302CDS-T1-GE3 MOSFET N-CH 20V 2.6A SOT23 Vishay Siliconix",
+    "category": "Transistors",
+    "mpn": "SI2302CDS-T1-GE3",
+    "manufacturer": "Vishay Siliconix",
+    "base_family": "SI2302",
+    "provenance": {
+      "sourceType": "distributor_catalog",
+      "sourceIdentifier": "MOUSER-SI2302CDS",
+      "sourceUrl": "https://www.mouser.com/ProductDetail/Vishay-Siliconix/SI2302CDS-T1-GE3",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "catalog_cross_check"
+    }
+  },
+  {
+    "text": "STM32F407VGT6 IC MCU 32BIT 1MB FLASH 100LQFP STMicroelectronics",
+    "category": "ICs & Semiconductors",
+    "mpn": "STM32F407VGT6",
+    "manufacturer": "STMicroelectronics",
+    "base_family": "STM32F407",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "STMICRO-STM32F407VG-DS",
+      "sourceUrl": "https://www.st.com/resource/en/datasheet/stm32f407vg.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "AMS11173.3 IC REG LINEAR 3.3V 1A SOT-223 Advanced Monolithic Systems",
+    "category": "ICs & Semiconductors",
+    "mpn": "AMS1117-3.3",
+    "manufacturer": "Advanced Monolithic Systems",
+    "base_family": "AMS1117",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "AMS-AMS1117-DS",
+      "sourceUrl": "http://www.advanced-monolithic.com/pdf/ds1117.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "AMS1117-3.3 IC REG LINEAR 3.3V 1A SOT-223 Advanced Monolithic Systems",
+    "category": "ICs & Semiconductors",
+    "mpn": "AMS1117-3.3",
+    "manufacturer": "Advanced Monolithic Systems",
+    "base_family": "AMS1117",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "AMS-AMS1117-DS",
+      "sourceUrl": "http://www.advanced-monolithic.com/pdf/ds1117.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "B4BXHA(LF)(SN) CONN HEADER VERT 4POS 2.5MM JST",
+    "category": "Connectors",
+    "mpn": "B4B-XH-A(LF)(SN)",
+    "manufacturer": "JST",
+    "base_family": "JST-XH",
+    "provenance": {
+      "sourceType": "manufacturer_catalog",
+      "sourceIdentifier": "JST-XH-SERIES-CAT",
+      "sourceUrl": "https://www.jst-mfg.com/product/pdf/eng/eXH.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "catalog_cross_check"
+    }
+  },
+  {
+    "text": "B4B-XH-A(LF)(SN) CONN HEADER VERT 4POS 2.5MM JST",
+    "category": "Connectors",
+    "mpn": "B4B-XH-A(LF)(SN)",
+    "manufacturer": "JST",
+    "base_family": "JST-XH",
+    "provenance": {
+      "sourceType": "manufacturer_catalog",
+      "sourceIdentifier": "JST-XH-SERIES-CAT",
+      "sourceUrl": "https://www.jst-mfg.com/product/pdf/eng/eXH.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "catalog_cross_check"
+    }
+  },
+  {
+    "text": "B3F-1000 SWITCH TACTILE SPST-NO 0.05A 24V Omron Electronics",
+    "category": "Switches",
+    "mpn": "B3F-1000",
+    "manufacturer": "Omron Electronics",
+    "base_family": "B3F",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "OMRON-B3F-DS",
+      "sourceUrl": "https://omronfs.omron.com/en_US/ecb/products/pdf/en-b3f.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "B3F1000 SWITCH TACTILE SPST-NO 0.05A 24V Omron Electronics",
+    "category": "Switches",
+    "mpn": "B3F-1000",
+    "manufacturer": "Omron Electronics",
+    "base_family": "B3F",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "OMRON-B3F-DS",
+      "sourceUrl": "https://omronfs.omron.com/en_US/ecb/products/pdf/en-b3f.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "WP7113ID LED RED DIFFUSED T-1 3/4 T/H 5MM Kingbright",
+    "category": "Optoelectronics",
+    "mpn": "WP7113ID",
+    "manufacturer": "Kingbright",
+    "base_family": "WP7113",
+    "provenance": {
+      "sourceType": "distributor_catalog",
+      "sourceIdentifier": "DIGIKEY-754-1596-ND",
+      "sourceUrl": "https://www.digikey.com/en/products/detail/kingbright/WP7113ID",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "catalog_cross_check"
+    }
+  },
+  {
+    "text": "300680050 CABLE RIBBON 10COND 1.27MM PITCH 30.5M Molex",
+    "category": "Cables",
+    "mpn": "30068-0050",
+    "manufacturer": "Molex",
+    "base_family": "30068",
+    "provenance": {
+      "sourceType": "confirmed_inventory",
+      "sourceIdentifier": "INV-REC-CABLE-001",
+      "sourceUrl": "ananya://inventory/components/inv-rec-cable-001",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "inventory_confirmation"
+    }
+  },
+  {
+    "text": "30068-0050 CABLE RIBBON 10COND 1.27MM PITCH 30.5M Molex",
+    "category": "Cables",
+    "mpn": "30068-0050",
+    "manufacturer": "Molex",
+    "base_family": "30068",
+    "provenance": {
+      "sourceType": "confirmed_inventory",
+      "sourceIdentifier": "INV-REC-CABLE-001",
+      "sourceUrl": "ananya://inventory/components/inv-rec-cable-001",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "inventory_confirmation"
+    }
+  },
+  {
+    "text": "91290A115 M3 X 8MM METRIC SOCKET HEAD SCREW 316 SS McMaster-Carr",
+    "category": "Mechanical Parts",
+    "mpn": "91290A115",
+    "manufacturer": "McMaster-Carr",
+    "base_family": "91290A",
+    "provenance": {
+      "sourceType": "confirmed_inventory",
+      "sourceIdentifier": "INV-REC-MECH-001",
+      "sourceUrl": "ananya://inventory/components/inv-rec-mech-001",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "inventory_confirmation"
+    }
+  },
+  {
+    "text": "FR4-1.6-1OZ FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Shengyi Technology",
+    "category": "Raw Materials",
+    "mpn": "FR4-1.6-1OZ",
+    "manufacturer": "Shengyi Technology",
+    "base_family": "FR4",
+    "provenance": {
+      "sourceType": "confirmed_inventory",
+      "sourceIdentifier": "INV-REC-RAW-001",
+      "sourceUrl": "ananya://inventory/components/inv-rec-raw-001",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "inventory_confirmation"
+    }
+  },
+  {
+    "text": "FR41.61OZ FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Shengyi Technology",
+    "category": "Raw Materials",
+    "mpn": "FR4-1.6-1OZ",
+    "manufacturer": "Shengyi Technology",
+    "base_family": "FR4",
+    "provenance": {
+      "sourceType": "confirmed_inventory",
+      "sourceIdentifier": "INV-REC-RAW-001",
+      "sourceUrl": "ananya://inventory/components/inv-rec-raw-001",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "inventory_confirmation"
+    }
+  }
+]

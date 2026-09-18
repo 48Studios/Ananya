@@ -620,7 +620,14 @@ def collect_records(
     if feedback_file and os.path.exists(feedback_file):
         with open(feedback_file, "r") as f:
             feedback_data = json.load(f)
-            for item in feedback_data:
+            if isinstance(feedback_data, dict):
+                feedback_records = feedback_data.get("dataset", [])
+            else:
+                feedback_records = feedback_data
+            if not isinstance(feedback_records, list):
+                raise ValueError("Feedback JSON must be a list or an object containing a list under 'dataset'")
+
+            for item in feedback_records:
                 # Rule: ONLY human explicitly accepted or edited items become candidates
                 action = item.get("userAction")
                 if action in ("ACCEPTED", "EDITED") and item.get("reviewerId"):

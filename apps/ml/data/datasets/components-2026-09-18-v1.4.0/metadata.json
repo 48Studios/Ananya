@@ -1,0 +1,27 @@
+{
+  "datasetVersion": "components-2026-09-18-v1.4.0",
+  "createdAt": "2026-09-18T18:06:27.799100+00:00",
+  "totalSourceRecords": 25,
+  "totalExpandedExamples": 37,
+  "trainSize": 30,
+  "valSize": 7,
+  "duplicatePairsCount": 57,
+  "distinctBaseFamilies": 23,
+  "dataLeakageVerified": true,
+  "overlapCount": 0,
+  "categories": [
+    "Cables",
+    "Capacitors",
+    "Connectors",
+    "Consumables",
+    "Diodes",
+    "ICs & Semiconductors",
+    "Inductors",
+    "Mechanical Parts",
+    "Optoelectronics",
+    "Raw Materials",
+    "Resistors",
+    "Switches",
+    "Transistors"
+  ]
+}
