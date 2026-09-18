@@ -1489,9 +1489,48 @@ export class MlService {
     };
     items: AttributeAuditIssueDto[];
   }> {
-    const auditRes = await this.auditAttributeLibrary();
+    const [auditRes, rejectedFeedback] = await Promise.all([
+      this.auditAttributeLibrary(),
+      db
+        .select({
+          suggestionType: aiSuggestionFeedback.suggestionType,
+          attributeDefinitionId: aiSuggestionFeedback.attributeDefinitionId,
+          categoryId: aiSuggestionFeedback.categoryId,
+        })
+        .from(aiSuggestionFeedback)
+        .where(
+          and(
+            eq(aiSuggestionFeedback.userAction, 'REJECTED'),
+            eq(aiSuggestionFeedback.field, 'queue_item'),
+          ),
+        ),
+    ]);
 
-    const items = (auditRes.issues || []).map((issue) => {
+    // Build a set of rejection fingerprints so previously rejected items
+    // are excluded from the queue on subsequent loads.
+    const rejectedKeys = new Set(
+      rejectedFeedback.map(
+        (f) =>
+          `${f.suggestionType}::${f.attributeDefinitionId ?? ''}::${f.categoryId ?? ''}`,
+      ),
+    );
+
+    const allIssues = (auditRes.issues || []).filter((issue) => {
+      // Normalise type the same way as the mapping below
+      let normType = issue.type;
+      if (issue.type === 'MISSING_EXPECTED_ATTRIBUTE') {
+        normType = 'SUGGESTED_BINDING';
+      } else if (issue.type === 'DUPLICATE_ATTRIBUTE') {
+        normType = 'POSSIBLE_DUPLICATE';
+      }
+
+      const key = `${normType}::${issue.attributeId ?? ''}::${issue.categoryId ?? ''}`;
+      // Also check the original type in case the feedback was recorded before normalisation
+      const origKey = `${issue.type}::${issue.attributeId ?? ''}::${issue.categoryId ?? ''}`;
+      return !rejectedKeys.has(key) && !rejectedKeys.has(origKey);
+    });
+
+    const items = allIssues.map((issue) => {
       let normType = issue.type;
       if (issue.type === 'MISSING_EXPECTED_ATTRIBUTE') {
         normType = 'SUGGESTED_BINDING';
