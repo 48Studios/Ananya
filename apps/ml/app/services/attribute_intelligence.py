@@ -154,6 +154,86 @@ CANONICAL_PARAM_KNOWLEDGE: Dict[str, Dict[str, Any]] = {
         "aliases": ["Temperature Range", "Operating Temp Range", "Working Temperature"],
         "categories": ["Resistors", "Capacitors", "Inductors", "Diodes", "Transistors", "ICs & Semiconductors"],
     },
+    "termination": {
+        "canonical_name": "Termination Style",
+        "code": "termination",
+        "dataType": "SELECT",
+        "unitCategory": None,
+        "defaultUnit": None,
+        "displayUnits": [],
+        "groupName": "Physical",
+        "validationRules": None,
+        "aliases": ["Termination", "Terminal Type", "Lead Style"],
+        "options": [
+            "SMD / SMT",
+            "Through Hole (Axial)",
+            "Through Hole (Radial)",
+            "Solder Lug",
+            "Screw Terminal",
+            "Lead Free",
+            "RoHS Compliant",
+        ],
+        "categories": ["Resistors", "Capacitors", "Inductors", "Connectors"],
+    },
+    "contact_plating": {
+        "canonical_name": "Contact Plating",
+        "code": "contact_plating",
+        "dataType": "SELECT",
+        "unitCategory": None,
+        "defaultUnit": None,
+        "displayUnits": [],
+        "groupName": "Physical",
+        "validationRules": None,
+        "aliases": ["Plating", "Contact Finish", "Terminal Plating"],
+        "options": ["Gold", "Tin", "Silver", "Nickel", "Selective Gold"],
+        "categories": ["Connectors", "Relays", "Switches"],
+    },
+    "gender": {
+        "canonical_name": "Gender",
+        "code": "gender",
+        "dataType": "SELECT",
+        "unitCategory": None,
+        "defaultUnit": None,
+        "displayUnits": [],
+        "groupName": "Physical",
+        "validationRules": None,
+        "aliases": ["Connector Gender", "Plug / Socket"],
+        "options": ["Male (Pin)", "Female (Socket)", "Reversible", "Universal"],
+        "categories": ["Connectors"],
+    },
+    "orientation": {
+        "canonical_name": "Orientation",
+        "code": "orientation",
+        "dataType": "SELECT",
+        "unitCategory": None,
+        "defaultUnit": None,
+        "displayUnits": [],
+        "groupName": "Physical",
+        "validationRules": None,
+        "aliases": ["Mounting Angle", "Pin Orientation", "Body Orientation"],
+        "options": ["Straight / Vertical", "Right Angle", "Horizontal"],
+        "categories": ["Connectors", "Switches", "LEDs"],
+    },
+    "polarity": {
+        "canonical_name": "Polarity",
+        "code": "polarity",
+        "dataType": "SELECT",
+        "unitCategory": None,
+        "defaultUnit": None,
+        "displayUnits": [],
+        "groupName": "Electrical",
+        "validationRules": None,
+        "aliases": ["Polarity Type", "Directionality"],
+        "options": [
+            "Active High",
+            "Active Low",
+            "Unidirectional",
+            "Bidirectional",
+            "Polarized",
+            "Non-Polarized",
+        ],
+        "categories": ["Diodes", "Capacitors", "ICs & Semiconductors"],
+    },
 }
 
 def normalize_text(text: str) -> str:
@@ -767,7 +847,13 @@ class AttributeIntelligenceService:
 
         # 2. Check canonical knowledge
         for key, param in CANONICAL_PARAM_KNOWLEDGE.items():
-            if norm_code == normalize_text(param["code"]) or norm_name == normalize_text(param["canonical_name"]):
+            candidates = [param["code"], param["canonical_name"]] + param.get("aliases", [])
+            norm_candidates = [normalize_text(c) for c in candidates]
+            if (
+                norm_code in norm_candidates
+                or norm_name in norm_candidates
+                or any(len(c) >= 4 and (c in norm_code or c in norm_name) for c in norm_candidates)
+            ):
                 for opt in param.get("options", []):
                     if opt.lower() not in existing_set:
                         existing_set.add(opt.lower())

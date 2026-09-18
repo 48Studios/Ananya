@@ -379,6 +379,10 @@ export class DetectAttributeDuplicatesResponseDto {
 }
 
 export class SuggestEnumValuesDto {
+  @IsOptional()
+  @IsString()
+  attributeId?: string;
+
   @IsString()
   @IsNotEmpty()
   attributeCode!: string;
@@ -396,6 +400,7 @@ export class EnumOptionSuggestionDto {
   code!: string;
   label!: string;
   source!: string;
+  provenance?: string;
   confidence!: number;
   confidenceLevel!: 'HIGH' | 'MEDIUM' | 'LOW';
 }

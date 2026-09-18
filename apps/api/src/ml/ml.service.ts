@@ -1262,6 +1262,49 @@ export class MlService {
       datapackHints,
     );
 
+    // If attributeId is provided, also check historical values from componentAttributeValues
+    if (dto.attributeId) {
+      try {
+        const existingSet = new Set([
+          ...(dto.existingOptions || []).map((o) => o.toLowerCase()),
+          ...suggested.map((s) => s.code.toLowerCase()),
+          ...suggested.map((s) => s.label.toLowerCase()),
+        ]);
+
+        const compValues = await db
+          .select({ value: componentAttributeValues.textValue })
+          .from(componentAttributeValues)
+          .where(
+            eq(componentAttributeValues.attributeDefinitionId, dto.attributeId),
+          )
+          .limit(100);
+
+        const freqMap = new Map<string, number>();
+        for (const row of compValues) {
+          if (row.value && typeof row.value === 'string' && row.value.trim()) {
+            const val = row.value.trim();
+            if (!existingSet.has(val.toLowerCase()) && val.length <= 40) {
+              freqMap.set(val, (freqMap.get(val) || 0) + 1);
+            }
+          }
+        }
+
+        for (const [val, count] of freqMap.entries()) {
+          const confidence = count >= 3 ? 0.92 : 0.85;
+          suggested.push({
+            code: val.toLowerCase().replace(/[^a-z0-9_-]/g, '_'),
+            label: val,
+            source: 'database:component_attribute_values',
+            provenance: 'database:component_attribute_values',
+            confidence,
+            confidenceLevel: confidence >= 0.9 ? 'HIGH' : 'MEDIUM',
+          });
+        }
+      } catch {
+        // ignore DB query error
+      }
+    }
+
     const executionTimeMs = Number((performance.now() - t0).toFixed(2));
     return {
       suggestedOptions: suggested,
@@ -2038,9 +2081,16 @@ export class MlService {
 
     // Canonical params
     for (const item of Object.values(CANONICAL_PARAM_FALLBACK)) {
+      const candidates = [
+        item.code,
+        item.canonical,
+        ...(item.aliases || []),
+      ].map((c) => c.toLowerCase().replace(/[^a-z0-9]/g, ''));
+
       if (
-        item.code.toLowerCase().replace(/[^a-z0-9]/g, '') === normCode ||
-        item.canonical.toLowerCase().replace(/[^a-z0-9]/g, '') === normName
+        candidates.includes(normCode) ||
+        candidates.includes(normName) ||
+        candidates.some((c) => c.length >= 4 && (normCode.includes(c) || normName.includes(c)))
       ) {
         for (const opt of item.options || []) {
           if (!existingSet.has(opt.toLowerCase())) {
@@ -2049,6 +2099,7 @@ export class MlService {
               code: opt,
               label: opt,
               source: 'domain:electronics_standard',
+              provenance: 'domain:electronics_standard',
               confidence: 0.95,
               confidenceLevel: 'HIGH',
             });
@@ -2562,5 +2613,80 @@ const CANONICAL_PARAM_FALLBACK: Record<
       'ICs & Semiconductors',
     ],
     aliases: ['Temperature Range', 'Operating Temp Range'],
+  },
+  termination: {
+    canonical: 'Termination Style',
+    code: 'termination',
+    dataType: 'SELECT',
+    unitCategory: null,
+    defaultUnit: null,
+    displayUnits: [],
+    group: 'Physical',
+    options: [
+      'SMD / SMT',
+      'Through Hole (Axial)',
+      'Through Hole (Radial)',
+      'Solder Lug',
+      'Screw Terminal',
+      'Lead Free',
+      'RoHS Compliant',
+    ],
+    categories: ['Resistors', 'Capacitors', 'Inductors', 'Connectors'],
+    aliases: ['Termination', 'Terminal Type', 'Lead Style'],
+  },
+  contact_plating: {
+    canonical: 'Contact Plating',
+    code: 'contact_plating',
+    dataType: 'SELECT',
+    unitCategory: null,
+    defaultUnit: null,
+    displayUnits: [],
+    group: 'Physical',
+    options: ['Gold', 'Tin', 'Silver', 'Nickel', 'Selective Gold'],
+    categories: ['Connectors', 'Relays', 'Switches'],
+    aliases: ['Plating', 'Contact Finish', 'Terminal Plating'],
+  },
+  gender: {
+    canonical: 'Gender',
+    code: 'gender',
+    dataType: 'SELECT',
+    unitCategory: null,
+    defaultUnit: null,
+    displayUnits: [],
+    group: 'Physical',
+    options: ['Male (Pin)', 'Female (Socket)', 'Reversible', 'Universal'],
+    categories: ['Connectors'],
+    aliases: ['Connector Gender', 'Plug / Socket'],
+  },
+  orientation: {
+    canonical: 'Orientation',
+    code: 'orientation',
+    dataType: 'SELECT',
+    unitCategory: null,
+    defaultUnit: null,
+    displayUnits: [],
+    group: 'Physical',
+    options: ['Straight / Vertical', 'Right Angle', 'Horizontal'],
+    categories: ['Connectors', 'Switches', 'LEDs'],
+    aliases: ['Mounting Angle', 'Pin Orientation', 'Body Orientation'],
+  },
+  polarity: {
+    canonical: 'Polarity',
+    code: 'polarity',
+    dataType: 'SELECT',
+    unitCategory: null,
+    defaultUnit: null,
+    displayUnits: [],
+    group: 'Electrical',
+    options: [
+      'Active High',
+      'Active Low',
+      'Unidirectional',
+      'Bidirectional',
+      'Polarized',
+      'Non-Polarized',
+    ],
+    categories: ['Diodes', 'Capacitors', 'ICs & Semiconductors'],
+    aliases: ['Polarity Type', 'Directionality'],
   },
 };

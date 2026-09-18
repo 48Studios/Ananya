@@ -262,13 +262,16 @@ export interface AttributeDuplicateDetectionResponseDto {
 export interface EnumOptionSuggestionDto {
   code: string;
   label: string;
-  provenance: string;
+  provenance?: string;
+  source?: string;
   confidence: number;
+  confidenceLevel?: "HIGH" | "MEDIUM" | "LOW";
 }
 
 export interface EnumSuggestionsResponseDto {
-  attributeCode: string;
+  attributeCode?: string;
   suggestedOptions: EnumOptionSuggestionDto[];
+  isMlActive?: boolean;
   executionTimeMs: number;
 }
 
@@ -486,6 +489,7 @@ export const attributesApi = {
     ),
 
   suggestEnumValues: (payload: {
+    attributeId?: string;
     attributeCode: string;
     attributeName?: string;
     existingOptions?: string[];
