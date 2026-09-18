@@ -666,17 +666,6 @@ export function AttributeReviewQueueDialog({
                       <span className="font-semibold text-foreground truncate">
                         {item.attributeName || "—"}
                       </span>
-                      {attrCode && (
-                        <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-background border border-border text-muted-foreground">
-                          {attrCode}
-                        </code>
-                      )}
-                      {dataType && (
-                        <span className="text-[10px] font-mono text-muted-foreground">
-                          ({dataType}
-                          {defaultUnit ? `: ${defaultUnit}` : ""})
-                        </span>
-                      )}
                     </div>
 
                     {/* Target / Association Details Column */}
