@@ -394,9 +394,9 @@ export function AttributeOptionsDialog({
           {/* AI Suggestions Section */}
           <div className="p-4 bg-muted/30 border border-border rounded-xl space-y-3 shadow-2xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className="flex size-8 items-center justify-center rounded-md bg-primary/15 text-primary border border-primary/25">
-                  <Sparkles className="size-4" />
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 m-0 items-center justify-center rounded-md bg-primary/15 text-primary border border-primary/25">
+                  <Sparkles className="size-5" />
                 </div>
                 <div>
                   <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">

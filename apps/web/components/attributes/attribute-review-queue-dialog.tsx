@@ -212,7 +212,7 @@ export function AttributeReviewQueueDialog({
             },
           ],
         })
-        .catch(() => {});
+        .catch(() => { });
 
       setStatusMessage(
         `Applied decision: "${item.title || item.attributeName || item.reason}".`,
@@ -220,13 +220,13 @@ export function AttributeReviewQueueDialog({
       setQueueData((prev) =>
         prev
           ? {
-              ...prev,
-              summary: {
-                ...prev.summary,
-                total: Math.max(0, prev.summary.total - 1),
-              },
-              items: prev.items.filter((i) => i.id !== item.id),
-            }
+            ...prev,
+            summary: {
+              ...prev.summary,
+              total: Math.max(0, prev.summary.total - 1),
+            },
+            items: prev.items.filter((i) => i.id !== item.id),
+          }
           : null,
       );
       onActionComplete?.();
@@ -257,7 +257,7 @@ export function AttributeReviewQueueDialog({
             },
           ],
         })
-        .catch(() => {});
+        .catch(() => { });
 
       setStatusMessage(
         `Dismissed proposal: "${item.title || item.attributeName || item.reason}".`,
@@ -265,13 +265,13 @@ export function AttributeReviewQueueDialog({
       setQueueData((prev) =>
         prev
           ? {
-              ...prev,
-              summary: {
-                ...prev.summary,
-                total: Math.max(0, prev.summary.total - 1),
-              },
-              items: prev.items.filter((i) => i.id !== item.id),
-            }
+            ...prev,
+            summary: {
+              ...prev.summary,
+              total: Math.max(0, prev.summary.total - 1),
+            },
+            items: prev.items.filter((i) => i.id !== item.id),
+          }
           : null,
       );
       onActionComplete?.();
@@ -336,29 +336,29 @@ export function AttributeReviewQueueDialog({
 
         {/* Header Summary & On-Demand Audit Trigger */}
         <div className="p-4 bg-muted/40 border border-border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-primary border border-primary/25">
-                <Sparkles className="size-3.5" />
-              </div>
+          <div className="space-y-1 flex gap-3 items-center">
+            <div className="flex size-10 items-center justify-center rounded-md bg-primary/15 text-primary border border-primary/25 m-0">
+              <Sparkles className="size-5" />
+            </div>
+            <div className="gap-2">
               <span className="font-semibold text-xs text-foreground">
                 {counts.all} Pending Review Item{counts.all === 1 ? "" : "s"}
               </span>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground font-mono">
-              <span>{counts.bindings} bindings</span>
-              <span>•</span>
-              <span>{counts.duplicates} duplicates</span>
-              <span>•</span>
-              <span>{counts.suspicious} suspicious</span>
-              <span>•</span>
-              <span>{counts.unused} unused</span>
-              {counts.enums > 0 && (
-                <>
-                  <span>•</span>
-                  <span>{counts.enums} enum values</span>
-                </>
-              )}
+              <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground font-mono">
+                <span>{counts.bindings} bindings</span>
+                <span>•</span>
+                <span>{counts.duplicates} duplicates</span>
+                <span>•</span>
+                <span>{counts.suspicious} suspicious</span>
+                <span>•</span>
+                <span>{counts.unused} unused</span>
+                {counts.enums > 0 && (
+                  <>
+                    <span>•</span>
+                    <span>{counts.enums} enum values</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -398,11 +398,10 @@ export function AttributeReviewQueueDialog({
               key={tab.id}
               type="button"
               onClick={() => setFilterType(tab.id)}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer shrink-0 ${
-                filterType === tab.id
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer shrink-0 ${filterType === tab.id
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+                }`}
             >
               {tab.label} ({tab.count})
             </button>
@@ -433,12 +432,12 @@ export function AttributeReviewQueueDialog({
                 (isBinding
                   ? `Bind "${item.attributeName || "Attribute"}" to category "${item.categoryName || "Category"}"`
                   : isSuspicious
-                  ? `Unbind suspicious "${item.attributeName || "Attribute"}" from "${item.categoryName || "Category"}"`
-                  : isDuplicate
-                  ? `Possible Duplicate: "${item.attributeName || "Attribute"}"`
-                  : isUnused
-                  ? `Unused Attribute: "${item.attributeName || "Attribute"}"`
-                  : item.reason || "Review item");
+                    ? `Unbind suspicious "${item.attributeName || "Attribute"}" from "${item.categoryName || "Category"}"`
+                    : isDuplicate
+                      ? `Possible Duplicate: "${item.attributeName || "Attribute"}"`
+                      : isUnused
+                        ? `Unused Attribute: "${item.attributeName || "Attribute"}"`
+                        : item.reason || "Review item");
 
               const displaySubtitle = item.subtitle || item.reason || "";
               const attrCode =
@@ -489,8 +488,8 @@ export function AttributeReviewQueueDialog({
                             item.confidenceLevel === "HIGH"
                               ? "SUCCESS"
                               : item.confidenceLevel === "MEDIUM"
-                              ? "IN_REVIEW"
-                              : "DRAFT"
+                                ? "IN_REVIEW"
+                                : "DRAFT"
                           }
                           label={`${item.confidenceLevel} CONFIDENCE`}
                         />
@@ -516,9 +515,8 @@ export function AttributeReviewQueueDialog({
                         variant="ghost"
                         size="icon-xs"
                         onClick={() => toggleWhy(item.id)}
-                        className={`text-muted-foreground hover:text-foreground ${
-                          isWhyExpanded ? "bg-muted text-foreground" : ""
-                        }`}
+                        className={`text-muted-foreground hover:text-foreground ${isWhyExpanded ? "bg-muted text-foreground" : ""
+                          }`}
                         title="View reasoning evidence"
                       >
                         <HelpCircle className="size-3.5" />

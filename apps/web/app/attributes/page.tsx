@@ -470,7 +470,7 @@ export default function AttributesPage() {
               <Sparkles className="w-3.5 h-3.5" />
               Intelligence Queue
               {reviewQueueCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-primary text-primary-foreground text-[10px] font-mono leading-none">
+                <span className="ml-1 inline-flex items-center justify-center px-1.5 h-4 min-w-4 rounded-full bg-primary/15 text-primary border border-primary/25 text-[10px] font-mono font-medium">
                   {reviewQueueCount}
                 </span>
               )}
@@ -639,7 +639,10 @@ export default function AttributesPage() {
       {/* Attribute Intelligence Review Queue Dialog */}
       <AttributeReviewQueueDialog
         isOpen={isReviewQueueOpen}
-        onClose={() => setIsReviewQueueOpen(false)}
+        onClose={() => {
+          setIsReviewQueueOpen(false);
+          fetchAttributes();
+        }}
         onActionComplete={fetchAttributes}
         onEditAttribute={(attrId) => {
           const found = attributes.find((a) => a.id === attrId);
