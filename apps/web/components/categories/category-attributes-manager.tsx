@@ -48,10 +48,10 @@ export function CategoryAttributesManager({
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
 
   // AI Suggestions state
+  const [loadingSuggestions, setLoadingSuggestions] = React.useState(false);
   const [suggestedCategoryAttrs, setSuggestedCategoryAttrs] = React.useState<
     SuggestedCategoryAttributeItemDto[]
   >([]);
-  const [loadingSuggestions, setLoadingSuggestions] = React.useState(false);
   const [selectedCodes, setSelectedCodes] = React.useState<Set<string>>(new Set());
   const [expandedWhy, setExpandedWhy] = React.useState<Record<string, boolean>>({});
   const [dismissedCodes, setDismissedCodes] = React.useState<Set<string>>(new Set());

@@ -133,4 +133,3 @@ export class MlController {
     return this.mlService.applySuggestedBindings(input, user);
   }
 }
-

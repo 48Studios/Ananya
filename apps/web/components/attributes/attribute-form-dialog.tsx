@@ -12,9 +12,6 @@ import {
   Sparkles,
   HelpCircle,
   Check,
-  CheckCircle2,
-  Copy,
-  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {

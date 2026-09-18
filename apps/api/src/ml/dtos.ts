@@ -408,16 +408,45 @@ export class SuggestEnumValuesResponseDto {
 
 export class AttributeAuditIssueDto {
   id!: string;
-  type!: 'DUPLICATE_ATTRIBUTE' | 'SUSPICIOUS_BINDING' | 'MISSING_EXPECTED_ATTRIBUTE' | 'UNUSED_ATTRIBUTE' | 'INCONSISTENT_CONFIG';
+  type!:
+    | 'DUPLICATE_ATTRIBUTE'
+    | 'SUSPICIOUS_BINDING'
+    | 'MISSING_EXPECTED_ATTRIBUTE'
+    | 'UNUSED_ATTRIBUTE'
+    | 'INCONSISTENT_CONFIG'
+    | 'SUGGESTED_BINDING'
+    | 'POSSIBLE_DUPLICATE'
+    | 'SUGGESTED_ENUM_VALUE';
   severity!: 'WARNING' | 'INFO' | 'CRITICAL';
+  title?: string;
+  subtitle?: string;
   attributeId?: string | null;
+  attributeCode?: string | null;
   attributeName?: string | null;
   categoryId?: string | null;
   categoryName?: string | null;
   confidence!: number;
   confidenceLevel!: 'HIGH' | 'MEDIUM' | 'LOW';
   reason!: string;
+  payload?: Record<string, unknown>;
   evidence!: EvidenceItemDto[];
+}
+
+export class ReviewQueueSummaryDto {
+  total!: number;
+  suggestedBindings!: number;
+  possibleDuplicates!: number;
+  suspiciousBindings!: number;
+  unusedAttributes!: number;
+  suggestedEnumValues!: number;
+  totalPending?: number;
+  duplicateWarnings?: number;
+  missingExpected?: number;
+}
+
+export class ReviewQueueResponseDto {
+  summary!: ReviewQueueSummaryDto;
+  items!: AttributeAuditIssueDto[];
 }
 
 export class AuditAttributeLibraryResponseDto {
@@ -427,6 +456,7 @@ export class AuditAttributeLibraryResponseDto {
     suspiciousBindings: number;
     missingExpectedAttributes: number;
     unusedAttributes: number;
+    issuesCount?: number;
   };
   issues!: AttributeAuditIssueDto[];
   isMlActive!: boolean;
@@ -445,4 +475,3 @@ export class ApplySuggestedBindingDto {
   @IsOptional()
   isRequired?: boolean;
 }
-

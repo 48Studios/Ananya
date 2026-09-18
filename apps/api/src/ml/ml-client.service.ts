@@ -55,7 +55,7 @@ function formatFetchError(err: unknown): string {
   const causeMsg =
     cause instanceof Error
       ? ` (cause: ${cause.message})`
-      : cause != null
+      : typeof cause === 'string' || typeof cause === 'number'
         ? ` (cause: ${String(cause)})`
         : '';
   return `${err.message}${causeMsg}`;
@@ -174,12 +174,15 @@ export class MlClientService {
   }> | null> {
     if (!this.isEnabled) return null;
     try {
-      const res = await fetch(`${this.baseUrl}/v1/attributes/suggest-bindings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(this.timeoutMs),
-      });
+      const res = await fetch(
+        `${this.baseUrl}/v1/attributes/suggest-bindings`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(this.timeoutMs),
+        },
+      );
       if (!res.ok) return null;
       const data = (await res.json()) as {
         suggestions?: Array<{
@@ -225,12 +228,15 @@ export class MlClientService {
   }> | null> {
     if (!this.isEnabled) return null;
     try {
-      const res = await fetch(`${this.baseUrl}/v1/attributes/suggest-category-attributes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(this.timeoutMs),
-      });
+      const res = await fetch(
+        `${this.baseUrl}/v1/attributes/suggest-category-attributes`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(this.timeoutMs),
+        },
+      );
       if (!res.ok) return null;
       const data = (await res.json()) as {
         suggestions?: Array<{
@@ -348,12 +354,15 @@ export class MlClientService {
   } | null> {
     if (!this.isEnabled) return null;
     try {
-      const res = await fetch(`${this.baseUrl}/v1/attributes/detect-duplicates`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(this.timeoutMs),
-      });
+      const res = await fetch(
+        `${this.baseUrl}/v1/attributes/detect-duplicates`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(this.timeoutMs),
+        },
+      );
       if (!res.ok) return null;
       return (await res.json()) as {
         isDuplicate: boolean;
@@ -393,12 +402,15 @@ export class MlClientService {
   }> | null> {
     if (!this.isEnabled) return null;
     try {
-      const res = await fetch(`${this.baseUrl}/v1/attributes/suggest-enum-values`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(this.timeoutMs),
-      });
+      const res = await fetch(
+        `${this.baseUrl}/v1/attributes/suggest-enum-values`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(this.timeoutMs),
+        },
+      );
       if (!res.ok) return null;
       const data = (await res.json()) as {
         suggestedOptions?: Array<{
@@ -434,7 +446,12 @@ export class MlClientService {
     };
     issues: Array<{
       id: string;
-      type: 'DUPLICATE_ATTRIBUTE' | 'SUSPICIOUS_BINDING' | 'MISSING_EXPECTED_ATTRIBUTE' | 'UNUSED_ATTRIBUTE' | 'INCONSISTENT_CONFIG';
+      type:
+        | 'DUPLICATE_ATTRIBUTE'
+        | 'SUSPICIOUS_BINDING'
+        | 'MISSING_EXPECTED_ATTRIBUTE'
+        | 'UNUSED_ATTRIBUTE'
+        | 'INCONSISTENT_CONFIG';
       severity: 'WARNING' | 'INFO' | 'CRITICAL';
       attributeId?: string | null;
       attributeName?: string | null;
@@ -465,7 +482,12 @@ export class MlClientService {
         };
         issues: Array<{
           id: string;
-          type: 'DUPLICATE_ATTRIBUTE' | 'SUSPICIOUS_BINDING' | 'MISSING_EXPECTED_ATTRIBUTE' | 'UNUSED_ATTRIBUTE' | 'INCONSISTENT_CONFIG';
+          type:
+            | 'DUPLICATE_ATTRIBUTE'
+            | 'SUSPICIOUS_BINDING'
+            | 'MISSING_EXPECTED_ATTRIBUTE'
+            | 'UNUSED_ATTRIBUTE'
+            | 'INCONSISTENT_CONFIG';
           severity: 'WARNING' | 'INFO' | 'CRITICAL';
           attributeId?: string | null;
           attributeName?: string | null;

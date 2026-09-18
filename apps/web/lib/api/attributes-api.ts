@@ -310,7 +310,11 @@ export interface ReviewQueueSummaryDto {
   suggestedBindings: number;
   possibleDuplicates: number;
   suspiciousBindings: number;
-  suggestedEnumValues: number;
+  unusedAttributes?: number;
+  suggestedEnumValues?: number;
+  totalPending?: number;
+  duplicateWarnings?: number;
+  missingExpected?: number;
 }
 
 export interface ReviewQueueItemDto {
@@ -320,16 +324,22 @@ export interface ReviewQueueItemDto {
     | "POSSIBLE_DUPLICATE"
     | "SUSPICIOUS_BINDING"
     | "SUGGESTED_ENUM_VALUE"
-    | "MISSING_ATTRIBUTE";
-  title: string;
+    | "MISSING_ATTRIBUTE"
+    | "MISSING_EXPECTED_ATTRIBUTE"
+    | "DUPLICATE_ATTRIBUTE"
+    | "UNUSED_ATTRIBUTE"
+    | string;
+  title?: string;
   subtitle?: string;
+  confidence?: number;
   confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
+  reason?: string;
   attributeId?: string;
   attributeCode?: string;
   attributeName?: string;
   categoryId?: string;
   categoryName?: string;
-  payload: Record<string, unknown>;
+  payload?: Record<string, unknown>;
   evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
 }
 

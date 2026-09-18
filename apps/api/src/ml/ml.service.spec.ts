@@ -244,4 +244,3 @@ describe('MlService', () => {
     expect(queue.items).toBeInstanceOf(Array);
   });
 });
-

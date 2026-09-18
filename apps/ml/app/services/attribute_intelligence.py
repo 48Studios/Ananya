@@ -929,6 +929,7 @@ class AttributeIntelligenceService:
             "suspiciousBindings": sum(1 for i in issues if i.type == "SUSPICIOUS_BINDING"),
             "missingExpectedAttributes": sum(1 for i in issues if i.type == "MISSING_EXPECTED_ATTRIBUTE"),
             "unusedAttributes": sum(1 for i in issues if i.type == "UNUSED_ATTRIBUTE"),
+            "issuesCount": len(issues),
         }
 
         return summary, issues

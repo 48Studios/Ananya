@@ -29,7 +29,6 @@ import {
   Edit3,
   Loader2,
   AlertCircle,
-  AlertTriangle,
   CheckCircle2,
   Hash,
   Check,
@@ -80,13 +79,13 @@ export function AttributeCategoriesDialog({
   const [isUnbinding, setIsUnbinding] = React.useState(false);
 
   // AI Suggestions & Suspicious Bindings state
+  const [loadingAi, setLoadingAi] = React.useState(false);
   const [aiSuggestions, setAiSuggestions] = React.useState<
     SuggestedCategoryBindingDto[]
   >([]);
   const [suspiciousBindings, setSuspiciousBindings] = React.useState<
     SuspiciousBindingDto[]
   >([]);
-  const [loadingAi, setLoadingAi] = React.useState(false);
   const [expandedWhy, setExpandedWhy] = React.useState<Record<string, boolean>>(
     {},
   );

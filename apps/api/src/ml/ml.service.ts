@@ -57,6 +57,37 @@ interface RawExtractedAttribute {
   evidence?: EvidenceItemDto[];
 }
 
+interface SimpleAttributeDef {
+  id: string;
+  code: string;
+  name: string;
+  dataType?: string;
+  unitCategory?: string | null;
+  defaultUnit?: string | null;
+  aliases?: string[] | null;
+  groupName?: string | null;
+}
+
+interface SimpleCategory {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface SimpleBinding {
+  id?: string;
+  attributeDefinitionId: string;
+  categoryId: string;
+  isRequired?: boolean;
+}
+
+interface DataPackHint {
+  categoryCode?: string;
+  categoryName?: string;
+  expectedAttributes?: string[];
+  packagePatterns?: string[];
+}
+
 const FALLBACK_MANUFACTURER_PREFIXES: Record<string, string> = {
   RC: 'Yageo',
   RT: 'Yageo',
@@ -908,7 +939,9 @@ export class MlService {
           componentId: componentAttributeValues.componentId,
         })
         .from(componentAttributeValues)
-        .where(eq(componentAttributeValues.attributeDefinitionId, dto.attributeId))
+        .where(
+          eq(componentAttributeValues.attributeDefinitionId, dto.attributeId),
+        )
         .limit(200);
 
       if (compAttrRows.length > 0) {
@@ -963,7 +996,7 @@ export class MlService {
       attrName,
       attrCode,
       allCategories,
-      datapackHints as any,
+      datapackHints,
       componentCounts,
     );
 
@@ -1050,7 +1083,7 @@ export class MlService {
       category,
       allDefs,
       boundIds,
-      datapackHints as any,
+      datapackHints,
     );
 
     const executionTimeMs = Number((performance.now() - t0).toFixed(2));
@@ -1226,7 +1259,7 @@ export class MlService {
       dto.attributeCode,
       dto.attributeName,
       dto.existingOptions || [],
-      datapackHints as any,
+      datapackHints,
     );
 
     const executionTimeMs = Number((performance.now() - t0).toFixed(2));
@@ -1324,24 +1357,82 @@ export class MlService {
 
   async getReviewQueue(): Promise<{
     summary: {
-      totalPending: number;
+      total: number;
       suggestedBindings: number;
-      duplicateWarnings: number;
+      possibleDuplicates: number;
       suspiciousBindings: number;
+      unusedAttributes: number;
+      suggestedEnumValues: number;
+      totalPending: number;
+      duplicateWarnings: number;
       missingExpected: number;
     };
     items: AttributeAuditIssueDto[];
   }> {
     const auditRes = await this.auditAttributeLibrary();
+
+    const items = (auditRes.issues || []).map((issue) => {
+      let normType = issue.type;
+      if (issue.type === 'MISSING_EXPECTED_ATTRIBUTE') {
+        normType = 'SUGGESTED_BINDING';
+      } else if (issue.type === 'DUPLICATE_ATTRIBUTE') {
+        normType = 'POSSIBLE_DUPLICATE';
+      }
+
+      const title =
+        issue.title ||
+        (normType === 'SUGGESTED_BINDING'
+          ? `Bind "${issue.attributeName || 'Attribute'}" to category "${issue.categoryName || 'Category'}"`
+          : normType === 'SUSPICIOUS_BINDING'
+          ? `Unbind suspicious "${issue.attributeName || 'Attribute'}" from "${issue.categoryName || 'Category'}"`
+          : normType === 'POSSIBLE_DUPLICATE'
+          ? `Possible Duplicate: "${issue.attributeName || 'Attribute'}"`
+          : normType === 'UNUSED_ATTRIBUTE'
+          ? `Unused Attribute: "${issue.attributeName || 'Attribute'}"`
+          : issue.reason);
+
+      const subtitle = issue.subtitle || issue.reason;
+
+      return {
+        ...issue,
+        type: normType,
+        title,
+        subtitle,
+      };
+    });
+
+    const bindingsCount = items.filter(
+      (i) =>
+        i.type === 'SUGGESTED_BINDING' ||
+        i.type === 'MISSING_EXPECTED_ATTRIBUTE',
+    ).length;
+    const duplicatesCount = items.filter(
+      (i) =>
+        i.type === 'POSSIBLE_DUPLICATE' || i.type === 'DUPLICATE_ATTRIBUTE',
+    ).length;
+    const suspiciousCount = items.filter(
+      (i) => i.type === 'SUSPICIOUS_BINDING',
+    ).length;
+    const unusedCount = items.filter(
+      (i) => i.type === 'UNUSED_ATTRIBUTE',
+    ).length;
+    const enumCount = items.filter(
+      (i) => i.type === 'SUGGESTED_ENUM_VALUE',
+    ).length;
+
     return {
       summary: {
-        totalPending: auditRes.issues.length,
-        suggestedBindings: auditRes.summary.missingExpectedAttributes,
-        duplicateWarnings: auditRes.summary.possibleDuplicates,
-        suspiciousBindings: auditRes.summary.suspiciousBindings,
-        missingExpected: auditRes.summary.missingExpectedAttributes,
+        total: items.length,
+        suggestedBindings: bindingsCount,
+        possibleDuplicates: duplicatesCount,
+        suspiciousBindings: suspiciousCount,
+        unusedAttributes: unusedCount,
+        suggestedEnumValues: enumCount,
+        totalPending: items.length,
+        duplicateWarnings: duplicatesCount,
+        missingExpected: bindingsCount,
       },
-      items: auditRes.issues,
+      items,
     };
   }
 
@@ -1412,8 +1503,8 @@ export class MlService {
   private suggestAttributeBindingsFallback(
     attributeName: string,
     attributeCode: string,
-    allCategories: Array<{ id: string; code: string; name: string }>,
-    datapackHints: Array<any>,
+    allCategories: SimpleCategory[],
+    datapackHints: DataPackHint[],
     componentCategoryCounts: Record<string, number>,
   ): AttributeBindingSuggestionDto[] {
     const normName = attributeName.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -1452,7 +1543,10 @@ export class MlService {
       const catNorm = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
       // 1. Data Pack hint
-      if (dpExpectedCats.has(cat.name.toLowerCase()) || dpExpectedCats.has(cat.code.toLowerCase())) {
+      if (
+        dpExpectedCats.has(cat.name.toLowerCase()) ||
+        dpExpectedCats.has(cat.code.toLowerCase())
+      ) {
         score += 0.95;
         evidence.push({
           type: 'data_pack_rule',
@@ -1493,7 +1587,10 @@ export class MlService {
 
       // 4. Lexical fallback
       if (score === 0) {
-        const sim = this.computeStringSimilarityFallback(cat.name, attributeName);
+        const sim = this.computeStringSimilarityFallback(
+          cat.name,
+          attributeName,
+        );
         if (sim > 0.4) {
           score = 0.55;
           evidence.push({
@@ -1527,10 +1624,10 @@ export class MlService {
   }
 
   private suggestCategoryAttributesFallback(
-    category: { id: string; code: string; name: string },
-    allDefs: Array<any>,
+    category: SimpleCategory,
+    allDefs: SimpleAttributeDef[],
     boundIds: string[],
-    datapackHints: Array<any>,
+    datapackHints: DataPackHint[],
   ): CategoryAttributeSuggestionDto[] {
     const normCat = category.name.toLowerCase().replace(/[^a-z0-9]/g, '');
     const boundSet = new Set(boundIds);
@@ -1540,7 +1637,9 @@ export class MlService {
     const dpExpected = new Set<string>();
     if (datapackHints) {
       for (const hint of datapackHints) {
-        const hName = (hint.categoryName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const hName = (hint.categoryName || '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
         if (hName && (hName.includes(normCat) || normCat.includes(hName))) {
           for (const exp of (hint.expectedAttributes as string[]) || []) {
             dpExpected.add(exp.toLowerCase().replace(/[^a-z0-9]/g, ''));
@@ -1566,12 +1665,15 @@ export class MlService {
       }
 
       // Check canonical knowledge
-      const canonMatch = Object.values(CANONICAL_PARAM_FALLBACK).find((item) => {
-        return (
-          item.code.toLowerCase().replace(/[^a-z0-9]/g, '') === normDefCode ||
-          item.canonical.toLowerCase().replace(/[^a-z0-9]/g, '') === normDefName
-        );
-      });
+      const canonMatch = Object.values(CANONICAL_PARAM_FALLBACK).find(
+        (item) => {
+          return (
+            item.code.toLowerCase().replace(/[^a-z0-9]/g, '') === normDefCode ||
+            item.canonical.toLowerCase().replace(/[^a-z0-9]/g, '') ===
+              normDefName
+          );
+        },
+      );
       if (canonMatch) {
         if (
           canonMatch.categories.some((tc: string) => {
@@ -1596,7 +1698,7 @@ export class MlService {
           attributeDefinitionId: def.id,
           code: def.code,
           name: def.name,
-          dataType: def.dataType,
+          dataType: def.dataType || 'TEXT',
           unitCategory: def.unitCategory,
           defaultUnit: def.defaultUnit,
           groupName: def.groupName,
@@ -1622,20 +1724,15 @@ export class MlService {
   private suggestAttributeConfigFallback(
     name: string,
     description: string | undefined,
-    allDefs: Array<any>,
+    allDefs: SimpleAttributeDef[],
   ): AttributeConfigSuggestionDto {
     const cleanName = name.trim();
-    const normName = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '');
 
     // Check canonical knowledge
     let matchedItem: (typeof CANONICAL_PARAM_FALLBACK)[string] | null = null;
     let matchedScore = 0;
     for (const item of Object.values(CANONICAL_PARAM_FALLBACK)) {
-      const candidates = [
-        item.canonical,
-        item.code,
-        ...(item.aliases || []),
-      ];
+      const candidates = [item.canonical, item.code, ...(item.aliases || [])];
       for (const c of candidates) {
         const sim = this.computeStringSimilarityFallback(cleanName, c);
         if (sim > matchedScore && sim >= 0.65) {
@@ -1646,7 +1743,7 @@ export class MlService {
     }
 
     // Check best existing match
-    let bestMatch: any = null;
+    let bestMatch: SimpleAttributeDef | null = null;
     let bestSim = 0;
     for (const def of allDefs) {
       const sim = this.computeStringSimilarityFallback(cleanName, def.name);
@@ -1696,20 +1793,30 @@ export class MlService {
 
     // Heuristic fallback
     const lower = cleanName.toLowerCase();
-    const suggestedCode = lower.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const suggestedCode = lower
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '');
     let suggestedDataType = 'TEXT';
     let groupName = 'General';
     let unitCategory: string | null = null;
     let defaultUnit: string | null = null;
     let confidence = 0.5;
 
-    if (['type', 'package', 'style', 'color', 'grade', 'material'].some((k) => lower.includes(k))) {
+    if (
+      ['type', 'package', 'style', 'color', 'grade', 'material'].some((k) =>
+        lower.includes(k),
+      )
+    ) {
       suggestedDataType = 'SELECT';
       confidence = 0.65;
-    } else if (['is_', 'has_', 'flag', 'enable', 'active'].some((k) => lower.includes(k))) {
+    } else if (
+      ['is_', 'has_', 'flag', 'enable', 'active'].some((k) => lower.includes(k))
+    ) {
       suggestedDataType = 'BOOLEAN';
       confidence = 0.75;
-    } else if (['count', 'number', 'quantity', 'pins'].some((k) => lower.includes(k))) {
+    } else if (
+      ['count', 'number', 'quantity', 'pins'].some((k) => lower.includes(k))
+    ) {
       suggestedDataType = 'INTEGER';
       unitCategory = 'Count';
       defaultUnit = 'pcs';
@@ -1753,8 +1860,8 @@ export class MlService {
   private detectAttributeDuplicatesFallback(
     name: string,
     code: string | undefined,
-    allDefs: Array<any>,
-    allBindings: Array<any>,
+    allDefs: SimpleAttributeDef[],
+    allBindings: SimpleBinding[],
     threshold: number,
   ): {
     isDuplicate: boolean;
@@ -1827,7 +1934,11 @@ export class MlService {
 
       // Check aliases
       const defAliases = (def.aliases as string[]) || [];
-      if (defAliases.some((al) => al.toLowerCase().replace(/[^a-z0-9]/g, '') === normName)) {
+      if (
+        defAliases.some(
+          (al) => al.toLowerCase().replace(/[^a-z0-9]/g, '') === normName,
+        )
+      ) {
         matches.push({
           attributeId: def.id,
           code: def.code,
@@ -1851,7 +1962,11 @@ export class MlService {
         continue;
       }
 
-      const sim = this.computeStringSimilarityFallback(cleanName, def.name, defAliases);
+      const sim = this.computeStringSimilarityFallback(
+        cleanName,
+        def.name,
+        defAliases,
+      );
       if (sim >= threshold) {
         matches.push({
           attributeId: def.id,
@@ -1890,7 +2005,7 @@ export class MlService {
     attributeCode: string,
     attributeName: string,
     existingOptions: string[],
-    datapackHints: Array<any>,
+    datapackHints: DataPackHint[],
   ): EnumOptionSuggestionDto[] {
     const normCode = attributeCode.toLowerCase().replace(/[^a-z0-9]/g, '');
     const normName = attributeName.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -1898,7 +2013,11 @@ export class MlService {
     const suggestions: EnumOptionSuggestionDto[] = [];
 
     // Package patterns from Data Packs
-    if (normCode.includes('package') || normName.includes('package') || normName.includes('footprint')) {
+    if (
+      normCode.includes('package') ||
+      normName.includes('package') ||
+      normName.includes('footprint')
+    ) {
       if (datapackHints) {
         for (const hint of datapackHints) {
           for (const pkg of (hint.packagePatterns as string[]) || []) {
@@ -1942,9 +2061,9 @@ export class MlService {
   }
 
   private auditAttributeLibraryFallback(
-    allDefs: Array<any>,
-    allCats: Array<any>,
-    allBindings: Array<any>,
+    allDefs: SimpleAttributeDef[],
+    allCats: SimpleCategory[],
+    allBindings: SimpleBinding[],
     compCountsByAttr: Record<string, number>,
     compCountsByCatAttr: Record<string, number>,
   ): {
@@ -1954,6 +2073,7 @@ export class MlService {
       suspiciousBindings: number;
       missingExpectedAttributes: number;
       unusedAttributes: number;
+      issuesCount?: number;
     };
     issues: AttributeAuditIssueDto[];
   } {
@@ -1965,21 +2085,32 @@ export class MlService {
       for (let j = i + 1; j < allDefs.length; j++) {
         const d1 = allDefs[i];
         const d2 = allDefs[j];
+        if (!d1 || !d2) continue;
+
         const sim = this.computeStringSimilarityFallback(
           d1.name,
           d2.name,
-          d2.aliases,
+          (d2.aliases as string[] | undefined) || undefined,
         );
         if (sim >= 0.78) {
           issues.push({
             id: `audit-${counter++}`,
             type: 'DUPLICATE_ATTRIBUTE',
             severity: 'WARNING',
+            title: `Possible Duplicate: "${d1.name}" & "${d2.name}"`,
+            subtitle: `${Math.round(sim * 100)}% lexical similarity. Potential redundant attribute definition.`,
             attributeId: d1.id,
+            attributeCode: d1.code,
             attributeName: d1.name,
             confidence: Number(sim.toFixed(2)),
             confidenceLevel: sim >= 0.85 ? 'HIGH' : 'MEDIUM',
             reason: `Possible duplicate attributes: '${d1.name}' and '${d2.name}' (${Math.round(sim * 100)}% similarity)`,
+            payload: {
+              targetAttributeId: d2.id,
+              targetAttributeName: d2.name,
+              targetAttributeCode: d2.code,
+              similarity: sim,
+            },
             evidence: [
               {
                 type: 'similarity',
@@ -2002,19 +2133,30 @@ export class MlService {
       const normCode = def.code.toLowerCase().replace(/[^a-z0-9]/g, '');
       const normCat = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-      if (normCode.includes('resistance') && (normCat.includes('capacitor') || normCat.includes('diode'))) {
-        const usage = compCountsByCatAttr[`${b.categoryId}_${b.attributeDefinitionId}`] || 0;
+      if (
+        normCode.includes('resistance') &&
+        (normCat.includes('capacitor') || normCat.includes('diode'))
+      ) {
+        const usage =
+          compCountsByCatAttr[`${b.categoryId}_${b.attributeDefinitionId}`] ||
+          0;
         issues.push({
           id: `audit-${counter++}`,
           type: 'SUSPICIOUS_BINDING',
           severity: 'WARNING',
+          title: `Suspicious Binding: "${def.name}" on "${cat.name}"`,
+          subtitle: `Attribute '${def.name}' bound to '${cat.name}', but only ${usage} components use it.`,
           attributeId: def.id,
+          attributeCode: def.code,
           attributeName: def.name,
           categoryId: cat.id,
           categoryName: cat.name,
           confidence: 0.85,
           confidenceLevel: 'HIGH',
           reason: `Suspicious binding: '${def.name}' bound to '${cat.name}' (Only ${usage} components use this)`,
+          payload: {
+            usageCount: usage,
+          },
           evidence: [
             {
               type: 'anomaly',
@@ -2032,8 +2174,12 @@ export class MlService {
     for (const b of allBindings) {
       const def = allDefs.find((d) => d.id === b.attributeDefinitionId);
       if (def) {
-        bindingsByCat[b.categoryId] = bindingsByCat[b.categoryId] || new Set();
-        bindingsByCat[b.categoryId].add(def.code.toLowerCase().replace(/[^a-z0-9]/g, ''));
+        if (!bindingsByCat[b.categoryId]) {
+          bindingsByCat[b.categoryId] = new Set();
+        }
+        bindingsByCat[b.categoryId]?.add(
+          def.code.toLowerCase().replace(/[^a-z0-9]/g, ''),
+        );
       }
     }
 
@@ -2041,8 +2187,7 @@ export class MlService {
       const bound = bindingsByCat[cat.id] || new Set();
       const catNorm = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-      for (const key of Object.keys(CANONICAL_PARAM_FALLBACK)) {
-        const item = CANONICAL_PARAM_FALLBACK[key];
+      for (const item of Object.values(CANONICAL_PARAM_FALLBACK)) {
         const pCode = item.code.toLowerCase().replace(/[^a-z0-9]/g, '');
         if (
           item.categories.some((tc: string) => {
@@ -2051,16 +2196,40 @@ export class MlService {
           })
         ) {
           if (!bound.has(pCode)) {
+            const existingDef = allDefs.find(
+              (d) =>
+                d.code.toLowerCase().replace(/[^a-z0-9]/g, '') === pCode ||
+                d.name.toLowerCase().replace(/[^a-z0-9]/g, '') === pCode ||
+                (d.aliases &&
+                  (d.aliases as string[]).some(
+                    (a) =>
+                      a.toLowerCase().replace(/[^a-z0-9]/g, '') === pCode,
+                  )),
+            );
+
             issues.push({
               id: `audit-${counter++}`,
               type: 'MISSING_EXPECTED_ATTRIBUTE',
               severity: 'INFO',
-              attributeName: item.canonical,
+              title: `Bind "${item.canonical}" to "${cat.name}"`,
+              subtitle: `Standard specification attribute commonly expected for '${cat.name}'.`,
+              attributeId: existingDef ? existingDef.id : null,
+              attributeCode: existingDef ? existingDef.code : item.code,
+              attributeName: existingDef ? existingDef.name : item.canonical,
               categoryId: cat.id,
               categoryName: cat.name,
               confidence: 0.9,
               confidenceLevel: 'HIGH',
               reason: `Standard attribute '${item.canonical}' is commonly expected for '${cat.name}' but not currently bound`,
+              payload: {
+                isExisting: Boolean(existingDef),
+                canonicalCode: item.code,
+                dataType: item.dataType,
+                unitCategory: item.unitCategory,
+                defaultUnit: item.defaultUnit,
+                group: item.group,
+                suggestedRequired: false,
+              },
               evidence: [
                 {
                   type: 'taxonomy',
@@ -2079,17 +2248,27 @@ export class MlService {
     // 4. Unused Attributes
     for (const def of allDefs) {
       const usage = compCountsByAttr[def.id] || 0;
-      const bindingCount = allBindings.filter((b) => b.attributeDefinitionId === def.id).length;
+      const bindingCount = allBindings.filter(
+        (b) => b.attributeDefinitionId === def.id,
+      ).length;
       if (usage === 0 && bindingCount === 0) {
         issues.push({
           id: `audit-${counter++}`,
           type: 'UNUSED_ATTRIBUTE',
           severity: 'INFO',
+          title: `Unused Attribute: "${def.name}"`,
+          subtitle: `Attribute has 0 category bindings and 0 component values in the inventory ledger.`,
           attributeId: def.id,
+          attributeCode: def.code,
           attributeName: def.name,
           confidence: 0.75,
           confidenceLevel: 'MEDIUM',
           reason: `Attribute '${def.name}' has 0 category bindings and 0 component values`,
+          payload: {
+            usageCount: 0,
+            bindingCount: 0,
+            dataType: def.dataType,
+          },
           evidence: [
             {
               type: 'existing_data',
@@ -2105,10 +2284,18 @@ export class MlService {
     return {
       summary: {
         totalAttributes: allDefs.length,
-        possibleDuplicates: issues.filter((i) => i.type === 'DUPLICATE_ATTRIBUTE').length,
-        suspiciousBindings: issues.filter((i) => i.type === 'SUSPICIOUS_BINDING').length,
-        missingExpectedAttributes: issues.filter((i) => i.type === 'MISSING_EXPECTED_ATTRIBUTE').length,
-        unusedAttributes: issues.filter((i) => i.type === 'UNUSED_ATTRIBUTE').length,
+        possibleDuplicates: issues.filter(
+          (i) => i.type === 'DUPLICATE_ATTRIBUTE',
+        ).length,
+        suspiciousBindings: issues.filter(
+          (i) => i.type === 'SUSPICIOUS_BINDING',
+        ).length,
+        missingExpectedAttributes: issues.filter(
+          (i) => i.type === 'MISSING_EXPECTED_ATTRIBUTE',
+        ).length,
+        unusedAttributes: issues.filter((i) => i.type === 'UNUSED_ATTRIBUTE')
+          .length,
+        issuesCount: issues.length,
       },
       issues,
     };
@@ -2133,11 +2320,12 @@ export class MlService {
     }
 
     // Canonical param check
-    for (const key of Object.keys(CANONICAL_PARAM_FALLBACK)) {
-      const item = CANONICAL_PARAM_FALLBACK[key];
-      const candidates = [item.canonical, item.code, ...(item.aliases || [])].map((c) =>
-        c.toLowerCase().replace(/[^a-z0-9]/g, ''),
-      );
+    for (const item of Object.values(CANONICAL_PARAM_FALLBACK)) {
+      const candidates = [
+        item.canonical,
+        item.code,
+        ...(item.aliases || []),
+      ].map((c) => c.toLowerCase().replace(/[^a-z0-9]/g, ''));
       if (candidates.includes(norm1) && candidates.includes(norm2)) {
         return 0.95;
       }
@@ -2261,12 +2449,7 @@ const CANONICAL_PARAM_FALLBACK: Record<
     group: 'Electrical',
     validation: { min: 0, rule: '> 0' },
     aliases: ['Rated Power', 'Max Power', 'Wattage'],
-    categories: [
-      'Resistors',
-      'Diodes',
-      'Transistors',
-      'ICs & Semiconductors',
-    ],
+    categories: ['Resistors', 'Diodes', 'Transistors', 'ICs & Semiconductors'],
   },
   current_rating: {
     canonical: 'Current Rating',
@@ -2381,4 +2564,3 @@ const CANONICAL_PARAM_FALLBACK: Record<
     aliases: ['Temperature Range', 'Operating Temp Range'],
   },
 };
-
