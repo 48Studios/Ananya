@@ -88,6 +88,116 @@ pytest apps/ml/tests -v
 
 ---
 
+## Training & Retraining
+
+The training pipeline lives in `pipeline/` and implements the full workflow defined in [RFC-0058](../../docs/rfcs/0058-authoritative-data-training-pipeline.md). It executes six stages sequentially: collect, validate, build dataset, train, evaluate quality gates, and deploy.
+
+### Full Pipeline (Single Command)
+
+From the **repository root**:
+
+```bash
+# Activate the ML virtualenv
+source apps/ml/.venv/bin/activate
+
+# Run the complete 6-stage pipeline
+python -m apps.ml.pipeline.run_training --version 1.4.0
+```
+
+This will:
+
+| Stage | Script | Purpose |
+| :--- | :--- | :--- |
+| 1 | `collect.py` | Ingest authoritative records with ground-truth provenance |
+| 2 | `validate.py` | Schema validation, physics sanity bounds, quarantine conflicts |
+| 3 | `build_dataset.py` | Taxonomy mapping, grouped zero-leakage train/val split |
+| 4 | `train.py` | Train multiple candidate architectures, select champion |
+| 5 | `evaluate.py` | Quality gates vs active production baseline |
+| 6 | `deploy.py` | Promote champion to production (if gates pass) |
+
+### Incorporating Human Feedback
+
+The review queue and suggestion feedback collected in `ai_suggestion_feedback` can be exported and fed into retraining.
+
+**Export feedback via the API:**
+
+```bash
+curl http://localhost:3000/api/ml/feedback/export > feedback.json
+```
+
+**Or use the dedicated export script:**
+
+```bash
+python -m apps.ml.pipeline.export_feedback --output feedback.json
+```
+
+**Pass the feedback file into training:**
+
+```bash
+python -m apps.ml.pipeline.run_training --version 1.4.0 --feedback-file feedback.json
+```
+
+### CLI Options
+
+```
+python -m apps.ml.pipeline.run_training [OPTIONS]
+
+  --version          Model and dataset version string (default: 1.3.0)
+  --feedback-file    Path to exported human feedback JSON
+  --extra-catalog    Path to supplementary manufacturer catalog JSON
+  --no-deploy        Skip automatic production deployment (dry run)
+```
+
+### Running Individual Stages
+
+Each stage can be executed independently for debugging or iteration:
+
+```bash
+# Collect authoritative records
+python -m apps.ml.pipeline.collect
+
+# Validate and quarantine
+python -m apps.ml.pipeline.validate
+
+# Build versioned dataset snapshot
+python -m apps.ml.pipeline.build_dataset --version 1.4.0
+
+# Train model candidates
+python -m apps.ml.pipeline.train --version 1.4.0
+
+# Evaluate quality gates
+python -m apps.ml.pipeline.evaluate --version 1.4.0
+
+# Deploy to production
+python -m apps.ml.pipeline.deploy --version 1.4.0
+```
+
+### Pipeline Directory Structure
+
+```
+apps/ml/pipeline/
+├── run_training.py        # End-to-end orchestrator (entry point)
+├── collect.py             # Stage 1: Record ingestion with provenance
+├── validate.py            # Stage 2: Schema and physics validation
+├── build_dataset.py       # Stage 3: Grouped split and snapshot
+├── train.py               # Stage 4: Multi-candidate training
+├── evaluate.py            # Stage 5: Quality gate evaluation
+├── deploy.py              # Stage 6: Model promotion
+└── export_feedback.py     # Utility: Export feedback for retraining
+```
+
+### Model Artifacts
+
+Trained models and reports are written to the registry:
+
+```
+apps/ml/models/registry/v{version}/
+├── category_classifier.pkl     # Champion model artifact
+└── pipeline_summary.json       # Full execution report
+```
+
+---
+
 ## API Reference
 
 The service runs on internal port `5001`:
