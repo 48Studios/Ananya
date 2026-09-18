@@ -49,6 +49,18 @@ export interface MlSuggestResponse {
   execution_time_ms: number;
 }
 
+function formatFetchError(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  const cause = (err as Error & { cause?: unknown }).cause;
+  const causeMsg =
+    cause instanceof Error
+      ? ` (cause: ${cause.message})`
+      : cause != null
+        ? ` (cause: ${String(cause)})`
+        : '';
+  return `${err.message}${causeMsg}`;
+}
+
 @Injectable()
 export class MlClientService {
   private readonly logger = new Logger(MlClientService.name);
@@ -108,7 +120,7 @@ export class MlClientService {
 
       return (await res.json()) as MlSuggestResponse;
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = formatFetchError(err);
       this.logger.warn(`ananya-ml connection failed or timed out: ${errMsg}`);
       return null;
     }
@@ -135,7 +147,7 @@ export class MlClientService {
       };
       return data.attributes || null;
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = formatFetchError(err);
       this.logger.warn(`Datasheet extraction failed: ${errMsg}`);
       return null;
     }
@@ -183,7 +195,7 @@ export class MlClientService {
       };
       return data.suggestions || null;
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = formatFetchError(err);
       this.logger.warn(`Suggest attribute bindings failed: ${errMsg}`);
       return null;
     }
@@ -238,7 +250,7 @@ export class MlClientService {
       };
       return data.suggestions || null;
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = formatFetchError(err);
       this.logger.warn(`Suggest category attributes failed: ${errMsg}`);
       return null;
     }
@@ -304,7 +316,7 @@ export class MlClientService {
       };
       return data.suggestion || null;
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = formatFetchError(err);
       this.logger.warn(`Suggest attribute config failed: ${errMsg}`);
       return null;
     }
@@ -361,7 +373,7 @@ export class MlClientService {
         suggestedAliases: string[];
       };
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = formatFetchError(err);
       this.logger.warn(`Detect attribute duplicates failed: ${errMsg}`);
       return null;
     }
@@ -399,7 +411,7 @@ export class MlClientService {
       };
       return data.suggestedOptions || null;
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = formatFetchError(err);
       this.logger.warn(`Suggest enum values failed: ${errMsg}`);
       return null;
     }
@@ -466,7 +478,7 @@ export class MlClientService {
         }>;
       };
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = formatFetchError(err);
       this.logger.warn(`Audit attribute library failed: ${errMsg}`);
       return null;
     }
