@@ -454,12 +454,14 @@ export class MlClientService {
         | 'INCONSISTENT_CONFIG';
       severity: 'WARNING' | 'INFO' | 'CRITICAL';
       attributeId?: string | null;
+      attributeCode?: string | null;
       attributeName?: string | null;
       categoryId?: string | null;
       categoryName?: string | null;
       confidence: number;
       confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
       reason: string;
+      payload?: Record<string, unknown>;
       evidence: EvidenceItemDto[];
     }>;
   } | null> {
@@ -490,12 +492,14 @@ export class MlClientService {
             | 'INCONSISTENT_CONFIG';
           severity: 'WARNING' | 'INFO' | 'CRITICAL';
           attributeId?: string | null;
+          attributeCode?: string | null;
           attributeName?: string | null;
           categoryId?: string | null;
           categoryName?: string | null;
           confidence: number;
           confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
           reason: string;
+          payload?: Record<string, unknown>;
           evidence: EvidenceItemDto[];
         }>;
       };

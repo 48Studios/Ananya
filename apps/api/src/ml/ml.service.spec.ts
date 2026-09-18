@@ -243,4 +243,35 @@ describe('MlService', () => {
     expect(queue.summary).toBeDefined();
     expect(queue.items).toBeInstanceOf(Array);
   });
+
+  it('should record attribute review queue feedback telemetry', async () => {
+    const result = await service.recordFeedback(
+      {
+        attributeDefinitionId: 'attr-123',
+        categoryId: 'cat-456',
+        items: [
+          {
+            suggestionType: 'SUGGESTED_BINDING',
+            field: 'queue_item',
+            userAction: 'ACCEPTED',
+            predictedValue: 'Bind attribute to category',
+            finalValue: 'Bind attribute to category',
+            confidenceLevel: 'HIGH',
+          },
+          {
+            suggestionType: 'ENUM_OPTION',
+            field: 'option_value',
+            userAction: 'ACCEPTED',
+            predictedValue: 'Active Low',
+            finalValue: 'Active Low',
+            confidenceLevel: 'HIGH',
+          },
+        ],
+      },
+      { id: 'usr-1', email: 'engineer@48studios.com' },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.recordedCount).toBe(2);
+  });
 });

@@ -281,12 +281,14 @@ class AttributeAuditIssue(BaseModel):
     type: str  # "DUPLICATE_ATTRIBUTE", "SUSPICIOUS_BINDING", "MISSING_EXPECTED_ATTRIBUTE", "UNUSED_ATTRIBUTE"
     severity: str  # "WARNING", "INFO", "CRITICAL"
     attributeId: Optional[str] = None
+    attributeCode: Optional[str] = None
     attributeName: Optional[str] = None
     categoryId: Optional[str] = None
     categoryName: Optional[str] = None
     confidence: float = 0.8
     confidenceLevel: str = "MEDIUM"
     reason: str
+    payload: Optional[Dict[str, Any]] = None
     evidence: List[EvidenceItem] = Field(default_factory=list)
 
 class AuditAttributeLibraryRequest(BaseModel):

@@ -132,4 +132,13 @@ export class MlController {
     const user = req?.user || {};
     return this.mlService.applySuggestedBindings(input, user);
   }
+
+  @Post('attributes/feedback')
+  recordAttributeFeedback(
+    @Body() input: CreateMlFeedbackDto,
+    @Req() req: { user?: { id?: string; email?: string } },
+  ) {
+    const user = req?.user || {};
+    return this.mlService.recordFeedback(input, user);
+  }
 }

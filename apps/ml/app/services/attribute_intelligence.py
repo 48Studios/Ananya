@@ -958,17 +958,43 @@ class AttributeIntelligenceService:
                 for target_cat in param.get("categories", []):
                     if normalize_text(target_cat) == normalize_text(cat.name):
                         if p_code not in bound_codes:
+                            # Look up if this attribute already exists in the library
+                            existing_attr = None
+                            for attr in attributes:
+                                norm_attr_code = normalize_text(attr.code)
+                                norm_attr_name = normalize_text(attr.name)
+                                norm_aliases = [normalize_text(a) for a in (attr.aliases or [])]
+                                if (
+                                    norm_attr_code == p_code
+                                    or norm_attr_name == normalize_text(param["canonical_name"])
+                                    or p_code in norm_aliases
+                                    or any(normalize_text(a) == norm_attr_code for a in param.get("aliases", []))
+                                ):
+                                    existing_attr = attr
+                                    break
+
                             issues.append(
                                 AttributeAuditIssue(
                                     id=f"audit-{issue_id_counter}",
                                     type="MISSING_EXPECTED_ATTRIBUTE",
                                     severity="INFO",
-                                    attributeName=param["canonical_name"],
+                                    attributeId=existing_attr.id if existing_attr else None,
+                                    attributeCode=existing_attr.code if existing_attr else param["code"],
+                                    attributeName=existing_attr.name if existing_attr else param["canonical_name"],
                                     categoryId=cat.id,
                                     categoryName=cat.name,
                                     confidence=0.90,
                                     confidenceLevel="HIGH",
                                     reason=f"Standard attribute '{param['canonical_name']}' is commonly expected for '{cat.name}' but not currently bound",
+                                    payload={
+                                        "isExisting": existing_attr is not None,
+                                        "canonicalCode": param["code"],
+                                        "dataType": (existing_attr.dataType if existing_attr else None) or param.get("dataType", "QUANTITY"),
+                                        "unitCategory": (existing_attr.unitCategory if existing_attr else None) or param.get("unitCategory"),
+                                        "defaultUnit": (existing_attr.defaultUnit if existing_attr else None) or param.get("defaultUnit"),
+                                        "group": (existing_attr.groupName if existing_attr else None) or param.get("groupName"),
+                                        "suggestedRequired": False,
+                                    },
                                     evidence=[
                                         EvidenceItem(
                                             type="taxonomy",

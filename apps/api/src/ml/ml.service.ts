@@ -1371,9 +1371,76 @@ export class MlService {
       if (mlRes) {
         isMlActive = true;
         const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+        const enrichedIssues = mlRes.issues.map((issue) => {
+          let attrId = issue.attributeId;
+          let attrCode = issue.attributeCode;
+          let attrName = issue.attributeName;
+          let payload = (issue.payload as Record<string, unknown> | undefined) || {};
+
+          if (!attrId) {
+            const normCode = (attrCode || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normName = (attrName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const matched = allDefs.find((d) => {
+              const dCode = d.code.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const dName = d.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const dAliases = ((d.aliases as string[]) || []).map((a) =>
+                a.toLowerCase().replace(/[^a-z0-9]/g, ''),
+              );
+              return (
+                (normCode && (dCode === normCode || dAliases.includes(normCode))) ||
+                (normName && (dName === normName || dCode === normName || dAliases.includes(normName)))
+              );
+            });
+
+            if (matched) {
+              attrId = matched.id;
+              attrCode = matched.code;
+              attrName = matched.name;
+              payload = {
+                ...payload,
+                isExisting: true,
+                canonicalCode: matched.code,
+                dataType: matched.dataType,
+                unitCategory: matched.unitCategory,
+                defaultUnit: matched.defaultUnit,
+                group: matched.groupName,
+              };
+            } else {
+              // Check CANONICAL_PARAM_FALLBACK
+              for (const item of Object.values(CANONICAL_PARAM_FALLBACK)) {
+                const pCode = item.code.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const pName = item.canonical.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (normCode === pCode || normName === pName) {
+                  payload = {
+                    ...payload,
+                    isExisting: false,
+                    canonicalCode: item.code,
+                    dataType: item.dataType,
+                    unitCategory: item.unitCategory,
+                    defaultUnit: item.defaultUnit,
+                    group: item.group,
+                    suggestedRequired: false,
+                  };
+                  if (!attrCode) attrCode = item.code;
+                  if (!attrName) attrName = item.canonical;
+                  break;
+                }
+              }
+            }
+          }
+
+          return {
+            ...issue,
+            attributeId: attrId || null,
+            attributeCode: attrCode || null,
+            attributeName: attrName || null,
+            payload: Object.keys(payload).length > 0 ? payload : undefined,
+          };
+        });
+
         return {
           summary: mlRes.summary,
-          issues: mlRes.issues,
+          issues: enrichedIssues,
           isMlActive,
           executionTimeMs,
         };

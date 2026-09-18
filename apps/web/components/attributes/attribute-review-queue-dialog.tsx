@@ -147,20 +147,46 @@ export function AttributeReviewQueueDialog({
     const isEnum = matchesTab(item.type, "ENUMS");
 
     try {
+      let resolvedAttributeId = item.attributeId || null;
+
       if (isBinding && item.categoryId) {
-        if (item.attributeId) {
+        if (!resolvedAttributeId) {
+          try {
+            const allAttributes = await attributesApi.getAll();
+            const normName = (item.attributeName || "").trim().toLowerCase();
+            const normCode = (item.attributeCode || String(item.payload?.canonicalCode || "")).trim().toLowerCase();
+            const found = allAttributes.find(
+              (a) =>
+                (normCode && a.code.toLowerCase() === normCode) ||
+                (normName && a.name.toLowerCase() === normName) ||
+                (a.aliases && a.aliases.some((al) => al.toLowerCase() === normName || al.toLowerCase() === normCode)),
+            );
+            if (found) {
+              resolvedAttributeId = found.id;
+            }
+          } catch {
+            // fallback error ignored
+          }
+        }
+
+        if (resolvedAttributeId) {
           // Bind existing attribute to category
-          await attributesApi.bindCategory(item.attributeId, {
+          await attributesApi.bindCategory(resolvedAttributeId, {
             categoryId: item.categoryId,
             isRequired: Boolean(item.payload?.suggestedRequired),
           });
-        } else if (item.payload?.canonicalCode) {
+        } else if (item.payload?.canonicalCode || item.attributeCode) {
           // If attribute definition does not exist yet, create canonical definition and bind
+          const codeToUse = String(item.payload?.canonicalCode || item.attributeCode)
+            .toLowerCase()
+            .replace(/[^a-z0-9_]/g, "_");
+          const nameToUse = item.attributeName || String(item.payload?.canonicalCode || codeToUse);
+
           const newAttr = await attributesApi.createDefinition({
-            name: item.attributeName || String(item.payload.canonicalCode),
-            code: String(item.payload.canonicalCode),
+            name: nameToUse,
+            code: codeToUse,
             dataType:
-              (item.payload.dataType as
+              (item.payload?.dataType as
                 | "TEXT"
                 | "NUMBER"
                 | "INTEGER"
@@ -169,20 +195,25 @@ export function AttributeReviewQueueDialog({
                 | "MULTI_SELECT"
                 | "QUANTITY"
                 | "DATE") || "QUANTITY",
-            unitCategory: item.payload.unitCategory
+            unitCategory: item.payload?.unitCategory
               ? String(item.payload.unitCategory)
               : undefined,
-            defaultUnit: item.payload.defaultUnit
+            defaultUnit: item.payload?.defaultUnit
               ? String(item.payload.defaultUnit)
               : undefined,
-            groupName: item.payload.group
+            groupName: item.payload?.group
               ? String(item.payload.group)
               : undefined,
           });
+          resolvedAttributeId = newAttr.id;
           await attributesApi.bindCategory(newAttr.id, {
             categoryId: item.categoryId,
-            isRequired: Boolean(item.payload.suggestedRequired),
+            isRequired: Boolean(item.payload?.suggestedRequired),
           });
+        } else {
+          throw new Error(
+            `Unable to bind attribute: no definition found or specified for "${item.attributeName || item.title}".`,
+          );
         }
       } else if (isSuspicious && item.attributeId && item.categoryId) {
         await attributesApi.unbindCategory(item.attributeId, item.categoryId);
@@ -195,12 +226,16 @@ export function AttributeReviewQueueDialog({
           code: String(item.payload.code),
           label: String(item.payload.label || item.payload.code),
         });
+      } else {
+        throw new Error(
+          `Action cannot be applied: missing target identifiers for "${item.title || item.reason}".`,
+        );
       }
 
       await attributesApi
         .recordFeedback({
-          attributeDefinitionId: item.attributeId,
-          categoryId: item.categoryId,
+          attributeDefinitionId: resolvedAttributeId || item.attributeId || undefined,
+          categoryId: item.categoryId || undefined,
           items: [
             {
               suggestionType: item.type,
@@ -230,9 +265,9 @@ export function AttributeReviewQueueDialog({
           : null,
       );
       onActionComplete?.();
-    } catch {
+    } catch (err) {
       setStatusMessage(
-        `Failed to apply "${item.title || item.attributeName || item.reason}".`,
+        err instanceof Error ? err.message : `Failed to apply "${item.title || item.attributeName || item.reason}".`,
       );
     } finally {
       setActionInProgress((prev) => ({ ...prev, [item.id]: false }));
@@ -244,8 +279,8 @@ export function AttributeReviewQueueDialog({
     try {
       await attributesApi
         .recordFeedback({
-          attributeDefinitionId: item.attributeId,
-          categoryId: item.categoryId,
+          attributeDefinitionId: item.attributeId || undefined,
+          categoryId: item.categoryId || undefined,
           items: [
             {
               suggestionType: item.type,
