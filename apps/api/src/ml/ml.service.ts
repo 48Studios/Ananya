@@ -803,6 +803,9 @@ export class MlService {
       }
 
       const target = items[itemIdx];
+      if (!target) {
+        return { success: false, message: `Quarantine record ${id} not found` };
+      }
       target.status = dto.status;
       target.reviewedAt = new Date().toISOString();
       target.reviewerEmail = user?.email || 'admin@ananya.internal';
