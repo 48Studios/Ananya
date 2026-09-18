@@ -44,40 +44,21 @@ export function AiSuggestionReviewCard({
           <div className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-primary shrink-0">
             <Sparkles className="size-3.5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-foreground">
-                AI Component Suggestions
-              </span>
-              <span className="inline-flex items-center gap-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground border border-border">
-                <Cpu className="size-2.5 text-primary" />
-                {suggestion.isMlActive ? "ananya-ml CPU" : "Deterministic Engine"} • {suggestion.executionTimeMs}ms
-              </span>
-            </div>
-          </div>
+          <span className="text-xs font-semibold text-foreground">
+            AI Component Suggestions
+          </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <Button
-            type="button"
-            size="sm"
-            onClick={onApplyAll}
-            className="h-7 text-xs font-medium px-2.5 gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            <Check className="size-3.5" />
-            Apply All
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={onDismiss}
-            className="size-7 text-muted-foreground hover:text-foreground"
-            title="Dismiss suggestions"
-          >
-            <X className="size-3.5" />
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onDismiss}
+          className="size-7 text-muted-foreground hover:text-foreground"
+          title="Dismiss suggestions"
+        >
+          <X className="size-3.5" />
+        </Button>
       </div>
 
       {/* ── Duplicate Warning Notice (if any) ──────────────────────────────── */}
@@ -110,59 +91,85 @@ export function AiSuggestionReviewCard({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
         {/* Category Suggestion */}
         {suggestion.category && (
-          <div className="flex items-start justify-between p-2.5 rounded-lg border border-border/80 bg-background/70 shadow-2xs gap-2">
-            <div className="space-y-1 min-w-0">
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <Tag className="size-3 text-primary" />
-                <span>Suggested Category</span>
+          <div className="p-3 rounded-lg border border-border/80 bg-background/80 shadow-2xs space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-primary border border-primary/25 shrink-0">
+                  <Tag className="size-3.5" />
+                </div>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
+                  Category
+                </span>
               </div>
-              <p className="text-xs font-semibold text-foreground truncate">
+              {onApplyCategory && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-[11px] px-2.5 shrink-0 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary font-medium"
+                  onClick={() => onApplyCategory()}
+                >
+                  Apply
+                </Button>
+              )}
+            </div>
+
+            <div className="space-y-0.5">
+              <p
+                className="text-xs font-semibold text-foreground truncate"
+                title={suggestion.category.subcategoryName || suggestion.category.categoryName}
+              >
                 {suggestion.category.subcategoryName || suggestion.category.categoryName}
               </p>
-              <p className="text-[10px] text-muted-foreground">
+              <p
+                className="text-[10px] text-muted-foreground truncate"
+                title={`${suggestion.category.categoryName} • ${catConfidencePct}% confidence`}
+              >
                 {suggestion.category.categoryName} • {catConfidencePct}% confidence
               </p>
             </div>
-            {onApplyCategory && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-6 text-[11px] px-2 shrink-0 border-primary/30 text-primary hover:bg-primary/10"
-                onClick={() => onApplyCategory()}
-              >
-                Apply
-              </Button>
-            )}
           </div>
         )}
 
         {/* Manufacturer Suggestion */}
         {suggestion.manufacturer && (
-          <div className="flex items-start justify-between p-2.5 rounded-lg border border-border/80 bg-background/70 shadow-2xs gap-2">
-            <div className="space-y-1 min-w-0">
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <Building2 className="size-3 text-primary" />
-                <span>Resolved Manufacturer</span>
+          <div className="p-3 rounded-lg border border-border/80 bg-background/80 shadow-2xs space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex size-6 items-center justify-center rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 shrink-0">
+                  <Building2 className="size-3.5" />
+                </div>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
+                  Manufacturer
+                </span>
               </div>
-              <p className="text-xs font-semibold text-foreground truncate">
+              {onApplyManufacturer && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-[11px] px-2.5 shrink-0 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary font-medium"
+                  onClick={() => onApplyManufacturer()}
+                >
+                  Apply
+                </Button>
+              )}
+            </div>
+
+            <div className="space-y-0.5">
+              <p
+                className="text-xs font-semibold text-foreground truncate"
+                title={suggestion.manufacturer.manufacturerName}
+              >
                 {suggestion.manufacturer.manufacturerName}
               </p>
-              <p className="text-[10px] text-muted-foreground">
+              <p
+                className="text-[10px] text-muted-foreground truncate"
+                title={`Rule: ${suggestion.manufacturer.matchType} • ${mfgConfidencePct}% match`}
+              >
                 Rule: {suggestion.manufacturer.matchType} • {mfgConfidencePct}% match
               </p>
             </div>
-            {onApplyManufacturer && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-6 text-[11px] px-2 shrink-0 border-primary/30 text-primary hover:bg-primary/10"
-                onClick={() => onApplyManufacturer()}
-              >
-                Apply
-              </Button>
-            )}
           </div>
         )}
       </div>
@@ -172,7 +179,7 @@ export function AiSuggestionReviewCard({
         <div className="space-y-2 pt-1 border-t border-border/40">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-              <Layers className="size-3 text-primary" />
+              <Layers className="size-3.5 text-primary" />
               Extracted Specifications ({attrEntries.length})
             </span>
             {onApplyAttributes && (
@@ -199,6 +206,24 @@ export function AiSuggestionReviewCard({
           </div>
         </div>
       )}
+
+      {/* ── Footer Actions ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-primary/15">
+        <span className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-background/80 px-2.5 text-[11px] font-mono text-muted-foreground border border-border">
+          <Cpu className="size-3 text-primary" />
+          {suggestion.isMlActive ? "ananya-ml CPU" : "Deterministic Engine"} • {suggestion.executionTimeMs}ms
+        </span>
+
+        <Button
+          type="button"
+          size="sm"
+          onClick={onApplyAll}
+          className="h-7 text-xs font-medium px-3 gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
+        >
+          <Check className="size-3.5" />
+          Apply All
+        </Button>
+      </div>
     </div>
   );
 }

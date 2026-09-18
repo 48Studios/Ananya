@@ -215,7 +215,7 @@ export default function ComponentsPage() {
           if (!compAttr) return false;
           const valNum =
             compAttr.normalizedValue !== null &&
-            compAttr.normalizedValue !== undefined
+              compAttr.normalizedValue !== undefined
               ? compAttr.normalizedValue
               : typeof compAttr.value === "number"
                 ? compAttr.value
@@ -659,7 +659,7 @@ export default function ComponentsPage() {
             ? `Update component "${editingComponent.sku}" using the standardized dialog composition.`
             : "Create a new inventory component with shared header, scrollable body, and footer actions."
         }
-        size="sm"
+        size="md"
       >
         <ComponentForm
           initialData={editingComponent}
