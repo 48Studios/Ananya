@@ -1,0 +1,99 @@
+{
+  "manufacturers": {
+    "YAGEO": {
+      "name": "Yageo",
+      "aliases": ["yageo", "phycomp"],
+      "prefix_patterns": ["^RC\\d{4}", "^RT\\d{4}", "^CC\\d{4}", "^AC\\d{4}"]
+    },
+    "MURATA": {
+      "name": "Murata",
+      "aliases": ["murata", "murata electronics"],
+      "prefix_patterns": ["^GRM\\d{2}", "^GJM\\d{2}", "^BLM\\d{2}", "^LQH\\d{2}"]
+    },
+    "KEMET": {
+      "name": "KEMET",
+      "aliases": ["kemet"],
+      "prefix_patterns": ["^C\\d{4}C", "^T491", "^T495"]
+    },
+    "VISHAY": {
+      "name": "Vishay",
+      "aliases": ["vishay", "dale", "siliconix"],
+      "prefix_patterns": ["^SI\\d{4}", "^CRCW\\d{4}", "^WSL\\d{4}"]
+    },
+    "SAMWHA": {
+      "name": "Samwha",
+      "aliases": ["samwha"],
+      "prefix_patterns": ["^CS\\d{4}"]
+    },
+    "FENGHUA": {
+      "name": "Fenghua",
+      "aliases": ["fenghua", "guangdong fenghua"],
+      "prefix_patterns": ["^\\d{4}B\\d{3}"]
+    },
+    "SUNLORD": {
+      "name": "Sunlord",
+      "aliases": ["sunlord"],
+      "prefix_patterns": ["^SWPA\\d{4}"]
+    },
+    "SLKOR": {
+      "name": "Slkor",
+      "aliases": ["slkor"],
+      "prefix_patterns": ["^BSS\\d{3}", "^SL\\d{4}"]
+    },
+    "UNIOHM": {
+      "name": "Uniohm",
+      "aliases": ["uniohm", "royalohm"],
+      "prefix_patterns": ["^\\d{4}W\\d"]
+    },
+    "JSMSEMI": {
+      "name": "JSMSEMI",
+      "aliases": ["jsmsemi"],
+      "prefix_patterns": ["^MBR\\d{4}"]
+    },
+    "TECH-PUBLIC": {
+      "name": "Tech Public",
+      "aliases": ["tech public", "techpublic"],
+      "prefix_patterns": ["^1N\\d{4}HW", "^SS\\d{2}"]
+    },
+    "MULTICOMP-PRO": {
+      "name": "Multicomp Pro",
+      "aliases": ["multicomp pro", "multicomp"],
+      "prefix_patterns": ["^MC\\d{4}"]
+    },
+    "JST": {
+      "name": "JST",
+      "aliases": ["jst"],
+      "prefix_patterns": ["^B\\d+B-XH", "^XHP-"]
+    },
+    "BZCN": {
+      "name": "BZCN",
+      "aliases": ["bzcn"],
+      "prefix_patterns": ["^TSA\\d+"]
+    },
+    "JUSHUO": {
+      "name": "Jushuo",
+      "aliases": ["jushuo"],
+      "prefix_patterns": ["^JS\\d+B", "^AFC\\d+"]
+    },
+    "XINGLIGHT": {
+      "name": "Xinglight",
+      "aliases": ["xinglight"],
+      "prefix_patterns": ["^XL-\\d+"]
+    },
+    "TEXAS-INSTRUMENTS": {
+      "name": "Texas Instruments",
+      "aliases": ["ti", "texas instruments"],
+      "prefix_patterns": ["^NE5532", "^LM\\d{3,4}", "^SN74"]
+    },
+    "STMICRO": {
+      "name": "STMicroelectronics",
+      "aliases": ["stmicro", "stmicroelectronics", "st"],
+      "prefix_patterns": ["^STM32", "^STP\\d"]
+    },
+    "GENERIC": {
+      "name": "Generic",
+      "aliases": ["generic"],
+      "prefix_patterns": []
+    }
+  }
+}

@@ -16,16 +16,16 @@
 name: ananya
 
 services:
-  postgres:
+  db:
     image: postgres:16-alpine
-    container_name: ananya-postgres
+    container_name: ananya-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ananya}
       POSTGRES_USER: ${POSTGRES_USER:-ananya}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ananya_secure_password}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ananya_db:/var/lib/postgresql/data
     networks:
       - internal
     healthcheck:
@@ -46,15 +46,17 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@postgres:5432/${POSTGRES_DB:-ananya}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@db:5432/${POSTGRES_DB:-ananya}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       JWT_SECRET: ${JWT_SECRET:-ananya_jwt_production_secret_change_me}
+      ML_SERVICE_URL: ${ML_SERVICE_URL:-http://ml:5001}
+      ML_SERVICE_ENABLED: ${ML_SERVICE_ENABLED:-true}
     volumes:
-      - uploads_data:/app/uploads
+      - ananya_app:/app/uploads
     networks:
       - internal
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
     healthcheck:
       test:
@@ -75,11 +77,11 @@ services:
     command: ["node", "packages/database/dist/setup/migrate.js"]
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@postgres:5432/${POSTGRES_DB:-ananya}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@db:5432/${POSTGRES_DB:-ananya}
     networks:
       - internal
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
     profiles:
       - migrate
@@ -93,14 +95,14 @@ services:
     environment:
       NODE_ENV: production
       WORKER_PORT: 4001
-      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@postgres:5432/${POSTGRES_DB:-ananya}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@db:5432/${POSTGRES_DB:-ananya}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
     volumes:
-      - uploads_data:/app/uploads
+      - ananya_app:/app/uploads
     networks:
       - internal
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
     healthcheck:
       test:
@@ -145,6 +147,31 @@ services:
       retries: 3
       start_period: 15s
 
+  ml:
+    container_name: ananya-ml
+    restart: unless-stopped
+    profiles:
+      - ml
+      - all
+    ports:
+      - "${ML_PORT:-5001}:5001"
+    environment:
+      PORT: 5001
+    networks:
+      - internal
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python3",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: ananya-pgadmin
@@ -159,17 +186,17 @@ services:
     ports:
       - "${PGADMIN_PORT:-5050}:80"
     volumes:
-      - pgadmin_data:/var/lib/pgadmin
+      - ananya_dbadmin:/var/lib/pgadmin
     networks:
       - internal
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
 
 volumes:
-  postgres_data:
-  uploads_data:
-  pgadmin_data:
+  ananya_db:
+  ananya_app:
+  ananya_dbadmin:
 
 networks:
   internal:

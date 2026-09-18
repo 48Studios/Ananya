@@ -80,10 +80,10 @@ The setup script automatically:
 
 1. Validates your Docker & Docker Compose installation.
 2. Compiles the Web image with your configured `API_PUBLIC_URL`.
-3. Pulls published API and Worker container images from GHCR.
+3. Pulls published API, Worker, and ML container images from GHCR.
 4. Starts PostgreSQL and waits for healthy status.
 5. Executes database schema migrations using the published API image.
-6. Starts the application stack (`web`, `api`, `worker`).
+6. Starts the full application stack (`web`, `api`, `worker`, `ml`).
 7. Probes service health and displays your access URLs.
 
 ## 4. Reverse Proxy & HTTPS Setup
@@ -117,7 +117,7 @@ To upgrade your installation to a newer release:
 The upgrade script automatically:
 
 1. Fetches latest repository updates (including frontend source code) if deployed via Git.
-2. Pulls updated published images (`api`, `worker`, `migrate`, `web`) from GHCR.
+2. Pulls updated published images (`api`, `worker`, `migrate`, `web`, `ml`) from GHCR.
 3. Re-builds the Web frontend image cleanly (`--pull --no-cache`) with your `API_PUBLIC_URL`.
 4. Applies all pending database schema migrations directly to PostgreSQL.
 5. Safely updates and recreates running application containers (`--force-recreate`).
@@ -127,10 +127,11 @@ Existing PostgreSQL database data, uploaded files, and `.env` credentials are pr
 6. Verify health.
 
    ```bash
-   docker compose -f compose.yml -f compose.prod.yml --profile worker ps
+   docker compose -f compose.yml -f compose.prod.yml --profile all ps
    docker compose -f compose.yml -f compose.prod.yml logs --tail=100 api
    docker compose -f compose.yml -f compose.prod.yml logs --tail=100 web
    docker compose -f compose.yml -f compose.prod.yml logs --tail=100 worker
+   docker compose -f compose.yml -f compose.prod.yml logs --tail=100 ml
    ```
 
 Rollback depends on the release and any migrations already applied. Before upgrading, back up PostgreSQL data and uploaded files. If a release includes irreversible schema changes, restore from backup rather than assuming an older image can safely run against the upgraded database.
@@ -145,7 +146,7 @@ Ananya stores durable state in two places:
 Back up PostgreSQL:
 
 ```bash
-docker compose -f compose.yml -f compose.prod.yml exec -T postgres pg_dump -U ananya ananya > ananya-postgres.sql
+docker compose -f compose.yml -f compose.prod.yml exec -T db pg_dump -U ananya ananya > ananya-postgres.sql
 ```
 
 If you changed `POSTGRES_USER` or `POSTGRES_DB`, replace `ananya` in the command above.
@@ -153,7 +154,7 @@ If you changed `POSTGRES_USER` or `POSTGRES_DB`, replace `ananya` in the command
 Back up uploaded files:
 
 ```bash
-docker run --rm -v ananya_uploads_data:/volume -v "$PWD:/backup" alpine tar czf /backup/ananya-uploads.tgz -C /volume .
+docker run --rm -v ananya_app:/volume -v "$PWD:/backup" alpine tar czf /backup/ananya-uploads.tgz -C /volume .
 ```
 
 Store backups outside the application server and test restoration before relying on them.
@@ -163,16 +164,17 @@ Store backups outside the application server and test restoration before relying
 Check service status:
 
 ```bash
-docker compose -f compose.yml -f compose.prod.yml --profile worker ps
+docker compose -f compose.yml -f compose.prod.yml --profile all ps
 ```
 
 View logs:
 
 ```bash
-docker compose -f compose.yml -f compose.prod.yml logs --tail=100 postgres
+docker compose -f compose.yml -f compose.prod.yml logs --tail=100 db
 docker compose -f compose.yml -f compose.prod.yml logs --tail=100 api
 docker compose -f compose.yml -f compose.prod.yml logs --tail=100 web
 docker compose -f compose.yml -f compose.prod.yml logs --tail=100 worker
+docker compose -f compose.yml -f compose.prod.yml logs --tail=100 ml
 ```
 
 Common first-install issues:
@@ -225,7 +227,7 @@ CORS_ORIGIN=http://localhost:3000
 ## Start Development Database
 
 ```bash
-docker compose -f compose.yml -f compose.local.yml up -d postgres
+docker compose -f compose.yml -f compose.local.yml up -d db
 ```
 
 `compose.local.yml` exposes PostgreSQL on `POSTGRES_PORT`, which defaults to `5432`.
@@ -264,10 +266,10 @@ pnpm qa
 Build and test the production Dockerfiles locally without pulling application images from GHCR:
 
 ```bash
-docker compose -f compose.yml -f compose.local.yml up -d postgres
+docker compose -f compose.yml -f compose.local.yml up -d db
 docker compose -f compose.yml -f compose.local.yml run --build --rm migrate
-docker compose -f compose.yml -f compose.local.yml --profile worker up --build -d
-docker compose -f compose.yml -f compose.local.yml --profile worker ps
+docker compose -f compose.yml -f compose.local.yml --profile all up --build -d
+docker compose -f compose.yml -f compose.local.yml --profile all ps
 ```
 
 # Architecture
@@ -288,6 +290,7 @@ Repository layout:
 
 - `apps/web`: Next.js frontend.
 - `apps/api`: NestJS REST API and worker entrypoint.
+- `apps/ml`: Python/FastAPI ML microservice for component intelligence.
 - `packages/database`: Drizzle/PostgreSQL schema and migrations.
 - `packages/*`: domain, shared, lint, and TypeScript packages.
 - `docker/*`: production Dockerfiles.

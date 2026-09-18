@@ -5,9 +5,10 @@ import { ComponentsController } from './components.controller';
 import { ComponentsService } from './components.service';
 
 import { AttributesModule } from '../attributes/attributes.module';
+import { MlModule } from '../ml/ml.module';
 
 @Module({
-  imports: [AttributesModule],
+  imports: [AttributesModule, MlModule],
   controllers: [ComponentsController],
   providers: [
     ComponentsService,

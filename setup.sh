@@ -123,9 +123,9 @@ if [ "$IS_UPGRADE" = true ]; then
 fi
 
 log_info "Pulling published container images from GHCR..."
-docker compose -f compose.yml -f compose.prod.yml pull api worker migrate web 2>/dev/null || {
-  log_warn "Pulling 'web' image directly from registry was skipped or unavailable; pulling remaining published images (api, worker, migrate)..."
-  docker compose -f compose.yml -f compose.prod.yml pull api worker migrate
+docker compose -f compose.yml -f compose.prod.yml pull api worker migrate web ml 2>/dev/null || {
+  log_warn "Pulling 'web' image directly from registry was skipped or unavailable; pulling remaining published images (api, worker, migrate, ml)..."
+  docker compose -f compose.yml -f compose.prod.yml pull api worker migrate ml
 }
 
 if [ "$IS_UPGRADE" = true ]; then
@@ -140,12 +140,12 @@ fi
 # 4. Start PostgreSQL & Wait for Health
 # ------------------------------------------------------------------------------
 log_info "Starting PostgreSQL database container..."
-docker compose -f compose.yml -f compose.prod.yml up -d postgres
+docker compose -f compose.yml -f compose.prod.yml up -d db
 
 log_info "Waiting for PostgreSQL database to become healthy..."
 RETRIES=30
 until [ "$RETRIES" -le 0 ]; do
-  HEALTH=$(docker inspect -f '{{.State.Health.Status}}' ananya-postgres 2>/dev/null || echo "unhealthy")
+  HEALTH=$(docker inspect -f '{{.State.Health.Status}}' ananya-db 2>/dev/null || echo "unhealthy")
   if [ "$HEALTH" = "healthy" ]; then
     log_success "PostgreSQL database is healthy and ready."
     break
@@ -156,7 +156,7 @@ done
 
 if [ "$RETRIES" -le 0 ]; then
   log_error "PostgreSQL failed to report healthy status within timeout."
-  docker logs ananya-postgres
+  docker logs ananya-db
   exit 1
 fi
 
@@ -181,10 +181,10 @@ fi
 # ------------------------------------------------------------------------------
 if [ "$IS_UPGRADE" = true ]; then
   log_info "Upgrading Ananya ERP application containers with recreated images..."
-  docker compose -f compose.yml -f compose.prod.yml --profile worker up -d --force-recreate
+  docker compose -f compose.yml -f compose.prod.yml --profile all up -d --force-recreate
 else
   log_info "Starting Ananya ERP application stack..."
-  docker compose -f compose.yml -f compose.prod.yml --profile worker up -d
+  docker compose -f compose.yml -f compose.prod.yml --profile all up -d
 fi
 
 # ------------------------------------------------------------------------------
@@ -193,7 +193,7 @@ fi
 log_info "Verifying service initialization..."
 sleep 3
 
-CONTAINERS=("ananya-api" "ananya-web")
+CONTAINERS=("ananya-api" "ananya-web" "ananya-worker" "ananya-ml")
 for c in "${CONTAINERS[@]}"; do
   RUNNING=$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo "false")
   if [ "$RUNNING" != "true" ]; then

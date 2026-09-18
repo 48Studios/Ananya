@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
@@ -16,6 +17,7 @@ import {
   RefreshCw,
   ExternalLink,
   PackageCheck,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -26,6 +28,13 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { PurchaseOrderForm } from "@/components/purchase-orders/po-form";
 import { GoodsReceiptForm } from "@/components/goods-receipts/gr-form";
 import {
@@ -39,6 +48,7 @@ import {
 } from "@/lib/shipping-carriers";
 
 export default function PurchaseOrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = React.useState<PurchaseOrderDto[]>([]);
   const [suppliersMap, setSuppliersMap] = React.useState<
     Record<string, SupplierDto>
@@ -178,6 +188,7 @@ export default function PurchaseOrdersPage() {
       {
         accessorKey: "poNumber",
         header: "PO Number",
+        meta: { width: "12%" },
         cell: ({ row }) => (
           <Link
             href={`/purchase-orders/${row.original.id}`}
@@ -190,21 +201,25 @@ export default function PurchaseOrdersPage() {
       {
         accessorKey: "supplierId",
         header: "Supplier",
+        meta: { width: "21%" },
         cell: ({ row }) => {
           const sup = suppliersMap[row.original.supplierId];
           return (
-            <span
-              className="font-medium text-foreground truncate block"
-              title={sup ? sup.name : row.original.supplierId}
-            >
-              {sup ? sup.name : row.original.supplierId.slice(0, 8)}
-            </span>
+            <div className="min-w-0">
+              <span
+                className="font-medium text-foreground truncate block"
+                title={sup ? sup.name : row.original.supplierId}
+              >
+                {sup ? sup.name : row.original.supplierId.slice(0, 8)}
+              </span>
+            </div>
           );
         },
       },
       {
         accessorKey: "status",
         header: "Status",
+        meta: { width: "10%" },
         cell: ({ row }) => (
           <span
             className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${
@@ -226,6 +241,7 @@ export default function PurchaseOrdersPage() {
       {
         accessorKey: "grandTotal",
         header: "Grand Total",
+        meta: { width: "13%" },
         cell: ({ row }) => {
           const po = row.original;
           let total = Number(po.grandTotal) || 0;
@@ -247,6 +263,7 @@ export default function PurchaseOrdersPage() {
       {
         accessorKey: "expectedDeliveryDate",
         header: "Expected Delivery",
+        meta: { width: "12%" },
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             {row.original.expectedDeliveryDate
@@ -258,6 +275,7 @@ export default function PurchaseOrdersPage() {
       {
         accessorKey: "trackingNumber",
         header: "Shipment / Tracking",
+        meta: { width: "14%" },
         cell: ({ row }) => {
           const po = row.original;
           if (!po.trackingNumber) {
@@ -273,7 +291,7 @@ export default function PurchaseOrdersPage() {
           );
 
           return (
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <div className="flex items-center gap-1.5 min-w-0">
               <span className="text-[11px] font-medium text-foreground bg-muted/60 px-1.5 py-0.5 rounded shrink-0">
                 {providerName !== "—" ? providerName : "Courier"}
               </span>
@@ -285,7 +303,7 @@ export default function PurchaseOrdersPage() {
                   className="font-mono text-xs text-primary hover:underline inline-flex items-center gap-0.5 truncate"
                   title="Track shipment package"
                 >
-                  <span>{po.trackingNumber}</span>
+                  <span className="truncate">{po.trackingNumber}</span>
                   <ExternalLink className="w-3 h-3 shrink-0" />
                 </a>
               ) : (
@@ -300,6 +318,7 @@ export default function PurchaseOrdersPage() {
       {
         accessorKey: "createdAt",
         header: "Order Date",
+        meta: { width: "10%" },
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             {new Date(row.original.createdAt).toLocaleDateString()}
@@ -310,11 +329,15 @@ export default function PurchaseOrdersPage() {
         id: "actions",
         header: "Actions",
         meta: {
+          width: "8%",
           headerClassName: "text-right",
+          cellClassName: "text-right",
         },
         cell: ({ row }) => {
           const po = row.original;
           const isDraft = po.status === "DRAFT";
+          const canReceive =
+            po.status !== "CANCELLED" && po.status !== "FULFILLED";
           const canEdit = po.status !== "CANCELLED";
           const canCancel = ![
             "FULFILLED",
@@ -324,13 +347,7 @@ export default function PurchaseOrdersPage() {
           const canDelete = ["DRAFT", "CANCELLED"].includes(po.status);
 
           return (
-            <div className="flex items-center justify-end gap-1 whitespace-nowrap">
-              <Link href={`/purchase-orders/${po.id}`}>
-                <Button variant="ghost" size="icon-xs" title="View PO details">
-                  <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-                </Button>
-              </Link>
-
+            <div className="flex items-center justify-end gap-1">
               {isDraft && (
                 <Button
                   variant="ghost"
@@ -342,7 +359,7 @@ export default function PurchaseOrdersPage() {
                 </Button>
               )}
 
-              {po.status !== "CANCELLED" && po.status !== "FULFILLED" && (
+              {canReceive && !isDraft && (
                 <Button
                   variant="ghost"
                   size="icon-xs"
@@ -353,50 +370,74 @@ export default function PurchaseOrdersPage() {
                 </Button>
               )}
 
-              {canEdit && (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  title={isDraft ? "Edit PO" : "Edit tracking & delivery"}
-                  onClick={() => {
-                    setEditingPo(po);
-                    setIsFormOpen(true);
-                  }}
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-                </Button>
-              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="More actions"
+                      className="data-open:bg-muted"
+                    >
+                      <MoreVertical className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => router.push(`/purchase-orders/${po.id}`)}
+                  >
+                    <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>View Details</span>
+                  </DropdownMenuItem>
 
-              {canCancel && !isDraft && (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  title="Cancel PO"
-                  onClick={() => setCancellingPo(po)}
-                >
-                  <Ban className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 hover:text-amber-700" />
-                </Button>
-              )}
+                  {canEdit && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setEditingPo(po);
+                        setIsFormOpen(true);
+                      }}
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>
+                        {isDraft ? "Edit Order" : "Edit Tracking & Delivery"}
+                      </span>
+                    </DropdownMenuItem>
+                  )}
 
-              {canDelete && (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  title="Delete PO"
-                  onClick={() => {
-                    setApiAlert(null);
-                    setDeletingPo(po);
-                  }}
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-                </Button>
-              )}
+                  {canCancel && !isDraft && (
+                    <DropdownMenuItem
+                      onClick={() => setCancellingPo(po)}
+                      className="text-amber-600 dark:text-amber-400"
+                    >
+                      <Ban className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      <span>Cancel Order</span>
+                    </DropdownMenuItem>
+                  )}
+
+                  {canDelete && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => {
+                          setApiAlert(null);
+                          setDeletingPo(po);
+                        }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        <span>Delete</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           );
         },
       },
     ],
-    [suppliersMap],
+    [suppliersMap, router],
   );
 
   const filterConfigs: FilterConfig[] = [
@@ -598,7 +639,6 @@ export default function PurchaseOrdersPage() {
         loading={loading}
         emptyTitle="No purchase orders found"
         emptyMessage="Get started by creating your first purchase order."
-        minWidth={1000}
       />
     </div>
   );

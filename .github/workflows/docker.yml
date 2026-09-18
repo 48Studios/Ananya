@@ -40,22 +40,22 @@ jobs:
       - name: Boot Production Application Stack & Run Health Checks
         run: |
           echo "=== 1. Starting PostgreSQL ==="
-          docker compose -f compose.yml -f compose.local.yml up -d postgres
+          docker compose -f compose.yml -f compose.local.yml up -d db
 
           echo "=== 2. Running schema migrations ==="
           docker compose -f compose.yml -f compose.local.yml run --build --rm migrate
 
           echo "=== 3. Booting production-equivalent application stack ==="
-          docker compose -f compose.yml -f compose.local.yml --profile worker up --build -d api worker web
+          docker compose -f compose.yml -f compose.local.yml --profile all up --build -d
 
           echo "=== 4. Container Status (docker compose ps -a) ==="
-          docker compose -f compose.yml -f compose.local.yml --profile worker ps -a
+          docker compose -f compose.yml -f compose.local.yml --profile all ps -a
 
           echo "=== 5. Waiting 5s for process initialization ==="
           sleep 5
 
           echo "=== 6. Checking Service Exit States ==="
-          containers=("ananya-postgres" "ananya-api" "ananya-worker" "ananya-web")
+          containers=("ananya-db" "ananya-api" "ananya-worker" "ananya-ml" "ananya-web")
           for c in "${containers[@]}"; do
             running=$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo "false")
             exit_code=$(docker inspect -f '{{.State.ExitCode}}' "$c" 2>/dev/null || echo "1")
@@ -92,12 +92,19 @@ jobs:
             exit 1
           fi
 
+          echo "Probing ML Service Health (http://localhost:5001/health)..."
+          if ! curl --fail --retry 10 --retry-delay 3 --retry-connrefused http://localhost:5001/health; then
+            echo "❌ ML Health Probe Failed! Logs:"
+            docker logs ananya-ml
+            exit 1
+          fi
+
           echo "✅ Production-equivalent deployment integration smoke test passed cleanly!"
 
       - name: Cleanup Production Stack
         if: always()
         run: |
-          docker compose -f compose.yml -f compose.local.yml --profile worker down -v --remove-orphans || true
+          docker compose -f compose.yml -f compose.local.yml --profile all down -v --remove-orphans || true
 
   build-and-publish:
     name: Build & Publish Image (${{ matrix.service }})
@@ -116,6 +123,9 @@ jobs:
           - service: worker
             image: ghcr.io/48studios/ananya-worker
             dockerfile: docker/Dockerfile.worker
+          - service: ml
+            image: ghcr.io/48studios/ananya-ml
+            dockerfile: docker/Dockerfile.ml
 
     steps:
       - name: Checkout Repository

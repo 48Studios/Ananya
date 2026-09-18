@@ -227,3 +227,4 @@ Routine feature work, bug fixes, refactoring, implementation details, and small 
 | 0053 | Production Planning & Capacity      | Accepted |
 | 0054 | Purchase Planning                   | Accepted |
 | 0055 | Planning Integration                | Accepted |
+| 0056 | Lightweight ML Architecture         | Accepted |

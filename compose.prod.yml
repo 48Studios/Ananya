@@ -30,3 +30,7 @@ services:
       dockerfile: docker/Dockerfile.web
       args:
         API_PUBLIC_URL: ${API_PUBLIC_URL:?API_PUBLIC_URL must be set for production deployments}
+
+  ml:
+    image: ghcr.io/48studios/ananya-ml:${ANANYA_VERSION:-latest}
+

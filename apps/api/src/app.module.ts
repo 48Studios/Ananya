@@ -76,10 +76,12 @@ import { SettingsModule } from './settings/settings.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { DataPacksModule } from './data-packs/data-packs.module';
 import { AttributesModule } from './attributes/attributes.module';
+import { MlModule } from './ml/ml.module';
 import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
+    MlModule,
     DatabaseModule,
     LocationsModule,
     ComponentsModule,

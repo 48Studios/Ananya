@@ -4,7 +4,9 @@ import * as React from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Check, Loader2, Sliders } from "lucide-react";
+import { Check, Loader2, Sliders, Sparkles, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { mlApi, type ComponentSuggestionResponseDto } from "@/lib/api/ml-api";
+import { AiSuggestionReviewCard } from "./ai-suggestion-review-card";
 import { Button } from "@/components/ui/button";
 import {
   DialogShellBody,
@@ -98,11 +100,18 @@ export function ComponentForm({
     >
   >({});
 
+  const [suggestion, setSuggestion] = React.useState<ComponentSuggestionResponseDto | null>(null);
+  const [loadingAi, setLoadingAi] = React.useState(false);
+  const [showDatasheetBox, setShowDatasheetBox] = React.useState(false);
+  const [datasheetInput, setDatasheetInput] = React.useState("");
+
   const {
     register,
     handleSubmit,
     control,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ComponentFormValues>({
     resolver: zodResolver(componentSchema),
@@ -237,6 +246,88 @@ export function ComponentForm({
     });
   };
 
+  const handleFetchAiSuggestions = async (overrideQuery?: string) => {
+    const q = overrideQuery || datasheetInput || watch("sku") || watch("name");
+    if (!q || q.trim().length === 0) return;
+
+    setLoadingAi(true);
+    setServerError(null);
+    try {
+      const res = await mlApi.suggest({
+        query: q.trim(),
+        partNumber: watch("sku") || undefined,
+        description: watch("name") || datasheetInput || undefined,
+        datasheetText: datasheetInput || undefined,
+      });
+      setSuggestion(res);
+    } catch (err: unknown) {
+      console.warn("AI suggestion fetch failed:", err);
+    } finally {
+      setLoadingAi(false);
+    }
+  };
+
+  const handleApplyAllSuggestions = () => {
+    if (!suggestion) return;
+
+    if (suggestion.suggestedSku && !watch("sku")) {
+      setValue("sku", suggestion.suggestedSku, { shouldValidate: true });
+    }
+    if (suggestion.suggestedName && !watch("name")) {
+      setValue("name", suggestion.suggestedName, { shouldValidate: true });
+    }
+    if (suggestion.category?.categoryId) {
+      setValue("categoryId", suggestion.category.categoryId, { shouldValidate: true });
+    }
+    if (suggestion.manufacturer?.manufacturerId) {
+      setValue("manufacturerId", suggestion.manufacturer.manufacturerId, { shouldValidate: true });
+    }
+    if (suggestion.suggestedUnit) {
+      setValue("unit", suggestion.suggestedUnit, { shouldValidate: true });
+    }
+
+    if (suggestion.attributes && Object.keys(suggestion.attributes).length > 0) {
+      setAttrValues((prev) => {
+        const next = { ...prev };
+        for (const [code, attr] of Object.entries(suggestion.attributes)) {
+          next[code] = {
+            value: attr.value,
+            unit: attr.unit || next[code]?.unit,
+            optionCode: typeof attr.value === "string" ? attr.value : undefined,
+          };
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleApplyCategory = () => {
+    if (suggestion?.category?.categoryId) {
+      setValue("categoryId", suggestion.category.categoryId, { shouldValidate: true });
+    }
+  };
+
+  const handleApplyManufacturer = () => {
+    if (suggestion?.manufacturer?.manufacturerId) {
+      setValue("manufacturerId", suggestion.manufacturer.manufacturerId, { shouldValidate: true });
+    }
+  };
+
+  const handleApplyAttributes = (attrs: Record<string, unknown>) => {
+    setAttrValues((prev) => {
+      const next = { ...prev };
+      for (const [code, attrRaw] of Object.entries(attrs)) {
+        const attr = attrRaw as { value?: unknown; unit?: string | null };
+        next[code] = {
+          value: attr.value,
+          unit: attr.unit || next[code]?.unit,
+          optionCode: typeof attr.value === "string" ? attr.value : undefined,
+        };
+      }
+      return next;
+    });
+  };
+
   const onSubmit = async (values: ComponentFormValues) => {
     setServerError(null);
 
@@ -321,6 +412,89 @@ export function ComponentForm({
         {serverError && (
           <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
             {serverError}
+          </div>
+        )}
+
+        {/* ── AI Suggestion Review Card ────────────────────────────────────── */}
+        {suggestion && (
+          <AiSuggestionReviewCard
+            suggestion={suggestion}
+            onApplyAll={handleApplyAllSuggestions}
+            onApplyCategory={handleApplyCategory}
+            onApplyManufacturer={handleApplyManufacturer}
+            onApplyAttributes={handleApplyAttributes}
+            onDismiss={() => setSuggestion(null)}
+          />
+        )}
+
+        {/* ── AI Quick Actions Bar ─────────────────────────────────────────── */}
+        {!suggestion && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/80 bg-muted/30 px-3 py-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Sparkles className="size-3.5 text-primary" />
+              <span>Smart Component Intelligence</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDatasheetBox(!showDatasheetBox)}
+                className="h-7 text-xs font-medium px-2.5 gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <FileText className="size-3" />
+                {showDatasheetBox ? "Hide Datasheet Box" : "Paste Datasheet"}
+                {showDatasheetBox ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loadingAi}
+                onClick={() => handleFetchAiSuggestions()}
+                className="h-7 text-xs font-medium px-2.5 gap-1.5 border-primary/30 text-primary hover:bg-primary/10 bg-primary/5"
+              >
+                {loadingAi ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Sparkles className="size-3 text-primary" />
+                )}
+                {loadingAi ? "Analyzing…" : "Auto-detect with AI"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Expandable Datasheet Text Box ─────────────────────────────────── */}
+        {showDatasheetBox && (
+          <div className="rounded-lg border border-border bg-card p-3 space-y-2.5 shadow-2xs">
+            <FieldLabel htmlFor="datasheet-input" className="text-xs">
+              Raw Datasheet or Spec Text
+            </FieldLabel>
+            <Textarea
+              id="datasheet-input"
+              rows={3}
+              placeholder="Paste component specs, e.g.: '0805 SMD Resistor 10k Ohm 1% 1/4W 50V Thin Film Yageo' or raw datasheet snippets..."
+              value={datasheetInput}
+              onChange={(e) => setDatasheetInput(e.target.value)}
+              className="text-xs font-mono"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={loadingAi || !datasheetInput.trim()}
+                onClick={() => handleFetchAiSuggestions(datasheetInput)}
+                className="h-7 text-xs font-medium px-2.5 gap-1.5 bg-primary text-primary-foreground"
+              >
+                {loadingAi ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Sparkles className="size-3" />
+                )}
+                Extract & Suggest
+              </Button>
+            </div>
           </div>
         )}
 

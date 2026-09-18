@@ -232,10 +232,12 @@ export default function InventoryPage() {
       },
       {
         id: "actions",
-        header: () => <span className="sr-only">Actions</span>,
+        header: "Actions",
         meta: {
           width: "7%",
           minWidth: "85px",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
         },
         cell: ({ row }) => (
           <div className="flex justify-end pr-1">

@@ -14,10 +14,26 @@ import { UpdateComponentDto } from './update-component.dto';
 import { ComponentsService } from './components.service';
 import { ComponentExceptionFilter } from './component-exception.filter';
 
+import { MlService } from '../ml/ml.service';
+import {
+  SuggestComponentDto,
+  ComponentSuggestionResponseDto,
+} from '../ml/dtos';
+
 @Controller('components')
 @UseFilters(ComponentExceptionFilter)
 export class ComponentsController {
-  constructor(private readonly componentsService: ComponentsService) {}
+  constructor(
+    private readonly componentsService: ComponentsService,
+    private readonly mlService: MlService,
+  ) {}
+
+  @Post('suggest')
+  suggest(
+    @Body() input: SuggestComponentDto,
+  ): Promise<ComponentSuggestionResponseDto> {
+    return this.mlService.suggest(input);
+  }
 
   @Post()
   create(

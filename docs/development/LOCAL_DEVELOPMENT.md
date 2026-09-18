@@ -16,7 +16,7 @@ git clone https://github.com/48studios/ananya.git
 cd ananya
 pnpm install
 cp .env.example .env
-docker compose -f compose.yml -f compose.local.yml up -d postgres
+docker compose -f compose.yml -f compose.local.yml up -d db
 DATABASE_URL=postgresql://ananya:ananya_secure_password@localhost:5432/ananya pnpm db:migrate
 pnpm dev
 ```
@@ -61,6 +61,41 @@ DATABASE_URL=postgresql://ananya:ananya_secure_password@localhost:5432/ananya pn
 ```
 
 Business/master data is provisioned through Data Packs in the web application, not through seed scripts.
+
+## Machine Learning Service (Optional)
+
+The machine learning service (`apps/ml`) provides component categorization, manufacturer resolution, duplicate detection, and datasheet parsing.
+
+It is **optional for local development**: if the ML service is not running or disabled, the NestJS API gracefully degrades to in-process deterministic regex rules without errors.
+
+### Option A: Run via Docker Compose (Recommended)
+
+```bash
+docker compose -f compose.yml -f compose.local.yml --profile ml up -d ml
+```
+
+Verify service:
+```bash
+curl http://localhost:5001/health
+```
+
+### Option B: Native Python Development
+
+If working directly on models or Python services:
+
+```bash
+cd apps/ml
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Run ML service with hot-reload from repo root
+cd ../..
+uvicorn apps.ml.app.main:app --host 0.0.0.0 --port 5001 --reload
+
+# Run tests
+pytest apps/ml/tests
+```
 
 ## Configuration
 

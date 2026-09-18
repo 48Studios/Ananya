@@ -42,6 +42,8 @@ export interface UpdateComponentPayload {
   attributes?: Record<string, unknown> | SetComponentAttributeItem[];
 }
 
+import type { ComponentSuggestionResponseDto } from "./ml-api";
+
 export const componentsApi = {
   getAll: (): Promise<ComponentDto[]> =>
     apiClient.get<ComponentDto[]>("/components"),
@@ -62,4 +64,8 @@ export const componentsApi = {
     ),
   delete: (id: string): Promise<void> =>
     apiClient.delete<void>(`/components/${id}`),
+  suggest: (payload: { query: string; partNumber?: string; description?: string; datasheetText?: string }): Promise<ComponentSuggestionResponseDto> =>
+    apiClient.post<ComponentSuggestionResponseDto, typeof payload>("/components/suggest", payload),
 };
+
+

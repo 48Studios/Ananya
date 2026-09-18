@@ -68,7 +68,7 @@ jobs:
       - name: Boot Production Application Stack & Run Health Checks
         run: |
           echo "=== 1. Starting PostgreSQL ==="
-          docker compose -f compose.yml -f compose.local.yml up -d postgres
+          docker compose -f compose.yml -f compose.local.yml up -d db
 
           echo "=== 2. Running schema migrations ==="
           docker compose -f compose.yml -f compose.local.yml run --build --rm migrate
@@ -83,7 +83,7 @@ jobs:
           sleep 5
 
           echo "=== 6. Checking Service Exit States ==="
-          containers=("ananya-postgres" "ananya-api" "ananya-worker" "ananya-web")
+          containers=("ananya-db" "ananya-api" "ananya-worker" "ananya-web")
           for c in "${containers[@]}"; do
             running=$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo "false")
             exit_code=$(docker inspect -f '{{.State.ExitCode}}' "$c" 2>/dev/null || echo "1")
@@ -144,6 +144,9 @@ jobs:
           - service: worker
             image: ghcr.io/48studios/ananya-worker
             dockerfile: docker/Dockerfile.worker
+          - service: ml
+            image: ghcr.io/48studios/ananya-ml
+            dockerfile: docker/Dockerfile.ml
 
     steps:
       - name: Checkout Repository

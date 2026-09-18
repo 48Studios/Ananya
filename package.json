@@ -13,6 +13,8 @@
     "db:migrate": "pnpm --filter @ananya/database db:migrate",
     "db:setup": "pnpm --filter @ananya/database db:setup",
     "db:bootstrap": "pnpm --filter @ananya/database db:bootstrap",
+    "ml:setup": "python3 -m venv apps/ml/.venv && ./apps/ml/.venv/bin/pip install -r apps/ml/requirements.txt",
+    "ml:dev": "./apps/ml/.venv/bin/uvicorn apps.ml.app.main:app --host 0.0.0.0 --port 5001 --reload",
     "test": "turbo run test",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",

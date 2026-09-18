@@ -348,8 +348,12 @@ export default function AttributesPage() {
       },
       {
         id: "actions",
-        meta: { width: "6.5rem" },
-        header: () => <div className="text-right sr-only">Actions</div>,
+        header: "Actions",
+        meta: {
+          width: "6.5rem",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => {
           const attr = row.original;
           const isSelectType =

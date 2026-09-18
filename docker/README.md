@@ -21,6 +21,7 @@ Use `compose.yml` with one application override. Do not run `compose.prod.yml` b
 | `ghcr.io/48studios/ananya-web`    | `ananya-web`    | Next.js standalone web app on port `3000`.                                           |
 | `ghcr.io/48studios/ananya-api`    | `ananya-api`    | NestJS REST API on port `4000`; also used by the one-shot migration service.         |
 | `ghcr.io/48studios/ananya-worker` | `ananya-worker` | Background worker using `apps/api/src/worker.ts`, with health checks on port `4001`. |
+| `ghcr.io/48studios/ananya-ml`     | `ananya-ml`     | CPU-first Python/FastAPI ML microservice for component intelligence on port `5001`.  |
 
 The Dockerfiles build non-root images using the `ananya` user with UID/GID `10001`.
 
@@ -29,26 +30,26 @@ The Dockerfiles build non-root images using the `ananya` user with UID/GID `1000
 Production and production-equivalent Docker runs should follow this order:
 
 ```text
-PostgreSQL -> database migrations -> API / Worker / Web -> Data Packs when required
+PostgreSQL -> database migrations -> API / Worker / ML / Web -> Data Packs when required
 ```
 
 Migrations are explicit. The API container does not run migrations on startup.
 
 ## Local Production-Equivalent Build
 
-Build and run the application Dockerfiles locally:
+Build and run the full application Dockerfiles locally:
 
 ```bash
-docker compose -f compose.yml -f compose.local.yml up -d postgres
+docker compose -f compose.yml -f compose.local.yml up -d db
 docker compose -f compose.yml -f compose.local.yml run --build --rm migrate
-docker compose -f compose.yml -f compose.local.yml --profile worker up --build -d
-docker compose -f compose.yml -f compose.local.yml --profile worker ps
+docker compose -f compose.yml -f compose.local.yml --profile all up --build -d
+docker compose -f compose.yml -f compose.local.yml --profile all ps
 ```
 
 Shut down and remove local volumes:
 
 ```bash
-docker compose -f compose.yml -f compose.local.yml --profile worker down -v --remove-orphans
+docker compose -f compose.yml -f compose.local.yml --profile all down -v --remove-orphans
 ```
 
 ## Production Deployment
@@ -63,22 +64,29 @@ POSTGRES_PASSWORD=change-me
 JWT_SECRET=change-me
 CORS_ORIGIN=https://erp.example.com
 API_PUBLIC_URL=https://api.erp.example.com
+COMPOSE_PROFILES=all
 ```
 
-Then run:
+Then run the turnkey full-stack deployment:
 
 ```bash
 docker compose -f compose.yml -f compose.prod.yml pull
-docker compose -f compose.yml -f compose.prod.yml up -d postgres
+docker compose -f compose.yml -f compose.prod.yml up -d db
 docker compose -f compose.yml -f compose.prod.yml run --rm migrate
-docker compose -f compose.yml -f compose.prod.yml --profile worker up -d
+docker compose -f compose.yml -f compose.prod.yml --profile all up -d
 ```
 
-For deployments without the worker:
+### Profile Options
 
-```bash
-docker compose -f compose.yml -f compose.prod.yml up -d api web
-```
+Ananya uses Compose profiles to let you tailor service footprints:
+
+| Profile / Flag | Services Started | Use Case |
+| :--- | :--- | :--- |
+| `--profile all` (or `COMPOSE_PROFILES=all`) | `db`, `api`, `web`, `worker`, `ml` | **Recommended**: Complete turnkey production deployment. |
+| `--profile worker` | `db`, `api`, `web`, `worker` | Standard production without ML (API uses graceful fallback). |
+| `--profile ml` | `db`, `api`, `web`, `ml` | Standard deployment with ML, without background worker. |
+| *(no profile)* | `db`, `api`, `web` | Minimal core deployment (`docker compose ... up -d api web`). |
+| `--profile tools` | adds `pgadmin` (port `5050`) | Database administration tools. |
 
 ## Upgrades
 
@@ -87,7 +95,7 @@ Pin the target version, pull images, run migrations, then update services:
 ```bash
 ANANYA_VERSION=0.1.1 docker compose -f compose.yml -f compose.prod.yml pull
 ANANYA_VERSION=0.1.1 docker compose -f compose.yml -f compose.prod.yml run --rm migrate
-ANANYA_VERSION=0.1.1 docker compose -f compose.yml -f compose.prod.yml --profile worker up -d
+ANANYA_VERSION=0.1.1 docker compose -f compose.yml -f compose.prod.yml --profile all up -d
 ```
 
 Migrations modify schema only. Business/master data is installed separately through Data Packs in the web application.
@@ -127,6 +135,7 @@ Containers use Docker DNS only inside the Compose network:
 
 ```text
 API / Worker / migrate -> postgres:5432
+API -> ml:5001
 ```
 
 `API_PUBLIC_URL` must be browser-reachable. Do not set it to Docker service names such as `http://api:4000` or `http://ananya-api:4000`.
@@ -139,7 +148,7 @@ API / Worker / migrate -> postgres:5432
   window.__ANANYA_CONFIG__ = { apiUrl: "$API_PUBLIC_URL" };
   ```
 - **Direct Browser Communication**: The browser loads `/runtime-config.js` before application hydration and issues requests directly to `API_PUBLIC_URL`. No Next.js proxy or rewrites are involved.
-- **Docker DNS Isolation**: Docker DNS names (e.g. `postgres:5432`) are used exclusively for container-to-container internal communication.
+- **Docker DNS Isolation**: Docker DNS names (e.g. `postgres:5432`, `ml:5001`) are used exclusively for container-to-container internal communication.
 
 The production reverse proxy, such as Caddy, lives outside this Compose stack and should route:
 
@@ -162,4 +171,5 @@ https://api.erp.example.com -> host/container port 4000
 | Web        | `http://localhost:3000/api/health`                  |
 | API        | `http://localhost:4000/health` inside the container |
 | Worker     | `http://localhost:4001/health` inside the container |
+| ML         | `http://localhost:5001/health` inside the container |
 | PostgreSQL | `pg_isready`                                        |
