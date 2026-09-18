@@ -230,13 +230,12 @@ export default function AttributesPage() {
 
           return (
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium border ${
-                isQty
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium border ${isQty
                   ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
                   : isSel
                     ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
                     : "bg-muted text-muted-foreground border-border"
-              }`}
+                }`}
             >
               {dt}
             </span>
@@ -331,11 +330,10 @@ export default function AttributesPage() {
         header: "Filterable",
         cell: ({ row }) => (
           <span
-            className={`inline-flex items-center gap-1 text-xs font-medium ${
-              row.original.isFilterable
+            className={`inline-flex items-center gap-1 text-xs font-medium ${row.original.isFilterable
                 ? "text-emerald-600 dark:text-emerald-400"
                 : "text-muted-foreground"
-            }`}
+              }`}
           >
             {row.original.isFilterable ? (
               <>
@@ -355,16 +353,14 @@ export default function AttributesPage() {
         header: "Status",
         cell: ({ row }) => (
           <span
-            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-              row.original.isActive
+            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border ${row.original.isActive
                 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                 : "bg-muted text-muted-foreground border-border"
-            }`}
+              }`}
           >
             <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                row.original.isActive ? "bg-emerald-500" : "bg-muted-foreground"
-              }`}
+              className={`w-1.5 h-1.5 rounded-full ${row.original.isActive ? "bg-emerald-500" : "bg-muted-foreground"
+                }`}
             />
             {row.original.isActive ? "Active" : "Inactive"}
           </span>
@@ -531,11 +527,10 @@ export default function AttributesPage() {
       <div ref={noticeRef} className="space-y-3">
         {statusAlert && (
           <div
-            className={`p-4 rounded-xl border flex items-center justify-between gap-3 text-sm font-medium ${
-              statusAlert.type === "success"
+            className={`p-4 rounded-xl border flex items-center justify-between gap-3 text-sm font-medium ${statusAlert.type === "success"
                 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
                 : "bg-destructive/10 border-destructive/20 text-destructive"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2.5">
               {statusAlert.type === "success" ? (
