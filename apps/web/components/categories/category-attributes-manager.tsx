@@ -48,7 +48,6 @@ export function CategoryAttributesManager({
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
 
   // AI Suggestions state
-  const [loadingSuggestions, setLoadingSuggestions] = React.useState(false);
   const [suggestedCategoryAttrs, setSuggestedCategoryAttrs] = React.useState<
     SuggestedCategoryAttributeItemDto[]
   >([]);
@@ -81,14 +80,12 @@ export function CategoryAttributesManager({
       setAllDefinitions(allDefs);
 
       // Concurrently fetch AI suggestions
-      setLoadingSuggestions(true);
       attributesApi
         .suggestCategoryAttributes(categoryId)
         .then((res) => {
           setSuggestedCategoryAttrs(res.suggestions || []);
         })
-        .catch(() => {})
-        .finally(() => setLoadingSuggestions(false));
+        .catch(() => {});
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);

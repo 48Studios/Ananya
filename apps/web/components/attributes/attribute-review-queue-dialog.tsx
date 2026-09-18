@@ -475,13 +475,6 @@ export function AttributeReviewQueueDialog({
                         : item.reason || "Review item");
 
               const displaySubtitle = item.subtitle || item.reason || "";
-              const attrCode =
-                item.attributeCode ||
-                (item.payload?.canonicalCode as string | undefined);
-              const dataType = item.payload?.dataType as string | undefined;
-              const defaultUnit = item.payload?.defaultUnit as
-                | string
-                | undefined;
 
               return (
                 <div

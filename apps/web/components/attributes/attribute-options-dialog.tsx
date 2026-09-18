@@ -159,6 +159,7 @@ export function AttributeOptionsDialog({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, attribute?.id]);
 
   // Set of already configured codes or labels (case-insensitive)

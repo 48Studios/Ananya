@@ -79,7 +79,6 @@ export function AttributeCategoriesDialog({
   const [isUnbinding, setIsUnbinding] = React.useState(false);
 
   // AI Suggestions & Suspicious Bindings state
-  const [loadingAi, setLoadingAi] = React.useState(false);
   const [aiSuggestions, setAiSuggestions] = React.useState<
     SuggestedCategoryBindingDto[]
   >([]);
@@ -110,7 +109,6 @@ export function AttributeCategoriesDialog({
       setAllCategories(categories);
 
       // Fetch AI suggestions concurrently
-      setLoadingAi(true);
       attributesApi
         .suggestBindings({
           attributeId: attribute.id,
@@ -123,8 +121,7 @@ export function AttributeCategoriesDialog({
           setAiSuggestions(res.suggestions || []);
           setSuspiciousBindings(res.suspiciousExistingBindings || []);
         })
-        .catch(() => {})
-        .finally(() => setLoadingAi(false));
+        .catch(() => {});
     } catch (err: unknown) {
       setError(
         err instanceof Error

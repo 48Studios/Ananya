@@ -1375,11 +1375,15 @@ export class MlService {
           let attrId = issue.attributeId;
           let attrCode = issue.attributeCode;
           let attrName = issue.attributeName;
-          let payload = (issue.payload as Record<string, unknown> | undefined) || {};
+          let payload = issue.payload || {};
 
           if (!attrId) {
-            const normCode = (attrCode || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            const normName = (attrName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normCode = (attrCode || '')
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, '');
+            const normName = (attrName || '')
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, '');
             const matched = allDefs.find((d) => {
               const dCode = d.code.toLowerCase().replace(/[^a-z0-9]/g, '');
               const dName = d.name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -1387,8 +1391,12 @@ export class MlService {
                 a.toLowerCase().replace(/[^a-z0-9]/g, ''),
               );
               return (
-                (normCode && (dCode === normCode || dAliases.includes(normCode))) ||
-                (normName && (dName === normName || dCode === normName || dAliases.includes(normName)))
+                (normCode &&
+                  (dCode === normCode || dAliases.includes(normCode))) ||
+                (normName &&
+                  (dName === normName ||
+                    dCode === normName ||
+                    dAliases.includes(normName)))
               );
             });
 
@@ -1409,7 +1417,9 @@ export class MlService {
               // Check CANONICAL_PARAM_FALLBACK
               for (const item of Object.values(CANONICAL_PARAM_FALLBACK)) {
                 const pCode = item.code.toLowerCase().replace(/[^a-z0-9]/g, '');
-                const pName = item.canonical.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const pName = item.canonical
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]/g, '');
                 if (normCode === pCode || normName === pName) {
                   payload = {
                     ...payload,
@@ -1494,12 +1504,12 @@ export class MlService {
         (normType === 'SUGGESTED_BINDING'
           ? `Bind "${issue.attributeName || 'Attribute'}" to category "${issue.categoryName || 'Category'}"`
           : normType === 'SUSPICIOUS_BINDING'
-          ? `Unbind suspicious "${issue.attributeName || 'Attribute'}" from "${issue.categoryName || 'Category'}"`
-          : normType === 'POSSIBLE_DUPLICATE'
-          ? `Possible Duplicate: "${issue.attributeName || 'Attribute'}"`
-          : normType === 'UNUSED_ATTRIBUTE'
-          ? `Unused Attribute: "${issue.attributeName || 'Attribute'}"`
-          : issue.reason);
+            ? `Unbind suspicious "${issue.attributeName || 'Attribute'}" from "${issue.categoryName || 'Category'}"`
+            : normType === 'POSSIBLE_DUPLICATE'
+              ? `Possible Duplicate: "${issue.attributeName || 'Attribute'}"`
+              : normType === 'UNUSED_ATTRIBUTE'
+                ? `Unused Attribute: "${issue.attributeName || 'Attribute'}"`
+                : issue.reason);
 
       const subtitle = issue.subtitle || issue.reason;
 
@@ -2157,7 +2167,10 @@ export class MlService {
       if (
         candidates.includes(normCode) ||
         candidates.includes(normName) ||
-        candidates.some((c) => c.length >= 4 && (normCode.includes(c) || normName.includes(c)))
+        candidates.some(
+          (c) =>
+            c.length >= 4 && (normCode.includes(c) || normName.includes(c)),
+        )
       ) {
         for (const opt of item.options || []) {
           if (!existingSet.has(opt.toLowerCase())) {
@@ -2319,9 +2332,8 @@ export class MlService {
                 d.code.toLowerCase().replace(/[^a-z0-9]/g, '') === pCode ||
                 d.name.toLowerCase().replace(/[^a-z0-9]/g, '') === pCode ||
                 (d.aliases &&
-                  (d.aliases as string[]).some(
-                    (a) =>
-                      a.toLowerCase().replace(/[^a-z0-9]/g, '') === pCode,
+                  d.aliases.some(
+                    (a) => a.toLowerCase().replace(/[^a-z0-9]/g, '') === pCode,
                   )),
             );
 
