@@ -3,1062 +3,800 @@
     "YAGEO": {
       "name": "Yageo",
       "aliases": ["yageo", "phycomp"],
-      "prefix_patterns": [
-        "^RC\\d{4}",
-        "^RT\\d{4}",
-        "^CC\\d{4}",
-        "^AC\\d{4}",
-        "^RCM\\d+",
-        "^RL\\d+"
-      ]
+      "prefix_patterns": ["^RC\\d{4}", "^RT\\d{4}", "^CC\\d{4}", "^AC\\d{4}", "^RCM\\d+", "^RL\\d+"]
     },
-
     "MURATA": {
       "name": "Murata",
       "aliases": ["murata", "murata electronics"],
-      "prefix_patterns": [
-        "^GRM\\d{2}",
-        "^GCM\\d{2}",
-        "^GJM\\d{2}",
-        "^BLM\\d{2}",
-        "^LQH\\d{2}",
-        "^LQW\\d{2}",
-        "^LQM\\d{2}",
-        "^GRH\\d{2}",
-        "^GRT\\d{2}"
-      ]
+      "prefix_patterns": ["^GRM\\d{2}", "^GCM\\d{2}", "^GJM\\d{2}", "^BLM\\d{2}", "^LQH\\d{2}", "^LQW\\d{2}", "^LQM\\d{2}", "^GRH\\d{2}", "^GRT\\d{2}"]
     },
-
     "KEMET": {
       "name": "KEMET",
-      "aliases": ["kemet"],
-      "prefix_patterns": [
-        "^T49[145]",
-        "^C\\d{4}C",
-        "^C\\d{4}X",
-        "^R\\d{4}",
-        "^A\\d{4}"
-      ]
+      "aliases": ["kemet", "kemet electronics"],
+      "prefix_patterns": ["^T491", "^T495", "^T494", "^C\\d{4}C", "^C\\d{4}X"]
     },
-
     "VISHAY": {
       "name": "Vishay",
-      "aliases": ["vishay", "dale", "siliconix"],
-      "prefix_patterns": [
-        "^CRCW\\d{4}",
-        "^CRHV\\d{4}",
-        "^WSL\\d{4}",
-        "^WCR\\d{4}",
-        "^TNPW\\d{4}",
-        "^SI\\d{4}",
-        "^IRF\\d+",
-        "^VS-"
-      ]
+      "aliases": ["vishay", "dale", "vishay dale", "siliconix"],
+      "prefix_patterns": ["^CRCW\\d{4}", "^CRHV\\d{4}", "^WSL\\d{4}", "^WCR\\d{4}", "^TNPW\\d{4}", "^SI\\d{4}", "^IRF\\d+", "^VS-"]
     },
-
     "SAMWHA": {
       "name": "Samwha",
       "aliases": ["samwha", "samwha capacitor"],
-      "prefix_patterns": [
-        "^CS\\d{4}",
-        "^RD\\d+",
-        "^HC\\d+"
-      ]
+      "prefix_patterns": ["^CS\\d{4}", "^RD\\d+", "^HC\\d+"]
     },
-
     "FENGHUA": {
       "name": "Fenghua",
       "aliases": ["fenghua", "guangdong fenghua", "fh"],
-      "prefix_patterns": [
-        "^\\d{4}B\\d{3}",
-        "^0603B",
-        "^0805B",
-        "^1206B",
-        "^1812B"
-      ]
+      "prefix_patterns": ["^\\d{4}B\\d{3}", "^0603B", "^0805B", "^1206B", "^1812B"]
     },
-
     "SUNLORD": {
       "name": "Sunlord",
       "aliases": ["sunlord", "sunlord electronics"],
-      "prefix_patterns": [
-        "^SWPA\\d+",
-        "^SDCL\\d+",
-        "^SDWL\\d+",
-        "^WPN\\d+",
-        "^MLK\\d+"
-      ]
+      "prefix_patterns": ["^SWPA\\d+", "^SDCL\\d+", "^SDWL\\d+", "^WPN\\d+", "^MLK\\d+"]
     },
-
     "SLKOR": {
       "name": "Slkor",
       "aliases": ["slkor"],
-      "prefix_patterns": [
-        "^BSS\\d{3}",
-        "^SL\\d{4}",
-        "^SB\\d+",
-        "^SS\\d+"
-      ]
+      "prefix_patterns": ["^BSS\\d{3}", "^SL\\d{4}", "^SB\\d+", "^SS\\d+"]
     },
-
     "UNIOHM": {
       "name": "Uniohm",
       "aliases": ["uniohm", "royalohm", "royal ohm"],
-      "prefix_patterns": [
-        "^\\d{4}W\\d",
-        "^MFR\\d+",
-        "^CR\\d{4}",
-        "^0603W",
-        "^0805W",
-        "^1206W"
-      ]
+      "prefix_patterns": ["^\\d{4}W\\d", "^MFR\\d+", "^CR\\d{4}"]
     },
-
     "JSMSEMI": {
       "name": "JSMSEMI",
       "aliases": ["jsmsemi", "jsm semi"],
-      "prefix_patterns": [
-        "^MBR\\d{4}",
-        "^SS\\d+",
-        "^SMAJ",
-        "^SMBJ"
-      ]
+      "prefix_patterns": ["^MBR\\d{4}", "^SMAJ", "^SMBJ"]
     },
-
     "TECH-PUBLIC": {
       "name": "Tech Public",
       "aliases": ["tech public", "techpublic"],
-      "prefix_patterns": [
-        "^1N\\d{4}HW",
-        "^SS\\d{2}"
-      ]
+      "prefix_patterns": ["^1N\\d{4}HW", "^SS\\d{2}"]
     },
-
     "MULTICOMP-PRO": {
       "name": "Multicomp Pro",
       "aliases": ["multicomp pro", "multicomp"],
-      "prefix_patterns": [
-        "^MC\\d{4}"
-      ]
+      "prefix_patterns": ["^MC\\d{4}"]
     },
 
     "JST": {
       "name": "JST",
       "aliases": ["jst", "j.s.t."],
-      "prefix_patterns": [
-        "^B\\d+B-XH",
-        "^XHP-",
-        "^PHR-",
-        "^PAP-",
-        "^SHR-",
-        "^SMR-",
-        "^ZHR-",
-        "^GHDR-",
-        "^S\\d+B-PH"
-      ]
+      "prefix_patterns": ["^B\\d+B-XH", "^XHP-", "^PHR-", "^PAP-", "^SHR-", "^SMR-", "^ZHR-", "^GHDR-", "^S\\d+B-PH"]
     },
-
     "MOLEX": {
       "name": "Molex",
       "aliases": ["molex"],
-      "prefix_patterns": [
-        "^39-",
-        "^50-",
-        "^22-",
-        "^43045-",
-        "^43650-",
-        "^53398-",
-        "^505110-",
-        "^51021-",
-        "^52610-",
-        "^5557"
-      ]
+      "prefix_patterns": ["^39-", "^50-", "^22-", "^43045-", "^43650-", "^53398-", "^505110-", "^51021-", "^52610-", "^5557"]
     },
-
     "TE-CONNECTIVITY": {
       "name": "TE Connectivity",
-      "aliases": [
-        "te connectivity",
-        "te",
-        "tyco",
-        "tyco electronics"
-      ],
-      "prefix_patterns": [
-        "^1-",
-        "^2-",
-        "^3-",
-        "^5-",
-        "^7-",
-        "^174",
-        "^175",
-        "^176",
-        "^1-967",
-        "^1-112",
-        "^1-139"
-      ]
+      "aliases": ["te connectivity", "te", "tyco", "tyco electronics"],
+      "prefix_patterns": ["^1-\\d+", "^2-\\d+", "^3-\\d+", "^5-\\d+", "^7-\\d+", "^174", "^175", "^176"]
     },
-
     "AMPHENOL": {
       "name": "Amphenol",
       "aliases": ["amphenol", "amphenol corporation"],
-      "prefix_patterns": [
-        "^MUSB",
-        "^G\\d+",
-        "^101\\d+",
-        "^132\\d+",
-        "^17E\\d+",
-        "^USB\\d+"
-      ]
+      "prefix_patterns": ["^MUSB", "^G\\d+", "^101\\d+", "^132\\d+", "^17E\\d+", "^USB\\d+"]
     },
-
     "HIROSE": {
       "name": "Hirose Electric",
       "aliases": ["hirose", "hirose electric"],
-      "prefix_patterns": [
-        "^DF\\d+",
-        "^FH\\d+",
-        "^FX\\d+",
-        "^BM\\d+",
-        "^GT\\d+",
-        "^DF13",
-        "^DF14",
-        "^DF11",
-        "^DF12"
-      ]
+      "prefix_patterns": ["^DF\\d+", "^FH\\d+", "^FX\\d+", "^BM\\d+", "^GT\\d+", "^DF13", "^DF14", "^DF11", "^DF12"]
     },
-
     "SAMTEC": {
       "name": "Samtec",
       "aliases": ["samtec"],
-      "prefix_patterns": [
-        "^TSW-",
-        "^TSM-",
-        "^FTSH-",
-        "^ESQ-",
-        "^ESQ-",
-        "^SSW-",
-        "^SQT-",
-        "^QSH-",
-        "^QTH-",
-        "^ERF-"
-      ]
+      "prefix_patterns": ["^TSW-", "^TSM-", "^FTSH-", "^ESQ-", "^SSW-", "^SQT-", "^QSH-", "^QTH-", "^ERF-"]
     },
-
     "WURTH-ELEKTRONIK": {
       "name": "Würth Elektronik",
-      "aliases": ["wurth", "würth", "wurth elektronik", "we"],
-      "prefix_patterns": [
-        "^744",
-        "^742",
-        "^750",
-        "^WE-",
-        "^WS-",
-        "^Würth"
-      ]
+      "aliases": ["wurth", "würth", "wurth elektronik", "würth elektronik", "we"],
+      "prefix_patterns": ["^744", "^742", "^750", "^WE-", "^WS-"]
     },
 
     "TDK": {
       "name": "TDK",
       "aliases": ["tdk", "tdk corporation"],
-      "prefix_patterns": [
-        "^C\\d{3}[A-Z]",
-        "^CGJ",
-        "^CGA",
-        "^CGB",
-        "^CKG",
-        "^B\\d{3}",
-        "^MLG",
-        "^MPZ",
-        "^MMZ",
-        "^VLS"
-      ]
+      "prefix_patterns": ["^CGJ", "^CGA", "^CGB", "^CKG", "^MLG", "^MPZ", "^MMZ", "^VLS"]
     },
-
     "PANASONIC": {
       "name": "Panasonic",
-      "aliases": ["panasonic", "panasonic electronic components"],
-      "prefix_patterns": [
-        "^ERJ",
-        "^ERA",
-        "^EEE",
-        "^ECA",
-        "^ECJ",
-        "^ELJ",
-        "^EEU",
-        "^PNA",
-        "^AQ"
-      ]
+      "aliases": ["panasonic", "panasonic electronic components", "panasonic industry"],
+      "prefix_patterns": ["^ERJ", "^ERA", "^EEE", "^ECA", "^ECJ", "^ELJ", "^EEU", "^AQ"]
     },
-
     "ROHM": {
       "name": "ROHM Semiconductor",
       "aliases": ["rohm", "rohm semiconductor"],
-      "prefix_patterns": [
-        "^BH\\d+",
-        "^BD\\d+",
-        "^BU\\d+",
-        "^BA\\d+",
-        "^BM\\d+",
-        "^RB\\d+",
-        "^Rohm"
-      ]
+      "prefix_patterns": ["^BH\\d+", "^BD\\d+", "^BU\\d+", "^BA\\d+", "^BM\\d+", "^RB\\d+"]
     },
-
     "ON-SEMI": {
       "name": "onsemi",
-      "aliases": [
-        "onsemi",
-        "on semiconductor",
-        "on semiconductors"
-      ],
-      "prefix_patterns": [
-        "^NCP\\d+",
-        "^NCV\\d+",
-        "^MC\\d+",
-        "^MUR\\d+",
-        "^MBR\\d+",
-        "^1N\\d+",
-        "^2N\\d+"
-      ]
+      "aliases": ["onsemi", "on semiconductor", "on semiconductors"],
+      "prefix_patterns": ["^NCP\\d+", "^NCV\\d+", "^MC\\d+", "^MUR\\d+", "^MBR\\d+"]
     },
-
     "NXP": {
       "name": "NXP Semiconductors",
       "aliases": ["nxp", "nxp semiconductors", "philips semiconductor"],
-      "prefix_patterns": [
-        "^LPC\\d+",
-        "^MK\\d+",
-        "^TJA\\d+",
-        "^PCA\\d+",
-        "^74HC",
-        "^74HCT",
-        "^74LVC",
-        "^PCF\\d+",
-        "^MIMX",
-        "^MCIMX"
-      ]
+      "prefix_patterns": ["^LPC\\d+", "^MK\\d+", "^TJA\\d+", "^PCA\\d+", "^PCF\\d+", "^MIMX", "^MCIMX"]
     },
-
     "INFINEON": {
       "name": "Infineon Technologies",
       "aliases": ["infineon", "infineon technologies", "cypress"],
-      "prefix_patterns": [
-        "^IRF\\d+",
-        "^IRL\\d+",
-        "^BSC\\d+",
-        "^BTS\\d+",
-        "^IFX",
-        "^CY\\d+",
-        "^XMC\\d+",
-        "^TLE\\d+",
-        "^IPD\\d+"
-      ]
+      "prefix_patterns": ["^IRF\\d+", "^IRL\\d+", "^BSC\\d+", "^BTS\\d+", "^CY\\d+", "^XMC\\d+", "^TLE\\d+", "^IPD\\d+"]
     },
-
     "STMICRO": {
       "name": "STMicroelectronics",
-      "aliases": [
-        "stmicro",
-        "stmicroelectronics",
-        "st",
-        "st microelectronics"
-      ],
-      "prefix_patterns": [
-        "^STM32",
-        "^STM8",
-        "^STP\\d+",
-        "^L78",
-        "^L79",
-        "^LD1117",
-        "^LDO",
-        "^TS\\d+",
-        "^VIPer",
-        "^STPS"
-      ]
+      "aliases": ["stmicro", "stmicroelectronics", "st", "st microelectronics"],
+      "prefix_patterns": ["^STM32", "^STM8", "^STP\\d+", "^L78", "^L79", "^LD1117", "^TS\\d+", "^VIPer", "^STPS"]
     },
-
     "TEXAS-INSTRUMENTS": {
       "name": "Texas Instruments",
       "aliases": ["ti", "texas instruments", "texas instrument"],
-      "prefix_patterns": [
-        "^SN74",
-        "^SN65",
-        "^LM\\d{3,4}",
-        "^TL\\d+",
-        "^TPS\\d+",
-        "^OPA\\d+",
-        "^INA\\d+",
-        "^ADS\\d+",
-        "^DAC\\d+",
-        "^ISO\\d+",
-        "^CC\\d+",
-        "^MSP430",
-        "^TMS\\d+"
-      ]
+      "prefix_patterns": ["^SN74", "^SN65", "^LM\\d{3,4}", "^TL\\d+", "^TPS\\d+", "^OPA\\d+", "^INA\\d+", "^ADS\\d+", "^DAC\\d+", "^ISO\\d+", "^MSP430", "^TMS\\d+"]
     },
-
     "MICROCHIP": {
       "name": "Microchip Technology",
       "aliases": ["microchip", "microchip technology"],
-      "prefix_patterns": [
-        "^PIC\\d+",
-        "^dsPIC",
-        "^ATSAMD",
-        "^ATmega",
-        "^ATtiny",
-        "^MCP\\d+",
-        "^MIC\\d+",
-        "^24LC",
-        "^25LC",
-        "^93LC",
-        "^TC\\d+"
-      ]
+      "prefix_patterns": ["^PIC\\d+", "^dsPIC", "^ATSAMD", "^ATmega", "^ATtiny", "^MCP\\d+", "^MIC\\d+", "^24LC", "^25LC", "^93LC", "^TC\\d+"]
     },
-
     "ANALOG-DEVICES": {
       "name": "Analog Devices",
       "aliases": ["analog devices", "adi"],
-      "prefix_patterns": [
-        "^AD\\d+",
-        "^ADA\\d+",
-        "^ADM\\d+",
-        "^ADP\\d+",
-        "^LTC\\d+",
-        "^LT\\d+",
-        "^MAX\\d+"
-      ]
+      "prefix_patterns": ["^AD\\d+", "^ADA\\d+", "^ADM\\d+", "^ADP\\d+", "^LTC\\d+", "^LT\\d+", "^MAX\\d+"]
     },
-
     "MAXIM": {
       "name": "Maxim Integrated",
       "aliases": ["maxim", "maxim integrated"],
-      "prefix_patterns": [
-        "^MAX\\d+",
-        "^MAXIM"
-      ]
+      "prefix_patterns": ["^MAX\\d+"]
     },
-
     "NATIONAL-SEMICONDUCTOR": {
       "name": "National Semiconductor",
       "aliases": ["national semiconductor", "national semi"],
-      "prefix_patterns": [
-        "^LM\\d+",
-        "^LF\\d+",
-        "^LP\\d+",
-        "^LMH\\d+"
-      ]
+      "prefix_patterns": ["^LM\\d+", "^LF\\d+", "^LP\\d+", "^LMH\\d+"]
     },
 
     "NICHICON": {
       "name": "Nichicon",
       "aliases": ["nichicon"],
-      "prefix_patterns": [
-        "^U[A-Z]\\d+",
-        "^UPW",
-        "^UHE",
-        "^UFW",
-        "^UKL",
-        "^UWT",
-        "^UVZ"
-      ]
+      "prefix_patterns": ["^UPW", "^UHE", "^UFW", "^UKL", "^UWT", "^UVZ"]
     },
-
     "RUBYCON": {
       "name": "Rubycon",
       "aliases": ["rubycon"],
-      "prefix_patterns": [
-        "^50[VA]",
-        "^35[VA]",
-        "^16[VA]",
-        "^10[VA]",
-        "^16PX",
-        "^35PX",
-        "^50PX"
-      ]
+      "prefix_patterns": ["^16PX", "^35PX", "^50PX"]
     },
-
     "LITTELFUSE": {
       "name": "Littelfuse",
       "aliases": ["littelfuse", "littlefuse"],
-      "prefix_patterns": [
-        "^0451",
-        "^0467",
-        "^0603",
-        "^1206",
-        "^0251",
-        "^2920",
-        "^1812",
-        "^5KP",
-        "^SMBJ",
-        "^SP",
-        "^TPSMB"
-      ]
+      "prefix_patterns": ["^0451", "^0467", "^0603", "^1206", "^0251", "^2920", "^1812", "^5KP", "^SP", "^TPSMB"]
     },
-
     "BOURNS": {
       "name": "Bourns",
       "aliases": ["bourns"],
-      "prefix_patterns": [
-        "^CR\\d+",
-        "^CD\\d+",
-        "^SRF\\d+",
-        "^MF-R",
-        "^MF-NSMF",
-        "^SMBJ",
-        "^SMAJ",
-        "^TBU",
-        "^MF-PSMF"
-      ]
+      "prefix_patterns": ["^CR\\d+", "^CD\\d+", "^SRF\\d+", "^MF-R", "^MF-NSMF", "^TBU", "^MF-PSMF"]
     },
-
     "KOA-SPEER": {
       "name": "KOA Speer",
       "aliases": ["koa", "koa speer", "koa corporation"],
-      "prefix_patterns": [
-        "^RK73",
-        "^RK73H",
-        "^RK73B",
-        "^RN73",
-        "^SG73",
-        "^LVS",
-        "^WK73"
-      ]
+      "prefix_patterns": ["^RK73", "^RK73H", "^RK73B", "^RN73", "^SG73", "^LVS", "^WK73"]
     },
-
     "STACKPOLE": {
       "name": "Stackpole Electronics",
       "aliases": ["stackpole", "stackpole electronics"],
-      "prefix_patterns": [
-        "^RMCF",
-        "^RMCF",
-        "^RMCF\\d+",
-        "^RMEF",
-        "^RNF",
-        "^CSR"
-      ]
+      "prefix_patterns": ["^RMCF", "^RMEF", "^RNF", "^CSR"]
     },
-
     "TT-ELECTRONICS": {
       "name": "TT Electronics",
       "aliases": ["tt electronics", "tt"],
-      "prefix_patterns": [
-        "^PCF",
-        "^PFC",
-        "^LR",
-        "^ULR",
-        "^LRM"
-      ]
+      "prefix_patterns": ["^PCF", "^PFC", "^LR", "^ULR", "^LRM"]
     },
-
     "SUSUMU": {
       "name": "Susumu",
       "aliases": ["susumu", "susumu co"],
-      "prefix_patterns": [
-        "^RR",
-        "^RG",
-        "^RL",
-        "^KRL",
-        "^PAT",
-        "^PRG"
-      ]
+      "prefix_patterns": ["^RR", "^RG", "^RL", "^KRL", "^PAT", "^PRG"]
     },
-
-    "VISHAY-DALE": {
-      "name": "Vishay Dale",
-      "aliases": ["vishay dale", "dale"],
-      "prefix_patterns": [
-        "^CRC",
-        "^WSL",
-        "^WSBE",
-        "^LVR",
-        "^LTO"
-      ]
-    },
-
-    "AVX": {
-      "name": "AVX",
-      "aliases": ["avx", "avx corporation"],
-      "prefix_patterns": [
-        "^0603",
-        "^0805",
-        "^1206",
-        "^1812",
-        "^2220",
-        "^TAJ",
-        "^TPS",
-        "^F98",
-        "^KGM"
-      ]
-    },
-
-    "KEMET-ELECTRONICS": {
-      "name": "KEMET Electronics",
-      "aliases": ["kemet electronics"],
-      "prefix_patterns": [
-        "^T491",
-        "^T495",
-        "^Tantalum"
-      ]
-    },
-
     "VIKING": {
       "name": "Viking Tech",
       "aliases": ["viking", "viking tech", "viking technology"],
-      "prefix_patterns": [
-        "^CR",
-        "^AR",
-        "^AC",
-        "^ARG",
-        "^CSR",
-        "^RMC"
-      ]
+      "prefix_patterns": ["^ARG", "^CSR"]
     },
-
-    "LRC": {
-      "name": "LRC",
-      "aliases": ["lrc", "lrc electronics"],
-      "prefix_patterns": [
-        "^1N",
-        "^BAV",
-        "^BAS",
-        "^MMBT",
-        "^MUR"
-      ]
+    "AVX": {
+      "name": "AVX",
+      "aliases": ["avx", "avx corporation"],
+      "prefix_patterns": ["^TAJ", "^TPS", "^F98"]
     },
 
     "DIODES-INC": {
       "name": "Diodes Incorporated",
       "aliases": ["diodes incorporated", "diodes inc", "diodes"],
-      "prefix_patterns": [
-        "^AP",
-        "^AZ",
-        "^BAS",
-        "^BAV",
-        "^BAT",
-        "^DMG",
-        "^DMP",
-        "^PAM"
-      ]
+      "prefix_patterns": ["^AP\\d+", "^AZ\\d+", "^PAM\\d+"]
     },
-
-    "Nexperia": {
+    "NEXPERIA": {
       "name": "Nexperia",
       "aliases": ["nexperia"],
-      "prefix_patterns": [
-        "^BC",
-        "^BAS",
-        "^BAT",
-        "^PMBT",
-        "^PESD",
-        "^BZX",
-        "^74HC",
-        "^74HCT",
-        "^74LVC"
-      ]
+      "prefix_patterns": ["^PMBT", "^PESD", "^74HC", "^74HCT", "^74LVC"]
     },
-
-    "VOLTERRA": {
-      "name": "Volterra Semiconductor",
-      "aliases": ["volterra"],
-      "prefix_patterns": [
-        "^VT\\d+"
-      ]
-    },
-
     "MPS": {
       "name": "Monolithic Power Systems",
-      "aliases": [
-        "mps",
-        "monolithic power systems"
-      ],
-      "prefix_patterns": [
-        "^MP\\d+",
-        "^MPQ\\d+",
-        "^MPM\\d+",
-        "^MPX\\d+"
-      ]
+      "aliases": ["mps", "monolithic power systems"],
+      "prefix_patterns": ["^MP\\d+", "^MPQ\\d+", "^MPM\\d+", "^MPX\\d+"]
     },
 
     "SILICON-LABS": {
       "name": "Silicon Labs",
       "aliases": ["silicon labs", "silicon laboratories"],
-      "prefix_patterns": [
-        "^EFR32",
-        "^EFM32",
-        "^Si\\d+",
-        "^CP21",
-        "^MGM\\d+"
-      ]
+      "prefix_patterns": ["^EFR32", "^EFM32", "^Si\\d+", "^CP21", "^MGM\\d+"]
     },
-
     "ESPRESSIF": {
       "name": "Espressif Systems",
       "aliases": ["espressif", "espressif systems"],
-      "prefix_patterns": [
-        "^ESP32",
-        "^ESP8266",
-        "^ESP32-S",
-        "^ESP32-C",
-        "^ESP32-S3",
-        "^ESP32-C3"
-      ]
+      "prefix_patterns": ["^ESP32", "^ESP8266", "^ESP32-S", "^ESP32-C", "^ESP32-H", "^ESP32-S3", "^ESP32-C3", "^ESP32-C6", "^ESP32-H2"]
     },
-
     "NORDIC": {
       "name": "Nordic Semiconductor",
       "aliases": ["nordic", "nordic semiconductor"],
-      "prefix_patterns": [
-        "^nRF\\d+",
-        "^NRF\\d+"
-      ]
+      "prefix_patterns": ["^nRF", "^NRF"]
     },
-
-    "NATIONAL-INSTRUMENTS": {
-      "name": "National Instruments",
-      "aliases": ["national instruments", "ni"],
-      "prefix_patterns": []
-    },
-
-    "ADAFRUIT": {
-      "name": "Adafruit",
-      "aliases": ["adafruit"],
-      "prefix_patterns": [
-        "^ADA-"
-      ]
-    },
-
-    "SPARKFUN": {
-      "name": "SparkFun Electronics",
-      "aliases": ["sparkfun", "sparkfun electronics"],
-      "prefix_patterns": [
-        "^DEV-",
-        "^COM-",
-        "^WRL-"
-      ]
-    },
-
     "QUECTEL": {
       "name": "Quectel",
       "aliases": ["quectel", "quectel wireless"],
-      "prefix_patterns": [
-        "^EC\\d+",
-        "^EG\\d+",
-        "^BG\\d+",
-        "^BC\\d+",
-        "^RM\\d+",
-        "^RG\\d+",
-        "^LC\\d+"
-      ]
+      "prefix_patterns": ["^EC\\d+", "^EG\\d+", "^BG\\d+", "^BC\\d+", "^RM\\d+", "^RG\\d+", "^LC\\d+"]
     },
-
     "SIMCOM": {
       "name": "SIMCom",
       "aliases": ["simcom", "simcom wireless"],
-      "prefix_patterns": [
-        "^SIM\\d+",
-        "^SIM7",
-        "^SIM8",
-        "^SIM9"
-      ]
-    },
-
-    "OMRON": {
-      "name": "Omron",
-      "aliases": ["omron", "omron electronics"],
-      "prefix_patterns": [
-        "^G5V",
-        "^G6K",
-        "^G6S",
-        "^G2R",
-        "^G3VM",
-        "^D2F",
-        "^B3F"
-      ]
-    },
-
-    "PANASONIC-INDUSTRIAL": {
-      "name": "Panasonic Industry",
-      "aliases": ["panasonic industry"],
-      "prefix_patterns": [
-        "^ERJ",
-        "^EEE",
-        "^ECA",
-        "^ECJ",
-        "^ELJ"
-      ]
-    },
-
-    "SCHURTER": {
-      "name": "Schurter",
-      "aliases": ["schurter"],
-      "prefix_patterns": [
-        "^570",
-        "^600",
-        "^610",
-        "^636",
-        "^MF",
-        "^FM"
-      ]
-    },
-
-    "EATON": {
-      "name": "Eaton",
-      "aliases": ["eaton", "eaton electronics"],
-      "prefix_patterns": [
-        "^BK",
-        "^DR",
-        "^MPL",
-        "^HC",
-        "^PCV"
-      ]
-    },
-
-    "SILICON-POWER": {
-      "name": "Silicon Power",
-      "aliases": ["silicon power"],
-      "prefix_patterns": []
+      "prefix_patterns": ["^SIM\\d+", "^SIM7", "^SIM8", "^SIM9"]
     },
 
     "WINBOND": {
       "name": "Winbond",
       "aliases": ["winbond", "winbond electronics"],
-      "prefix_patterns": [
-        "^W25",
-        "^W26",
-        "^W29",
-        "^W78"
-      ]
+      "prefix_patterns": ["^W25", "^W26", "^W29", "^W78"]
     },
-
     "ISSI": {
       "name": "ISSI",
       "aliases": ["issi", "integrated silicon solution"],
-      "prefix_patterns": [
-        "^IS25",
-        "^IS42",
-        "^IS61",
-        "^IS62"
-      ]
+      "prefix_patterns": ["^IS25", "^IS42", "^IS61", "^IS62"]
     },
-
     "MACRONIX": {
       "name": "Macronix",
       "aliases": ["macronix", "macronix international"],
-      "prefix_patterns": [
-        "^MX25",
-        "^MX66",
-        "^MX30"
-      ]
+      "prefix_patterns": ["^MX25", "^MX66", "^MX30"]
     },
-
     "GIGADEVICE": {
       "name": "GigaDevice",
       "aliases": ["gigadevice", "giga device"],
-      "prefix_patterns": [
-        "^GD25",
-        "^GD32",
-        "^GD5F",
-        "^GD9"
-      ]
+      "prefix_patterns": ["^GD25", "^GD32", "^GD5F", "^GD9"]
     },
-
     "REALTEK": {
       "name": "Realtek",
       "aliases": ["realtek", "realtek semiconductor"],
-      "prefix_patterns": [
-        "^RTL\\d+",
-        "^RTD\\d+",
-        "^RT\\d+"
-      ]
+      "prefix_patterns": ["^RTL\\d+", "^RTD\\d+", "^RT\\d+"]
     },
-
     "MEDIATEK": {
       "name": "MediaTek",
       "aliases": ["mediatek", "mediatek inc"],
-      "prefix_patterns": [
-        "^MT\\d+"
-      ]
+      "prefix_patterns": ["^MT\\d+"]
     },
 
+    "RASPBERRY-PI": {
+      "name": "Raspberry Pi",
+      "aliases": ["raspberry pi", "raspberrypi", "raspberry pi foundation"],
+      "prefix_patterns": ["^RPI", "^RASPBERRY-PI", "^CM\\d+", "^RPi"]
+    },
+    "WAVESHARE": {
+      "name": "Waveshare",
+      "aliases": ["waveshare", "waveshare electronics"],
+      "prefix_patterns": ["^WS-", "^WAVESHARE-"]
+    },
+    "ADAFRUIT": {
+      "name": "Adafruit",
+      "aliases": ["adafruit", "adafruit industries"],
+      "prefix_patterns": ["^ADA-", "^PID\\s*\\d+", "^PRODUCT\\s*#?\\s*\\d+"]
+    },
+    "SPARKFUN": {
+      "name": "SparkFun Electronics",
+      "aliases": ["sparkfun", "sparkfun electronics"],
+      "prefix_patterns": ["^DEV-", "^COM-", "^WRL-", "^GPS-", "^SEN-", "^ROB-", "^LCD-", "^LED-", "^PRT-"]
+    },
+    "SEEED-STUDIO": {
+      "name": "Seeed Studio",
+      "aliases": ["seeed", "seeed studio", "seeed technology"],
+      "prefix_patterns": ["^Grove", "^Wio", "^XIAO", "^reComputer", "^TinyML"]
+    },
+    "ARDUINO": {
+      "name": "Arduino",
+      "aliases": ["arduino", "arduino.cc", "arduino srl"],
+      "prefix_patterns": ["^ARDUINO", "^ABX", "^A000", "^A00", "^TSX"]
+    },
+    "PIMORONI": {
+      "name": "Pimoroni",
+      "aliases": ["pimoroni", "pimoroni ltd"],
+      "prefix_patterns": ["^PIM", "^PIMORONI"]
+    },
+    "M5STACK": {
+      "name": "M5Stack",
+      "aliases": ["m5stack", "m5 stack"],
+      "prefix_patterns": ["^M5", "^M5Stack", "^M5STACK"]
+    },
+    "LOLIN": {
+      "name": "LOLIN",
+      "aliases": ["lolin", "wemos", "wemos.cc"],
+      "prefix_patterns": ["^LOLIN", "^D1", "^D1 mini"]
+    },
+    "ELEGOO": {
+      "name": "ELEGOO",
+      "aliases": ["elegoo"],
+      "prefix_patterns": ["^ELEGOO", "^ELG"]
+    },
+    "DFROBOT": {
+      "name": "DFRobot",
+      "aliases": ["dfrobot", "df robot"],
+      "prefix_patterns": ["^DFR", "^DFRobot"]
+    },
+    "BANANA-PI": {
+      "name": "Banana Pi",
+      "aliases": ["banana pi", "bananapi"],
+      "prefix_patterns": ["^BPI", "^BPI-"]
+    },
+    "ORANGE-PI": {
+      "name": "Orange Pi",
+      "aliases": ["orange pi", "orangepi"],
+      "prefix_patterns": ["^OPI", "^Orange Pi", "^OrangePi"]
+    },
+    "BEAGLEBOARD": {
+      "name": "BeagleBoard",
+      "aliases": ["beagleboard", "beagleboard.org", "beaglebone", "beagle bone"],
+      "prefix_patterns": ["^BB-", "^BEAGLE", "^BEAGLEBONE"]
+    },
+    "ODROID": {
+      "name": "ODROID",
+      "aliases": ["odroid", "hardkernel"],
+      "prefix_patterns": ["^ODROID", "^HC\\d+", "^C\\d+", "^N\\d+"]
+    },
+    "HARDKERNEL": {
+      "name": "Hardkernel",
+      "aliases": ["hardkernel", "hard kernel"],
+      "prefix_patterns": ["^ODROID"]
+    },
+    "RADXA": {
+      "name": "Radxa",
+      "aliases": ["radxa", "radxa computer"],
+      "prefix_patterns": ["^ROCK", "^ZERO", "^RADXA", "^Rock Pi"]
+    },
+    "LIBRE-COMPUTER": {
+      "name": "Libre Computer",
+      "aliases": ["libre computer", "libre computer project", "libretech"],
+      "prefix_patterns": ["^Le Potato", "^AML-S905X", "^ROC-RK"]
+    },
+    "LATTEPANDA": {
+      "name": "LattePanda",
+      "aliases": ["lattepanda", "latte panda"],
+      "prefix_patterns": ["^LATTEPANDA", "^LattePanda"]
+    },
+    "CROWPANEL": {
+      "name": "CrowPanel",
+      "aliases": ["crowpanel", "elecrow crowpanel"],
+      "prefix_patterns": ["^CrowPanel"]
+    },
+    "ELECROW": {
+      "name": "Elecrow",
+      "aliases": ["elecrow", "elecrow technology"],
+      "prefix_patterns": ["^ELECROW", "^CrowPanel"]
+    },
+    "NVIDIA": {
+      "name": "NVIDIA",
+      "aliases": ["nvidia"],
+      "prefix_patterns": ["^JETSON", "^Jetson"]
+    },
+    "STEMMA": {
+      "name": "Adafruit STEMMA",
+      "aliases": ["stemma", "stemma qt"],
+      "prefix_patterns": ["^STEMMA", "^STEMMAQT"]
+    },
+    "QWIIC": {
+      "name": "SparkFun Qwiic",
+      "aliases": ["qwiic", "sparkfun qwiic"],
+      "prefix_patterns": ["^QWIIC"]
+    },
+
+    "STANLEY": {
+      "name": "Stanley",
+      "aliases": ["stanley", "stanley tools", "stanley hand tools", "stanley black & decker"],
+      "prefix_patterns": ["^STHT", "^FMHT"]
+    },
+    "DEWALT": {
+      "name": "DeWALT",
+      "aliases": ["dewalt", "de walt"],
+      "prefix_patterns": ["^DW[A-Z]", "^DWE", "^DCF", "^DCD", "^DCS", "^DCG", "^DCH", "^DCL"]
+    },
+    "BLACK-DECKER": {
+      "name": "BLACK+DECKER",
+      "aliases": ["black and decker", "black & decker", "black+decker", "black decker"],
+      "prefix_patterns": ["^BD[A-Z0-9]", "^BDE", "^BES"]
+    },
+    "BOSCH": {
+      "name": "Bosch",
+      "aliases": ["bosch", "bosch professional", "bosch power tools"],
+      "prefix_patterns": ["^GSH", "^GSR", "^GSB", "^GWS", "^GBH", "^GST", "^GKS", "^GLI", "^GAL"]
+    },
+    "MAKITA": {
+      "name": "Makita",
+      "aliases": ["makita", "makita tools"],
+      "prefix_patterns": ["^DHP", "^DDF", "^DTD", "^DGA", "^DHR", "^DHS", "^DJV", "^HR", "^GA"]
+    },
+    "MILWAUKEE": {
+      "name": "Milwaukee Tool",
+      "aliases": ["milwaukee", "milwaukee tool", "milwaukee tools"],
+      "prefix_patterns": ["^M12", "^M18", "^M18F", "^M12F", "^48-"]
+    },
+    "METABO": {
+      "name": "Metabo",
+      "aliases": ["metabo", "metabo tools"],
+      "prefix_patterns": ["^WE", "^WB", "^BS", "^KHA", "^KS", "^SX"]
+    },
+    "HILTI": {
+      "name": "Hilti",
+      "aliases": ["hilti"],
+      "prefix_patterns": ["^TE\\d+", "^SF\\d+", "^SI\\d+", "^SD\\d+", "^DD\\d+"]
+    },
+    "HIKOKI": {
+      "name": "HiKOKI",
+      "aliases": ["hikoki", "hiKOKI", "hitachi power tools", "hitachi koki"],
+      "prefix_patterns": ["^DS\\d+", "^DV\\d+", "^WH\\d+", "^G\\d+"]
+    },
+    "RIDGID": {
+      "name": "RIDGID",
+      "aliases": ["ridgid", "ridgid tools"],
+      "prefix_patterns": ["^R[0-9]{3}"]
+    },
+    "RYOBI": {
+      "name": "Ryobi",
+      "aliases": ["ryobi", "ryobi tools"],
+      "prefix_patterns": ["^P[0-9]{3}", "^R18"]
+    },
+    "FESTOOL": {
+      "name": "Festool",
+      "aliases": ["festool"],
+      "prefix_patterns": ["^TS", "^ETS", "^CT", "^OF", "^DF", "^TID", "^PSC"]
+    },
+    "FISCHER": {
+      "name": "fischer",
+      "aliases": ["fischer", "fischer group", "fischer fixing"],
+      "prefix_patterns": ["^DUOPOWER", "^UX", "^SX"]
+    },
+    "WERA": {
+      "name": "Wera",
+      "aliases": ["wera", "wera werk", "wera tools"],
+      "prefix_patterns": ["^Kraftform", "^Zyklop"]
+    },
+    "WIHA": {
+      "name": "Wiha",
+      "aliases": ["wiha", "wiha tools"],
+      "prefix_patterns": []
+    },
+    "KNIPEX": {
+      "name": "Knipex",
+      "aliases": ["knipex", "knipex tools"],
+      "prefix_patterns": []
+    },
+    "KLEIN-TOOLS": {
+      "name": "Klein Tools",
+      "aliases": ["klein", "klein tools"],
+      "prefix_patterns": ["^VDV", "^ET", "^CL"]
+    },
+    "IRWIN": {
+      "name": "IRWIN Tools",
+      "aliases": ["irwin", "irwin tools", "irwin industrial"],
+      "prefix_patterns": ["^T9", "^IW"]
+    },
+    "PROTO": {
+      "name": "Proto",
+      "aliases": ["proto", "stanley proto", "proto tools"],
+      "prefix_patterns": ["^J\\d+", "^JS\\d+"]
+    },
+    "FACOM": {
+      "name": "Facom",
+      "aliases": ["facom"],
+      "prefix_patterns": ["^FACOM"]
+    },
+    "GEDORE": {
+      "name": "Gedore",
+      "aliases": ["gedore", "gedore tools"],
+      "prefix_patterns": ["^GEDORE"]
+    },
+    "BAHCO": {
+      "name": "Bahco",
+      "aliases": ["bahco", "bahco tools"],
+      "prefix_patterns": ["^383", "^807"]
+    },
+    "TENG-TOOLS": {
+      "name": "Teng Tools",
+      "aliases": ["teng tools", "tengtools"],
+      "prefix_patterns": ["^TT"]
+    },
+    "SNAP-ON": {
+      "name": "Snap-on",
+      "aliases": ["snap-on", "snap on", "snapon"],
+      "prefix_patterns": ["^CTK"]
+    },
+    "MAC-TOOLS": {
+      "name": "Mac Tools",
+      "aliases": ["mac tools", "mac tools automotive"],
+      "prefix_patterns": []
+    },
+    "STARRETT": {
+      "name": "Starrett",
+      "aliases": ["starrett", "l.s. starrett"],
+      "prefix_patterns": ["^120", "^320", "^798"]
+    },
+    "MITUTOYO": {
+      "name": "Mitutoyo",
+      "aliases": ["mitutoyo"],
+      "prefix_patterns": ["^500-", "^530-", "^543-", "^571-", "^293-", "^547-"]
+    },
+    "INSIZE": {
+      "name": "INSIZE",
+      "aliases": ["insize"],
+      "prefix_patterns": []
+    },
+
+    "FLUKE": {
+      "name": "Fluke",
+      "aliases": ["fluke", "fluke corporation"],
+      "prefix_patterns": ["^17[0-9]", "^18[0-9]", "^28[0-9]", "^87[0-9]", "^88[0-9]", "^101", "^107", "^117", "^115", "^323", "^376", "^789"]
+    },
+    "KEYSIGHT": {
+      "name": "Keysight Technologies",
+      "aliases": ["keysight", "keysight technologies", "agilent"],
+      "prefix_patterns": ["^344", "^335", "^336", "^DSO", "^MSO", "^E36", "^E44", "^N67", "^N90"]
+    },
+    "TEKTRONIX": {
+      "name": "Tektronix",
+      "aliases": ["tektronix", "tek"],
+      "prefix_patterns": ["^TBS", "^TDS", "^MSO", "^MDO", "^DPO", "^RSA", "^AFG"]
+    },
+    "HIOKI": {
+      "name": "Hioki",
+      "aliases": ["hioki", "hioki electric"],
+      "prefix_patterns": ["^DT", "^FT", "^IM", "^PW", "^CM", "^LR"]
+    },
+    "RIGOL": {
+      "name": "RIGOL",
+      "aliases": ["rigol", "rigol technologies"],
+      "prefix_patterns": ["^DS", "^MSO", "^DG", "^DP", "^DM"]
+    },
+    "SIGLENT": {
+      "name": "Siglent",
+      "aliases": ["siglent", "siglent technologies"],
+      "prefix_patterns": ["^SDS", "^SDG", "^SDM", "^SPD", "^SSA"]
+    },
+    "OWON": {
+      "name": "OWON",
+      "aliases": ["owon"],
+      "prefix_patterns": ["^SDS", "^XDS", "^HDS", "^B35", "^XDM"]
+    },
+    "GW-INSTEK": {
+      "name": "GW Instek",
+      "aliases": ["gw instek", "instek", "good will instrument"],
+      "prefix_patterns": ["^GDS", "^GPD", "^GPS", "^GDM", "^SFG"]
+    },
+    "AIM-TTI": {
+      "name": "Aim-TTi",
+      "aliases": ["aim tti", "tti", "aim & thurlby thandar"],
+      "prefix_patterns": ["^QL", "^PL", "^EL", "^MX", "^TG"]
+    },
+
+    "HAKKO": {
+      "name": "Hakko",
+      "aliases": ["hakko", "hakko corporation"],
+      "prefix_patterns": ["^FX", "^FR", "^FM", "^FA", "^FG"]
+    },
+    "WELLER": {
+      "name": "Weller",
+      "aliases": ["weller", "weller tools", "weller soldering"],
+      "prefix_patterns": ["^WE", "^WT", "^WX", "^WSD", "^WEP"]
+    },
+    "JBC": {
+      "name": "JBC",
+      "aliases": ["jbc", "jbc soldering"],
+      "prefix_patterns": ["^C245", "^C210", "^C115"]
+    },
+    "PACE": {
+      "name": "PACE Worldwide",
+      "aliases": ["pace", "pace worldwide"],
+      "prefix_patterns": ["^ST", "^SX", "^ADS", "^MBT"]
+    },
+    "METCAL": {
+      "name": "Metcal",
+      "aliases": ["metcal", "metcal soldering"],
+      "prefix_patterns": ["^MX", "^CV", "^SP"]
+    },
+
+    "DREMEL": {
+      "name": "Dremel",
+      "aliases": ["dremel", "dremel tools"],
+      "prefix_patterns": ["^3000", "^4000", "^4300", "^4250", "^8260", "^8220"]
+    },
+    "PROXXON": {
+      "name": "Proxxon",
+      "aliases": ["proxxon", "proxxon tools"],
+      "prefix_patterns": ["^MICROMOT", "^FBS", "^IBS", "^PD"]
+    },
+    "IFIXIT": {
+      "name": "iFixit",
+      "aliases": ["ifixit", "i fixit"],
+      "prefix_patterns": ["^IFIXIT"]
+    },
+    "ENGINEER": {
+      "name": "ENGINEER Inc.",
+      "aliases": ["engineer", "engineer tools", "engineer inc"],
+      "prefix_patterns": ["^PZ", "^NS", "^DZ", "^SK"]
+    },
+    "VESSEL": {
+      "name": "VESSEL",
+      "aliases": ["vessel", "vessel tools"],
+      "prefix_patterns": ["^TD", "^220", "^900"]
+    },
+    "TSUNODA": {
+      "name": "Tsunoda",
+      "aliases": ["tsunoda", "tsunoda tool"],
+      "prefix_patterns": ["^TM", "^TP", "^CN", "^MR"]
+    },
+    "FUJIYA": {
+      "name": "Fujiya",
+      "aliases": ["fujiya", "fujiya tools"],
+      "prefix_patterns": ["^70", "^770", "^300"]
+    },
+    "KS-TOOLS": {
+      "name": "KS Tools",
+      "aliases": ["ks tools", "kstools"],
+      "prefix_patterns": []
+    },
+
+    "OMRON": {
+      "name": "Omron",
+      "aliases": ["omron", "omron electronics"],
+      "prefix_patterns": ["^G5V", "^G6K", "^G6S", "^G2R", "^G3VM", "^D2F", "^B3F"]
+    },
+    "SCHURTER": {
+      "name": "Schurter",
+      "aliases": ["schurter"],
+      "prefix_patterns": ["^570", "^600", "^610", "^636"]
+    },
+    "EATON": {
+      "name": "Eaton",
+      "aliases": ["eaton", "eaton electronics"],
+      "prefix_patterns": ["^BK", "^DR", "^MPL", "^HC", "^PCV"]
+    },
     "CUI-DEVICES": {
       "name": "CUI Devices",
       "aliases": ["cui", "cui devices"],
-      "prefix_patterns": [
-        "^PJ-",
-        "^SJ-",
-        "^PJR-",
-        "^VGS"
-      ]
+      "prefix_patterns": ["^PJ-", "^SJ-", "^PJR-", "^VGS"]
     },
 
     "TRACO-POWER": {
       "name": "TRACO Power",
       "aliases": ["traco power", "traco"],
-      "prefix_patterns": [
-        "^TEN",
-        "^TES",
-        "^TMR",
-        "^THN",
-        "^TME"
-      ]
+      "prefix_patterns": ["^TEN", "^TES", "^TMR", "^THN", "^TME"]
     },
-
     "MEAN-WELL": {
       "name": "Mean Well",
       "aliases": ["mean well", "meanwell"],
-      "prefix_patterns": [
-        "^IR",
-        "^HDR",
-        "^LRS",
-        "^RS",
-        "^RSP",
-        "^GST",
-        "^GS"
-      ]
+      "prefix_patterns": ["^HDR", "^LRS", "^RS", "^RSP", "^GST", "^GS"]
     },
-
     "RECOM": {
       "name": "RECOM Power",
       "aliases": ["recom", "recom power"],
-      "prefix_patterns": [
-        "^R-",
-        "^REC",
-        "^RFM",
-        "^RP"
-      ]
+      "prefix_patterns": ["^REC", "^RFM", "^RP"]
     },
-
     "XP-POWER": {
       "name": "XP Power",
       "aliases": ["xp power", "xppower"],
-      "prefix_patterns": [
-        "^IA",
-        "^IT",
-        "^JCA",
-        "^JTE",
-        "^VCE"
-      ]
+      "prefix_patterns": ["^IA", "^IT", "^JCA", "^JTE", "^VCE"]
     },
 
     "LUMILEDS": {
       "name": "Lumileds",
       "aliases": ["lumileds"],
-      "prefix_patterns": [
-        "^LXML",
-        "^LXZ",
-        "^LUXEON"
-      ]
+      "prefix_patterns": ["^LXML", "^LXZ", "^LUXEON"]
     },
-
     "OSRAM": {
       "name": "ams OSRAM",
       "aliases": ["osram", "ams osram", "ams"],
-      "prefix_patterns": [
-        "^LRT",
-        "^LS",
-        "^SFH",
-        "^GW",
-        "^KW"
-      ]
+      "prefix_patterns": ["^LRT", "^LS", "^SFH", "^GW", "^KW"]
     },
-
     "CREE": {
-      "name": "Cree LED",
+      "name": "Cree LED / Wolfspeed",
       "aliases": ["cree", "cree led", "wolfspeed"],
-      "prefix_patterns": [
-        "^C5",
-        "^CLM",
-        "^XLAMP",
-        "^XHP",
-        "^CGA"
-      ]
+      "prefix_patterns": ["^XLAMP", "^XHP"]
     },
-
     "KINGBRIGHT": {
       "name": "Kingbright",
       "aliases": ["kingbright"],
-      "prefix_patterns": [
-        "^L-",
-        "^WP",
-        "^APT",
-        "^AA"
-      ]
+      "prefix_patterns": ["^L-", "^WP", "^APT"]
     },
-
     "EVERLIGHT": {
       "name": "Everlight",
       "aliases": ["everlight", "everlight electronics"],
-      "prefix_patterns": [
-        "^17-",
-        "^19-",
-        "^67-",
-        "^IR"
-      ]
-    },
-
-    "ROHM-LED": {
-      "name": "ROHM LED",
-      "aliases": ["rohm led"],
-      "prefix_patterns": [
-        "^SML",
-        "^SLA",
-        "^SMT"
-      ]
+      "prefix_patterns": ["^17-", "^19-", "^67-"]
     },
 
     "ALLEGRO": {
       "name": "Allegro MicroSystems",
       "aliases": ["allegro", "allegro microsystems"],
-      "prefix_patterns": [
-        "^A\\d{4,5}",
-        "^ACS\\d+",
-        "^A\\d+K"
-      ]
+      "prefix_patterns": ["^ACS\\d+", "^A\\d{4,5}"]
     },
-
     "SENSIRION": {
       "name": "Sensirion",
       "aliases": ["sensirion"],
-      "prefix_patterns": [
-        "^SHT",
-        "^SCD",
-        "^SPS",
-        "^STC"
-      ]
+      "prefix_patterns": ["^SHT", "^SCD", "^SPS", "^STC"]
     },
-
     "HONEYWELL": {
       "name": "Honeywell",
       "aliases": ["honeywell"],
-      "prefix_patterns": [
-        "^SS",
-        "^HIH",
-        "^HMC",
-        "^MLH"
-      ]
+      "prefix_patterns": ["^HIH", "^HMC", "^MLH"]
     },
 
-    "TE-CONNECTIVITY-SENSORS": {
-      "name": "TE Connectivity Sensors",
-      "aliases": ["te sensors"],
-      "prefix_patterns": [
-        "^MS",
-        "^FX",
-        "^GEM",
-        "^LVDT"
-      ]
+    "BZCN": {
+      "name": "BZCN",
+      "aliases": ["bzcn"],
+      "prefix_patterns": ["^TSA\\d+"]
+    },
+    "JUSHUO": {
+      "name": "Jushuo",
+      "aliases": ["jushuo"],
+      "prefix_patterns": ["^JS\\d+B", "^AFC\\d+"]
+    },
+    "XINGLIGHT": {
+      "name": "Xinglight",
+      "aliases": ["xinglight"],
+      "prefix_patterns": ["^XL-\\d+"]
     },
 
-    "TEXAS-INSTRUMENTS-LOGIC": {
-      "name": "Texas Instruments",
-      "aliases": ["ti logic"],
-      "prefix_patterns": [
-        "^74HC",
-        "^74HCT",
-        "^74AC",
-        "^74LVC",
-        "^74AHC"
-      ]
+    "LRC": {
+      "name": "LRC",
+      "aliases": ["lrc", "lrc electronics"],
+      "prefix_patterns": []
+    },
+    "VOLTERA": {
+      "name": "Volterra Semiconductor",
+      "aliases": ["volterra"],
+      "prefix_patterns": ["^VT\\d+"]
+    },
+
+    "BANANA-PI": {
+      "name": "Banana Pi",
+      "aliases": ["banana pi", "bananapi"],
+      "prefix_patterns": ["^BPI"]
+    },
+    "ORANGE-PI": {
+      "name": "Orange Pi",
+      "aliases": ["orange pi", "orangepi"],
+      "prefix_patterns": ["^OPI", "^OrangePi"]
+    },
+    "BEAGLEBOARD": {
+      "name": "BeagleBoard",
+      "aliases": ["beagleboard", "beagleboard.org", "beaglebone"],
+      "prefix_patterns": ["^BB-", "^BEAGLE"]
+    },
+    "ODROID": {
+      "name": "ODROID",
+      "aliases": ["odroid", "hardkernel"],
+      "prefix_patterns": ["^ODROID"]
+    },
+    "RADXA": {
+      "name": "Radxa",
+      "aliases": ["radxa", "radxa computer"],
+      "prefix_patterns": ["^ROCK", "^RADXA", "^Rock Pi"]
+    },
+    "LATTEPANDA": {
+      "name": "LattePanda",
+      "aliases": ["lattepanda", "latte panda"],
+      "prefix_patterns": ["^LATTEPANDA"]
     },
 
     "GENERIC": {
