@@ -2142,12 +2142,8 @@ export class ImportExportService {
     // When PurchaseOrder or PurchaseOrderLine rows are being reversed, we must
     // first delete any referencing rows from goods_receipts, purchase_invoices,
     // and supplier_returns (and their line tables) to avoid FK violations.
-    const poIds = [
-      ...(byType['PurchaseOrder'] || []),
-    ];
-    const poLineIds = [
-      ...(byType['PurchaseOrderLine'] || []),
-    ];
+    const poIds = [...(byType['PurchaseOrder'] || [])];
+    const poLineIds = [...(byType['PurchaseOrderLine'] || [])];
 
     if (poIds.length > 0 || poLineIds.length > 0) {
       // 1. Delete goods_receipt_lines referencing the PO lines
