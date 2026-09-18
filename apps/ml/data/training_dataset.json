@@ -20,22 +20,22 @@
     "source": "authoritative"
   },
   {
-    "text": "RC0805FR0710KL RES SMD 10K OHM 1% 1/8W 0805 Yageo",
-    "category": "Resistors",
-    "source": "authoritative"
-  },
-  {
     "text": "RC0805FR-0710KL RES SMD 10K OHM 1% 1/8W 0805 Yageo",
     "category": "Resistors",
     "source": "authoritative"
   },
   {
-    "text": "RC0805FR07100KL RES SMD 100K OHM 1% 1/8W 0805 Yageo",
+    "text": "RC0805FR0710KL RES SMD 10K OHM 1% 1/8W 0805 Yageo",
     "category": "Resistors",
     "source": "authoritative"
   },
   {
     "text": "RC0805FR-07100KL RES SMD 100K OHM 1% 1/8W 0805 Yageo",
+    "category": "Resistors",
+    "source": "authoritative"
+  },
+  {
+    "text": "RC0805FR07100KL RES SMD 100K OHM 1% 1/8W 0805 Yageo",
     "category": "Resistors",
     "source": "authoritative"
   },
@@ -50,22 +50,22 @@
     "source": "authoritative"
   },
   {
-    "text": "BLM21PG121SN1D FERRITE BEAD 120 OHM 0805 1LN 3A Murata Manufacturing",
-    "category": "Inductors",
-    "source": "authoritative"
-  },
-  {
     "text": "BLM21PG121SN1D FERRITE BEAD 120\u03a9 0805 1LN 3A Murata Manufacturing",
     "category": "Inductors",
     "source": "authoritative"
   },
   {
-    "text": "SS34-E3/57T DIODE SCHOTTKY 40V 3A DO214AB SMC Vishay Semiconductors",
-    "category": "Diodes",
+    "text": "BLM21PG121SN1D FERRITE BEAD 120 OHM 0805 1LN 3A Murata Manufacturing",
+    "category": "Inductors",
     "source": "authoritative"
   },
   {
     "text": "SS34E357T DIODE SCHOTTKY 40V 3A DO214AB SMC Vishay Semiconductors",
+    "category": "Diodes",
+    "source": "authoritative"
+  },
+  {
+    "text": "SS34-E3/57T DIODE SCHOTTKY 40V 3A DO214AB SMC Vishay Semiconductors",
     "category": "Diodes",
     "source": "authoritative"
   },
@@ -100,12 +100,12 @@
     "source": "authoritative"
   },
   {
-    "text": "B4BXHA(LF)(SN) CONN HEADER VERT 4POS 2.5MM JST",
+    "text": "B4B-XH-A(LF)(SN) CONN HEADER VERT 4POS 2.5MM JST",
     "category": "Connectors",
     "source": "authoritative"
   },
   {
-    "text": "B4B-XH-A(LF)(SN) CONN HEADER VERT 4POS 2.5MM JST",
+    "text": "B4BXHA(LF)(SN) CONN HEADER VERT 4POS 2.5MM JST",
     "category": "Connectors",
     "source": "authoritative"
   },
@@ -125,12 +125,12 @@
     "source": "authoritative"
   },
   {
-    "text": "300680050 CABLE RIBBON 10COND 1.27MM PITCH 30.5M Molex",
+    "text": "30068-0050 CABLE RIBBON 10COND 1.27MM PITCH 30.5M Molex",
     "category": "Cables",
     "source": "authoritative"
   },
   {
-    "text": "30068-0050 CABLE RIBBON 10COND 1.27MM PITCH 30.5M Molex",
+    "text": "300680050 CABLE RIBBON 10COND 1.27MM PITCH 30.5M Molex",
     "category": "Cables",
     "source": "authoritative"
   },
@@ -140,12 +140,12 @@
     "source": "authoritative"
   },
   {
-    "text": "FR4-1.6-1OZ FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Shengyi Technology",
+    "text": "FR41.61OZ FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Shengyi Technology",
     "category": "Raw Materials",
     "source": "authoritative"
   },
   {
-    "text": "FR41.61OZ FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Shengyi Technology",
+    "text": "FR4-1.6-1OZ FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Shengyi Technology",
     "category": "Raw Materials",
     "source": "authoritative"
   }
