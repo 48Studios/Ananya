@@ -34,6 +34,11 @@ import {
   maintenanceSchedules,
   systemSettings,
   goodsReceipts,
+  goodsReceiptLines,
+  purchaseInvoices,
+  purchaseInvoiceLines,
+  supplierReturns,
+  supplierReturnLines,
   salesOrders,
   quotations,
   crmLeads,
@@ -2133,6 +2138,64 @@ export class ImportExportService {
     );
 
     // Reverse/Delete in strict reverse topological dependency order
+    //
+    // When PurchaseOrder or PurchaseOrderLine rows are being reversed, we must
+    // first delete any referencing rows from goods_receipts, purchase_invoices,
+    // and supplier_returns (and their line tables) to avoid FK violations.
+    const poIds = [
+      ...(byType['PurchaseOrder'] || []),
+    ];
+    const poLineIds = [
+      ...(byType['PurchaseOrderLine'] || []),
+    ];
+
+    if (poIds.length > 0 || poLineIds.length > 0) {
+      // 1. Delete goods_receipt_lines referencing the PO lines
+      if (poLineIds.length > 0) {
+        await db
+          .delete(goodsReceiptLines)
+          .where(inArray(goodsReceiptLines.poLineId, poLineIds));
+      }
+      // 2. Delete goods_receipts referencing the POs
+      if (poIds.length > 0) {
+        await db
+          .delete(goodsReceipts)
+          .where(inArray(goodsReceipts.purchaseOrderId, poIds));
+      }
+      // 3. Delete purchase_invoice_lines via their parent invoices
+      if (poIds.length > 0) {
+        const affectedInvoices = await db
+          .select({ id: purchaseInvoices.id })
+          .from(purchaseInvoices)
+          .where(inArray(purchaseInvoices.purchaseOrderId, poIds));
+        const invoiceIds = affectedInvoices.map((inv) => inv.id);
+        if (invoiceIds.length > 0) {
+          await db
+            .delete(purchaseInvoiceLines)
+            .where(inArray(purchaseInvoiceLines.purchaseInvoiceId, invoiceIds));
+          await db
+            .delete(purchaseInvoices)
+            .where(inArray(purchaseInvoices.id, invoiceIds));
+        }
+      }
+      // 4. Delete supplier_returns (and lines via cascade) referencing the POs
+      if (poIds.length > 0) {
+        const affectedReturns = await db
+          .select({ id: supplierReturns.id })
+          .from(supplierReturns)
+          .where(inArray(supplierReturns.purchaseOrderId, poIds));
+        const returnIds = affectedReturns.map((r) => r.id);
+        if (returnIds.length > 0) {
+          await db
+            .delete(supplierReturnLines)
+            .where(inArray(supplierReturnLines.supplierReturnId, returnIds));
+          await db
+            .delete(supplierReturns)
+            .where(inArray(supplierReturns.id, returnIds));
+        }
+      }
+    }
+
     if (byType['PurchaseOrderLine']?.length) {
       await db
         .delete(purchaseOrderLines)
