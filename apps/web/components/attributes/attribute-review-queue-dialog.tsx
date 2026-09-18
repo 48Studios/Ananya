@@ -623,7 +623,7 @@ export function AttributeReviewQueueDialog({
                   </div>
 
                   {/* Relevant Data Grid / Context Details */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 rounded-lg bg-muted/40 border border-border/70 text-xs">
+                  <div className="flex justify-between gap-2 p-2.5 rounded-lg bg-muted/40 border border-border/70 text-xs">
                     {/* Attribute Column */}
                     <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                       <Sliders className="size-3.5 shrink-0 text-muted-foreground" />
