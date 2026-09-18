@@ -4,7 +4,18 @@ import * as React from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, AlertCircle, X } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  AlertTriangle,
+  X,
+  Sparkles,
+  HelpCircle,
+  Check,
+  CheckCircle2,
+  Copy,
+  Layers,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DialogShell,
@@ -24,11 +35,14 @@ import {
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   attributesApi,
   type AttributeDefinitionDto,
   type CreateAttributeDefinitionPayload,
   type UpdateAttributeDefinitionPayload,
+  type AttributeConfigSuggestionDto,
+  type AttributeDuplicateDetectionResponseDto,
 } from "@/lib/api/attributes-api";
 import { unitsApi, type UnitDto } from "@/lib/api/units-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
@@ -40,6 +54,8 @@ const attributeSchema = z.object({
     .regex(/^[a-zA-Z0-9_-]+$/, "Code must be alphanumeric with underscores or dashes"),
   name: z.string().min(1, "Name is required"),
   description: z.string().optional().nullable(),
+  groupName: z.string().optional().nullable(),
+  aliases: z.string().optional().nullable(),
   dataType: z.enum([
     "TEXT",
     "NUMBER",
@@ -104,11 +120,21 @@ export function AttributeFormDialog({
     return Array.from(set).sort();
   }, [units]);
 
+  const [configSuggestion, setConfigSuggestion] =
+    React.useState<AttributeConfigSuggestionDto | null>(null);
+  const [duplicateResult, setDuplicateResult] =
+    React.useState<AttributeDuplicateDetectionResponseDto | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = React.useState(false);
+  const [showWhy, setShowWhy] = React.useState(false);
+  const [appliedAi, setAppliedAi] = React.useState(false);
+  const [suggestingEnums, setSuggestingEnums] = React.useState(false);
+
   const {
     register,
     handleSubmit,
     control,
     watch,
+    setValue,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<AttributeFormValues>({
@@ -117,6 +143,8 @@ export function AttributeFormDialog({
       code: initialData?.code ?? "",
       name: initialData?.name ?? "",
       description: initialData?.description ?? "",
+      groupName: initialData?.groupName ?? "",
+      aliases: initialData?.aliases?.join(", ") ?? "",
       dataType: initialData?.dataType ?? "TEXT",
       unitCategory: initialData?.unitCategory ?? "",
       defaultUnit: initialData?.defaultUnit ?? "",
@@ -133,6 +161,8 @@ export function AttributeFormDialog({
         code: initialData?.code ?? "",
         name: initialData?.name ?? "",
         description: initialData?.description ?? "",
+        groupName: initialData?.groupName ?? "",
+        aliases: initialData?.aliases?.join(", ") ?? "",
         dataType: initialData?.dataType ?? "TEXT",
         unitCategory: initialData?.unitCategory ?? "",
         defaultUnit: initialData?.defaultUnit ?? "",
@@ -141,11 +171,127 @@ export function AttributeFormDialog({
         initialOptions: "",
       });
       setServerError(null);
+      setConfigSuggestion(null);
+      setDuplicateResult(null);
+      setAppliedAi(false);
+      setShowWhy(false);
     }
   }, [isOpen, initialData, reset]);
 
+  const watchedName = watch("name");
+  const watchedCode = watch("code");
   const selectedDataType = watch("dataType");
   const selectedUnitCategory = watch("unitCategory");
+
+  // Debounced AI intelligence for attribute name
+  React.useEffect(() => {
+    if (isEditing || !watchedName || watchedName.trim().length < 2) {
+      setConfigSuggestion(null);
+      setDuplicateResult(null);
+      setAppliedAi(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsAnalyzing(true);
+      try {
+        const [dupRes, cfgRes] = await Promise.all([
+          attributesApi.detectDuplicates({ name: watchedName }).catch(() => null),
+          attributesApi.suggestConfig({ name: watchedName }).catch(() => null),
+        ]);
+        if (dupRes) setDuplicateResult(dupRes);
+        if (cfgRes?.suggestion) setConfigSuggestion(cfgRes.suggestion);
+      } finally {
+        setIsAnalyzing(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [watchedName, isEditing]);
+
+  const handleApplyConfigSuggestion = () => {
+    if (!configSuggestion) return;
+    if (!watchedCode || watchedCode === "") {
+      setValue("code", configSuggestion.suggestedCode, { shouldValidate: true });
+    }
+    if (configSuggestion.suggestedDataType) {
+      setValue(
+        "dataType",
+        configSuggestion.suggestedDataType as AttributeFormValues["dataType"],
+        { shouldValidate: true },
+      );
+    }
+    if (configSuggestion.unitCategory) {
+      setValue("unitCategory", configSuggestion.unitCategory);
+    }
+    if (configSuggestion.defaultUnit) {
+      setValue("defaultUnit", configSuggestion.defaultUnit);
+    }
+    if (configSuggestion.suggestedGroupName) {
+      setValue("groupName", configSuggestion.suggestedGroupName);
+    }
+    if (
+      configSuggestion.suggestedAliases &&
+      configSuggestion.suggestedAliases.length > 0
+    ) {
+      setValue("aliases", configSuggestion.suggestedAliases.join(", "));
+    }
+    if (
+      (configSuggestion.suggestedDataType === "SELECT" ||
+        configSuggestion.suggestedDataType === "MULTI_SELECT") &&
+      configSuggestion.suggestedEnumValues &&
+      configSuggestion.suggestedEnumValues.length > 0
+    ) {
+      setValue(
+        "initialOptions",
+        configSuggestion.suggestedEnumValues.join(", "),
+      );
+    }
+    setAppliedAi(true);
+
+    attributesApi
+      .recordFeedback({
+        items: [
+          {
+            suggestionType: "ATTRIBUTE_CONFIG",
+            field: "config",
+            userAction: "ACCEPTED",
+            predictedValue: configSuggestion,
+            finalValue: configSuggestion,
+            confidenceLevel: configSuggestion.confidenceLevel,
+          },
+        ],
+      })
+      .catch(() => {});
+  };
+
+  const handleSuggestEnums = async () => {
+    setSuggestingEnums(true);
+    try {
+      const res = await attributesApi.suggestEnumValues({
+        attributeCode:
+          watchedCode ||
+          watchedName.toLowerCase().replace(/[^a-z0-9_-]/g, "_"),
+        attributeName: watchedName,
+      });
+      if (res.suggestedOptions && res.suggestedOptions.length > 0) {
+        const current = watch("initialOptions") || "";
+        const currentItems = current
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const newItems = res.suggestedOptions
+          .map((o) => o.code)
+          .filter((c) => !currentItems.includes(c));
+        const merged = [...currentItems, ...newItems].join(", ");
+        setValue("initialOptions", merged);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSuggestingEnums(false);
+    }
+  };
 
   // Filter available units for selected category
   const availableUnitsForCategory = React.useMemo(() => {
@@ -156,10 +302,19 @@ export function AttributeFormDialog({
   const onSubmit = async (values: AttributeFormValues) => {
     setServerError(null);
     try {
+      const parsedAliases = values.aliases
+        ? values.aliases
+            .split(",")
+            .map((a) => a.trim())
+            .filter(Boolean)
+        : undefined;
+
       if (isEditing && initialData) {
         const payload: UpdateAttributeDefinitionPayload = {
           name: values.name,
           description: values.description || undefined,
+          groupName: values.groupName ? values.groupName.trim() : undefined,
+          aliases: parsedAliases,
           isFilterable: values.isFilterable,
           isActive: values.isActive,
           unitCategory: values.unitCategory || undefined,
@@ -173,31 +328,33 @@ export function AttributeFormDialog({
       } else {
         const options =
           (values.dataType === "SELECT" || values.dataType === "MULTI_SELECT") &&
-            values.initialOptions
+          values.initialOptions
             ? values.initialOptions
-              .split(",")
-              .map((o) => o.trim())
-              .filter((o) => o.length > 0)
-              .map((opt, idx) => ({
-                code: opt.toLowerCase().replace(/[^a-z0-9_-]/g, "_"),
-                label: opt,
-                sortOrder: idx,
-              }))
+                .split(",")
+                .map((o) => o.trim())
+                .filter((o) => o.length > 0)
+                .map((opt, idx) => ({
+                  code: opt.toLowerCase().replace(/[^a-z0-9_-]/g, "_"),
+                  label: opt,
+                  sortOrder: idx,
+                }))
             : undefined;
 
         const categoryBindings =
           selectedCategoryIds.length > 0
             ? selectedCategoryIds.map((catId, idx) => ({
-              categoryId: catId,
-              isRequired: bindAsRequired,
-              sortOrder: (idx + 1) * 10,
-            }))
+                categoryId: catId,
+                isRequired: bindAsRequired,
+                sortOrder: (idx + 1) * 10,
+              }))
             : undefined;
 
         const payload: CreateAttributeDefinitionPayload = {
           code: values.code,
           name: values.name,
           description: values.description || undefined,
+          groupName: values.groupName ? values.groupName.trim() : undefined,
+          aliases: parsedAliases,
           dataType: values.dataType,
           unitCategory: values.unitCategory || undefined,
           defaultUnit: values.defaultUnit || undefined,
@@ -248,17 +405,161 @@ export function AttributeFormDialog({
             </div>
           )}
 
+          {/* Duplicate Warning Notice */}
+          {duplicateResult?.isDuplicate && duplicateResult.matches.length > 0 && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 text-xs text-amber-900 dark:text-amber-200 animate-in fade-in-50 duration-150">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-medium">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>Possible Duplicate Attribute Detected</span>
+                </div>
+                <StatusBadge
+                  status="IN_REVIEW"
+                  label={`${Math.round((duplicateResult.matches[0]?.similarity ?? 0) * 100)}% SIMILAR`}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                An existing canonical specification matches this name. Consider reusing it instead of creating a duplicate:
+              </p>
+              <div className="flex flex-wrap gap-2 pt-0.5">
+                {duplicateResult.matches.map((m) => (
+                  <div
+                    key={m.code}
+                    className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-background border border-amber-500/30 text-xs shadow-2xs font-mono"
+                  >
+                    <span className="font-semibold text-foreground">{m.name}</span>
+                    <span className="text-[10px] text-muted-foreground">({m.code})</span>
+                    {m.existingBindingsCount > 0 && (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground">
+                        {m.existingBindingsCount} categories bound
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* AI Suggested Configuration Banner */}
+          {configSuggestion && !isEditing && (
+            <div className="p-3.5 bg-primary/5 border border-primary/20 rounded-xl space-y-2.5 text-xs animate-in fade-in-50 duration-150">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex size-5 items-center justify-center rounded bg-primary/15 text-primary">
+                    <Sparkles className="size-3" />
+                  </div>
+                  <span className="font-semibold text-foreground text-xs">
+                    AI Suggested Configuration
+                  </span>
+                  <StatusBadge
+                    status={
+                      configSuggestion.confidenceLevel === "HIGH"
+                        ? "SUCCESS"
+                        : configSuggestion.confidenceLevel === "MEDIUM"
+                        ? "IN_REVIEW"
+                        : "DRAFT"
+                    }
+                    label={`${configSuggestion.confidenceLevel} CONFIDENCE`}
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => setShowWhy(!showWhy)}
+                    className="text-muted-foreground hover:text-foreground"
+                    title="Why this configuration?"
+                  >
+                    <HelpCircle className="size-3.5" />
+                  </Button>
+                  {appliedAi ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                      <Check className="size-3" /> Applied
+                    </span>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      onClick={handleApplyConfigSuggestion}
+                      className="h-6 text-[11px] px-2.5 border-primary/30 text-primary hover:bg-primary/10 gap-1 font-medium"
+                    >
+                      <Check className="size-3" /> Apply Suggestion
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Suggestions quick chips */}
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-mono">
+                <span className="bg-background px-2 py-0.5 rounded border border-border text-foreground">
+                  Type: <strong className="text-primary">{configSuggestion.suggestedDataType}</strong>
+                </span>
+                {configSuggestion.unitCategory && (
+                  <span className="bg-background px-2 py-0.5 rounded border border-border text-foreground">
+                    Dimension: <strong>{configSuggestion.unitCategory}</strong>
+                  </span>
+                )}
+                {configSuggestion.defaultUnit && (
+                  <span className="bg-background px-2 py-0.5 rounded border border-border text-foreground">
+                    Unit: <strong>{configSuggestion.defaultUnit}</strong>
+                  </span>
+                )}
+                {configSuggestion.suggestedGroupName && (
+                  <span className="bg-background px-2 py-0.5 rounded border border-border text-foreground">
+                    Group: <strong>{configSuggestion.suggestedGroupName}</strong>
+                  </span>
+                )}
+                {configSuggestion.likelyCategoryNames && configSuggestion.likelyCategoryNames.length > 0 && (
+                  <span className="bg-background px-2 py-0.5 rounded border border-border text-muted-foreground">
+                    Likely: {configSuggestion.likelyCategoryNames.slice(0, 3).join(", ")}
+                  </span>
+                )}
+              </div>
+
+              {/* Why evidence accordion */}
+              {showWhy && (
+                <div className="pt-2 border-t border-primary/15 text-[11px] space-y-1 text-muted-foreground animate-in fade-in-50 duration-150">
+                  <span className="font-semibold text-foreground text-[10px] uppercase tracking-wider block">
+                    Evidence & Provenance:
+                  </span>
+                  <ul className="list-disc list-inside space-y-0.5">
+                    {configSuggestion.evidence.map((ev, idx) => (
+                      <li key={idx}>
+                        <span className="text-foreground">{ev.description}</span>
+                        {ev.source && (
+                          <span className="ml-1 text-[9px] font-mono opacity-80">
+                            [{ev.source}]
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Name */}
           <Field>
             <FieldLabel htmlFor="attr-name">
               Attribute Name <span className="text-destructive">*</span>
             </FieldLabel>
-            <Input
-              id="attr-name"
-              type="text"
-              placeholder="e.g. Resistance, Package, Forward Voltage"
-              {...register("name")}
-            />
+            <div className="relative">
+              <Input
+                id="attr-name"
+                type="text"
+                placeholder="e.g. Resistance, Package, Forward Voltage"
+                {...register("name")}
+              />
+              {isAnalyzing && (
+                <div className="absolute right-2.5 top-2.5">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                </div>
+              )}
+            </div>
             {errors.name?.message && (
               <FieldError>{errors.name.message}</FieldError>
             )}
@@ -286,6 +587,39 @@ export function AttributeFormDialog({
               <FieldError>{errors.code.message}</FieldError>
             )}
           </Field>
+
+          {/* Group Name & Aliases */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field>
+              <FieldLabel htmlFor="attr-group-name">
+                Logical Group <span className="text-muted-foreground font-normal">(Optional)</span>
+              </FieldLabel>
+              <Input
+                id="attr-group-name"
+                type="text"
+                placeholder="e.g. Electrical, Mechanical, Physical"
+                {...register("groupName")}
+              />
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Organizes specifications into sections.
+              </p>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="attr-aliases">
+                Aliases <span className="text-muted-foreground font-normal">(Comma-separated)</span>
+              </FieldLabel>
+              <Input
+                id="attr-aliases"
+                type="text"
+                placeholder="e.g. Rated Voltage, Working Voltage"
+                {...register("aliases")}
+              />
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Improves import mapping, search, and duplicate detection.
+              </p>
+            </Field>
+          </div>
 
           {/* Data Type */}
           <Field>
@@ -462,9 +796,26 @@ export function AttributeFormDialog({
             (selectedDataType === "SELECT" ||
               selectedDataType === "MULTI_SELECT") && (
               <Field>
-                <FieldLabel htmlFor="attr-initial-options">
-                  Initial Options (Comma Separated)
-                </FieldLabel>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="attr-initial-options">
+                    Initial Options (Comma Separated)
+                  </FieldLabel>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    disabled={suggestingEnums}
+                    onClick={handleSuggestEnums}
+                    className="h-5 text-[11px] text-primary hover:bg-primary/10 px-2 gap-1"
+                  >
+                    {suggestingEnums ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3" />
+                    )}
+                    AI Suggest Options
+                  </Button>
+                </div>
                 <Input
                   id="attr-initial-options"
                   placeholder="e.g. 0402, 0603, 0805, 1206, 2512"

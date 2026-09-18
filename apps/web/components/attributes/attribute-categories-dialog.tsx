@@ -17,8 +17,11 @@ import {
   attributesApi,
   type AttributeDefinitionDto,
   type AttributeCategoryBindingDto,
+  type SuggestedCategoryBindingDto,
+  type SuspiciousBindingDto,
 } from "@/lib/api/attributes-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   FolderTree,
   Plus,
@@ -26,9 +29,14 @@ import {
   Edit3,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   Hash,
   Check,
+  Sparkles,
+  HelpCircle,
+  X,
+  ShieldAlert,
 } from "lucide-react";
 
 interface AttributeCategoriesDialogProps {
@@ -71,6 +79,25 @@ export function AttributeCategoriesDialog({
     React.useState<AttributeCategoryBindingDto | null>(null);
   const [isUnbinding, setIsUnbinding] = React.useState(false);
 
+  // AI Suggestions & Suspicious Bindings state
+  const [aiSuggestions, setAiSuggestions] = React.useState<
+    SuggestedCategoryBindingDto[]
+  >([]);
+  const [suspiciousBindings, setSuspiciousBindings] = React.useState<
+    SuspiciousBindingDto[]
+  >([]);
+  const [loadingAi, setLoadingAi] = React.useState(false);
+  const [expandedWhy, setExpandedWhy] = React.useState<Record<string, boolean>>(
+    {},
+  );
+  const [dismissedSuggestions, setDismissedSuggestions] = React.useState<
+    Set<string>
+  >(new Set());
+  const [dismissedSuspicious, setDismissedSuspicious] = React.useState<
+    Set<string>
+  >(new Set());
+  const [applyingAllHigh, setApplyingAllHigh] = React.useState(false);
+
   const loadData = React.useCallback(async () => {
     if (!attribute) return;
     setLoading(true);
@@ -82,6 +109,23 @@ export function AttributeCategoriesDialog({
       ]);
       setBindings(fetchedBindings);
       setAllCategories(categories);
+
+      // Fetch AI suggestions concurrently
+      setLoadingAi(true);
+      attributesApi
+        .suggestBindings({
+          attributeId: attribute.id,
+          attributeCode: attribute.code,
+          attributeName: attribute.name,
+          dataType: attribute.dataType,
+          unitCategory: attribute.unitCategory || undefined,
+        })
+        .then((res) => {
+          setAiSuggestions(res.suggestions || []);
+          setSuspiciousBindings(res.suspiciousExistingBindings || []);
+        })
+        .catch(() => {})
+        .finally(() => setLoadingAi(false));
     } catch (err: unknown) {
       setError(
         err instanceof Error
@@ -102,6 +146,8 @@ export function AttributeCategoriesDialog({
       setEditingBindingId(null);
       setError(null);
       setSuccessMsg(null);
+      setDismissedSuggestions(new Set());
+      setDismissedSuspicious(new Set());
     }
   }, [isOpen, attribute, loadData]);
 
@@ -214,6 +260,189 @@ export function AttributeCategoriesDialog({
     }
   };
 
+  const toggleWhy = (catId: string) => {
+    setExpandedWhy((prev) => ({ ...prev, [catId]: !prev[catId] }));
+  };
+
+  const handleAcceptAiSuggestion = async (sug: SuggestedCategoryBindingDto) => {
+    if (!attribute) return;
+    try {
+      await attributesApi.bindCategory(attribute.id, {
+        categoryId: sug.categoryId,
+        isRequired: sug.suggestedRequired ?? false,
+        sortOrder: (bindings.length + 1) * 10,
+      });
+      setSuccessMsg(`Bound category "${sug.categoryName}" via AI proposal.`);
+      setDismissedSuggestions((prev) => new Set([...prev, sug.categoryId]));
+      await loadData();
+      onBindingsUpdated?.();
+
+      attributesApi
+        .recordFeedback({
+          attributeDefinitionId: attribute.id,
+          categoryId: sug.categoryId,
+          items: [
+            {
+              suggestionType: "ATTRIBUTE_BINDING",
+              field: "binding",
+              userAction: "ACCEPTED",
+              predictedValue: sug.categoryName,
+              finalValue: sug.categoryName,
+              confidence: sug.confidence,
+              confidenceLevel: sug.confidenceLevel,
+            },
+          ],
+        })
+        .catch(() => {});
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to apply suggested binding",
+      );
+    }
+  };
+
+  const handleRejectAiSuggestion = (sug: SuggestedCategoryBindingDto) => {
+    if (!attribute) return;
+    setDismissedSuggestions((prev) => new Set([...prev, sug.categoryId]));
+    attributesApi
+      .recordFeedback({
+        attributeDefinitionId: attribute.id,
+        categoryId: sug.categoryId,
+        items: [
+          {
+            suggestionType: "ATTRIBUTE_BINDING",
+            field: "binding",
+            userAction: "REJECTED",
+            predictedValue: sug.categoryName,
+            finalValue: null,
+            confidence: sug.confidence,
+            confidenceLevel: sug.confidenceLevel,
+          },
+        ],
+      })
+      .catch(() => {});
+  };
+
+  const handleAcceptAllHighConfidence = async () => {
+    if (!attribute) return;
+    const highSuggestions = aiSuggestions.filter(
+      (s) =>
+        s.confidenceLevel === "HIGH" &&
+        !boundCategoryIds.has(s.categoryId) &&
+        !dismissedSuggestions.has(s.categoryId),
+    );
+    if (highSuggestions.length === 0) return;
+
+    setApplyingAllHigh(true);
+    try {
+      await attributesApi.applyBindings({
+        attributeId: attribute.id,
+        bindings: highSuggestions.map((s, idx) => ({
+          categoryId: s.categoryId,
+          isRequired: s.suggestedRequired ?? false,
+          sortOrder: (bindings.length + idx + 1) * 10,
+        })),
+      });
+
+      setSuccessMsg(`Applied ${highSuggestions.length} high-confidence bindings.`);
+      setDismissedSuggestions(
+        (prev) =>
+          new Set([...prev, ...highSuggestions.map((s) => s.categoryId)]),
+      );
+      await loadData();
+      onBindingsUpdated?.();
+
+      attributesApi
+        .recordFeedback({
+          attributeDefinitionId: attribute.id,
+          items: highSuggestions.map((s) => ({
+            suggestionType: "ATTRIBUTE_BINDING",
+            field: "binding",
+            userAction: "ACCEPTED" as const,
+            predictedValue: s.categoryName,
+            finalValue: s.categoryName,
+            confidence: s.confidence,
+            confidenceLevel: s.confidenceLevel,
+          })),
+        })
+        .catch(() => {});
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to apply bindings");
+    } finally {
+      setApplyingAllHigh(false);
+    }
+  };
+
+  const handleKeepSuspicious = (susp: SuspiciousBindingDto) => {
+    setDismissedSuspicious((prev) => new Set([...prev, susp.categoryId]));
+    if (attribute) {
+      attributesApi
+        .recordFeedback({
+          attributeDefinitionId: attribute.id,
+          categoryId: susp.categoryId,
+          items: [
+            {
+              suggestionType: "SUSPICIOUS_BINDING",
+              field: "binding",
+              userAction: "ACCEPTED",
+              predictedValue: susp.categoryName,
+              finalValue: susp.categoryName,
+              confidenceLevel: susp.confidenceLevel,
+            },
+          ],
+        })
+        .catch(() => {});
+    }
+  };
+
+  const handleRemoveSuspicious = async (susp: SuspiciousBindingDto) => {
+    if (!attribute) return;
+    try {
+      await attributesApi.unbindCategory(attribute.id, susp.categoryId);
+      setSuccessMsg(
+        `Removed suspicious binding from category "${susp.categoryName}".`,
+      );
+      setDismissedSuspicious((prev) => new Set([...prev, susp.categoryId]));
+      await loadData();
+      onBindingsUpdated?.();
+
+      attributesApi
+        .recordFeedback({
+          attributeDefinitionId: attribute.id,
+          categoryId: susp.categoryId,
+          items: [
+            {
+              suggestionType: "SUSPICIOUS_BINDING",
+              field: "binding",
+              userAction: "REJECTED",
+              predictedValue: susp.categoryName,
+              finalValue: null,
+              confidenceLevel: susp.confidenceLevel,
+            },
+          ],
+        })
+        .catch(() => {});
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove binding");
+    }
+  };
+
+  const pendingAiSuggestions = aiSuggestions.filter(
+    (s) =>
+      !boundCategoryIds.has(s.categoryId) &&
+      !dismissedSuggestions.has(s.categoryId),
+  );
+
+  const highConfidenceCount = pendingAiSuggestions.filter(
+    (s) => s.confidenceLevel === "HIGH",
+  ).length;
+
+  const activeSuspiciousBindings = suspiciousBindings.filter(
+    (s) =>
+      boundCategoryIds.has(s.categoryId) &&
+      !dismissedSuspicious.has(s.categoryId),
+  );
+
   return (
     <>
       <DialogShell
@@ -242,6 +471,192 @@ export function AttributeCategoriesDialog({
             <div className="flex items-center gap-2 p-3 text-xs text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
               <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <span>{successMsg}</span>
+            </div>
+          )}
+
+          {/* Suspicious Bindings Warning Banner */}
+          {activeSuspiciousBindings.length > 0 && (
+            <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl space-y-3 text-xs text-rose-950 dark:text-rose-200 animate-in fade-in-50 duration-150">
+              <div className="flex items-center gap-2 font-semibold">
+                <ShieldAlert className="size-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                <span>Suspicious Category Binding Detected</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Statistical analysis indicates unusual or low-frequency usage for this attribute in the following bound categories:
+              </p>
+              <div className="space-y-2">
+                {activeSuspiciousBindings.map((susp) => (
+                  <div
+                    key={susp.categoryId}
+                    className="p-2.5 rounded-lg bg-background/90 border border-rose-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs"
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-foreground">{susp.categoryName}</span>
+                        <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded border border-border">
+                          {susp.categoryCode}
+                        </span>
+                        <StatusBadge status="DRAFT" label="LOW CONFIDENCE" />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{susp.reason}</p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => handleKeepSuspicious(susp)}
+                        className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Keep Binding
+                      </Button>
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="destructive"
+                        onClick={() => handleRemoveSuspicious(susp)}
+                        className="h-7 text-xs gap-1"
+                      >
+                        <Trash2 className="size-3" /> Remove Binding
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* AI Suggested Bindings Section */}
+          {pendingAiSuggestions.length > 0 && (
+            <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-3 shadow-2xs animate-in fade-in-50 duration-150">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <div className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-primary border border-primary/25">
+                    <Sparkles className="size-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-foreground">
+                      AI Suggested Category Bindings
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">
+                      Proposals based on active Data Packs, component frequency, and semantic classification.
+                    </p>
+                  </div>
+                </div>
+
+                {highConfidenceCount > 0 && (
+                  <Button
+                    type="button"
+                    size="xs"
+                    disabled={applyingAllHigh}
+                    onClick={handleAcceptAllHighConfidence}
+                    className="h-7 text-xs font-medium px-3 gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    {applyingAllHigh ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Check className="size-3" />
+                    )}
+                    Accept High-Confidence ({highConfidenceCount})
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                {pendingAiSuggestions.map((sug) => {
+                  const isWhyExpanded = Boolean(expandedWhy[sug.categoryId]);
+                  return (
+                    <div
+                      key={sug.categoryId}
+                      className="p-3 bg-background border border-border rounded-lg space-y-2 shadow-2xs flex flex-col justify-between"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-semibold text-xs text-foreground truncate">
+                              {sug.categoryName}
+                            </span>
+                            <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded border border-border">
+                              {sug.categoryCode}
+                            </span>
+                          </div>
+                          <StatusBadge
+                            status={
+                              sug.confidenceLevel === "HIGH"
+                                ? "SUCCESS"
+                                : sug.confidenceLevel === "MEDIUM"
+                                ? "IN_REVIEW"
+                                : "DRAFT"
+                            }
+                            label={`${Math.round(sug.confidence * 100)}%`}
+                          />
+                        </div>
+
+                        <p className="text-[11px] text-muted-foreground line-clamp-2">
+                          {sug.reason}
+                        </p>
+
+                        {/* Why Evidence Accordion */}
+                        {isWhyExpanded && (
+                          <div className="pt-2 border-t border-border/60 text-[11px] space-y-1 animate-in fade-in-50 duration-150">
+                            <span className="font-semibold text-foreground text-[10px] uppercase tracking-wider block">
+                              Evidence:
+                            </span>
+                            <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
+                              {sug.evidence.map((ev, idx) => (
+                                <li key={idx}>
+                                  <span className="text-foreground">{ev.description}</span>
+                                  {ev.source && (
+                                    <span className="ml-1 text-[9px] font-mono text-muted-foreground">
+                                      [{ev.source}]
+                                    </span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => toggleWhy(sug.categoryId)}
+                          className="text-muted-foreground hover:text-foreground"
+                          title="Why this category?"
+                        >
+                          <HelpCircle className="size-3.5" />
+                        </Button>
+
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => handleRejectAiSuggestion(sug)}
+                            className="text-muted-foreground hover:text-destructive"
+                            title="Reject suggestion"
+                          >
+                            <X className="size-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="outline"
+                            onClick={() => handleAcceptAiSuggestion(sug)}
+                            className="h-6 text-[11px] px-2.5 border-primary/30 text-primary hover:bg-primary/10 gap-1 font-medium"
+                          >
+                            <Check className="size-3" /> Accept
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

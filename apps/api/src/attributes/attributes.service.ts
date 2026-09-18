@@ -191,6 +191,8 @@ export class AttributesService {
       isFilterable: dto.isFilterable ?? true,
       sortOrder: dto.sortOrder ?? 0,
       validationRules: dto.validationRules ?? null,
+      aliases: dto.aliases ?? [],
+      groupName: dto.groupName ?? null,
     });
 
     const saved = await this.attrDefRepo.save(def);
@@ -243,6 +245,8 @@ export class AttributesService {
       isFilterable: dto.isFilterable,
       sortOrder: dto.sortOrder,
       validationRules: dto.validationRules,
+      aliases: dto.aliases,
+      groupName: dto.groupName,
       isActive: dto.isActive,
     });
 

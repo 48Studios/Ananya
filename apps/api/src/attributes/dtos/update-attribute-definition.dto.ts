@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
@@ -47,6 +48,16 @@ export class UpdateAttributeDefinitionDto {
 
   @IsOptional()
   validationRules?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  aliases?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  groupName?: string;
 
   @IsOptional()
   @IsBoolean()

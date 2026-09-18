@@ -19,6 +19,7 @@ import {
   RefreshCw,
   FolderTree,
   MoreVertical,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -38,6 +39,7 @@ import {
 import { AttributeFormDialog } from "@/components/attributes/attribute-form-dialog";
 import { AttributeOptionsDialog } from "@/components/attributes/attribute-options-dialog";
 import { AttributeCategoriesDialog } from "@/components/attributes/attribute-categories-dialog";
+import { AttributeReviewQueueDialog } from "@/components/attributes/attribute-review-queue-dialog";
 import {
   attributesApi,
   type AttributeDefinitionDto,
@@ -73,12 +75,22 @@ export default function AttributesPage() {
     React.useState<AttributeDefinitionDto | null>(null);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
 
+  // Intelligence Review Queue State
+  const [isReviewQueueOpen, setIsReviewQueueOpen] = React.useState(false);
+  const [reviewQueueCount, setReviewQueueCount] = React.useState(0);
+
   const fetchAttributes = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await attributesApi.getAll();
+      const [data, queue] = await Promise.all([
+        attributesApi.getAll(),
+        attributesApi.getReviewQueue().catch(() => null),
+      ]);
       setAttributes(data);
+      if (queue) {
+        setReviewQueueCount(queue.summary.total);
+      }
     } catch (err: unknown) {
       setError(
         err instanceof Error
@@ -174,9 +186,21 @@ export default function AttributesPage() {
         meta: { width: "20%" },
         cell: ({ row }) => (
           <div className="space-y-0.5 min-w-0">
-            <span className="font-medium text-foreground truncate block">
-              {row.original.name}
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-medium text-foreground truncate">
+                {row.original.name}
+              </span>
+              {row.original.groupName && (
+                <span className="inline-flex items-center px-1.5 py-0.2 rounded bg-muted border border-border text-[10px] font-mono text-muted-foreground">
+                  {row.original.groupName}
+                </span>
+              )}
+            </div>
+            {row.original.aliases && row.original.aliases.length > 0 && (
+              <p className="text-[10px] text-muted-foreground/70 font-mono truncate">
+                Aliases: {row.original.aliases.join(", ")}
+              </p>
+            )}
             {row.original.description && (
               <p className="text-[11px] text-muted-foreground line-clamp-1">
                 {row.original.description}
@@ -440,6 +464,20 @@ export default function AttributesPage() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setIsReviewQueueOpen(true)}
+              className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Intelligence Queue
+              {reviewQueueCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-primary text-primary-foreground text-[10px] font-mono leading-none">
+                  {reviewQueueCount}
+                </span>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={fetchAttributes}
               className="gap-1.5 text-xs"
             >
@@ -596,6 +634,20 @@ export default function AttributesPage() {
         loading={deleteLoading}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeletingAttribute(null)}
+      />
+
+      {/* Attribute Intelligence Review Queue Dialog */}
+      <AttributeReviewQueueDialog
+        isOpen={isReviewQueueOpen}
+        onClose={() => setIsReviewQueueOpen(false)}
+        onActionComplete={fetchAttributes}
+        onEditAttribute={(attrId) => {
+          const found = attributes.find((a) => a.id === attrId);
+          if (found) {
+            setEditingAttribute(found);
+            setIsFormOpen(true);
+          }
+        }}
       />
     </div>
   );

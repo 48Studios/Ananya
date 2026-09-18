@@ -51,6 +51,12 @@ describe('MlService', () => {
       enabled: true,
       suggest: jest.fn(),
       health: jest.fn().mockResolvedValue(true),
+      suggestAttributeBindings: jest.fn().mockResolvedValue(null),
+      suggestCategoryAttributes: jest.fn().mockResolvedValue(null),
+      suggestAttributeConfig: jest.fn().mockResolvedValue(null),
+      detectAttributeDuplicates: jest.fn().mockResolvedValue(null),
+      suggestEnumValues: jest.fn().mockResolvedValue(null),
+      auditAttributeLibrary: jest.fn().mockResolvedValue(null),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -172,4 +178,70 @@ describe('MlService', () => {
     expect(exportResult.dataset).toBeInstanceOf(Array);
     expect(typeof exportResult.count).toBe('number');
   });
+
+  it('should suggest attribute bindings via deterministic fallback', async () => {
+    const result = await service.suggestAttributeBindings({
+      attributeName: 'Voltage Rating',
+      attributeCode: 'voltage_rating',
+      dataType: 'QUANTITY',
+      unitCategory: 'Voltage',
+    });
+
+    expect(result).toBeDefined();
+    expect(result.suggestions).toBeInstanceOf(Array);
+    expect(typeof result.executionTimeMs).toBe('number');
+  });
+
+  it('should suggest attribute configuration with canonical match', async () => {
+    const result = await service.suggestAttributeConfig({
+      name: 'Rated Voltage',
+    });
+
+    expect(result).toBeDefined();
+    expect(result.suggestion.suggestedDataType).toBe('QUANTITY');
+    expect(result.suggestion.unitCategory).toBe('Voltage');
+    expect(result.suggestion.defaultUnit).toBe('V');
+    expect(result.suggestion.displayUnits).toContain('kV');
+    expect(result.suggestion.confidenceLevel).toBe('HIGH');
+  });
+
+  it('should detect duplicate attributes and suggest aliases', async () => {
+    const result = await service.detectAttributeDuplicates({
+      name: 'Voltage Rating',
+    });
+
+    expect(result).toBeDefined();
+    expect(typeof result.isDuplicate).toBe('boolean');
+    expect(result.matches).toBeInstanceOf(Array);
+    expect(result.suggestedAliases).toBeInstanceOf(Array);
+  });
+
+  it('should suggest enum options for SELECT attributes', async () => {
+    const result = await service.suggestEnumValues({
+      attributeCode: 'dielectric',
+      attributeName: 'Dielectric',
+    });
+
+    expect(result).toBeDefined();
+    expect(result.suggestedOptions.length).toBeGreaterThan(0);
+    expect(result.suggestedOptions.some((o) => o.code === 'X7R')).toBe(true);
+  });
+
+  it('should audit attribute library and return summary and issues', async () => {
+    const result = await service.auditAttributeLibrary();
+
+    expect(result).toBeDefined();
+    expect(result.summary).toBeDefined();
+    expect(typeof result.summary.totalAttributes).toBe('number');
+    expect(result.issues).toBeInstanceOf(Array);
+  });
+
+  it('should return attribute intelligence review queue', async () => {
+    const queue = await service.getReviewQueue();
+
+    expect(queue).toBeDefined();
+    expect(queue.summary).toBeDefined();
+    expect(queue.items).toBeInstanceOf(Array);
+  });
 });
+

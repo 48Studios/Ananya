@@ -29,6 +29,8 @@ export interface AttributeDefinitionDto {
   sortOrder: number;
   options?: AttributeOptionDto[];
   isActive: boolean;
+  aliases?: string[];
+  groupName?: string | null;
   categoryBindings?: CategoryBindingSummary[];
 }
 
@@ -122,6 +124,8 @@ export interface CreateAttributeDefinitionPayload {
   isFilterable?: boolean;
   isRequired?: boolean;
   sortOrder?: number;
+  aliases?: string[];
+  groupName?: string;
   options?: Array<{ code: string; label: string; sortOrder?: number }>;
   categoryBindings?: Array<{
     categoryId: string;
@@ -153,8 +157,185 @@ export interface UpdateAttributeDefinitionPayload {
   defaultUnit?: string;
   isFilterable?: boolean;
   sortOrder?: number;
+  aliases?: string[];
+  groupName?: string;
   validationRules?: Record<string, unknown>;
   isActive?: boolean;
+}
+
+export interface SuggestedCategoryBindingDto {
+  categoryId: string;
+  categoryCode: string;
+  categoryName: string;
+  confidence: number;
+  confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
+  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+  reason: string;
+  suggestedRequired?: boolean;
+}
+
+export interface SuspiciousBindingDto {
+  categoryId: string;
+  categoryCode: string;
+  categoryName: string;
+  confidence: number;
+  confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
+  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+  reason: string;
+}
+
+export interface AttributeBindingSuggestionsResponseDto {
+  attributeCode?: string;
+  attributeName?: string;
+  suggestions: SuggestedCategoryBindingDto[];
+  suspiciousExistingBindings: SuspiciousBindingDto[];
+  isMlActive: boolean;
+  executionTimeMs: number;
+}
+
+export interface SuggestedCategoryAttributeItemDto {
+  attributeDefinitionId?: string;
+  attributeCode: string;
+  attributeName: string;
+  dataType: string;
+  unitCategory?: string;
+  defaultUnit?: string;
+  confidence: number;
+  confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
+  isExisting: boolean;
+  isRequired?: boolean;
+  groupName?: string;
+  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+  reason: string;
+}
+
+export interface CategoryAttributeSuggestionsResponseDto {
+  categoryId: string;
+  categoryName?: string;
+  suggestions: SuggestedCategoryAttributeItemDto[];
+  missingExpectedAttributes: SuggestedCategoryAttributeItemDto[];
+  isMlActive: boolean;
+  executionTimeMs: number;
+}
+
+export interface AttributeConfigSuggestionDto {
+  name: string;
+  suggestedCode: string;
+  suggestedDataType: string;
+  unitCategory?: string;
+  defaultUnit?: string;
+  displayUnits?: string[];
+  suggestedGroupName?: string;
+  suggestedAliases?: string[];
+  suggestedValidationRules?: Record<string, unknown>;
+  suggestedEnumValues?: string[];
+  likelyCategoryNames?: string[];
+  confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
+  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+}
+
+export interface AttributeConfigSuggestionsResponseDto {
+  suggestion: AttributeConfigSuggestionDto;
+  isMlActive: boolean;
+  executionTimeMs: number;
+}
+
+export interface DuplicateAttributeMatchDto {
+  id?: string;
+  code: string;
+  name: string;
+  similarity: number;
+  confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
+  matchType: string;
+  existingBindingsCount: number;
+  aliases: string[];
+  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+}
+
+export interface AttributeDuplicateDetectionResponseDto {
+  isDuplicate: boolean;
+  matches: DuplicateAttributeMatchDto[];
+  suggestedAliases: string[];
+  executionTimeMs: number;
+}
+
+export interface EnumOptionSuggestionDto {
+  code: string;
+  label: string;
+  provenance: string;
+  confidence: number;
+}
+
+export interface EnumSuggestionsResponseDto {
+  attributeCode: string;
+  suggestedOptions: EnumOptionSuggestionDto[];
+  executionTimeMs: number;
+}
+
+export interface AttributeAuditIssueDto {
+  type:
+    | "DUPLICATE"
+    | "SUSPICIOUS_BINDING"
+    | "MISSING_COMMON_ATTRIBUTE"
+    | "UNUSED_ATTRIBUTE"
+    | "TYPE_INCONSISTENCY"
+    | "ENUM_INCONSISTENCY";
+  severity: "HIGH" | "MEDIUM" | "LOW";
+  title: string;
+  description: string;
+  attributeId?: string;
+  attributeCode?: string;
+  attributeName?: string;
+  categoryId?: string;
+  categoryName?: string;
+  suggestedAction: string;
+  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+}
+
+export interface AttributeLibraryAuditResponseDto {
+  summary: {
+    totalAttributes: number;
+    totalBindings: number;
+    issuesCount: number;
+    potentialDuplicatesCount: number;
+    suspiciousBindingsCount: number;
+    missingBindingsCount: number;
+  };
+  issues: AttributeAuditIssueDto[];
+  executionTimeMs: number;
+}
+
+export interface ReviewQueueSummaryDto {
+  total: number;
+  suggestedBindings: number;
+  possibleDuplicates: number;
+  suspiciousBindings: number;
+  suggestedEnumValues: number;
+}
+
+export interface ReviewQueueItemDto {
+  id: string;
+  type:
+    | "SUGGESTED_BINDING"
+    | "POSSIBLE_DUPLICATE"
+    | "SUSPICIOUS_BINDING"
+    | "SUGGESTED_ENUM_VALUE"
+    | "MISSING_ATTRIBUTE";
+  title: string;
+  subtitle?: string;
+  confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
+  attributeId?: string;
+  attributeCode?: string;
+  attributeName?: string;
+  categoryId?: string;
+  categoryName?: string;
+  payload: Record<string, unknown>;
+  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+}
+
+export interface AttributeReviewQueueResponseDto {
+  summary: ReviewQueueSummaryDto;
+  items: ReviewQueueItemDto[];
 }
 
 export const attributesApi = {
@@ -250,5 +431,94 @@ export const attributesApi = {
   ): Promise<void> =>
     apiClient.delete<void>(
       `/components/${encodeURIComponent(componentId)}/attributes/${encodeURIComponent(attributeDefinitionId)}`,
+    ),
+
+  // Attribute Intelligence v1
+  suggestBindings: (payload: {
+    attributeId?: string;
+    attributeCode?: string;
+    attributeName?: string;
+    dataType?: string;
+    unitCategory?: string;
+    limit?: number;
+  }): Promise<AttributeBindingSuggestionsResponseDto> =>
+    apiClient.post<AttributeBindingSuggestionsResponseDto>(
+      "/ml/attributes/suggest-bindings",
+      payload,
+    ),
+
+  suggestCategoryAttributes: (
+    categoryId: string,
+    limit?: number,
+  ): Promise<CategoryAttributeSuggestionsResponseDto> =>
+    apiClient.post<CategoryAttributeSuggestionsResponseDto>(
+      "/ml/attributes/suggest-category-attributes",
+      { categoryId, limit },
+    ),
+
+  suggestConfig: (payload: {
+    name: string;
+    description?: string;
+  }): Promise<AttributeConfigSuggestionsResponseDto> =>
+    apiClient.post<AttributeConfigSuggestionsResponseDto>(
+      "/ml/attributes/suggest-config",
+      payload,
+    ),
+
+  detectDuplicates: (payload: {
+    name: string;
+    code?: string;
+    excludeId?: string;
+  }): Promise<AttributeDuplicateDetectionResponseDto> =>
+    apiClient.post<AttributeDuplicateDetectionResponseDto>(
+      "/ml/attributes/detect-duplicates",
+      payload,
+    ),
+
+  suggestEnumValues: (payload: {
+    attributeCode: string;
+    attributeName?: string;
+    existingOptions?: string[];
+  }): Promise<EnumSuggestionsResponseDto> =>
+    apiClient.post<EnumSuggestionsResponseDto>(
+      "/ml/attributes/suggest-enum-values",
+      payload,
+    ),
+
+  auditLibrary: (): Promise<AttributeLibraryAuditResponseDto> =>
+    apiClient.post<AttributeLibraryAuditResponseDto>("/ml/attributes/audit", {}),
+
+  getReviewQueue: (): Promise<AttributeReviewQueueResponseDto> =>
+    apiClient.get<AttributeReviewQueueResponseDto>("/ml/attributes/review-queue"),
+
+  applyBindings: (payload: {
+    attributeId: string;
+    bindings: Array<{
+      categoryId: string;
+      isRequired?: boolean;
+      sortOrder?: number;
+    }>;
+  }): Promise<{ success: boolean; appliedCount: number }> =>
+    apiClient.post<{ success: boolean; appliedCount: number }>(
+      "/ml/attributes/apply-bindings",
+      payload,
+    ),
+
+  recordFeedback: (payload: {
+    attributeDefinitionId?: string;
+    categoryId?: string;
+    items: Array<{
+      suggestionType: string;
+      field: string;
+      predictedValue?: unknown;
+      confidence?: number;
+      confidenceLevel?: string;
+      userAction: "ACCEPTED" | "REJECTED" | "EDITED";
+      finalValue?: unknown;
+    }>;
+  }): Promise<{ success: boolean; recordedCount: number }> =>
+    apiClient.post<{ success: boolean; recordedCount: number }>(
+      "/ml/attributes/feedback",
+      payload,
     ),
 };

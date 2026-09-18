@@ -8,6 +8,18 @@ import {
   ExportFeedbackQueryDto,
   ReviewQuarantineRecordDto,
   QuarantineFilterQueryDto,
+  SuggestAttributeBindingsDto,
+  SuggestAttributeBindingsResponseDto,
+  SuggestCategoryAttributesDto,
+  SuggestCategoryAttributesResponseDto,
+  SuggestAttributeConfigDto,
+  SuggestAttributeConfigResponseDto,
+  DetectAttributeDuplicatesDto,
+  DetectAttributeDuplicatesResponseDto,
+  SuggestEnumValuesDto,
+  SuggestEnumValuesResponseDto,
+  AuditAttributeLibraryResponseDto,
+  ApplySuggestedBindingDto,
 } from './dtos';
 
 @Controller('ml')
@@ -62,4 +74,63 @@ export class MlController {
     const user = req?.user || {};
     return this.mlService.reviewQuarantinedRecord(id, input, user);
   }
+
+  // ---------------------------------------------------------
+  // Attribute Intelligence Endpoints (RFC-0059)
+  // ---------------------------------------------------------
+
+  @Post('attributes/suggest-bindings')
+  suggestAttributeBindings(
+    @Body() input: SuggestAttributeBindingsDto,
+  ): Promise<SuggestAttributeBindingsResponseDto> {
+    return this.mlService.suggestAttributeBindings(input);
+  }
+
+  @Post('attributes/suggest-category-attributes')
+  suggestCategoryAttributes(
+    @Body() input: SuggestCategoryAttributesDto,
+  ): Promise<SuggestCategoryAttributesResponseDto> {
+    return this.mlService.suggestCategoryAttributes(input);
+  }
+
+  @Post('attributes/suggest-config')
+  suggestAttributeConfig(
+    @Body() input: SuggestAttributeConfigDto,
+  ): Promise<SuggestAttributeConfigResponseDto> {
+    return this.mlService.suggestAttributeConfig(input);
+  }
+
+  @Post('attributes/detect-duplicates')
+  detectAttributeDuplicates(
+    @Body() input: DetectAttributeDuplicatesDto,
+  ): Promise<DetectAttributeDuplicatesResponseDto> {
+    return this.mlService.detectAttributeDuplicates(input);
+  }
+
+  @Post('attributes/suggest-enum-values')
+  suggestEnumValues(
+    @Body() input: SuggestEnumValuesDto,
+  ): Promise<SuggestEnumValuesResponseDto> {
+    return this.mlService.suggestEnumValues(input);
+  }
+
+  @Post('attributes/audit')
+  auditAttributeLibrary(): Promise<AuditAttributeLibraryResponseDto> {
+    return this.mlService.auditAttributeLibrary();
+  }
+
+  @Get('attributes/review-queue')
+  getReviewQueue() {
+    return this.mlService.getReviewQueue();
+  }
+
+  @Post('attributes/apply-bindings')
+  applySuggestedBindings(
+    @Body() input: ApplySuggestedBindingDto,
+    @Req() req: { user?: { id?: string; email?: string } },
+  ) {
+    const user = req?.user || {};
+    return this.mlService.applySuggestedBindings(input, user);
+  }
 }
+

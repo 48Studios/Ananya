@@ -75,6 +75,16 @@ export class CreateAttributeDefinitionDto {
 
   @IsOptional()
   @IsArray()
+  @IsString({ each: true })
+  aliases?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  groupName?: string;
+
+  @IsOptional()
+  @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AttributeOptionInputDto)
   options?: AttributeOptionInputDto[];

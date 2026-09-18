@@ -19,11 +19,24 @@ from .schemas import (
     SuggestComponentRequest,
     SuggestComponentResponse,
     EvidenceItem,
+    SuggestAttributeBindingsRequest,
+    SuggestAttributeBindingsResponse,
+    SuggestCategoryAttributesRequest,
+    SuggestCategoryAttributesResponse,
+    SuggestAttributeConfigRequest,
+    SuggestAttributeConfigResponse,
+    DetectAttributeDuplicatesRequest,
+    DetectAttributeDuplicatesResponse,
+    SuggestEnumValuesRequest,
+    SuggestEnumValuesResponse,
+    AuditAttributeLibraryRequest,
+    AuditAttributeLibraryResponse,
 )
 from .services.category_classifier import category_classifier
 from .services.manufacturer_resolver import manufacturer_resolver
 from .services.duplicate_detector import duplicate_detector
 from .services.datasheet_extractor import datasheet_extractor
+from .services.attribute_intelligence import attribute_intelligence_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -174,3 +187,83 @@ def suggest_component(req: SuggestComponentRequest):
         overall_evidence=overall_evidence,
         execution_time_ms=round(elapsed_ms, 3),
     )
+
+# ---------------------------------------------------------
+# Attribute Intelligence Endpoints (RFC-0059)
+# ---------------------------------------------------------
+
+@app.post("/v1/attributes/suggest-bindings", response_model=SuggestAttributeBindingsResponse)
+def suggest_attribute_bindings(req: SuggestAttributeBindingsRequest):
+    suggestions = attribute_intelligence_service.suggest_attribute_bindings(
+        attribute_name=req.attributeName,
+        attribute_code=req.attributeCode,
+        description=req.description,
+        data_type=req.dataType,
+        unit_category=req.unitCategory,
+        categories=req.categories,
+        datapack_hints=req.datapack_hints,
+        component_category_counts=req.component_category_counts,
+    )
+    return SuggestAttributeBindingsResponse(suggestions=suggestions)
+
+@app.post("/v1/attributes/suggest-category-attributes", response_model=SuggestCategoryAttributesResponse)
+def suggest_category_attributes(req: SuggestCategoryAttributesRequest):
+    suggestions = attribute_intelligence_service.suggest_category_attributes(
+        category_id=req.categoryId,
+        category_code=req.categoryCode,
+        category_name=req.categoryName,
+        existing_attributes=req.existingAttributes,
+        bound_attribute_ids=req.boundAttributeIds,
+        datapack_hints=req.datapack_hints,
+        category_component_count=req.categoryComponentCount,
+    )
+    return SuggestCategoryAttributesResponse(suggestions=suggestions)
+
+@app.post("/v1/attributes/suggest-config", response_model=SuggestAttributeConfigResponse)
+def suggest_attribute_config(req: SuggestAttributeConfigRequest):
+    suggestion = attribute_intelligence_service.suggest_attribute_config(
+        name=req.name,
+        description=req.description,
+        existing_attributes=req.existingAttributes,
+        datapack_hints=req.datapack_hints,
+    )
+    return SuggestAttributeConfigResponse(suggestion=suggestion)
+
+@app.post("/v1/attributes/detect-duplicates", response_model=DetectAttributeDuplicatesResponse)
+def detect_attribute_duplicates(req: DetectAttributeDuplicatesRequest):
+    is_dup, matches, aliases = attribute_intelligence_service.detect_duplicates(
+        name=req.name,
+        code=req.code,
+        existing_attributes=req.existingAttributes,
+        existing_bindings=req.existingBindings,
+        threshold=req.threshold,
+        datapack_hints=req.datapack_hints,
+    )
+    return DetectAttributeDuplicatesResponse(
+        isDuplicate=is_dup,
+        matches=matches,
+        suggestedAliases=aliases,
+    )
+
+@app.post("/v1/attributes/suggest-enum-values", response_model=SuggestEnumValuesResponse)
+def suggest_enum_values(req: SuggestEnumValuesRequest):
+    suggested = attribute_intelligence_service.suggest_enum_values(
+        attribute_code=req.attributeCode,
+        attribute_name=req.attributeName,
+        existing_options=req.existingOptions,
+        datapack_hints=req.datapack_hints,
+    )
+    return SuggestEnumValuesResponse(suggestedOptions=suggested)
+
+@app.post("/v1/attributes/audit", response_model=AuditAttributeLibraryResponse)
+def audit_attribute_library(req: AuditAttributeLibraryRequest):
+    summary, issues = attribute_intelligence_service.audit_library(
+        attributes=req.attributes,
+        categories=req.categories,
+        bindings=req.bindings,
+        component_counts_by_attribute=req.componentCountsByAttribute,
+        component_counts_by_category_attribute=req.componentCountsByCategoryAttribute,
+        datapack_hints=req.datapack_hints,
+    )
+    return AuditAttributeLibraryResponse(summary=summary, issues=issues)
+

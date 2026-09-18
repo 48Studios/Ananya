@@ -132,3 +132,171 @@ class ReadyResponse(BaseModel):
     ready: bool
     models_loaded: Dict[str, bool]
     version: str
+
+# ---------------------------------------------------------
+# Attribute Intelligence Schemas (RFC-0059)
+# ---------------------------------------------------------
+
+class CategoryItem(BaseModel):
+    id: str
+    code: str
+    name: str
+
+class ExistingAttribute(BaseModel):
+    id: str
+    code: str
+    name: str
+    dataType: str
+    unitCategory: Optional[str] = None
+    defaultUnit: Optional[str] = None
+    groupName: Optional[str] = None
+    aliases: List[str] = Field(default_factory=list)
+
+class ExistingBinding(BaseModel):
+    categoryId: str
+    categoryCode: Optional[str] = None
+    categoryName: Optional[str] = None
+    attributeDefinitionId: str
+    attributeCode: Optional[str] = None
+    isRequired: bool = False
+
+class AttributeBindingSuggestion(BaseModel):
+    categoryId: str
+    categoryCode: str
+    categoryName: str
+    confidence: float
+    confidenceLevel: str = "MEDIUM"  # "HIGH", "MEDIUM", "LOW"
+    reason: str
+    evidence: List[EvidenceItem] = Field(default_factory=list)
+    modelVersion: str = "1.0.0"
+
+class SuggestAttributeBindingsRequest(BaseModel):
+    attributeName: str
+    attributeCode: Optional[str] = None
+    description: Optional[str] = None
+    dataType: Optional[str] = None
+    unitCategory: Optional[str] = None
+    categories: List[CategoryItem] = Field(default_factory=list)
+    datapack_hints: Optional[List[DataPackIntelligenceHint]] = None
+    component_category_counts: Optional[Dict[str, int]] = None
+
+class SuggestAttributeBindingsResponse(BaseModel):
+    suggestions: List[AttributeBindingSuggestion]
+
+class CategoryAttributeSuggestion(BaseModel):
+    attributeDefinitionId: Optional[str] = None
+    code: str
+    name: str
+    dataType: str
+    unitCategory: Optional[str] = None
+    defaultUnit: Optional[str] = None
+    groupName: Optional[str] = None
+    confidence: float
+    confidenceLevel: str = "MEDIUM"
+    isAlreadyBound: bool = False
+    reason: str
+    evidence: List[EvidenceItem] = Field(default_factory=list)
+
+class SuggestCategoryAttributesRequest(BaseModel):
+    categoryId: str
+    categoryCode: Optional[str] = None
+    categoryName: str
+    existingAttributes: List[ExistingAttribute] = Field(default_factory=list)
+    boundAttributeIds: List[str] = Field(default_factory=list)
+    datapack_hints: Optional[List[DataPackIntelligenceHint]] = None
+    categoryComponentCount: Optional[int] = None
+
+class SuggestCategoryAttributesResponse(BaseModel):
+    suggestions: List[CategoryAttributeSuggestion]
+
+class AttributeConfigSuggestion(BaseModel):
+    suggestedCode: str
+    suggestedDataType: str
+    unitCategory: Optional[str] = None
+    defaultUnit: Optional[str] = None
+    displayUnits: List[str] = Field(default_factory=list)
+    groupName: Optional[str] = None
+    suggestedAliases: List[str] = Field(default_factory=list)
+    suggestedOptions: List[str] = Field(default_factory=list)
+    validationRules: Optional[Dict[str, Any]] = None
+    canonicalMatch: Optional[Dict[str, Any]] = None
+    confidence: float
+    confidenceLevel: str = "MEDIUM"
+    reason: str
+    evidence: List[EvidenceItem] = Field(default_factory=list)
+
+class SuggestAttributeConfigRequest(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    existingAttributes: List[ExistingAttribute] = Field(default_factory=list)
+    datapack_hints: Optional[List[DataPackIntelligenceHint]] = None
+
+class SuggestAttributeConfigResponse(BaseModel):
+    suggestion: AttributeConfigSuggestion
+
+class AttributeDuplicateMatch(BaseModel):
+    attributeId: str
+    code: str
+    name: str
+    similarity: float
+    confidenceLevel: str = "MEDIUM"
+    matchType: str
+    usageCount: int = 0
+    boundCategories: List[str] = Field(default_factory=list)
+    aliases: List[str] = Field(default_factory=list)
+    reason: str
+    evidence: List[EvidenceItem] = Field(default_factory=list)
+
+class DetectAttributeDuplicatesRequest(BaseModel):
+    name: str
+    code: Optional[str] = None
+    existingAttributes: List[ExistingAttribute] = Field(default_factory=list)
+    existingBindings: List[ExistingBinding] = Field(default_factory=list)
+    threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    datapack_hints: Optional[List[DataPackIntelligenceHint]] = None
+
+class DetectAttributeDuplicatesResponse(BaseModel):
+    isDuplicate: bool
+    matches: List[AttributeDuplicateMatch]
+    suggestedAliases: List[str] = Field(default_factory=list)
+
+class SuggestEnumValuesRequest(BaseModel):
+    attributeCode: str
+    attributeName: str
+    existingOptions: List[str] = Field(default_factory=list)
+    datapack_hints: Optional[List[DataPackIntelligenceHint]] = None
+
+class EnumOptionSuggestion(BaseModel):
+    code: str
+    label: str
+    source: str
+    confidence: float
+    confidenceLevel: str = "HIGH"
+
+class SuggestEnumValuesResponse(BaseModel):
+    suggestedOptions: List[EnumOptionSuggestion]
+
+class AttributeAuditIssue(BaseModel):
+    id: str
+    type: str  # "DUPLICATE_ATTRIBUTE", "SUSPICIOUS_BINDING", "MISSING_EXPECTED_ATTRIBUTE", "UNUSED_ATTRIBUTE"
+    severity: str  # "WARNING", "INFO", "CRITICAL"
+    attributeId: Optional[str] = None
+    attributeName: Optional[str] = None
+    categoryId: Optional[str] = None
+    categoryName: Optional[str] = None
+    confidence: float = 0.8
+    confidenceLevel: str = "MEDIUM"
+    reason: str
+    evidence: List[EvidenceItem] = Field(default_factory=list)
+
+class AuditAttributeLibraryRequest(BaseModel):
+    attributes: List[ExistingAttribute] = Field(default_factory=list)
+    categories: List[CategoryItem] = Field(default_factory=list)
+    bindings: List[ExistingBinding] = Field(default_factory=list)
+    componentCountsByAttribute: Dict[str, int] = Field(default_factory=dict)
+    componentCountsByCategoryAttribute: Dict[str, int] = Field(default_factory=dict)
+    datapack_hints: Optional[List[DataPackIntelligenceHint]] = None
+
+class AuditAttributeLibraryResponse(BaseModel):
+    summary: Dict[str, int]
+    issues: List[AttributeAuditIssue]

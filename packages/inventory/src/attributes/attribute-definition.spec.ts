@@ -88,4 +88,27 @@ describe("AttributeDefinition Aggregate", () => {
     expect(updated.sortOrder).toBe(5);
     expect(updated.code).toBe("tolerance"); // Code remains immutable
   });
+
+  it("should handle aliases and groupName in create and update", () => {
+    const def = AttributeDefinition.create({
+      code: "voltage_rating",
+      name: "Voltage Rating",
+      dataType: "QUANTITY",
+      unitCategory: "Voltage",
+      defaultUnit: "V",
+      aliases: ["Rated Voltage", "Working Voltage"],
+      groupName: "Electrical",
+    });
+
+    expect(def.aliases).toEqual(["Rated Voltage", "Working Voltage"]);
+    expect(def.groupName).toBe("Electrical");
+
+    const updated = def.update({
+      aliases: ["Rated Voltage", "Working Voltage", "V_rated"],
+      groupName: "Electrical Specs",
+    });
+
+    expect(updated.aliases).toEqual(["Rated Voltage", "Working Voltage", "V_rated"]);
+    expect(updated.groupName).toBe("Electrical Specs");
+  });
 });

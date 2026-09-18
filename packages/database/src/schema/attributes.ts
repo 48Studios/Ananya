@@ -40,6 +40,10 @@ export const attributeDefinitions = pgTable(
 
     validationRules: jsonb("validation_rules"),
 
+    aliases: jsonb("aliases").$type<string[]>().default([]),
+
+    groupName: varchar("group_name", { length: 100 }),
+
     isActive: boolean("is_active").notNull().default(true),
 
     createdAt: timestamp("created_at", {
@@ -59,6 +63,7 @@ export const attributeDefinitions = pgTable(
     index("attribute_definitions_data_type_idx").on(table.dataType),
     index("attribute_definitions_unit_category_idx").on(table.unitCategory),
     index("attribute_definitions_is_filterable_idx").on(table.isFilterable),
+    index("attribute_definitions_group_name_idx").on(table.groupName),
   ],
 );
 

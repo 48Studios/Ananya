@@ -106,7 +106,19 @@ export class ComponentSuggestionResponseDto {
 export class FeedbackItemDto {
   @IsString()
   @IsNotEmpty()
-  @IsIn(['CATEGORY', 'MANUFACTURER', 'ATTRIBUTE', 'DUPLICATE'])
+  @IsIn([
+    'CATEGORY',
+    'MANUFACTURER',
+    'ATTRIBUTE',
+    'DUPLICATE',
+    'ATTRIBUTE_BINDING',
+    'CATEGORY_ATTRIBUTES',
+    'ATTRIBUTE_CONFIG',
+    'ATTRIBUTE_ALIAS',
+    'ATTRIBUTE_DUPLICATE',
+    'SUSPICIOUS_BINDING',
+    'ENUM_VALUES',
+  ])
   suggestionType!: string;
 
   @IsString()
@@ -146,6 +158,14 @@ export class CreateMlFeedbackDto {
   @IsOptional()
   @IsString()
   componentId?: string;
+
+  @IsOptional()
+  @IsString()
+  attributeDefinitionId?: string;
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
 
   @IsOptional()
   creationContext?: Record<string, unknown>;
@@ -200,3 +220,229 @@ export class QuarantineFilterQueryDto {
   @IsString()
   quarantineType?: string;
 }
+
+// ---------------------------------------------------------
+// Attribute Intelligence DTOs (RFC-0059)
+// ---------------------------------------------------------
+
+export class SuggestAttributeBindingsDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  attributeName!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  attributeCode?: string;
+
+  @IsOptional()
+  @IsString()
+  attributeId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  dataType?: string;
+
+  @IsOptional()
+  @IsString()
+  unitCategory?: string;
+}
+
+export class AttributeBindingSuggestionDto {
+  categoryId!: string;
+  categoryCode!: string;
+  categoryName!: string;
+  confidence!: number;
+  confidenceLevel!: 'HIGH' | 'MEDIUM' | 'LOW';
+  reason!: string;
+  evidence!: EvidenceItemDto[];
+  modelVersion!: string;
+}
+
+export class SuggestAttributeBindingsResponseDto {
+  suggestions!: AttributeBindingSuggestionDto[];
+  isMlActive!: boolean;
+  executionTimeMs!: number;
+}
+
+export class SuggestCategoryAttributesDto {
+  @IsString()
+  @IsNotEmpty()
+  categoryId!: string;
+}
+
+export class CategoryAttributeSuggestionDto {
+  attributeDefinitionId?: string | null;
+  code!: string;
+  name!: string;
+  dataType!: string;
+  unitCategory?: string | null;
+  defaultUnit?: string | null;
+  groupName?: string | null;
+  confidence!: number;
+  confidenceLevel!: 'HIGH' | 'MEDIUM' | 'LOW';
+  isAlreadyBound!: boolean;
+  reason!: string;
+  evidence!: EvidenceItemDto[];
+}
+
+export class SuggestCategoryAttributesResponseDto {
+  categoryId!: string;
+  categoryName!: string;
+  suggestions!: CategoryAttributeSuggestionDto[];
+  isMlActive!: boolean;
+  executionTimeMs!: number;
+}
+
+export class SuggestAttributeConfigDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string;
+}
+
+export class AttributeConfigSuggestionDto {
+  suggestedCode!: string;
+  suggestedDataType!: string;
+  unitCategory?: string | null;
+  defaultUnit?: string | null;
+  displayUnits!: string[];
+  groupName?: string | null;
+  suggestedAliases!: string[];
+  suggestedOptions!: string[];
+  validationRules?: Record<string, unknown> | null;
+  canonicalMatch?: {
+    id: string;
+    name: string;
+    code?: string;
+    similarity: number;
+  } | null;
+  confidence!: number;
+  confidenceLevel!: 'HIGH' | 'MEDIUM' | 'LOW';
+  reason!: string;
+  evidence!: EvidenceItemDto[];
+}
+
+export class SuggestAttributeConfigResponseDto {
+  suggestion!: AttributeConfigSuggestionDto;
+  isMlActive!: boolean;
+  executionTimeMs!: number;
+}
+
+export class DetectAttributeDuplicatesDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  code?: string;
+
+  @IsOptional()
+  @IsNumber()
+  threshold?: number;
+}
+
+export class AttributeDuplicateMatchDto {
+  attributeId!: string;
+  code!: string;
+  name!: string;
+  similarity!: number;
+  confidenceLevel!: 'HIGH' | 'MEDIUM' | 'LOW';
+  matchType!: string;
+  usageCount!: number;
+  boundCategories!: string[];
+  aliases!: string[];
+  reason!: string;
+  evidence!: EvidenceItemDto[];
+}
+
+export class DetectAttributeDuplicatesResponseDto {
+  isDuplicate!: boolean;
+  matches!: AttributeDuplicateMatchDto[];
+  suggestedAliases!: string[];
+  isMlActive!: boolean;
+  executionTimeMs!: number;
+}
+
+export class SuggestEnumValuesDto {
+  @IsString()
+  @IsNotEmpty()
+  attributeCode!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  attributeName!: string;
+
+  @IsOptional()
+  @IsArray()
+  existingOptions?: string[];
+}
+
+export class EnumOptionSuggestionDto {
+  code!: string;
+  label!: string;
+  source!: string;
+  confidence!: number;
+  confidenceLevel!: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
+export class SuggestEnumValuesResponseDto {
+  suggestedOptions!: EnumOptionSuggestionDto[];
+  isMlActive!: boolean;
+  executionTimeMs!: number;
+}
+
+export class AttributeAuditIssueDto {
+  id!: string;
+  type!: 'DUPLICATE_ATTRIBUTE' | 'SUSPICIOUS_BINDING' | 'MISSING_EXPECTED_ATTRIBUTE' | 'UNUSED_ATTRIBUTE' | 'INCONSISTENT_CONFIG';
+  severity!: 'WARNING' | 'INFO' | 'CRITICAL';
+  attributeId?: string | null;
+  attributeName?: string | null;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  confidence!: number;
+  confidenceLevel!: 'HIGH' | 'MEDIUM' | 'LOW';
+  reason!: string;
+  evidence!: EvidenceItemDto[];
+}
+
+export class AuditAttributeLibraryResponseDto {
+  summary!: {
+    totalAttributes: number;
+    possibleDuplicates: number;
+    suspiciousBindings: number;
+    missingExpectedAttributes: number;
+    unusedAttributes: number;
+  };
+  issues!: AttributeAuditIssueDto[];
+  isMlActive!: boolean;
+  executionTimeMs!: number;
+}
+
+export class ApplySuggestedBindingDto {
+  @IsString()
+  @IsNotEmpty()
+  attributeId!: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds!: string[];
+
+  @IsOptional()
+  isRequired?: boolean;
+}
+

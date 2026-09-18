@@ -37,6 +37,8 @@ export interface AttributeDefinitionProps {
   isFilterable: boolean;
   sortOrder: number;
   validationRules?: Record<string, unknown> | null;
+  aliases?: string[];
+  groupName?: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -52,6 +54,8 @@ export interface CreateAttributeDefinitionInput {
   isFilterable?: boolean;
   sortOrder?: number;
   validationRules?: Record<string, unknown> | null;
+  aliases?: string[];
+  groupName?: string | null;
 }
 
 export interface UpdateAttributeDefinitionInput {
@@ -63,6 +67,8 @@ export interface UpdateAttributeDefinitionInput {
   isFilterable?: boolean;
   sortOrder?: number;
   validationRules?: Record<string, unknown> | null;
+  aliases?: string[];
+  groupName?: string | null;
   isActive?: boolean;
 }
 
@@ -77,6 +83,8 @@ export class AttributeDefinition {
   public readonly isFilterable: boolean;
   public readonly sortOrder: number;
   public readonly validationRules?: Record<string, unknown> | null;
+  public readonly aliases: string[];
+  public readonly groupName?: string | null;
   public readonly isActive: boolean;
   public readonly createdAt: Date;
   public readonly updatedAt: Date;
@@ -92,6 +100,8 @@ export class AttributeDefinition {
     this.isFilterable = props.isFilterable;
     this.sortOrder = props.sortOrder;
     this.validationRules = props.validationRules;
+    this.aliases = props.aliases ?? [];
+    this.groupName = props.groupName ?? null;
     this.isActive = props.isActive;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
@@ -132,6 +142,8 @@ export class AttributeDefinition {
       isFilterable: input.isFilterable ?? true,
       sortOrder: input.sortOrder ?? 0,
       validationRules: input.validationRules ?? null,
+      aliases: input.aliases ?? [],
+      groupName: input.groupName?.trim() ?? null,
       isActive: true,
       createdAt,
       updatedAt,
@@ -178,6 +190,14 @@ export class AttributeDefinition {
         input.validationRules !== undefined
           ? input.validationRules
           : this.validationRules,
+      aliases:
+        input.aliases !== undefined
+          ? input.aliases
+          : this.aliases,
+      groupName:
+        input.groupName !== undefined
+          ? (input.groupName?.trim() ?? null)
+          : this.groupName,
       isActive: input.isActive !== undefined ? input.isActive : this.isActive,
       createdAt: this.createdAt,
       updatedAt: new Date(),

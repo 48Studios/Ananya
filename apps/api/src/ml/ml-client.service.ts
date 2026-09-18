@@ -140,4 +140,335 @@ export class MlClientService {
       return null;
     }
   }
+
+  async suggestAttributeBindings(payload: {
+    attributeName: string;
+    attributeCode?: string;
+    description?: string;
+    dataType?: string;
+    unitCategory?: string;
+    categories: Array<{ id: string; code: string; name: string }>;
+    datapack_hints?: unknown[];
+    component_category_counts?: Record<string, number>;
+  }): Promise<Array<{
+    categoryId: string;
+    categoryCode: string;
+    categoryName: string;
+    confidence: number;
+    confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+    reason: string;
+    evidence: EvidenceItemDto[];
+    modelVersion: string;
+  }> | null> {
+    if (!this.isEnabled) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/attributes/suggest-bindings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as {
+        suggestions?: Array<{
+          categoryId: string;
+          categoryCode: string;
+          categoryName: string;
+          confidence: number;
+          confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+          reason: string;
+          evidence: EvidenceItemDto[];
+          modelVersion: string;
+        }>;
+      };
+      return data.suggestions || null;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Suggest attribute bindings failed: ${errMsg}`);
+      return null;
+    }
+  }
+
+  async suggestCategoryAttributes(payload: {
+    categoryId: string;
+    categoryCode?: string;
+    categoryName: string;
+    existingAttributes: unknown[];
+    boundAttributeIds: string[];
+    datapack_hints?: unknown[];
+    categoryComponentCount?: number;
+  }): Promise<Array<{
+    attributeDefinitionId?: string | null;
+    code: string;
+    name: string;
+    dataType: string;
+    unitCategory?: string | null;
+    defaultUnit?: string | null;
+    groupName?: string | null;
+    confidence: number;
+    confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+    isAlreadyBound: boolean;
+    reason: string;
+    evidence: EvidenceItemDto[];
+  }> | null> {
+    if (!this.isEnabled) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/attributes/suggest-category-attributes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as {
+        suggestions?: Array<{
+          attributeDefinitionId?: string | null;
+          code: string;
+          name: string;
+          dataType: string;
+          unitCategory?: string | null;
+          defaultUnit?: string | null;
+          groupName?: string | null;
+          confidence: number;
+          confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+          isAlreadyBound: boolean;
+          reason: string;
+          evidence: EvidenceItemDto[];
+        }>;
+      };
+      return data.suggestions || null;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Suggest category attributes failed: ${errMsg}`);
+      return null;
+    }
+  }
+
+  async suggestAttributeConfig(payload: {
+    name: string;
+    description?: string;
+    existingAttributes: unknown[];
+    datapack_hints?: unknown[];
+  }): Promise<{
+    suggestedCode: string;
+    suggestedDataType: string;
+    unitCategory?: string | null;
+    defaultUnit?: string | null;
+    displayUnits: string[];
+    groupName?: string | null;
+    suggestedAliases: string[];
+    suggestedOptions: string[];
+    validationRules?: Record<string, unknown> | null;
+    canonicalMatch?: {
+      id: string;
+      name: string;
+      code?: string;
+      similarity: number;
+    } | null;
+    confidence: number;
+    confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+    reason: string;
+    evidence: EvidenceItemDto[];
+  } | null> {
+    if (!this.isEnabled) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/attributes/suggest-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as {
+        suggestion?: {
+          suggestedCode: string;
+          suggestedDataType: string;
+          unitCategory?: string | null;
+          defaultUnit?: string | null;
+          displayUnits: string[];
+          groupName?: string | null;
+          suggestedAliases: string[];
+          suggestedOptions: string[];
+          validationRules?: Record<string, unknown> | null;
+          canonicalMatch?: {
+            id: string;
+            name: string;
+            code?: string;
+            similarity: number;
+          } | null;
+          confidence: number;
+          confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+          reason: string;
+          evidence: EvidenceItemDto[];
+        };
+      };
+      return data.suggestion || null;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Suggest attribute config failed: ${errMsg}`);
+      return null;
+    }
+  }
+
+  async detectAttributeDuplicates(payload: {
+    name: string;
+    code?: string;
+    existingAttributes: unknown[];
+    existingBindings: unknown[];
+    threshold?: number;
+    datapack_hints?: unknown[];
+  }): Promise<{
+    isDuplicate: boolean;
+    matches: Array<{
+      attributeId: string;
+      code: string;
+      name: string;
+      similarity: number;
+      confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+      matchType: string;
+      usageCount: number;
+      boundCategories: string[];
+      aliases: string[];
+      reason: string;
+      evidence: EvidenceItemDto[];
+    }>;
+    suggestedAliases: string[];
+  } | null> {
+    if (!this.isEnabled) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/attributes/detect-duplicates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as {
+        isDuplicate: boolean;
+        matches: Array<{
+          attributeId: string;
+          code: string;
+          name: string;
+          similarity: number;
+          confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+          matchType: string;
+          usageCount: number;
+          boundCategories: string[];
+          aliases: string[];
+          reason: string;
+          evidence: EvidenceItemDto[];
+        }>;
+        suggestedAliases: string[];
+      };
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Detect attribute duplicates failed: ${errMsg}`);
+      return null;
+    }
+  }
+
+  async suggestEnumValues(payload: {
+    attributeCode: string;
+    attributeName: string;
+    existingOptions?: string[];
+    datapack_hints?: unknown[];
+  }): Promise<Array<{
+    code: string;
+    label: string;
+    source: string;
+    confidence: number;
+    confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  }> | null> {
+    if (!this.isEnabled) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/attributes/suggest-enum-values`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as {
+        suggestedOptions?: Array<{
+          code: string;
+          label: string;
+          source: string;
+          confidence: number;
+          confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+        }>;
+      };
+      return data.suggestedOptions || null;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Suggest enum values failed: ${errMsg}`);
+      return null;
+    }
+  }
+
+  async auditAttributeLibrary(payload: {
+    attributes: unknown[];
+    categories: unknown[];
+    bindings: unknown[];
+    componentCountsByAttribute: Record<string, number>;
+    componentCountsByCategoryAttribute: Record<string, number>;
+    datapack_hints?: unknown[];
+  }): Promise<{
+    summary: {
+      totalAttributes: number;
+      possibleDuplicates: number;
+      suspiciousBindings: number;
+      missingExpectedAttributes: number;
+      unusedAttributes: number;
+    };
+    issues: Array<{
+      id: string;
+      type: 'DUPLICATE_ATTRIBUTE' | 'SUSPICIOUS_BINDING' | 'MISSING_EXPECTED_ATTRIBUTE' | 'UNUSED_ATTRIBUTE' | 'INCONSISTENT_CONFIG';
+      severity: 'WARNING' | 'INFO' | 'CRITICAL';
+      attributeId?: string | null;
+      attributeName?: string | null;
+      categoryId?: string | null;
+      categoryName?: string | null;
+      confidence: number;
+      confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+      reason: string;
+      evidence: EvidenceItemDto[];
+    }>;
+  } | null> {
+    if (!this.isEnabled) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/attributes/audit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(this.timeoutMs * 3),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as {
+        summary: {
+          totalAttributes: number;
+          possibleDuplicates: number;
+          suspiciousBindings: number;
+          missingExpectedAttributes: number;
+          unusedAttributes: number;
+        };
+        issues: Array<{
+          id: string;
+          type: 'DUPLICATE_ATTRIBUTE' | 'SUSPICIOUS_BINDING' | 'MISSING_EXPECTED_ATTRIBUTE' | 'UNUSED_ATTRIBUTE' | 'INCONSISTENT_CONFIG';
+          severity: 'WARNING' | 'INFO' | 'CRITICAL';
+          attributeId?: string | null;
+          attributeName?: string | null;
+          categoryId?: string | null;
+          categoryName?: string | null;
+          confidence: number;
+          confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+          reason: string;
+          evidence: EvidenceItemDto[];
+        }>;
+      };
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Audit attribute library failed: ${errMsg}`);
+      return null;
+    }
+  }
 }

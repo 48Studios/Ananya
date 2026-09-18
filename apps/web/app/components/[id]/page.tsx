@@ -335,11 +335,10 @@ export default function ViewComponentPage() {
                 </dt>
                 <dd className="mt-1">
                   <span
-                    className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${
-                      component.isActive
+                    className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${component.isActive
                         ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
                         : "bg-muted text-muted-foreground"
-                    }`}
+                      }`}
                   >
                     {component.isActive ? "Active" : "Inactive"}
                   </span>
@@ -487,8 +486,8 @@ export default function ViewComponentPage() {
                           )}
                         >
                           {attr.value === true ||
-                          attr.displayValue === "Yes" ||
-                          attr.displayValue === "true"
+                            attr.displayValue === "Yes" ||
+                            attr.displayValue === "true"
                             ? "Yes"
                             : "No"}
                         </span>
@@ -508,7 +507,7 @@ export default function ViewComponentPage() {
                     ) : attr.dataType === "DATE" ? (
                       <span className="font-mono text-sm font-semibold text-foreground block">
                         {typeof attr.value === "string" &&
-                        !isNaN(Date.parse(attr.value))
+                          !isNaN(Date.parse(attr.value))
                           ? new Date(attr.value).toLocaleDateString()
                           : attr.displayValue || String(attr.value ?? "—")}
                       </span>
@@ -682,13 +681,12 @@ export default function ViewComponentPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${
-                            tx.transactionType === "Receipt"
+                          className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${tx.transactionType === "Receipt"
                               ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                               : tx.transactionType === "Issue"
                                 ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
                                 : "bg-blue-500/10 text-blue-700 dark:text-blue-400"
-                          }`}
+                            }`}
                         >
                           {tx.transactionType}
                         </span>
@@ -756,7 +754,7 @@ export default function ViewComponentPage() {
         onOpenChange={setIsEditOpen}
         title="Edit Component"
         description={`Update component "${component.sku}" using the standardized dialog composition.`}
-        size="sm"
+        size="md"
       >
         <ComponentForm
           initialData={component}

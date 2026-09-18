@@ -5,9 +5,11 @@ import {
   manufacturers,
   components,
   attributeDefinitions,
+  categoryAttributes,
+  componentAttributeValues,
   aiSuggestionFeedback,
 } from '@ananya/database/schema';
-import { and, eq, desc, gte, lte } from '@ananya/database/query';
+import { and, eq, desc, gte, lte, inArray } from '@ananya/database/query';
 import { MlClientService } from './ml-client.service';
 import { DataPacksService } from '../data-packs/data-packs.service';
 import * as fs from 'fs';
@@ -24,6 +26,24 @@ import {
   ExportFeedbackQueryDto,
   ReviewQuarantineRecordDto,
   QuarantineFilterQueryDto,
+  SuggestAttributeBindingsDto,
+  SuggestAttributeBindingsResponseDto,
+  SuggestCategoryAttributesDto,
+  SuggestCategoryAttributesResponseDto,
+  SuggestAttributeConfigDto,
+  SuggestAttributeConfigResponseDto,
+  DetectAttributeDuplicatesDto,
+  DetectAttributeDuplicatesResponseDto,
+  SuggestEnumValuesDto,
+  SuggestEnumValuesResponseDto,
+  AuditAttributeLibraryResponseDto,
+  ApplySuggestedBindingDto,
+  AttributeBindingSuggestionDto,
+  CategoryAttributeSuggestionDto,
+  AttributeDuplicateMatchDto,
+  EnumOptionSuggestionDto,
+  AttributeAuditIssueDto,
+  AttributeConfigSuggestionDto,
 } from './dtos';
 
 interface RawExtractedAttribute {
@@ -522,6 +542,8 @@ export class MlService {
 
     const inserts = dto.items.map((item) => ({
       componentId: dto.componentId || null,
+      attributeDefinitionId: dto.attributeDefinitionId || null,
+      categoryId: dto.categoryId || null,
       creationContext: dto.creationContext || {},
       suggestionType: item.suggestionType,
       field: item.field,
@@ -856,4 +878,1507 @@ export class MlService {
       };
     }
   }
+
+  // =========================================================================
+  // Attribute Intelligence (RFC-0059)
+  // =========================================================================
+
+  async suggestAttributeBindings(
+    dto: SuggestAttributeBindingsDto,
+  ): Promise<SuggestAttributeBindingsResponseDto> {
+    const t0 = performance.now();
+    const attrName = dto.attributeName.trim();
+    const attrCode =
+      dto.attributeCode?.trim() ||
+      attrName.toLowerCase().replace(/[\s-]+/g, '_');
+
+    // 1. Load active categories and Data Pack hints
+    const [allCategories, datapackHints] = await Promise.all([
+      db.select().from(categories).where(eq(categories.isActive, true)),
+      this.dataPacksService
+        ? this.dataPacksService.getActiveIntelligenceHints().catch(() => [])
+        : Promise.resolve([]),
+    ]);
+
+    // 2. Count component usage per category for this attribute if attributeId is provided
+    const componentCounts: Record<string, number> = {};
+    if (dto.attributeId) {
+      const compAttrRows = await db
+        .select({
+          componentId: componentAttributeValues.componentId,
+        })
+        .from(componentAttributeValues)
+        .where(eq(componentAttributeValues.attributeDefinitionId, dto.attributeId))
+        .limit(200);
+
+      if (compAttrRows.length > 0) {
+        const compIds = compAttrRows.map((r) => r.componentId);
+        const comps = await db
+          .select({
+            categoryId: components.categoryId,
+          })
+          .from(components)
+          .where(inArray(components.id, compIds));
+
+        for (const c of comps) {
+          if (c.categoryId) {
+            componentCounts[c.categoryId] =
+              (componentCounts[c.categoryId] || 0) + 1;
+          }
+        }
+      }
+    }
+
+    // 3. Try ananya-ml microservice
+    let isMlActive = false;
+    if (this.mlClient.enabled) {
+      const mlSuggestions = await this.mlClient.suggestAttributeBindings({
+        attributeName: attrName,
+        attributeCode: attrCode,
+        description: dto.description,
+        dataType: dto.dataType,
+        unitCategory: dto.unitCategory,
+        categories: allCategories.map((c) => ({
+          id: c.id,
+          code: c.code,
+          name: c.name,
+        })),
+        datapack_hints: datapackHints,
+        component_category_counts: componentCounts,
+      });
+
+      if (mlSuggestions) {
+        isMlActive = true;
+        const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+        return {
+          suggestions: mlSuggestions,
+          isMlActive,
+          executionTimeMs,
+        };
+      }
+    }
+
+    // 4. In-process deterministic fallback
+    const suggestions = this.suggestAttributeBindingsFallback(
+      attrName,
+      attrCode,
+      allCategories,
+      datapackHints as any,
+      componentCounts,
+    );
+
+    const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+    return {
+      suggestions,
+      isMlActive,
+      executionTimeMs,
+    };
+  }
+
+  async suggestCategoryAttributes(
+    dto: SuggestCategoryAttributesDto,
+  ): Promise<SuggestCategoryAttributesResponseDto> {
+    const t0 = performance.now();
+    const cat = await db
+      .select()
+      .from(categories)
+      .where(eq(categories.id, dto.categoryId))
+      .limit(1);
+
+    const category = cat[0];
+    if (!category) {
+      return {
+        categoryId: dto.categoryId,
+        categoryName: 'Unknown',
+        suggestions: [],
+        isMlActive: false,
+        executionTimeMs: 0,
+      };
+    }
+
+    const [allDefs, boundAttrs, datapackHints] = await Promise.all([
+      db
+        .select()
+        .from(attributeDefinitions)
+        .where(eq(attributeDefinitions.isActive, true)),
+      db
+        .select()
+        .from(categoryAttributes)
+        .where(eq(categoryAttributes.categoryId, dto.categoryId)),
+      this.dataPacksService
+        ? this.dataPacksService.getActiveIntelligenceHints().catch(() => [])
+        : Promise.resolve([]),
+    ]);
+
+    const boundIds = boundAttrs.map((b) => b.attributeDefinitionId);
+
+    let isMlActive = false;
+    if (this.mlClient.enabled) {
+      const mlSuggestions = await this.mlClient.suggestCategoryAttributes({
+        categoryId: category.id,
+        categoryCode: category.code,
+        categoryName: category.name,
+        existingAttributes: allDefs.map((d) => ({
+          id: d.id,
+          code: d.code,
+          name: d.name,
+          dataType: d.dataType,
+          unitCategory: d.unitCategory,
+          defaultUnit: d.defaultUnit,
+          groupName: d.groupName,
+          aliases: (d.aliases as string[]) || [],
+        })),
+        boundAttributeIds: boundIds,
+        datapack_hints: datapackHints,
+      });
+
+      if (mlSuggestions) {
+        isMlActive = true;
+        const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+        return {
+          categoryId: category.id,
+          categoryName: category.name,
+          suggestions: mlSuggestions,
+          isMlActive,
+          executionTimeMs,
+        };
+      }
+    }
+
+    // In-process fallback
+    const suggestions = this.suggestCategoryAttributesFallback(
+      category,
+      allDefs,
+      boundIds,
+      datapackHints as any,
+    );
+
+    const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+    return {
+      categoryId: category.id,
+      categoryName: category.name,
+      suggestions,
+      isMlActive,
+      executionTimeMs,
+    };
+  }
+
+  async suggestAttributeConfig(
+    dto: SuggestAttributeConfigDto,
+  ): Promise<SuggestAttributeConfigResponseDto> {
+    const t0 = performance.now();
+    const cleanName = dto.name.trim();
+
+    const [allDefs, datapackHints] = await Promise.all([
+      db
+        .select()
+        .from(attributeDefinitions)
+        .where(eq(attributeDefinitions.isActive, true)),
+      this.dataPacksService
+        ? this.dataPacksService.getActiveIntelligenceHints().catch(() => [])
+        : Promise.resolve([]),
+    ]);
+
+    let isMlActive = false;
+    if (this.mlClient.enabled) {
+      const mlRes = await this.mlClient.suggestAttributeConfig({
+        name: cleanName,
+        description: dto.description,
+        existingAttributes: allDefs.map((d) => ({
+          id: d.id,
+          code: d.code,
+          name: d.name,
+          dataType: d.dataType,
+          unitCategory: d.unitCategory,
+          defaultUnit: d.defaultUnit,
+          groupName: d.groupName,
+          aliases: (d.aliases as string[]) || [],
+        })),
+        datapack_hints: datapackHints,
+      });
+
+      if (mlRes) {
+        isMlActive = true;
+        const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+        return {
+          suggestion: mlRes,
+          isMlActive,
+          executionTimeMs,
+        };
+      }
+    }
+
+    // Fallback
+    const suggestion = this.suggestAttributeConfigFallback(
+      cleanName,
+      dto.description,
+      allDefs,
+    );
+
+    const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+    return {
+      suggestion,
+      isMlActive,
+      executionTimeMs,
+    };
+  }
+
+  async detectAttributeDuplicates(
+    dto: DetectAttributeDuplicatesDto,
+  ): Promise<DetectAttributeDuplicatesResponseDto> {
+    const t0 = performance.now();
+    const cleanName = dto.name.trim();
+
+    const [allDefs, allBindings, datapackHints] = await Promise.all([
+      db.select().from(attributeDefinitions),
+      db.select().from(categoryAttributes),
+      this.dataPacksService
+        ? this.dataPacksService.getActiveIntelligenceHints().catch(() => [])
+        : Promise.resolve([]),
+    ]);
+
+    let isMlActive = false;
+    if (this.mlClient.enabled) {
+      const mlRes = await this.mlClient.detectAttributeDuplicates({
+        name: cleanName,
+        code: dto.code,
+        existingAttributes: allDefs.map((d) => ({
+          id: d.id,
+          code: d.code,
+          name: d.name,
+          dataType: d.dataType,
+          unitCategory: d.unitCategory,
+          defaultUnit: d.defaultUnit,
+          groupName: d.groupName,
+          aliases: (d.aliases as string[]) || [],
+        })),
+        existingBindings: allBindings.map((b) => ({
+          categoryId: b.categoryId,
+          attributeDefinitionId: b.attributeDefinitionId,
+          isRequired: b.isRequired,
+        })),
+        threshold: dto.threshold,
+        datapack_hints: datapackHints,
+      });
+
+      if (mlRes) {
+        isMlActive = true;
+        const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+        return {
+          isDuplicate: mlRes.isDuplicate,
+          matches: mlRes.matches,
+          suggestedAliases: mlRes.suggestedAliases,
+          isMlActive,
+          executionTimeMs,
+        };
+      }
+    }
+
+    // In-process fallback
+    const result = this.detectAttributeDuplicatesFallback(
+      cleanName,
+      dto.code,
+      allDefs,
+      allBindings,
+      dto.threshold ?? 0.7,
+    );
+
+    const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+    return {
+      isDuplicate: result.isDuplicate,
+      matches: result.matches,
+      suggestedAliases: result.suggestedAliases,
+      isMlActive,
+      executionTimeMs,
+    };
+  }
+
+  async suggestEnumValues(
+    dto: SuggestEnumValuesDto,
+  ): Promise<SuggestEnumValuesResponseDto> {
+    const t0 = performance.now();
+    const datapackHints = this.dataPacksService
+      ? await this.dataPacksService.getActiveIntelligenceHints().catch(() => [])
+      : [];
+
+    let isMlActive = false;
+    if (this.mlClient.enabled) {
+      const mlRes = await this.mlClient.suggestEnumValues({
+        attributeCode: dto.attributeCode,
+        attributeName: dto.attributeName,
+        existingOptions: dto.existingOptions,
+        datapack_hints: datapackHints,
+      });
+
+      if (mlRes) {
+        isMlActive = true;
+        const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+        return {
+          suggestedOptions: mlRes,
+          isMlActive,
+          executionTimeMs,
+        };
+      }
+    }
+
+    // In-process fallback
+    const suggested = this.suggestEnumValuesFallback(
+      dto.attributeCode,
+      dto.attributeName,
+      dto.existingOptions || [],
+      datapackHints as any,
+    );
+
+    const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+    return {
+      suggestedOptions: suggested,
+      isMlActive,
+      executionTimeMs,
+    };
+  }
+
+  async auditAttributeLibrary(): Promise<AuditAttributeLibraryResponseDto> {
+    const t0 = performance.now();
+    const [allDefs, allCats, allBindings, allCompValues, datapackHints] =
+      await Promise.all([
+        db.select().from(attributeDefinitions),
+        db.select().from(categories),
+        db.select().from(categoryAttributes),
+        db.select().from(componentAttributeValues).limit(500),
+        this.dataPacksService
+          ? this.dataPacksService.getActiveIntelligenceHints().catch(() => [])
+          : Promise.resolve([]),
+      ]);
+
+    const compCountsByAttr: Record<string, number> = {};
+    const compCountsByCatAttr: Record<string, number> = {};
+    for (const cv of allCompValues) {
+      compCountsByAttr[cv.attributeDefinitionId] =
+        (compCountsByAttr[cv.attributeDefinitionId] || 0) + 1;
+    }
+
+    let isMlActive = false;
+    if (this.mlClient.enabled) {
+      const mlRes = await this.mlClient.auditAttributeLibrary({
+        attributes: allDefs.map((d) => ({
+          id: d.id,
+          code: d.code,
+          name: d.name,
+          dataType: d.dataType,
+          unitCategory: d.unitCategory,
+          defaultUnit: d.defaultUnit,
+          groupName: d.groupName,
+          aliases: (d.aliases as string[]) || [],
+        })),
+        categories: allCats.map((c) => ({
+          id: c.id,
+          code: c.code,
+          name: c.name,
+        })),
+        bindings: allBindings.map((b) => {
+          const cat = allCats.find((c) => c.id === b.categoryId);
+          const def = allDefs.find((d) => d.id === b.attributeDefinitionId);
+          return {
+            categoryId: b.categoryId,
+            categoryCode: cat?.code,
+            categoryName: cat?.name,
+            attributeDefinitionId: b.attributeDefinitionId,
+            attributeCode: def?.code,
+            isRequired: b.isRequired,
+          };
+        }),
+        componentCountsByAttribute: compCountsByAttr,
+        componentCountsByCategoryAttribute: compCountsByCatAttr,
+        datapack_hints: datapackHints,
+      });
+
+      if (mlRes) {
+        isMlActive = true;
+        const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+        return {
+          summary: mlRes.summary,
+          issues: mlRes.issues,
+          isMlActive,
+          executionTimeMs,
+        };
+      }
+    }
+
+    // In-process fallback
+    const result = this.auditAttributeLibraryFallback(
+      allDefs,
+      allCats,
+      allBindings,
+      compCountsByAttr,
+      compCountsByCatAttr,
+    );
+
+    const executionTimeMs = Number((performance.now() - t0).toFixed(2));
+    return {
+      summary: result.summary,
+      issues: result.issues,
+      isMlActive,
+      executionTimeMs,
+    };
+  }
+
+  async getReviewQueue(): Promise<{
+    summary: {
+      totalPending: number;
+      suggestedBindings: number;
+      duplicateWarnings: number;
+      suspiciousBindings: number;
+      missingExpected: number;
+    };
+    items: AttributeAuditIssueDto[];
+  }> {
+    const auditRes = await this.auditAttributeLibrary();
+    return {
+      summary: {
+        totalPending: auditRes.issues.length,
+        suggestedBindings: auditRes.summary.missingExpectedAttributes,
+        duplicateWarnings: auditRes.summary.possibleDuplicates,
+        suspiciousBindings: auditRes.summary.suspiciousBindings,
+        missingExpected: auditRes.summary.missingExpectedAttributes,
+      },
+      items: auditRes.issues,
+    };
+  }
+
+  async applySuggestedBindings(
+    dto: ApplySuggestedBindingDto,
+    user?: { id?: string; email?: string },
+  ): Promise<{ success: boolean; appliedCount: number }> {
+    const attr = await db
+      .select()
+      .from(attributeDefinitions)
+      .where(eq(attributeDefinitions.id, dto.attributeId))
+      .limit(1);
+
+    if (attr.length === 0) {
+      throw new Error(`Attribute definition '${dto.attributeId}' not found`);
+    }
+
+    const existingBindings = await db
+      .select()
+      .from(categoryAttributes)
+      .where(eq(categoryAttributes.attributeDefinitionId, dto.attributeId));
+
+    const existingCatIds = new Set(existingBindings.map((b) => b.categoryId));
+    const toInsert = dto.categoryIds.filter(
+      (catId) => !existingCatIds.has(catId),
+    );
+
+    if (toInsert.length > 0) {
+      const inserts = toInsert.map((catId, idx) => ({
+        categoryId: catId,
+        attributeDefinitionId: dto.attributeId,
+        isRequired: dto.isRequired ?? false,
+        sortOrder: (existingBindings.length + idx + 1) * 10,
+      }));
+      await db.insert(categoryAttributes).values(inserts);
+
+      // Record telemetry feedback
+      const feedbackInserts = toInsert.map((catId) => ({
+        attributeDefinitionId: dto.attributeId,
+        categoryId: catId,
+        suggestionType: 'ATTRIBUTE_BINDING',
+        field: 'category_binding',
+        predictedValue: { categoryId: catId },
+        confidence: '0.95',
+        confidenceLevel: 'HIGH',
+        evidence: [
+          {
+            type: 'human_confirmation',
+            description: 'User accepted and applied suggested category binding',
+          },
+        ],
+        modelVersion: '1.0.0',
+        userAction: 'ACCEPTED',
+        finalValue: { categoryId: catId, isRequired: dto.isRequired ?? false },
+        reviewerId: user?.id || null,
+        reviewerEmail: user?.email || null,
+      }));
+      await db.insert(aiSuggestionFeedback).values(feedbackInserts);
+    }
+
+    return { success: true, appliedCount: toInsert.length };
+  }
+
+  // -------------------------------------------------------------------------
+  // In-Process Deterministic Fallbacks for Attribute Intelligence
+  // -------------------------------------------------------------------------
+
+  private suggestAttributeBindingsFallback(
+    attributeName: string,
+    attributeCode: string,
+    allCategories: Array<{ id: string; code: string; name: string }>,
+    datapackHints: Array<any>,
+    componentCategoryCounts: Record<string, number>,
+  ): AttributeBindingSuggestionDto[] {
+    const normName = attributeName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normCode = attributeCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const suggestions: AttributeBindingSuggestionDto[] = [];
+
+    // Check canonical knowledge
+    const canonicalItem =
+      Object.values(CANONICAL_PARAM_FALLBACK).find((item) => {
+        const candidates = [
+          item.canonical,
+          item.code,
+          ...(item.aliases || []),
+        ].map((c) => c.toLowerCase().replace(/[^a-z0-9]/g, ''));
+        return candidates.includes(normName) || candidates.includes(normCode);
+      }) || null;
+
+    // Check Data Pack expectedAttributes
+    const dpExpectedCats = new Set<string>();
+    if (datapackHints) {
+      for (const hint of datapackHints) {
+        const catName = hint.categoryName || hint.categoryCode || '';
+        const expected = (hint.expectedAttributes as string[]) || [];
+        for (const exp of expected) {
+          const normExp = exp.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (normName.includes(normExp) || normCode.includes(normExp)) {
+            dpExpectedCats.add(catName.toLowerCase());
+          }
+        }
+      }
+    }
+
+    for (const cat of allCategories) {
+      const evidence: EvidenceItemDto[] = [];
+      let score = 0;
+      const catNorm = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      // 1. Data Pack hint
+      if (dpExpectedCats.has(cat.name.toLowerCase()) || dpExpectedCats.has(cat.code.toLowerCase())) {
+        score += 0.95;
+        evidence.push({
+          type: 'data_pack_rule',
+          description: `Active Data Pack specifies '${attributeName}' for category '${cat.name}'`,
+          weight: 0.95,
+          source: 'datapack:expected_attributes',
+        });
+      }
+
+      // 2. Canonical taxonomy
+      if (canonicalItem && score === 0) {
+        for (const targetCat of canonicalItem.categories) {
+          const tNorm = targetCat.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (catNorm.includes(tNorm) || tNorm.includes(catNorm)) {
+            score += 0.88;
+            evidence.push({
+              type: 'taxonomy',
+              description: `Standard electrical taxonomy associates '${canonicalItem.canonical}' with '${cat.name}'`,
+              weight: 0.88,
+              source: 'domain:electronics_standard',
+            });
+            break;
+          }
+        }
+      }
+
+      // 3. Inventory usage
+      const compCount = componentCategoryCounts[cat.id] || 0;
+      if (compCount > 0) {
+        score = Math.min(1.0, score + 0.1);
+        evidence.push({
+          type: 'existing_data',
+          description: `Used by ${compCount} verified components in '${cat.name}'`,
+          weight: 0.85,
+          source: 'inventory:verified_components',
+        });
+      }
+
+      // 4. Lexical fallback
+      if (score === 0) {
+        const sim = this.computeStringSimilarityFallback(cat.name, attributeName);
+        if (sim > 0.4) {
+          score = 0.55;
+          evidence.push({
+            type: 'classifier',
+            description: `Lexical affinity between '${cat.name}' and '${attributeName}' (${Math.round(sim * 100)}%)`,
+            weight: 0.55,
+            source: 'ngram:similarity',
+          });
+        }
+      }
+
+      if (score > 0.4) {
+        const confidence = Number(Math.min(score, 0.99).toFixed(2));
+        const confidenceLevel =
+          confidence >= 0.85 ? 'HIGH' : confidence >= 0.6 ? 'MEDIUM' : 'LOW';
+        suggestions.push({
+          categoryId: cat.id,
+          categoryCode: cat.code,
+          categoryName: cat.name,
+          confidence,
+          confidenceLevel,
+          reason:
+            evidence[0]?.description || `Suggested binding for ${cat.name}`,
+          evidence,
+          modelVersion: '1.0.0-deterministic-fallback',
+        });
+      }
+    }
+
+    return suggestions.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  private suggestCategoryAttributesFallback(
+    category: { id: string; code: string; name: string },
+    allDefs: Array<any>,
+    boundIds: string[],
+    datapackHints: Array<any>,
+  ): CategoryAttributeSuggestionDto[] {
+    const normCat = category.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const boundSet = new Set(boundIds);
+    const suggestions: CategoryAttributeSuggestionDto[] = [];
+
+    // Collect expected from Data Packs
+    const dpExpected = new Set<string>();
+    if (datapackHints) {
+      for (const hint of datapackHints) {
+        const hName = (hint.categoryName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (hName && (hName.includes(normCat) || normCat.includes(hName))) {
+          for (const exp of (hint.expectedAttributes as string[]) || []) {
+            dpExpected.add(exp.toLowerCase().replace(/[^a-z0-9]/g, ''));
+          }
+        }
+      }
+    }
+
+    for (const def of allDefs) {
+      const normDefCode = def.code.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const normDefName = def.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      let score = 0;
+      const evidence: EvidenceItemDto[] = [];
+
+      if (dpExpected.has(normDefCode) || dpExpected.has(normDefName)) {
+        score += 0.98;
+        evidence.push({
+          type: 'data_pack_rule',
+          description: `Standard expected specification in active Data Pack for '${category.name}'`,
+          weight: 0.98,
+          source: 'datapack:expected_attributes',
+        });
+      }
+
+      // Check canonical knowledge
+      const canonMatch = Object.values(CANONICAL_PARAM_FALLBACK).find((item) => {
+        return (
+          item.code.toLowerCase().replace(/[^a-z0-9]/g, '') === normDefCode ||
+          item.canonical.toLowerCase().replace(/[^a-z0-9]/g, '') === normDefName
+        );
+      });
+      if (canonMatch) {
+        if (
+          canonMatch.categories.some((tc: string) => {
+            const tcNorm = tc.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return normCat.includes(tcNorm) || tcNorm.includes(normCat);
+          })
+        ) {
+          score = Math.max(score, 0.92);
+          evidence.push({
+            type: 'taxonomy',
+            description: `Standard electronics engineering parameter for '${category.name}'`,
+            weight: 0.92,
+            source: 'domain:electronics_standard',
+          });
+        }
+      }
+
+      if (score > 0.5) {
+        const confidence = Number(score.toFixed(2));
+        const confidenceLevel = confidence >= 0.85 ? 'HIGH' : 'MEDIUM';
+        suggestions.push({
+          attributeDefinitionId: def.id,
+          code: def.code,
+          name: def.name,
+          dataType: def.dataType,
+          unitCategory: def.unitCategory,
+          defaultUnit: def.defaultUnit,
+          groupName: def.groupName,
+          confidence,
+          confidenceLevel,
+          isAlreadyBound: boundSet.has(def.id),
+          reason:
+            evidence[0]?.description ||
+            `Recommended specification for ${category.name}`,
+          evidence,
+        });
+      }
+    }
+
+    return suggestions.sort((a, b) => {
+      if (a.isAlreadyBound !== b.isAlreadyBound) {
+        return a.isAlreadyBound ? 1 : -1;
+      }
+      return b.confidence - a.confidence;
+    });
+  }
+
+  private suggestAttributeConfigFallback(
+    name: string,
+    description: string | undefined,
+    allDefs: Array<any>,
+  ): AttributeConfigSuggestionDto {
+    const cleanName = name.trim();
+    const normName = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // Check canonical knowledge
+    let matchedItem: (typeof CANONICAL_PARAM_FALLBACK)[string] | null = null;
+    let matchedScore = 0;
+    for (const item of Object.values(CANONICAL_PARAM_FALLBACK)) {
+      const candidates = [
+        item.canonical,
+        item.code,
+        ...(item.aliases || []),
+      ];
+      for (const c of candidates) {
+        const sim = this.computeStringSimilarityFallback(cleanName, c);
+        if (sim > matchedScore && sim >= 0.65) {
+          matchedScore = sim;
+          matchedItem = item;
+        }
+      }
+    }
+
+    // Check best existing match
+    let bestMatch: any = null;
+    let bestSim = 0;
+    for (const def of allDefs) {
+      const sim = this.computeStringSimilarityFallback(cleanName, def.name);
+      if (sim > bestSim) {
+        bestSim = sim;
+        bestMatch = def;
+      }
+    }
+
+    const evidence: EvidenceItemDto[] = [];
+    if (matchedItem && matchedScore >= 0.7) {
+      const item = matchedItem;
+      const confidence = Number(Math.min(0.99, matchedScore).toFixed(2));
+      const confidenceLevel = confidence >= 0.85 ? 'HIGH' : 'MEDIUM';
+      evidence.push({
+        type: 'domain_rule',
+        description: `Matched known engineering parameter '${item.canonical}' (${Math.round(confidence * 100)}%)`,
+        weight: 0.95,
+        source: 'domain:electronics_standard',
+      });
+
+      return {
+        suggestedCode: item.code,
+        suggestedDataType: item.dataType,
+        unitCategory: item.unitCategory,
+        defaultUnit: item.defaultUnit,
+        displayUnits: item.displayUnits || [],
+        groupName: item.group,
+        suggestedAliases: item.aliases || [],
+        suggestedOptions: item.options || [],
+        validationRules: item.validation || null,
+        canonicalMatch:
+          bestMatch && bestSim >= 0.75
+            ? {
+                id: bestMatch.id,
+                name: bestMatch.name,
+                code: bestMatch.code,
+                similarity: Number(bestSim.toFixed(2)),
+              }
+            : null,
+        confidence,
+        confidenceLevel,
+        reason: `Derived configuration from standard electrical parameter '${item.canonical}'`,
+        evidence,
+      };
+    }
+
+    // Heuristic fallback
+    const lower = cleanName.toLowerCase();
+    const suggestedCode = lower.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    let suggestedDataType = 'TEXT';
+    let groupName = 'General';
+    let unitCategory: string | null = null;
+    let defaultUnit: string | null = null;
+    let confidence = 0.5;
+
+    if (['type', 'package', 'style', 'color', 'grade', 'material'].some((k) => lower.includes(k))) {
+      suggestedDataType = 'SELECT';
+      confidence = 0.65;
+    } else if (['is_', 'has_', 'flag', 'enable', 'active'].some((k) => lower.includes(k))) {
+      suggestedDataType = 'BOOLEAN';
+      confidence = 0.75;
+    } else if (['count', 'number', 'quantity', 'pins'].some((k) => lower.includes(k))) {
+      suggestedDataType = 'INTEGER';
+      unitCategory = 'Count';
+      defaultUnit = 'pcs';
+      groupName = 'Physical';
+      confidence = 0.7;
+    }
+
+    evidence.push({
+      type: 'classifier',
+      description: `Inferred data type ${suggestedDataType} from keyword analysis`,
+      weight: confidence,
+      source: 'heuristic:pattern_matcher',
+    });
+
+    return {
+      suggestedCode,
+      suggestedDataType,
+      unitCategory,
+      defaultUnit,
+      displayUnits: defaultUnit ? [defaultUnit] : [],
+      groupName,
+      suggestedAliases: [],
+      suggestedOptions: [],
+      validationRules: null,
+      canonicalMatch:
+        bestMatch && bestSim >= 0.75
+          ? {
+              id: bestMatch.id,
+              name: bestMatch.name,
+              code: bestMatch.code,
+              similarity: Number(bestSim.toFixed(2)),
+            }
+          : null,
+      confidence,
+      confidenceLevel: confidence >= 0.85 ? 'HIGH' : 'MEDIUM',
+      reason: `Heuristic configuration derived from name '${cleanName}'`,
+      evidence,
+    };
+  }
+
+  private detectAttributeDuplicatesFallback(
+    name: string,
+    code: string | undefined,
+    allDefs: Array<any>,
+    allBindings: Array<any>,
+    threshold: number,
+  ): {
+    isDuplicate: boolean;
+    matches: AttributeDuplicateMatchDto[];
+    suggestedAliases: string[];
+  } {
+    const cleanName = name.trim();
+    const normName = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normCode = (code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const matches: AttributeDuplicateMatchDto[] = [];
+    const aliases = new Set<string>();
+
+    const bindingsByAttr: Record<string, number> = {};
+    for (const b of allBindings) {
+      bindingsByAttr[b.attributeDefinitionId] =
+        (bindingsByAttr[b.attributeDefinitionId] || 0) + 1;
+    }
+
+    for (const def of allDefs) {
+      const defNormName = def.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const defNormCode = def.code.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      if (normCode && normCode === defNormCode) {
+        matches.push({
+          attributeId: def.id,
+          code: def.code,
+          name: def.name,
+          similarity: 1.0,
+          confidenceLevel: 'HIGH',
+          matchType: 'exact_code',
+          usageCount: bindingsByAttr[def.id] || 0,
+          boundCategories: [],
+          aliases: (def.aliases as string[]) || [],
+          reason: `Exact matching attribute code '${def.code}' already exists`,
+          evidence: [
+            {
+              type: 'exact_match',
+              description: `Code '${def.code}' is identical`,
+              weight: 1.0,
+              source: 'database:attribute_definitions',
+            },
+          ],
+        });
+        continue;
+      }
+
+      if (normName === defNormName) {
+        matches.push({
+          attributeId: def.id,
+          code: def.code,
+          name: def.name,
+          similarity: 1.0,
+          confidenceLevel: 'HIGH',
+          matchType: 'exact_name',
+          usageCount: bindingsByAttr[def.id] || 0,
+          boundCategories: [],
+          aliases: (def.aliases as string[]) || [],
+          reason: `Exact matching attribute name '${def.name}' already exists`,
+          evidence: [
+            {
+              type: 'exact_match',
+              description: `Name '${def.name}' is identical`,
+              weight: 1.0,
+              source: 'database:attribute_definitions',
+            },
+          ],
+        });
+        continue;
+      }
+
+      // Check aliases
+      const defAliases = (def.aliases as string[]) || [];
+      if (defAliases.some((al) => al.toLowerCase().replace(/[^a-z0-9]/g, '') === normName)) {
+        matches.push({
+          attributeId: def.id,
+          code: def.code,
+          name: def.name,
+          similarity: 0.98,
+          confidenceLevel: 'HIGH',
+          matchType: 'alias_match',
+          usageCount: bindingsByAttr[def.id] || 0,
+          boundCategories: [],
+          aliases: defAliases,
+          reason: `Matches declared alias of existing attribute '${def.name}'`,
+          evidence: [
+            {
+              type: 'alias_match',
+              description: `Matched known alias in attribute definitions`,
+              weight: 0.98,
+              source: 'attribute:aliases',
+            },
+          ],
+        });
+        continue;
+      }
+
+      const sim = this.computeStringSimilarityFallback(cleanName, def.name, defAliases);
+      if (sim >= threshold) {
+        matches.push({
+          attributeId: def.id,
+          code: def.code,
+          name: def.name,
+          similarity: Number(sim.toFixed(2)),
+          confidenceLevel: sim >= 0.85 ? 'HIGH' : 'MEDIUM',
+          matchType: 'token_similarity',
+          usageCount: bindingsByAttr[def.id] || 0,
+          boundCategories: [],
+          aliases: defAliases,
+          reason: `High lexical similarity (${Math.round(sim * 100)}%) with '${def.name}'`,
+          evidence: [
+            {
+              type: 'similarity',
+              description: `Character and token similarity: ${Math.round(sim * 100)}%`,
+              weight: sim,
+              source: 'ngram:similarity',
+            },
+          ],
+        });
+        aliases.add(cleanName);
+        aliases.add(def.name);
+      }
+    }
+
+    matches.sort((a, b) => b.similarity - a.similarity);
+    return {
+      isDuplicate: matches.length > 0,
+      matches,
+      suggestedAliases: Array.from(aliases),
+    };
+  }
+
+  private suggestEnumValuesFallback(
+    attributeCode: string,
+    attributeName: string,
+    existingOptions: string[],
+    datapackHints: Array<any>,
+  ): EnumOptionSuggestionDto[] {
+    const normCode = attributeCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normName = attributeName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const existingSet = new Set(existingOptions.map((o) => o.toLowerCase()));
+    const suggestions: EnumOptionSuggestionDto[] = [];
+
+    // Package patterns from Data Packs
+    if (normCode.includes('package') || normName.includes('package') || normName.includes('footprint')) {
+      if (datapackHints) {
+        for (const hint of datapackHints) {
+          for (const pkg of (hint.packagePatterns as string[]) || []) {
+            if (!existingSet.has(pkg.toLowerCase())) {
+              existingSet.add(pkg.toLowerCase());
+              suggestions.push({
+                code: pkg,
+                label: pkg,
+                source: `datapack:${hint.categoryCode || 'electronics-smd'}`,
+                confidence: 0.98,
+                confidenceLevel: 'HIGH',
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Canonical params
+    for (const item of Object.values(CANONICAL_PARAM_FALLBACK)) {
+      if (
+        item.code.toLowerCase().replace(/[^a-z0-9]/g, '') === normCode ||
+        item.canonical.toLowerCase().replace(/[^a-z0-9]/g, '') === normName
+      ) {
+        for (const opt of item.options || []) {
+          if (!existingSet.has(opt.toLowerCase())) {
+            existingSet.add(opt.toLowerCase());
+            suggestions.push({
+              code: opt,
+              label: opt,
+              source: 'domain:electronics_standard',
+              confidence: 0.95,
+              confidenceLevel: 'HIGH',
+            });
+          }
+        }
+      }
+    }
+
+    return suggestions;
+  }
+
+  private auditAttributeLibraryFallback(
+    allDefs: Array<any>,
+    allCats: Array<any>,
+    allBindings: Array<any>,
+    compCountsByAttr: Record<string, number>,
+    compCountsByCatAttr: Record<string, number>,
+  ): {
+    summary: {
+      totalAttributes: number;
+      possibleDuplicates: number;
+      suspiciousBindings: number;
+      missingExpectedAttributes: number;
+      unusedAttributes: number;
+    };
+    issues: AttributeAuditIssueDto[];
+  } {
+    const issues: AttributeAuditIssueDto[] = [];
+    let counter = 1;
+
+    // 1. Duplicates
+    for (let i = 0; i < allDefs.length; i++) {
+      for (let j = i + 1; j < allDefs.length; j++) {
+        const d1 = allDefs[i];
+        const d2 = allDefs[j];
+        const sim = this.computeStringSimilarityFallback(
+          d1.name,
+          d2.name,
+          d2.aliases,
+        );
+        if (sim >= 0.78) {
+          issues.push({
+            id: `audit-${counter++}`,
+            type: 'DUPLICATE_ATTRIBUTE',
+            severity: 'WARNING',
+            attributeId: d1.id,
+            attributeName: d1.name,
+            confidence: Number(sim.toFixed(2)),
+            confidenceLevel: sim >= 0.85 ? 'HIGH' : 'MEDIUM',
+            reason: `Possible duplicate attributes: '${d1.name}' and '${d2.name}' (${Math.round(sim * 100)}% similarity)`,
+            evidence: [
+              {
+                type: 'similarity',
+                description: `High lexical similarity between '${d1.name}' and '${d2.name}'`,
+                weight: sim,
+                source: 'audit:deduplication',
+              },
+            ],
+          });
+        }
+      }
+    }
+
+    // 2. Suspicious Bindings
+    for (const b of allBindings) {
+      const def = allDefs.find((d) => d.id === b.attributeDefinitionId);
+      const cat = allCats.find((c) => c.id === b.categoryId);
+      if (!def || !cat) continue;
+
+      const normCode = def.code.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const normCat = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      if (normCode.includes('resistance') && (normCat.includes('capacitor') || normCat.includes('diode'))) {
+        const usage = compCountsByCatAttr[`${b.categoryId}_${b.attributeDefinitionId}`] || 0;
+        issues.push({
+          id: `audit-${counter++}`,
+          type: 'SUSPICIOUS_BINDING',
+          severity: 'WARNING',
+          attributeId: def.id,
+          attributeName: def.name,
+          categoryId: cat.id,
+          categoryName: cat.name,
+          confidence: 0.85,
+          confidenceLevel: 'HIGH',
+          reason: `Suspicious binding: '${def.name}' bound to '${cat.name}' (Only ${usage} components use this)`,
+          evidence: [
+            {
+              type: 'anomaly',
+              description: `Attribute '${def.name}' is characteristic of Resistors, not '${cat.name}'`,
+              weight: 0.85,
+              source: 'audit:anomaly_detection',
+            },
+          ],
+        });
+      }
+    }
+
+    // 3. Missing Expected Attributes
+    const bindingsByCat: Record<string, Set<string>> = {};
+    for (const b of allBindings) {
+      const def = allDefs.find((d) => d.id === b.attributeDefinitionId);
+      if (def) {
+        bindingsByCat[b.categoryId] = bindingsByCat[b.categoryId] || new Set();
+        bindingsByCat[b.categoryId].add(def.code.toLowerCase().replace(/[^a-z0-9]/g, ''));
+      }
+    }
+
+    for (const cat of allCats) {
+      const bound = bindingsByCat[cat.id] || new Set();
+      const catNorm = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      for (const key of Object.keys(CANONICAL_PARAM_FALLBACK)) {
+        const item = CANONICAL_PARAM_FALLBACK[key];
+        const pCode = item.code.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (
+          item.categories.some((tc: string) => {
+            const tcNorm = tc.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return catNorm.includes(tcNorm) || tcNorm.includes(catNorm);
+          })
+        ) {
+          if (!bound.has(pCode)) {
+            issues.push({
+              id: `audit-${counter++}`,
+              type: 'MISSING_EXPECTED_ATTRIBUTE',
+              severity: 'INFO',
+              attributeName: item.canonical,
+              categoryId: cat.id,
+              categoryName: cat.name,
+              confidence: 0.9,
+              confidenceLevel: 'HIGH',
+              reason: `Standard attribute '${item.canonical}' is commonly expected for '${cat.name}' but not currently bound`,
+              evidence: [
+                {
+                  type: 'taxonomy',
+                  description: `Industry standard specification for '${cat.name}'`,
+                  weight: 0.9,
+                  source: 'domain:electronics_standard',
+                },
+              ],
+            });
+            break;
+          }
+        }
+      }
+    }
+
+    // 4. Unused Attributes
+    for (const def of allDefs) {
+      const usage = compCountsByAttr[def.id] || 0;
+      const bindingCount = allBindings.filter((b) => b.attributeDefinitionId === def.id).length;
+      if (usage === 0 && bindingCount === 0) {
+        issues.push({
+          id: `audit-${counter++}`,
+          type: 'UNUSED_ATTRIBUTE',
+          severity: 'INFO',
+          attributeId: def.id,
+          attributeName: def.name,
+          confidence: 0.75,
+          confidenceLevel: 'MEDIUM',
+          reason: `Attribute '${def.name}' has 0 category bindings and 0 component values`,
+          evidence: [
+            {
+              type: 'existing_data',
+              description: 'Zero references in inventory ledger',
+              weight: 0.75,
+              source: 'database:component_attribute_values',
+            },
+          ],
+        });
+      }
+    }
+
+    return {
+      summary: {
+        totalAttributes: allDefs.length,
+        possibleDuplicates: issues.filter((i) => i.type === 'DUPLICATE_ATTRIBUTE').length,
+        suspiciousBindings: issues.filter((i) => i.type === 'SUSPICIOUS_BINDING').length,
+        missingExpectedAttributes: issues.filter((i) => i.type === 'MISSING_EXPECTED_ATTRIBUTE').length,
+        unusedAttributes: issues.filter((i) => i.type === 'UNUSED_ATTRIBUTE').length,
+      },
+      issues,
+    };
+  }
+
+  private computeStringSimilarityFallback(
+    s1: string,
+    s2: string,
+    s2Aliases?: string[],
+  ): number {
+    const norm1 = s1.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const norm2 = s2.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!norm1 || !norm2) return 0;
+    if (norm1 === norm2) return 1.0;
+
+    if (s2Aliases) {
+      for (const al of s2Aliases) {
+        if (al.toLowerCase().replace(/[^a-z0-9]/g, '') === norm1) {
+          return 0.98;
+        }
+      }
+    }
+
+    // Canonical param check
+    for (const key of Object.keys(CANONICAL_PARAM_FALLBACK)) {
+      const item = CANONICAL_PARAM_FALLBACK[key];
+      const candidates = [item.canonical, item.code, ...(item.aliases || [])].map((c) =>
+        c.toLowerCase().replace(/[^a-z0-9]/g, ''),
+      );
+      if (candidates.includes(norm1) && candidates.includes(norm2)) {
+        return 0.95;
+      }
+    }
+
+    // Substring
+    if (norm1.includes(norm2) || norm2.includes(norm1)) {
+      const shorter = Math.min(norm1.length, norm2.length);
+      const longer = Math.max(norm1.length, norm2.length);
+      return 0.75 + 0.2 * (shorter / longer);
+    }
+
+    // Token Jaccard
+    const words1 = new Set(s1.toLowerCase().match(/[a-z0-9]+/g) || []);
+    const words2 = new Set(s2.toLowerCase().match(/[a-z0-9]+/g) || []);
+    let intersect = 0;
+    for (const w of words1) {
+      if (words2.has(w)) intersect++;
+    }
+    const union = words1.size + words2.size - intersect;
+    const tokenSim = union > 0 ? intersect / union : 0;
+
+    // Char 3-gram Dice
+    const n = 3;
+    if (norm1.length >= n && norm2.length >= n) {
+      const g1 = new Set<string>();
+      const g2 = new Set<string>();
+      for (let i = 0; i <= norm1.length - n; i++) g1.add(norm1.slice(i, i + n));
+      for (let i = 0; i <= norm2.length - n; i++) g2.add(norm2.slice(i, i + n));
+      let gIntersect = 0;
+      for (const g of g1) {
+        if (g2.has(g)) gIntersect++;
+      }
+      const charSim = (2.0 * gIntersect) / (g1.size + g2.size);
+      return Math.max(charSim, tokenSim * 0.85);
+    }
+
+    return tokenSim * 0.85;
+  }
 }
+
+const CANONICAL_PARAM_FALLBACK: Record<
+  string,
+  {
+    canonical: string;
+    code: string;
+    dataType: string;
+    unitCategory: string | null;
+    defaultUnit: string | null;
+    displayUnits: string[];
+    group: string;
+    validation?: Record<string, unknown>;
+    aliases: string[];
+    options?: string[];
+    categories: string[];
+  }
+> = {
+  voltage: {
+    canonical: 'Voltage Rating',
+    code: 'voltage_rating',
+    dataType: 'QUANTITY',
+    unitCategory: 'Voltage',
+    defaultUnit: 'V',
+    displayUnits: ['mV', 'V', 'kV'],
+    group: 'Electrical',
+    validation: { min: 0, rule: '> 0' },
+    aliases: ['Rated Voltage', 'Working Voltage', 'V_rated', 'Voltage'],
+    categories: [
+      'Capacitors',
+      'MOSFET',
+      'Transistors',
+      'Diodes',
+      'Voltage Regulators',
+      'ICs & Semiconductors',
+      'Electronic Components',
+    ],
+  },
+  capacitance: {
+    canonical: 'Capacitance',
+    code: 'capacitance',
+    dataType: 'QUANTITY',
+    unitCategory: 'Capacitance',
+    defaultUnit: 'uF',
+    displayUnits: ['pF', 'nF', 'uF', 'mF', 'F'],
+    group: 'Electrical',
+    validation: { min: 0, rule: '> 0' },
+    aliases: ['Cap Value', 'Nominal Capacitance', 'Capacitance Value'],
+    categories: ['Capacitors'],
+  },
+  resistance: {
+    canonical: 'Resistance',
+    code: 'resistance',
+    dataType: 'QUANTITY',
+    unitCategory: 'Resistance',
+    defaultUnit: 'ohm',
+    displayUnits: ['ohm', 'kohm', 'Mohm'],
+    group: 'Electrical',
+    validation: { min: 0, rule: '> 0' },
+    aliases: ['Resistance Value', 'Nominal Resistance', 'Ohmic Value'],
+    categories: ['Resistors'],
+  },
+  tolerance: {
+    canonical: 'Tolerance',
+    code: 'tolerance',
+    dataType: 'QUANTITY',
+    unitCategory: 'Percentage',
+    defaultUnit: '%',
+    displayUnits: ['%'],
+    group: 'Electrical',
+    validation: { min: 0, max: 100, rule: '0 <= x <= 100' },
+    aliases: ['Percentage Tolerance', 'Tol', 'Accuracy'],
+    categories: ['Resistors', 'Capacitors', 'Inductors'],
+  },
+  power_rating: {
+    canonical: 'Power Rating',
+    code: 'power_rating',
+    dataType: 'QUANTITY',
+    unitCategory: 'Power',
+    defaultUnit: 'W',
+    displayUnits: ['mW', 'W', 'kW'],
+    group: 'Electrical',
+    validation: { min: 0, rule: '> 0' },
+    aliases: ['Rated Power', 'Max Power', 'Wattage'],
+    categories: [
+      'Resistors',
+      'Diodes',
+      'Transistors',
+      'ICs & Semiconductors',
+    ],
+  },
+  current_rating: {
+    canonical: 'Current Rating',
+    code: 'current_rating',
+    dataType: 'QUANTITY',
+    unitCategory: 'Current',
+    defaultUnit: 'A',
+    displayUnits: ['uA', 'mA', 'A'],
+    group: 'Electrical',
+    validation: { min: 0, rule: '> 0' },
+    aliases: ['Rated Current', 'Max Current', 'Operating Current'],
+    categories: [
+      'Diodes',
+      'Transistors',
+      'Inductors',
+      'ICs & Semiconductors',
+      'Connectors',
+    ],
+  },
+  inductance: {
+    canonical: 'Inductance',
+    code: 'inductance',
+    dataType: 'QUANTITY',
+    unitCategory: 'Inductance',
+    defaultUnit: 'uH',
+    displayUnits: ['nH', 'uH', 'mH', 'H'],
+    group: 'Electrical',
+    validation: { min: 0, rule: '> 0' },
+    aliases: ['Inductance Value', 'Nominal Inductance'],
+    categories: ['Inductors'],
+  },
+  dielectric: {
+    canonical: 'Dielectric',
+    code: 'dielectric',
+    dataType: 'SELECT',
+    unitCategory: null,
+    defaultUnit: null,
+    displayUnits: [],
+    group: 'Electrical',
+    options: ['C0G', 'NP0', 'X5R', 'X7R', 'Y5V', 'X6S'],
+    categories: ['Capacitors'],
+    aliases: ['Dielectric Material', 'Temperature Characteristic'],
+  },
+  package: {
+    canonical: 'Package / Case',
+    code: 'package',
+    dataType: 'SELECT',
+    unitCategory: null,
+    defaultUnit: null,
+    displayUnits: [],
+    group: 'Physical',
+    options: [
+      '0201',
+      '0402',
+      '0603',
+      '0805',
+      '1206',
+      '1210',
+      'SOD-123',
+      'SOT-23',
+      'SOIC-8',
+      'DIP-8',
+      'QFN-32',
+    ],
+    categories: [
+      'Resistors',
+      'Capacitors',
+      'Inductors',
+      'Diodes',
+      'Transistors',
+      'ICs & Semiconductors',
+      'Electronic Components',
+    ],
+    aliases: ['Footprint', 'Package Footprint', 'Case Code'],
+  },
+  mounting_type: {
+    canonical: 'Mounting Type',
+    code: 'mounting_type',
+    dataType: 'SELECT',
+    unitCategory: null,
+    defaultUnit: null,
+    displayUnits: [],
+    group: 'Physical',
+    options: ['SMD', 'Through Hole', 'Panel Mount'],
+    categories: [
+      'Resistors',
+      'Capacitors',
+      'Inductors',
+      'Diodes',
+      'Transistors',
+      'ICs & Semiconductors',
+      'Electronic Components',
+    ],
+    aliases: ['Mounting Technology', 'Termination Style'],
+  },
+  operating_temperature: {
+    canonical: 'Operating Temperature',
+    code: 'operating_temperature',
+    dataType: 'QUANTITY',
+    unitCategory: 'Temperature',
+    defaultUnit: '°C',
+    displayUnits: ['°C'],
+    group: 'Environmental',
+    categories: [
+      'Resistors',
+      'Capacitors',
+      'Inductors',
+      'Diodes',
+      'Transistors',
+      'ICs & Semiconductors',
+    ],
+    aliases: ['Temperature Range', 'Operating Temp Range'],
+  },
+};
+

@@ -9,6 +9,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { components } from "./components";
 import { users } from "./auth";
+import { attributeDefinitions } from "./attributes";
+import { categories } from "./categories";
 
 /**
  * AI Suggestion Feedback & Telemetry
@@ -25,13 +27,24 @@ export const aiSuggestionFeedback = pgTable(
       onDelete: "set null",
     }),
 
+    attributeDefinitionId: uuid("attribute_definition_id").references(
+      () => attributeDefinitions.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+
+    categoryId: uuid("category_id").references(() => categories.id, {
+      onDelete: "set null",
+    }),
+
     creationContext: jsonb("creation_context")
       .$type<Record<string, unknown>>()
       .default({}),
 
-    suggestionType: varchar("suggestion_type", { length: 64 }).notNull(), // 'CATEGORY' | 'MANUFACTURER' | 'ATTRIBUTE' | 'DUPLICATE'
+    suggestionType: varchar("suggestion_type", { length: 64 }).notNull(), // 'CATEGORY' | 'MANUFACTURER' | 'ATTRIBUTE' | 'DUPLICATE' | 'ATTRIBUTE_BINDING' | 'CATEGORY_ATTRIBUTES' | 'ATTRIBUTE_CONFIG' | 'ATTRIBUTE_ALIAS' | 'ATTRIBUTE_DUPLICATE' | 'SUSPICIOUS_BINDING'
 
-    field: varchar("field", { length: 128 }).notNull(), // 'category' | 'manufacturer' | attribute code | 'duplicate'
+    field: varchar("field", { length: 128 }).notNull(), // 'category' | 'manufacturer' | attribute code | 'duplicate' | 'binding' | 'config'
 
     predictedValue: jsonb("predicted_value"),
 
@@ -69,7 +82,13 @@ export const aiSuggestionFeedback = pgTable(
   },
   (table) => [
     index("ai_suggestion_feedback_component_id_idx").on(table.componentId),
-    index("ai_suggestion_feedback_suggestion_type_idx").on(table.suggestionType),
+    index("ai_suggestion_feedback_attr_def_id_idx").on(
+      table.attributeDefinitionId,
+    ),
+    index("ai_suggestion_feedback_category_id_idx").on(table.categoryId),
+    index("ai_suggestion_feedback_suggestion_type_idx").on(
+      table.suggestionType,
+    ),
     index("ai_suggestion_feedback_field_idx").on(table.field),
     index("ai_suggestion_feedback_user_action_idx").on(table.userAction),
     index("ai_suggestion_feedback_model_version_idx").on(table.modelVersion),

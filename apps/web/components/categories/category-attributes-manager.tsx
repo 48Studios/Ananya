@@ -10,6 +10,12 @@ import {
   AlertCircle,
   Hash,
   Loader2,
+  Sparkles,
+  HelpCircle,
+  Check,
+  CheckSquare,
+  Square,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell, DialogShellBody, DialogShellFooter, DialogShellCancelButton } from "@/components/ui/dialog-shell";
@@ -18,10 +24,12 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   attributesApi,
   type AttributeDefinitionDto,
   type ResolvedCategoryAttributeDto,
+  type SuggestedCategoryAttributeItemDto,
 } from "@/lib/api/attributes-api";
 
 interface CategoryAttributesManagerProps {
@@ -38,6 +46,16 @@ export function CategoryAttributesManager({
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
+
+  // AI Suggestions state
+  const [suggestedCategoryAttrs, setSuggestedCategoryAttrs] = React.useState<
+    SuggestedCategoryAttributeItemDto[]
+  >([]);
+  const [loadingSuggestions, setLoadingSuggestions] = React.useState(false);
+  const [selectedCodes, setSelectedCodes] = React.useState<Set<string>>(new Set());
+  const [expandedWhy, setExpandedWhy] = React.useState<Record<string, boolean>>({});
+  const [dismissedCodes, setDismissedCodes] = React.useState<Set<string>>(new Set());
+  const [bindingSelected, setBindingSelected] = React.useState(false);
 
   // Assignment dialog state
   const [isAssignOpen, setIsAssignOpen] = React.useState(false);
@@ -61,6 +79,16 @@ export function CategoryAttributesManager({
       ]);
       setAttributes(catAttrs);
       setAllDefinitions(allDefs);
+
+      // Concurrently fetch AI suggestions
+      setLoadingSuggestions(true);
+      attributesApi
+        .suggestCategoryAttributes(categoryId)
+        .then((res) => {
+          setSuggestedCategoryAttrs(res.suggestions || []);
+        })
+        .catch(() => {})
+        .finally(() => setLoadingSuggestions(false));
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -163,6 +191,177 @@ export function CategoryAttributesManager({
     }
   };
 
+  const pendingSuggestions = suggestedCategoryAttrs.filter(
+    (s) =>
+      !directlyAssignedIds.has(s.attributeDefinitionId || "") &&
+      !dismissedCodes.has(s.attributeCode),
+  );
+
+  const toggleSelectCode = (code: string) => {
+    setSelectedCodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedCodes.size === pendingSuggestions.length) {
+      setSelectedCodes(new Set());
+    } else {
+      setSelectedCodes(new Set(pendingSuggestions.map((s) => s.attributeCode)));
+    }
+  };
+
+  const toggleWhy = (code: string) => {
+    setExpandedWhy((prev) => ({ ...prev, [code]: !prev[code] }));
+  };
+
+  const handleBindSingleSuggested = async (
+    sug: SuggestedCategoryAttributeItemDto,
+  ) => {
+    try {
+      let defId = sug.attributeDefinitionId;
+      if (!defId) {
+        const created = await attributesApi.createDefinition({
+          code: sug.attributeCode,
+          name: sug.attributeName,
+          dataType: (sug.dataType as AttributeDefinitionDto["dataType"]) || "TEXT",
+          unitCategory: sug.unitCategory,
+          defaultUnit: sug.defaultUnit,
+          groupName: sug.groupName,
+          isFilterable: true,
+        });
+        defId = created.id;
+      }
+
+      await attributesApi.assignCategoryAttribute(categoryId, {
+        attributeDefinitionId: defId,
+        isRequired: sug.isRequired ?? false,
+        sortOrder: (attributes.length + 1) * 10,
+      });
+
+      setSuccessMessage(
+        `Bound specification "${sug.attributeName}" to ${categoryName}.`,
+      );
+      setDismissedCodes((prev) => new Set([...prev, sug.attributeCode]));
+      setTimeout(() => setSuccessMessage(null), 4000);
+      await loadData();
+
+      attributesApi
+        .recordFeedback({
+          categoryId,
+          attributeDefinitionId: defId,
+          items: [
+            {
+              suggestionType: "CATEGORY_ATTRIBUTES",
+              field: "binding",
+              userAction: "ACCEPTED",
+              predictedValue: sug.attributeName,
+              finalValue: sug.attributeName,
+              confidence: sug.confidence,
+              confidenceLevel: sug.confidenceLevel,
+            },
+          ],
+        })
+        .catch(() => {});
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to bind suggested specification",
+      );
+    }
+  };
+
+  const handleRejectSuggested = (sug: SuggestedCategoryAttributeItemDto) => {
+    setDismissedCodes((prev) => new Set([...prev, sug.attributeCode]));
+    attributesApi
+      .recordFeedback({
+        categoryId,
+        attributeDefinitionId: sug.attributeDefinitionId,
+        items: [
+          {
+            suggestionType: "CATEGORY_ATTRIBUTES",
+            field: "binding",
+            userAction: "REJECTED",
+            predictedValue: sug.attributeName,
+            finalValue: null,
+            confidence: sug.confidence,
+            confidenceLevel: sug.confidenceLevel,
+          },
+        ],
+      })
+      .catch(() => {});
+  };
+
+  const handleBindSelected = async () => {
+    const toBind = pendingSuggestions.filter((s) =>
+      selectedCodes.has(s.attributeCode),
+    );
+    if (toBind.length === 0) return;
+
+    setBindingSelected(true);
+    try {
+      for (const sug of toBind) {
+        let defId = sug.attributeDefinitionId;
+        if (!defId) {
+          const created = await attributesApi.createDefinition({
+            code: sug.attributeCode,
+            name: sug.attributeName,
+            dataType:
+              (sug.dataType as AttributeDefinitionDto["dataType"]) || "TEXT",
+            unitCategory: sug.unitCategory,
+            defaultUnit: sug.defaultUnit,
+            groupName: sug.groupName,
+            isFilterable: true,
+          });
+          defId = created.id;
+        }
+        await attributesApi.assignCategoryAttribute(categoryId, {
+          attributeDefinitionId: defId,
+          isRequired: sug.isRequired ?? false,
+          sortOrder: (attributes.length + 1) * 10,
+        });
+      }
+
+      setSuccessMessage(
+        `Bound ${toBind.length} specifications to ${categoryName}.`,
+      );
+      setDismissedCodes(
+        (prev) =>
+          new Set([...prev, ...toBind.map((s) => s.attributeCode)]),
+      );
+      setSelectedCodes(new Set());
+      setTimeout(() => setSuccessMessage(null), 4000);
+      await loadData();
+
+      attributesApi
+        .recordFeedback({
+          categoryId,
+          items: toBind.map((sug) => ({
+            suggestionType: "CATEGORY_ATTRIBUTES",
+            field: "binding",
+            userAction: "ACCEPTED" as const,
+            predictedValue: sug.attributeName,
+            finalValue: sug.attributeName,
+            confidence: sug.confidence,
+            confidenceLevel: sug.confidenceLevel,
+          })),
+        })
+        .catch(() => {});
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to bind selected specifications",
+      );
+    } finally {
+      setBindingSelected(false);
+    }
+  };
+
   return (
     <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
       {/* Header */}
@@ -200,6 +399,182 @@ export function CategoryAttributesManager({
         <div className="flex items-center gap-2 p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {/* AI Suggested Attributes Section */}
+      {pendingSuggestions.length > 0 && (
+        <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-3.5 shadow-2xs animate-in fade-in-50 duration-150">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-primary border border-primary/25 shrink-0">
+                <Sparkles className="size-3.5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-semibold text-foreground">
+                  AI Suggested Specifications ({pendingSuggestions.length})
+                </h4>
+                <p className="text-[11px] text-muted-foreground">
+                  Identified from component inventory frequency, manufacturer parameters, and Data Pack taxonomy.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={toggleSelectAll}
+                className="h-7 text-xs text-muted-foreground hover:text-foreground"
+              >
+                {selectedCodes.size === pendingSuggestions.length
+                  ? "Deselect All"
+                  : "Select All"}
+              </Button>
+              {selectedCodes.size > 0 && (
+                <Button
+                  type="button"
+                  size="xs"
+                  disabled={bindingSelected}
+                  onClick={handleBindSelected}
+                  className="h-7 text-xs font-medium px-3 gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  {bindingSelected ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <Check className="size-3" />
+                  )}
+                  Bind Selected ({selectedCodes.size})
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+            {pendingSuggestions.map((sug) => {
+              const isSelected = selectedCodes.has(sug.attributeCode);
+              const isWhyExpanded = Boolean(expandedWhy[sug.attributeCode]);
+
+              return (
+                <div
+                  key={sug.attributeCode}
+                  className={`p-3 rounded-lg border transition-all space-y-2 flex flex-col justify-between shadow-2xs ${
+                    isSelected
+                      ? "border-primary/40 bg-primary/10"
+                      : "border-border bg-background"
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => toggleSelectCode(sug.attributeCode)}
+                          className="text-primary hover:opacity-80 transition-opacity cursor-pointer shrink-0"
+                          title={isSelected ? "Deselect" : "Select"}
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="size-4" />
+                          ) : (
+                            <Square className="size-4 text-muted-foreground" />
+                          )}
+                        </button>
+                        <span className="font-semibold text-xs text-foreground truncate">
+                          {sug.attributeName}
+                        </span>
+                      </div>
+                      <StatusBadge
+                        status={
+                          sug.confidenceLevel === "HIGH"
+                            ? "SUCCESS"
+                            : sug.confidenceLevel === "MEDIUM"
+                            ? "IN_REVIEW"
+                            : "DRAFT"
+                        }
+                        label={`${Math.round(sug.confidence * 100)}%`}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-mono text-muted-foreground">
+                      <span className="bg-muted px-1.5 py-0.2 rounded border border-border">
+                        {sug.attributeCode}
+                      </span>
+                      <span className="bg-muted px-1.5 py-0.2 rounded border border-border">
+                        {sug.dataType}
+                        {sug.defaultUnit ? ` (${sug.defaultUnit})` : ""}
+                      </span>
+                      {sug.groupName && (
+                        <span className="bg-muted px-1.5 py-0.2 rounded border border-border">
+                          {sug.groupName}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground line-clamp-2">
+                      {sug.reason}
+                    </p>
+
+                    {/* Why Evidence Accordion */}
+                    {isWhyExpanded && (
+                      <div className="pt-2 border-t border-border/60 text-[11px] space-y-1 animate-in fade-in-50 duration-150">
+                        <span className="font-semibold text-foreground text-[10px] uppercase tracking-wider block">
+                          Evidence:
+                        </span>
+                        <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
+                          {sug.evidence.map((ev, idx) => (
+                            <li key={idx}>
+                              <span className="text-foreground">{ev.description}</span>
+                              {ev.source && (
+                                <span className="ml-1 text-[9px] font-mono text-muted-foreground">
+                                  [{ev.source}]
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => toggleWhy(sug.attributeCode)}
+                      className="text-muted-foreground hover:text-foreground"
+                      title="Why this specification?"
+                    >
+                      <HelpCircle className="size-3.5" />
+                    </Button>
+
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => handleRejectSuggested(sug)}
+                        className="text-muted-foreground hover:text-destructive"
+                        title="Dismiss suggestion"
+                      >
+                        <X className="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        onClick={() => handleBindSingleSuggested(sug)}
+                        className="h-6 text-[11px] px-2.5 border-primary/30 text-primary hover:bg-primary/10 gap-1 font-medium"
+                      >
+                        <Check className="size-3" /> Bind
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
