@@ -1,5 +1,19 @@
 import { apiClient } from "../api-client";
 
+export interface EvidenceItemDto {
+  type:
+    | "mpn_pattern"
+    | "keyword"
+    | "existing_data"
+    | "data_pack_rule"
+    | "datasheet_param"
+    | "classifier"
+    | string;
+  description: string;
+  weight: number;
+  source?: string;
+}
+
 export interface CategorySuggestionDto {
   categoryId?: string | null;
   categoryCode?: string;
@@ -8,6 +22,8 @@ export interface CategorySuggestionDto {
   subcategoryCode?: string;
   subcategoryName?: string | null;
   confidence: number;
+  confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
+  evidence?: EvidenceItemDto[];
 }
 
 export interface ManufacturerSuggestionDto {
@@ -15,7 +31,9 @@ export interface ManufacturerSuggestionDto {
   manufacturerCode?: string;
   manufacturerName: string;
   confidence: number;
+  confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
   matchType: string;
+  evidence?: EvidenceItemDto[];
 }
 
 export interface DuplicateWarningDto {
@@ -23,8 +41,10 @@ export interface DuplicateWarningDto {
   sku: string;
   name?: string;
   similarity: number;
+  confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
   matchType: string;
   reason: string;
+  evidence?: EvidenceItemDto[];
 }
 
 export interface ExtractedAttributeDto {
@@ -34,6 +54,8 @@ export interface ExtractedAttributeDto {
   unit?: string | null;
   formatted: string;
   confidence: number;
+  confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
+  evidence?: EvidenceItemDto[];
 }
 
 export interface ComponentSuggestionResponseDto {
@@ -47,6 +69,8 @@ export interface ComponentSuggestionResponseDto {
   isDuplicate: boolean;
   duplicateWarnings: DuplicateWarningDto[];
   attributes: Record<string, ExtractedAttributeDto>;
+  confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
+  overallEvidence?: EvidenceItemDto[];
   isMlActive: boolean;
   executionTimeMs: number;
 }
@@ -59,6 +83,24 @@ export interface SuggestComponentPayload {
   datasheetPdfBase64?: string;
 }
 
+export interface FeedbackItemPayload {
+  suggestionType: "CATEGORY" | "MANUFACTURER" | "ATTRIBUTE" | "DUPLICATE";
+  field: string;
+  predictedValue?: unknown;
+  confidence?: number;
+  confidenceLevel?: "HIGH" | "MEDIUM" | "LOW";
+  evidence?: EvidenceItemDto[];
+  modelVersion?: string;
+  userAction: "ACCEPTED" | "REJECTED" | "EDITED";
+  finalValue?: unknown;
+}
+
+export interface CreateMlFeedbackPayload {
+  componentId?: string;
+  creationContext?: Record<string, unknown>;
+  items: FeedbackItemPayload[];
+}
+
 export const mlApi = {
   suggest: (payload: SuggestComponentPayload): Promise<ComponentSuggestionResponseDto> =>
     apiClient.post<ComponentSuggestionResponseDto, SuggestComponentPayload>(
@@ -66,8 +108,45 @@ export const mlApi = {
       payload
     ),
 
+  recordFeedback: (payload: CreateMlFeedbackPayload): Promise<{ success: boolean; recordedCount: number }> =>
+    apiClient.post<{ success: boolean; recordedCount: number }, CreateMlFeedbackPayload>(
+      "/components/suggest/feedback",
+      payload
+    ),
+
+  exportFeedback: (params?: Record<string, string>): Promise<unknown> => {
+    const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
+    return apiClient.get(`/ml/feedback/export${qs}`);
+  },
+
   health: (): Promise<{ status: string; mlServiceEnabled: boolean; mlServiceReachable: boolean }> =>
     apiClient.get<{ status: string; mlServiceEnabled: boolean; mlServiceReachable: boolean }>(
       "/ml/health"
     ),
+
+  getQuarantineRecords: (params?: Record<string, string>): Promise<{
+    items: Array<{
+      id: string;
+      record: Record<string, unknown>;
+      rejectionReasons: string[];
+      quarantineType: string;
+      status: string;
+      reviewerNotes?: string;
+    }>;
+    total: number;
+  }> => {
+    const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
+    return apiClient.get(`/ml/training/quarantine${qs}`);
+  },
+
+  reviewQuarantineRecord: (
+    id: string,
+    payload: {
+      status: "VERIFIED" | "REJECTED" | "NEEDS_REVIEW";
+      reviewerNotes?: string;
+      resolvedCategory?: string;
+      resolvedManufacturer?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> =>
+    apiClient.post(`/ml/training/quarantine/${id}/review`, payload),
 };

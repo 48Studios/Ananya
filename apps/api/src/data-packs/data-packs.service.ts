@@ -24,6 +24,32 @@ export interface DataPackCatalogItem {
   installedAt?: string | null;
 }
 
+export interface DataPackManufacturerHint {
+  name: string;
+  code?: string;
+  prefixPatterns?: string[];
+  aliases?: string[];
+}
+
+export interface DataPackIntelligenceHint {
+  categoryCode?: string;
+  categoryName?: string;
+  aliases?: string[];
+  keywords?: string[];
+  mpnPatterns?: string[];
+  manufacturerHints?: DataPackManufacturerHint[];
+  commonTerminology?: string[];
+  expectedAttributes?: string[];
+  attributeAliases?: Record<string, string[] | undefined>;
+  packagePatterns?: string[];
+  electricalUnitHints?: Record<string, string[] | undefined>;
+  classificationExamples?: Array<{
+    text: string;
+    category: string;
+    subcategory?: string;
+  }>;
+}
+
 export interface DataPackDefinition {
   id: string;
   name: string;
@@ -32,6 +58,7 @@ export interface DataPackDefinition {
   entityType: string;
   recordCount: number;
   rows?: Record<string, unknown>[];
+  intelligence?: DataPackIntelligenceHint[];
 }
 
 const DATA_PACKS: DataPackDefinition[] = [
@@ -169,6 +196,7 @@ const DATA_PACKS: DataPackDefinition[] = [
     description: ELECTRONICS_SMD_PACK.description,
     entityType: ELECTRONICS_SMD_PACK.entityType,
     recordCount: ELECTRONICS_SMD_PACK.recordCount,
+    intelligence: ELECTRONICS_SMD_PACK.intelligence,
   },
   {
     id: 'core-erp',
@@ -527,5 +555,23 @@ export class DataPacksService {
       processedRecords,
       jobId: 'direct-pack-installation',
     };
+  }
+
+  async getActiveIntelligenceHints(): Promise<DataPackIntelligenceHint[]> {
+    const catalog = await this.getCatalog();
+    const installedIds = new Set(
+      catalog.filter((c) => c.isInstalled).map((c) => c.id),
+    );
+
+    // Core electronics pack is active by default for intelligence
+    installedIds.add('electronics-smd');
+
+    const hints: DataPackIntelligenceHint[] = [];
+    for (const pack of DATA_PACKS) {
+      if (installedIds.has(pack.id) && pack.intelligence) {
+        hints.push(...pack.intelligence);
+      }
+    }
+    return hints;
   }
 }

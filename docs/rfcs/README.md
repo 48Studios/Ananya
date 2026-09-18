@@ -228,3 +228,5 @@ Routine feature work, bug fixes, refactoring, implementation details, and small 
 | 0054 | Purchase Planning                   | Accepted |
 | 0055 | Planning Integration                | Accepted |
 | 0056 | Lightweight ML Architecture         | Accepted |
+| 0057 | Component Intelligence Layer v2     | Accepted |
+| 0058 | Authoritative Data Training Pipeline| Accepted |

@@ -419,6 +419,12 @@ export function ComponentForm({
         {suggestion && (
           <AiSuggestionReviewCard
             suggestion={suggestion}
+            creationContext={{
+              sku: watch("sku"),
+              name: watch("name"),
+              description: watch("description") || datasheetInput,
+              query: datasheetInput || watch("sku") || watch("name"),
+            }}
             onApplyAll={handleApplyAllSuggestions}
             onApplyCategory={handleApplyCategory}
             onApplyManufacturer={handleApplyManufacturer}

@@ -1,10 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { EvidenceItemDto } from './dtos';
 
 export interface MlPredictCategoryItem {
   category: string;
   subcategory?: string | null;
   confidence: number;
+  confidence_level?: 'HIGH' | 'MEDIUM' | 'LOW';
   parent_category?: string | null;
+  evidence?: EvidenceItemDto[];
 }
 
 export interface MlSuggestResponse {
@@ -12,8 +15,10 @@ export interface MlSuggestResponse {
   manufacturer: {
     manufacturer: string;
     confidence: number;
+    confidence_level?: 'HIGH' | 'MEDIUM' | 'LOW';
     match_type: string;
     code?: string | null;
+    evidence?: EvidenceItemDto[];
   };
   duplicates: {
     is_duplicate: boolean;
@@ -21,8 +26,10 @@ export interface MlSuggestResponse {
       id: string;
       sku: string;
       similarity: number;
+      confidence_level?: 'HIGH' | 'MEDIUM' | 'LOW';
       match_type: string;
       reason: string;
+      evidence?: EvidenceItemDto[];
     }>;
   };
   extracted_attributes: Record<
@@ -33,8 +40,12 @@ export interface MlSuggestResponse {
       unit?: string | null;
       formatted: string;
       confidence: number;
+      confidence_level?: 'HIGH' | 'MEDIUM' | 'LOW';
+      evidence?: EvidenceItemDto[];
     }
   >;
+  confidence_level?: 'HIGH' | 'MEDIUM' | 'LOW';
+  overall_evidence?: EvidenceItemDto[];
   execution_time_ms: number;
 }
 
@@ -78,6 +89,7 @@ export class MlClientService {
       name?: string;
       description?: string;
     }>;
+    datapack_hints?: unknown[];
   }): Promise<MlSuggestResponse | null> {
     if (!this.isEnabled) return null;
 
@@ -105,6 +117,7 @@ export class MlClientService {
   async extractDatasheet(payload: {
     text?: string;
     pdf_base64?: string;
+    datapack_hints?: unknown[];
   }): Promise<Record<string, unknown> | null> {
     if (!this.isEnabled) return null;
 

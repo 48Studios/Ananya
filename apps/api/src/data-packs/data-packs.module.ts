@@ -6,7 +6,6 @@ import { SecurityAuditModule } from '../security-audit/security-audit.module';
 import { ActivityModule } from '../activity/activity.module';
 
 import { AttributesModule } from '../attributes/attributes.module';
-import { ComponentsModule } from '../components/components.module';
 
 @Module({
   imports: [
@@ -14,7 +13,6 @@ import { ComponentsModule } from '../components/components.module';
     SecurityAuditModule,
     ActivityModule,
     AttributesModule,
-    ComponentsModule,
   ],
   controllers: [DataPacksController],
   providers: [DataPacksService],

@@ -18,6 +18,7 @@ import { MlService } from '../ml/ml.service';
 import {
   SuggestComponentDto,
   ComponentSuggestionResponseDto,
+  CreateMlFeedbackDto,
 } from '../ml/dtos';
 
 @Controller('components')
@@ -33,6 +34,11 @@ export class ComponentsController {
     @Body() input: SuggestComponentDto,
   ): Promise<ComponentSuggestionResponseDto> {
     return this.mlService.suggest(input);
+  }
+
+  @Post('suggest/feedback')
+  recordFeedback(@Body() input: CreateMlFeedbackDto) {
+    return this.mlService.recordFeedback(input);
   }
 
   @Post()

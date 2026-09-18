@@ -1,0 +1,152 @@
+[
+  {
+    "text": "GRM188R71C104KA01D CAP CER 0.1UF 16V X7R 0603 SMD Murata Manufacturing",
+    "category": "Capacitors",
+    "source": "authoritative"
+  },
+  {
+    "text": "GRM188R71C104KA01J CAP CER 0.1UF 16V X7R 0603 330MM REEL Murata Manufacturing",
+    "category": "Capacitors",
+    "source": "authoritative"
+  },
+  {
+    "text": "GRM21BR61A226ME51L CAP CER 22UF 10V X5R 0805 SMD Murata Manufacturing",
+    "category": "Capacitors",
+    "source": "authoritative"
+  },
+  {
+    "text": "C0603C104K5RACTU CAP CER 0.1UF 50V X7R 0603 SMD Kemet Electronics",
+    "category": "Capacitors",
+    "source": "authoritative"
+  },
+  {
+    "text": "RC0805FR-0710KL RES SMD 10K OHM 1% 1/8W 0805 Yageo",
+    "category": "Resistors",
+    "source": "authoritative"
+  },
+  {
+    "text": "RC0805FR0710KL RES SMD 10K OHM 1% 1/8W 0805 Yageo",
+    "category": "Resistors",
+    "source": "authoritative"
+  },
+  {
+    "text": "RC0805FR-07100KL RES SMD 100K OHM 1% 1/8W 0805 Yageo",
+    "category": "Resistors",
+    "source": "authoritative"
+  },
+  {
+    "text": "RC0805FR07100KL RES SMD 100K OHM 1% 1/8W 0805 Yageo",
+    "category": "Resistors",
+    "source": "authoritative"
+  },
+  {
+    "text": "CRCW080510K0FKEA RES SMD 10K OHM 1% 1/8W 0805 Vishay Dale",
+    "category": "Resistors",
+    "source": "authoritative"
+  },
+  {
+    "text": "SWPA4020S100MT IND SMD 10UH 1.5A SHIELDED 4020 Sunlord Electronics",
+    "category": "Inductors",
+    "source": "authoritative"
+  },
+  {
+    "text": "BLM21PG121SN1D FERRITE BEAD 120 OHM 0805 1LN 3A Murata Manufacturing",
+    "category": "Inductors",
+    "source": "authoritative"
+  },
+  {
+    "text": "BLM21PG121SN1D FERRITE BEAD 120\u03a9 0805 1LN 3A Murata Manufacturing",
+    "category": "Inductors",
+    "source": "authoritative"
+  },
+  {
+    "text": "SS34-E3/57T DIODE SCHOTTKY 40V 3A DO214AB SMC Vishay Semiconductors",
+    "category": "Diodes",
+    "source": "authoritative"
+  },
+  {
+    "text": "SS34E357T DIODE SCHOTTKY 40V 3A DO214AB SMC Vishay Semiconductors",
+    "category": "Diodes",
+    "source": "authoritative"
+  },
+  {
+    "text": "BSS138 MOSFET N-CH 50V 220MA SOT-23 onsemi",
+    "category": "Transistors",
+    "source": "authoritative"
+  },
+  {
+    "text": "SI2302CDS-T1-GE3 MOSFET N-CH 20V 2.6A SOT23 Vishay Siliconix",
+    "category": "Transistors",
+    "source": "authoritative"
+  },
+  {
+    "text": "SI2302CDST1GE3 MOSFET N-CH 20V 2.6A SOT23 Vishay Siliconix",
+    "category": "Transistors",
+    "source": "authoritative"
+  },
+  {
+    "text": "STM32F407VGT6 IC MCU 32BIT 1MB FLASH 100LQFP STMicroelectronics",
+    "category": "ICs & Semiconductors",
+    "source": "authoritative"
+  },
+  {
+    "text": "AMS11173.3 IC REG LINEAR 3.3V 1A SOT-223 Advanced Monolithic Systems",
+    "category": "ICs & Semiconductors",
+    "source": "authoritative"
+  },
+  {
+    "text": "AMS1117-3.3 IC REG LINEAR 3.3V 1A SOT-223 Advanced Monolithic Systems",
+    "category": "ICs & Semiconductors",
+    "source": "authoritative"
+  },
+  {
+    "text": "B4B-XH-A(LF)(SN) CONN HEADER VERT 4POS 2.5MM JST",
+    "category": "Connectors",
+    "source": "authoritative"
+  },
+  {
+    "text": "B4BXHA(LF)(SN) CONN HEADER VERT 4POS 2.5MM JST",
+    "category": "Connectors",
+    "source": "authoritative"
+  },
+  {
+    "text": "B3F1000 SWITCH TACTILE SPST-NO 0.05A 24V Omron Electronics",
+    "category": "Switches",
+    "source": "authoritative"
+  },
+  {
+    "text": "B3F-1000 SWITCH TACTILE SPST-NO 0.05A 24V Omron Electronics",
+    "category": "Switches",
+    "source": "authoritative"
+  },
+  {
+    "text": "WP7113ID LED RED DIFFUSED T-1 3/4 T/H 5MM Kingbright",
+    "category": "Optoelectronics",
+    "source": "authoritative"
+  },
+  {
+    "text": "30068-0050 CABLE RIBBON 10COND 1.27MM PITCH 30.5M Molex",
+    "category": "Cables",
+    "source": "authoritative"
+  },
+  {
+    "text": "300680050 CABLE RIBBON 10COND 1.27MM PITCH 30.5M Molex",
+    "category": "Cables",
+    "source": "authoritative"
+  },
+  {
+    "text": "91290A115 M3 X 8MM METRIC SOCKET HEAD SCREW 316 SS McMaster-Carr",
+    "category": "Mechanical Parts",
+    "source": "authoritative"
+  },
+  {
+    "text": "FR41.61OZ FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Shengyi Technology",
+    "category": "Raw Materials",
+    "source": "authoritative"
+  },
+  {
+    "text": "FR4-1.6-1OZ FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Shengyi Technology",
+    "category": "Raw Materials",
+    "source": "authoritative"
+  }
+]

@@ -1,0 +1,29 @@
+{
+  "version": "1.2.0",
+  "created_at": "2026-09-18T03:50:48.977547+00:00",
+  "algorithm": "char_wb_tfidf_logistic_regression",
+  "sample_count": 60,
+  "classes": [
+    "Cables",
+    "Capacitors",
+    "Connectors",
+    "Consumables",
+    "Diodes",
+    "ICs & Semiconductors",
+    "Inductors",
+    "Mechanical Parts",
+    "Optoelectronics",
+    "Raw Materials",
+    "Resistors",
+    "Switches",
+    "Transistors"
+  ],
+  "metrics": {
+    "train_accuracy": 1.0,
+    "val_accuracy": 0.5833,
+    "training_time_seconds": 0.0192,
+    "artifact_size_bytes": 189211
+  },
+  "artifact_path": "apps/ml/models/registry/v1.2.0/category_classifier.pkl",
+  "promoted_to_production": false
+}

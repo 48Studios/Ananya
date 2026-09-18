@@ -1,0 +1,18 @@
+{
+  "model_version": "1.1.0",
+  "evaluation_timestamp": "2026-09-18T04:00:15Z",
+  "category_accuracy_top1": 0.5667,
+  "category_accuracy_top3": 0.6,
+  "manufacturer_resolution_accuracy": 1.0,
+  "duplicate_precision": 1.0,
+  "duplicate_recall": 1.0,
+  "duplicate_false_positives": 0,
+  "inference_latency_ms": {
+    "p50": 0.206,
+    "p95": 0.269,
+    "p99": 0.936
+  },
+  "model_size_kb": 67.0,
+  "peak_ram_mb": 127.5,
+  "quality_gates_passed": false
+}
