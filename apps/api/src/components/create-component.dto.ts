@@ -4,7 +4,42 @@ import {
   IsString,
   MaxLength,
   IsUUID,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class PendingManufacturerDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  code?: string;
+}
+
+class PendingCategoryDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  code?: string;
+
+  @IsOptional()
+  @IsUUID()
+  parentId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string | null;
+}
 
 export class CreateComponentDto {
   @IsOptional()
@@ -34,6 +69,16 @@ export class CreateComponentDto {
   @IsOptional()
   @IsUUID()
   categoryId?: string | undefined;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PendingManufacturerDto)
+  pendingManufacturer?: PendingManufacturerDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PendingCategoryDto)
+  pendingCategory?: PendingCategoryDto;
 
   @IsOptional()
   @IsUUID()

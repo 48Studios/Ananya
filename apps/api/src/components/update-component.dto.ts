@@ -1,6 +1,58 @@
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+
+class PendingManufacturerUpdateDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  code?: string;
+}
+
+class PendingCategoryUpdateDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  code?: string;
+
+  @IsOptional()
+  @IsUUID()
+  parentId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string | null;
+}
 
 export class UpdateComponentDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PendingManufacturerUpdateDto)
+  pendingManufacturer?: PendingManufacturerUpdateDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PendingCategoryUpdateDto)
+  pendingCategory?: PendingCategoryUpdateDto;
+
   @IsOptional()
   @IsString()
   manufacturerPartNumber?: string | null;

@@ -110,6 +110,7 @@ export class ExtractedAttributeDto {
   confidence!: number;
   confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW' = 'HIGH';
   evidence?: EvidenceItemDto[];
+  resolution: 'RESOLVED' | 'UNRESOLVED' = 'RESOLVED';
 }
 
 export class ComponentSuggestionResponseDto {

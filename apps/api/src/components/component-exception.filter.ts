@@ -11,7 +11,13 @@ import {
   InvalidComponentSkuError,
   InvalidComponentNameError,
   InvalidUnitError,
+  AttributeDefinitionNotFoundError,
+  AttributeValueValidationError,
 } from '@ananya/inventory';
+import {
+  InvalidPendingComponentEntityError,
+  PendingComponentEntityConflictError,
+} from './pending-component-entity.errors';
 import type { Response } from 'express';
 
 @Catch(
@@ -21,6 +27,10 @@ import type { Response } from 'express';
   InvalidComponentSkuError,
   InvalidComponentNameError,
   InvalidUnitError,
+  AttributeDefinitionNotFoundError,
+  AttributeValueValidationError,
+  InvalidPendingComponentEntityError,
+  PendingComponentEntityConflictError,
 )
 export class ComponentExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
@@ -42,7 +52,11 @@ export class ComponentExceptionFilter implements ExceptionFilter {
     } else if (
       exception instanceof InvalidComponentSkuError ||
       exception instanceof InvalidComponentNameError ||
-      exception instanceof InvalidUnitError
+      exception instanceof InvalidUnitError ||
+      exception instanceof AttributeDefinitionNotFoundError ||
+      exception instanceof AttributeValueValidationError ||
+      exception instanceof InvalidPendingComponentEntityError ||
+      exception instanceof PendingComponentEntityConflictError
     ) {
       status = HttpStatus.BAD_REQUEST;
       message = exception.message;

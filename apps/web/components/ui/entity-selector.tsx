@@ -45,7 +45,10 @@ export interface EntitySelectorProps {
     resolution: "EXISTING" | "NEW_CANDIDATE" | "UNKNOWN";
     value?: string | null;
   } | null;
-  onCreateSuggestion?: () => Promise<{ value: string; label: string } | null>;
+  pendingOption?: {
+    label: string;
+    sublabel?: string;
+  } | null;
 }
 
 interface OptionItem {
@@ -67,7 +70,7 @@ export function EntitySelector({
   id,
   createParentId,
   aiSuggestion,
-  onCreateSuggestion,
+  pendingOption,
 }: EntitySelectorProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -148,7 +151,8 @@ export function EntitySelector({
         const res = await manufacturersApi.getAll();
         items = res.map((m) => ({
           value: m.id,
-          label: `${m.code} - ${m.name}`,
+          label: m.name,
+          sublabel: m.code.toUpperCase(),
           normalizedLabel: m.name,
         }));
       } else if (entity === "supplier") {
@@ -300,6 +304,12 @@ export function EntitySelector({
   };
 
   const selectedOption = options.find((opt) => opt.value === value);
+  const aiSelectedOption =
+    value && aiSuggestion?.resolution === "EXISTING" && aiSuggestion.value === value
+      ? { label: aiSuggestion.label, sublabel: "" }
+      : null;
+  const displayedOption = selectedOption ?? aiSelectedOption;
+  const hasSelection = Boolean(value || pendingOption);
 
   const defaultPlaceholder = React.useMemo(() => {
     if (placeholder) return placeholder;
@@ -315,10 +325,28 @@ export function EntitySelector({
         className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg border border-input bg-transparent font-normal text-xs h-9 hover:bg-accent transition-colors ${className}`}
       >
         <span className="truncate">
-          {selectedOption ? selectedOption.label : value || defaultPlaceholder}
+          {pendingOption ? (
+            <span className="block truncate min-w-0 text-left">
+              {pendingOption.label}{" "}
+              <span className="inline-flex items-center rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 align-middle text-[9px] font-semibold uppercase tracking-wide text-primary">
+                NEW
+              </span>
+            </span>
+          ) : displayedOption ? (
+            <span className="flex min-w-0 items-center gap-1.5 truncate text-left">
+              <span className="truncate">{displayedOption.label}</span>
+              {displayedOption.sublabel && (
+                <span className="inline-flex shrink-0 items-center rounded-md border border-border bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {displayedOption.sublabel}
+                </span>
+              )}
+            </span>
+          ) : (
+            value || defaultPlaceholder
+          )}
         </span>
         <div className="flex items-center gap-1 ml-2 shrink-0">
-          {clearable && Boolean(value) && !disabled && (
+          {clearable && hasSelection && !disabled && (
             <span
               role="button"
               tabIndex={0}
@@ -355,7 +383,7 @@ export function EntitySelector({
         </div>
 
         <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
-          {clearable && Boolean(value) && (
+          {clearable && hasSelection && (
             <button
               type="button"
               onClick={() => {
@@ -431,23 +459,10 @@ export function EntitySelector({
                 {aiSuggestion.resolution === "EXISTING" ? "Existing record" : "New candidate"}
               </span>
             </button>
-            {aiSuggestion.resolution === "NEW_CANDIDATE" && onCreateSuggestion && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-1 w-full justify-start text-xs text-primary"
-                onClick={async () => {
-                  const created = await onCreateSuggestion();
-                  if (created) {
-                    await loadOptions();
-                    onChange?.(created.value, created.label);
-                    setOpen(false);
-                  }
-                }}
-              >
-                <Plus className="mr-1.5 size-3.5" /> Create &amp; apply
-              </Button>
+            {aiSuggestion.resolution === "NEW_CANDIDATE" && (
+              <div className="mt-1 rounded-md px-2.5 py-1 text-[10px] text-muted-foreground">
+                New • will be created on save
+              </div>
             )}
           </div>
         )}

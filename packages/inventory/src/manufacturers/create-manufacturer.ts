@@ -7,7 +7,7 @@ export class CreateManufacturer {
 
   async execute(input: CreateManufacturerInput): Promise<Manufacturer> {
     // Normalize input for uniqueness check (the aggregate will normalize again)
-    const code = input.code.trim().toLowerCase();
+    const code = input.code.trim().toUpperCase();
 
     const existing = await this.manufacturers.findByCode(code);
 

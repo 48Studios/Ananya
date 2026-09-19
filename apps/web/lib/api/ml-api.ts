@@ -25,6 +25,7 @@ export interface CategorySuggestionDto {
   parentCategoryId?: string | null;
   parentCategoryCode?: string | null;
   suggestedParent?: string | null;
+  proposedDescription?: string | null;
   confidence: number;
   confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
   evidence?: EvidenceItemDto[];
@@ -61,6 +62,7 @@ export interface ExtractedAttributeDto {
   confidence: number;
   confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
   evidence?: EvidenceItemDto[];
+  resolution?: "RESOLVED" | "UNRESOLVED";
 }
 
 export interface ComponentSuggestionResponseDto {

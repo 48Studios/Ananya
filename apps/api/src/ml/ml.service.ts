@@ -105,15 +105,77 @@ function buildCategoryPath(
   return path;
 }
 
-function extractManufacturerPartNumber(input: string): string | undefined {
+export function extractManufacturerPartNumber(
+  input: string,
+  manufacturers: Array<{ name: string; code: string }> = [],
+): string | undefined {
   const token = input.match(/\b[A-Z0-9][A-Z0-9._/-]{4,}\b/i)?.[0];
   if (!token || !/[A-Z]/i.test(token) || !/\d/.test(token)) return undefined;
-  return token.trim().toUpperCase();
+  const manufacturerTerms = manufacturers
+    .flatMap((manufacturer) => [manufacturer.name, manufacturer.code])
+    .filter(Boolean)
+    .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|');
+  const cleaned = manufacturerTerms
+    ? token.replace(
+        new RegExp(`(?:-|_)(?:${manufacturerTerms})(?:-|$).*`, 'i'),
+        '',
+      )
+    : token;
+  return cleaned
+    .replace(/(?:-|_)(?:SMD|SMT|THT|THICK|FILM|RESISTOR|CAPACITOR).*$/i, '')
+    .trim()
+    .toUpperCase();
 }
 
-function composeComponentName(
+export function normalizeExtractedUnit(
+  code: string,
+  unit?: string | null,
+): string | null {
+  if (!unit) return null;
+  const normalized = unit.trim();
+  if (code === 'power' || code === 'power_rating') {
+    if (/^mw$/i.test(normalized)) return 'mW';
+    if (/^kw$/i.test(normalized)) return 'kW';
+    if (/^w$/i.test(normalized)) return 'W';
+  }
+  if (/^ohm$/i.test(normalized)) return 'ohm';
+  if (/^%$/.test(normalized)) return '%';
+  return normalized;
+}
+
+const ATTRIBUTE_CODE_ALIASES: Record<string, string> = {
+  power: 'power_rating',
+  power_rating: 'power_rating',
+  tolerance: 'tolerance',
+  voltage: 'voltage_rating',
+  voltage_rating: 'voltage_rating',
+  current: 'forward_current',
+  package: 'package',
+  mfr_part_number: 'mfr_part_number',
+};
+
+export function resolveAttributeDefinition(
+  key: string,
+  definitions: SimpleAttributeDef[],
+): SimpleAttributeDef | undefined {
+  const normalizedKey = key.trim().toLowerCase();
+  const canonicalCode = ATTRIBUTE_CODE_ALIASES[normalizedKey] || normalizedKey;
+  return definitions.find((definition) => {
+    const aliases = definition.aliases || [];
+    return (
+      definition.code.toLowerCase() === canonicalCode ||
+      definition.code.toLowerCase() === normalizedKey ||
+      definition.name.toLowerCase() === normalizedKey ||
+      aliases.some((alias) => alias.toLowerCase() === normalizedKey)
+    );
+  });
+}
+
+export function composeComponentName(
   attributes: Record<string, ExtractedAttributeDto>,
   category: CategorySuggestionDto | null,
+  sourceText: string,
 ): string | undefined {
   const categoryName = category?.subcategoryName || category?.categoryName;
   const resistance = attributes.resistance?.formatted;
@@ -121,20 +183,39 @@ function composeComponentName(
   const pkg = attributes.package?.formatted;
   const value = resistance || capacitance;
   if (!value && !categoryName) return undefined;
-  return [value, pkg, categoryName || 'Component'].filter(Boolean).join(' ');
+  const lower = sourceText.toLowerCase();
+  const type = categoryName?.replace(/s$/, '') || 'Component';
+  const qualifiers = [
+    /\bsmd\b|\bsmt\b/i.test(lower) ? 'SMD' : undefined,
+    /thick\s+film/i.test(lower) ? 'Thick Film' : undefined,
+  ];
+  return [value, pkg, ...qualifiers, type].filter(Boolean).join(' ');
 }
 
-function composeComponentDescription(
+export function composeComponentDescription(
   attributes: Record<string, ExtractedAttributeDto>,
   category: CategorySuggestionDto | null,
+  sourceText: string,
 ): string | undefined {
-  const facts = Object.values(attributes).map(
-    (attribute) => attribute.formatted,
-  );
+  const facts = [
+    attributes.resistance?.formatted,
+    attributes.tolerance?.formatted
+      ? `±${attributes.tolerance.formatted.replace(/^±/, '')}`
+      : undefined,
+    attributes.power?.formatted || attributes.power_rating?.formatted,
+    attributes.package?.formatted,
+  ].filter(Boolean);
   if (facts.length === 0 && !category?.subcategoryName) return undefined;
   const categoryName = category?.subcategoryName || category?.categoryName;
-  const factText = facts.join(' ');
-  return `${factText}${factText && categoryName ? ' ' : ''}${categoryName || ''}.`;
+  const lower = sourceText.toLowerCase();
+  const qualifiers = [
+    /thick\s+film/i.test(lower) ? 'thick-film' : undefined,
+    /\bgeneral\s+purpose\b/i.test(lower)
+      ? 'for general-purpose applications'
+      : undefined,
+  ].filter(Boolean);
+  const type = categoryName?.replace(/s$/, '').toLowerCase();
+  return `${facts.join(' ')}${qualifiers.length ? ` ${qualifiers.join(' ')}` : ''}${type ? ` ${type}` : ''}.`;
 }
 
 @Injectable()
@@ -151,11 +232,8 @@ export class MlService {
   ): Promise<ComponentSuggestionResponseDto> {
     const t0 = performance.now();
     const query = dto.query.trim();
-    const partNumber = (
-      dto.partNumber ||
-      extractManufacturerPartNumber(query) ||
-      query
-    ).trim();
+    const requestedPartNumber = dto.partNumber?.trim();
+    let partNumber = (requestedPartNumber || query).trim();
     const description = (dto.description || query).trim();
 
     // 1. Fetch reference lookups from database and active Data Pack hints
@@ -186,6 +264,15 @@ export class MlService {
     const categoryMap = new Map(
       allCategories.map((category) => [category.id, category]),
     );
+
+    partNumber = (
+      extractManufacturerPartNumber(
+        requestedPartNumber || query,
+        allManufacturers,
+      ) ||
+      requestedPartNumber ||
+      query
+    ).trim();
 
     // 2. Try ananya-ml microservice first with dynamic Data Pack hints
     let isMlActive = false;
@@ -251,11 +338,17 @@ export class MlService {
         const item: CategorySuggestionDto = {
           resolution:
             pred.resolution || (matchedCat ? 'EXISTING' : 'NEW_CANDIDATE'),
-          categoryId: pred.category_id || matchedCat?.id || null,
+          categoryId:
+            matchedCat?.id ||
+            (pred.resolution === 'EXISTING' ? pred.category_id || null : null),
           categoryCode: pred.category_code || matchedCat?.code,
           categoryName: pred.category,
-          subcategoryId:
-            pred.category_id || (matchedCat?.parentId ? matchedCat.id : null),
+          subcategoryId: matchedCat?.parentId
+            ? matchedCat.id
+            : matchedCat?.id ||
+              (pred.resolution === 'EXISTING'
+                ? pred.category_id || null
+                : null),
           subcategoryCode:
             pred.category_code ||
             (matchedCat?.parentId ? matchedCat.code : undefined),
@@ -263,7 +356,7 @@ export class MlService {
           categoryPath:
             pred.category_path ||
             (matchedCat ? buildCategoryPath(matchedCat.id, categoryMap) : []),
-          parentCategoryId: pred.parent_category_id || matchedCat?.parentId,
+          parentCategoryId: matchedCat?.parentId || pred.parent_category_id,
           parentCategoryCode: pred.parent_category_code,
           suggestedParent: pred.suggested_parent,
           proposedDescription: pred.proposed_description,
@@ -532,20 +625,21 @@ export class MlService {
       }
     }
 
-    const dbMfg = mfgId
-      ? allManufacturers.find((manufacturer) => manufacturer.id === mfgId)
-      : allManufacturers.find(
-          (manufacturer) =>
-            mfgName &&
-            (manufacturer.name.toLowerCase() === mfgName.toLowerCase() ||
-              manufacturer.code.toLowerCase() === mfgName.toLowerCase()),
-        );
+    const resolvedManufacturer =
+      (mfgId &&
+        allManufacturers.find((manufacturer) => manufacturer.id === mfgId)) ||
+      allManufacturers.find(
+        (manufacturer) =>
+          Boolean(mfgName) &&
+          (manufacturer.name.toLowerCase() === mfgName!.toLowerCase() ||
+            manufacturer.code.toLowerCase() === mfgName!.toLowerCase()),
+      );
 
     manufacturerSuggestion = {
-      resolution: dbMfg ? 'EXISTING' : mfgResolution,
-      manufacturerId: dbMfg?.id || mfgId,
-      manufacturerCode: dbMfg?.code || mfgCode,
-      manufacturerName: mfgName,
+      resolution: resolvedManufacturer ? 'EXISTING' : mfgResolution,
+      manufacturerId: resolvedManufacturer?.id || null,
+      manufacturerCode: resolvedManufacturer?.code || mfgCode,
+      manufacturerName: resolvedManufacturer?.name || mfgName,
       confidence: mfgConf,
       confidenceLevel: mfgConfLevel,
       matchType: mfgType,
@@ -612,18 +706,26 @@ export class MlService {
       : this.extractAttributesFallback(query);
 
     for (const [key, raw] of Object.entries(rawAttrs)) {
-      const dbDef = allAttributes.find(
-        (a) =>
-          a.code.toLowerCase() === key.toLowerCase() ||
-          a.name.toLowerCase() === key.toLowerCase(),
-      );
+      const dbDef = resolveAttributeDefinition(key, allAttributes);
+      const normalizedUnit = normalizeExtractedUnit(key, raw.unit);
+      const numericValue =
+        (key === 'power' || key === 'power_rating') &&
+        typeof raw.value === 'string' &&
+        /^\d+(?:\.\d+)?$/.test(raw.value)
+          ? Number(raw.value)
+          : raw.value;
+      const formatted =
+        key === 'power' && normalizedUnit
+          ? `${numericValue}${normalizedUnit}`
+          : raw.formatted;
 
       resolvedAttributes[key] = {
         code: key,
         attributeDefinitionId: dbDef?.id || null,
-        value: raw.value,
-        unit: raw.unit || null,
-        formatted: raw.formatted,
+        value: numericValue,
+        unit: normalizedUnit,
+        formatted,
+        resolution: dbDef ? 'RESOLVED' : 'UNRESOLVED',
         confidence: raw.confidence,
         confidenceLevel: raw.confidence_level || 'HIGH',
         evidence: raw.evidence || [
@@ -668,10 +770,12 @@ export class MlService {
     const suggestedName = composeComponentName(
       resolvedAttributes,
       primaryCategory,
+      description,
     );
     const suggestedDescription = composeComponentDescription(
       resolvedAttributes,
       primaryCategory,
+      description,
     );
 
     return {

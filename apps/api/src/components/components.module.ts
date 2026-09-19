@@ -4,16 +4,20 @@ import { DrizzleComponentRepository } from '../infrastructure/repositories/drizz
 import { ComponentsController } from './components.controller';
 import { ComponentsService } from './components.service';
 import { ComponentSkuService } from './component-sku.service';
+import { PendingComponentEntityService } from './pending-component-entity.service';
 
 import { AttributesModule } from '../attributes/attributes.module';
 import { MlModule } from '../ml/ml.module';
+import { ManufacturersModule } from '../manufacturers/manufacturers.module';
+import { CategoriesModule } from '../categories/categories.module';
 
 @Module({
-  imports: [AttributesModule, MlModule],
+  imports: [AttributesModule, MlModule, ManufacturersModule, CategoriesModule],
   controllers: [ComponentsController],
   providers: [
     ComponentsService,
     ComponentSkuService,
+    PendingComponentEntityService,
     {
       provide: COMPONENT_REPOSITORY,
       useClass: DrizzleComponentRepository,

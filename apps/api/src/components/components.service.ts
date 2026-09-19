@@ -13,6 +13,11 @@ import {
 import { COMPONENT_REPOSITORY } from './component.tokens';
 import { AttributesService } from '../attributes/attributes.service';
 import { ComponentSkuService } from './component-sku.service';
+import {
+  PendingComponentEntityService,
+  type PendingCategoryInput,
+  type PendingManufacturerInput,
+} from './pending-component-entity.service';
 
 interface RawAttributeObject {
   attributeDefinitionId?: string;
@@ -90,6 +95,7 @@ export class ComponentsService {
     private readonly repository: ComponentRepository,
     private readonly attributesService: AttributesService,
     private readonly componentSkuService: ComponentSkuService,
+    private readonly pendingEntityService: PendingComponentEntityService,
   ) {
     this.createComponentUseCase = new CreateComponent(
       repository,
@@ -102,9 +108,22 @@ export class ComponentsService {
   async create(
     input: CreateComponentInput & {
       attributes?: Record<string, any> | Array<any>;
+      pendingManufacturer?: PendingManufacturerInput;
+      pendingCategory?: PendingCategoryInput;
     },
   ): Promise<Component & { attributes?: Record<string, any> }> {
-    const component = await this.createComponentUseCase.execute(input);
+    const resolvedInput = {
+      ...input,
+      manufacturerId: await this.pendingEntityService.resolveManufacturer(
+        input.manufacturerId,
+        input.pendingManufacturer,
+      ),
+      categoryId: await this.pendingEntityService.resolveCategory(
+        input.categoryId,
+        input.pendingCategory,
+      ),
+    };
+    const component = await this.createComponentUseCase.execute(resolvedInput);
 
     if (input.attributes) {
       const formatted = normalizeAttributeInputs(input.attributes);
@@ -126,9 +145,25 @@ export class ComponentsService {
     id: string,
     input: UpdateComponentInput & {
       attributes?: Record<string, any> | Array<any>;
+      pendingManufacturer?: PendingManufacturerInput;
+      pendingCategory?: PendingCategoryInput;
     },
   ): Promise<Component & { attributes?: Record<string, any> }> {
-    const component = await this.updateComponentUseCase.execute(id, input);
+    const resolvedInput = {
+      ...input,
+      manufacturerId: await this.pendingEntityService.resolveManufacturer(
+        input.manufacturerId,
+        input.pendingManufacturer,
+      ),
+      categoryId: await this.pendingEntityService.resolveCategory(
+        input.categoryId,
+        input.pendingCategory,
+      ),
+    };
+    const component = await this.updateComponentUseCase.execute(
+      id,
+      resolvedInput,
+    );
 
     if (input.attributes) {
       const formatted = normalizeAttributeInputs(input.attributes);

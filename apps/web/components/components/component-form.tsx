@@ -36,8 +36,6 @@ import {
   attributesApi,
   type ResolvedCategoryAttributeDto,
 } from "@/lib/api/attributes-api";
-import { manufacturersApi } from "@/lib/api/manufacturers-api";
-import { categoriesApi } from "@/lib/api/categories-api";
 
 const componentSchema = z.object({
   sku: z
@@ -64,6 +62,18 @@ interface ComponentFormProps {
   initialData?: ComponentDto | null;
   onSuccess: (savedComponent: ComponentDto) => void;
   onCancel: () => void;
+}
+
+interface PendingManufacturer {
+  name: string;
+  code?: string;
+}
+
+interface PendingCategory {
+  name: string;
+  code?: string;
+  parentId?: string | null;
+  description?: string | null;
 }
 
 const COMPATIBLE_UNITS: Record<string, string[]> = {
@@ -107,6 +117,10 @@ export function ComponentForm({
   const [loadingAi, setLoadingAi] = React.useState(false);
   const [showDatasheetBox, setShowDatasheetBox] = React.useState(false);
   const [datasheetInput, setDatasheetInput] = React.useState("");
+  const [pendingManufacturer, setPendingManufacturer] =
+    React.useState<PendingManufacturer | null>(null);
+  const [pendingCategory, setPendingCategory] =
+    React.useState<PendingCategory | null>(null);
 
   const {
     register,
@@ -152,6 +166,8 @@ export function ComponentForm({
       unit: initialData?.unit ?? "pcs",
       defaultLocationId: initialData?.defaultLocationId ?? "",
     });
+    setPendingManufacturer(null);
+    setPendingCategory(null);
 
     if (initialData?.attributes) {
       const initialAttrs: Record<
@@ -261,6 +277,70 @@ export function ComponentForm({
     });
   };
 
+  const applyEntitySuggestions = (
+    nextSuggestion: ComponentSuggestionResponseDto,
+    force = false,
+  ) => {
+    const currentManufacturerId = watch("manufacturerId");
+    const currentCategoryId = watch("categoryId");
+
+    if (
+      nextSuggestion.manufacturer &&
+      (force || (!currentManufacturerId && !pendingManufacturer))
+    ) {
+      if (
+        nextSuggestion.manufacturer.resolution === "EXISTING" &&
+        nextSuggestion.manufacturer.manufacturerId
+      ) {
+        setValue("manufacturerId", nextSuggestion.manufacturer.manufacturerId, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+        setPendingManufacturer(null);
+      } else if (nextSuggestion.manufacturer.resolution === "NEW_CANDIDATE") {
+        setValue("manufacturerId", null, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+        setPendingManufacturer({
+          name: nextSuggestion.manufacturer.manufacturerName,
+          code: nextSuggestion.manufacturer.manufacturerCode,
+        });
+      }
+    }
+
+    if (
+      nextSuggestion.category &&
+      (force || (!currentCategoryId && !pendingCategory))
+    ) {
+      if (
+        nextSuggestion.category.resolution === "EXISTING" &&
+        nextSuggestion.category.categoryId
+      ) {
+        setValue("categoryId", nextSuggestion.category.categoryId, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+        setPendingCategory(null);
+      } else if (nextSuggestion.category.resolution === "NEW_CANDIDATE") {
+        setValue("categoryId", null, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+        setPendingCategory({
+          name:
+            nextSuggestion.category.subcategoryName ||
+            nextSuggestion.category.categoryName,
+          code:
+            nextSuggestion.category.subcategoryCode ||
+            nextSuggestion.category.categoryCode,
+          parentId: nextSuggestion.category.parentCategoryId ?? null,
+          description: nextSuggestion.category.proposedDescription ?? null,
+        });
+      }
+    }
+  };
+
   const handleFetchAiSuggestions = async (overrideQuery?: string) => {
     const q = overrideQuery || datasheetInput || watch("manufacturerPartNumber") || watch("name");
     if (!q || q.trim().length === 0) return;
@@ -275,6 +355,7 @@ export function ComponentForm({
         datasheetText: datasheetInput || undefined,
       });
       setSuggestion(res);
+      applyEntitySuggestions(res);
     } catch (err: unknown) {
       console.warn("AI suggestion fetch failed:", err);
     } finally {
@@ -284,6 +365,8 @@ export function ComponentForm({
 
   const handleApplyAllSuggestions = () => {
     if (!suggestion) return;
+
+    applyEntitySuggestions(suggestion, true);
 
     if (suggestion.manufacturerPartNumber) {
       setValue("manufacturerPartNumber", suggestion.manufacturerPartNumber, {
@@ -298,12 +381,6 @@ export function ComponentForm({
         shouldDirty: true,
       });
     }
-    if (suggestion.category?.categoryId) {
-      setValue("categoryId", suggestion.category.categoryId, { shouldValidate: true });
-    }
-    if (suggestion.manufacturer?.manufacturerId) {
-      setValue("manufacturerId", suggestion.manufacturer.manufacturerId, { shouldValidate: true });
-    }
     if (suggestion.suggestedUnit) {
       setValue("unit", suggestion.suggestedUnit, { shouldValidate: true });
     }
@@ -312,6 +389,9 @@ export function ComponentForm({
       setAttrValues((prev) => {
         const next = { ...prev };
         for (const [code, attr] of Object.entries(suggestion.attributes)) {
+          if (attr.resolution === "UNRESOLVED" || !attr.attributeDefinitionId) {
+            continue;
+          }
           next[code] = {
             attributeDefinitionId: attr.attributeDefinitionId,
             value: attr.value,
@@ -325,44 +405,15 @@ export function ComponentForm({
   };
 
   const handleApplyCategory = () => {
-    if (suggestion?.category?.categoryId) {
-      setValue("categoryId", suggestion.category.categoryId, { shouldValidate: true });
+    if (suggestion) {
+      applyEntitySuggestions({ ...suggestion, manufacturer: null }, true);
     }
   };
 
   const handleApplyManufacturer = () => {
-    if (suggestion?.manufacturer?.manufacturerId) {
-      setValue("manufacturerId", suggestion.manufacturer.manufacturerId, { shouldValidate: true });
+    if (suggestion) {
+      applyEntitySuggestions({ ...suggestion, category: null }, true);
     }
-  };
-
-  const createSuggestedManufacturer = async () => {
-    const name = suggestion?.manufacturer?.manufacturerName?.trim();
-    if (!name) return null;
-    const existing = (await manufacturersApi.getAll()).find(
-      (manufacturer) => manufacturer.name.trim().toLowerCase() === name.toLowerCase(),
-    );
-    if (existing) return { value: existing.id, label: `${existing.code} - ${existing.name}` };
-    const code = name.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 50);
-    const created = await manufacturersApi.create({ code, name });
-    return { value: created.id, label: `${created.code} - ${created.name}` };
-  };
-
-  const createSuggestedCategory = async () => {
-    const name = suggestion?.category?.subcategoryName || suggestion?.category?.categoryName;
-    if (!name?.trim()) return null;
-    const categories = await categoriesApi.getAll();
-    const existing = categories.find(
-      (category) => category.name.trim().toLowerCase() === name.trim().toLowerCase(),
-    );
-    if (existing) return { value: existing.id, label: `${existing.code} - ${existing.name}` };
-    const code = name.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 50);
-    const created = await categoriesApi.create({
-      code,
-      name: name.trim(),
-      parentId: suggestion?.category?.parentCategoryId || null,
-    });
-    return { value: created.id, label: `${created.code} - ${created.name}` };
   };
 
   const handleApplyAttributes = (attrs: Record<string, unknown>) => {
@@ -373,7 +424,11 @@ export function ComponentForm({
           value?: unknown;
           unit?: string | null;
           attributeDefinitionId?: string | null;
+          resolution?: "RESOLVED" | "UNRESOLVED";
         };
+        if (attr.resolution === "UNRESOLVED" || !attr.attributeDefinitionId) {
+          continue;
+        }
         next[code] = {
           attributeDefinitionId: attr.attributeDefinitionId,
           value: attr.value,
@@ -429,9 +484,17 @@ export function ComponentForm({
           manufacturerId: values.manufacturerId || null,
           unit: values.unit,
           defaultLocationId: values.defaultLocationId || null,
-          attributes: attrValues,
+          pendingManufacturer,
+          pendingCategory,
+          attributes: Object.fromEntries(
+            Object.entries(attrValues).filter(
+              ([, attribute]) => Boolean(attribute.attributeDefinitionId),
+            ),
+          ),
         };
         const updated = await componentsApi.update(initialData.id, payload);
+        setPendingManufacturer(null);
+        setPendingCategory(null);
         onSuccess(updated);
       } else {
         const payload: CreateComponentPayload = {
@@ -443,9 +506,17 @@ export function ComponentForm({
           manufacturerId: values.manufacturerId || null,
           unit: values.unit,
           defaultLocationId: values.defaultLocationId || null,
-          attributes: attrValues,
+          pendingManufacturer,
+          pendingCategory,
+          attributes: Object.fromEntries(
+            Object.entries(attrValues).filter(
+              ([, attribute]) => Boolean(attribute.attributeDefinitionId),
+            ),
+          ),
         };
         const created = await componentsApi.create(payload);
+        setPendingManufacturer(null);
+        setPendingCategory(null);
         onSuccess(created);
       }
     } catch (err: unknown) {
@@ -668,7 +739,10 @@ export function ComponentForm({
                   id="component-category"
                   entity="category"
                   value={field.value ?? null}
-                  onChange={(val) => field.onChange(val)}
+                  onChange={(val) => {
+                    setPendingCategory(null);
+                    field.onChange(val);
+                  }}
                   placeholder="Select or search category..."
                   creatable
                   clearable
@@ -678,7 +752,12 @@ export function ComponentForm({
                     resolution: suggestion.category.resolution,
                     value: suggestion.category.categoryId,
                   } : null}
-                  onCreateSuggestion={createSuggestedCategory}
+                  pendingOption={pendingCategory ? {
+                    label: pendingCategory.name,
+                    sublabel: pendingCategory.parentId
+                      ? "New • will be created on save"
+                      : "New • will be created on save",
+                  } : null}
                 />
               )}
             />
@@ -700,7 +779,10 @@ export function ComponentForm({
                   id="component-manufacturer"
                   entity="manufacturer"
                   value={field.value ?? null}
-                  onChange={(val) => field.onChange(val)}
+                  onChange={(val) => {
+                    setPendingManufacturer(null);
+                    field.onChange(val);
+                  }}
                   placeholder="Select or search manufacturer..."
                   creatable
                   clearable
@@ -709,7 +791,10 @@ export function ComponentForm({
                     resolution: suggestion.manufacturer.resolution,
                     value: suggestion.manufacturer.manufacturerId,
                   } : null}
-                  onCreateSuggestion={createSuggestedManufacturer}
+                  pendingOption={pendingManufacturer ? {
+                    label: pendingManufacturer.name,
+                    sublabel: "New • will be created on save",
+                  } : null}
                 />
               )}
             />

@@ -1,5 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MlService } from './ml.service';
+import {
+  MlService,
+  composeComponentDescription,
+  composeComponentName,
+  extractManufacturerPartNumber,
+  normalizeExtractedUnit,
+  resolveAttributeDefinition,
+} from './ml.service';
 import { MlClientService } from './ml-client.service';
 
 jest.mock('@ananya/database', () => {
@@ -74,6 +81,47 @@ describe('MlService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('extracts the MPN without manufacturer or product suffixes', () => {
+    expect(
+      extractManufacturerPartNumber('RC0805FR-0727RL-YAGEO-SMD Chip Resistor', [
+        { name: 'Yageo', code: 'YAGEO' },
+      ]),
+    ).toBe('RC0805FR-0727RL');
+  });
+
+  it('preserves milli-watt units and resolves ML attribute aliases', () => {
+    expect(normalizeExtractedUnit('power', 'MW')).toBe('mW');
+    expect(
+      resolveAttributeDefinition('power', [
+        { id: 'power-id', code: 'power_rating', name: 'Power Rating' },
+      ])?.id,
+    ).toBe('power-id');
+  });
+
+  it('composes singular component prose from extracted facts', () => {
+    const attributes = {
+      resistance: { formatted: '27Ω' },
+      tolerance: { formatted: '1%' },
+      power: { formatted: '125mW' },
+      package: { formatted: '0805' },
+    } as never;
+    const category = {
+      categoryName: 'Electronic Components',
+      subcategoryName: 'Resistors',
+    } as never;
+
+    expect(composeComponentName(attributes, category, 'SMD thick film')).toBe(
+      '27Ω 0805 SMD Thick Film Resistor',
+    );
+    expect(
+      composeComponentDescription(
+        attributes,
+        category,
+        'SMD thick film general purpose',
+      ),
+    ).toContain('125mW');
   });
 
   it('should resolve suggestion using microservice response when online', async () => {

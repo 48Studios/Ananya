@@ -731,6 +731,9 @@ export function AiSuggestionReviewCard({
                   >
                     <span className="text-muted-foreground uppercase text-[10px] tracking-wide">{code}:</span>
                     <span className="font-semibold">{attr.formatted}</span>
+                      {attr.resolution === "UNRESOLVED" && (
+                        <span className="text-[10px] text-amber-600">Unresolved</span>
+                      )}
                     {isAccepted ? (
                       <Check className="size-3 text-emerald-400" />
                     ) : (

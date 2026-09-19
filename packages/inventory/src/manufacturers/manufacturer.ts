@@ -46,7 +46,7 @@ export class Manufacturer {
    * Owns identity generation, timestamps, defaults, normalization, and invariants.
    */
   public static create(input: CreateManufacturerInput): Manufacturer {
-    const code = input.code.trim().toLowerCase();
+    const code = input.code.trim().toUpperCase();
     const name = input.name.trim();
 
     if (!code) {
@@ -76,7 +76,7 @@ export class Manufacturer {
    */
   public update(input: UpdateManufacturerInput): Manufacturer {
     const code =
-      input.code !== undefined ? input.code.trim().toLowerCase() : this.code;
+      input.code !== undefined ? input.code.trim().toUpperCase() : this.code;
     const name = input.name !== undefined ? input.name.trim() : this.name;
 
     if (!code) {

@@ -27,6 +27,13 @@ export interface CreateComponentPayload {
   description?: string | null;
   manufacturerId?: string | null;
   categoryId?: string | null;
+  pendingManufacturer?: { name: string; code?: string } | null;
+  pendingCategory?: {
+    name: string;
+    code?: string;
+    parentId?: string | null;
+    description?: string | null;
+  } | null;
   defaultLocationId?: string | null;
   unit: string;
   attributes?: Record<string, unknown> | SetComponentAttributeItem[];
@@ -38,6 +45,13 @@ export interface UpdateComponentPayload {
   description?: string | null;
   manufacturerId?: string | null;
   categoryId?: string | null;
+  pendingManufacturer?: { name: string; code?: string } | null;
+  pendingCategory?: {
+    name: string;
+    code?: string;
+    parentId?: string | null;
+    description?: string | null;
+  } | null;
   defaultLocationId?: string | null;
   unit?: string;
   isActive?: boolean;
