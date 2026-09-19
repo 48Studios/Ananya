@@ -22,6 +22,9 @@ export interface CategorySuggestionDto {
   subcategoryId?: string | null;
   subcategoryCode?: string;
   subcategoryName?: string | null;
+  parentCategoryId?: string | null;
+  parentCategoryCode?: string | null;
+  suggestedParent?: string | null;
   confidence: number;
   confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
   evidence?: EvidenceItemDto[];

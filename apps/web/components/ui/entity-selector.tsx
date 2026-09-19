@@ -31,20 +31,28 @@ export type EntityType =
 
 export interface EntitySelectorProps {
   entity: EntityType;
-  value?: string;
-  onChange?: (value: string, label?: string) => void;
+  value?: string | null;
+  onChange?: (value: string | null, label?: string) => void;
   placeholder?: string;
   disabled?: boolean;
   creatable?: boolean;
   clearable?: boolean;
   className?: string;
   id?: string;
+  createParentId?: string | null;
+  aiSuggestion?: {
+    label: string;
+    resolution: "EXISTING" | "NEW_CANDIDATE" | "UNKNOWN";
+    value?: string | null;
+  } | null;
+  onCreateSuggestion?: () => Promise<{ value: string; label: string } | null>;
 }
 
 interface OptionItem {
   value: string;
   label: string;
   sublabel?: string;
+  normalizedLabel?: string;
 }
 
 export function EntitySelector({
@@ -57,6 +65,9 @@ export function EntitySelector({
   clearable = true,
   className = "",
   id,
+  createParentId,
+  aiSuggestion,
+  onCreateSuggestion,
 }: EntitySelectorProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -115,15 +126,30 @@ export function EntitySelector({
         }));
       } else if (entity === "category") {
         const res = await categoriesApi.getAll();
+        const byId = new Map(res.map((category) => [category.id, category]));
+        const getPath = (category: (typeof res)[number]) => {
+          const path: string[] = [category.name];
+          let parentId = category.parentId;
+          while (parentId) {
+            const parent = byId.get(parentId);
+            if (!parent) break;
+            path.unshift(parent.name);
+            parentId = parent.parentId;
+          }
+          return path.join(" → ");
+        };
         items = res.map((c) => ({
           value: c.id,
-          label: `${c.code} - ${c.name}`,
+          label: getPath(c),
+          sublabel: c.code,
+          normalizedLabel: c.name,
         }));
       } else if (entity === "manufacturer") {
         const res = await manufacturersApi.getAll();
         items = res.map((m) => ({
           value: m.id,
           label: `${m.code} - ${m.name}`,
+          normalizedLabel: m.name,
         }));
       } else if (entity === "supplier") {
         const res = await suppliersApi.getAll();
@@ -184,7 +210,10 @@ export function EntitySelector({
     if (!search.trim()) return true;
     const q = search.toLowerCase().trim();
     return options.some(
-      (opt) => opt.label.toLowerCase() === q || opt.value.toLowerCase() === q,
+      (opt) =>
+        opt.label.toLowerCase() === q ||
+        opt.normalizedLabel?.toLowerCase() === q ||
+        opt.value.toLowerCase() === q,
     );
   }, [options, search]);
 
@@ -208,7 +237,11 @@ export function EntitySelector({
         createdLabel = newUnit.name;
       } else if (entity === "category") {
         const code = query.toUpperCase().replace(/\s+/g, "-").slice(0, 10);
-        const newCat = await categoriesApi.create({ code, name: query });
+        const newCat = await categoriesApi.create({
+          code,
+          name: query,
+          parentId: createParentId ?? null,
+        });
         createdVal = newCat.id;
         createdLabel = `${newCat.code} - ${newCat.name}`;
       } else if (entity === "manufacturer") {
@@ -256,9 +289,7 @@ export function EntitySelector({
       }
 
       await loadOptions();
-      if (onChange) {
-        onChange(createdVal, createdLabel);
-      }
+      if (onChange) onChange(createdVal, createdLabel);
       setSearch("");
       setOpen(false);
     } catch (err: unknown) {
@@ -294,12 +325,12 @@ export function EntitySelector({
               title="Clear selection"
               onClick={(e) => {
                 e.stopPropagation();
-                if (onChange) onChange("", "");
+                if (onChange) onChange(null, "");
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.stopPropagation();
-                  if (onChange) onChange("", "");
+                  if (onChange) onChange(null, "");
                 }
               }}
               className="p-0.5 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -328,7 +359,7 @@ export function EntitySelector({
             <button
               type="button"
               onClick={() => {
-                if (onChange) onChange("", "");
+                if (onChange) onChange(null, "");
                 setOpen(false);
               }}
               className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left transition-colors text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive italic border-b border-border/50 mb-1"
@@ -379,6 +410,47 @@ export function EntitySelector({
             })
           )}
         </div>
+
+        {aiSuggestion && aiSuggestion.resolution !== "UNKNOWN" && (
+          <div className="border-t border-border pt-2">
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              AI suggested
+            </div>
+            <button
+              type="button"
+              className="w-full rounded-md border border-primary/30 bg-primary/5 px-2.5 py-2 text-left text-xs hover:bg-primary/10"
+              onClick={() => {
+                if (aiSuggestion.value) {
+                  onChange?.(aiSuggestion.value, aiSuggestion.label);
+                  setOpen(false);
+                }
+              }}
+            >
+              <span className="block font-medium">{aiSuggestion.label}</span>
+              <span className="text-[10px] text-muted-foreground">
+                {aiSuggestion.resolution === "EXISTING" ? "Existing record" : "New candidate"}
+              </span>
+            </button>
+            {aiSuggestion.resolution === "NEW_CANDIDATE" && onCreateSuggestion && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="mt-1 w-full justify-start text-xs text-primary"
+                onClick={async () => {
+                  const created = await onCreateSuggestion();
+                  if (created) {
+                    await loadOptions();
+                    onChange?.(created.value, created.label);
+                    setOpen(false);
+                  }
+                }}
+              >
+                <Plus className="mr-1.5 size-3.5" /> Create &amp; apply
+              </Button>
+            )}
+          </div>
+        )}
 
         {canCreate && search.trim() && !exactMatch && (
           <div className="pt-2 border-t border-border">

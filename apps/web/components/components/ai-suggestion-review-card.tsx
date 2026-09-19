@@ -768,7 +768,7 @@ export function AiSuggestionReviewCard({
       <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-primary/15">
         <span className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-background/80 px-2.5 text-[11px] font-mono text-muted-foreground border border-border">
           <Cpu className="size-3 text-primary" />
-          {suggestion.isMlActive ? "ananya-ml CPU" : "Deterministic Engine"} • {suggestion.executionTimeMs}ms
+          {suggestion.isMlActive ? "Ananya ML" : "Deterministic Engine"} • {suggestion.executionTimeMs}ms
         </span>
 
         <Button

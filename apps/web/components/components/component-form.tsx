@@ -36,6 +36,8 @@ import {
   attributesApi,
   type ResolvedCategoryAttributeDto,
 } from "@/lib/api/attributes-api";
+import { manufacturersApi } from "@/lib/api/manufacturers-api";
+import { categoriesApi } from "@/lib/api/categories-api";
 
 const componentSchema = z.object({
   sku: z
@@ -121,8 +123,8 @@ export function ComponentForm({
       manufacturerPartNumber: initialData?.manufacturerPartNumber ?? "",
       name: initialData?.name ?? "",
       description: initialData?.description ?? "",
-      categoryId: initialData?.categoryId ?? "",
-      manufacturerId: initialData?.manufacturerId ?? "",
+      categoryId: initialData?.categoryId ?? null,
+      manufacturerId: initialData?.manufacturerId ?? null,
       unit: initialData?.unit ?? "pcs",
       defaultLocationId: initialData?.defaultLocationId ?? "",
     },
@@ -145,8 +147,8 @@ export function ComponentForm({
       manufacturerPartNumber: initialData?.manufacturerPartNumber ?? "",
       name: initialData?.name ?? "",
       description: initialData?.description ?? "",
-      categoryId: initialData?.categoryId ?? "",
-      manufacturerId: initialData?.manufacturerId ?? "",
+      categoryId: initialData?.categoryId ?? null,
+      manufacturerId: initialData?.manufacturerId ?? null,
       unit: initialData?.unit ?? "pcs",
       defaultLocationId: initialData?.defaultLocationId ?? "",
     });
@@ -332,6 +334,35 @@ export function ComponentForm({
     if (suggestion?.manufacturer?.manufacturerId) {
       setValue("manufacturerId", suggestion.manufacturer.manufacturerId, { shouldValidate: true });
     }
+  };
+
+  const createSuggestedManufacturer = async () => {
+    const name = suggestion?.manufacturer?.manufacturerName?.trim();
+    if (!name) return null;
+    const existing = (await manufacturersApi.getAll()).find(
+      (manufacturer) => manufacturer.name.trim().toLowerCase() === name.toLowerCase(),
+    );
+    if (existing) return { value: existing.id, label: `${existing.code} - ${existing.name}` };
+    const code = name.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 50);
+    const created = await manufacturersApi.create({ code, name });
+    return { value: created.id, label: `${created.code} - ${created.name}` };
+  };
+
+  const createSuggestedCategory = async () => {
+    const name = suggestion?.category?.subcategoryName || suggestion?.category?.categoryName;
+    if (!name?.trim()) return null;
+    const categories = await categoriesApi.getAll();
+    const existing = categories.find(
+      (category) => category.name.trim().toLowerCase() === name.trim().toLowerCase(),
+    );
+    if (existing) return { value: existing.id, label: `${existing.code} - ${existing.name}` };
+    const code = name.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 50);
+    const created = await categoriesApi.create({
+      code,
+      name: name.trim(),
+      parentId: suggestion?.category?.parentCategoryId || null,
+    });
+    return { value: created.id, label: `${created.code} - ${created.name}` };
   };
 
   const handleApplyAttributes = (attrs: Record<string, unknown>) => {
@@ -636,11 +667,18 @@ export function ComponentForm({
                 <EntitySelector
                   id="component-category"
                   entity="category"
-                  value={field.value ?? ""}
+                  value={field.value ?? null}
                   onChange={(val) => field.onChange(val)}
                   placeholder="Select or search category..."
                   creatable
                   clearable
+                  createParentId={suggestion?.category?.parentCategoryId ?? null}
+                  aiSuggestion={suggestion?.category ? {
+                    label: suggestion.category.subcategoryName || suggestion.category.categoryName,
+                    resolution: suggestion.category.resolution,
+                    value: suggestion.category.categoryId,
+                  } : null}
+                  onCreateSuggestion={createSuggestedCategory}
                 />
               )}
             />
@@ -661,11 +699,17 @@ export function ComponentForm({
                 <EntitySelector
                   id="component-manufacturer"
                   entity="manufacturer"
-                  value={field.value ?? ""}
+                  value={field.value ?? null}
                   onChange={(val) => field.onChange(val)}
                   placeholder="Select or search manufacturer..."
                   creatable
                   clearable
+                  aiSuggestion={suggestion?.manufacturer ? {
+                    label: suggestion.manufacturer.manufacturerName || "Unknown manufacturer",
+                    resolution: suggestion.manufacturer.resolution,
+                    value: suggestion.manufacturer.manufacturerId,
+                  } : null}
+                  onCreateSuggestion={createSuggestedManufacturer}
                 />
               )}
             />
