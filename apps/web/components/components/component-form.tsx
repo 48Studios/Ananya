@@ -121,6 +121,7 @@ export function ComponentForm({
     React.useState<PendingManufacturer | null>(null);
   const [pendingCategory, setPendingCategory] =
     React.useState<PendingCategory | null>(null);
+  const [loadingSkuPreview, setLoadingSkuPreview] = React.useState(false);
 
   const {
     register,
@@ -198,6 +199,26 @@ export function ComponentForm({
       setAttrValues(initialAttrs);
     }
   }, [initialData, reset]);
+
+  React.useEffect(() => {
+    if (isEditing || watch("sku")) return;
+    let current = true;
+    setLoadingSkuPreview(true);
+    componentsApi
+      .previewSku()
+      .then((sku) => {
+        if (current && !watch("sku")) {
+          setValue("sku", sku, { shouldDirty: false });
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (current) setLoadingSkuPreview(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [isEditing, setValue, watch]);
 
   // Load category attributes when category changes
   React.useEffect(() => {
@@ -663,9 +684,10 @@ export function ComponentForm({
             <Input
               id="component-sku"
               type="text"
-              placeholder={isEditing ? "CMP-000123" : "Assigned on save"}
+              placeholder={isEditing ? "CMP-000123" : "Generating preview..."}
               {...register("sku")}
               disabled={isEditing}
+              aria-busy={loadingSkuPreview}
               className="font-mono"
             />
             {errors.sku?.message && (

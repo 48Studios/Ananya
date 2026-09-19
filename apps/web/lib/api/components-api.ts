@@ -61,6 +61,8 @@ export interface UpdateComponentPayload {
 import type { ComponentSuggestionResponseDto } from "./ml-api";
 
 export const componentsApi = {
+  previewSku: (): Promise<string> =>
+    apiClient.get<string>("/components/sku/preview"),
   getAll: (): Promise<ComponentDto[]> =>
     apiClient.get<ComponentDto[]>("/components"),
   getById: (id: string): Promise<ComponentDto> =>

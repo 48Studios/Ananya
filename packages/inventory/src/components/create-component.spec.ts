@@ -63,4 +63,26 @@ describe("CreateComponent", () => {
     expect(created.sku).toBe("CMP-000124");
     expect(saves).toBe(2);
   });
+
+  it("treats a frontend CMP preview as a candidate, not a permanent reservation", async () => {
+    const components = repository();
+    let saves = 0;
+    components.save = async (component) => {
+      saves += 1;
+      if (saves === 1) throw new ComponentSkuAlreadyExistsError(component.sku);
+      components.savedSku = component.sku;
+      return component;
+    };
+
+    const created = await new CreateComponent(components, {
+      generate: async () => "CMP-000125",
+    }).execute({
+      sku: "CMP-000124",
+      name: "27 ohm resistor",
+      unit: "pcs",
+    });
+
+    expect(created.sku).toBe("CMP-000125");
+    expect(saves).toBe(2);
+  });
 });

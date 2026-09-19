@@ -11,7 +11,10 @@ export class CreateComponent {
 
   async execute(input: CreateComponentInput): Promise<Component> {
     const explicitSku = input.sku?.trim();
-    if (explicitSku) {
+    const isGeneratedSkuCandidate = Boolean(
+      explicitSku && /^CMP-\d{6}$/i.test(explicitSku),
+    );
+    if (explicitSku && !isGeneratedSkuCandidate) {
       const sku = explicitSku.toUpperCase();
       const existing = await this.components.findBySku(sku);
       if (existing) {
@@ -25,7 +28,10 @@ export class CreateComponent {
     }
 
     for (let attempt = 0; attempt < 10; attempt++) {
-      const sku = await this.skuGenerator.generate();
+      const sku =
+        attempt === 0 && isGeneratedSkuCandidate
+          ? explicitSku!.toUpperCase()
+          : await this.skuGenerator.generate();
       try {
         return await this.components.save(Component.create({ ...input, sku }));
       } catch (error) {

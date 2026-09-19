@@ -13,6 +13,7 @@ import { CreateComponentDto } from './create-component.dto';
 import { UpdateComponentDto } from './update-component.dto';
 import { ComponentsService } from './components.service';
 import { ComponentExceptionFilter } from './component-exception.filter';
+import { ComponentSkuPreviewService } from './component-sku-preview.service';
 
 import { MlService } from '../ml/ml.service';
 import {
@@ -27,6 +28,7 @@ export class ComponentsController {
   constructor(
     private readonly componentsService: ComponentsService,
     private readonly mlService: MlService,
+    private readonly componentSkuPreviewService: ComponentSkuPreviewService,
   ) {}
 
   @Post('suggest')
@@ -34,6 +36,11 @@ export class ComponentsController {
     @Body() input: SuggestComponentDto,
   ): Promise<ComponentSuggestionResponseDto> {
     return this.mlService.suggest(input);
+  }
+
+  @Get('sku/preview')
+  previewSku(): Promise<string> {
+    return this.componentSkuPreviewService.preview();
   }
 
   @Post('suggest/feedback')
