@@ -6,6 +6,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { LocationExceptionFilter } from './locations/location-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
+import { HttpLoggingInterceptor } from './common/logging/http-logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -21,6 +22,7 @@ async function bootstrap() {
   });
 
   app.useGlobalFilters(new LocationExceptionFilter());
+  app.useGlobalInterceptors(new HttpLoggingInterceptor());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
