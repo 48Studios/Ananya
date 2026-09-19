@@ -34,6 +34,8 @@ import {
 } from "@/lib/api/components-api";
 import {
   attributesApi,
+  type AttributeDefinitionDto,
+  type AttributeOptionDto,
   type ResolvedCategoryAttributeDto,
 } from "@/lib/api/attributes-api";
 
@@ -74,6 +76,18 @@ interface PendingCategory {
   code?: string;
   parentId?: string | null;
   description?: string | null;
+}
+
+interface VisibleAttribute {
+  attributeDefinition: AttributeDefinitionDto;
+  options: AttributeOptionDto[];
+  isRequired: boolean;
+}
+
+interface UnresolvedSuggestedAttribute {
+  code: string;
+  formatted: string;
+  unit?: string | null;
 }
 
 const COMPATIBLE_UNITS: Record<string, string[]> = {
@@ -122,6 +136,11 @@ export function ComponentForm({
   const [pendingCategory, setPendingCategory] =
     React.useState<PendingCategory | null>(null);
   const [loadingSkuPreview, setLoadingSkuPreview] = React.useState(false);
+  const [attributeDefinitions, setAttributeDefinitions] = React.useState<
+    AttributeDefinitionDto[]
+  >([]);
+  const [unresolvedSuggestedAttributes, setUnresolvedSuggestedAttributes] =
+    React.useState<Record<string, UnresolvedSuggestedAttribute>>({});
 
   const {
     register,
@@ -146,6 +165,62 @@ export function ComponentForm({
   });
 
   const selectedCategoryId = useWatch({ control, name: "categoryId" });
+  const visibleAttributes = React.useMemo<VisibleAttribute[]>(() => {
+    const byIdentity = new Map<string, VisibleAttribute>();
+
+    for (const categoryAttribute of categoryAttributes) {
+      const definition = categoryAttribute.attributeDefinition;
+      byIdentity.set(definition.id || definition.code, {
+        attributeDefinition: definition,
+        options: categoryAttribute.options ?? definition.options ?? [],
+        isRequired: categoryAttribute.isRequired,
+      });
+    }
+
+    for (const [code, value] of Object.entries(attrValues)) {
+      if (!value.attributeDefinitionId) continue;
+      const definition =
+        attributeDefinitions.find(
+          (candidate) => candidate.id === value.attributeDefinitionId,
+        ) ??
+        attributeDefinitions.find(
+          (candidate) => candidate.code.toLowerCase() === code.toLowerCase(),
+        ) ??
+        categoryAttributes.find(
+          (candidate) =>
+            candidate.attributeDefinition.id === value.attributeDefinitionId ||
+            candidate.attributeDefinition.code.toLowerCase() === code.toLowerCase(),
+        )?.attributeDefinition;
+
+      const fallbackDefinition = !definition
+        ? {
+            id: value.attributeDefinitionId,
+            code,
+            name: code,
+            dataType: value.unit ? ("QUANTITY" as const) : ("TEXT" as const),
+            defaultUnit: value.unit ?? null,
+            unitCategory: null,
+            description: null,
+            isFilterable: false,
+            sortOrder: 0,
+            isActive: true,
+            options: [],
+          }
+        : undefined;
+      const resolvedDefinition = definition ?? fallbackDefinition;
+      if (!resolvedDefinition) continue;
+      const identity = resolvedDefinition.id || resolvedDefinition.code;
+      if (!byIdentity.has(identity)) {
+        byIdentity.set(identity, {
+          attributeDefinition: resolvedDefinition,
+          options: resolvedDefinition.options ?? [],
+          isRequired: false,
+        });
+      }
+    }
+
+    return Array.from(byIdentity.values());
+  }, [attributeDefinitions, attrValues, categoryAttributes]);
   const attributeConflicts = React.useMemo(() => {
     if (!initialData?.attributes || !suggestion) return [];
     return Object.entries(suggestion.attributes).flatMap(([code, extracted]) => {
@@ -197,8 +272,24 @@ export function ComponentForm({
         };
       }
       setAttrValues(initialAttrs);
+    } else {
+      setAttrValues({});
     }
+    setUnresolvedSuggestedAttributes({});
   }, [initialData, reset]);
+
+  React.useEffect(() => {
+    let current = true;
+    attributesApi
+      .getAll()
+      .then((definitions) => {
+        if (current) setAttributeDefinitions(definitions);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, []);
 
   React.useEffect(() => {
     if (isEditing || watch("sku")) return;
@@ -376,6 +467,24 @@ export function ComponentForm({
         datasheetText: datasheetInput || undefined,
       });
       setSuggestion(res);
+      setUnresolvedSuggestedAttributes(
+        Object.fromEntries(
+          Object.entries(res.attributes)
+            .filter(
+              ([, attribute]) =>
+                attribute.resolution === "UNRESOLVED" ||
+                !attribute.attributeDefinitionId,
+            )
+            .map(([code, attribute]) => [
+              code,
+              {
+                code,
+                formatted: attribute.formatted,
+                unit: attribute.unit,
+              },
+            ]),
+        ),
+      );
       applyEntitySuggestions(res);
     } catch (err: unknown) {
       console.warn("AI suggestion fetch failed:", err);
@@ -410,9 +519,7 @@ export function ComponentForm({
       setAttrValues((prev) => {
         const next = { ...prev };
         for (const [code, attr] of Object.entries(suggestion.attributes)) {
-          if (attr.resolution === "UNRESOLVED" || !attr.attributeDefinitionId) {
-            continue;
-          }
+          if (attr.resolution === "UNRESOLVED" || !attr.attributeDefinitionId) continue;
           next[code] = {
             attributeDefinitionId: attr.attributeDefinitionId,
             value: attr.value,
@@ -459,6 +566,33 @@ export function ComponentForm({
       }
       return next;
     });
+    setUnresolvedSuggestedAttributes((prev) => ({
+      ...prev,
+      ...Object.fromEntries(
+        Object.entries(attrs)
+          .filter(([code, attrRaw]) => {
+            const attr = attrRaw as {
+              attributeDefinitionId?: string | null;
+              resolution?: "RESOLVED" | "UNRESOLVED";
+            };
+            return attr.resolution === "UNRESOLVED" || !attr.attributeDefinitionId;
+          })
+          .map(([code, attrRaw]) => {
+            const attr = attrRaw as {
+              formatted?: string;
+              unit?: string | null;
+            };
+            return [
+              code,
+              {
+                code,
+                formatted: attr.formatted ?? String(attrRaw),
+                unit: attr.unit,
+              },
+            ];
+          }),
+      ),
+    }));
   };
 
   const onSubmit = async (values: ComponentFormValues) => {
@@ -552,6 +686,7 @@ export function ComponentForm({
       }
     }
   };
+  console.log("attrValues", suggestion);
 
   return (
     <form
@@ -562,6 +697,77 @@ export function ComponentForm({
         {serverError && (
           <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
             {serverError}
+          </div>
+        )}
+
+        {/* ── AI Quick Actions Bar ─────────────────────────────────────────── */}
+        {!suggestion && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/80 bg-muted/30 px-3 py-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Sparkles className="size-3.5 text-primary" />
+              <span>Smart Component Intelligence</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDatasheetBox(!showDatasheetBox)}
+                className="h-7 text-xs font-medium px-2.5 gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <FileText className="size-3" />
+                {showDatasheetBox ? "Hide Datasheet Box" : "Paste Datasheet"}
+                {showDatasheetBox ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loadingAi}
+                onClick={() => handleFetchAiSuggestions()}
+                className="h-7 text-xs font-medium px-2.5 gap-1.5 border-primary/30 text-primary hover:bg-primary/10 bg-primary/5"
+              >
+                {loadingAi ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Sparkles className="size-3 text-primary" />
+                )}
+                {loadingAi ? "Analyzing…" : "Auto-detect with AI"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Expandable Datasheet Text Box ─────────────────────────────────── */}
+        {!suggestion && showDatasheetBox && (
+          <div className="rounded-lg border border-border bg-card p-3 space-y-2.5 shadow-2xs">
+            <FieldLabel htmlFor="datasheet-input" className="text-xs">
+              Raw Datasheet or Spec Text
+            </FieldLabel>
+            <Textarea
+              id="datasheet-input"
+              rows={3}
+              placeholder="Paste component specs, e.g.: '0805 SMD Resistor 10k Ohm 1% 1/4W 50V Thin Film Yageo' or raw datasheet snippets..."
+              value={datasheetInput}
+              onChange={(e) => setDatasheetInput(e.target.value)}
+              className="text-xs font-mono"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={loadingAi || !datasheetInput.trim()}
+                onClick={() => handleFetchAiSuggestions(datasheetInput)}
+                className="h-7 text-xs font-medium px-2.5 gap-1.5 bg-primary text-primary-foreground"
+              >
+                {loadingAi ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Sparkles className="size-3" />
+                )}
+                Extract & Suggest
+              </Button>
+            </div>
           </div>
         )}
 
@@ -604,78 +810,7 @@ export function ComponentForm({
           />
         )}
 
-        {/* ── AI Quick Actions Bar ─────────────────────────────────────────── */}
-        {!suggestion && (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/80 bg-muted/30 px-3 py-2">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Sparkles className="size-3.5 text-primary" />
-              <span>Smart Component Intelligence</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowDatasheetBox(!showDatasheetBox)}
-                className="h-7 text-xs font-medium px-2.5 gap-1.5 text-muted-foreground hover:text-foreground"
-              >
-                <FileText className="size-3" />
-                {showDatasheetBox ? "Hide Datasheet Box" : "Paste Datasheet"}
-                {showDatasheetBox ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={loadingAi}
-                onClick={() => handleFetchAiSuggestions()}
-                className="h-7 text-xs font-medium px-2.5 gap-1.5 border-primary/30 text-primary hover:bg-primary/10 bg-primary/5"
-              >
-                {loadingAi ? (
-                  <Loader2 className="size-3 animate-spin" />
-                ) : (
-                  <Sparkles className="size-3 text-primary" />
-                )}
-                {loadingAi ? "Analyzing…" : "Auto-detect with AI"}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Expandable Datasheet Text Box ─────────────────────────────────── */}
-        {showDatasheetBox && (
-          <div className="rounded-lg border border-border bg-card p-3 space-y-2.5 shadow-2xs">
-            <FieldLabel htmlFor="datasheet-input" className="text-xs">
-              Raw Datasheet or Spec Text
-            </FieldLabel>
-            <Textarea
-              id="datasheet-input"
-              rows={3}
-              placeholder="Paste component specs, e.g.: '0805 SMD Resistor 10k Ohm 1% 1/4W 50V Thin Film Yageo' or raw datasheet snippets..."
-              value={datasheetInput}
-              onChange={(e) => setDatasheetInput(e.target.value)}
-              className="text-xs font-mono"
-            />
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                size="sm"
-                disabled={loadingAi || !datasheetInput.trim()}
-                onClick={() => handleFetchAiSuggestions(datasheetInput)}
-                className="h-7 text-xs font-medium px-2.5 gap-1.5 bg-primary text-primary-foreground"
-              >
-                {loadingAi ? (
-                  <Loader2 className="size-3 animate-spin" />
-                ) : (
-                  <Sparkles className="size-3" />
-                )}
-                Extract & Suggest
-              </Button>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
           {/* SKU */}
           <Field>
             <FieldLabel htmlFor="component-sku">
@@ -834,26 +969,33 @@ export function ComponentForm({
           </div>
         )}
 
-        {categoryAttributes.length > 0 && (
+        {(visibleAttributes.length > 0 ||
+          Object.keys(unresolvedSuggestedAttributes).length > 0) && (
           <div className="space-y-4 pt-4 border-t border-border">
             <div>
               <div className="flex items-center gap-1.5">
                 <Sliders className="size-3.5 text-primary" />
                 <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                  Category Specifications
+                  Component Attributes
                 </h4>
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Dynamic technical parameters defined for this category and its hierarchy.
+                Category attributes and attributes already assigned to this component.
               </p>
             </div>
 
             <div className="space-y-4">
-              {categoryAttributes.map((attr) => {
+              {visibleAttributes.map((attr) => {
                 const def = attr.attributeDefinition;
-                const code = def.code;
+                const definitionCode = def.code;
+                const code =
+                  Object.entries(attrValues).find(
+                    ([key, value]) =>
+                      value.attributeDefinitionId === def.id ||
+                      key.toLowerCase() === definitionCode.toLowerCase(),
+                  )?.[0] ?? definitionCode;
                 const current = attrValues[code] ?? {};
-                const inputId = `attr-${code}`;
+                const inputId = `attr-${definitionCode}`;
 
                 // Render control based on data type
                 if (def.dataType === "SELECT") {
@@ -1098,6 +1240,29 @@ export function ComponentForm({
                   </Field>
                 );
               })}
+
+              {Object.values(unresolvedSuggestedAttributes).map((attribute) => (
+                <div
+                  key={`unresolved-${attribute.code}`}
+                  className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-foreground">
+                      {attribute.code}
+                    </span>
+                    <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                      AI suggested
+                    </span>
+                  </div>
+                  <p className="mt-1 font-mono text-xs text-foreground">
+                    {attribute.formatted}
+                    {attribute.unit ? ` ${attribute.unit}` : ""}
+                  </p>
+                  <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">
+                    Definition unresolved; this value is provisional.
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         )}
