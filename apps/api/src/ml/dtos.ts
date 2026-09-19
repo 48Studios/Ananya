@@ -43,24 +43,50 @@ export class SuggestComponentDto {
 }
 
 export class CategorySuggestionDto {
+  resolution: 'EXISTING' | 'NEW_CANDIDATE' | 'UNKNOWN' = 'UNKNOWN';
   categoryId?: string | null;
   categoryCode?: string;
   categoryName!: string;
   subcategoryId?: string | null;
   subcategoryCode?: string;
   subcategoryName?: string | null;
+  categoryPath?: string[];
+  parentCategoryId?: string | null;
+  parentCategoryCode?: string | null;
+  suggestedParent?: string | null;
+  proposedDescription?: string | null;
   confidence!: number;
   confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM';
+  evidence?: EvidenceItemDto[];
+  candidates?: CategoryCandidateDto[];
+}
+
+export class CategoryCandidateDto {
+  categoryId?: string | null;
+  categoryName!: string;
+  categoryCode?: string | null;
+  categoryPath?: string[];
+  confidence!: number;
   evidence?: EvidenceItemDto[];
 }
 
 export class ManufacturerSuggestionDto {
+  resolution!: 'EXISTING' | 'NEW_CANDIDATE' | 'UNKNOWN';
   manufacturerId?: string | null;
   manufacturerCode?: string;
-  manufacturerName!: string;
+  manufacturerName!: string | null;
   confidence!: number;
   confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM';
   matchType!: string;
+  evidence?: EvidenceItemDto[];
+  candidates?: ManufacturerCandidateDto[];
+}
+
+export class ManufacturerCandidateDto {
+  manufacturerId?: string | null;
+  name!: string;
+  manufacturerCode?: string | null;
+  confidence!: number;
   evidence?: EvidenceItemDto[];
 }
 
@@ -88,8 +114,9 @@ export class ExtractedAttributeDto {
 
 export class ComponentSuggestionResponseDto {
   query!: string;
+  manufacturerPartNumber?: string;
   suggestedName?: string;
-  suggestedSku?: string;
+  suggestedDescription?: string;
   suggestedUnit?: string;
   category?: CategorySuggestionDto | null;
   alternativeCategories!: CategorySuggestionDto[];
@@ -111,6 +138,9 @@ export class FeedbackItemDto {
     'MANUFACTURER',
     'ATTRIBUTE',
     'DUPLICATE',
+    'MPN',
+    'NAME',
+    'DESCRIPTION',
     'ATTRIBUTE_BINDING',
     'SUGGESTED_BINDING',
     'CATEGORY_ATTRIBUTES',

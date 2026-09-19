@@ -85,7 +85,10 @@ def predict_category(req: PredictCategoryRequest):
     predictions = category_classifier.predict(
         req.text,
         top_k=req.top_k,
-        datapack_hints=req.datapack_hints
+        datapack_hints=req.datapack_hints,
+        erp_categories=req.erp_categories,
+        erp_manufacturers=req.erp_manufacturers,
+        datasheet_text=req.datasheet_text or "",
     )
     return PredictCategoryResponse(predictions=predictions)
 
@@ -94,7 +97,9 @@ def predict_category_batch(req: BatchPredictCategoryRequest):
     results = category_classifier.predict_batch(
         req.texts,
         top_k=req.top_k,
-        datapack_hints=req.datapack_hints
+        datapack_hints=req.datapack_hints,
+        erp_categories=req.erp_categories,
+        erp_manufacturers=req.erp_manufacturers,
     )
     return BatchPredictCategoryResponse(results=results)
 
@@ -103,6 +108,8 @@ def resolve_manufacturer(req: ResolveManufacturerRequest):
     return manufacturer_resolver.resolve(
         req.part_number,
         req.description or "",
+        datasheet_text=req.datasheet_text or "",
+        erp_manufacturers=req.erp_manufacturers,
         datapack_hints=req.datapack_hints
     )
 
@@ -134,10 +141,23 @@ def suggest_component(req: SuggestComponentRequest):
     hints = req.datapack_hints
 
     # 1. Category Classification
-    cat_preds = category_classifier.predict(full_text, top_k=3, datapack_hints=hints)
+    cat_preds = category_classifier.predict(
+        full_text,
+        top_k=3,
+        datapack_hints=hints,
+        erp_categories=req.erp_categories,
+        erp_manufacturers=req.erp_manufacturers,
+        datasheet_text=req.datasheet_text or "",
+    )
 
     # 2. Manufacturer Resolution
-    mfg_res = manufacturer_resolver.resolve(pn, desc, datapack_hints=hints)
+    mfg_res = manufacturer_resolver.resolve(
+        pn,
+        desc,
+        datasheet_text=req.datasheet_text or "",
+        erp_manufacturers=req.erp_manufacturers,
+        datapack_hints=hints,
+    )
 
     # 3. Duplicate Detection (Authoritative exact MPN + value guard)
     dup_res = duplicate_detector.detect(

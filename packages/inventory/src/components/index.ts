@@ -4,4 +4,5 @@ export * from "./update-component";
 export * from "./delete-component";
 export * from "./component.errors";
 export * from "./component.repository";
+export * from "./component-sku";
 export * from "./traceability";

@@ -7,6 +7,7 @@ import type {
 export interface ComponentDto {
   id: string;
   sku: string;
+  manufacturerPartNumber?: string | null;
   name: string;
   description?: string | null;
   manufacturerId?: string | null;
@@ -20,7 +21,8 @@ export interface ComponentDto {
 }
 
 export interface CreateComponentPayload {
-  sku: string;
+  sku?: string;
+  manufacturerPartNumber?: string | null;
   name: string;
   description?: string | null;
   manufacturerId?: string | null;
@@ -31,7 +33,7 @@ export interface CreateComponentPayload {
 }
 
 export interface UpdateComponentPayload {
-  sku?: string;
+  manufacturerPartNumber?: string | null;
   name?: string;
   description?: string | null;
   manufacturerId?: string | null;

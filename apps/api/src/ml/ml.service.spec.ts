@@ -82,7 +82,22 @@ describe('MlService', () => {
         {
           category: 'Electronic Components',
           subcategory: 'Resistors',
+          resolution: 'EXISTING',
+          category_id: 'cat-resistors',
+          category_code: 'RESISTORS',
+          category_path: ['Electronic Components', 'Resistors'],
+          parent_category_id: 'cat-electronics',
           confidence: 0.95,
+          candidates: [
+            {
+              category_id: 'cat-resistors',
+              category_name: 'Resistors',
+              category_code: 'RESISTORS',
+              category_path: ['Electronic Components', 'Resistors'],
+              confidence: 0.95,
+              evidence: [],
+            },
+          ],
         },
       ],
       manufacturer: {
@@ -112,6 +127,14 @@ describe('MlService', () => {
 
     expect(result).toBeDefined();
     expect(result.category?.subcategoryName).toBe('Resistors');
+    expect(result.category?.resolution).toBe('EXISTING');
+    expect(result.category?.categoryId).toBe('cat-resistors');
+    expect(result.category?.categoryPath).toEqual([
+      'Electronic Components',
+      'Resistors',
+    ]);
+    expect(result.category?.candidates?.[0]?.categoryName).toBe('Resistors');
+    expect(result.manufacturer?.resolution).toBe('NEW_CANDIDATE');
     expect(result.manufacturer?.manufacturerName).toBe('Yageo');
     expect(result.attributes['resistance']?.value).toBe(10000);
     expect(result.isMlActive).toBe(true);
@@ -128,7 +151,8 @@ describe('MlService', () => {
     expect(result.isMlActive).toBe(false);
     expect(result.category?.subcategoryName).toBe('Resistors');
     expect(result.category?.evidence?.length).toBeGreaterThan(0);
-    expect(result.manufacturer?.manufacturerName).toBe('Yageo');
+    expect(result.manufacturer?.resolution).toBe('UNKNOWN');
+    expect(result.manufacturer?.manufacturerName).toBeNull();
     expect(result.attributes['resistance']?.value).toBe(10000);
     expect(result.attributes['voltage']?.value).toBe(50);
     expect(result.confidenceLevel).toBeDefined();

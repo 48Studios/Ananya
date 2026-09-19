@@ -3,7 +3,7 @@ import { IsBoolean, IsOptional, IsString } from 'class-validator';
 export class UpdateComponentDto {
   @IsOptional()
   @IsString()
-  sku?: string;
+  manufacturerPartNumber?: string | null;
 
   @IsOptional()
   @IsString()

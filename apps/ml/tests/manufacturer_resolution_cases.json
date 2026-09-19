@@ -1,0 +1,157 @@
+[
+  {
+    "id": "yageo-resistor-existing",
+    "part_number": "RC0805FR-0710KL",
+    "description": "10k ohm 1% 0805 SMD resistor",
+    "expected_manufacturer": "Yageo",
+    "expected_resolution": "EXISTING",
+    "erp_manufacturers": ["Yageo"]
+  },
+  {
+    "id": "murata-capacitor-existing",
+    "part_number": "GRM188R71H104KA93D",
+    "description": "100nF 50V X7R 0603 ceramic capacitor",
+    "expected_manufacturer": "Murata",
+    "expected_resolution": "EXISTING",
+    "erp_manufacturers": ["Murata"]
+  },
+  {
+    "id": "vishay-legacy-existing",
+    "part_number": "CRCW080510K0FKEA",
+    "description": "Vishay Dale 10k thin film resistor",
+    "expected_manufacturer": "Vishay",
+    "expected_resolution": "EXISTING",
+    "erp_manufacturers": ["Vishay"]
+  },
+  {
+    "id": "sunlord-inductor-new",
+    "part_number": "SWPA3012S2R2MT",
+    "description": "2.2uH shielded power inductor",
+    "expected_manufacturer": "Sunlord",
+    "expected_resolution": "NEW_CANDIDATE",
+    "erp_manufacturers": ["Yageo", "Murata"]
+  },
+  {
+    "id": "molex-connector-existing",
+    "part_number": "505110-0691",
+    "description": "Molex micro SIM card connector",
+    "expected_manufacturer": "Molex",
+    "expected_resolution": "EXISTING",
+    "erp_manufacturers": ["Molex"]
+  },
+  {
+    "id": "jst-connector-new",
+    "part_number": "B2B-XH-A(LF)(SN)",
+    "description": "JST XH wire-to-board header",
+    "expected_manufacturer": "JST",
+    "expected_resolution": "NEW_CANDIDATE",
+    "erp_manufacturers": []
+  },
+  {
+    "id": "te-connector-existing",
+    "part_number": "1-1734592-2",
+    "description": "Tyco Electronics board connector",
+    "expected_manufacturer": "TE Connectivity",
+    "expected_resolution": "EXISTING",
+    "erp_manufacturers": ["TE Connectivity"]
+  },
+  {
+    "id": "raspberry-pi-board-existing",
+    "part_number": "RPI4-MOD-8GB",
+    "description": "Raspberry Pi 4 Model B development board module",
+    "expected_manufacturer": "Raspberry Pi",
+    "expected_resolution": "EXISTING",
+    "erp_manufacturers": ["Raspberry Pi"]
+  },
+  {
+    "id": "waveshare-board-new",
+    "part_number": "WAVESHARE-2.13-V4",
+    "description": "Waveshare 2.13 inch e-paper display module",
+    "expected_manufacturer": "Waveshare",
+    "expected_resolution": "NEW_CANDIDATE",
+    "erp_manufacturers": []
+  },
+  {
+    "id": "adafruit-sensor-existing",
+    "part_number": "ADA fruit BME280",
+    "description": "Adafruit precision temperature humidity pressure sensor breakout",
+    "expected_manufacturer": "Adafruit",
+    "expected_resolution": "EXISTING",
+    "erp_manufacturers": ["Adafruit"]
+  },
+  {
+    "id": "ti-ic-existing",
+    "part_number": "LMR33630DDAR",
+    "description": "Texas Instruments 3A synchronous buck converter IC",
+    "expected_manufacturer": "Texas Instruments",
+    "expected_resolution": "EXISTING",
+    "erp_manufacturers": ["Texas Instruments"]
+  },
+  {
+    "id": "st-ic-new",
+    "part_number": "STM32F405RGT6",
+    "description": "STMicroelectronics ARM Cortex-M4 microcontroller",
+    "expected_manufacturer": "STMicroelectronics",
+    "expected_resolution": "NEW_CANDIDATE",
+    "erp_manufacturers": []
+  },
+  {
+    "id": "onsemi-semiconductor-existing",
+    "part_number": "NCP1117ST50T3G",
+    "description": "ON Semiconductor 5V linear regulator",
+    "expected_manufacturer": "onsemi",
+    "expected_resolution": "EXISTING",
+    "erp_manufacturers": ["onsemi"]
+  },
+  {
+    "id": "keysight-equipment-existing",
+    "part_number": "KEYSIGHT-DSOX1204G",
+    "description": "Keysight oscilloscope",
+    "expected_manufacturer": "Keysight",
+    "expected_resolution": "EXISTING",
+    "erp_manufacturers": ["Keysight"]
+  },
+  {
+    "id": "legacy-phycomp-alias",
+    "part_number": "RC0603FR-0710KL",
+    "description": "Phycomp 10k resistor, legacy Yageo brand",
+    "expected_manufacturer": "Yageo",
+    "expected_resolution": "EXISTING",
+    "erp_manufacturers": ["Yageo"]
+  },
+  {
+    "id": "ambiguous-ss-prefix",
+    "part_number": "SS14",
+    "description": "Schottky diode, manufacturer not stated",
+    "expected_manufacturer": null,
+    "expected_resolution": "UNKNOWN",
+    "erp_manufacturers": ["JSMSEMI", "Tech Public"]
+  },
+  {
+    "id": "description-only-unknown",
+    "part_number": "XK-2048",
+    "description": "Precision electronic component, vendor not stated",
+    "expected_manufacturer": null,
+    "expected_resolution": "UNKNOWN",
+    "erp_manufacturers": ["Yageo", "Murata"]
+  },
+  {
+    "id": "datapack-custom-new",
+    "part_number": "CUSCAP9000",
+    "description": "CustomAcro ceramic capacitor",
+    "expected_manufacturer": "CustomAcro",
+    "expected_resolution": "NEW_CANDIDATE",
+    "erp_manufacturers": [],
+    "datapack_hints": [
+      {
+        "manufacturerHints": [
+          {
+            "name": "CustomAcro",
+            "code": "CUSTOMACRO",
+            "prefixPatterns": ["^CUSCAP\\d+"]
+          }
+        ]
+      }
+    ]
+  }
+]

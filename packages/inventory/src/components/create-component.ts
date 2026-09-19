@@ -1,24 +1,40 @@
 import { Component, type CreateComponentInput } from "./component";
 import { ComponentSkuAlreadyExistsError } from "./component.errors";
 import type { ComponentRepository } from "./component.repository";
+import type { ComponentSkuGenerator } from "./component-sku";
 
 export class CreateComponent {
-  constructor(private readonly components: ComponentRepository) {}
+  constructor(
+    private readonly components: ComponentRepository,
+    private readonly skuGenerator?: ComponentSkuGenerator,
+  ) {}
 
   async execute(input: CreateComponentInput): Promise<Component> {
-    // Normalize input for uniqueness check (the aggregate will normalize again)
-    const sku = input.sku.trim().toUpperCase();
-
-    const existing = await this.components.findBySku(sku);
-
-    if (existing) {
-      throw new ComponentSkuAlreadyExistsError(sku);
+    const explicitSku = input.sku?.trim();
+    if (explicitSku) {
+      const sku = explicitSku.toUpperCase();
+      const existing = await this.components.findBySku(sku);
+      if (existing) {
+        throw new ComponentSkuAlreadyExistsError(sku);
+      }
+      return this.components.save(Component.create({ ...input, sku }));
     }
 
-    // Create the component using factory method
-    const component = Component.create(input);
+    if (!this.skuGenerator) {
+      return this.components.save(Component.create(input));
+    }
 
-    // Persist the aggregate
-    return this.components.save(component);
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const sku = await this.skuGenerator.generate();
+      try {
+        return await this.components.save(Component.create({ ...input, sku }));
+      } catch (error) {
+        if (!(error instanceof ComponentSkuAlreadyExistsError)) {
+          throw error;
+        }
+      }
+    }
+
+    throw new ComponentSkuAlreadyExistsError("generated component SKU");
   }
 }

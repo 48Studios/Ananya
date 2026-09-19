@@ -1,6 +1,10 @@
 import { db } from '@ananya/database';
 import { components } from '@ananya/database/schema';
-import type { Component, ComponentRepository } from '@ananya/inventory';
+import {
+  ComponentSkuAlreadyExistsError,
+  type Component,
+  type ComponentRepository,
+} from '@ananya/inventory';
 import { eq } from '@ananya/database/query';
 import type { Component as ComponentRow } from '@ananya/database/schema';
 import { Component as ComponentAggregate } from '@ananya/inventory';
@@ -9,6 +13,7 @@ function toDomain(row: ComponentRow): Component {
   return ComponentAggregate.rehydrate({
     id: row.id,
     sku: row.sku,
+    manufacturerPartNumber: row.manufacturerPartNumber,
     name: row.name,
     description: row.description,
     manufacturerId: row.manufacturerId,
@@ -26,6 +31,7 @@ function toRow(
 ): Omit<ComponentRow, 'id' | 'createdAt' | 'updatedAt'> {
   return {
     sku: component.sku,
+    manufacturerPartNumber: component.manufacturerPartNumber ?? null,
     name: component.name,
     description: component.description ?? null,
     manufacturerId: component.manufacturerId ?? null,
@@ -64,34 +70,60 @@ export class DrizzleComponentRepository implements ComponentRepository {
   }
 
   async save(component: Component): Promise<Component> {
-    const [row] = await db
-      .insert(components)
-      .values(toRow(component))
-      .returning();
+    try {
+      const [row] = await db
+        .insert(components)
+        .values(toRow(component))
+        .returning();
 
-    if (!row) {
-      throw new Error('Failed to create component');
+      if (!row) {
+        throw new Error('Failed to create component');
+      }
+
+      return toDomain(row);
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === '23505'
+      ) {
+        throw new ComponentSkuAlreadyExistsError(component.sku);
+      }
+      throw error;
     }
-
-    return toDomain(row);
   }
 
   async update(component: Component): Promise<Component> {
-    const [row] = await db
-      .update(components)
-      .set({
-        sku: component.sku,
-        name: component.name,
-        description: component.description ?? null,
-        manufacturerId: component.manufacturerId ?? null,
-        categoryId: component.categoryId ?? null,
-        defaultLocationId: component.defaultLocationId ?? null,
-        unit: component.unit,
-        isActive: component.isActive,
-        updatedAt: component.updatedAt,
-      })
-      .where(eq(components.id, component.id))
-      .returning();
+    let row;
+    try {
+      [row] = await db
+        .update(components)
+        .set({
+          sku: component.sku,
+          manufacturerPartNumber: component.manufacturerPartNumber ?? null,
+          name: component.name,
+          description: component.description ?? null,
+          categoryId: component.categoryId ?? null,
+          manufacturerId: component.manufacturerId ?? null,
+          defaultLocationId: component.defaultLocationId ?? null,
+          unit: component.unit,
+          isActive: component.isActive,
+          updatedAt: component.updatedAt,
+        })
+        .where(eq(components.id, component.id))
+        .returning();
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === '23505'
+      ) {
+        throw new ComponentSkuAlreadyExistsError(component.sku);
+      }
+      throw error;
+    }
 
     if (!row) {
       throw new Error(`Failed to update component: ${component.id}`);

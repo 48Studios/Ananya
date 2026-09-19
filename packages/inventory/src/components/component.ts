@@ -8,6 +8,7 @@ import {
 export interface ComponentProps {
   id: string;
   sku: string;
+  manufacturerPartNumber?: string | null;
   name: string;
   description?: string | null;
   manufacturerId?: string | null;
@@ -20,7 +21,8 @@ export interface ComponentProps {
 }
 
 export interface CreateComponentInput {
-  sku: string;
+  sku?: string;
+  manufacturerPartNumber?: string | null;
   name: string;
   description?: string | null;
   manufacturerId?: string | null;
@@ -30,8 +32,8 @@ export interface CreateComponentInput {
 }
 
 export interface UpdateComponentInput {
-  sku?: string;
   name?: string;
+  manufacturerPartNumber?: string | null;
   description?: string | null;
   manufacturerId?: string | null;
   categoryId?: string | null;
@@ -45,6 +47,7 @@ export interface FindManyComponentsOptions {}
 export class Component {
   public readonly id: string;
   public readonly sku: string;
+  public readonly manufacturerPartNumber?: string | null;
   public readonly name: string;
   public readonly description?: string | null;
   public readonly manufacturerId?: string | null;
@@ -58,6 +61,7 @@ export class Component {
   private constructor(props: ComponentProps) {
     this.id = props.id;
     this.sku = props.sku;
+    this.manufacturerPartNumber = props.manufacturerPartNumber;
     this.name = props.name;
     this.description = props.description;
     this.manufacturerId = props.manufacturerId;
@@ -74,7 +78,7 @@ export class Component {
    * Owns identity generation, timestamps, defaults, normalization, and invariants.
    */
   public static create(input: CreateComponentInput): Component {
-    const sku = input.sku.trim().toUpperCase();
+    const sku = input.sku?.trim()?.toUpperCase() ?? "";
     const name = input.name.trim();
     const unit = input.unit.trim();
 
@@ -97,6 +101,7 @@ export class Component {
     return new Component({
       id,
       sku,
+      manufacturerPartNumber: input.manufacturerPartNumber?.trim() || null,
       name,
       description: input.description?.trim() ?? null,
       manufacturerId: input.manufacturerId ?? null,
@@ -113,14 +118,8 @@ export class Component {
    * Updates component properties maintaining invariants.
    */
   public update(input: UpdateComponentInput): Component {
-    const sku =
-      input.sku !== undefined ? input.sku.trim().toUpperCase() : this.sku;
     const name = input.name !== undefined ? input.name.trim() : this.name;
     const unit = input.unit !== undefined ? input.unit.trim() : this.unit;
-
-    if (!sku) {
-      throw new InvalidComponentSkuError("SKU is required");
-    }
 
     if (!name) {
       throw new InvalidComponentNameError("Name is required");
@@ -132,7 +131,11 @@ export class Component {
 
     return new Component({
       id: this.id,
-      sku,
+      sku: this.sku,
+      manufacturerPartNumber:
+        input.manufacturerPartNumber !== undefined
+          ? input.manufacturerPartNumber?.trim() || null
+          : this.manufacturerPartNumber,
       name,
       description:
         input.description !== undefined

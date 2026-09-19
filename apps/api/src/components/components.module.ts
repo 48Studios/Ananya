@@ -3,6 +3,7 @@ import { COMPONENT_REPOSITORY } from './component.tokens';
 import { DrizzleComponentRepository } from '../infrastructure/repositories/drizzle-component.repository';
 import { ComponentsController } from './components.controller';
 import { ComponentsService } from './components.service';
+import { ComponentSkuService } from './component-sku.service';
 
 import { AttributesModule } from '../attributes/attributes.module';
 import { MlModule } from '../ml/ml.module';
@@ -12,6 +13,7 @@ import { MlModule } from '../ml/ml.module';
   controllers: [ComponentsController],
   providers: [
     ComponentsService,
+    ComponentSkuService,
     {
       provide: COMPONENT_REPOSITORY,
       useClass: DrizzleComponentRepository,

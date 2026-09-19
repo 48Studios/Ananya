@@ -17,6 +17,10 @@ export const components = pgTable(
 
     sku: varchar("sku", { length: 100 }).notNull(),
 
+    manufacturerPartNumber: varchar("manufacturer_part_number", {
+      length: 128,
+    }),
+
     name: varchar("name", { length: 200 }).notNull(),
 
     description: varchar("description", { length: 1000 }),

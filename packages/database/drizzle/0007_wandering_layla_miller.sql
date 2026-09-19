@@ -1,0 +1,1 @@
+ALTER TABLE "components" ADD COLUMN "manufacturer_part_number" varchar(128);

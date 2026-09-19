@@ -15,6 +15,7 @@ export interface EvidenceItemDto {
 }
 
 export interface CategorySuggestionDto {
+  resolution: "EXISTING" | "NEW_CANDIDATE" | "UNKNOWN";
   categoryId?: string | null;
   categoryCode?: string;
   categoryName: string;
@@ -27,6 +28,7 @@ export interface CategorySuggestionDto {
 }
 
 export interface ManufacturerSuggestionDto {
+  resolution: "EXISTING" | "NEW_CANDIDATE" | "UNKNOWN";
   manufacturerId?: string | null;
   manufacturerCode?: string;
   manufacturerName: string;
@@ -60,8 +62,9 @@ export interface ExtractedAttributeDto {
 
 export interface ComponentSuggestionResponseDto {
   query: string;
+  manufacturerPartNumber?: string;
   suggestedName?: string;
-  suggestedSku?: string;
+  suggestedDescription?: string;
   suggestedUnit?: string;
   category?: CategorySuggestionDto | null;
   alternativeCategories: CategorySuggestionDto[];
@@ -84,7 +87,14 @@ export interface SuggestComponentPayload {
 }
 
 export interface FeedbackItemPayload {
-  suggestionType: "CATEGORY" | "MANUFACTURER" | "ATTRIBUTE" | "DUPLICATE";
+  suggestionType:
+    | "CATEGORY"
+    | "MANUFACTURER"
+    | "ATTRIBUTE"
+    | "DUPLICATE"
+    | "MPN"
+    | "NAME"
+    | "DESCRIPTION";
   field: string;
   predictedValue?: unknown;
   confidence?: number;

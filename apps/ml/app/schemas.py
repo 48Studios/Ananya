@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field
 
 class EvidenceItem(BaseModel):
@@ -26,18 +26,59 @@ class DataPackIntelligenceHint(BaseModel):
     packagePatterns: Optional[List[str]] = None
     electricalUnitHints: Optional[Dict[str, List[str]]] = None
 
+class ErpCategory(BaseModel):
+    id: str
+    name: str
+    code: str
+    description: Optional[str] = None
+    parent_id: Optional[str] = None
+    parent_name: Optional[str] = None
+    path: List[str] = Field(default_factory=list)
+    aliases: List[str] = Field(default_factory=list)
+    is_active: bool = True
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class ErpManufacturer(BaseModel):
+    id: str
+    name: str
+    code: str
+    aliases: List[str] = Field(default_factory=list)
+    normalized_name: Optional[str] = None
+    is_active: bool = True
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
 class CategoryPrediction(BaseModel):
     category: str
     subcategory: Optional[str] = None
+    resolution: Literal["EXISTING", "NEW_CANDIDATE", "UNKNOWN"] = "NEW_CANDIDATE"
+    category_id: Optional[str] = None
+    category_code: Optional[str] = None
+    category_path: List[str] = Field(default_factory=list)
+    parent_category_id: Optional[str] = None
+    parent_category_code: Optional[str] = None
+    candidates: List["CategoryCandidate"] = Field(default_factory=list)
+    suggested_parent: Optional[str] = None
+    proposed_description: Optional[str] = None
     confidence: float
     confidence_level: str = "MEDIUM"  # "HIGH", "MEDIUM", "LOW"
     parent_category: Optional[str] = None
+    evidence: List[EvidenceItem] = Field(default_factory=list)
+
+class CategoryCandidate(BaseModel):
+    category_id: Optional[str] = None
+    category_name: str
+    category_code: Optional[str] = None
+    category_path: List[str] = Field(default_factory=list)
+    confidence: float
     evidence: List[EvidenceItem] = Field(default_factory=list)
 
 class PredictCategoryRequest(BaseModel):
     text: str
     top_k: int = Field(default=3, ge=1, le=10)
     datapack_hints: Optional[List[DataPackIntelligenceHint]] = None
+    erp_categories: List[ErpCategory] = Field(default_factory=list)
+    erp_manufacturers: List[ErpManufacturer] = Field(default_factory=list)
+    datasheet_text: Optional[str] = None
 
 class PredictCategoryResponse(BaseModel):
     predictions: List[CategoryPrediction]
@@ -46,6 +87,8 @@ class BatchPredictCategoryRequest(BaseModel):
     texts: List[str]
     top_k: int = Field(default=3, ge=1, le=10)
     datapack_hints: Optional[List[DataPackIntelligenceHint]] = None
+    erp_categories: List[ErpCategory] = Field(default_factory=list)
+    erp_manufacturers: List[ErpManufacturer] = Field(default_factory=list)
 
 class BatchPredictCategoryResponse(BaseModel):
     results: List[List[CategoryPrediction]]
@@ -53,15 +96,27 @@ class BatchPredictCategoryResponse(BaseModel):
 class ResolveManufacturerRequest(BaseModel):
     part_number: str
     description: Optional[str] = ""
+    datasheet_text: Optional[str] = ""
+    erp_manufacturers: List[ErpManufacturer] = Field(default_factory=list)
     datapack_hints: Optional[List[DataPackIntelligenceHint]] = None
 
+class ManufacturerCandidate(BaseModel):
+    manufacturer_id: Optional[str] = None
+    name: str
+    code: Optional[str] = None
+    confidence: float
+    evidence: List[EvidenceItem] = Field(default_factory=list)
+
 class ResolveManufacturerResponse(BaseModel):
-    manufacturer: str
+    resolution: Literal["EXISTING", "NEW_CANDIDATE", "UNKNOWN"]
+    manufacturer: Optional[str] = None
+    manufacturer_id: Optional[str] = None
     confidence: float
     confidence_level: str = "MEDIUM"  # "HIGH", "MEDIUM", "LOW"
-    match_type: str  # "exact", "pattern", "alias", "fallback", "datapack"
+    match_type: str
     code: Optional[str] = None
     evidence: List[EvidenceItem] = Field(default_factory=list)
+    candidates: List[ManufacturerCandidate] = Field(default_factory=list)
 
 class ExistingComponent(BaseModel):
     id: str
@@ -112,7 +167,11 @@ class SuggestComponentRequest(BaseModel):
     query: str
     part_number: Optional[str] = None
     description: Optional[str] = None
+    datasheet_text: Optional[str] = None
+    datasheet_pdf_base64: Optional[str] = None
     existing_components: List[ExistingComponent] = []
+    erp_categories: List[ErpCategory] = Field(default_factory=list)
+    erp_manufacturers: List[ErpManufacturer] = Field(default_factory=list)
     datapack_hints: Optional[List[DataPackIntelligenceHint]] = None
 
 class SuggestComponentResponse(BaseModel):

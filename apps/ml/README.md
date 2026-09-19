@@ -28,10 +28,11 @@ apps/ml/
 │       ├── category_classifier.py    # TF-IDF & scikit-learn classifier
 │       ├── datasheet_extractor.py    # EE attribute & package parser
 │       ├── duplicate_detector.py     # Two-tier deduplication & value guard
-│       └── manufacturer_resolver.py  # Regex prefix & catalog resolver
+│       └── manufacturer_resolver.py   # ERP-aware scored evidence resolver
 ├── models/
-│   ├── category_classifier.pkl       # Serialized scikit-learn model
-│   └── manufacturer_catalog.json     # Manufacturer definitions and prefixes
+│   ├── category_classifier.pkl        # Serialized scikit-learn model
+│   ├── category_knowledge.json        # Versioned non-authoritative category knowledge
+│   └── manufacturer_knowledge.json    # Versioned non-authoritative manufacturer knowledge
 ├── tests/
 │   └── test_ml_service.py            # Pytest test suite
 ├── pyproject.toml
@@ -224,5 +225,7 @@ Environment variables (configurable via `.env` or container environment):
 | `PORT` | `5001` | HTTP listening port |
 | `MODEL_DIR` | `apps/ml/models` | Path containing serialized models and catalogs |
 | `CATEGORY_MODEL_PATH` | `<MODEL_DIR>/category_classifier.pkl` | Path to scikit-learn classification artifact |
-| `MANUFACTURER_CATALOG_PATH` | `<MODEL_DIR>/manufacturer_catalog.json` | Path to manufacturer prefix rules JSON |
+| `CATEGORY_KNOWLEDGE_PATH` | `<MODEL_DIR>/category_knowledge.json` | Versioned category terminology and MPN knowledge |
+| `MANUFACTURER_KNOWLEDGE_PATH` | `<MODEL_DIR>/manufacturer_knowledge.json` | Path to versioned manufacturer knowledge |
+| `MANUFACTURER_CATALOG_PATH` | deprecated alias | Backward-compatible path override |
 | `ENABLE_ONNX_EMBEDDINGS` | `false` | Enable optional quantized ONNX embedding model |

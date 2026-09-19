@@ -27,6 +27,10 @@ interface AiSuggestionReviewCardProps {
   suggestion: ComponentSuggestionResponseDto;
   creationContext?: Record<string, unknown>;
   onApplyAll: () => void;
+  onApplyIdentity?: () => void;
+  onApplyClassification?: () => void;
+  onApplyNameDescription?: () => void;
+  attributeConflicts?: Array<{ code: string; existing: string; extracted: string }>;
   onApplyCategory?: () => void;
   onRejectCategory?: () => void;
   onApplyManufacturer?: () => void;
@@ -41,6 +45,10 @@ export function AiSuggestionReviewCard({
   suggestion,
   creationContext = {},
   onApplyAll,
+  onApplyIdentity,
+  onApplyClassification,
+  onApplyNameDescription,
+  attributeConflicts = [],
   onApplyCategory,
   onRejectCategory,
   onApplyManufacturer,
@@ -80,7 +88,14 @@ export function AiSuggestionReviewCard({
   };
 
   const recordFeedbackEvent = async (
-    type: "CATEGORY" | "MANUFACTURER" | "ATTRIBUTE" | "DUPLICATE",
+    type:
+      | "CATEGORY"
+      | "MANUFACTURER"
+      | "ATTRIBUTE"
+      | "DUPLICATE"
+      | "MPN"
+      | "NAME"
+      | "DESCRIPTION",
     field: string,
     action: "ACCEPTED" | "REJECTED" | "EDITED",
     predicted: unknown,
@@ -240,6 +255,30 @@ export function AiSuggestionReviewCard({
 
   const handleAcceptAll = () => {
     // Record feedback for all items
+    if (suggestion.manufacturerPartNumber) {
+      recordFeedbackEvent(
+        "MPN",
+        "manufacturerPartNumber",
+        "ACCEPTED",
+        suggestion.manufacturerPartNumber,
+        suggestion.manufacturerPartNumber,
+        undefined,
+        undefined,
+        [],
+      );
+    }
+    if (suggestion.suggestedName) {
+      recordFeedbackEvent("NAME", "name", "ACCEPTED", suggestion.suggestedName, suggestion.suggestedName);
+    }
+    if (suggestion.suggestedDescription) {
+      recordFeedbackEvent(
+        "DESCRIPTION",
+        "description",
+        "ACCEPTED",
+        suggestion.suggestedDescription,
+        suggestion.suggestedDescription,
+      );
+    }
     if (suggestion.category && !rejectedFields.category && !acceptedFields.category) {
       recordFeedbackEvent(
         "CATEGORY",
@@ -348,6 +387,43 @@ export function AiSuggestionReviewCard({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      <div className="space-y-3 rounded-lg border border-border/80 bg-background/70 p-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Manufacturer Part Number</p>
+            <p className="mt-1 font-mono text-xs font-semibold">{suggestion.manufacturerPartNumber || "Not identified"}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Component Name</p>
+            <p className="mt-1 text-xs font-semibold">{suggestion.suggestedName || "Not generated"}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Description</p>
+            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{suggestion.suggestedDescription || "Not generated"}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 border-t border-border/60 pt-2">
+          {onApplyIdentity && <Button type="button" variant="outline" size="xs" onClick={onApplyIdentity}>Apply Identity</Button>}
+          {onApplyClassification && <Button type="button" variant="outline" size="xs" onClick={onApplyClassification}>Apply Classification</Button>}
+          {onApplyAttributes && <Button type="button" variant="outline" size="xs" onClick={() => onApplyAttributes(suggestion.attributes)}>Apply Specifications</Button>}
+          {onApplyNameDescription && <Button type="button" variant="outline" size="xs" onClick={onApplyNameDescription}>Apply Name &amp; Description</Button>}
+        </div>
+      </div>
+
+      {attributeConflicts.length > 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+          <p className="font-semibold">Specification conflicts need review</p>
+          <div className="mt-1 space-y-1">
+            {attributeConflicts.map((conflict) => (
+              <p key={conflict.code}>
+                <span className="font-mono">{conflict.code}</span>: existing {conflict.existing}, extracted {conflict.extracted}
+              </p>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">Keep Existing leaves the current value unchanged. Use Extracted is available per specification below.</p>
         </div>
       )}
 

@@ -88,27 +88,54 @@ interface DataPackHint {
   packagePatterns?: string[];
 }
 
-const FALLBACK_MANUFACTURER_PREFIXES: Record<string, string> = {
-  RC: 'Yageo',
-  RT: 'Yageo',
-  CC: 'Yageo',
-  GRM: 'Murata',
-  GJM: 'Murata',
-  BLM: 'Murata',
-  C: 'KEMET',
-  T491: 'KEMET',
-  SI: 'Vishay',
-  CRCW: 'Vishay',
-  CS: 'Samwha',
-  SWPA: 'Sunlord',
-  BSS: 'Slkor',
-  MBR: 'JSMSEMI',
-  MC: 'Multicomp Pro',
-  TSA: 'BZCN',
-  JS: 'Jushuo',
-  AFC: 'Jushuo',
-  XL: 'Xinglight',
-};
+function buildCategoryPath(
+  categoryId: string,
+  categoryMap: Map<string, { name: string; parentId: string | null }>,
+): string[] {
+  const path: string[] = [];
+  const seen = new Set<string>();
+  let currentId: string | null = categoryId;
+  while (currentId && !seen.has(currentId)) {
+    seen.add(currentId);
+    const current = categoryMap.get(currentId);
+    if (!current) break;
+    path.unshift(current.name);
+    currentId = current.parentId;
+  }
+  return path;
+}
+
+function extractManufacturerPartNumber(input: string): string | undefined {
+  const token = input.match(/\b[A-Z0-9][A-Z0-9._/-]{4,}\b/i)?.[0];
+  if (!token || !/[A-Z]/i.test(token) || !/\d/.test(token)) return undefined;
+  return token.trim().toUpperCase();
+}
+
+function composeComponentName(
+  attributes: Record<string, ExtractedAttributeDto>,
+  category: CategorySuggestionDto | null,
+): string | undefined {
+  const categoryName = category?.subcategoryName || category?.categoryName;
+  const resistance = attributes.resistance?.formatted;
+  const capacitance = attributes.capacitance?.formatted;
+  const pkg = attributes.package?.formatted;
+  const value = resistance || capacitance;
+  if (!value && !categoryName) return undefined;
+  return [value, pkg, categoryName || 'Component'].filter(Boolean).join(' ');
+}
+
+function composeComponentDescription(
+  attributes: Record<string, ExtractedAttributeDto>,
+  category: CategorySuggestionDto | null,
+): string | undefined {
+  const facts = Object.values(attributes).map(
+    (attribute) => attribute.formatted,
+  );
+  if (facts.length === 0 && !category?.subcategoryName) return undefined;
+  const categoryName = category?.subcategoryName || category?.categoryName;
+  const factText = facts.join(' ');
+  return `${factText}${factText && categoryName ? ' ' : ''}${categoryName || ''}.`;
+}
 
 @Injectable()
 export class MlService {
@@ -124,7 +151,11 @@ export class MlService {
   ): Promise<ComponentSuggestionResponseDto> {
     const t0 = performance.now();
     const query = dto.query.trim();
-    const partNumber = (dto.partNumber || query).trim();
+    const partNumber = (
+      dto.partNumber ||
+      extractManufacturerPartNumber(query) ||
+      query
+    ).trim();
     const description = (dto.description || query).trim();
 
     // 1. Fetch reference lookups from database and active Data Pack hints
@@ -135,8 +166,8 @@ export class MlService {
       existingComps,
       datapackHints,
     ] = await Promise.all([
-      db.select().from(categories).where(eq(categories.isActive, true)),
-      db.select().from(manufacturers).where(eq(manufacturers.isActive, true)),
+      db.select().from(categories),
+      db.select().from(manufacturers),
       db.select().from(attributeDefinitions),
       db
         .select({
@@ -152,6 +183,10 @@ export class MlService {
         : Promise.resolve([]),
     ]);
 
+    const categoryMap = new Map(
+      allCategories.map((category) => [category.id, category]),
+    );
+
     // 2. Try ananya-ml microservice first with dynamic Data Pack hints
     let isMlActive = false;
     let mlResponse = null;
@@ -161,11 +196,35 @@ export class MlService {
         query,
         part_number: partNumber,
         description,
+        datasheet_text: dto.datasheetText,
         existing_components: existingComps.map((c) => ({
           id: c.id,
           sku: c.sku,
           name: c.name,
           description: c.description || undefined,
+        })),
+        erp_manufacturers: allManufacturers.map((manufacturer) => ({
+          id: manufacturer.id,
+          name: manufacturer.name,
+          code: manufacturer.code,
+          aliases: [],
+          normalized_name: manufacturer.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, ''),
+          is_active: manufacturer.isActive,
+        })),
+        erp_categories: allCategories.map((category) => ({
+          id: category.id,
+          name: category.name,
+          code: category.code,
+          description: category.description,
+          parent_id: category.parentId,
+          parent_name: category.parentId
+            ? categoryMap.get(category.parentId)?.name
+            : null,
+          path: buildCategoryPath(category.id, categoryMap),
+          aliases: [],
+          is_active: category.isActive,
         })),
         datapack_hints: datapackHints,
       });
@@ -190,12 +249,24 @@ export class MlService {
         );
 
         const item: CategorySuggestionDto = {
-          categoryId: matchedCat?.id || null,
-          categoryCode: matchedCat?.code,
+          resolution:
+            pred.resolution || (matchedCat ? 'EXISTING' : 'NEW_CANDIDATE'),
+          categoryId: pred.category_id || matchedCat?.id || null,
+          categoryCode: pred.category_code || matchedCat?.code,
           categoryName: pred.category,
-          subcategoryId: matchedCat?.parentId ? matchedCat.id : null,
-          subcategoryCode: matchedCat?.parentId ? matchedCat.code : undefined,
+          subcategoryId:
+            pred.category_id || (matchedCat?.parentId ? matchedCat.id : null),
+          subcategoryCode:
+            pred.category_code ||
+            (matchedCat?.parentId ? matchedCat.code : undefined),
           subcategoryName: pred.subcategory,
+          categoryPath:
+            pred.category_path ||
+            (matchedCat ? buildCategoryPath(matchedCat.id, categoryMap) : []),
+          parentCategoryId: pred.parent_category_id || matchedCat?.parentId,
+          parentCategoryCode: pred.parent_category_code,
+          suggestedParent: pred.suggested_parent,
+          proposedDescription: pred.proposed_description,
           confidence: pred.confidence,
           confidenceLevel:
             pred.confidence_level ||
@@ -205,6 +276,14 @@ export class MlService {
                 ? 'MEDIUM'
                 : 'LOW'),
           evidence: pred.evidence || [],
+          candidates: pred.candidates?.map((candidate) => ({
+            categoryId: candidate.category_id || null,
+            categoryName: candidate.category_name,
+            categoryCode: candidate.category_code || null,
+            categoryPath: candidate.category_path || [],
+            confidence: candidate.confidence,
+            evidence: candidate.evidence || [],
+          })),
         };
 
         if (idx === 0) {
@@ -311,15 +390,18 @@ export class MlService {
       }
 
       const dbCat = allCategories.find(
-        (c) => c.name.toLowerCase() === matchedName.toLowerCase(),
+        (c) => c.isActive && c.name.toLowerCase() === matchedName.toLowerCase(),
       );
       primaryCategory = {
+        resolution: dbCat ? 'EXISTING' : 'NEW_CANDIDATE',
         categoryId: dbCat?.id || null,
         categoryCode: dbCat?.code,
         categoryName: 'Electronic Components',
         subcategoryId: dbCat?.parentId ? dbCat.id : null,
         subcategoryCode: dbCat?.parentId ? dbCat.code : undefined,
         subcategoryName: matchedName,
+        categoryPath: dbCat ? buildCategoryPath(dbCat.id, categoryMap) : [],
+        parentCategoryId: dbCat?.parentId || null,
         confidence: dpMatched ? 0.95 : 0.85,
         confidenceLevel: dpMatched ? 'HIGH' : 'MEDIUM',
         evidence: [
@@ -335,14 +417,22 @@ export class MlService {
 
     // 4. Manufacturer Resolution
     let manufacturerSuggestion: ManufacturerSuggestionDto | null = null;
-    let mfgName = 'Generic';
+    let mfgName: string | null = null;
+    let mfgResolution: 'EXISTING' | 'NEW_CANDIDATE' | 'UNKNOWN' = 'UNKNOWN';
+    let mfgId: string | null = null;
+    let mfgCode: string | undefined;
     let mfgConf = 0.5;
     let mfgConfLevel: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
     let mfgType = 'fallback';
     let mfgEvidence: EvidenceItemDto[] = [];
 
     if (mlResponse) {
-      mfgName = mlResponse.manufacturer.manufacturer;
+      mfgName = mlResponse.manufacturer.manufacturer || null;
+      mfgResolution =
+        mlResponse.manufacturer.resolution ||
+        (mfgName ? 'NEW_CANDIDATE' : 'UNKNOWN');
+      mfgId = mlResponse.manufacturer.manufacturer_id || null;
+      mfgCode = mlResponse.manufacturer.code || undefined;
       mfgConf = mlResponse.manufacturer.confidence;
       mfgConfLevel =
         mlResponse.manufacturer.confidence_level ||
@@ -350,9 +440,11 @@ export class MlService {
       mfgType = mlResponse.manufacturer.match_type;
       mfgEvidence = mlResponse.manufacturer.evidence || [];
     } else {
-      // Deterministic Manufacturer Fallback with Data Pack Hints
+      // Deterministic fallback uses only current ERP records and Data Pack rules.
       const upperPn = partNumber.toUpperCase();
-      let matched = false;
+      const lowerInput = `${partNumber} ${description}`.toLowerCase();
+      let matchedName: string | null = null;
+      let matchedCode: string | undefined;
 
       for (const hint of datapackHints) {
         if (hint.manufacturerHints) {
@@ -361,7 +453,8 @@ export class MlService {
               for (const pat of mfgHint.prefixPatterns) {
                 try {
                   if (new RegExp(pat, 'i').test(upperPn)) {
-                    mfgName = mfgHint.name;
+                    matchedName = mfgHint.name;
+                    matchedCode = mfgHint.code;
                     mfgConf = 0.99;
                     mfgConfLevel = 'HIGH';
                     mfgType = 'datapack';
@@ -373,7 +466,7 @@ export class MlService {
                         source: 'datapack:mfg',
                       },
                     ];
-                    matched = true;
+                    mfgResolution = 'NEW_CANDIDATE';
                     break;
                   }
                 } catch {
@@ -381,31 +474,48 @@ export class MlService {
                 }
               }
             }
-            if (matched) break;
+            if (matchedName) break;
           }
         }
-        if (matched) break;
+        if (matchedName) break;
       }
 
-      if (!matched) {
-        for (const [prefix, name] of Object.entries(
-          FALLBACK_MANUFACTURER_PREFIXES,
-        )) {
-          if (upperPn.startsWith(prefix)) {
-            mfgName = name;
-            mfgConf = 0.98;
-            mfgConfLevel = 'HIGH';
-            mfgType = 'pattern';
-            mfgEvidence = [
-              {
-                type: 'mpn_pattern',
-                description: `Matched established manufacturer prefix series '${prefix}'`,
-                weight: 0.95,
-                source: 'catalog:prefix',
-              },
-            ];
-            break;
-          }
+      if (matchedName) {
+        mfgName = matchedName;
+        mfgCode = matchedCode;
+        const exactDataPackManufacturer = allManufacturers.find(
+          (manufacturer) =>
+            manufacturer.name.toLowerCase() === matchedName?.toLowerCase() ||
+            manufacturer.code.toLowerCase() === matchedCode?.toLowerCase(),
+        );
+        if (exactDataPackManufacturer) {
+          mfgResolution = 'EXISTING';
+          mfgId = exactDataPackManufacturer.id;
+        }
+      }
+
+      if (!matchedName) {
+        const exact = allManufacturers.find((manufacturer) =>
+          [manufacturer.name, manufacturer.code].some((value) =>
+            lowerInput.includes(value.toLowerCase()),
+          ),
+        );
+        if (exact) {
+          matchedName = exact.name;
+          matchedCode = exact.code;
+          mfgResolution = 'EXISTING';
+          mfgId = exact.id;
+          mfgConf = 0.95;
+          mfgConfLevel = 'HIGH';
+          mfgType = 'erp';
+          mfgEvidence = [
+            {
+              type: 'exact_erp_match',
+              description: `Matched active ERP manufacturer '${exact.name}' in supplied text`,
+              weight: 0.95,
+              source: 'erp:manufacturers',
+            },
+          ];
         }
       }
 
@@ -414,7 +524,7 @@ export class MlService {
           {
             type: 'classifier',
             description:
-              'No known manufacturer prefix matched; default Generic fallback assigned',
+              'ML unavailable and no ERP or Data Pack manufacturer evidence matched',
             weight: 0.3,
             source: 'resolver:fallback',
           },
@@ -422,20 +532,31 @@ export class MlService {
       }
     }
 
-    const dbMfg = allManufacturers.find(
-      (m) =>
-        m.name.toLowerCase() === mfgName.toLowerCase() ||
-        m.code.toLowerCase() === mfgName.toLowerCase(),
-    );
+    const dbMfg = mfgId
+      ? allManufacturers.find((manufacturer) => manufacturer.id === mfgId)
+      : allManufacturers.find(
+          (manufacturer) =>
+            mfgName &&
+            (manufacturer.name.toLowerCase() === mfgName.toLowerCase() ||
+              manufacturer.code.toLowerCase() === mfgName.toLowerCase()),
+        );
 
     manufacturerSuggestion = {
-      manufacturerId: dbMfg?.id || null,
-      manufacturerCode: dbMfg?.code,
+      resolution: dbMfg ? 'EXISTING' : mfgResolution,
+      manufacturerId: dbMfg?.id || mfgId,
+      manufacturerCode: dbMfg?.code || mfgCode,
       manufacturerName: mfgName,
       confidence: mfgConf,
       confidenceLevel: mfgConfLevel,
       matchType: mfgType,
       evidence: mfgEvidence,
+      candidates: mlResponse?.manufacturer.candidates?.map((candidate) => ({
+        manufacturerId: candidate.manufacturer_id || null,
+        name: candidate.name,
+        manufacturerCode: candidate.code || null,
+        confidence: candidate.confidence,
+        evidence: candidate.evidence || [],
+      })),
     };
 
     // 5. Duplicate Detection & Physical Compatibility Precedence
@@ -544,11 +665,20 @@ export class MlService {
     }
 
     const elapsed = performance.now() - t0;
+    const suggestedName = composeComponentName(
+      resolvedAttributes,
+      primaryCategory,
+    );
+    const suggestedDescription = composeComponentDescription(
+      resolvedAttributes,
+      primaryCategory,
+    );
 
     return {
       query,
-      suggestedSku: partNumber,
-      suggestedName: description !== query ? description : undefined,
+      manufacturerPartNumber: partNumber || undefined,
+      suggestedName,
+      suggestedDescription,
       suggestedUnit: 'pcs',
       category: primaryCategory,
       alternativeCategories,

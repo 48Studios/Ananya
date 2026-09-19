@@ -12,6 +12,7 @@ import {
 } from '@ananya/inventory';
 import { COMPONENT_REPOSITORY } from './component.tokens';
 import { AttributesService } from '../attributes/attributes.service';
+import { ComponentSkuService } from './component-sku.service';
 
 interface RawAttributeObject {
   attributeDefinitionId?: string;
@@ -88,8 +89,12 @@ export class ComponentsService {
     @Inject(COMPONENT_REPOSITORY)
     private readonly repository: ComponentRepository,
     private readonly attributesService: AttributesService,
+    private readonly componentSkuService: ComponentSkuService,
   ) {
-    this.createComponentUseCase = new CreateComponent(repository);
+    this.createComponentUseCase = new CreateComponent(
+      repository,
+      componentSkuService,
+    );
     this.updateComponentUseCase = new UpdateComponent(repository);
     this.deleteComponentUseCase = new DeleteComponent(repository);
   }

@@ -61,6 +61,7 @@ import {
   generateTemplateXlsx,
   getSystemFieldsWithAliases,
 } from './importer-registry';
+import { ComponentSkuService } from '../components/component-sku.service';
 
 function cleanHeader(str: string): string {
   if (str.startsWith('\uFEFF')) {
@@ -96,6 +97,7 @@ function parseCsvLine(line: string): string[] {
 @Injectable()
 export class ImportExportService {
   private readonly logger = new Logger(ImportExportService.name);
+  private readonly componentSkuService = new ComponentSkuService();
 
   getTemplate(entityType: string) {
     return getRegistryTemplate(entityType);
@@ -700,15 +702,12 @@ export class ImportExportService {
         const rowIndex = i + 1;
         try {
           if (canonicalEntity === 'Component') {
-            const skuVal = (
-              this.getRowFieldValue(row, 'sku', columnMapping) ||
-              `SKU-${Date.now()}-${i}`
-            )
+            const explicitSku = this.getRowFieldValue(row, 'sku', columnMapping)
               .trim()
               .toUpperCase();
+            let skuVal = explicitSku;
             const nameVal =
-              this.getRowFieldValue(row, 'name', columnMapping) ||
-              `Component ${skuVal}`;
+              this.getRowFieldValue(row, 'name', columnMapping) || 'Component';
             const unitVal =
               this.getRowFieldValue(row, 'unit', columnMapping) || 'pcs';
             const descVal = this.getRowFieldValue(
@@ -716,6 +715,12 @@ export class ImportExportService {
               'description',
               columnMapping,
             );
+            const mpnVal =
+              this.getRowFieldValue(
+                row,
+                'manufacturerPartNumber',
+                columnMapping,
+              ).trim() || null;
 
             const categoryVal = this.getRowFieldValue(
               row,
@@ -731,37 +736,45 @@ export class ImportExportService {
             ).toUpperCase();
             const manufacturerId = mfgMap.get(mfgVal) || null;
 
-            const [inserted] = await db
-              .insert(components)
-              .values({
-                sku: skuVal,
-                name: nameVal,
-                unit: unitVal,
-                description: descVal,
-                categoryId: categoryId,
-                manufacturerId: manufacturerId,
-                isActive: true,
-              })
-              .onConflictDoUpdate({
-                target: components.sku,
-                set: {
-                  name: nameVal,
+            let inserted: { id: string; sku: string } | undefined;
+            for (let attempt = 0; attempt < 10 && !inserted; attempt++) {
+              if (!explicitSku) {
+                skuVal = await this.componentSkuService.generate();
+              }
+
+              [inserted] = await db
+                .insert(components)
+                .values({
+                  sku: skuVal,
+                  manufacturerPartNumber: mpnVal,
+                  name: explicitSku ? nameVal : `${nameVal} ${skuVal}`,
                   unit: unitVal,
                   description: descVal,
                   categoryId: categoryId,
                   manufacturerId: manufacturerId,
-                  updatedAt: new Date(),
-                },
-              })
-              .returning({ id: components.id, sku: components.sku });
-
-            if (inserted) {
-              compMap.set(inserted.sku.toUpperCase(), inserted.id);
-              createdEntities.push({
-                entityType: 'Component',
-                id: inserted.id,
-              });
+                  isActive: true,
+                })
+                .onConflictDoNothing({ target: components.sku })
+                .returning({ id: components.id, sku: components.sku });
             }
+
+            if (!inserted) {
+              errors.push({
+                row: rowIndex,
+                column: 'sku',
+                value: skuVal,
+                message: explicitSku
+                  ? 'Component SKU already exists'
+                  : 'Could not allocate a unique component SKU',
+              });
+              continue;
+            }
+
+            compMap.set(inserted.sku.toUpperCase(), inserted.id);
+            createdEntities.push({
+              entityType: 'Component',
+              id: inserted.id,
+            });
             processed++;
           } else if (canonicalEntity === 'AttributeDefinition') {
             const codeVal = this.getRowFieldValue(row, 'code', columnMapping)

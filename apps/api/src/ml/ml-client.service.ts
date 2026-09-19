@@ -4,6 +4,22 @@ import { EvidenceItemDto } from './dtos';
 export interface MlPredictCategoryItem {
   category: string;
   subcategory?: string | null;
+  resolution?: 'EXISTING' | 'NEW_CANDIDATE' | 'UNKNOWN';
+  category_id?: string | null;
+  category_code?: string | null;
+  category_path?: string[];
+  parent_category_id?: string | null;
+  parent_category_code?: string | null;
+  suggested_parent?: string | null;
+  proposed_description?: string | null;
+  candidates?: Array<{
+    category_id?: string | null;
+    category_name: string;
+    category_code?: string | null;
+    category_path?: string[];
+    confidence: number;
+    evidence?: EvidenceItemDto[];
+  }>;
   confidence: number;
   confidence_level?: 'HIGH' | 'MEDIUM' | 'LOW';
   parent_category?: string | null;
@@ -13,12 +29,21 @@ export interface MlPredictCategoryItem {
 export interface MlSuggestResponse {
   category_predictions: MlPredictCategoryItem[];
   manufacturer: {
-    manufacturer: string;
+    resolution?: 'EXISTING' | 'NEW_CANDIDATE' | 'UNKNOWN';
+    manufacturer?: string | null;
+    manufacturer_id?: string | null;
     confidence: number;
     confidence_level?: 'HIGH' | 'MEDIUM' | 'LOW';
     match_type: string;
     code?: string | null;
     evidence?: EvidenceItemDto[];
+    candidates?: Array<{
+      manufacturer_id?: string | null;
+      name: string;
+      code?: string | null;
+      confidence: number;
+      evidence?: EvidenceItemDto[];
+    }>;
   };
   duplicates: {
     is_duplicate: boolean;
@@ -95,11 +120,31 @@ export class MlClientService {
     query: string;
     part_number?: string;
     description?: string;
+    datasheet_text?: string;
     existing_components?: Array<{
       id: string;
       sku: string;
       name?: string;
       description?: string;
+    }>;
+    erp_manufacturers?: Array<{
+      id: string;
+      name: string;
+      code: string;
+      aliases: string[];
+      normalized_name: string;
+      is_active: boolean;
+    }>;
+    erp_categories?: Array<{
+      id: string;
+      name: string;
+      code: string;
+      description?: string | null;
+      parent_id?: string | null;
+      parent_name?: string | null;
+      path: string[];
+      aliases: string[];
+      is_active: boolean;
     }>;
     datapack_hints?: unknown[];
   }): Promise<MlSuggestResponse | null> {

@@ -7,10 +7,15 @@ import {
 } from 'class-validator';
 
 export class CreateComponentDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(50)
-  sku!: string;
+  sku?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  manufacturerPartNumber?: string;
 
   @IsString()
   @IsNotEmpty()

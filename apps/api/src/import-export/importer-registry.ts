@@ -175,13 +175,23 @@ export const IMPORT_ENTITY_REGISTRY: Record<string, ImportEntityDefinition> = {
     fields: [
       {
         name: 'sku',
-        label: 'SKU / Part Number',
+        label: 'Internal SKU',
         type: 'string',
         required: true,
         description: 'Unique stock keeping unit or part code',
         aliases: ['sku', 'partnumber', 'itemcode', 'componentcode'],
         sampleValue: 'RES-10K-001',
         sampleValue2: 'CAP-10UF-002',
+      },
+      {
+        name: 'manufacturerPartNumber',
+        label: 'Manufacturer Part Number',
+        type: 'string',
+        required: false,
+        description:
+          'Manufacturer-provided part number, separate from internal SKU',
+        aliases: ['manufacturerpartnumber', 'mpn', 'vendorpartnumber'],
+        sampleValue: 'RC0805FR-0727RL',
       },
       {
         name: 'name',

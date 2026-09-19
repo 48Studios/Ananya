@@ -40,8 +40,8 @@ import {
 const componentSchema = z.object({
   sku: z
     .string()
-    .min(1, "SKU is required")
-    .transform((val) => val.trim().toUpperCase()),
+    .transform((val) => val?.trim().toUpperCase() ?? ""),
+  manufacturerPartNumber: z.string().optional().nullable(),
   name: z
     .string()
     .min(1, "Component name is required")
@@ -93,6 +93,7 @@ export function ComponentForm({
       string,
       {
         value?: unknown;
+        attributeDefinitionId?: string | null;
         unit?: string | null;
         optionCode?: string;
         selectedOptionCodes?: string[];
@@ -117,6 +118,7 @@ export function ComponentForm({
     resolver: zodResolver(componentSchema),
     defaultValues: {
       sku: initialData?.sku ?? "",
+      manufacturerPartNumber: initialData?.manufacturerPartNumber ?? "",
       name: initialData?.name ?? "",
       description: initialData?.description ?? "",
       categoryId: initialData?.categoryId ?? "",
@@ -127,11 +129,20 @@ export function ComponentForm({
   });
 
   const selectedCategoryId = useWatch({ control, name: "categoryId" });
+  const attributeConflicts = React.useMemo(() => {
+    if (!initialData?.attributes || !suggestion) return [];
+    return Object.entries(suggestion.attributes).flatMap(([code, extracted]) => {
+      const existing = initialData.attributes?.[code];
+      if (!existing || String(existing.displayValue) === extracted.formatted) return [];
+      return [{ code, existing: existing.displayValue, extracted: extracted.formatted }];
+    });
+  }, [initialData, suggestion]);
 
   // Initialize form and attribute state from initialData
   React.useEffect(() => {
     reset({
       sku: initialData?.sku ?? "",
+      manufacturerPartNumber: initialData?.manufacturerPartNumber ?? "",
       name: initialData?.name ?? "",
       description: initialData?.description ?? "",
       categoryId: initialData?.categoryId ?? "",
@@ -145,6 +156,7 @@ export function ComponentForm({
         string,
         {
           value?: unknown;
+          attributeDefinitionId?: string | null;
           unit?: string | null;
           optionCode?: string;
           selectedOptionCodes?: string[];
@@ -161,6 +173,7 @@ export function ComponentForm({
           optionCode:
             item.optionCode ??
             (typeof item.value === "string" ? item.value : ""),
+          attributeDefinitionId: item.definitionId,
           selectedOptionCodes,
         };
       }
@@ -247,7 +260,7 @@ export function ComponentForm({
   };
 
   const handleFetchAiSuggestions = async (overrideQuery?: string) => {
-    const q = overrideQuery || datasheetInput || watch("sku") || watch("name");
+    const q = overrideQuery || datasheetInput || watch("manufacturerPartNumber") || watch("name");
     if (!q || q.trim().length === 0) return;
 
     setLoadingAi(true);
@@ -255,7 +268,7 @@ export function ComponentForm({
     try {
       const res = await mlApi.suggest({
         query: q.trim(),
-        partNumber: watch("sku") || undefined,
+        partNumber: watch("manufacturerPartNumber") || undefined,
         description: watch("name") || datasheetInput || undefined,
         datasheetText: datasheetInput || undefined,
       });
@@ -270,11 +283,18 @@ export function ComponentForm({
   const handleApplyAllSuggestions = () => {
     if (!suggestion) return;
 
-    if (suggestion.suggestedSku && !watch("sku")) {
-      setValue("sku", suggestion.suggestedSku, { shouldValidate: true });
+    if (suggestion.manufacturerPartNumber) {
+      setValue("manufacturerPartNumber", suggestion.manufacturerPartNumber, {
+        shouldDirty: true,
+      });
     }
-    if (suggestion.suggestedName && !watch("name")) {
+    if (suggestion.suggestedName) {
       setValue("name", suggestion.suggestedName, { shouldValidate: true });
+    }
+    if (suggestion.suggestedDescription) {
+      setValue("description", suggestion.suggestedDescription, {
+        shouldDirty: true,
+      });
     }
     if (suggestion.category?.categoryId) {
       setValue("categoryId", suggestion.category.categoryId, { shouldValidate: true });
@@ -291,6 +311,7 @@ export function ComponentForm({
         const next = { ...prev };
         for (const [code, attr] of Object.entries(suggestion.attributes)) {
           next[code] = {
+            attributeDefinitionId: attr.attributeDefinitionId,
             value: attr.value,
             unit: attr.unit || next[code]?.unit,
             optionCode: typeof attr.value === "string" ? attr.value : undefined,
@@ -317,8 +338,13 @@ export function ComponentForm({
     setAttrValues((prev) => {
       const next = { ...prev };
       for (const [code, attrRaw] of Object.entries(attrs)) {
-        const attr = attrRaw as { value?: unknown; unit?: string | null };
+        const attr = attrRaw as {
+          value?: unknown;
+          unit?: string | null;
+          attributeDefinitionId?: string | null;
+        };
         next[code] = {
+          attributeDefinitionId: attr.attributeDefinitionId,
           value: attr.value,
           unit: attr.unit || next[code]?.unit,
           optionCode: typeof attr.value === "string" ? attr.value : undefined,
@@ -365,7 +391,7 @@ export function ComponentForm({
     try {
       if (isEditing && initialData) {
         const payload: UpdateComponentPayload = {
-          sku: values.sku,
+          manufacturerPartNumber: values.manufacturerPartNumber || null,
           name: values.name,
           description: values.description || null,
           categoryId: values.categoryId || null,
@@ -378,8 +404,9 @@ export function ComponentForm({
         onSuccess(updated);
       } else {
         const payload: CreateComponentPayload = {
-          sku: values.sku,
+          ...(values.sku ? { sku: values.sku } : {}),
           name: values.name,
+          manufacturerPartNumber: values.manufacturerPartNumber || null,
           description: values.description || null,
           categoryId: values.categoryId || null,
           manufacturerId: values.manufacturerId || null,
@@ -421,11 +448,32 @@ export function ComponentForm({
             suggestion={suggestion}
             creationContext={{
               sku: watch("sku"),
+              manufacturerPartNumber: watch("manufacturerPartNumber"),
               name: watch("name"),
               description: watch("description") || datasheetInput,
-              query: datasheetInput || watch("sku") || watch("name"),
+              query: datasheetInput || watch("manufacturerPartNumber") || watch("name"),
             }}
             onApplyAll={handleApplyAllSuggestions}
+            onApplyIdentity={() => {
+              if (suggestion.manufacturerPartNumber) {
+                setValue("manufacturerPartNumber", suggestion.manufacturerPartNumber, {
+                  shouldDirty: true,
+                });
+              }
+              handleApplyManufacturer();
+            }}
+            onApplyClassification={handleApplyCategory}
+            onApplyNameDescription={() => {
+              if (suggestion.suggestedName) {
+                setValue("name", suggestion.suggestedName, { shouldDirty: true });
+              }
+              if (suggestion.suggestedDescription) {
+                setValue("description", suggestion.suggestedDescription, {
+                  shouldDirty: true,
+                });
+              }
+            }}
+            attributeConflicts={attributeConflicts}
             onApplyCategory={handleApplyCategory}
             onApplyManufacturer={handleApplyManufacturer}
             onApplyAttributes={handleApplyAttributes}
@@ -508,18 +556,31 @@ export function ComponentForm({
           {/* SKU */}
           <Field>
             <FieldLabel htmlFor="component-sku">
-              SKU / Part Number <span className="text-destructive">*</span>
+              Internal SKU
             </FieldLabel>
             <Input
               id="component-sku"
               type="text"
-              placeholder="e.g. RES-10K-0805"
+              placeholder={isEditing ? "CMP-000123" : "Assigned on save"}
               {...register("sku")}
+              disabled={isEditing}
               className="font-mono"
             />
             {errors.sku?.message && (
               <FieldError>{errors.sku.message}</FieldError>
             )}
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="component-mpn">Manufacturer Part Number</FieldLabel>
+            <Input
+              id="component-mpn"
+              type="text"
+              placeholder="e.g. RC0805FR-0727RL"
+              {...register("manufacturerPartNumber")}
+              className="font-mono"
+            />
+            <FieldDescription>Manufacturer identity, separate from Ananya's internal SKU.</FieldDescription>
           </Field>
 
           {/* Unit */}
