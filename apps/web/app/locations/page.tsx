@@ -446,8 +446,8 @@ export default function LocationsPage() {
         title={editingLocation ? "Edit Location" : "Create New Location"}
         description={
           editingLocation
-            ? `Update the storage location "${editingLocation.code}" and keep its hierarchy assignment aligned.`
-            : "Create a new storage location with its code, hierarchy level, and parent placement."
+            ? `Update the storage location "${editingLocation.code}".`
+            : "Create a new storage location."
         }
         size="sm"
       >

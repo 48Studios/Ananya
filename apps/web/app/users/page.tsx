@@ -329,8 +329,8 @@ export default function UsersListPage() {
         title={editingUser ? "Edit User Account" : "Create New User Account"}
         description={
           editingUser
-            ? "Update user identity, department, and role assignment using the standard administration dialog layout."
-            : "Create a new user account with consistent dialog structure and footer actions."
+            ? "Update user identity, department, and role assignment."
+            : "Create a new user account."
         }
         size="sm"
       >

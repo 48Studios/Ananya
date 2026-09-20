@@ -340,8 +340,8 @@ export default function CategoriesPage() {
         title={editingCategory ? "Edit Category" : "Create New Category"}
         description={
           editingCategory
-            ? `Update the inventory category "${editingCategory.code}" with standardized master data fields.`
-            : "Create a new inventory category using the shared dialog layout and footer actions."
+            ? `Update the inventory category "${editingCategory.code}".`
+            : "Create a new inventory category."
         }
         size="sm"
       >
