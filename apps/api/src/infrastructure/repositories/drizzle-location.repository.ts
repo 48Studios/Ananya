@@ -18,6 +18,10 @@ import {
   Location as LocationAggregate,
   LocationInUseError,
 } from '@ananya/inventory';
+import {
+  isPostgresErrorCode,
+  POSTGRES_FOREIGN_KEY_VIOLATION,
+} from '../../common/utils/postgres-error';
 
 function toDomain(row: LocationRow): Location {
   return LocationAggregate.rehydrate({
@@ -194,8 +198,7 @@ export class DrizzleLocationRepository implements LocationRepository {
     try {
       await db.delete(locations).where(eq(locations.id, id));
     } catch (err: unknown) {
-      const pgErr = err as { code?: string };
-      if (pgErr.code === '23503') {
+      if (isPostgresErrorCode(err, POSTGRES_FOREIGN_KEY_VIOLATION)) {
         throw new LocationInUseError(id);
       }
       throw err;

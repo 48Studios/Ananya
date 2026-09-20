@@ -14,6 +14,7 @@ import {
 import { CreateReservationDto, UpdateReservationDto } from './dtos';
 import { RESERVATION_REPOSITORY } from './reservation.tokens';
 import { InventoryProjectionsService } from '../inventory-projections/inventory-projections.service';
+import { assertComponentUsableForNewActivity } from '../components/component-lifecycle.guard';
 
 @Injectable()
 export class ReservationsService {
@@ -32,6 +33,14 @@ export class ReservationsService {
 
     // Over-reservation check for each line item
     for (const line of dto.lines) {
+      // A retired component must not be a new reservation target. Without this
+      // the check below would only refuse incidentally, because the retired
+      // component's balance has been moved away.
+      await assertComponentUsableForNewActivity(
+        line.componentId,
+        'new reservations',
+      );
+
       const avail = await this.getAvailableQuantity(
         line.componentId,
         line.locationId,
@@ -82,6 +91,11 @@ export class ReservationsService {
 
     if (dto.lines) {
       for (const line of dto.lines) {
+        await assertComponentUsableForNewActivity(
+          line.componentId,
+          'new reservations',
+        );
+
         const avail = await this.getAvailableQuantity(
           line.componentId,
           line.locationId,

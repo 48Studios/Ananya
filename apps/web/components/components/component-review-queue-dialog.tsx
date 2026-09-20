@@ -44,6 +44,7 @@ import {
   type ComponentReviewIssueType,
   type ComponentReviewQueuePageDto,
   type ConfidenceLevel,
+  type ConsolidationResultDto,
 } from "@/lib/api/component-review-queue-api";
 import { categoriesApi } from "@/lib/api/categories-api";
 import { manufacturersApi } from "@/lib/api/manufacturers-api";
@@ -56,6 +57,8 @@ import {
   QUEUE_TABS,
   STATUS_BADGE,
   STATUS_FILTER_OPTIONS,
+  applyConsolidationToFinding,
+  applyFindingStatusToQueuePage,
   auditUnavailableReason,
   buildFindingValueSummary,
   buildQueueTabCounts,
@@ -123,7 +126,8 @@ export function ComponentReviewQueueDialog({
   const [tab, setTab] = React.useState<QueueTabId>("ALL");
   const [statusFilter, setStatusFilter] = React.useState(ALL_FILTER_VALUE);
   const [categoryFilter, setCategoryFilter] = React.useState(ALL_FILTER_VALUE);
-  const [issueTypeFilter, setIssueTypeFilter] = React.useState(ALL_FILTER_VALUE);
+  const [issueTypeFilter, setIssueTypeFilter] =
+    React.useState(ALL_FILTER_VALUE);
   const [confidenceFilter, setConfidenceFilter] =
     React.useState(ALL_FILTER_VALUE);
   const [searchInput, setSearchInput] = React.useState("");
@@ -156,14 +160,11 @@ export function ComponentReviewQueueDialog({
       const data = await componentReviewQueueApi.listFindings({
         status: filterValueToParam(statusFilter),
         issueCategory: filterValueToParam(categoryFilter) as
-          | ComponentReviewIssueCategory
-          | undefined,
+          ComponentReviewIssueCategory | undefined,
         issueType: filterValueToParam(issueTypeFilter) as
-          | ComponentReviewIssueType
-          | undefined,
+          ComponentReviewIssueType | undefined,
         confidenceLevel: filterValueToParam(confidenceFilter) as
-          | ConfidenceLevel
-          | undefined,
+          ConfidenceLevel | undefined,
         search: search.trim() || undefined,
         // One request returns the whole filtered list, matching the Attribute
         // queue, so the list stays a plain scroll region with no paging.
@@ -183,13 +184,7 @@ export function ComponentReviewQueueDialog({
     } finally {
       setLoading(false);
     }
-  }, [
-    statusFilter,
-    categoryFilter,
-    issueTypeFilter,
-    confidenceFilter,
-    search,
-  ]);
+  }, [statusFilter, categoryFilter, issueTypeFilter, confidenceFilter, search]);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -237,10 +232,10 @@ export function ComponentReviewQueueDialog({
 
   const filtered = Boolean(
     filterValueToParam(statusFilter) ||
-      filterValueToParam(categoryFilter) ||
-      filterValueToParam(issueTypeFilter) ||
-      filterValueToParam(confidenceFilter) ||
-      search.trim(),
+    filterValueToParam(categoryFilter) ||
+    filterValueToParam(issueTypeFilter) ||
+    filterValueToParam(confidenceFilter) ||
+    search.trim(),
   );
 
   const toggleWhy = (findingId: string) => {
@@ -259,6 +254,33 @@ export function ComponentReviewQueueDialog({
   const openDetail = (finding: ComponentReviewFindingDto) => {
     setDetailFinding(finding);
     setDetailFindingId(finding.id);
+  };
+
+  /**
+   * Reconciliation after a consolidation completed.
+   *
+   * Consolidation commits the finding as ACCEPTED inside its own transaction,
+   * so `result` is the outcome the server already recorded, not a prediction.
+   * The loaded page is therefore updated surgically from it — the one affected
+   * row and the two summary counters that moved — which is what makes the
+   * affected card and the tab counts agree immediately instead of one round
+   * trip later.
+   *
+   * The scoped `loadQueue()` that follows is the reconciliation step already
+   * used by every other action in this dialog. It re-derives the list under the
+   * active filters, so a row whose new status the filter excludes leaves once
+   * the server confirms it, without the targeted update above having to guess
+   * at the filter's own rules. Nothing outside this dialog is refetched.
+   */
+  const handleConsolidated = (result: ConsolidationResultDto) => {
+    setPage((current) =>
+      current
+        ? applyFindingStatusToQueuePage(current, result.findingId, "ACCEPTED")
+        : current,
+    );
+    setDetailFinding((current) => applyConsolidationToFinding(current, result));
+    void loadQueue();
+    onActionComplete?.();
   };
 
   const handleRunAudit = async () => {
@@ -357,7 +379,9 @@ export function ComponentReviewQueueDialog({
               onClick={() => void loadQueue()}
               className="h-8 gap-1.5 text-xs"
             >
-              <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`size-3.5 ${loading ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
             <Button
@@ -588,299 +612,296 @@ export function ComponentReviewQueueDialog({
               </Button>
             </div>
           ) : visibleItems.length > 0 ? (
-          <div className="min-h-0 flex-1 divide-y divide-border overflow-y-auto rounded-xl border border-border bg-card shadow-2xs">
-            {visibleItems.map((finding) => {
-              const isWhyExpanded = Boolean(expandedWhy[finding.id]);
-              const inProgress = Boolean(actionInProgress[finding.id]);
-              const duplicate = isDuplicateFinding(finding);
-              const actions = queueCardActions(finding, permissions);
-              const summary = buildFindingValueSummary(finding, refs);
-              const evidence = normalizeEvidence(finding.evidence);
+            <div className="min-h-0 flex-1 divide-y divide-border overflow-y-auto rounded-xl border border-border bg-card shadow-2xs">
+              {visibleItems.map((finding) => {
+                const isWhyExpanded = Boolean(expandedWhy[finding.id]);
+                const inProgress = Boolean(actionInProgress[finding.id]);
+                const duplicate = isDuplicateFinding(finding);
+                const actions = queueCardActions(finding, permissions);
+                const summary = buildFindingValueSummary(finding, refs);
+                const evidence = normalizeEvidence(finding.evidence);
 
-              return (
-                <div
-                  key={finding.id}
-                  className="space-y-2.5 p-4 transition-colors hover:bg-muted/15"
-                >
-                  {/* Top Bar: badges, title, actions */}
-                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                    <div className="min-w-0 space-y-1.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[10px] font-medium ${
-                            duplicate
-                              ? "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                              : finding.issueCategory === "CLASSIFICATION"
-                                ? "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                                : "border-primary/20 bg-primary/10 text-primary"
-                          }`}
-                        >
-                          {duplicate ? (
-                            <Copy className="size-3" />
-                          ) : finding.issueCategory ===
-                            "CLASSIFICATION" ? (
-                            <Tag className="size-3" />
-                          ) : (
-                            <Building2 className="size-3" />
-                          )}
-                          {issueTypeShortLabel(
-                            finding.issueType,
-                          ).toUpperCase()}
-                        </span>
-
-                        <StatusBadge
-                          status={STATUS_BADGE[finding.status] ?? "DRAFT"}
-                          label={statusLabel(finding.status)}
-                        />
-
-                        {finding.confidenceLevel && (
-                          <StatusBadge
-                            status={confidenceBadgeStatus(
-                              finding.confidenceLevel,
+                return (
+                  <div
+                    key={finding.id}
+                    className="space-y-2.5 p-4 transition-colors hover:bg-muted/15"
+                  >
+                    {/* Top Bar: badges, title, actions */}
+                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                      <div className="min-w-0 space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[10px] font-medium ${
+                              duplicate
+                                ? "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                : finding.issueCategory === "CLASSIFICATION"
+                                  ? "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                  : "border-primary/20 bg-primary/10 text-primary"
+                            }`}
+                          >
+                            {duplicate ? (
+                              <Copy className="size-3" />
+                            ) : finding.issueCategory === "CLASSIFICATION" ? (
+                              <Tag className="size-3" />
+                            ) : (
+                              <Building2 className="size-3" />
                             )}
-                            label={`${finding.confidenceLevel} CONFIDENCE`}
-                          />
-                        )}
-
-                        {isStale(finding) && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 dark:text-amber-400">
-                            <AlertTriangle className="size-3" />
-                            Needs re-analysis
+                            {issueTypeShortLabel(
+                              finding.issueType,
+                            ).toUpperCase()}
                           </span>
-                        )}
+
+                          <StatusBadge
+                            status={STATUS_BADGE[finding.status] ?? "DRAFT"}
+                            label={statusLabel(finding.status)}
+                          />
+
+                          {finding.confidenceLevel && (
+                            <StatusBadge
+                              status={confidenceBadgeStatus(
+                                finding.confidenceLevel,
+                              )}
+                              label={`${finding.confidenceLevel} CONFIDENCE`}
+                            />
+                          )}
+
+                          {isStale(finding) && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                              <AlertTriangle className="size-3" />
+                              Needs re-analysis
+                            </span>
+                          )}
+                        </div>
+
+                        <h4 className="text-sm font-semibold tracking-tight text-foreground">
+                          {finding.title}
+                        </h4>
+
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          {finding.description}
+                        </p>
                       </div>
 
-                      <h4 className="text-sm font-semibold tracking-tight text-foreground">
-                        {finding.title}
-                      </h4>
-
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        {finding.description}
-                      </p>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex shrink-0 items-center gap-1.5 self-end pt-0.5 sm:self-start">
-                      {actions.includes("EVIDENCE") && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => toggleWhy(finding.id)}
-                          className={`text-muted-foreground hover:text-foreground ${
-                            isWhyExpanded
-                              ? "bg-muted text-foreground"
-                              : ""
-                          }`}
-                          title="View reasoning evidence"
-                          aria-label="View reasoning evidence"
-                        >
-                          <HelpCircle className="size-3.5" />
-                        </Button>
-                      )}
-
-                      {actions.includes("INSPECT") && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => openDetail(finding)}
-                          className="text-muted-foreground hover:text-foreground"
-                          title="Inspect finding details"
-                          aria-label="Inspect finding details"
-                        >
-                          <Search className="size-3.5" />
-                        </Button>
-                      )}
-
-                      {actions.includes("OPEN_COMPONENT") && (
-                        <Link href={componentHref(finding.componentId)}>
+                      {/* Action Buttons */}
+                      <div className="flex shrink-0 items-center gap-1.5 self-end pt-0.5 sm:self-start">
+                        {actions.includes("EVIDENCE") && (
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon-xs"
-                            className="text-muted-foreground hover:text-foreground"
-                            title="Open component"
-                            aria-label="Open component"
+                            onClick={() => toggleWhy(finding.id)}
+                            className={`text-muted-foreground hover:text-foreground ${
+                              isWhyExpanded ? "bg-muted text-foreground" : ""
+                            }`}
+                            title="View reasoning evidence"
+                            aria-label="View reasoning evidence"
                           >
-                            <Archive className="size-3.5" />
+                            <HelpCircle className="size-3.5" />
                           </Button>
-                        </Link>
-                      )}
+                        )}
 
-                      {actions.includes("REJECT") && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          disabled={inProgress}
-                          onClick={() => setRejectTarget(finding)}
-                          className="text-muted-foreground hover:text-destructive"
-                          title="Reject finding"
-                          aria-label="Reject finding"
-                        >
-                          <X className="size-3.5" />
-                        </Button>
-                      )}
-
-                      {actions.includes("APPLY") && (
-                        <Button
-                          type="button"
-                          size="xs"
-                          disabled={inProgress || submitting}
-                          onClick={() => setApplyTarget(finding)}
-                          className="h-7 gap-1 px-2.5 text-xs font-medium"
-                          title="Write the suggested value to the component"
-                        >
-                          {inProgress ? (
-                            <Loader2 className="size-3 animate-spin" />
-                          ) : (
-                            <Sparkles className="size-3" />
-                          )}
-                          Accept &amp; Apply
-                        </Button>
-                      )}
-
-                      {actions.includes("ACCEPT") && (
-                        <Button
-                          type="button"
-                          size="xs"
-                          variant="outline"
-                          disabled={inProgress}
-                          onClick={() =>
-                            void recordCardDecision(finding, "ACCEPTED")
-                          }
-                          className="h-7 gap-1 px-2.5 text-xs font-medium"
-                          title="Records that the finding is valid without changing the component"
-                        >
-                          {inProgress ? (
-                            <Loader2 className="size-3 animate-spin" />
-                          ) : null}
-                          Accept
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Context: component identity and current → suggested */}
-                  <div className="flex flex-col justify-between gap-2 rounded-lg border border-border/70 bg-muted/40 p-2.5 text-xs sm:flex-row sm:items-center">
-                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                      <span className="font-medium text-foreground/80">
-                        Component:
-                      </span>
-                      <Link
-                        href={componentHref(finding.componentId)}
-                        className="truncate font-semibold text-foreground hover:underline"
-                        title={finding.component?.name ?? undefined}
-                      >
-                        {finding.component?.name ?? "Unknown component"}
-                      </Link>
-                      <span className="font-mono text-[10px] text-muted-foreground">
-                        {finding.component?.sku ?? finding.componentId}
-                      </span>
-                      <span className="rounded border border-border bg-card px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                        {issueCategoryLabel(finding.issueCategory)}
-                      </span>
-                    </div>
-
-                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                      {summary.fieldLabel ? (
-                        <>
-                          <span className="font-medium text-foreground/80">
-                            {summary.fieldLabel}:
-                          </span>
-                          <span
-                            className="truncate font-mono text-foreground/70 italic"
-                            title={summary.current}
+                        {actions.includes("INSPECT") && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => openDetail(finding)}
+                            className="text-muted-foreground hover:text-foreground"
+                            title="Inspect finding details"
+                            aria-label="Inspect finding details"
                           >
-                            {summary.current}
-                          </span>
-                          <span className="text-muted-foreground">→</span>
-                          <span
-                            className="truncate font-mono font-semibold text-foreground"
-                            title={summary.suggested}
-                          >
-                            {summary.suggested}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-medium text-foreground/80">
-                            Compare:
-                          </span>
-                          <span
-                            className="truncate font-mono text-foreground"
-                            title={summary.current}
-                          >
-                            {summary.current}
-                          </span>
-                          <span className="text-muted-foreground">vs</span>
-                          <span
-                            className="truncate font-mono text-foreground"
-                            title={summary.suggested}
-                          >
-                            {summary.suggested}
-                          </span>
-                          {summary.relatedSku && (
-                            <span className="font-mono text-[10px] text-muted-foreground">
-                              {summary.relatedSku}
-                            </span>
-                          )}
-                        </>
-                      )}
-                      <span className="font-mono text-[10px] text-muted-foreground">
-                        {formatConfidencePercent(finding.confidence)}
-                      </span>
-                    </div>
-                  </div>
+                            <Search className="size-3.5" />
+                          </Button>
+                        )}
 
-                  {/* Why Evidence Accordion */}
-                  {isWhyExpanded && (
-                    <div className="animate-in space-y-1.5 border-t border-border/60 pt-2 text-[11px] fade-in-50 duration-150">
-                      <span className="block text-[10px] font-semibold uppercase tracking-wider text-foreground">
-                        Reasoning Evidence &amp; Grounding:
-                      </span>
-                      {evidence.length > 0 ? (
-                        <ul className="list-inside list-disc space-y-1 text-muted-foreground">
-                          {evidence.map((item, index) => (
-                            <li
-                              key={`${item.type}-${index}`}
-                              className="leading-normal"
+                        {actions.includes("OPEN_COMPONENT") && (
+                          <Link href={componentHref(finding.componentId)}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              className="text-muted-foreground hover:text-foreground"
+                              title="Open component"
+                              aria-label="Open component"
                             >
-                              <span className="text-foreground">
-                                {item.description}
+                              <Archive className="size-3.5" />
+                            </Button>
+                          </Link>
+                        )}
+
+                        {actions.includes("REJECT") && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            disabled={inProgress}
+                            onClick={() => setRejectTarget(finding)}
+                            className="text-muted-foreground hover:text-destructive"
+                            title="Reject finding"
+                            aria-label="Reject finding"
+                          >
+                            <X className="size-3.5" />
+                          </Button>
+                        )}
+
+                        {actions.includes("APPLY") && (
+                          <Button
+                            type="button"
+                            size="xs"
+                            disabled={inProgress || submitting}
+                            onClick={() => setApplyTarget(finding)}
+                            className="h-7 gap-1 px-2.5 text-xs font-medium"
+                            title="Write the suggested value to the component"
+                          >
+                            {inProgress ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <Sparkles className="size-3" />
+                            )}
+                            Accept &amp; Apply
+                          </Button>
+                        )}
+
+                        {actions.includes("ACCEPT") && (
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="outline"
+                            disabled={inProgress}
+                            onClick={() =>
+                              void recordCardDecision(finding, "ACCEPTED")
+                            }
+                            className="h-7 gap-1 px-2.5 text-xs font-medium"
+                            title="Records that the finding is valid without changing the component"
+                          >
+                            {inProgress ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : null}
+                            Accept
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Context: component identity and current → suggested */}
+                    <div className="flex flex-col justify-between gap-2 rounded-lg border border-border/70 bg-muted/40 p-2.5 text-xs sm:flex-row sm:items-center">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <span className="font-medium text-foreground/80">
+                          Component:
+                        </span>
+                        <Link
+                          href={componentHref(finding.componentId)}
+                          className="truncate font-semibold text-foreground hover:underline"
+                          title={finding.component?.name ?? undefined}
+                        >
+                          {finding.component?.name ?? "Unknown component"}
+                        </Link>
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {finding.component?.sku ?? finding.componentId}
+                        </span>
+                        <span className="rounded border border-border bg-card px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {issueCategoryLabel(finding.issueCategory)}
+                        </span>
+                      </div>
+
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        {summary.fieldLabel ? (
+                          <>
+                            <span className="font-medium text-foreground/80">
+                              {summary.fieldLabel}:
+                            </span>
+                            <span
+                              className="truncate font-mono text-foreground/70 italic"
+                              title={summary.current}
+                            >
+                              {summary.current}
+                            </span>
+                            <span className="text-muted-foreground">→</span>
+                            <span
+                              className="truncate font-mono font-semibold text-foreground"
+                              title={summary.suggested}
+                            >
+                              {summary.suggested}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-medium text-foreground/80">
+                              Compare:
+                            </span>
+                            <span
+                              className="truncate font-mono text-foreground"
+                              title={summary.current}
+                            >
+                              {summary.current}
+                            </span>
+                            <span className="text-muted-foreground">vs</span>
+                            <span
+                              className="truncate font-mono text-foreground"
+                              title={summary.suggested}
+                            >
+                              {summary.suggested}
+                            </span>
+                            {summary.relatedSku && (
+                              <span className="font-mono text-[10px] text-muted-foreground">
+                                {summary.relatedSku}
                               </span>
-                              {item.source && (
-                                <span className="ml-1.5 rounded border border-border/50 bg-muted px-1 py-0.5 font-mono text-[9px] text-muted-foreground/80">
-                                  {item.source}
+                            )}
+                          </>
+                        )}
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {formatConfidencePercent(finding.confidence)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Why Evidence Accordion */}
+                    {isWhyExpanded && (
+                      <div className="animate-in space-y-1.5 border-t border-border/60 pt-2 text-[11px] fade-in-50 duration-150">
+                        <span className="block text-[10px] font-semibold uppercase tracking-wider text-foreground">
+                          Reasoning Evidence &amp; Grounding:
+                        </span>
+                        {evidence.length > 0 ? (
+                          <ul className="list-inside list-disc space-y-1 text-muted-foreground">
+                            {evidence.map((item, index) => (
+                              <li
+                                key={`${item.type}-${index}`}
+                                className="leading-normal"
+                              >
+                                <span className="text-foreground">
+                                  {item.description}
                                 </span>
-                              )}
-                              {!isDuplicateFinding(finding) &&
-                                item.weight !== null && (
-                                  <span className="ml-1.5 font-mono text-[9px] text-muted-foreground/80">
-                                    w{item.weight.toFixed(2)}
+                                {item.source && (
+                                  <span className="ml-1.5 rounded border border-border/50 bg-muted px-1 py-0.5 font-mono text-[9px] text-muted-foreground/80">
+                                    {item.source}
                                   </span>
                                 )}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">
-                          No evidence recorded. Inspect the finding for the
-                          recorded snapshot.
-                        </p>
-                      )}
-                      {isStale(finding) && (
-                        <p className="text-[11px] text-amber-700 dark:text-amber-400">
-                          {staleExplanation(finding)}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                                {!isDuplicateFinding(finding) &&
+                                  item.weight !== null && (
+                                    <span className="ml-1.5 font-mono text-[9px] text-muted-foreground/80">
+                                      w{item.weight.toFixed(2)}
+                                    </span>
+                                  )}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            No evidence recorded. Inspect the finding for the
+                            recorded snapshot.
+                          </p>
+                        )}
+                        {isStale(finding) && (
+                          <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                            {staleExplanation(finding)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center space-y-2 rounded-xl border border-dashed border-border bg-muted/5 py-12 text-center">
               <Sparkles className="mx-auto size-8 text-muted-foreground/30" />
@@ -931,6 +952,7 @@ export function ComponentReviewQueueDialog({
           onActionComplete?.();
         }}
         onConflict={(message) => setStatusMessage(message)}
+        onConsolidated={handleConsolidated}
       />
 
       <ComponentReviewApplyDialog

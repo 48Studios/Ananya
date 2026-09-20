@@ -1,4 +1,4 @@
-import { db } from '@ananya/database';
+import { db, type DbExecutor } from '@ananya/database';
 import { components } from '@ananya/database/schema';
 import {
   ComponentSkuAlreadyExistsError,
@@ -8,6 +8,10 @@ import {
 import { eq } from '@ananya/database/query';
 import type { Component as ComponentRow } from '@ananya/database/schema';
 import { Component as ComponentAggregate } from '@ananya/inventory';
+import {
+  isPostgresErrorCode,
+  POSTGRES_UNIQUE_VIOLATION,
+} from '../../common/utils/postgres-error';
 
 /**
  * Query surface shared by the root Drizzle client and a transaction handle.
@@ -17,7 +21,7 @@ import { Component as ComponentAggregate } from '@ananya/inventory';
  * caller-owned transaction, which lets an orchestration service hold a row lock
  * and mutate the component atomically through the regular domain use case.
  */
-export type ComponentDbExecutor = typeof db;
+export type ComponentDbExecutor = DbExecutor;
 
 function toDomain(row: ComponentRow): Component {
   return ComponentAggregate.rehydrate({
@@ -31,6 +35,9 @@ function toDomain(row: ComponentRow): Component {
     defaultLocationId: row.defaultLocationId,
     unit: row.unit,
     isActive: row.isActive,
+    consolidatedIntoComponentId: row.consolidatedIntoComponentId,
+    consolidationId: row.consolidationId,
+    consolidatedAt: row.consolidatedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
@@ -49,11 +56,14 @@ function toRow(
     defaultLocationId: component.defaultLocationId ?? null,
     unit: component.unit,
     isActive: component.isActive,
+    consolidatedIntoComponentId: component.consolidatedIntoComponentId,
+    consolidationId: component.consolidationId,
+    consolidatedAt: component.consolidatedAt,
   };
 }
 
 export class DrizzleComponentRepository implements ComponentRepository {
-  constructor(private readonly client: ComponentDbExecutor = db) {}
+  constructor(private readonly client: DbExecutor = db) {}
 
   async findById(id: string): Promise<Component | null> {
     const [row] = await this.client
@@ -97,12 +107,7 @@ export class DrizzleComponentRepository implements ComponentRepository {
 
       return toDomain(row);
     } catch (error) {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === '23505'
-      ) {
+      if (isPostgresErrorCode(error, POSTGRES_UNIQUE_VIOLATION)) {
         throw new ComponentSkuAlreadyExistsError(component.sku);
       }
       throw error;
@@ -124,17 +129,15 @@ export class DrizzleComponentRepository implements ComponentRepository {
           defaultLocationId: component.defaultLocationId ?? null,
           unit: component.unit,
           isActive: component.isActive,
+          consolidatedIntoComponentId: component.consolidatedIntoComponentId,
+          consolidationId: component.consolidationId,
+          consolidatedAt: component.consolidatedAt,
           updatedAt: component.updatedAt,
         })
         .where(eq(components.id, component.id))
         .returning();
     } catch (error) {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === '23505'
-      ) {
+      if (isPostgresErrorCode(error, POSTGRES_UNIQUE_VIOLATION)) {
         throw new ComponentSkuAlreadyExistsError(component.sku);
       }
       throw error;

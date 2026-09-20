@@ -1,4 +1,4 @@
-import { db } from '@ananya/database';
+import { db, type DbExecutor } from '@ananya/database';
 import {
   attributeDefinitions,
   attributeOptions,
@@ -473,10 +473,12 @@ export class DrizzleCategoryAttributeRepository implements CategoryAttributeRepo
 }
 
 export class DrizzleComponentAttributeRepository implements ComponentAttributeRepository {
+  constructor(private readonly client: DbExecutor = db) {}
+
   async findByComponentId(
     componentId: string,
   ): Promise<ComponentAttributeValue[]> {
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(componentAttributeValues)
       .where(eq(componentAttributeValues.componentId, componentId));
@@ -508,7 +510,7 @@ export class DrizzleComponentAttributeRepository implements ComponentAttributeRe
     componentIds: string[],
   ): Promise<Record<string, ComponentAttributeValue[]>> {
     if (componentIds.length === 0) return {};
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(componentAttributeValues)
       .where(inArray(componentAttributeValues.componentId, componentIds));
@@ -552,7 +554,7 @@ export class DrizzleComponentAttributeRepository implements ComponentAttributeRe
     const results: ComponentAttributeValue[] = [];
 
     for (const v of values) {
-      const [row] = await db
+      const [row] = await this.client
         .insert(componentAttributeValues)
         .values({
           id: v.id,
@@ -634,7 +636,7 @@ export class DrizzleComponentAttributeRepository implements ComponentAttributeRe
   }
 
   async deleteByComponentId(componentId: string): Promise<void> {
-    await db
+    await this.client
       .delete(componentAttributeValues)
       .where(eq(componentAttributeValues.componentId, componentId));
   }
@@ -643,7 +645,7 @@ export class DrizzleComponentAttributeRepository implements ComponentAttributeRe
     componentId: string,
     attributeDefinitionId: string,
   ): Promise<void> {
-    await db
+    await this.client
       .delete(componentAttributeValues)
       .where(
         and(

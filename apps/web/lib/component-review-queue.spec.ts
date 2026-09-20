@@ -539,6 +539,125 @@ describe("Component Review Queue duplicate comparison", () => {
     expect(mpnRow!.note).toContain("packaging/reel suffix");
   });
 
+  it("explains an MPN match under conflicting manufacturers", () => {
+    const conflicting = buildFinding({
+      issueType: "POTENTIAL_DUPLICATE",
+      issueCategory: "DUPLICATE",
+      relatedComponentId: "comp-related",
+      component: {
+        ...duplicateFinding.component!,
+        manufacturerPartNumber: "RC0805FR-0727RL",
+      },
+      relatedComponent: {
+        ...duplicateFinding.relatedComponent!,
+        manufacturerPartNumber: "RC0805FR-0727RL",
+        manufacturerId: "mfg-murata",
+      },
+      suggestedValue: { matchType: "MPN_MANUFACTURER_CONFLICT" },
+    });
+
+    const relationship = describeDuplicateRelationship(conflicting);
+    expect(relationship.heading).toContain("manufacturer conflict");
+    expect(relationship.explanation).toContain("different manufacturers");
+    expect(relationship.explanation.toLowerCase()).not.toContain(
+      "packaging suffix",
+    );
+
+    const rows = buildDuplicateComparisonRows(conflicting, refs);
+    const byLabel = Object.fromEntries(rows.map((row) => [row.label, row]));
+    // The MPNs are identical; it is the manufacturer that disagrees.
+    expect(byLabel["Manufacturer Part Number"]!.emphasis).toBe("match");
+    expect(byLabel["Manufacturer"]!.emphasis).toBe("difference");
+  });
+
+  it("explains a name and attribute identity duplicate", () => {
+    const identity = buildFinding({
+      issueType: "POTENTIAL_DUPLICATE",
+      issueCategory: "DUPLICATE",
+      relatedComponentId: "comp-related",
+      relatedComponent: {
+        ...duplicateFinding.relatedComponent!,
+        manufacturerPartNumber: null,
+      },
+      component: {
+        ...duplicateFinding.component!,
+        manufacturerPartNumber: null,
+      },
+      suggestedValue: {
+        matchType: "NAME_ATTRIBUTE_IDENTITY",
+        normalizedName: "10kohmsmdresistor0805",
+        matchingAttributes: ["resistance", "package"],
+      },
+    });
+
+    const relationship = describeDuplicateRelationship(identity);
+    expect(relationship.heading).toContain("matching identity");
+    expect(relationship.explanation).toContain("recorded specifications");
+
+    const rows = buildDuplicateComparisonRows(identity, refs);
+    const mpnRow = rows.find((row) => row.label === "Manufacturer Part Number");
+    expect(mpnRow!.note).toContain("Not the duplicate signal");
+
+    const entries = formatValueEntries(identity.suggestedValue);
+    const labels = entries.map((entry) => entry.label);
+    expect(labels).toContain("Normalized Name");
+    expect(labels).toContain("Matching Attributes");
+  });
+
+  it("explains a semantic similarity duplicate with its score", () => {
+    const semantic = buildFinding({
+      issueType: "POTENTIAL_DUPLICATE",
+      issueCategory: "DUPLICATE",
+      relatedComponentId: "comp-related",
+      relatedComponent: duplicateFinding.relatedComponent,
+      suggestedValue: {
+        matchType: "SEMANTIC_NAME_SIMILARITY",
+        primaryMatchType: "SEMANTIC_NAME_SIMILARITY",
+        similarityScore: 0.925,
+        nameSimilarity: 1,
+        sharedTokens: ["10kohm", "0805"],
+        matchedSignals: ["MANUFACTURER_SAME", "CATEGORY_SAME"],
+        penalizedSignals: [],
+      },
+      confidence: 0.925,
+      confidenceLevel: "HIGH",
+    });
+
+    const relationship = describeDuplicateRelationship(semantic);
+    expect(relationship.heading).toContain("similar records");
+    expect(relationship.explanation).toContain("93%");
+    expect(relationship.explanation).toContain("CMP-000871");
+    expect(relationship.explanation.toLowerCase()).not.toContain("merge");
+    expect(relationship.explanation.toLowerCase()).not.toContain("delete");
+
+    const rows = buildDuplicateComparisonRows(semantic, refs);
+    const mpnRow = rows.find((row) => row.label === "Manufacturer Part Number");
+    expect(mpnRow!.note).toContain("overall similarity");
+
+    const labels = formatValueEntries(semantic.suggestedValue).map(
+      (entry) => entry.label,
+    );
+    expect(labels).toContain("Similarity Score");
+    expect(labels).toContain("Name Similarity");
+    expect(labels).toContain("Matched Signals");
+    expect(labels).toContain("Primary Match Type");
+  });
+
+  it("surfaces capped similarity candidates in the audit summary", () => {
+    const text = summarizeAuditResult({
+      analyzedCount: 10,
+      persistedCount: 2,
+      staledCount: 0,
+      duplicateFindingsCount: 2,
+      failedCount: 0,
+      notFoundCount: 0,
+      batchLimitReached: false,
+      duplicateFindingsTruncated: false,
+      semanticCandidatesTruncated: true,
+    });
+    expect(text).toContain("similarity candidates were capped");
+  });
+
   it("returns no comparison without both components", () => {
     expect(
       buildDuplicateComparisonRows({

@@ -1,4 +1,4 @@
-import { db } from '@ananya/database';
+import { db, type DbExecutor } from '@ananya/database';
 import { inventoryTransactions } from '@ananya/database/schema';
 import type {
   InventoryTransaction,
@@ -43,8 +43,10 @@ function toRow(
 }
 
 export class DrizzleInventoryTransactionRepository implements InventoryTransactionRepository {
+  constructor(private readonly client: DbExecutor = db) {}
+
   async findById(id: string): Promise<InventoryTransaction | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(inventoryTransactions)
       .where(eq(inventoryTransactions.id, id))
@@ -56,7 +58,7 @@ export class DrizzleInventoryTransactionRepository implements InventoryTransacti
   async findMany(
     options?: FindManyInventoryTransactionsOptions,
   ): Promise<InventoryTransaction[]> {
-    const query = db.select().from(inventoryTransactions);
+    const query = this.client.select().from(inventoryTransactions);
 
     if (options?.componentId) {
       query.where(eq(inventoryTransactions.componentId, options.componentId));
@@ -97,7 +99,7 @@ export class DrizzleInventoryTransactionRepository implements InventoryTransacti
   }
 
   async save(transaction: InventoryTransaction): Promise<InventoryTransaction> {
-    const [row] = await db
+    const [row] = await this.client
       .insert(inventoryTransactions)
       .values(toRow(transaction))
       .returning();

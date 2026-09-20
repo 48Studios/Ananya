@@ -59,6 +59,35 @@ export class Batch {
     });
   }
 
+  /**
+   * Reassigns this batch to a different component, preserving its identity.
+   *
+   * Used by component consolidation: the physical batch does not change, only
+   * the component record it is filed under, so the batch id, batch number,
+   * manufacturing/expiry dates and supplier batch number are all retained.
+   *
+   * The (component, batch number) uniqueness constraint is enforced by the
+   * database; callers must check for a collision first so a real collision is
+   * reported as a blocker rather than surfacing as a constraint violation.
+   */
+  public reassignTo(componentId: string): Batch {
+    if (!componentId || componentId.trim() === "") {
+      throw new Error("Component ID is required");
+    }
+
+    if (componentId === this.componentId) return this;
+
+    return new Batch({
+      id: this.id,
+      componentId,
+      batchNumber: this.batchNumber,
+      manufacturingDate: this.manufacturingDate,
+      expiryDate: this.expiryDate,
+      supplierBatchNumber: this.supplierBatchNumber,
+      createdAt: this.createdAt,
+    });
+  }
+
   public static rehydrate(props: BatchProps): Batch {
     return new Batch(props);
   }

@@ -11,6 +11,8 @@ import {
 import { ComponentReviewQueueService } from './component-review-queue.service';
 import { ComponentReviewAnalyzer } from './component-review-analyzer';
 import { ComponentReviewApplyService } from './component-review-apply.service';
+import { ComponentConsolidationPreviewService } from './component-consolidation-preview.service';
+import { ComponentConsolidationService } from './component-consolidation/component-consolidation.service';
 import {
   ComponentWriteGuard,
   type AuthenticatedRequest,
@@ -23,6 +25,8 @@ import {
   RunComponentAuditDto,
 } from './component-review-queue.dtos';
 import { ApplyComponentFindingDto } from './component-review-apply.dtos';
+import { ConsolidationPreviewRequestDto } from './component-consolidation.dtos';
+import { ConsolidationExecutionRequestDto } from './component-consolidation/component-consolidation.execution.dtos';
 
 /**
  * Component Intelligence Review Queue.
@@ -41,6 +45,8 @@ export class ComponentReviewQueueController {
     private readonly reviewQueueService: ComponentReviewQueueService,
     private readonly analyzer: ComponentReviewAnalyzer,
     private readonly applyService: ComponentReviewApplyService,
+    private readonly consolidationPreview: ComponentConsolidationPreviewService,
+    private readonly consolidationService: ComponentConsolidationService,
   ) {}
 
   @Get()
@@ -73,6 +79,66 @@ export class ComponentReviewQueueController {
   @Get(':id')
   getFinding(@Param('id') id: string) {
     return this.reviewQueueService.getFinding(id);
+  }
+
+  /**
+   * Builds a consolidation preview for a duplicate finding.
+   *
+   * The preview analyses every registered component dependency, computes
+   * conflicts, and reports exactly what would change and what still blocks.
+   * It is READ-ONLY: it never mutates component data, inventory, references or
+   * findings. Supplying the resolutions the reviewer has already made lets it
+   * recompute whether anything is still undecided.
+   *
+   * Protected by the same write permission as component edits and audit runs,
+   * because the endpoint analyses data that only component-editing roles should
+   * be able to inspect in this depth.
+   */
+  @Post(':id/consolidation-preview')
+  @UseGuards(ComponentWriteGuard)
+  buildConsolidationPreview(
+    @Param('id') id: string,
+    @Body() dto: ConsolidationPreviewRequestDto,
+  ) {
+    return this.consolidationPreview.buildPreview(
+      id,
+      dto.canonicalComponentId,
+      undefined,
+      {
+        attributeResolutions: (dto.attributeResolutions ?? []).map(
+          (resolution) => ({
+            attributeDefinitionId: resolution.attributeDefinitionId,
+            strategy: resolution.strategy,
+          }),
+        ),
+        bomResolutions: (dto.bomResolutions ?? []).map((resolution) => ({
+          bomId: resolution.bomId,
+        })),
+      },
+    );
+  }
+
+  /**
+   * Executes a consolidation.
+   *
+   * The backend recomputes the preview inside the consolidation transaction,
+   * verifies the fingerprint the reviewer approved, and then retires the source
+   * component(s) into the canonical one. Everything — component lifecycle, the
+   * inventory ledger and projections, reservations, batches, serials, BOMs,
+   * attributes, supplier mappings, polymorphic references, findings and the
+   * consolidation record — commits together or not at all.
+   *
+   * Requires `Inventory.Update` and an explicit `confirmation: true`. Reviewer
+   * identity comes from the authenticated principal, never the body.
+   */
+  @Post(':id/consolidate')
+  @UseGuards(ComponentWriteGuard)
+  consolidate(
+    @Param('id') id: string,
+    @Body() dto: ConsolidationExecutionRequestDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.consolidationService.consolidate(id, dto, req.user);
   }
 
   /**

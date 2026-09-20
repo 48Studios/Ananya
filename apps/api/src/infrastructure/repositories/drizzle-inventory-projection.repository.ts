@@ -1,4 +1,4 @@
-import { db } from '@ananya/database';
+import { db, type DbExecutor } from '@ananya/database';
 import { inventoryProjections } from '@ananya/database/schema';
 import type {
   InventoryProjection,
@@ -32,8 +32,10 @@ function toRow(
 }
 
 export class DrizzleInventoryProjectionRepository implements InventoryProjectionRepository {
+  constructor(private readonly client: DbExecutor = db) {}
+
   async findById(id: string): Promise<InventoryProjection | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(inventoryProjections)
       .where(eq(inventoryProjections.id, id))
@@ -46,7 +48,7 @@ export class DrizzleInventoryProjectionRepository implements InventoryProjection
     componentId: string,
     locationId: string,
   ): Promise<InventoryProjection | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(inventoryProjections)
       .where(
@@ -63,7 +65,7 @@ export class DrizzleInventoryProjectionRepository implements InventoryProjection
   async findManyByComponent(
     componentId: string,
   ): Promise<InventoryProjection[]> {
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(inventoryProjections)
       .where(eq(inventoryProjections.componentId, componentId));
@@ -72,7 +74,7 @@ export class DrizzleInventoryProjectionRepository implements InventoryProjection
   }
 
   async findManyByLocation(locationId: string): Promise<InventoryProjection[]> {
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(inventoryProjections)
       .where(eq(inventoryProjections.locationId, locationId));
@@ -87,7 +89,7 @@ export class DrizzleInventoryProjectionRepository implements InventoryProjection
     );
 
     if (existing) {
-      const [updatedRow] = await db
+      const [updatedRow] = await this.client
         .update(inventoryProjections)
         .set({
           quantity: projection.quantity,
@@ -104,7 +106,7 @@ export class DrizzleInventoryProjectionRepository implements InventoryProjection
       return toDomain(updatedRow);
     }
 
-    const [insertedRow] = await db
+    const [insertedRow] = await this.client
       .insert(inventoryProjections)
       .values(toRow(projection))
       .returning();
@@ -117,7 +119,7 @@ export class DrizzleInventoryProjectionRepository implements InventoryProjection
   }
 
   async delete(id: string): Promise<void> {
-    await db
+    await this.client
       .delete(inventoryProjections)
       .where(eq(inventoryProjections.id, id));
   }
@@ -126,7 +128,7 @@ export class DrizzleInventoryProjectionRepository implements InventoryProjection
     componentId: string,
     locationId: string,
   ): Promise<void> {
-    await db
+    await this.client
       .delete(inventoryProjections)
       .where(
         and(

@@ -101,6 +101,37 @@ export class Reservation {
     this.updatedAt = now;
   }
 
+  /**
+   * Moves an existing reservation line onto a different component, preserving
+   * the line id and the reserved/fulfilled quantities exactly.
+   *
+   * Used by component consolidation: a live commitment must keep its quantity
+   * and location, and only change which component record it holds stock against.
+   *
+   * Only mutable reservations may be repointed — a fulfilled, released,
+   * cancelled or expired reservation is a historical record of a commitment that
+   * existed at the time and is left untouched.
+   */
+  public repointLine(lineId: string, newComponentId: string): void {
+    if (
+      this._status !== ReservationStatus.Active &&
+      this._status !== ReservationStatus.Draft
+    ) {
+      throw new ImmutableReservationError();
+    }
+
+    const line = this.lines.find((l) => l.id === lineId);
+    if (!line) {
+      throw new InvalidReservationQuantityError();
+    }
+
+    if (line.componentId === newComponentId) return;
+
+    line.componentId = newComponentId;
+    line.updatedAt = new Date();
+    this.updatedAt = line.updatedAt;
+  }
+
   public updateHeader(input: {
     reservationType?: ReservationType;
     referenceDocument?: string | null;

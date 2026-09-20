@@ -11,6 +11,11 @@ export class DeleteComponent {
       throw new ComponentNotFoundError(id);
     }
 
+    // A consolidated component is the historical record of where its activity
+    // went, and other records (including `consolidation_sources`) reference it.
+    // Hard deletion stays prohibited for it.
+    existing.assertCanBeDeleted();
+
     await this.components.delete(id);
   }
 }

@@ -51,3 +51,10 @@ export const pool: Pool = new Proxy({} as Pool, {
     return typeof value === "function" ? value.bind(instance) : value;
   },
 });
+
+export {
+  toDbExecutor,
+  type DbClient,
+  type DbExecutor,
+  type DbTransaction,
+} from "./executor";

@@ -15,6 +15,7 @@ import {
 
 import { SettingsService } from '../settings/settings.service';
 import { resolveCurrency } from '../common/utils/currency-resolver';
+import { assertComponentUsableForNewActivity } from '../components/component-lifecycle.guard';
 
 export const PURCHASE_ORDER_REPOSITORY = 'PURCHASE_ORDER_REPOSITORY';
 
@@ -99,6 +100,14 @@ export class PurchaseOrdersService {
   }
 
   async addLine(poId: string, dto: AddPoLineDto): Promise<PurchaseOrder> {
+    // A retired component must not be ordered: it has been merged into the
+    // surviving record, and procuring it would buy a part the catalog no longer
+    // treats as distinct.
+    await assertComponentUsableForNewActivity(
+      dto.componentId,
+      'new purchase order lines',
+    );
+
     const po = await this.findOne(poId);
     po.addLine(dto);
     await this.poRepository.save(po);

@@ -31,27 +31,31 @@ import {
   buildDecisionPayload,
   type ComponentReviewDecision,
   type ComponentReviewFindingDto,
+  type ConsolidationResultDto,
 } from "@/lib/api/component-review-queue-api";
 import { ComponentReviewApplyDialog } from "./component-review-apply-dialog";
+import { DuplicateInvestigation } from "./component-review-duplicate-investigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import {
   APPLY_COPY,
-  APPLY_REVIEW_ONLY_COPY,
   COMPONENT_WRITE_PERMISSION,
   applyConflictMessage,
+  applyConsolidationToFinding,
   applySuccessMessage,
   applyUnavailableReason,
   canApplyFindingAsUser,
+  consolidationSuccessMessage,
   DECISION_COPY,
   deriveReviewPermissions,
+  duplicateDecisionCopy,
+  duplicateDecisionNotesPlaceholder,
   extractApplyConflictReason,
   reviewReadOnlyNotice,
-  buildDuplicateComparisonRows,
   buildIdentityRows,
   componentHref,
   confidenceBadgeStatus,
-  describeDuplicateRelationship,
   decidableActions,
+  describeDuplicateRelationship,
   formatConfidencePercent,
   formatEvidenceWeight,
   formatValueEntries,
@@ -62,7 +66,6 @@ import {
   staleExplanation,
   statusLabel,
   STATUS_BADGE,
-  type ComparisonRow,
   type ReviewReferenceMaps,
   type ValueEntry,
 } from "@/lib/component-review-queue";
@@ -78,6 +81,14 @@ interface ComponentReviewFindingDialogProps {
   onDecided?: (finding: ComponentReviewFindingDto) => void;
   /** Called when the finding changed underneath the reviewer (HTTP 409). */
   onConflict?: (message: string) => void;
+  /**
+   * Called after a successful consolidation, carrying the backend's result.
+   *
+   * Consolidation is committed inside its own transaction and marks the finding
+   * ACCEPTED there, so the result — not a local guess — is what this dialog and
+   * the queue reconcile from.
+   */
+  onConsolidated?: (result: ConsolidationResultDto) => void;
 }
 
 function ValueBlock({
@@ -117,58 +128,6 @@ function ValueBlock({
   );
 }
 
-function ComparisonRowView({ row }: { row: ComparisonRow }) {
-  const emphasisClass =
-    row.emphasis === "match"
-      ? "bg-emerald-500/5"
-      : row.emphasis === "difference"
-        ? "bg-amber-500/5"
-        : undefined;
-
-  return (
-    <div className={emphasisClass}>
-      <div className="grid grid-cols-2 gap-3 px-3 py-2">
-        <div className="min-w-0 space-y-0.5">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Current
-          </span>
-          <p className="text-xs font-medium text-foreground break-words">
-            {row.current}
-          </p>
-        </div>
-        <div className="min-w-0 space-y-0.5">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Related
-          </span>
-          <p className="text-xs font-medium text-foreground break-words">
-            {row.related}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 px-3 pb-2">
-        <span className="text-[11px] font-semibold text-foreground">
-          {row.label}
-        </span>
-        {row.emphasis === "match" && (
-          <span className="inline-flex items-center gap-1 rounded border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
-            <Check className="size-2.5" />
-            Match
-          </span>
-        )}
-        {row.emphasis === "difference" && (
-          <span className="inline-flex items-center gap-1 rounded border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
-            <AlertTriangle className="size-2.5" />
-            Differs
-          </span>
-        )}
-        {row.note && (
-          <span className="text-[10px] text-muted-foreground">{row.note}</span>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /**
  * Component Intelligence finding detail.
  *
@@ -183,6 +142,7 @@ export function ComponentReviewFindingDialog({
   onClose,
   onDecided,
   onConflict,
+  onConsolidated,
 }: ComponentReviewFindingDialogProps) {
   const [finding, setFinding] =
     React.useState<ComponentReviewFindingDto | null>(initialFinding ?? null);
@@ -283,7 +243,9 @@ export function ComponentReviewFindingDialog({
       setDecisionNotes("");
       setStatusMessage(
         decision === "ACCEPTED"
-          ? "Finding accepted. The component itself was not modified."
+          ? finding.issueCategory === "DUPLICATE"
+            ? "Duplicate acknowledged. No component was modified — use Review and consolidate below to merge the two records."
+            : "Finding accepted. The component itself was not modified."
           : decision === "REJECTED"
             ? "Finding rejected. The component was not modified."
             : "Finding dismissed. The component was not modified.",
@@ -299,6 +261,27 @@ export function ComponentReviewFindingDialog({
       setSubmitting(null);
       setPendingConfirm(null);
     }
+  };
+
+  /**
+   * Reconciliation after a consolidation this dialog initiated.
+   *
+   * Consolidation commits the finding as ACCEPTED inside its own transaction,
+   * so `result` is a confirmed statement rather than a prediction. Applying it
+   * here is therefore not an optimistic update: the change is already durable by
+   * the time this runs, and the alternative — waiting for a round trip — leaves
+   * the card claiming a duplicate still needs attention.
+   *
+   * The dialog's own snapshot is reconciled from the result, then re-read so
+   * fields the result does not carry (fingerprint, updatedAt) match the server.
+   * That re-read is scoped to this one finding; no list, page, or application
+   * state is refetched here.
+   */
+  const handleConsolidated = (result: ConsolidationResultDto) => {
+    setStatusMessage(consolidationSuccessMessage(result));
+    setFinding((current) => applyConsolidationToFinding(current, result));
+    if (findingId) void loadFinding(findingId);
+    onConsolidated?.(result);
   };
 
   const actions = finding ? decidableActions(finding.status) : [];
@@ -323,10 +306,14 @@ export function ComponentReviewFindingDialog({
   const currentEntries = formatValueEntries(finding?.currentValue);
   const suggestedEntries = formatValueEntries(finding?.suggestedValue);
   const evidence = normalizeEvidence(finding?.evidence);
-  const comparisonRows =
-    duplicate && finding ? buildDuplicateComparisonRows(finding, refs) : [];
   const relationship =
     duplicate && finding ? describeDuplicateRelationship(finding) : null;
+  // Duplicate decisions use duplicate-specific wording: rejection reads as
+  // "Not a duplicate". Both still record the existing lifecycle decisions.
+  const decisionCopyFor = (decision: ComponentReviewDecision) =>
+    finding
+      ? duplicateDecisionCopy(finding, decision)
+      : DECISION_COPY[decision];
 
   return (
     <>
@@ -354,7 +341,7 @@ export function ComponentReviewFindingDialog({
           ) : finding ? (
             <>
               {statusMessage && (
-                <div className="flex items-start justify-between gap-3 rounded-lg border border-primary/20 bg-primary/10 p-3 text-xs text-foreground">
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/10 p-3 text-xs text-foreground">
                   <span>{statusMessage}</span>
                   <Button
                     type="button"
@@ -483,34 +470,47 @@ export function ComponentReviewFindingDialog({
                 )}
               </div>
 
-              {/* Duplicate comparison */}
-              {duplicate && relationship && (
+              {/* Duplicate investigation */}
+              {duplicate && finding && (
                 <div className="space-y-2">
-                  <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Duplicate comparison
-                  </h4>
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">
-                      {relationship.heading}.
-                    </span>{" "}
-                    {relationship.explanation}
-                  </p>
-                  {comparisonRows.length > 0 ? (
-                    <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-                      {comparisonRows.map((row) => (
-                        <ComparisonRowView key={row.label} row={row} />
-                      ))}
-                    </div>
-                  ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Duplicate investigation
+                    </h4>
+                    {finding.relatedComponent && (
+                      <Link href={componentHref(finding.relatedComponent.id)}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          className="gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          <ExternalLink className="size-3" />
+                          View related component
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                  {relationship && (
                     <p className="text-xs text-muted-foreground">
-                      The related component is no longer available for
-                      comparison.
+                      <span className="font-medium text-foreground">
+                        {relationship.heading}.
+                      </span>{" "}
+                      {relationship.explanation}
                     </p>
                   )}
-                  <p className="text-[11px] text-muted-foreground">
-                    This queue does not merge or delete components. Resolve the
-                    duplication through the normal component workflow.
-                  </p>
+                  <DuplicateInvestigation
+                    finding={finding}
+                    refs={refs}
+                    canDecide={
+                      permissions.canDecide &&
+                      !terminal &&
+                      actions.includes("REJECTED")
+                    }
+                    onNotADuplicate={() => setPendingConfirm("REJECTED")}
+                    canAnalyzeConsolidation={permissions.canApply}
+                    onConsolidated={handleConsolidated}
+                  />
                 </div>
               )}
 
@@ -611,7 +611,11 @@ export function ComponentReviewFindingDialog({
                     rows={2}
                     value={decisionNotes}
                     onChange={(event) => setDecisionNotes(event.target.value)}
-                    placeholder="Record why this finding was accepted, rejected, or dismissed."
+                    placeholder={
+                      finding.issueCategory === "DUPLICATE"
+                        ? duplicateDecisionNotesPlaceholder(finding)
+                        : "Record why this finding was accepted, rejected, or dismissed."
+                    }
                     className="text-xs"
                   />
                   <FieldDescription>
@@ -659,18 +663,19 @@ export function ComponentReviewFindingDialog({
               permissions.canDecide &&
               actions.map((decision) => {
                 const isPrimary = decision === "ACCEPTED";
+                const copy = decisionCopyFor(decision);
                 // Applicable findings write to the component; everything else
                 // (duplicates) keeps the review-only accept behaviour.
                 const label = isPrimary
                   ? applicable
                     ? APPLY_COPY.label
-                    : APPLY_REVIEW_ONLY_COPY.label
-                  : DECISION_COPY[decision].label;
+                    : copy.label
+                  : copy.label;
                 const title = isPrimary
                   ? applicable
                     ? APPLY_COPY.description
-                    : APPLY_REVIEW_ONLY_COPY.description
-                  : DECISION_COPY[decision].description;
+                    : copy.description
+                  : copy.description;
                 const busy = Boolean(submitting) || applying;
 
                 return (
@@ -726,10 +731,10 @@ export function ComponentReviewFindingDialog({
       {pendingConfirm && finding && (
         <ConfirmDialog
           isOpen
-          title={DECISION_COPY[pendingConfirm].confirmTitle}
-          description={DECISION_COPY[pendingConfirm].description}
-          confirmText={DECISION_COPY[pendingConfirm].confirmText}
-          variant={DECISION_COPY[pendingConfirm].variant}
+          title={decisionCopyFor(pendingConfirm).confirmTitle}
+          description={decisionCopyFor(pendingConfirm).description}
+          confirmText={decisionCopyFor(pendingConfirm).confirmText}
+          variant={decisionCopyFor(pendingConfirm).variant}
           loading={submitting !== null}
           onConfirm={() => void submitDecision(pendingConfirm)}
           onCancel={() => setPendingConfirm(null)}

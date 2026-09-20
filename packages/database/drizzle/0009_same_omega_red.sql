@@ -1,0 +1,2 @@
+CREATE INDEX "components_mpn_normalized_idx" ON "components" USING btree (upper(regexp_replace("manufacturer_part_number", '[^A-Za-z0-9]', '', 'g'))) WHERE "components"."manufacturer_part_number" is not null;--> statement-breakpoint
+CREATE INDEX "components_name_normalized_idx" ON "components" USING btree (regexp_replace(replace(replace(replace(lower(replace(replace("name", 'Ω', 'ohm'), 'ω', 'ohm')), 'µ', 'u'), 'μ', 'u'), '°c', 'degc'), '[^a-z0-9]', '', 'g'));

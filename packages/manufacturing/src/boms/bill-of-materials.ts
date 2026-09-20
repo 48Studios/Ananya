@@ -143,6 +143,133 @@ export class BillOfMaterials {
     this.updatedAt = new Date();
   }
 
+  /**
+   * Moves an existing line onto a different component, preserving the line id
+   * and every other attribute.
+   *
+   * Used by component consolidation when only the retired component appears in
+   * this BOM: the line keeps its identity, quantity and scrap factor, and now
+   * consumes the canonical component instead.
+   *
+   * The two invariants that make a BOM meaningful are re-checked here rather
+   * than assumed by the caller:
+   *
+   *  - a BOM may not consume the product it builds (circular dependency),
+   *  - a BOM may not contain two lines for the same component.
+   */
+  public repointLine(lineId: string, newComponentId: string): void {
+    if (this.status !== "DRAFT") {
+      throw new ImmutableBomError();
+    }
+
+    const line = this.lines.find((l) => l.id === lineId);
+    if (!line) {
+      throw new InvalidBomLineQuantityError(
+        `BOM line '${lineId}' does not exist on this BOM.`,
+      );
+    }
+
+    if (newComponentId === this.componentId) {
+      throw new CircularBomDependencyError(this.componentId);
+    }
+
+    if (
+      this.lines.some(
+        (l) => l.id !== lineId && l.componentId === newComponentId,
+      )
+    ) {
+      throw new DuplicateBomComponentLineError(newComponentId);
+    }
+
+    line.componentId = newComponentId;
+    line.updatedAt = new Date();
+    this.updatedAt = line.updatedAt;
+  }
+
+  /**
+   * Collapses two lines that describe components being consolidated into one.
+   *
+   * This is the case where a BOM contains both the component being retired and
+   * the component surviving. The domain forbids two lines for the same
+   * component, so once the retirement completes the two lines would be illegal;
+   * one must absorb the other. The absorbed line is removed and the retained line
+   * takes the combined quantity and the resolved scrap factor.
+   *
+   * Quantities are never inferred: consolidation computes `source + canonical`
+   * and passes the result, and the scrap factor comes from the reviewer because
+   * there is no defensible automatic choice between two different values.
+   *
+   * Invariants enforced here: the BOM must still be editable (DRAFT), both lines
+   * must exist on this BOM, they must be DIFFERENT lines for DIFFERENT components
+   * (the merge only makes sense when two components become one — the
+   * "same component twice" state is already impossible because `addLine` forbids
+   * it), the resulting quantity must be positive, and the resulting scrap factor
+   * must be non-negative.
+   */
+  public combineConsolidatedLine(input: {
+    retainedLineId: string;
+    absorbedLineId: string;
+    quantityPerUnit: number;
+    scrapFactorPercent: number;
+    notes?: string | null;
+  }): void {
+    if (this.status !== "DRAFT") {
+      throw new ImmutableBomError();
+    }
+
+    if (input.retainedLineId === input.absorbedLineId) {
+      throw new InvalidBomLineQuantityError(
+        "A BOM line cannot absorb itself.",
+      );
+    }
+
+    const retained = this.lines.find((l) => l.id === input.retainedLineId);
+    if (!retained) {
+      throw new InvalidBomLineQuantityError(
+        `BOM line '${input.retainedLineId}' does not exist on this BOM.`,
+      );
+    }
+
+    const absorbed = this.lines.find((l) => l.id === input.absorbedLineId);
+    if (!absorbed) {
+      throw new InvalidBomLineQuantityError(
+        `BOM line '${input.absorbedLineId}' does not exist on this BOM.`,
+      );
+    }
+
+    if (retained.componentId === absorbed.componentId) {
+      throw new DuplicateBomComponentLineError(retained.componentId);
+    }
+
+    if (!Number.isFinite(input.quantityPerUnit) || input.quantityPerUnit <= 0) {
+      throw new InvalidBomLineQuantityError(
+        "Combined quantity per unit must be greater than zero.",
+      );
+    }
+
+    if (
+      !Number.isFinite(input.scrapFactorPercent) ||
+      input.scrapFactorPercent < 0
+    ) {
+      throw new InvalidBomLineQuantityError(
+        "Scrap factor percent must be non-negative.",
+      );
+    }
+
+    const absorbedIndex = this.lines.findIndex(
+      (l) => l.id === input.absorbedLineId,
+    );
+    this.lines.splice(absorbedIndex, 1);
+
+    retained.quantityPerUnit = input.quantityPerUnit;
+    retained.scrapFactorPercent = input.scrapFactorPercent;
+    if (input.notes !== undefined) {
+      retained.notes = input.notes;
+    }
+    retained.updatedAt = new Date();
+    this.updatedAt = retained.updatedAt;
+  }
+
   public removeLine(lineId: string): void {
     if (this.status !== "DRAFT") {
       throw new ImmutableBomError();

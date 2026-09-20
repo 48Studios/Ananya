@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
-import { db } from '@ananya/database';
+import { db, type DbExecutor } from '@ananya/database';
 import {
   aiSuggestionFeedback,
   componentIntelligenceFindings,
@@ -114,6 +114,22 @@ export interface ComponentFindingComponentSummary {
   isActive: boolean;
 }
 
+/**
+ * One structured attribute recorded on both sides of a duplicate pair.
+ *
+ * Surfaced so the duplicate review detail can show a match/difference table
+ * without re-deriving comparisons at read time. It is produced by the analyzer
+ * (which already loaded the values) and stored on the finding metadata, so the
+ * comparison always matches the evidence recorded with the finding.
+ */
+export interface DuplicateAttributeComparisonDto {
+  code: string;
+  label: string;
+  current: string;
+  related: string;
+  result: 'MATCH' | 'DIFFERENT';
+}
+
 export interface ComponentReviewFindingDto {
   id: string;
   componentId: string;
@@ -137,6 +153,12 @@ export interface ComponentReviewFindingDto {
   reviewedAt: string | null;
   decisionNotes: string | null;
   metadata: Record<string, unknown>;
+  /**
+   * Structured attribute comparison for duplicate findings. Empty for every
+   * other finding type and for legacy duplicate rows persisted before the field
+   * existed, so consumers must treat it as optional.
+   */
+  attributeComparison: DuplicateAttributeComparisonDto[];
   createdAt: string;
   updatedAt: string;
   component: ComponentFindingComponentSummary | null;
@@ -494,8 +516,20 @@ export class ComponentReviewQueueService {
     };
   }
 
-  async getFinding(id: string): Promise<ComponentReviewFindingDto> {
-    const [row] = await db
+  /**
+   * Reads one finding.
+   *
+   * `client` defaults to the global connection for ordinary HTTP callers. An
+   * orchestration service that already holds a transaction passes its executor
+   * so the read participates in that transaction — otherwise the caller would
+   * observe committed state while the rest of its work runs against the
+   * transaction's snapshot, and the two could disagree.
+   */
+  async getFinding(
+    id: string,
+    client: DbExecutor = db,
+  ): Promise<ComponentReviewFindingDto> {
+    const [row] = await client
       .select()
       .from(componentIntelligenceFindings)
       .where(eq(componentIntelligenceFindings.id, id))
@@ -505,10 +539,10 @@ export class ComponentReviewQueueService {
       throw new NotFoundException(`Component review finding '${id}' not found`);
     }
 
-    const componentSummaries = await this.loadComponentSummaries([
-      row.componentId,
-      row.relatedComponentId ?? '',
-    ]);
+    const componentSummaries = await this.loadComponentSummaries(
+      [row.componentId, row.relatedComponentId ?? ''],
+      client,
+    );
     return toFindingDto(row, componentSummaries);
   }
 
@@ -830,11 +864,12 @@ export class ComponentReviewQueueService {
 
   private async loadComponentSummaries(
     ids: string[],
+    client: DbExecutor = db,
   ): Promise<Map<string, ComponentFindingComponentSummary>> {
     const uniqueIds = Array.from(new Set(ids.filter((id) => Boolean(id))));
     if (uniqueIds.length === 0) return new Map();
 
-    const rows = await db
+    const rows = await client
       .select({
         id: components.id,
         sku: components.sku,
@@ -894,6 +929,39 @@ function resolveFeedbackField(finding: ComponentIntelligenceFinding): string {
   return finding.issueType.toLowerCase();
 }
 
+/**
+ * Reads the duplicate attribute comparison stored on the finding metadata.
+ *
+ * Defensive by design: metadata is a jsonb payload, so anything that is not a
+ * well-formed entry is dropped instead of being surfaced to the UI as a
+ * half-valid row.
+ */
+function readAttributeComparison(
+  metadata: Record<string, unknown> | null | undefined,
+): DuplicateAttributeComparisonDto[] {
+  const raw = metadata?.attributeComparison;
+  if (!Array.isArray(raw)) return [];
+
+  const entries: DuplicateAttributeComparisonDto[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const entry = item as Record<string, unknown>;
+    const code = typeof entry.code === 'string' ? entry.code : '';
+    const label = typeof entry.label === 'string' ? entry.label : '';
+    const result = entry.result;
+    if (!code || (result !== 'MATCH' && result !== 'DIFFERENT')) continue;
+    entries.push({
+      code,
+      label: label || code,
+      current: typeof entry.current === 'string' ? entry.current : '',
+      related: typeof entry.related === 'string' ? entry.related : '',
+      result,
+    });
+  }
+
+  return entries;
+}
+
 function toFindingDto(
   row: ComponentIntelligenceFinding,
   componentSummaries: Map<string, ComponentFindingComponentSummary>,
@@ -921,6 +989,7 @@ function toFindingDto(
     reviewedAt: row.reviewedAt ? row.reviewedAt.toISOString() : null,
     decisionNotes: row.decisionNotes ?? null,
     metadata: row.metadata ?? {},
+    attributeComparison: readAttributeComparison(row.metadata),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     component: componentSummaries.get(row.componentId) ?? null,

@@ -6,6 +6,10 @@ import { ComponentReviewQueueController } from './component-review-queue.control
 import { ComponentReviewQueueService } from './component-review-queue.service';
 import { ComponentReviewAnalyzer } from './component-review-analyzer';
 import { ComponentReviewApplyService } from './component-review-apply.service';
+import { ComponentConsolidationPreviewService } from './component-consolidation-preview.service';
+import { ComponentConsolidationService } from './component-consolidation/component-consolidation.service';
+import { ConsolidationLockService } from './component-consolidation/consolidation-lock.service';
+import { ConsolidationRepository } from './component-consolidation/component-consolidation.repository';
 
 import { DataPacksModule } from '../data-packs/data-packs.module';
 import { SecurityAuditModule } from '../security-audit/security-audit.module';
@@ -27,8 +31,18 @@ import { ComponentWriteGuard } from '../auth/component-write.guard';
     ComponentReviewQueueService,
     ComponentReviewAnalyzer,
     ComponentReviewApplyService,
+    ComponentConsolidationPreviewService,
+    ComponentConsolidationService,
+    ConsolidationLockService,
+    ConsolidationRepository,
     ComponentWriteGuard,
   ],
-  exports: [MlService, MlClientService, ComponentReviewQueueService],
+  exports: [
+    MlService,
+    MlClientService,
+    ComponentReviewQueueService,
+    ComponentConsolidationPreviewService,
+    ComponentConsolidationService,
+  ],
 })
 export class MlModule {}

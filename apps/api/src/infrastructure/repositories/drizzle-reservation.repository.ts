@@ -1,4 +1,4 @@
-import { db } from '@ananya/database';
+import { db as rootDb, type DbExecutor } from '@ananya/database';
 import {
   inventoryReservations,
   inventoryReservationLines,
@@ -48,8 +48,10 @@ function toDomain(
 }
 
 export class DrizzleReservationRepository implements ReservationRepository {
+  constructor(private readonly client: DbExecutor = rootDb) {}
+
   async findById(id: string): Promise<Reservation | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(inventoryReservations)
       .where(eq(inventoryReservations.id, id))
@@ -57,7 +59,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
 
     if (!row) return null;
 
-    const lines = await db
+    const lines = await this.client
       .select()
       .from(inventoryReservationLines)
       .where(eq(inventoryReservationLines.reservationId, id));
@@ -68,7 +70,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
   async findByReservationNumber(
     reservationNumber: string,
   ): Promise<Reservation | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(inventoryReservations)
       .where(
@@ -81,7 +83,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
 
     if (!row) return null;
 
-    const lines = await db
+    const lines = await this.client
       .select()
       .from(inventoryReservationLines)
       .where(eq(inventoryReservationLines.reservationId, row.id));
@@ -92,7 +94,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
   async findMany(
     options?: FindManyReservationsOptions,
   ): Promise<Reservation[]> {
-    const query = db.select().from(inventoryReservations);
+    const query = this.client.select().from(inventoryReservations);
 
     if (options?.reservationType) {
       query.where(
@@ -126,7 +128,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
 
     let result = await Promise.all(
       rows.map(async (row) => {
-        const lines = await db
+        const lines = await this.client
           .select()
           .from(inventoryReservationLines)
           .where(eq(inventoryReservationLines.reservationId, row.id));
@@ -152,7 +154,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
     componentId: string,
     locationId: string,
   ): Promise<Reservation[]> {
-    const lines = await db
+    const lines = await this.client
       .select()
       .from(inventoryReservationLines)
       .where(
@@ -180,7 +182,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
   }
 
   async save(reservation: Reservation): Promise<Reservation> {
-    await db
+    await this.client
       .insert(inventoryReservations)
       .values({
         id: reservation.id,
@@ -206,12 +208,12 @@ export class DrizzleReservationRepository implements ReservationRepository {
       });
 
     // Replace line items
-    await db
+    await this.client
       .delete(inventoryReservationLines)
       .where(eq(inventoryReservationLines.reservationId, reservation.id));
 
     for (const line of reservation.lines) {
-      await db.insert(inventoryReservationLines).values({
+      await this.client.insert(inventoryReservationLines).values({
         id: line.id,
         reservationId: reservation.id,
         componentId: line.componentId,
@@ -229,14 +231,14 @@ export class DrizzleReservationRepository implements ReservationRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await db
+    await this.client
       .delete(inventoryReservations)
       .where(eq(inventoryReservations.id, id));
   }
 
   async generateNextReservationNumber(): Promise<string> {
     const year = new Date().getFullYear();
-    const [result] = await db
+    const [result] = await this.client
       .select({ count: count() })
       .from(inventoryReservations);
     const num = (Number(result?.count ?? 0) + 1).toString().padStart(4, '0');

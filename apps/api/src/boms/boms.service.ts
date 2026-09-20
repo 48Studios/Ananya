@@ -16,6 +16,7 @@ import {
   AddBomLineDto,
   DuplicateBomDto,
 } from './dtos';
+import { assertComponentUsableForNewActivity } from '../components/component-lifecycle.guard';
 
 export const BOM_REPOSITORY = 'BOM_REPOSITORY';
 
@@ -35,6 +36,11 @@ export class BomsService {
 
     if (dto.lines && dto.lines.length > 0) {
       for (const line of dto.lines) {
+        // A retired component must not be consumed by a new BOM.
+        await assertComponentUsableForNewActivity(
+          line.componentId,
+          'new bill of materials lines',
+        );
         bom.addLine(line);
       }
     }
@@ -54,6 +60,12 @@ export class BomsService {
     bom.updateHeader(dto.notes);
 
     if (dto.lines) {
+      for (const line of dto.lines) {
+        await assertComponentUsableForNewActivity(
+          line.componentId,
+          'new bill of materials lines',
+        );
+      }
       bom.clearLines();
       for (const line of dto.lines) {
         bom.addLine(line);
@@ -92,6 +104,12 @@ export class BomsService {
   }
 
   async addLine(bomId: string, dto: AddBomLineDto): Promise<BillOfMaterials> {
+    // A retired component must not be added to a BOM.
+    await assertComponentUsableForNewActivity(
+      dto.componentId,
+      'new bill of materials lines',
+    );
+
     const bom = await this.findOne(bomId);
     bom.addLine(dto);
     await this.bomRepository.save(bom);

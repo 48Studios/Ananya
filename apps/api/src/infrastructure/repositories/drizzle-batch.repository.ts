@@ -1,4 +1,4 @@
-import { db } from '@ananya/database';
+import { db, type DbExecutor } from '@ananya/database';
 import { batches } from '@ananya/database/schema';
 import type { Batch, BatchRepository } from '@ananya/inventory';
 import { and, eq } from '@ananya/database/query';
@@ -28,8 +28,10 @@ function toRow(batch: Batch): Omit<BatchRow, 'id' | 'createdAt'> {
 }
 
 export class DrizzleBatchRepository implements BatchRepository {
+  constructor(private readonly client: DbExecutor = db) {}
+
   async findById(id: string): Promise<Batch | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(batches)
       .where(eq(batches.id, id))
@@ -42,7 +44,7 @@ export class DrizzleBatchRepository implements BatchRepository {
     componentId: string,
     batchNumber: string,
   ): Promise<Batch | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(batches)
       .where(
@@ -57,7 +59,7 @@ export class DrizzleBatchRepository implements BatchRepository {
   }
 
   async findManyByComponent(componentId: string): Promise<Batch[]> {
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(batches)
       .where(eq(batches.componentId, componentId));
@@ -66,10 +68,27 @@ export class DrizzleBatchRepository implements BatchRepository {
   }
 
   async save(batch: Batch): Promise<Batch> {
-    const [row] = await db.insert(batches).values(toRow(batch)).returning();
+    const [row] = await this.client
+      .insert(batches)
+      .values(toRow(batch))
+      .returning();
 
     if (!row) {
       throw new Error('Failed to create batch');
+    }
+
+    return toDomain(row);
+  }
+
+  async update(batch: Batch): Promise<Batch> {
+    const [row] = await this.client
+      .update(batches)
+      .set({ componentId: batch.componentId })
+      .where(eq(batches.id, batch.id))
+      .returning();
+
+    if (!row) {
+      throw new Error(`Failed to update batch: ${batch.id}`);
     }
 
     return toDomain(row);

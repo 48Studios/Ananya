@@ -1,4 +1,4 @@
-import { db } from '@ananya/database';
+import { db, type DbExecutor } from '@ananya/database';
 import { billOfMaterials, billOfMaterialLines } from '@ananya/database/schema';
 import { eq, desc, and } from '@ananya/database/query';
 import type {
@@ -40,8 +40,10 @@ function toDomain(
 }
 
 export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsRepository {
+  constructor(private readonly client: DbExecutor = db) {}
+
   async findById(id: string): Promise<BillOfMaterials | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(billOfMaterials)
       .where(eq(billOfMaterials.id, id))
@@ -49,7 +51,7 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
 
     if (!row) return null;
 
-    const lines = await db
+    const lines = await this.client
       .select()
       .from(billOfMaterialLines)
       .where(eq(billOfMaterialLines.bomId, id));
@@ -60,7 +62,7 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
   async findActiveByComponentId(
     componentId: string,
   ): Promise<BillOfMaterials | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(billOfMaterials)
       .where(
@@ -73,7 +75,7 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
 
     if (!row) return null;
 
-    const lines = await db
+    const lines = await this.client
       .select()
       .from(billOfMaterialLines)
       .where(eq(billOfMaterialLines.bomId, row.id));
@@ -84,7 +86,7 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
   async findRevisionsByComponentId(
     componentId: string,
   ): Promise<BillOfMaterials[]> {
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(billOfMaterials)
       .where(eq(billOfMaterials.componentId, componentId))
@@ -92,7 +94,7 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
 
     return Promise.all(
       rows.map(async (row) => {
-        const lines = await db
+        const lines = await this.client
           .select()
           .from(billOfMaterialLines)
           .where(eq(billOfMaterialLines.bomId, row.id));
@@ -102,7 +104,7 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
   }
 
   async findMany(options?: FindManyBomsOptions): Promise<BillOfMaterials[]> {
-    const query = db.select().from(billOfMaterials);
+    const query = this.client.select().from(billOfMaterials);
 
     if (options?.componentId) {
       query.where(eq(billOfMaterials.componentId, options.componentId));
@@ -115,7 +117,7 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
 
     return Promise.all(
       rows.map(async (row) => {
-        const lines = await db
+        const lines = await this.client
           .select()
           .from(billOfMaterialLines)
           .where(eq(billOfMaterialLines.bomId, row.id));
@@ -124,8 +126,24 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
     );
   }
 
+  /**
+   * BOM ids that consume this component (have a line for it).
+   *
+   * `findMany({ componentId })` selects BOMs that *produce* the component, which
+   * is a different relationship. Consolidation needs the consuming direction.
+   */
+  async findBomIdsByLineComponent(componentId: string): Promise<string[]> {
+    const rows = await this.client
+      .selectDistinct({ bomId: billOfMaterialLines.bomId })
+      .from(billOfMaterialLines)
+      .where(eq(billOfMaterialLines.componentId, componentId))
+      .orderBy(billOfMaterialLines.bomId);
+
+    return rows.map((row) => row.bomId);
+  }
+
   async save(bom: BillOfMaterials): Promise<void> {
-    await db
+    await this.client
       .insert(billOfMaterials)
       .values({
         id: bom.id,
@@ -146,12 +164,12 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
       });
 
     // Synchronize lines: delete existing and re-insert
-    await db
+    await this.client
       .delete(billOfMaterialLines)
       .where(eq(billOfMaterialLines.bomId, bom.id));
 
     for (const line of bom.lines) {
-      await db.insert(billOfMaterialLines).values({
+      await this.client.insert(billOfMaterialLines).values({
         id: line.id,
         bomId: bom.id,
         componentId: line.componentId,
@@ -164,6 +182,6 @@ export class DrizzleBillOfMaterialsRepository implements BillOfMaterialsReposito
   }
 
   async delete(id: string): Promise<void> {
-    await db.delete(billOfMaterials).where(eq(billOfMaterials.id, id));
+    await this.client.delete(billOfMaterials).where(eq(billOfMaterials.id, id));
   }
 }

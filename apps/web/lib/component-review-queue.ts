@@ -6,9 +6,15 @@ import type {
   ComponentReviewFindingDto,
   ComponentReviewIssueCategory,
   ComponentReviewIssueType,
+  ComponentReviewQueuePageDto,
   ComponentReviewQueueSummaryDto,
   ComponentReviewStatus,
   ConfidenceLevel,
+  ConsolidationAttributeEntryDto,
+  ConsolidationDependencyClassification,
+  ConsolidationPreviewDto,
+  ConsolidationResultDto,
+  ConsolidationSeverity,
 } from "./api/component-review-queue-api";
 
 /**
@@ -434,11 +440,7 @@ export function hasActiveFilters(input: {
 // ---------------------------------------------------------------------------
 
 export type QueueTabId =
-  | "ALL"
-  | "IDENTITY"
-  | "CLASSIFICATION"
-  | "DUPLICATES"
-  | "STALE";
+  "ALL" | "IDENTITY" | "CLASSIFICATION" | "DUPLICATES" | "STALE";
 
 /** Tab definitions, in the same order and style as the Attribute queue. */
 export const QUEUE_TABS: readonly { id: QueueTabId; label: string }[] = [
@@ -493,6 +495,94 @@ export function buildQueueTabCounts(
 }
 
 // ---------------------------------------------------------------------------
+// Targeted status reconciliation
+// ---------------------------------------------------------------------------
+
+/** The summary counter that holds a finding in a given status. */
+const SUMMARY_COUNTER_FOR_STATUS: Record<
+  ComponentReviewStatus,
+  keyof Omit<ComponentReviewQueueSummaryDto, "total" | "byCategory">
+> = {
+  PENDING: "pending",
+  ACCEPTED: "accepted",
+  REJECTED: "rejected",
+  DISMISSED: "dismissed",
+  STALE: "stale",
+};
+
+/**
+ * Apply a single finding's new status to an already-loaded queue page.
+ *
+ * Used after a mutation whose authoritative response tells us the finding's new
+ * status (today: consolidation, which commits `ACCEPTED` inside its own
+ * transaction). The alternative — only refetching — leaves the queue showing
+ * stale rows until the round trip returns, so the review card the operator just
+ * acted on appears unchanged.
+ *
+ * The update is deliberately surgical:
+ *
+ * - Only the matching row is replaced; the rest of the page keeps its identity,
+ *   so unrelated cards do not re-render and no scroll position is lost.
+ * - Only the two affected summary counters are adjusted, preserving
+ *   `byCategory` (which keys off issue category, not status) and every other
+ *   bucket.
+ * - Nothing is added or removed. When the active filter excludes the finding's
+ *   new status the row stays visible until the authoritative refetch lands; a
+ *   row that silently vanished would be worse than one that is briefly stale.
+ * - The page cursor (`page`, `pageSize`, `total`) is untouched.
+ *
+ * Passing the status the finding already has returns the input page unchanged.
+ * Returning the input when nothing matched also lets callers feed this the
+ * dialog's detached finding copy without risking a partial update.
+ */
+export function applyFindingStatusToQueuePage(
+  page: ComponentReviewQueuePageDto,
+  findingId: string,
+  status: ComponentReviewStatus,
+): ComponentReviewQueuePageDto {
+  const index = page.items.findIndex((item) => item.id === findingId);
+  if (index === -1) return page;
+  const previous = page.items[index]!;
+  if (previous.status === status) return page;
+
+  const items = page.items.slice();
+  items[index] = { ...previous, status };
+
+  const summary = { ...page.summary };
+  summary[SUMMARY_COUNTER_FOR_STATUS[previous.status]] = Math.max(
+    0,
+    summary[SUMMARY_COUNTER_FOR_STATUS[previous.status]] - 1,
+  );
+  summary[SUMMARY_COUNTER_FOR_STATUS[status]] =
+    summary[SUMMARY_COUNTER_FOR_STATUS[status]] + 1;
+
+  return { ...page, items, summary };
+}
+
+/**
+ * Resolve the finding to show after a consolidation completed.
+ *
+ * The dialog holds a snapshot of the finding taken when it was opened, and the
+ * consolidation response is the authoritative statement of the post-operation
+ * state. This merges the confirmed status into that snapshot so the review card
+ * and the duplicate investigation header reflect the change immediately, while
+ * leaving every other field (component names, SKUs, notes) exactly as the
+ * dialog loaded them.
+ *
+ * Returns the input unchanged when the response concerns a different finding,
+ * so a late completion cannot repaint an unrelated card.
+ */
+export function applyConsolidationToFinding(
+  finding: ComponentReviewFindingDto | null,
+  result: Pick<ConsolidationResultDto, "findingId">,
+): ComponentReviewFindingDto | null {
+  if (!finding) return finding;
+  if (finding.id !== result.findingId) return finding;
+  if (finding.status === "ACCEPTED") return finding;
+  return { ...finding, status: "ACCEPTED" };
+}
+
+// ---------------------------------------------------------------------------
 // Finding card content and inline actions
 // ---------------------------------------------------------------------------
 
@@ -518,7 +608,8 @@ export function buildFindingValueSummary(
     return {
       fieldLabel: null,
       current: finding.component?.manufacturerPartNumber?.trim() || "—",
-      suggested: finding.relatedComponent?.manufacturerPartNumber?.trim() || "—",
+      suggested:
+        finding.relatedComponent?.manufacturerPartNumber?.trim() || "—",
       relatedSku: finding.relatedComponent?.sku ?? null,
     };
   }
@@ -532,12 +623,7 @@ export function buildFindingValueSummary(
 }
 
 export type QueueCardAction =
-  | "EVIDENCE"
-  | "INSPECT"
-  | "OPEN_COMPONENT"
-  | "APPLY"
-  | "ACCEPT"
-  | "REJECT";
+  "EVIDENCE" | "INSPECT" | "OPEN_COMPONENT" | "APPLY" | "ACCEPT" | "REJECT";
 
 /**
  * Inline actions a queue card should offer.
@@ -621,9 +707,19 @@ const VALUE_KEY_ORDER: string[] = [
   "categoryId",
   "resolution",
   "matchType",
+  "primaryMatchType",
+  "supportingMatchTypes",
   "duplicateOfSku",
   "duplicateOfManufacturerPartNumber",
   "normalizedMpnValue",
+  "normalizedName",
+  "manufacturerIdentity",
+  "matchingAttributes",
+  "similarityScore",
+  "nameSimilarity",
+  "sharedTokens",
+  "matchedSignals",
+  "penalizedSignals",
   "collidesWithExistingComponent",
   "sku",
   "name",
@@ -836,7 +932,11 @@ export function buildDuplicateComparisonRows(
     ? "Identical after normalization — the duplicate signal"
     : matchingMatchType === "PACKAGING_VARIANT"
       ? "Matches once the packaging/reel suffix is removed"
-      : "Compared after removing packaging suffixes";
+      : matchingMatchType === "NAME_ATTRIBUTE_IDENTITY"
+        ? "Not the duplicate signal — this match is based on name and recorded specifications"
+        : matchingMatchType === "SEMANTIC_NAME_SIMILARITY"
+          ? "Not the duplicate signal — this match is based on overall similarity"
+          : "Compared after removing packaging suffixes";
 
   const currentManufacturer = manufacturerName(current);
   const relatedManufacturer = manufacturerName(related);
@@ -916,6 +1016,43 @@ export function describeDuplicateRelationship(
     finding.issueType === "POTENTIAL_DUPLICATE" ||
     matchType === "PACKAGING_VARIANT"
   ) {
+    if (matchType === "MPN_MANUFACTURER_CONFLICT") {
+      return {
+        heading: "Potential duplicate (manufacturer conflict)",
+        explanation: relatedSku
+          ? `The manufacturer part number is identical to ${
+              relatedMpn ? `"${relatedMpn}"` : "the related component"
+            } recorded on ${relatedSku}, but the two records claim different manufacturers. Verify which record is authoritative.`
+          : "The manufacturer part number is identical to the related component, but the two records claim different manufacturers.",
+      };
+    }
+
+    if (matchType === "NAME_ATTRIBUTE_IDENTITY") {
+      return {
+        heading: "Potential duplicate (matching identity)",
+        explanation: relatedSku
+          ? `The component name, manufacturer and recorded specifications match ${
+              relatedMpn ? `"${relatedMpn}"` : "the related component"
+            } on ${relatedSku}. Verify whether both records describe the same physical part.`
+          : "The component name, manufacturer and recorded specifications match the related component.",
+      };
+    }
+
+    if (matchType === "SEMANTIC_NAME_SIMILARITY") {
+      const similarity =
+        typeof finding.suggestedValue?.similarityScore === "number"
+          ? Math.round(finding.suggestedValue.similarityScore * 100)
+          : null;
+      return {
+        heading: "Potential duplicate (similar records)",
+        explanation: relatedSku
+          ? `Similarity analysis scored this component ${
+              similarity === null ? "" : `${similarity}% `
+            }against ${relatedSku} using name, manufacturer, category and recorded specifications. No shared manufacturer part number was found, so this is a candidate to review rather than a confirmed duplicate.`
+          : "Similarity analysis matched this component against the related component using name, manufacturer, category and recorded specifications.",
+      };
+    }
+
     return {
       heading: "Potential duplicate (packaging variant)",
       explanation: relatedSku
@@ -935,6 +1072,976 @@ export function describeDuplicateRelationship(
 
 export function componentHref(componentId: string): string {
   return `/components/${encodeURIComponent(componentId)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Duplicate investigation (Pass 5C)
+// ---------------------------------------------------------------------------
+
+/**
+ * Canonical duplicate match types emitted by the analyzer (Pass 5A/5B).
+ *
+ * The frontend does not classify duplicates itself: it only renders the match
+ * type the backend recorded, so the UI can never disagree with the engine.
+ */
+export const DUPLICATE_MATCH_TYPES = [
+  "EXACT_MPN",
+  "PACKAGING_VARIANT",
+  "MPN_MANUFACTURER_CONFLICT",
+  "NAME_ATTRIBUTE_IDENTITY",
+  "SEMANTIC_NAME_SIMILARITY",
+] as const;
+
+export type DuplicateMatchType = (typeof DUPLICATE_MATCH_TYPES)[number];
+
+export function isDuplicateMatchType(
+  value: unknown,
+): value is DuplicateMatchType {
+  return (
+    typeof value === "string" &&
+    (DUPLICATE_MATCH_TYPES as readonly string[]).includes(value)
+  );
+}
+
+/** Human-readable rule name, matching the analyzer's rule vocabulary. */
+export const DUPLICATE_MATCH_TYPE_LABELS: Record<DuplicateMatchType, string> = {
+  EXACT_MPN: "Exact MPN match",
+  PACKAGING_VARIANT: "Packaging variant",
+  MPN_MANUFACTURER_CONFLICT: "Manufacturer conflict",
+  NAME_ATTRIBUTE_IDENTITY: "Name + attribute identity",
+  SEMANTIC_NAME_SIMILARITY: "Semantic name similarity",
+};
+
+export function duplicateMatchTypeLabel(
+  matchType: string | null,
+): string | null {
+  return isDuplicateMatchType(matchType)
+    ? DUPLICATE_MATCH_TYPE_LABELS[matchType]
+    : matchType;
+}
+
+export type DuplicateMatchOrigin = "deterministic" | "semantic";
+
+/** Deterministic rules are authoritative identity; semantic ones are candidates. */
+export const DUPLICATE_MATCH_TYPE_ORIGINS: Record<
+  DuplicateMatchType,
+  DuplicateMatchOrigin
+> = {
+  EXACT_MPN: "deterministic",
+  PACKAGING_VARIANT: "deterministic",
+  MPN_MANUFACTURER_CONFLICT: "deterministic",
+  NAME_ATTRIBUTE_IDENTITY: "deterministic",
+  SEMANTIC_NAME_SIMILARITY: "semantic",
+};
+
+export const DUPLICATE_ORIGIN_LABELS: Record<DuplicateMatchOrigin, string> = {
+  deterministic: "Deterministic match",
+  semantic: "Semantic candidate",
+};
+
+export function isSemanticDuplicateMatch(matchType: string | null): boolean {
+  return isDuplicateMatchType(matchType)
+    ? DUPLICATE_MATCH_TYPE_ORIGINS[matchType] === "semantic"
+    : false;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+/**
+ * The rule that produced this finding: `primaryMatchType`, falling back to
+ * `matchType` (older rows) and finally to the issue type.
+ */
+export function duplicateMatchType(
+  finding: ComponentReviewFindingDto,
+): DuplicateMatchType | null {
+  const candidates = [
+    finding.suggestedValue?.primaryMatchType,
+    finding.suggestedValue?.matchType,
+    finding.metadata?.primaryMatchType,
+    finding.metadata?.matchType,
+  ];
+  for (const candidate of candidates) {
+    if (isDuplicateMatchType(candidate)) return candidate;
+  }
+  if (finding.issueType === "EXACT_DUPLICATE") return "EXACT_MPN";
+  return null;
+}
+
+/** Other rules that also matched the same pair (never a second finding). */
+export function supportingDuplicateMatchTypes(
+  finding: ComponentReviewFindingDto,
+): DuplicateMatchType[] {
+  const raw = [
+    ...readStringArray(finding.suggestedValue?.supportingMatchTypes),
+    ...readStringArray(finding.metadata?.supportingMatchTypes),
+  ];
+  const seen = new Set<DuplicateMatchType>();
+  for (const value of raw) {
+    if (isDuplicateMatchType(value)) seen.add(value);
+  }
+  return [...seen].sort(
+    (left, right) =>
+      DUPLICATE_MATCH_TYPES.indexOf(left) -
+      DUPLICATE_MATCH_TYPES.indexOf(right),
+  );
+}
+
+export interface DuplicateIdentitySummary {
+  /** EXACT_DUPLICATE or POTENTIAL_DUPLICATE. */
+  verdict: string;
+  /** Plain-language statement of the identity rule that matched. */
+  rule: string;
+  matchType: DuplicateMatchType | null;
+  matchTypeLabel: string;
+  origin: DuplicateMatchOrigin;
+  originLabel: string;
+  /** Supporting rules, strongest first. */
+  supporting: Array<{ matchType: DuplicateMatchType; label: string }>;
+}
+
+/**
+ * Explanation text per rule. Each sentence states what the rule actually
+ * compares - it is never a generic "these look similar".
+ */
+const DUPLICATE_RULE_EXPLANATIONS: Record<DuplicateMatchType, string> = {
+  EXACT_MPN:
+    "Same manufacturer identity and the same manufacturer part number after normalization.",
+  PACKAGING_VARIANT:
+    "Same manufacturer identity and the same part number once the packaging or reel suffix is removed.",
+  MPN_MANUFACTURER_CONFLICT:
+    "The same normalized manufacturer part number recorded under two different manufacturer identities.",
+  NAME_ATTRIBUTE_IDENTITY:
+    "The same normalized name, the same manufacturer, compatible categories, and no conflicting recorded specification.",
+  SEMANTIC_NAME_SIMILARITY:
+    "Similarity across name, manufacturer, category and recorded specifications, with no shared manufacturer part number.",
+};
+
+/**
+ * Compact identity summary for the top of the duplicate detail.
+ *
+ * The text comes from the recorded match type, never from a hard-coded
+ * assumption, so an exact MPN match and a semantic candidate can never be
+ * described with the same words.
+ */
+export function describeDuplicateIdentity(
+  finding: ComponentReviewFindingDto,
+): DuplicateIdentitySummary {
+  const matchType = duplicateMatchType(finding);
+  const origin: DuplicateMatchOrigin = matchType
+    ? DUPLICATE_MATCH_TYPE_ORIGINS[matchType]
+    : "deterministic";
+  const rule = matchType
+    ? DUPLICATE_RULE_EXPLANATIONS[matchType]
+    : finding.issueType === "EXACT_DUPLICATE"
+      ? "The two records share an authoritative manufacturer part number."
+      : "The two records share several identity signals without a shared manufacturer part number.";
+
+  return {
+    verdict:
+      finding.issueType === "EXACT_DUPLICATE"
+        ? "Exact duplicate"
+        : "Potential duplicate",
+    rule,
+    matchType,
+    matchTypeLabel: matchType
+      ? DUPLICATE_MATCH_TYPE_LABELS[matchType]
+      : "Duplicate candidate",
+    origin,
+    originLabel: DUPLICATE_ORIGIN_LABELS[origin],
+    supporting: supportingDuplicateMatchTypes(finding).map((type) => ({
+      matchType: type,
+      label: DUPLICATE_MATCH_TYPE_LABELS[type],
+    })),
+  };
+}
+
+/** Side-by-side identity row for the duplicate comparison. */
+export interface DuplicateSideBySideRow {
+  label: string;
+  current: string;
+  related: string;
+  emphasis: ComparisonEmphasis;
+  note?: string;
+  /** Identity-bearing fields the reviewer should scan first. */
+  identity: boolean;
+}
+
+/**
+ * Side-by-side identity comparison: SKU, name, manufacturer, part number,
+ * category and active status for both records, from the finding payload only.
+ */
+export function buildDuplicateSideBySideRows(
+  finding: ComponentReviewFindingDto,
+  refs: ReviewReferenceMaps = {},
+): DuplicateSideBySideRow[] {
+  const current = finding.component;
+  const related = finding.relatedComponent;
+  if (!current || !related) return [];
+
+  const normalize = (value: string | null | undefined) =>
+    (value ?? "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+
+  const manufacturerOf = (component: ComponentReviewComponentSummaryDto) =>
+    component.manufacturerId
+      ? (refs.manufacturerNames?.get(component.manufacturerId) ?? "Assigned")
+      : "—";
+  const categoryOf = (component: ComponentReviewComponentSummaryDto) =>
+    component.categoryId
+      ? (refs.categoryNames?.get(component.categoryId) ?? "Assigned")
+      : "—";
+  const statusOf = (component: ComponentReviewComponentSummaryDto) =>
+    component.isActive ? "Active" : "Inactive";
+
+  const currentMpn = normalize(current.manufacturerPartNumber);
+  const relatedMpn = normalize(related.manufacturerPartNumber);
+  const mpnMatches = currentMpn.length > 0 && currentMpn === relatedMpn;
+  const matchType = duplicateMatchType(finding);
+
+  const mpnNote = mpnMatches
+    ? "Identical after normalization — the duplicate signal"
+    : matchType === "PACKAGING_VARIANT"
+      ? "Matches once the packaging/reel suffix is removed"
+      : matchType === "NAME_ATTRIBUTE_IDENTITY"
+        ? "Not the duplicate signal — this match is based on name and recorded specifications"
+        : matchType === "SEMANTIC_NAME_SIMILARITY"
+          ? "Not the duplicate signal — this match is based on overall similarity"
+          : "Compared after removing packaging suffixes";
+
+  const currentManufacturer = manufacturerOf(current);
+  const relatedManufacturer = manufacturerOf(related);
+  const currentCategory = categoryOf(current);
+  const relatedCategory = categoryOf(related);
+
+  return [
+    {
+      label: "Component",
+      current: current.name,
+      related: related.name,
+      emphasis: "neutral",
+      identity: false,
+    },
+    {
+      label: "Internal SKU",
+      current: current.sku,
+      related: related.sku,
+      emphasis: "neutral",
+      note: "Internal SKUs are always distinct",
+      identity: false,
+    },
+    {
+      label: "Manufacturer Part Number",
+      current: current.manufacturerPartNumber?.trim() || "—",
+      related: related.manufacturerPartNumber?.trim() || "—",
+      emphasis: mpnMatches ? "match" : "difference",
+      note: mpnNote,
+      identity: true,
+    },
+    {
+      label: "Manufacturer",
+      current: currentManufacturer,
+      related: relatedManufacturer,
+      emphasis:
+        currentManufacturer === relatedManufacturer ? "match" : "difference",
+      identity: true,
+    },
+    {
+      label: "Category",
+      current: currentCategory,
+      related: relatedCategory,
+      emphasis: currentCategory === relatedCategory ? "match" : "difference",
+      identity: true,
+    },
+    {
+      label: "Status",
+      current: statusOf(current),
+      related: statusOf(related),
+      emphasis:
+        current.isActive === related.isActive ? "neutral" : "difference",
+      ...(current.isActive === related.isActive
+        ? {}
+        : { note: "One record is inactive" }),
+      identity: false,
+    },
+  ];
+}
+
+/** Row of the structured attribute comparison table. */
+export interface DuplicateAttributeRow {
+  code: string;
+  label: string;
+  current: string;
+  related: string;
+  result: "match" | "different";
+}
+
+function readAttributeComparison(
+  finding: ComponentReviewFindingDto,
+): DuplicateAttributeRow[] {
+  // The API surfaces the comparison as a typed field; the metadata copy is the
+  // persisted form, so it is used as a fallback for payloads persisted before
+  // the field was exposed.
+  const raw = Array.isArray(finding.attributeComparison)
+    ? finding.attributeComparison
+    : finding.metadata?.attributeComparison;
+  if (!Array.isArray(raw)) return [];
+
+  const rows: DuplicateAttributeRow[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const code = typeof entry.code === "string" ? entry.code : "";
+    if (!code) continue;
+    if (entry.result !== "MATCH" && entry.result !== "DIFFERENT") continue;
+    rows.push({
+      code,
+      label:
+        typeof entry.label === "string" && entry.label ? entry.label : code,
+      current: typeof entry.current === "string" ? entry.current : "",
+      related: typeof entry.related === "string" ? entry.related : "",
+      result: entry.result === "MATCH" ? "match" : "different",
+    });
+  }
+  return rows;
+}
+
+/**
+ * Structured attribute comparison recorded with the finding.
+ *
+ * Differences come first for potential duplicates, so a reviewer never has to
+ * scroll past matching specifications to reach the reason the pair is only a
+ * candidate. Exact duplicates keep the analyzer's attribute order because the
+ * authoritative MPN match is the headline.
+ */
+export function buildDuplicateAttributeRows(
+  finding: ComponentReviewFindingDto,
+  options: { differencesFirst?: boolean } = {},
+): DuplicateAttributeRow[] {
+  const rows = readAttributeComparison(finding);
+  const differencesFirst =
+    options.differencesFirst ?? finding.issueType !== "EXACT_DUPLICATE";
+
+  if (!differencesFirst) return rows;
+  return [
+    ...rows.filter((row) => row.result === "different"),
+    ...rows.filter((row) => row.result === "match"),
+  ];
+}
+
+/** One explained difference between the two records. */
+export interface DuplicateDifference {
+  label: string;
+  current: string;
+  related: string;
+  note?: string;
+}
+
+/**
+ * Differences worth surfacing before anything else.
+ *
+ * Built from the recorded match type plus the attribute comparison, so an
+ * exact MPN match that also disagrees on a specification exposes the
+ * inconsistency instead of hiding it behind the MPN.
+ */
+export function describeDuplicateDifferences(
+  finding: ComponentReviewFindingDto,
+  refs: ReviewReferenceMaps = {},
+): DuplicateDifference[] {
+  const current = finding.component;
+  const related = finding.relatedComponent;
+  if (!current || !related) return [];
+
+  const differences: DuplicateDifference[] = [];
+  const matchType = duplicateMatchType(finding);
+
+  const currentMpn = current.manufacturerPartNumber?.trim() || null;
+  const relatedMpn = related.manufacturerPartNumber?.trim() || null;
+  if (currentMpn !== relatedMpn) {
+    differences.push({
+      label: "Manufacturer Part Number",
+      current: currentMpn ?? "—",
+      related: relatedMpn ?? "—",
+      ...(matchType === "PACKAGING_VARIANT"
+        ? { note: "Interpreted as a packaging/reel suffix difference" }
+        : matchType === "NAME_ATTRIBUTE_IDENTITY" ||
+            matchType === "SEMANTIC_NAME_SIMILARITY"
+          ? { note: "Different part numbers — verify they are not variants" }
+          : {}),
+    });
+  }
+
+  const manufacturerOf = (component: ComponentReviewComponentSummaryDto) =>
+    component.manufacturerId
+      ? (refs.manufacturerNames?.get(component.manufacturerId) ?? "Assigned")
+      : "—";
+  const currentManufacturer = manufacturerOf(current);
+  const relatedManufacturer = manufacturerOf(related);
+  if (currentManufacturer !== relatedManufacturer) {
+    differences.push({
+      label: "Manufacturer",
+      current: currentManufacturer,
+      related: relatedManufacturer,
+      note:
+        matchType === "MPN_MANUFACTURER_CONFLICT"
+          ? "The same part number under two manufacturer identities"
+          : "Different manufacturers",
+    });
+  }
+
+  const categoryOf = (component: ComponentReviewComponentSummaryDto) =>
+    component.categoryId
+      ? (refs.categoryNames?.get(component.categoryId) ?? "Assigned")
+      : "—";
+  const currentCategory = categoryOf(current);
+  const relatedCategory = categoryOf(related);
+  if (currentCategory !== relatedCategory) {
+    differences.push({
+      label: "Category",
+      current: currentCategory,
+      related: relatedCategory,
+    });
+  }
+
+  if (current.isActive !== related.isActive) {
+    differences.push({
+      label: "Status",
+      current: current.isActive ? "Active" : "Inactive",
+      related: related.isActive ? "Active" : "Inactive",
+      note: "One record is inactive",
+    });
+  }
+
+  for (const row of readAttributeComparison(finding)) {
+    if (row.result !== "different") continue;
+    differences.push({
+      label: row.label,
+      current: row.current || "—",
+      related: row.related || "—",
+    });
+  }
+
+  return differences;
+}
+
+/** Identity-bearing fields that match, for the at-a-glance match list. */
+export interface DuplicateMatch {
+  label: string;
+  value: string;
+}
+
+export function describeDuplicateMatches(
+  finding: ComponentReviewFindingDto,
+  refs: ReviewReferenceMaps = {},
+): DuplicateMatch[] {
+  const matches: DuplicateMatch[] = [];
+
+  for (const row of buildDuplicateSideBySideRows(finding, refs)) {
+    if (!row.identity || row.emphasis !== "match") continue;
+    matches.push({ label: row.label, value: row.current });
+  }
+
+  for (const row of readAttributeComparison(finding)) {
+    if (row.result !== "match") continue;
+    matches.push({ label: row.label, value: row.current || "—" });
+  }
+
+  return matches;
+}
+
+/** Semantic signal codes → reviewer-facing labels. */
+export const DUPLICATE_SIGNAL_LABELS: Record<string, string> = {
+  MANUFACTURER_SAME: "Same manufacturer",
+  CATEGORY_SAME: "Same category",
+  CATEGORY_RELATED: "Compatible categories",
+  NAME_SIMILARITY: "Strong name similarity",
+  TECHNICAL_VALUES_AGREE: "Technical values match",
+  PACKAGE_AGREES: "Package matches",
+  ATTRIBUTES_AGREE: "Recorded specifications match",
+  MPN_FAMILY: "Same manufacturer part family",
+  MANUFACTURER_CONFLICT: "Different manufacturers",
+  PACKAGE_CONFLICT: "Different package",
+};
+
+function duplicateSignalLabel(code: string): string {
+  return DUPLICATE_SIGNAL_LABELS[code] ?? humanizeKey(code);
+}
+
+export interface DuplicateSignalSummary {
+  matched: string[];
+  penalized: string[];
+}
+
+/**
+ * Matching and penalized signals recorded by the semantic scorer.
+ *
+ * Only the signal codes the analyzer recorded are shown; scoring weights are
+ * deliberately not surfaced (they are implementation detail, not reviewer
+ * information).
+ */
+export function describeDuplicateSignals(
+  finding: ComponentReviewFindingDto,
+): DuplicateSignalSummary {
+  const codes = [
+    ...readStringArray(finding.suggestedValue?.matchedSignals),
+    ...readStringArray(finding.metadata?.matchedSignals),
+  ];
+  const penaltyCodes = [
+    ...readStringArray(finding.suggestedValue?.penalizedSignals),
+    ...readStringArray(finding.metadata?.penalizedSignals),
+  ];
+
+  const unique = (values: string[]) => [...new Set(values)];
+  return {
+    matched: unique(codes).map(duplicateSignalLabel),
+    penalized: unique(penaltyCodes).map(duplicateSignalLabel),
+  };
+}
+
+export interface DuplicateSimilaritySummary {
+  /** Overall similarity in [0, 1]. */
+  score: number | null;
+  scorePercent: number | null;
+  nameSimilarity: number | null;
+  nameSimilarityPercent: number | null;
+  sharedTokens: string[];
+}
+
+/**
+ * Semantic similarity numbers, or null for deterministic matches that recorded
+ * none. Percentages are rounded for display only.
+ */
+export function summarizeDuplicateSimilarity(
+  finding: ComponentReviewFindingDto,
+): DuplicateSimilaritySummary | null {
+  const score = readNumber(
+    finding.suggestedValue?.similarityScore ??
+      finding.metadata?.similarityScore,
+  );
+  const nameSimilarity = readNumber(
+    finding.suggestedValue?.nameSimilarity ?? finding.metadata?.nameSimilarity,
+  );
+  const sharedTokens = [
+    ...readStringArray(finding.suggestedValue?.sharedTokens),
+    ...readStringArray(finding.metadata?.sharedTokens),
+  ];
+
+  if (score === null && nameSimilarity === null && sharedTokens.length === 0) {
+    return null;
+  }
+
+  return {
+    score,
+    scorePercent: score === null ? null : Math.round(score * 100),
+    nameSimilarity,
+    nameSimilarityPercent:
+      nameSimilarity === null ? null : Math.round(nameSimilarity * 100),
+    sharedTokens: [...new Set(sharedTokens)],
+  };
+}
+
+function readNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+export interface DuplicatePackagingExplanation {
+  baseMpn: string;
+  variantMpn: string;
+  /** Suffix the deterministic rule removed, when the two MPNs confirm it. */
+  removedSuffix: string | null;
+  note: string;
+}
+
+/**
+ * Packaging-variant explanation: base part number, variant part number, and the
+ * deterministic rule that connects them.
+ *
+ * The removed suffix is only reported when one part number literally extends the
+ * other, so the UI never claims a suffix that the records do not show.
+ */
+export function describePackagingVariant(
+  finding: ComponentReviewFindingDto,
+): DuplicatePackagingExplanation | null {
+  if (duplicateMatchType(finding) !== "PACKAGING_VARIANT") return null;
+
+  const current = finding.component?.manufacturerPartNumber?.trim() || "";
+  const related =
+    finding.relatedComponent?.manufacturerPartNumber?.trim() || "";
+  if (!current || !related) return null;
+
+  const normalize = (value: string) =>
+    value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+
+  const ordered = [current, related].sort(
+    (left, right) => normalize(left).length - normalize(right).length,
+  );
+  const shorter = ordered[0] as string;
+  const longer = ordered[1] as string;
+  const shorterNormalized = normalize(shorter);
+  const longerNormalized = normalize(longer);
+
+  const extendsBase =
+    shorterNormalized.length > 0 &&
+    longerNormalized.startsWith(shorterNormalized);
+
+  return {
+    baseMpn: extendsBase ? shorter : current,
+    variantMpn: extendsBase ? longer : related,
+    removedSuffix: extendsBase
+      ? longerNormalized.slice(shorterNormalized.length) || null
+      : null,
+    note: "The difference is interpreted as a packaging or reel suffix by the deterministic packaging rule. The records are not necessarily interchangeable: verify the physical part and its packaging before acting.",
+  };
+}
+
+export interface DuplicateManufacturerConflict {
+  currentManufacturer: string;
+  relatedManufacturer: string;
+  note: string;
+}
+
+/**
+ * Manufacturer-conflict explanation. Deliberately worded as a data question
+ * rather than a duplicate verdict, because the two records cannot both be
+ * authoritative for the same part number.
+ */
+export function describeManufacturerConflict(
+  finding: ComponentReviewFindingDto,
+  refs: ReviewReferenceMaps = {},
+): DuplicateManufacturerConflict | null {
+  if (duplicateMatchType(finding) !== "MPN_MANUFACTURER_CONFLICT") return null;
+
+  const nameOf = (component: ComponentReviewComponentSummaryDto | null) =>
+    component?.manufacturerId
+      ? (refs.manufacturerNames?.get(component.manufacturerId) ?? "Assigned")
+      : "Not assigned";
+
+  return {
+    currentManufacturer: nameOf(finding.component),
+    relatedManufacturer: nameOf(finding.relatedComponent),
+    note: "The same normalized part number is recorded under two manufacturer identities. Check which manufacturer is correct, and whether one part number was copied onto the wrong component record.",
+  };
+}
+
+/**
+ * Wording for each decision on a duplicate finding.
+ *
+ * Rejection is presented as "Not a duplicate" because that is the reviewer's
+ * actual judgement; it records the existing REJECTED decision, so audit history
+ * and feedback telemetry are unchanged. Acceptance never implies a merge.
+ */
+export function duplicateDecisionCopy(
+  finding: Pick<ComponentReviewFindingDto, "issueCategory" | "issueType">,
+  decision: ComponentReviewDecision,
+): DecisionCopy {
+  if (finding.issueCategory !== "DUPLICATE") return DECISION_COPY[decision];
+
+  if (decision === "REJECTED") {
+    return {
+      label: "Not a duplicate",
+      description:
+        "Records that these records are different parts. No component is modified, merged, or deleted.",
+      confirmTitle: "Not a duplicate",
+      confirmText: "Not a duplicate",
+      variant: "destructive",
+    };
+  }
+
+  if (decision === "ACCEPTED") {
+    return {
+      label: "Accept finding",
+      description:
+        "Acknowledges that this duplication is real. No component is merged, modified, or deleted — consolidating the two records stays a separate, explicitly confirmed step.",
+      confirmTitle: "Accept finding",
+      confirmText: "Accept finding",
+      variant: "default",
+    };
+  }
+
+  return {
+    label: "Dismiss",
+    description:
+      "Records that this duplicate candidate is not worth pursuing. No component is modified.",
+    confirmTitle: "Dismiss",
+    confirmText: "Dismiss",
+    variant: "destructive",
+  };
+}
+
+/** Placeholder that makes reviewer notes most useful for duplicate judgement. */
+export function duplicateDecisionNotesPlaceholder(
+  finding: Pick<ComponentReviewFindingDto, "issueType">,
+): string {
+  return finding.issueType === "EXACT_DUPLICATE"
+    ? "For example: same part number but the manufacturer is wrong on this record."
+    : "For example: not a duplicate because these are different voltage variants.";
+}
+
+/** Plain-language next step for the reviewer, per rule. */
+export function duplicateReviewGuidance(
+  finding: ComponentReviewFindingDto,
+): string {
+  const matchType = duplicateMatchType(finding);
+
+  switch (matchType) {
+    case "EXACT_MPN":
+      return "Both records carry the same manufacturer identity and part number. Decide which record to keep and resolve the duplication outside this queue.";
+    case "PACKAGING_VARIANT":
+      return "The part numbers differ only by a packaging or reel suffix. Confirm whether the records describe the same engineering part in different packaging.";
+    case "MPN_MANUFACTURER_CONFLICT":
+      return "Investigate which manufacturer is authoritative for this part number before treating either record as correct.";
+    case "NAME_ATTRIBUTE_IDENTITY":
+      return "Name, manufacturer, category and specifications agree, but no shared part number was found. Confirm whether one record is a duplicate entry.";
+    case "SEMANTIC_NAME_SIMILARITY":
+      return "This is a similarity candidate rather than a confirmed duplicate. Compare the differing fields above before deciding.";
+    default:
+      return "Review the comparison above and decide whether both records describe the same part.";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Consolidation preview (Pass 6A — read-only analysis)
+// ---------------------------------------------------------------------------
+
+/**
+ * Consolidation analysis is READ-ONLY in this pass.
+ *
+ * These helpers format the preview returned by the backend. They never build an
+ * execution request, because no execution endpoint exists: the pass deliberately
+ * ships analysis without mutation while the Phase 0 blockers remain open.
+ */
+export const CONSOLIDATION_EXECUTION_UNAVAILABLE_COPY =
+  "Consolidation execution is currently unavailable.";
+
+/** Explains, in one sentence, what the current feature does. */
+export function consolidationScopeNotice(): string {
+  return "This analysis is read-only. It does not consolidate, merge, delete, retire, repoint, or mutate components or any related record.";
+}
+
+/**
+ * Confirms a completed consolidation against the backend's own result.
+ *
+ * Every fact comes from the response — the canonical SKU, the retired SKUs, and
+ * the replay flag. Nothing is inferred from what the reviewer had on screen, so
+ * the message cannot claim an outcome the server did not report.
+ */
+export function consolidationSuccessMessage(
+  result: Pick<
+    ConsolidationResultDto,
+    "canonical" | "sources" | "idempotentReplay"
+  >,
+): string {
+  const retired = result.sources.map((source) => source.sku);
+  const retiredLabel =
+    retired.length === 1
+      ? `${retired[0]} was retired into ${result.canonical.sku}`
+      : `${retired.join(", ")} were retired into ${result.canonical.sku}`;
+  const replay = result.idempotentReplay
+    ? " This request had already been applied, so inventory was not moved twice."
+    : "";
+  return `Consolidation complete. ${retiredLabel}. The finding is now ACCEPTED.${replay}`;
+}
+
+export interface ConsolidationConflictGroup {
+  severity: ConsolidationSeverity;
+  label: string;
+  /** Blocking first, then warnings, then informational. */
+  conflicts: Array<{
+    code: string;
+    title: string;
+    description: string;
+    entityType: string;
+    affectedCount: number | null;
+    resolutionRequired: boolean;
+    resolutionSupported: boolean;
+    blocksExecution: boolean;
+  }>;
+}
+
+/** Canonical severity presentation order: blockers are never buried. */
+export const CONSOLIDATION_SEVERITY_ORDER: readonly ConsolidationSeverity[] = [
+  "BLOCKING",
+  "WARNING",
+  "INFORMATIONAL",
+];
+
+export const CONSOLIDATION_SEVERITY_LABELS: Record<
+  ConsolidationSeverity,
+  string
+> = {
+  BLOCKING: "Blocking",
+  WARNING: "Warning",
+  INFORMATIONAL: "Information",
+};
+
+/**
+ * Groups conflicts by severity, most severe first, preserving backend order
+ * within each group so the UI never reshuffles the evidence.
+ */
+export function groupConsolidationConflicts(
+  preview: Pick<ConsolidationPreviewDto, "conflicts">,
+): ConsolidationConflictGroup[] {
+  return CONSOLIDATION_SEVERITY_ORDER.map((severity) => ({
+    severity,
+    label: CONSOLIDATION_SEVERITY_LABELS[severity],
+    conflicts: preview.conflicts
+      .filter((conflict) => conflict.severity === severity)
+      .map((conflict) => ({
+        code: conflict.code,
+        title: conflict.title,
+        description: conflict.description,
+        entityType: conflict.entityType,
+        affectedCount: conflict.affectedCount,
+        resolutionRequired: conflict.resolutionRequired,
+        resolutionSupported: conflict.resolutionSupported,
+        blocksExecution: conflict.blocksExecution,
+      })),
+  })).filter((group) => group.conflicts.length > 0);
+}
+
+export interface ConsolidationImpactRow {
+  label: string;
+  value: string;
+  detail?: string;
+}
+
+/** Human impact summary, built only from numbers the backend returned. */
+export function buildConsolidationImpactRows(
+  preview: ConsolidationPreviewDto,
+): ConsolidationImpactRow[] {
+  const rows: ConsolidationImpactRow[] = [];
+
+  rows.push({
+    label: "Inventory",
+    value: `${preview.inventory.canonical.totalQuantity} → ${preview.inventory.combinedTotalQuantity}`,
+    detail: `${preview.inventory.byLocation.length} location(s) · source holds ${preview.inventory.source.totalQuantity}`,
+  });
+
+  const affectedReferences = preview.dependencies
+    .filter((dependency) => dependency.count > 0)
+    .reduce((total, dependency) => total + dependency.count, 0);
+  rows.push({
+    label: "Component references",
+    value: String(affectedReferences),
+    detail: `${preview.dependencies.filter((entry) => entry.count > 0).length} of ${preview.dependencies.length} dependency types affected`,
+  });
+
+  rows.push({
+    label: "Historical records",
+    value: String(preview.historicalReferences.historicalCount),
+    detail: "Kept on the retired record; history is never rewritten",
+  });
+
+  rows.push({
+    label: "BOM lines",
+    value: String(
+      preview.bom.canonicalLines.length + preview.bom.sourceLines.length,
+    ),
+    detail:
+      preview.bom.collisionCount > 0
+        ? `${preview.bom.collisionCount} collision(s) block execution`
+        : "No collisions detected",
+  });
+
+  rows.push({
+    label: "Attributes",
+    value: `${preview.attributes.entries.length}`,
+    detail: `${preview.attributes.conflictingCount} conflicting · ${preview.attributes.sourceOnlyCount} source-only`,
+  });
+
+  rows.push({
+    label: "Other findings",
+    value: String(preview.history.relatedFindingCount),
+    detail: `${preview.history.feedbackCount} feedback record(s)`,
+  });
+
+  return rows;
+}
+
+/** Dependencies worth showing first: blockers, then anything with references. */
+export function sortConsolidationDependencies(
+  preview: Pick<ConsolidationPreviewDto, "dependencies">,
+): ConsolidationPreviewDto["dependencies"] {
+  return [...preview.dependencies].sort((left, right) => {
+    if (left.blocking !== right.blocking) return left.blocking ? -1 : 1;
+    if (left.count !== right.count) return right.count - left.count;
+    return left.id.localeCompare(right.id);
+  });
+}
+
+export const CONSOLIDATION_CLASSIFICATION_LABELS: Record<
+  ConsolidationDependencyClassification,
+  string
+> = {
+  MUST_PRESERVE: "Preserve",
+  MUST_REPOINT: "Repoint",
+  MUST_RECONCILE: "Reconcile",
+  MUST_NOT_CHANGE: "Unchanged",
+  UNKNOWN: "Undefined",
+};
+
+export function consolidationClassificationLabel(
+  classification: string,
+): string {
+  return (
+    CONSOLIDATION_CLASSIFICATION_LABELS[
+      classification as ConsolidationDependencyClassification
+    ] ?? classification
+  );
+}
+
+export const CONSOLIDATION_ATTRIBUTE_LABELS: Record<
+  ConsolidationAttributeEntryDto["classification"],
+  string
+> = {
+  IDENTICAL: "Same",
+  CANONICAL_ONLY: "Surviving only",
+  SOURCE_ONLY: "Retired only",
+  CONFLICTING: "Conflicts",
+};
+
+/**
+ * Attribute rows for the preview, conflicts first so a reviewer sees the
+ * decisions they would have to make before the many matching values.
+ */
+export function buildConsolidationAttributeRows(
+  preview: Pick<ConsolidationPreviewDto, "attributes">,
+): ConsolidationAttributeEntryDto[] {
+  const rank = (entry: ConsolidationAttributeEntryDto) =>
+    entry.classification === "CONFLICTING"
+      ? 0
+      : entry.classification === "SOURCE_ONLY"
+        ? 1
+        : entry.classification === "CANONICAL_ONLY"
+          ? 2
+          : 3;
+
+  return [...preview.attributes.entries].sort(
+    (left, right) =>
+      rank(left) - rank(right) || left.code.localeCompare(right.code),
+  );
+}
+
+/** Plain-language summary of the eligibility verdict. */
+export function explainConsolidationEligibility(
+  preview: ConsolidationPreviewDto,
+): string {
+  if (preview.eligibility.eligible) {
+    return preview.executable
+      ? "The finding is eligible and nothing blocks this consolidation. Review the impact below, then consolidate when you are ready."
+      : "The finding is eligible for consolidation analysis. Resolve the conflicts listed above before consolidating.";
+  }
+  return preview.eligibility.explanations.length > 0
+    ? preview.eligibility.explanations.join(" ")
+    : "This finding cannot be analysed for consolidation.";
+}
+
+/** True when the preview could not be analysed at all (no dependency surface). */
+export function isConsolidationPreviewUnanalyzable(
+  preview: ConsolidationPreviewDto,
+): boolean {
+  return preview.dependencies.length === 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -1285,6 +2392,7 @@ export function summarizeAuditResult(result: {
   notFoundCount: number;
   batchLimitReached: boolean;
   duplicateFindingsTruncated: boolean;
+  semanticCandidatesTruncated?: boolean;
 }): string {
   const parts: string[] = [
     `Analyzed ${result.analyzedCount} component${result.analyzedCount === 1 ? "" : "s"}`,
@@ -1305,6 +2413,9 @@ export function summarizeAuditResult(result: {
   }
   if (result.duplicateFindingsTruncated) {
     notes.push("duplicate findings were capped for this run");
+  }
+  if (result.semanticCandidatesTruncated) {
+    notes.push("similarity candidates were capped for this run");
   }
 
   const summary = parts.join(" · ");

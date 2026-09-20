@@ -15,6 +15,10 @@ import {
   LocationInUseError,
 } from '@ananya/inventory';
 import type { Response } from 'express';
+import {
+  isPostgresErrorCode,
+  POSTGRES_FOREIGN_KEY_VIOLATION,
+} from '../common/utils/postgres-error';
 
 @Catch()
 export class LocationExceptionFilter implements ExceptionFilter {
@@ -47,8 +51,7 @@ export class LocationExceptionFilter implements ExceptionFilter {
       status = HttpStatus.CONFLICT;
       message = exception.message;
     } else {
-      const pgErr = exception as { code?: string };
-      if (pgErr?.code === '23503') {
+      if (isPostgresErrorCode(exception, POSTGRES_FOREIGN_KEY_VIOLATION)) {
         status = HttpStatus.CONFLICT;
         message =
           'Cannot delete location because it is currently in use by inventory records, receipts, or transactions.';

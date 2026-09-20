@@ -1,4 +1,4 @@
-import { db } from '@ananya/database';
+import { db, type DbExecutor } from '@ananya/database';
 import { serials } from '@ananya/database/schema';
 import type { Serial, SerialRepository } from '@ananya/inventory';
 import { and, eq } from '@ananya/database/query';
@@ -24,8 +24,10 @@ function toRow(serial: Serial): Omit<SerialRow, 'id' | 'createdAt'> {
 }
 
 export class DrizzleSerialRepository implements SerialRepository {
+  constructor(private readonly client: DbExecutor = db) {}
+
   async findById(id: string): Promise<Serial | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(serials)
       .where(eq(serials.id, id))
@@ -38,7 +40,7 @@ export class DrizzleSerialRepository implements SerialRepository {
     componentId: string,
     serialNumber: string,
   ): Promise<Serial | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(serials)
       .where(
@@ -53,7 +55,7 @@ export class DrizzleSerialRepository implements SerialRepository {
   }
 
   async findManyByComponent(componentId: string): Promise<Serial[]> {
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(serials)
       .where(eq(serials.componentId, componentId));
@@ -62,10 +64,27 @@ export class DrizzleSerialRepository implements SerialRepository {
   }
 
   async save(serial: Serial): Promise<Serial> {
-    const [row] = await db.insert(serials).values(toRow(serial)).returning();
+    const [row] = await this.client
+      .insert(serials)
+      .values(toRow(serial))
+      .returning();
 
     if (!row) {
       throw new Error('Failed to create serial');
+    }
+
+    return toDomain(row);
+  }
+
+  async update(serial: Serial): Promise<Serial> {
+    const [row] = await this.client
+      .update(serials)
+      .set({ componentId: serial.componentId })
+      .where(eq(serials.id, serial.id))
+      .returning();
+
+    if (!row) {
+      throw new Error(`Failed to update serial: ${serial.id}`);
     }
 
     return toDomain(row);
