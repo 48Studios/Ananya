@@ -3,6 +3,7 @@ import type { INestApplicationContext } from '@nestjs/common';
 import request from 'supertest';
 import { closeDatabaseConnection, db, toDbExecutor } from '@ananya/database';
 import {
+  activityEvents,
   aiSuggestionFeedback,
   batches,
   billOfMaterialLines,
@@ -216,6 +217,27 @@ describe('Consolidation execution (Pass 6B)', () => {
           and(
             eq(userFavorites.entityType, 'Component'),
             inArray(userFavorites.entityId, leakedIdText),
+          ),
+        );
+
+      /*
+       * Activity history is the one polymorphic reference consolidation
+       * deliberately leaves alone: section 9 asserts that a retired component
+       * keeps its own history rather than having it rewritten onto the
+       * survivor. The events this run attached to a fixture component therefore
+       * outlive the component itself and have to be removed explicitly — the
+       * "preserved" assertion is about the consolidation, not about leaving
+       * fixtures behind.
+       *
+       * Matched on this run's own fixture ids, never on a description pattern, so
+       * it cannot reach real data.
+       */
+      await db
+        .delete(activityEvents)
+        .where(
+          and(
+            eq(activityEvents.entityType, 'Component'),
+            inArray(activityEvents.entityId, leakedIdText),
           ),
         );
 
