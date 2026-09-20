@@ -9,6 +9,16 @@ import { eq } from '@ananya/database/query';
 import type { Component as ComponentRow } from '@ananya/database/schema';
 import { Component as ComponentAggregate } from '@ananya/inventory';
 
+/**
+ * Query surface shared by the root Drizzle client and a transaction handle.
+ *
+ * The repository defaults to the global client (the normal path for every
+ * existing caller). Passing a transaction handle binds the same queries to a
+ * caller-owned transaction, which lets an orchestration service hold a row lock
+ * and mutate the component atomically through the regular domain use case.
+ */
+export type ComponentDbExecutor = typeof db;
+
 function toDomain(row: ComponentRow): Component {
   return ComponentAggregate.rehydrate({
     id: row.id,
@@ -43,8 +53,10 @@ function toRow(
 }
 
 export class DrizzleComponentRepository implements ComponentRepository {
+  constructor(private readonly client: ComponentDbExecutor = db) {}
+
   async findById(id: string): Promise<Component | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(components)
       .where(eq(components.id, id))
@@ -54,7 +66,7 @@ export class DrizzleComponentRepository implements ComponentRepository {
   }
 
   async findBySku(sku: string): Promise<Component | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(components)
       .where(eq(components.sku, sku))
@@ -64,14 +76,17 @@ export class DrizzleComponentRepository implements ComponentRepository {
   }
 
   async findMany(): Promise<Component[]> {
-    const rows = await db.select().from(components).orderBy(components.sku);
+    const rows = await this.client
+      .select()
+      .from(components)
+      .orderBy(components.sku);
 
     return rows.map(toDomain);
   }
 
   async save(component: Component): Promise<Component> {
     try {
-      const [row] = await db
+      const [row] = await this.client
         .insert(components)
         .values(toRow(component))
         .returning();
@@ -97,7 +112,7 @@ export class DrizzleComponentRepository implements ComponentRepository {
   async update(component: Component): Promise<Component> {
     let row;
     try {
-      [row] = await db
+      [row] = await this.client
         .update(components)
         .set({
           sku: component.sku,
@@ -133,6 +148,6 @@ export class DrizzleComponentRepository implements ComponentRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await db.delete(components).where(eq(components.id, id));
+    await this.client.delete(components).where(eq(components.id, id));
   }
 }

@@ -53,3 +53,4 @@ export * from "./settings";
 export * from "./preferences";
 export * from "./attributes";
 export * from "./ai-feedback";
+export * from "./component-intelligence-findings";

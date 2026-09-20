@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Printer,
   MoreVertical,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -33,6 +34,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { ComponentForm } from "@/components/components/component-form";
+import { ComponentReviewQueueDialog } from "@/components/components/component-review-queue-dialog";
 import { PrintLabelDialog } from "@/components/barcodes/print-label-dialog";
 import {
   ComponentsFilterCard,
@@ -42,6 +44,8 @@ import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
 import { inventoryTransactionsApi } from "@/lib/api/inventory-transactions-api";
+import { componentReviewQueueApi } from "@/lib/api/component-review-queue-api";
+import { actionableFindingCount } from "@/lib/component-review-queue";
 
 export default function ComponentsPage() {
   const router = useRouter();
@@ -62,6 +66,25 @@ export default function ComponentsPage() {
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [apiAlert, setApiAlert] = React.useState<string | null>(null);
   const noticeRef = React.useRef<HTMLDivElement>(null);
+
+  // Component Intelligence Review opens as a modal, mirroring the Attribute
+  // Library's Intelligence Queue — the catalog list is never navigated away from.
+  const [isReviewQueueOpen, setIsReviewQueueOpen] = React.useState(false);
+  const [reviewQueueCount, setReviewQueueCount] = React.useState(0);
+
+  const refreshReviewQueueCount = React.useCallback(async () => {
+    try {
+      // The summary ignores the status filter, so one row is enough to read
+      // every count the header chip needs.
+      const queue = await componentReviewQueueApi.listFindings({
+        page: 1,
+        pageSize: 1,
+      });
+      setReviewQueueCount(actionableFindingCount(queue.summary));
+    } catch {
+      // The badge is informational; a failure must not disturb the catalog.
+    }
+  }, []);
 
   React.useEffect(() => {
     if (toastMessage || apiAlert || error) {
@@ -124,6 +147,10 @@ export default function ComponentsPage() {
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  React.useEffect(() => {
+    void refreshReviewQueueCount();
+  }, [refreshReviewQueueCount]);
 
   const locationMap = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -579,16 +606,32 @@ export default function ComponentsPage() {
         title="Components Management"
         description="Catalog of electronic parts, raw materials, hardware, and assemblies."
         actions={
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditingComponent(null);
-              setIsFormOpen(true);
-            }}
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Component
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsReviewQueueOpen(true)}
+              className="gap-1.5 border-primary/30 text-xs text-primary hover:bg-primary/10"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Intelligence Review
+              {reviewQueueCount > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center px-1.5 h-4 min-w-4 rounded-full bg-primary/15 text-primary border border-primary/25 text-[10px] font-mono font-medium">
+                  {reviewQueueCount}
+                </span>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingComponent(null);
+                setIsFormOpen(true);
+              }}
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              Add Component
+            </Button>
+          </div>
         }
       />
 
@@ -724,6 +767,16 @@ export default function ComponentsPage() {
           title={`Print Component Label: ${printingComponent.sku}`}
         />
       )}
+
+      {/* Component Intelligence Review Modal */}
+      <ComponentReviewQueueDialog
+        isOpen={isReviewQueueOpen}
+        onClose={() => {
+          setIsReviewQueueOpen(false);
+          void refreshReviewQueueCount();
+        }}
+        onActionComplete={() => void refreshReviewQueueCount()}
+      />
     </div>
   );
 }

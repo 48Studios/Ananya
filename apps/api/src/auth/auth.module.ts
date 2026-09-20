@@ -7,6 +7,7 @@ import { UsersModule } from '../users/users.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { SecurityAuditModule } from '../security-audit/security-audit.module';
 import { ActivityModule } from '../activity/activity.module';
+import { ComponentWriteGuard } from './component-write.guard';
 
 @Module({
   imports: [
@@ -16,7 +17,17 @@ import { ActivityModule } from '../activity/activity.module';
     ActivityModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, InvitationsService, OnboardingService],
-  exports: [AuthService, InvitationsService, OnboardingService],
+  providers: [
+    AuthService,
+    InvitationsService,
+    OnboardingService,
+    ComponentWriteGuard,
+  ],
+  exports: [
+    AuthService,
+    InvitationsService,
+    OnboardingService,
+    ComponentWriteGuard,
+  ],
 })
 export class AuthModule {}

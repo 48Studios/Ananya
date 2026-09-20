@@ -4,6 +4,7 @@ export {
   or,
   ilike,
   desc,
+  asc,
   count,
   sql,
   like,

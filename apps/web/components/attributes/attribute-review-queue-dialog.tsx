@@ -9,6 +9,8 @@ import {
   HelpCircle,
   Check,
   X,
+  Search,
+  Filter,
   Edit3,
   Loader2,
   RefreshCw,
@@ -26,6 +28,14 @@ import {
   DialogShellCancelButton,
 } from "@/components/ui/dialog-shell";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   attributesApi,
   type AttributeReviewQueueResponseDto,
@@ -71,6 +81,15 @@ function matchesTab(itemType: string, tabId: FilterTabId): boolean {
   return false;
 }
 
+/** Sentinel for "no filter applied", matching the Component queue's filters. */
+const ALL_FILTER_VALUE = "ALL";
+
+const CONFIDENCE_FILTER_OPTIONS = [
+  { value: "HIGH", label: "High" },
+  { value: "MEDIUM", label: "Medium" },
+  { value: "LOW", label: "Low" },
+] as const;
+
 interface AttributeReviewQueueDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -89,6 +108,11 @@ export function AttributeReviewQueueDialog({
   const [loading, setLoading] = React.useState(false);
   const [auditing, setAuditing] = React.useState(false);
   const [filterType, setFilterType] = React.useState<FilterTabId>("ALL");
+  const [confidenceFilter, setConfidenceFilter] =
+    React.useState(ALL_FILTER_VALUE);
+  const [categoryFilter, setCategoryFilter] =
+    React.useState(ALL_FILTER_VALUE);
+  const [searchInput, setSearchInput] = React.useState("");
   const [expandedWhy, setExpandedWhy] = React.useState<Record<string, boolean>>(
     {},
   );
@@ -329,10 +353,68 @@ export function AttributeReviewQueueDialog({
     };
   }, [items]);
 
+  /** Categories present in the loaded queue, for the category filter. */
+  const categoryOptions = React.useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const item of items) {
+      if (item.categoryId && item.categoryName) {
+        seen.set(item.categoryId, item.categoryName);
+      }
+    }
+    return [...seen.entries()].map(([value, label]) => ({ value, label }));
+  }, [items]);
+
+  const filtersActive = Boolean(
+    searchInput.trim() ||
+      (confidenceFilter && confidenceFilter !== ALL_FILTER_VALUE) ||
+      (categoryFilter && categoryFilter !== ALL_FILTER_VALUE),
+  );
+
+  const clearFilters = () => {
+    setConfidenceFilter(ALL_FILTER_VALUE);
+    setCategoryFilter(ALL_FILTER_VALUE);
+    setSearchInput("");
+  };
+
   const filteredItems = React.useMemo(() => {
-    if (filterType === "ALL") return items;
-    return items.filter((i) => matchesTab(i.type, filterType));
-  }, [items, filterType]);
+    const query = searchInput.trim().toLowerCase();
+
+    return items.filter((item) => {
+      if (!matchesTab(item.type, filterType)) return false;
+
+      if (
+        confidenceFilter !== ALL_FILTER_VALUE &&
+        item.confidenceLevel !== confidenceFilter
+      ) {
+        return false;
+      }
+
+      if (
+        categoryFilter !== ALL_FILTER_VALUE &&
+        item.categoryId !== categoryFilter
+      ) {
+        return false;
+      }
+
+      if (query) {
+        const haystack = [
+          item.title,
+          item.subtitle,
+          item.reason,
+          item.attributeName,
+          item.attributeCode,
+          item.categoryName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        if (!haystack.includes(query)) return false;
+      }
+
+      return true;
+    });
+  }, [items, filterType, confidenceFilter, categoryFilter, searchInput]);
 
   const filterTabs: Array<{ id: FilterTabId; label: string; count: number }> = [
     { id: "ALL", label: "All", count: counts.all },
@@ -350,13 +432,43 @@ export function AttributeReviewQueueDialog({
         if (!open) onClose();
       }}
       title="Attribute Intelligence Review Queue"
-      description="Supervised AI proposals for category bindings, duplicates, suspicious relationships, and enum values."
+      description="Supervised AI proposals for bindings, duplicates, and suspicious data"
       size="lg"
+      icon={<Sparkles className="size-5" />}
+      headerActions={
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={loading}
+            onClick={loadQueue}
+            className="h-8 text-xs gap-1.5"
+          >
+            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={auditing}
+            onClick={handleRunAudit}
+            className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            {auditing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Sliders className="size-3.5" />
+            )}
+            Run Library Audit
+          </Button>
+        </>
+      }
     >
-      <DialogShellBody className="space-y-4">
+      <DialogShellBody scrollable={false}>
         {/* Status Alert */}
         {statusMessage && (
-          <div className="p-3 text-xs bg-primary/10 border border-primary/20 text-foreground rounded-lg flex items-center justify-between">
+          <div className="flex shrink-0 items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/10 p-3 text-xs text-foreground">
             <span>{statusMessage}</span>
             <Button
               type="button"
@@ -369,65 +481,8 @@ export function AttributeReviewQueueDialog({
           </div>
         )}
 
-        {/* Header Summary & On-Demand Audit Trigger */}
-        <div className="p-4 bg-muted/40 border border-border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-          <div className="space-y-1 flex gap-3 items-center">
-            <div className="flex size-10 items-center justify-center rounded-md bg-primary/15 text-primary border border-primary/25 m-0">
-              <Sparkles className="size-5" />
-            </div>
-            <div className="gap-2">
-              <span className="font-semibold text-xs text-foreground">
-                {counts.all} Pending Review Item{counts.all === 1 ? "" : "s"}
-              </span>
-              <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground font-mono">
-                <span>{counts.bindings} bindings</span>
-                <span>•</span>
-                <span>{counts.duplicates} duplicates</span>
-                <span>•</span>
-                <span>{counts.suspicious} suspicious</span>
-                <span>•</span>
-                <span>{counts.unused} unused</span>
-                {counts.enums > 0 && (
-                  <>
-                    <span>•</span>
-                    <span>{counts.enums} enum values</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={loading}
-              onClick={loadQueue}
-              className="h-8 text-xs gap-1.5"
-            >
-              <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={auditing}
-              onClick={handleRunAudit}
-              className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              {auditing ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Sliders className="size-3.5" />
-              )}
-              Run Library Audit
-            </Button>
-          </div>
-        </div>
-
         {/* Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+        <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto pb-1">
           {filterTabs.map((tab) => (
             <button
               key={tab.id}
@@ -443,14 +498,98 @@ export function AttributeReviewQueueDialog({
           ))}
         </div>
 
+        {/* Filters: search on its own row, controls beneath. */}
+        <div className="shrink-0 space-y-2 rounded-xl border border-border bg-card p-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search attributes, categories, or reasons..."
+              className="h-8 pl-9 text-xs"
+              aria-label="Search findings"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Filter className="mx-1.5 size-3.5 text-muted-foreground" />
+            <Select
+              value={confidenceFilter}
+              onValueChange={(value) =>
+                setConfidenceFilter(value ?? ALL_FILTER_VALUE)
+              }
+            >
+              <SelectTrigger
+                className="h-8 min-w-[140px] flex-1 text-xs"
+                aria-label="Confidence filter"
+              >
+                <SelectValue placeholder="All confidence" />
+              </SelectTrigger>
+              <SelectContent className="p-1.5">
+                <SelectItem value={ALL_FILTER_VALUE} className="text-xs">
+                  All confidence
+                </SelectItem>
+                {CONFIDENCE_FILTER_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={categoryFilter}
+              onValueChange={(value) =>
+                setCategoryFilter(value ?? ALL_FILTER_VALUE)
+              }
+            >
+              <SelectTrigger
+                className="h-8 min-w-[140px] flex-1 text-xs"
+                aria-label="Category filter"
+              >
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent className="p-1.5">
+                <SelectItem value={ALL_FILTER_VALUE} className="text-xs">
+                  All categories
+                </SelectItem>
+                {categoryOptions.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {filtersActive && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-8 gap-1.5 text-xs text-muted-foreground"
+              >
+                <X className="size-3.5" />
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
+
         {/* Items List */}
         {loading ? (
-          <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-xs text-muted-foreground">
             <Loader2 className="size-5 animate-spin text-primary" />
             <span>Scanning attribute intelligence queue...</span>
           </div>
         ) : filteredItems.length > 0 ? (
-          <div className="divide-y divide-border border border-border rounded-xl bg-card overflow-hidden shadow-2xs max-h-[460px] overflow-y-auto">
+          <div className="min-h-0 flex-1 divide-y divide-border overflow-y-auto rounded-xl border border-border bg-card shadow-2xs">
             {filteredItems.map((item) => {
               const isWhyExpanded = Boolean(expandedWhy[item.id]);
               const inProgress = Boolean(actionInProgress[item.id]);
@@ -735,17 +874,21 @@ export function AttributeReviewQueueDialog({
             })}
           </div>
         ) : (
-          <div className="py-12 text-center border border-dashed border-border rounded-xl bg-muted/5 space-y-2">
+          <div className="flex flex-1 flex-col items-center justify-center space-y-2 rounded-xl border border-dashed border-border bg-muted/5 py-12 text-center">
             <Sparkles className="size-8 text-muted-foreground/30 mx-auto" />
             <p className="text-xs font-semibold text-foreground">
-              {filterType === "ALL"
-                ? "Review queue is clear"
-                : `No items in ${filterType.toLowerCase()} filter`}
+              {filtersActive
+                ? "No findings match these filters"
+                : filterType === "ALL"
+                  ? "Review queue is clear"
+                  : `No items in ${filterType.toLowerCase()} filter`}
             </p>
             <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
-              {filterType === "ALL"
-                ? "All attribute proposals have been reviewed. Run a library audit to scan for new configuration improvements."
-                : `There are currently 0 pending items matching the ${filterType.toLowerCase()} queue category.`}
+              {filtersActive
+                ? "Adjust or clear the search, confidence, or category filters to see other findings."
+                : filterType === "ALL"
+                  ? "All attribute proposals have been reviewed. Run a library audit to scan for new configuration improvements."
+                  : `There are currently 0 pending items matching the ${filterType.toLowerCase()} queue category.`}
             </p>
           </div>
         )}
