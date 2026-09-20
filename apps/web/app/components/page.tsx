@@ -699,8 +699,8 @@ export default function ComponentsPage() {
         title={editingComponent ? "Edit Component" : "Create New Component"}
         description={
           editingComponent
-            ? `Update component "${editingComponent.sku}" using the standardized dialog composition.`
-            : "Create a new inventory component with shared header, scrollable body, and footer actions."
+            ? `Update component "${editingComponent.sku}".`
+            : "Create a new inventory component."
         }
         size="md"
       >

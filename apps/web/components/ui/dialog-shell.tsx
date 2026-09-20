@@ -112,7 +112,14 @@ export function DialogShell({
                   // The rich header is taller because of the icon square, so the
                   // close button is centred against it instead of pinned to the
                   // top. The plain header keeps its original position.
-                  hasRichHeader ? "top-1/2 -translate-y-1/2" : "top-4",
+                  //
+                  // Centring uses auto margins rather than `top-1/2
+                  // -translate-y-1/2` on purpose: Button's own
+                  // `active:translate-y-px` writes the same `--tw-translate-y`
+                  // variable, so on press it would replace the -50% offset and
+                  // drop the button by half its height. Auto margins leave
+                  // transform free for the 1px press nudge.
+                  hasRichHeader ? "inset-y-0 my-auto" : "top-4",
                 )}
                 disabled={closeDisabled}
               />

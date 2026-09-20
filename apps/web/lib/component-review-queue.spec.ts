@@ -1328,10 +1328,25 @@ describe("Intelligence queue dialog header", () => {
     expect(attribute).toMatch(/supervised ai/i);
   });
 
-  it("centres the close button against the rich header", () => {
+  it("centres the close button without fighting Button's press transform", () => {
     const shell = read("components/ui/dialog-shell.tsx");
+    const button = read("components/ui/button.tsx");
 
-    expect(shell).toContain("top-1/2 -translate-y-1/2");
+    // Comments may name the rejected utility to explain the choice, so only
+    // the live code is inspected.
+    const codeOnly = (source: string) =>
+      source
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/[^\n]*/g, "");
+
+    // Button nudges itself on press by writing `--tw-translate-y`. Centring the
+    // close button with `-translate-y-1/2` would overwrite that same variable
+    // and drop the button by half its height (measured: a 17px jump), so the
+    // centring must not use translate at all.
+    expect(button).toContain("active:not-aria-[haspopup]:translate-y-px");
+    expect(codeOnly(shell)).toContain("inset-y-0 my-auto");
+    expect(codeOnly(shell)).not.toContain("-translate-y-1/2");
+
     // The plain header keeps its original top-right position.
     expect(shell).toContain('"top-4"');
   });
@@ -1521,5 +1536,93 @@ describe("Intelligence queue scroll ownership", () => {
     expect(shell).toContain("scrollable = true");
     expect(shell).toContain('"overflow-y-auto"');
     expect(shell).toContain("flex flex-col gap-4 overflow-hidden");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// List parity with the Attribute queue
+// ---------------------------------------------------------------------------
+
+describe("Intelligence queue list parity", () => {
+  const webRoot = path.resolve(
+    fileURLToPath(new URL(".", import.meta.url)),
+    "..",
+  );
+  const read = (relativePath: string) =>
+    fs.readFileSync(path.join(webRoot, relativePath), "utf8");
+
+  const componentDialog = "components/components/component-review-queue-dialog.tsx";
+  const attributeDialog = "components/attributes/attribute-review-queue-dialog.tsx";
+
+  /** The shared scroll container class, byte-identical in both queues. */
+  const LIST_CONTAINER =
+    "min-h-0 flex-1 divide-y divide-border overflow-y-auto rounded-xl border border-border bg-card shadow-2xs";
+
+  it("uses the same list container as the Attribute queue", () => {
+    const component = read(componentDialog);
+    const attribute = read(attributeDialog);
+
+    expect(component).toContain(LIST_CONTAINER);
+    expect(attribute).toContain(LIST_CONTAINER);
+  });
+
+  it("uses the same item wrapper spacing as the Attribute queue", () => {
+    const itemClasses = (source: string) => {
+      const match = source.match(
+        /className="([^"]*hover:bg-muted\/15[^"]*)"/,
+      );
+      expect(match).not.toBeNull();
+      // Class order is not significant; the set of classes is.
+      return [...match![1]!.split(/\s+/)]
+        .filter((token) => !token.startsWith("hover:"))
+        .sort()
+        .join(" ");
+    };
+
+    expect(itemClasses(read(componentDialog))).toBe(
+      itemClasses(read(attributeDialog)),
+    );
+  });
+
+  it("no longer paginates the component list", () => {
+    const component = read(componentDialog);
+
+    for (const gone of [
+      "pageNumber",
+      "setPageNumber",
+      "totalPages",
+      "ChevronLeft",
+      "ChevronRight",
+      "Previous",
+      "Next",
+      "Page ",
+    ]) {
+      expect(component, gone).not.toContain(gone);
+    }
+  });
+
+  it("fetches the whole filtered list in a single request", () => {
+    const component = read(componentDialog);
+
+    expect(component).toContain("page: 1");
+    expect(component).toContain("pageSize: MAX_QUEUE_PAGE_SIZE");
+    expect(component).toContain("MAX_QUEUE_PAGE_SIZE");
+  });
+
+  it("still filters server-side, so the single request stays relevant", () => {
+    const component = read(componentDialog);
+
+    expect(component).toContain("status: filterValueToParam(statusFilter)");
+    expect(component).toContain("search: search.trim() || undefined");
+  });
+
+  it("renders the list as a plain scroll region with no sibling chrome", () => {
+    const component = read(componentDialog);
+    const listStart = component.indexOf(LIST_CONTAINER);
+    // The list is followed directly by the empty-state branch.
+    const after = component.slice(listStart);
+
+    expect(after).toContain(") : (");
+    expect(after).not.toContain("shrink-0 flex-col items-center justify-between");
   });
 });
