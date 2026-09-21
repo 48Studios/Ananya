@@ -11,6 +11,12 @@ import { CategoriesService } from '../../src/categories/categories.service';
 import { MlService } from '../../src/ml/ml.service';
 import { AttributeIntelligenceFindingsService } from '../../src/ml/attribute-findings/attribute-finding.service';
 import { AttributeReviewQueueService } from '../../src/ml/attribute-findings/attribute-review-queue.service';
+import { AttributeReviewApplyService } from '../../src/ml/attribute-findings/attribute-review-apply.service';
+import {
+  buildExpectedAttributeState,
+  toAttributeIdentitySnapshot,
+  toCategorySnapshot,
+} from '../../src/ml/attribute-findings/attribute-finding-expected-state';
 import { ATTRIBUTE_AUDIT_SOURCES } from '../../src/ml/attribute-findings/attribute-audit.dtos';
 import { db, closeDatabaseConnection } from '@ananya/database';
 import {
@@ -22,9 +28,18 @@ import {
   categoryAttributes,
   componentAttributeValues,
   roles,
+  securityAuditLogs,
   users,
 } from '@ananya/database/schema';
-import { and, count, eq, inArray } from '@ananya/database/query';
+import {
+  and,
+  count,
+  eq,
+  ilike,
+  inArray,
+  or,
+  sql,
+} from '@ananya/database/query';
 
 /** Typed view of the response bodies (supertest bodies are `any`). */
 interface QueuePageBody {
@@ -32,6 +47,7 @@ interface QueuePageBody {
     id: string;
     issueType: string;
     status: string;
+    applicationResult: string;
     reviewerId: string | null;
     reviewerEmail: string | null;
     attributeDefinitionId: string | null;
@@ -51,6 +67,8 @@ interface QueuePageBody {
     stale: number;
     byCategory: Record<string, number>;
     byIssueType: Record<string, number>;
+    applicationResults: { NOT_APPLIED: number; APPLIED: number };
+    readyToApply: number;
   };
 }
 
@@ -92,6 +110,7 @@ describe('Attribute Intelligence review queue — API', () => {
   let categoriesService: CategoriesService;
   let mlService: MlService;
   let findingsService: AttributeIntelligenceFindingsService;
+  let applyService: AttributeReviewApplyService;
 
   const createdRoleIds: string[] = [];
   const createdUserIds: string[] = [];
@@ -107,6 +126,16 @@ describe('Attribute Intelligence review queue — API', () => {
   let stubbedIssues: Array<Record<string, unknown>> = [];
   let producerCalls = 0;
   let originalAudit: MlService['auditAttributeLibrary'];
+
+  /**
+   * Finding ids that already existed when this suite started.
+   *
+   * The audit route is whole-library by design, so it can persist findings for the
+   * real library rather than only for this suite's fixtures. Subject-based cleanup
+   * cannot see those, so the suite also removes anything created during its run by
+   * id diff — which touches nothing it did not create.
+   */
+  const preExistingFindingIds = new Set<string>();
 
   /** Resolvable gate so an audit can be held in flight on purpose. */
   let holdAudit: { promise: Promise<void>; release: () => void } | null = null;
@@ -152,6 +181,13 @@ describe('Attribute Intelligence review queue — API', () => {
     categoriesService = app.get(CategoriesService);
     mlService = app.get(MlService);
     findingsService = app.get(AttributeIntelligenceFindingsService);
+    applyService = app.get(AttributeReviewApplyService);
+
+    for (const row of await db
+      .select({ id: attributeIntelligenceFindings.id })
+      .from(attributeIntelligenceFindings)) {
+      preExistingFindingIds.add(row.id);
+    }
 
     // Intercept the producer: the API tests must not depend on which ML producer
     // answers, only on the fact that a queue READ does not call one.
@@ -229,6 +265,18 @@ describe('Attribute Intelligence review queue — API', () => {
 
     if (originalAudit) mlService.auditAttributeLibrary = originalAudit;
 
+    // Findings created during this suite, including any the whole-library audit
+    // produced for the real library. Removed by id diff so nothing else is touched.
+    for (const row of await db
+      .select({ id: attributeIntelligenceFindings.id })
+      .from(attributeIntelligenceFindings)) {
+      if (!preExistingFindingIds.has(row.id)) {
+        await db
+          .delete(attributeIntelligenceFindings)
+          .where(eq(attributeIntelligenceFindings.id, row.id));
+      }
+    }
+
     // Findings first (their subjects cascade with the definitions), then feedback
     // (SET NULL subjects, so it must go before the rows it names), then fixtures.
     if (createdAttributeIds.length > 0) {
@@ -270,9 +318,42 @@ describe('Attribute Intelligence review queue — API', () => {
         .delete(aiSuggestionFeedback)
         .where(inArray(aiSuggestionFeedback.categoryId, createdCategoryIds));
     }
+    // Audit rows written by the apply path this suite now exercises. Scoped by the
+    // fixture ACTORS as well as the action, so it cannot reach into another suite's
+    // rows — the apply spec writes the same action.
+    if (createdUserIds.length > 0) {
+      await db
+        .delete(securityAuditLogs)
+        .where(
+          and(
+            eq(
+              securityAuditLogs.action,
+              'ATTRIBUTE_INTELLIGENCE_FINDING_APPLIED',
+            ),
+            inArray(securityAuditLogs.userId, createdUserIds),
+          ),
+        );
+    }
     for (const categoryId of createdCategoryIds) {
       await categoriesService.delete(categoryId).catch(() => undefined);
     }
+    // Identity-provisioning audit rows written while the fixture roles and users
+    // were created (`ROLE_CREATED`/`USER_CREATED`/`LOGIN_SUCCESS`). Scoped by the
+    // fixture actor ids and the suite's own run tag, so nothing outside this suite's
+    // fixtures is removed — the log is append-only for everything else.
+    await db.delete(securityAuditLogs).where(
+      or(
+        inArray(securityAuditLogs.userId, createdUserIds),
+        ilike(securityAuditLogs.userEmail, `%${runId}%`),
+        // `ROLE_CREATED` carries no actor at all — only the role id in `details`
+        // — so the role ids are the only handle on those rows. Without this they
+        // are unattributable and accumulate across every suite run.
+        sql`${securityAuditLogs.details}->>'roleId' IN (${sql.join(
+          createdRoleIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      ),
+    );
     if (createdUserIds.length > 0) {
       await db.delete(users).where(inArray(users.id, createdUserIds));
     }
@@ -362,6 +443,64 @@ describe('Attribute Intelligence review queue — API', () => {
       await createAttribute('fixture');
     }
     return createdAttributeIds[0]!;
+  };
+
+  /**
+   * Creates an ACCEPTED `MISSING_EXPECTED_ATTRIBUTE` finding and APPLIES it.
+   *
+   * Uses the real apply path rather than writing `application_result` directly, so
+   * the fixtures the worklist filters are tested against are produced the same way
+   * production produces them. Applying through the service (not HTTP) is deliberate:
+   * the apply route has its own suite, and this spec is about the queue reading what
+   * apply left behind.
+   */
+  const applyOneFinding = async (suffix: string) => {
+    const attribute = await createAttribute(suffix);
+    const category = await createCategory(suffix);
+    fixtureCounter += 1;
+
+    const persisted = await findingsService.persistFindings([
+      {
+        issueType: 'MISSING_EXPECTED_ATTRIBUTE',
+        attributeDefinitionId: attribute.id,
+        categoryId: category.id,
+        attributeCode: attribute.code,
+        categoryCode: category.code,
+        title: `Applied fixture ${suffix} ${runId}`,
+        description: 'Fixture for the applied worklist.',
+        currentValue: buildExpectedAttributeState({
+          category: toCategorySnapshot(category),
+          expectedAttributeCode: attribute.code,
+          expectedAttributeName: attribute.name,
+          existingAttribute: toAttributeIdentitySnapshot(attribute),
+        }) as unknown as Record<string, unknown>,
+        suggestedValue: { rule: 'DOMAIN_EXPECTATION' },
+        confidence: 0.9,
+        confidenceLevel: 'HIGH',
+        evidence: [],
+        source: SOURCE,
+        intelligenceVersion: 'attribute-audit-v1',
+        metadata: { fixtureIndex: fixtureCounter },
+      },
+    ]);
+    const finding = persisted.findings[0]!;
+
+    const accepted = await findingsService.recordDecision(
+      finding.id,
+      { decision: 'ACCEPTED' },
+      { id: writerUserId, email: writerEmail },
+    );
+
+    const applied = await applyService.applyFinding(
+      finding.id,
+      {
+        action: 'ADD_BINDING',
+        expectedFingerprint: accepted.fingerprint,
+      },
+      { id: writerUserId, email: writerEmail },
+    );
+
+    return { attribute, category, finding: applied };
   };
 
   /** Counts of every attribute table, for the no-mutation assertions. */
@@ -1433,6 +1572,345 @@ describe('Attribute Intelligence review queue — API', () => {
         .set('Authorization', `Bearer ${writerToken}`)
         .send({ reason: 'Nothing to target' });
       expect(response.status).toBe(400);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Application-result filters and worklists (Pass 5)
+  // -------------------------------------------------------------------------
+
+  describe('application result filters', () => {
+    it('filters to unapplied findings', async () => {
+      if (!hasDbUrl) return;
+      const pending = await persistFinding();
+      const accepted = await persistFinding();
+      await findingsService.recordDecision(
+        accepted.id,
+        { decision: 'ACCEPTED' },
+        { id: writerUserId, email: writerEmail },
+      );
+
+      const response = await http()
+        .get(`${QUEUE_ROUTE}?applicationResult=NOT_APPLIED`)
+        .set('Authorization', `Bearer ${readerToken}`);
+
+      expect(response.status).toBe(200);
+      const page = body<QueuePageBody>(response);
+      const ids = page.items.map((item) => item.id);
+      expect(ids).toContain(pending.id);
+      expect(ids).toContain(accepted.id);
+      expect(
+        page.items.every((item) => item.applicationResult === 'NOT_APPLIED'),
+      ).toBe(true);
+    });
+
+    it('filters to applied findings, which stay readable', async () => {
+      if (!hasDbUrl) return;
+      const { finding } = await applyOneFinding('p5-applied');
+
+      const response = await http()
+        .get(`${QUEUE_ROUTE}?applicationResult=APPLIED`)
+        .set('Authorization', `Bearer ${readerToken}`);
+
+      expect(response.status).toBe(200);
+      const page = body<QueuePageBody>(response);
+      const ids = page.items.map((item) => item.id);
+      // The applied finding did not disappear from the queue: it is a historical
+      // record of what changed, not a consumed work item.
+      expect(ids).toContain(finding.findingId);
+      expect(
+        page.items.every((item) => item.applicationResult === 'APPLIED'),
+      ).toBe(true);
+      // Applying does not change the review status.
+      const applied = page.items.find((item) => item.id === finding.findingId)!;
+      expect(applied.status).toBe('ACCEPTED');
+    });
+
+    it('rejects an unknown application result with 400', async () => {
+      if (!hasDbUrl) return;
+      const response = await http()
+        .get(`${QUEUE_ROUTE}?applicationResult=SOMETHING_ELSE`)
+        .set('Authorization', `Bearer ${readerToken}`);
+
+      expect(response.status).toBe(400);
+      // The message names the vocabulary, so a client learns the accepted values.
+      expect(JSON.stringify(body<unknown>(response))).toContain('NOT_APPLIED');
+    });
+
+    it('composes with the status filter', async () => {
+      if (!hasDbUrl) return;
+      const { finding } = await applyOneFinding('p5-compose-status');
+
+      const response = await http()
+        .get(`${QUEUE_ROUTE}?status=ACCEPTED&applicationResult=APPLIED`)
+        .set('Authorization', `Bearer ${readerToken}`);
+
+      expect(response.status).toBe(200);
+      const page = body<QueuePageBody>(response);
+      expect(page.items.map((item) => item.id)).toContain(finding.findingId);
+      expect(
+        page.items.every(
+          (item) =>
+            item.status === 'ACCEPTED' && item.applicationResult === 'APPLIED',
+        ),
+      ).toBe(true);
+    });
+
+    it('composes with the issue-type filter', async () => {
+      if (!hasDbUrl) return;
+      const { finding } = await applyOneFinding('p5-compose-type');
+
+      const applied = await http()
+        .get(
+          `${QUEUE_ROUTE}?issueType=MISSING_EXPECTED_ATTRIBUTE&applicationResult=APPLIED`,
+        )
+        .set('Authorization', `Bearer ${readerToken}`);
+      expect(applied.status).toBe(200);
+      expect(
+        body<QueuePageBody>(applied).items.map((item) => item.id),
+      ).toContain(finding.findingId);
+
+      // The same filter with the other application state must NOT return it.
+      const notApplied = await http()
+        .get(
+          `${QUEUE_ROUTE}?issueType=MISSING_EXPECTED_ATTRIBUTE&applicationResult=NOT_APPLIED`,
+        )
+        .set('Authorization', `Bearer ${readerToken}`);
+      expect(
+        body<QueuePageBody>(notApplied).items.map((item) => item.id),
+      ).not.toContain(finding.findingId);
+    });
+
+    it('paginates within an application filter without losing the total', async () => {
+      if (!hasDbUrl) return;
+      const response = await http()
+        .get(`${QUEUE_ROUTE}?applicationResult=NOT_APPLIED&pageSize=1&page=1`)
+        .set('Authorization', `Bearer ${readerToken}`);
+
+      expect(response.status).toBe(200);
+      const page = body<QueuePageBody>(response);
+      expect(page.items).toHaveLength(1);
+      // The total describes the filter, not the page.
+      expect(page.total).toBeGreaterThanOrEqual(1);
+      expect(page.totalPages).toBe(Math.max(1, Math.ceil(page.total / 1)));
+    });
+  });
+
+  describe('application result counts', () => {
+    it('reports both application counts from persisted rows', async () => {
+      if (!hasDbUrl) return;
+      const { finding } = await applyOneFinding('p5-counts');
+
+      const response = await http()
+        .get(QUEUE_ROUTE)
+        .set('Authorization', `Bearer ${readerToken}`);
+      expect(response.status).toBe(200);
+
+      const counts = body<QueuePageBody>(response).counts;
+
+      // Cross-checked against the database for BOTH values rather than against the
+      // response: an assertion of the form "at least one" cannot tell a correct
+      // count from a count that ignores the filter entirely.
+      //
+      // Deliberately NOT scoped to this suite's source. The request carried no
+      // filters, so the API counted the whole table — and in a combined run other
+      // specs' findings are in it. A source-scoped cross-check would compare two
+      // different questions and pass or fail for the wrong reason.
+      const rows = await db
+        .select({
+          applicationResult: attributeIntelligenceFindings.applicationResult,
+          value: count(),
+        })
+        .from(attributeIntelligenceFindings)
+        .groupBy(attributeIntelligenceFindings.applicationResult);
+      const expected = Object.fromEntries(
+        rows.map((row) => [row.applicationResult, Number(row.value)]),
+      );
+
+      expect(counts.applicationResults.APPLIED).toBe(expected.APPLIED ?? 0);
+      expect(counts.applicationResults.NOT_APPLIED).toBe(
+        expected.NOT_APPLIED ?? 0,
+      );
+      // The fixture was applied, so it is counted as applied and not as unapplied.
+      expect(counts.applicationResults.APPLIED).toBeGreaterThanOrEqual(1);
+      expect(finding.applicationResult).toBe('APPLIED');
+    });
+
+    it('keeps counts independent of page size and of the current page', async () => {
+      if (!hasDbUrl) return;
+      const full = await http()
+        .get(`${QUEUE_ROUTE}?pageSize=100`)
+        .set('Authorization', `Bearer ${readerToken}`);
+      const oneRow = await http()
+        .get(`${QUEUE_ROUTE}?pageSize=1&page=2`)
+        .set('Authorization', `Bearer ${readerToken}`);
+
+      const fullCounts = body<QueuePageBody>(full).counts;
+      const oneRowCounts = body<QueuePageBody>(oneRow).counts;
+
+      // A count derived from the loaded page would change here.
+      expect(oneRowCounts.applicationResults).toEqual(
+        fullCounts.applicationResults,
+      );
+      expect(oneRowCounts.readyToApply).toBe(fullCounts.readyToApply);
+      expect(oneRowCounts.total).toBe(fullCounts.total);
+    });
+
+    it('does not let the application filter shrink the application counts', async () => {
+      if (!hasDbUrl) return;
+      const unfiltered = await http()
+        .get(QUEUE_ROUTE)
+        .set('Authorization', `Bearer ${readerToken}`);
+      const filtered = await http()
+        .get(`${QUEUE_ROUTE}?applicationResult=APPLIED`)
+        .set('Authorization', `Bearer ${readerToken}`);
+
+      // The selector's own counts describe the whole slice, so selecting an option
+      // cannot change the numbers used to choose between options.
+      expect(body<QueuePageBody>(filtered).counts.applicationResults).toEqual(
+        body<QueuePageBody>(unfiltered).counts.applicationResults,
+      );
+    });
+
+    it('preserves the Pass 3 family-count semantics', async () => {
+      if (!hasDbUrl) return;
+      const unfiltered = await http()
+        .get(QUEUE_ROUTE)
+        .set('Authorization', `Bearer ${readerToken}`);
+      const statusFiltered = await http()
+        .get(`${QUEUE_ROUTE}?status=REJECTED`)
+        .set('Authorization', `Bearer ${readerToken}`);
+      const applicationFiltered = await http()
+        .get(`${QUEUE_ROUTE}?applicationResult=APPLIED`)
+        .set('Authorization', `Bearer ${readerToken}`);
+
+      const baseline = body<QueuePageBody>(unfiltered).counts;
+      // Family counts still ignore the status filter (Pass 3 behaviour)...
+      expect(body<QueuePageBody>(statusFiltered).counts.byIssueType).toEqual(
+        baseline.byIssueType,
+      );
+      // ...and now also ignore the application filter, for the same reason.
+      expect(
+        body<QueuePageBody>(applicationFiltered).counts.byIssueType,
+      ).toEqual(baseline.byIssueType);
+      // The status counts keep their Pass 3 meaning too.
+      expect(body<QueuePageBody>(applicationFiltered).counts.pending).toBe(
+        baseline.pending,
+      );
+    });
+
+    it('reports the ready-to-apply worklist as accepted and unapplied', async () => {
+      if (!hasDbUrl) return;
+      // One accepted-and-unapplied finding is the only thing that belongs here.
+      const ready = await persistFinding();
+      await findingsService.recordDecision(
+        ready.id,
+        { decision: 'ACCEPTED' },
+        { id: writerUserId, email: writerEmail },
+      );
+
+      const response = await http()
+        .get(QUEUE_ROUTE)
+        .set('Authorization', `Bearer ${readerToken}`);
+      const counts = body<QueuePageBody>(response).counts;
+
+      // The worklist size is the intersection of two dimensions, so it is strictly
+      // smaller than either count alone — which is what makes it worth exposing.
+      expect(counts.readyToApply).toBeGreaterThanOrEqual(1);
+      expect(counts.readyToApply).toBeLessThanOrEqual(counts.accepted);
+      expect(counts.readyToApply).toBeLessThanOrEqual(
+        counts.applicationResults.NOT_APPLIED,
+      );
+    });
+
+    it('returns the ready-to-apply worklist itself when both filters are applied', async () => {
+      if (!hasDbUrl) return;
+      const ready = await persistFinding();
+      await findingsService.recordDecision(
+        ready.id,
+        { decision: 'ACCEPTED' },
+        { id: writerUserId, email: writerEmail },
+      );
+      const { finding: applied } = await applyOneFinding('p5-worklist');
+
+      const response = await http()
+        .get(`${QUEUE_ROUTE}?status=ACCEPTED&applicationResult=NOT_APPLIED`)
+        .set('Authorization', `Bearer ${readerToken}`);
+
+      expect(response.status).toBe(200);
+      const page = body<QueuePageBody>(response);
+      const ids = page.items.map((item) => item.id);
+      expect(ids).toContain(ready.id);
+      // An applied finding is not awaiting work, so it is not in this list.
+      expect(ids).not.toContain(applied.findingId);
+      expect(
+        page.items.every(
+          (item) =>
+            item.status === 'ACCEPTED' &&
+            item.applicationResult === 'NOT_APPLIED',
+        ),
+      ).toBe(true);
+    });
+
+    it('does not run the producer to answer a worklist query', async () => {
+      if (!hasDbUrl) return;
+      const before = producerCalls;
+      await http()
+        .get(`${QUEUE_ROUTE}?applicationResult=APPLIED&status=ACCEPTED`)
+        .set('Authorization', `Bearer ${readerToken}`);
+      // Reading the worklist is a database read, exactly like every other queue read.
+      expect(producerCalls).toBe(before);
+    });
+  });
+
+  describe('apply eligibility as the queue reports it', () => {
+    it('marks an accepted, unapplied finding eligible and an applied one not', async () => {
+      if (!hasDbUrl) return;
+      const ready = await persistFinding();
+      await findingsService.recordDecision(
+        ready.id,
+        { decision: 'ACCEPTED' },
+        { id: writerUserId, email: writerEmail },
+      );
+      const { finding: applied } = await applyOneFinding('p5-eligibility');
+
+      const page = body<QueuePageBody>(
+        await http()
+          .get(`${QUEUE_ROUTE}?pageSize=100`)
+          .set('Authorization', `Bearer ${readerToken}`),
+      );
+
+      const eligible = page.items.find((item) => item.id === ready.id)!;
+      expect(eligible.status).toBe('ACCEPTED');
+      expect(eligible.applicationResult).toBe('NOT_APPLIED');
+
+      const done = page.items.find((item) => item.id === applied.findingId)!;
+      expect(done.status).toBe('ACCEPTED');
+      expect(done.applicationResult).toBe('APPLIED');
+    });
+
+    it('leaves a pending finding unapplied and a stale finding unapplied', async () => {
+      if (!hasDbUrl) return;
+      const pending = await persistFinding();
+      const toStale = await persistFinding();
+      await findingsService.markFindingsStale({
+        ids: [toStale.id],
+        reason: 'Eligibility fixture',
+      });
+
+      const page = body<QueuePageBody>(
+        await http()
+          .get(`${QUEUE_ROUTE}?pageSize=100`)
+          .set('Authorization', `Bearer ${readerToken}`),
+      );
+
+      const pendingItem = page.items.find((item) => item.id === pending.id)!;
+      expect(pendingItem.status).toBe('PENDING');
+      expect(pendingItem.applicationResult).toBe('NOT_APPLIED');
+
+      const staleItem = page.items.find((item) => item.id === toStale.id)!;
+      expect(staleItem.status).toBe('STALE');
+      expect(staleItem.applicationResult).toBe('NOT_APPLIED');
     });
   });
 

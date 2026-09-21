@@ -85,7 +85,11 @@ class MockCategoryAttrRepo implements CategoryAttributeRepository {
     return categoryAttribute;
   }
 
-  async delete(categoryId: string, attributeDefinitionId: string): Promise<void> {
+  async delete(
+    categoryId: string,
+    attributeDefinitionId: string,
+  ): Promise<boolean> {
+    const before = this.items.length;
     this.items = this.items.filter(
       (i) =>
         !(
@@ -93,6 +97,7 @@ class MockCategoryAttrRepo implements CategoryAttributeRepository {
           i.attributeDefinitionId === attributeDefinitionId
         ),
     );
+    return this.items.length < before;
   }
 }
 

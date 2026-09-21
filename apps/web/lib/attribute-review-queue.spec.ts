@@ -2,7 +2,10 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  ATTRIBUTE_APPLY_CONFLICT_REASONS,
+  ATTRIBUTE_APPLY_LABELS,
   ATTRIBUTE_DECISION_COPY,
+  ATTRIBUTE_WORKLISTS,
   ATTRIBUTE_ISSUE_TYPES_BY_TAB,
   ATTRIBUTE_QUEUE_TABS,
   ATTRIBUTE_READ_PERMISSION,
@@ -10,6 +13,15 @@ import {
   ATTRIBUTE_STATUS_LABELS,
   ATTRIBUTE_WRITE_PERMISSION,
   attributeAcceptNotice,
+  attributeApplyAction,
+  attributeApplyConfirmation,
+  attributeApplyConflictMessage,
+  attributeApplyLabel,
+  attributeApplySubject,
+  attributeApplySuccessMessage,
+  attributeApplyUnavailableReason,
+  attributeApplicationLabel,
+  attributeAppliedSummary,
   attributeAuditConflictMessage,
   attributeAuditUnavailableReason,
   attributeDecisionConflictMessage,
@@ -17,18 +29,26 @@ import {
   attributeReviewReadOnlyNotice,
   attributeStatusBadge,
   attributeStatusLabel,
+  attributeWorklistEmptyMessage,
   buildAttributeTabCounts,
+  buildAttributeWorklistCounts,
+  canApplyAttributeFinding,
   canDecideAttributeFinding,
   confidenceBadgeStatus,
   deriveAttributeReviewPermissions,
   findingHeadline,
   findingMatchesTab,
+  findingMatchesWorklist,
+  isAttributeApplyConflictReason,
+  isAttributeFindingApplied,
   isExpectationForUndefinedAttribute,
   producerIssueTypeLabel,
   producerUsageEvidence,
+  statusFilterAfterApply,
   suggestedCanonicalCode,
   summarizeAttributeAudit,
   tabIssueTypeFilter,
+  worklistFilter,
 } from "./attribute-review-queue";
 import type {
   AttributeReviewFindingDto,
@@ -37,6 +57,7 @@ import type {
 import {
   DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE,
   MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
+  buildAttributeApplyPayload,
   buildAttributeDecisionPayload,
 } from "./api/attribute-review-queue-api";
 
@@ -76,6 +97,7 @@ const finding = (
   intelligenceVersion: "attribute-audit-v1",
   fingerprint: "f".repeat(64),
   status: "PENDING",
+  applicationResult: "NOT_APPLIED",
   reviewerId: null,
   reviewerEmail: null,
   reviewedAt: null,
@@ -97,6 +119,8 @@ const counts = (
   stale: 0,
   byCategory: {},
   byIssueType: {},
+  applicationResults: { NOT_APPLIED: 0, APPLIED: 0 },
+  readyToApply: 0,
   ...overrides,
 });
 
@@ -260,26 +284,32 @@ describe("Attribute review queue — permissions", () => {
     expect(ATTRIBUTE_READ_PERMISSION).toBe("Inventory.Read");
   });
 
-  it('grants decide and audit together, and marks read-only otherwise', () => {
+  it('grants decide, audit and apply together, and marks read-only otherwise', () => {
     const writer = deriveAttributeReviewPermissions(true);
     expect(writer.canDecide).toBe(true);
     expect(writer.canAudit).toBe(true);
+    expect(writer.canApply).toBe(true);
     expect(writer.isReadOnly).toBe(false);
 
     const reader = deriveAttributeReviewPermissions(false);
     expect(reader.canDecide).toBe(false);
     expect(reader.canAudit).toBe(false);
+    expect(reader.canApply).toBe(false);
     expect(reader.isReadOnly).toBe(true);
   });
 
-  it('never offers an Apply capability (this pass has none)', () => {
+  it('derives apply from the same write permission as every other mutation', () => {
+    // Applying changes the attribute library, so it may not be granted by any
+    // other condition. The capability list is pinned so a future permission
+    // cannot be added without deciding whether it mutates.
     const permissions = deriveAttributeReviewPermissions(true);
-    expect(Object.keys(permissions)).toEqual([
-      "canDecide",
+    expect(Object.keys(permissions).sort()).toEqual([
+      "canApply",
       "canAudit",
+      "canDecide",
       "isReadOnly",
     ]);
-    expect("canApply" in permissions).toBe(false);
+    expect(deriveAttributeReviewPermissions(false).canApply).toBe(false);
   });
 
   it('explains read-only and audit unavailability, naming the permission', () => {
@@ -520,10 +550,15 @@ describe("Attribute review queue API client", () => {
     expect(source).toContain("`${BASE_PATH}/${encodeURIComponent(id)}/decision`");
     expect(source).toContain("`${BASE_PATH}/audit`");
     expect(source).toContain("`${BASE_PATH}/mark-stale`");
+    expect(source).toContain("`${BASE_PATH}/${encodeURIComponent(id)}/apply`");
   });
 
-  it('has no apply route and no attribute mutation helper', () => {
-    expect(source).not.toMatch(/\/apply/);
+  it('exposes exactly one mutation, and only the review-queue apply route', () => {
+    // Applying a finding is the queue's only write beyond the lifecycle decision.
+    // It may not grow into a general attribute-library client: the legacy
+    // bulk-apply endpoint must never be reachable from here.
+    expect(source).toContain("applyFinding");
+    expect(source).not.toContain("apply-bindings");
     expect(source).not.toContain("bindCategory");
     expect(source).not.toContain("createDefinition");
     expect(source).not.toContain("addOption");
@@ -592,18 +627,23 @@ describe("Attribute review queue dialog — data source", () => {
     expect(dialog).not.toMatch(/items\.filter\(.*\)\.length/);
   });
 
-  it('offers all three decisions and no apply control', () => {
+  it('offers all three decisions and an action-specific apply control', () => {
     expect(dialog).toContain('"ACCEPTED"');
     expect(dialog).toContain('"REJECTED"');
     expect(dialog).toContain('"DISMISSED"');
-    expect(dialog).not.toContain("Apply");
-    expect(dialog).not.toMatch(/canApply/);
+
+    // Apply exists now, but only as a labelled binding action. A bare "Apply"
+    // button would not tell the reviewer what it does, so it must not appear.
+    expect(dialog).not.toMatch(/>\s*Apply\s*</);
+    expect(dialog).toContain("attributeApplyLabel(applyAction)");
+    expect(dialog).toContain("canApplyAttributeFinding(finding, permissions.canApply)");
   });
 
   it('gates every write control on the write permission', () => {
     expect(dialog).toContain("deriveAttributeReviewPermissions");
     expect(dialog).toContain("permissions.canAudit");
     expect(dialog).toContain("permissions.canDecide");
+    expect(dialog).toContain("permissions.canApply");
     expect(dialog).toContain("permissions.isReadOnly");
     expect(dialog).toContain("attributeReviewReadOnlyNotice()");
   });
@@ -665,5 +705,606 @@ describe("Attribute categories dialog — guarded apply", () => {
 
     // Both explain why they are unavailable.
     expect(dialog).toContain("requires the ${ATTRIBUTE_WRITE_PERMISSION} permission");
+  });
+});
+
+describe("Attribute review queue — apply eligibility", () => {
+  const bindable = (overrides: Partial<AttributeReviewFindingDto> = {}) =>
+    finding({
+      issueType: "MISSING_EXPECTED_ATTRIBUTE",
+      attributeDefinitionId: "attr-1",
+      categoryId: "cat-1",
+      status: "ACCEPTED",
+      ...overrides,
+    });
+
+  it('maps only the two binding families onto an action', () => {
+    expect(attributeApplyAction(bindable())).toBe("ADD_BINDING");
+    expect(
+      attributeApplyAction(
+        finding({ issueType: "SUSPICIOUS_BINDING", categoryId: "cat-1" }),
+      ),
+    ).toBe("REMOVE_BINDING");
+
+    // The other families have no implemented mutation, so they must resolve to no
+    // action at all rather than to a default.
+    for (const issueType of [
+      "POSSIBLE_DUPLICATE",
+      "DUPLICATE_ATTRIBUTE",
+      "UNUSED_ATTRIBUTE",
+      "SUGGESTED_BINDING",
+      "SUGGESTED_ENUM_VALUE",
+      "INCONSISTENT_CONFIG",
+    ]) {
+      expect(attributeApplyAction(finding({ issueType }))).toBeNull();
+    }
+  });
+
+  it('offers apply only for an accepted, unapplied, writable finding', () => {
+    expect(canApplyAttributeFinding(bindable(), true)).toBe(true);
+    expect(canApplyAttributeFinding(bindable(), false)).toBe(false);
+    expect(
+      canApplyAttributeFinding(
+        bindable({ applicationResult: "APPLIED" }),
+        true,
+      ),
+    ).toBe(false);
+    expect(
+      canApplyAttributeFinding(finding({ issueType: "UNUSED_ATTRIBUTE", status: "ACCEPTED" }), true),
+    ).toBe(false);
+  });
+
+  it('requires ACCEPTED: accepting and applying are separate acts', () => {
+    // Every non-accepted status is refused, including PENDING — the reviewer must
+    // approve first, so apply is never an implicit acceptance.
+    for (const status of ["PENDING", "REJECTED", "DISMISSED", "STALE"] as const) {
+      expect(canApplyAttributeFinding(bindable({ status }), true)).toBe(false);
+    }
+    expect(canApplyAttributeFinding(bindable({ status: "ACCEPTED" }), true)).toBe(
+      true,
+    );
+  });
+
+  it('labels each action with the mutation it performs', () => {
+    expect(attributeApplyLabel("ADD_BINDING")).toBe("Add Binding");
+    expect(attributeApplyLabel("REMOVE_BINDING")).toBe("Remove Binding");
+    for (const label of Object.values(ATTRIBUTE_APPLY_LABELS)) {
+      expect(label).not.toBe("Apply");
+    }
+  });
+
+  it('detects application separately from review status', () => {
+    expect(isAttributeFindingApplied(finding({ applicationResult: "APPLIED" }))).toBe(
+      true,
+    );
+    expect(
+      isAttributeFindingApplied(
+        finding({ status: "ACCEPTED", applicationResult: "NOT_APPLIED" }),
+      ),
+    ).toBe(false);
+  });
+
+  it('explains every reason apply is unavailable', () => {
+    expect(
+      attributeApplyUnavailableReason(finding({ applicationResult: "APPLIED" }), true),
+    ).toMatch(/already applied/i);
+    expect(
+      attributeApplyUnavailableReason(finding({ issueType: "UNUSED_ATTRIBUTE" }), true),
+    ).toMatch(/review-only/i);
+    expect(
+      attributeApplyUnavailableReason(bindable(), false),
+    ).toContain("Inventory.Update");
+    expect(
+      attributeApplyUnavailableReason(bindable({ status: "PENDING" }), true),
+    ).toMatch(/accept this finding first/i);
+    expect(
+      attributeApplyUnavailableReason(bindable({ status: "STALE" }), true),
+    ).toMatch(/stale/i);
+
+    // Offered: no reason to report.
+    expect(attributeApplyUnavailableReason(bindable(), true)).toBeNull();
+  });
+
+  it('never claims a decision mutates, but may claim apply does', () => {
+    // The decision copy is unchanged: accepting still changes nothing. Only the
+    // apply copy is allowed to describe a library change.
+    expect(ATTRIBUTE_DECISION_COPY.ACCEPTED.summary).toMatch(/later step/i);
+    const confirmation = attributeApplyConfirmation({
+      finding: bindable(),
+      action: "ADD_BINDING",
+    });
+    expect(confirmation.description).toMatch(/bind/i);
+  });
+});
+
+describe("Attribute review queue — apply confirmation", () => {
+  const expectation = () =>
+    finding({
+      issueType: "MISSING_EXPECTED_ATTRIBUTE",
+      attributeDefinitionId: "attr-1",
+      categoryId: "cat-1",
+      title: 'Bind "Voltage Rating" to category "Electrical"',
+      currentValue: {
+        category: { id: "cat-1", code: "ELEC", name: "Electrical" },
+        expectedAttributeCode: "voltage_rating",
+        expectedAttributeName: "Voltage Rating",
+        existingAttribute: null,
+        attributeExists: false,
+      },
+      suggestedValue: { canonicalCode: "voltage_rating", canonicalName: "Voltage Rating" },
+    });
+
+  const suspicious = () =>
+    finding({
+      issueType: "SUSPICIOUS_BINDING",
+      attributeDefinitionId: "attr-1",
+      categoryId: "cat-1",
+      title: 'Unbind suspicious "Voltage Rating" from "Electrical"',
+      currentValue: {
+        attribute: { id: "attr-1", code: "voltage_rating", name: "Voltage Rating" },
+        category: { id: "cat-1", code: "ELEC", name: "Electrical" },
+        bindingExists: true,
+      },
+    });
+
+  it('names the attribute and the category from the finding’s own snapshot', () => {
+    expect(attributeApplySubject(expectation())).toEqual({
+      attributeName: "Voltage Rating",
+      categoryName: "Electrical",
+    });
+    expect(attributeApplySubject(suspicious())).toEqual({
+      attributeName: "Voltage Rating",
+      categoryName: "Electrical",
+    });
+  });
+
+  it('falls back to the ids rather than showing nothing', () => {
+    const bare = finding({
+      issueType: "SUSPICIOUS_BINDING",
+      attributeDefinitionId: "attr-9",
+      categoryId: "cat-9",
+      currentValue: null,
+      suggestedValue: null,
+    });
+    expect(attributeApplySubject(bare)).toEqual({
+      attributeName: "attr-9",
+      categoryName: "cat-9",
+    });
+  });
+
+  it('states the consequence of adding a binding, non-destructively', () => {
+    const confirmation = attributeApplyConfirmation({
+      finding: expectation(),
+      action: "ADD_BINDING",
+    });
+
+    expect(confirmation.title).toMatch(/add attribute binding/i);
+    expect(confirmation.confirmLabel).toBe("Add Binding");
+    expect(confirmation.destructive).toBe(false);
+    expect(confirmation.description).toContain("Voltage Rating");
+    expect(confirmation.description).toContain("Electrical");
+    expect(confirmation.subject).toEqual([
+      { label: "Attribute", value: "Voltage Rating" },
+      { label: "Category", value: "Electrical" },
+    ]);
+    // It must not imply the scope is wider than a binding.
+    expect(confirmation.description).not.toMatch(/creates? the attribute\b/i);
+  });
+
+  it('states the consequence of removing a binding, destructively', () => {
+    const confirmation = attributeApplyConfirmation({
+      finding: suspicious(),
+      action: "REMOVE_BINDING",
+    });
+
+    expect(confirmation.title).toMatch(/remove attribute binding/i);
+    expect(confirmation.confirmLabel).toBe("Remove Binding");
+    expect(confirmation.destructive).toBe(true);
+    expect(confirmation.description).toContain("Voltage Rating");
+    expect(confirmation.description).toContain("Electrical");
+    // The definition and the category survive; only the link goes.
+    expect(confirmation.description).toMatch(/kept/i);
+  });
+
+  it('summarises a completed application with the states the backend reported', () => {
+    const message = attributeApplySuccessMessage({
+      action: "ADD_BINDING",
+      attributeName: "Voltage Rating",
+      categoryName: "Electrical",
+      appliedState: "BOUND",
+    });
+    expect(message).toContain("Voltage Rating");
+    expect(message).toContain("Electrical");
+    expect(message).toContain("BOUND");
+
+    expect(
+      attributeApplySuccessMessage({
+        action: "REMOVE_BINDING",
+        attributeName: "Voltage Rating",
+        categoryName: "Electrical",
+        appliedState: "UNBOUND",
+      }),
+    ).toMatch(/no longer available/i);
+  });
+
+  it('describes applied state, and stays silent when not applied', () => {
+    expect(
+      attributeAppliedSummary(
+        finding({ applicationResult: "NOT_APPLIED", status: "ACCEPTED" }),
+      ),
+    ).toBeNull();
+
+    const summary = attributeAppliedSummary(
+      finding({
+        applicationResult: "APPLIED",
+        status: "ACCEPTED",
+        updatedAt: "2026-09-21T10:00:00.000Z",
+        reviewerEmail: "reviewer@48studios.test",
+      }),
+    );
+    expect(summary).toContain("Applied to the attribute library");
+    expect(summary).toContain("reviewer@48studios.test");
+  });
+
+  it('moves the work list onto accepted after an apply, and leaves other filters alone', () => {
+    // An applied finding is no longer awaiting review, so leaving the reviewer on
+    // "needs review" would hide the row they just changed.
+    expect(statusFilterAfterApply("PENDING")).toBe("ACCEPTED");
+    expect(statusFilterAfterApply("PENDING,STALE")).toBe("ACCEPTED");
+    for (const untouched of ["ALL", "ACCEPTED", "REJECTED", "DISMISSED", "STALE"]) {
+      expect(statusFilterAfterApply(untouched)).toBe(untouched);
+    }
+  });
+});
+
+describe("Attribute review queue — apply payload", () => {
+  it('sends the action and the revision proof only', () => {
+    const payload = buildAttributeApplyPayload(finding(), "ADD_BINDING");
+
+    expect(payload).toEqual({
+      action: "ADD_BINDING",
+      expectedFingerprint: finding().fingerprint,
+    });
+    expect(payload.expectedFingerprint).toHaveLength(64);
+
+    // No subject or value may travel with an apply: the backend decides what each
+    // supported family applies, so this route cannot be steered.
+    for (const forbidden of [
+      "categoryId",
+      "attributeDefinitionId",
+      "attributeCode",
+      "sortOrder",
+      "value",
+      "field",
+      "applicationResult",
+      "status",
+    ]) {
+      expect(forbidden in payload).toBe(false);
+    }
+  });
+
+  it('omits blank notes and keeps the action verbatim', () => {
+    const payload = buildAttributeApplyPayload(
+      finding(),
+      "REMOVE_BINDING",
+      "   ",
+    );
+    expect(payload.decisionNotes).toBeUndefined();
+    expect(payload.action).toBe("REMOVE_BINDING");
+  });
+});
+
+describe("Attribute review queue — apply conflict messaging", () => {
+  it('passes the backend message through, which names the state that changed', () => {
+    expect(
+      attributeApplyConflictMessage(409, {
+        message: "The binding no longer exists, so there is nothing to remove.",
+        reason: "FINDING_STALE",
+      }),
+    ).toBe("The binding no longer exists, so there is nothing to remove.");
+  });
+
+  it('explains permission, missing and conflict outcomes in its own terms', () => {
+    expect(attributeApplyConflictMessage(403, {})).toContain("Inventory.Update");
+    expect(attributeApplyConflictMessage(404, {})).toMatch(/no longer exists/i);
+    expect(attributeApplyConflictMessage(409, {})).toMatch(
+      /library changed|refresh/i,
+    );
+    expect(attributeApplyConflictMessage(500, {})).toMatch(/could not be applied/i);
+  });
+
+  it('recognises every reason the backend can return', () => {
+    for (const reason of ATTRIBUTE_APPLY_CONFLICT_REASONS) {
+      expect(isAttributeApplyConflictReason(reason)).toBe(true);
+    }
+    expect(isAttributeApplyConflictReason("SOMETHING_ELSE")).toBe(false);
+    expect(isAttributeApplyConflictReason(undefined)).toBe(false);
+    // The two families the UI is allowed to offer are represented.
+    expect(ATTRIBUTE_APPLY_CONFLICT_REASONS).toContain("ALREADY_APPLIED");
+    expect(ATTRIBUTE_APPLY_CONFLICT_REASONS).toContain("FINDING_NOT_ACCEPTED");
+  });
+});
+
+describe("Attribute review queue dialog — apply flow", () => {
+  const dialog = readFileSync(
+    join(__dirname, "..", "components", "attributes", "attribute-review-queue-dialog.tsx"),
+    "utf8",
+  );
+
+  it('calls the apply route and re-reads the queue instead of patching it', () => {
+    expect(dialog).toContain("attributeReviewQueueApi.applyFinding(");
+    expect(dialog).toContain("buildAttributeApplyPayload(finding, action)");
+    // The counts and the row come from the server after an apply.
+    expect(dialog).toContain("await loadQueue();");
+  });
+
+  it('never reloads the page and never polls', () => {
+    expect(dialog).not.toContain("window.location");
+    expect(dialog).not.toContain("location.reload");
+    expect(dialog).not.toContain("setInterval");
+    expect(dialog).not.toContain("router.refresh");
+  });
+
+  it('requires a confirmation before mutating', () => {
+    // The button only stages the intent; the mutation happens on confirm.
+    expect(dialog).toContain("setPendingApply({ finding, action: applyAction })");
+    expect(dialog).toContain("onClick={() => void confirmApply()}");
+    expect(dialog).toContain("attributeApplyConfirmation({");
+    // The confirmation names a real subject, not an abstract target.
+    expect(dialog).toContain("applyConfirmation.subject.map");
+    expect(dialog).toContain("No attribute definition,");
+  });
+
+  it('offers the action-specific label on both the trigger and the confirm button', () => {
+    expect(dialog).toContain("{attributeApplyLabel(applyAction)}");
+    expect(dialog).toContain("{applyConfirmation.confirmLabel}");
+  });
+
+  it('hides apply for review-only families and for read-only users', () => {
+    // `showApplyButton` is false whenever the family resolves to no action, which
+    // is the only way the button is rendered.
+    expect(dialog).toContain("const showApplyButton =");
+    expect(dialog).toContain("applyAction !== null &&");
+    expect(dialog).toContain("canApplyAttributeFinding(finding, permissions.canApply)");
+
+    // A read-only reviewer is told why, and the tree carries no apply affordance.
+    expect(dialog).toContain("attributeApplyUnavailableReason(");
+  });
+
+  it('reports acceptance and application as separate facts', () => {
+    expect(dialog).toContain("APPLIED");
+    expect(dialog).toContain("REVIEW ONLY");
+    expect(dialog).toContain("attributeAppliedSummary(finding)");
+  });
+
+  it('re-reads after a refusal so a dead action is not offered again', () => {
+    expect(dialog).toContain("attributeApplyConflictMessage(statusCode, err)");
+    const lines = dialog.split("\n");
+    const conflictIndex = lines.findIndex((line) =>
+      line.includes("if (statusCode === 409 || statusCode === 404)"),
+    );
+    expect(conflictIndex).toBeGreaterThan(-1);
+    // There are two such guards: one for decisions, one for apply. Both refresh.
+    expect(
+      lines.filter((line) =>
+        line.includes("if (statusCode === 409 || statusCode === 404)"),
+      ),
+    ).toHaveLength(2);
+  });
+
+  it('keeps Accept non-mutating: it never calls apply', () => {
+    const lines = dialog.split("\n");
+    const acceptIndex = lines.findIndex((line) =>
+      line.includes('recordDecision(finding, "ACCEPTED")'),
+    );
+    expect(acceptIndex).toBeGreaterThan(-1);
+
+    const decisionHandler = lines.slice(0, acceptIndex).join("\n");
+    // The decision handler is the only caller of recordDecision, and it must not
+    // have grown an apply call.
+    const recordStart = decisionHandler.lastIndexOf("const recordDecision = async");
+    const recordBody = lines
+      .slice(recordStart, lines.findIndex((line) => line.includes("const confirmApply = async")))
+      .join("\n");
+    expect(recordBody).not.toContain("applyFinding");
+    expect(recordBody).not.toContain("apply-bindings");
+  });
+
+  it('never routes apply through the legacy bulk endpoint', () => {
+    expect(dialog).not.toContain("apply-bindings");
+    // The dialog reaches apply only through the persisted review-queue client.
+    expect(dialog).toContain("attributeReviewQueueApi.applyFinding(");
+  });
+});
+
+describe("Attribute review queue — application worklists", () => {
+  it('exposes exactly three worklists, in the order the UI renders them', () => {
+    expect(ATTRIBUTE_WORKLISTS.map((w) => w.id)).toEqual([
+      "ALL",
+      "READY_TO_APPLY",
+      "APPLIED",
+    ]);
+    expect(ATTRIBUTE_WORKLISTS.map((w) => w.label)).toEqual([
+      "All",
+      "Ready to Apply",
+      "Applied",
+    ]);
+  });
+
+  it('translates each worklist into a server-side filter', () => {
+    // Ready to Apply is the only one that pins the review status, because it is the
+    // intersection of approval and non-application.
+    expect(worklistFilter("READY_TO_APPLY")).toEqual({
+      status: "ACCEPTED",
+      applicationResult: "NOT_APPLIED",
+    });
+
+    // Applied deliberately does NOT pin the status: applying never changes it, so
+    // pinning would drop an applied finding whose status later moved.
+    expect(worklistFilter("APPLIED")).toEqual({ applicationResult: "APPLIED" });
+    expect(worklistFilter("APPLIED").status).toBeUndefined();
+
+    // All applies no application filter at all.
+    expect(worklistFilter("ALL")).toEqual({});
+  });
+
+  it('builds each worklist size from persisted counts', () => {
+    const sizes = buildAttributeWorklistCounts(
+      counts({
+        total: 40,
+        accepted: 12,
+        applicationResults: { NOT_APPLIED: 30, APPLIED: 7 },
+        readyToApply: 9,
+      }),
+    );
+
+    expect(sizes.ALL).toBe(40);
+    // The intersection of two dimensions, so it is neither count on its own.
+    expect(sizes.READY_TO_APPLY).toBe(9);
+    expect(sizes.APPLIED).toBe(7);
+    // Ready to apply is strictly narrower than both dimensions it intersects.
+    expect(sizes.READY_TO_APPLY).toBeLessThan(12);
+    expect(sizes.READY_TO_APPLY).toBeLessThan(30);
+  });
+
+  it('reports zeroes rather than NaN when counts are unavailable', () => {
+    expect(buildAttributeWorklistCounts(null)).toEqual({
+      ALL: 0,
+      READY_TO_APPLY: 0,
+      APPLIED: 0,
+    });
+    // A response from an older API would omit the new fields entirely.
+    expect(
+      buildAttributeWorklistCounts({} as AttributeReviewQueueCountsDto),
+    ).toEqual({ ALL: 0, READY_TO_APPLY: 0, APPLIED: 0 });
+  });
+
+  it('labels application state separately from review status', () => {
+    expect(
+      attributeApplicationLabel(finding({ applicationResult: "NOT_APPLIED" })),
+    ).toBe("Not applied");
+    expect(
+      attributeApplicationLabel(finding({ applicationResult: "APPLIED" })),
+    ).toBe("Applied");
+
+    // An ACCEPTED + NOT_APPLIED finding is approved and waiting; the two labels must
+    // not collapse into one another.
+    const accepted = finding({
+      status: "ACCEPTED",
+      applicationResult: "NOT_APPLIED",
+    });
+    expect(attributeStatusLabel(accepted.status)).toBe("Accepted");
+    expect(attributeApplicationLabel(accepted)).toBe("Not applied");
+  });
+
+  it('places findings in the right worklist', () => {
+    const ready = finding({
+      status: "ACCEPTED",
+      applicationResult: "NOT_APPLIED",
+    });
+    const done = finding({ status: "ACCEPTED", applicationResult: "APPLIED" });
+    const pending = finding({
+      status: "PENDING",
+      applicationResult: "NOT_APPLIED",
+    });
+
+    expect(findingMatchesWorklist(ready, "READY_TO_APPLY")).toBe(true);
+    expect(findingMatchesWorklist(done, "READY_TO_APPLY")).toBe(false);
+    expect(findingMatchesWorklist(pending, "READY_TO_APPLY")).toBe(false);
+
+    // Applied is a history list, so it holds applied findings only.
+    expect(findingMatchesWorklist(done, "APPLIED")).toBe(true);
+    expect(findingMatchesWorklist(ready, "APPLIED")).toBe(false);
+
+    // All is unfiltered.
+    for (const f of [ready, done, pending]) {
+      expect(findingMatchesWorklist(f, "ALL")).toBe(true);
+    }
+  });
+
+  it('explains an empty worklist in the worklist’s own terms', () => {
+    expect(attributeWorklistEmptyMessage("READY_TO_APPLY")).toMatch(
+      /nothing is waiting to be applied/i,
+    );
+    expect(attributeWorklistEmptyMessage("APPLIED")).toMatch(
+      /no finding has been applied yet/i,
+    );
+    expect(attributeWorklistEmptyMessage("ALL")).toMatch(/no findings match/i);
+  });
+
+  it('keeps the worklist counts independent of the page and of each other', () => {
+    // A page of one row must not change any worklist size: the numbers come from
+    // server-side counts, never from the loaded items.
+    const source = readFileSync(
+      join(__dirname, "..", "components", "attributes", "attribute-review-queue-dialog.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("buildAttributeWorklistCounts(page?.counts ?? null)");
+    expect(source).not.toMatch(/items\.filter\(.*applicationResult.*\)\.length/);
+  });
+});
+
+describe("Attribute review queue dialog — worklist UI", () => {
+  const dialog = readFileSync(
+    join(__dirname, "..", "components", "attributes", "attribute-review-queue-dialog.tsx"),
+    "utf8",
+  );
+
+  it('reuses the existing tab control pattern instead of adding a second filter system', () => {
+    // Both selectors are rows of buttons built from a table of definitions, so the
+    // worklist is visually and structurally the same control as the family tabs.
+    expect(dialog).toContain("ATTRIBUTE_QUEUE_TABS.map");
+    expect(dialog).toContain("ATTRIBUTE_WORKLISTS.map");
+    expect(dialog).toContain("selectWorklist(definition.id)");
+  });
+
+  it('defaults to the work list, and sends the worklist filter server-side', () => {
+    expect(dialog).toContain('useState<AttributeWorklistId>("READY_TO_APPLY")');
+    expect(dialog).toContain("...worklistFilter(worklist)");
+    // The filter is part of the query the server runs, not a client-side pass.
+    expect(dialog).toContain("attributeReviewQueueApi.listFindings({");
+  });
+
+  it('clears the worklist along with the other filters', () => {
+    expect(dialog).toContain('setWorklist("READY_TO_APPLY")');
+  });
+
+  it('shows acceptance and application as two separate facts per row', () => {
+    expect(dialog).toContain("attributeApplicationLabel(finding)");
+    expect(dialog).toContain("attributeAppliedSummary(finding)");
+    expect(dialog).toContain("APPLIED");
+    expect(dialog).toContain("REVIEW ONLY");
+  });
+
+  it('still hides Apply for review-only families and for read-only users', () => {
+    // Pass 4's eligibility rule is unchanged by the worklist: being in the work list
+    // is not permission to apply.
+    expect(dialog).toContain("canApplyAttributeFinding(finding, permissions.canApply)");
+    expect(dialog).toContain("attributeApplyAction(finding)");
+    expect(dialog).toContain("attributeApplyUnavailableReason(");
+  });
+
+  it('keeps an applied finding visible when the current worklist includes it', () => {
+    // Apply does not force the worklist back to a single value: it moves off the
+    // work list only when the reviewer was on it, so an applied finding stays
+    // visible in `All` and `Applied`.
+    const lines = dialog.split("\n");
+    const handler = lines
+      .slice(
+        lines.findIndex((line) => line.includes("const confirmApply = async")),
+        lines.findIndex((line) => line.includes("const applyConfirmation = React.useMemo")),
+      )
+      .join("\n");
+
+    expect(handler).toContain("statusFilterAfterApply");
+    // No reload, no polling, no router refresh — the queue is re-read.
+    expect(handler).not.toContain("window.location");
+    expect(handler).not.toContain("setInterval");
+    expect(handler).toContain("await loadQueue()");
+  });
+
+  it('re-reads the queue so counts and state come from the server after an apply', () => {
+    expect(dialog).toContain("await loadQueue()");
+    expect(dialog).toContain("onActionComplete?.()");
   });
 });

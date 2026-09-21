@@ -31,6 +31,7 @@ import { AttributeIntelligenceFindingsService } from './attribute-findings/attri
 import { AttributeIntelligenceAuditService } from './attribute-findings/attribute-intelligence-audit.service';
 import { AttributeReviewQueueService } from './attribute-findings/attribute-review-queue.service';
 import { AttributeReviewQueueController } from './attribute-findings/attribute-review-queue.controller';
+import { AttributeReviewApplyService } from './attribute-findings/attribute-review-apply.service';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { AttributeReviewQueueController } from './attribute-findings/attribute-r
     AttributeIntelligenceFindingsService,
     AttributeIntelligenceAuditService,
     AttributeReviewQueueService,
+    AttributeReviewApplyService,
     AttributeReadGuard,
     AttributeWriteGuard,
   ],
@@ -83,6 +85,7 @@ import { AttributeReviewQueueController } from './attribute-findings/attribute-r
     AttributeIntelligenceFindingsService,
     AttributeIntelligenceAuditService,
     AttributeReviewQueueService,
+    AttributeReviewApplyService,
   ],
 })
 export class MlModule {}

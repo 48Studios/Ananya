@@ -48,6 +48,17 @@ export type AttributeReviewStatus =
   | "DISMISSED"
   | "STALE";
 
+/**
+ * Whether a reviewed finding has been applied to the attribute library.
+ *
+ * Distinct from the review status: an `ACCEPTED` finding with `NOT_APPLIED` has
+ * been approved by a human but has changed nothing yet.
+ */
+export type AttributeApplicationResult = "NOT_APPLIED" | "APPLIED";
+
+/** Mutations the apply route can perform. */
+export type AttributeApplyAction = "ADD_BINDING" | "REMOVE_BINDING";
+
 export type AttributeReviewDecision = "ACCEPTED" | "REJECTED" | "DISMISSED";
 
 export type ConfidenceLevel = "HIGH" | "MEDIUM" | "LOW";
@@ -98,6 +109,7 @@ export interface AttributeReviewFindingDto {
   intelligenceVersion: string | null;
   fingerprint: string;
   status: AttributeReviewStatus;
+  applicationResult: AttributeApplicationResult;
   reviewerId: string | null;
   reviewerEmail: string | null;
   reviewedAt: string | null;
@@ -116,6 +128,15 @@ export interface AttributeReviewQueueCountsDto {
   stale: number;
   byCategory: Record<string, number>;
   byIssueType: Record<string, number>;
+  /**
+   * Counts per application state.
+   *
+   * Always carries both keys, so the worklist selector can render both options
+   * without defaulting. Read from persisted findings and independent of the page.
+   */
+  applicationResults: Record<AttributeApplicationResult, number>;
+  /** How many findings are approved and still unapplied. */
+  readyToApply: number;
 }
 
 export interface AttributeReviewQueuePageDto {
@@ -167,6 +188,13 @@ export interface ListAttributeFindingsParams {
   issueType?: string;
   /** Comma-separated for multiple issue categories. */
   issueCategory?: string;
+  /**
+   * Application state, as a comma-separated string.
+   *
+   * Independent of `status`, so `status=ACCEPTED&applicationResult=NOT_APPLIED`
+   * expresses the ready-to-apply worklist.
+   */
+  applicationResult?: string;
   confidenceLevel?: ConfidenceLevel;
   attributeDefinitionId?: string;
   categoryId?: string;
@@ -193,6 +221,45 @@ export interface MarkAttributeFindingsStalePayload {
   reason?: string;
 }
 
+/**
+ * Request body for applying a finding.
+ *
+ * Carries the intended action and the revision proof ONLY. There is no attribute
+ * id, category id, sort order or default value: the backend decides what each
+ * supported finding applies, so the apply route cannot become a general write API
+ * for the attribute library.
+ */
+export interface ApplyAttributeFindingPayload {
+  action: AttributeApplyAction;
+  /** The finding's own persisted fingerprint, proving the revision reviewed. */
+  expectedFingerprint: string;
+  decisionNotes?: string;
+}
+
+/** What an application did, in enough detail to update the queue in place. */
+export interface ApplyAttributeFindingResultDto {
+  findingId: string;
+  issueType: string;
+  action: AttributeApplyAction;
+  applicationResult: "APPLIED";
+  /** Applying does not change the review status: it stays ACCEPTED. */
+  status: "ACCEPTED";
+  attributeDefinitionId: string;
+  attributeCode: string;
+  attributeName: string;
+  categoryId: string;
+  categoryCode: string;
+  categoryName: string;
+  previousState: string;
+  appliedState: string;
+  fingerprint: string;
+  appliedAt: string;
+  appliedById: string | null;
+  appliedByEmail: string | null;
+  feedbackId: string | null;
+  staledFindingCount: number;
+}
+
 /** Backend page-size ceiling (`MAX_ATTRIBUTE_QUEUE_PAGE_SIZE`). */
 export const MAX_ATTRIBUTE_QUEUE_PAGE_SIZE = 100;
 
@@ -213,6 +280,28 @@ export function buildAttributeDecisionPayload(
 ): RecordAttributeDecisionPayload {
   const payload: RecordAttributeDecisionPayload = {
     decision,
+    expectedFingerprint: finding.fingerprint,
+  };
+  const notes = decisionNotes?.trim();
+  if (notes) payload.decisionNotes = notes;
+  return payload;
+}
+
+/**
+ * Builds the apply request body from a finding.
+ *
+ * The action and the finding's own fingerprint, and nothing else that could
+ * direct the mutation. The backend decides which attribute and category the
+ * finding applies to, so a caller cannot use this route to bind an arbitrary
+ * attribute to an arbitrary category.
+ */
+export function buildAttributeApplyPayload(
+  finding: Pick<AttributeReviewFindingDto, "fingerprint">,
+  action: AttributeApplyAction,
+  decisionNotes?: string,
+): ApplyAttributeFindingPayload {
+  const payload: ApplyAttributeFindingPayload = {
+    action,
     expectedFingerprint: finding.fingerprint,
   };
   const notes = decisionNotes?.trim();
@@ -253,6 +342,7 @@ export const attributeReviewQueueApi = {
         status: params.status,
         issueType: params.issueType,
         issueCategory: params.issueCategory,
+        applicationResult: params.applicationResult,
         confidenceLevel: params.confidenceLevel,
         attributeDefinitionId: params.attributeDefinitionId,
         categoryId: params.categoryId,
@@ -299,6 +389,23 @@ export const attributeReviewQueueApi = {
       { staledCount: number },
       MarkAttributeFindingsStalePayload
     >(`${BASE_PATH}/mark-stale`, payload),
+
+  /**
+   * Applies an accepted finding to the attribute library.
+   *
+   * The only route that mutates attribute data. `MISSING_EXPECTED_ATTRIBUTE` adds a
+   * binding for an existing definition; `SUSPICIOUS_BINDING` removes an existing
+   * binding. Nothing else is created or changed, and the finding must already be
+   * ACCEPTED — applying is a separate, explicit act from accepting.
+   */
+  applyFinding: (
+    id: string,
+    payload: ApplyAttributeFindingPayload,
+  ): Promise<ApplyAttributeFindingResultDto> =>
+    apiClient.post<
+      ApplyAttributeFindingResultDto,
+      ApplyAttributeFindingPayload
+    >(`${BASE_PATH}/${encodeURIComponent(id)}/apply`, payload),
 
   /**
    * Runs the existing attribute-library audit and persists its findings.

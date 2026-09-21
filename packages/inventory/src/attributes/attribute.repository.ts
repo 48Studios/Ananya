@@ -32,7 +32,19 @@ export interface CategoryAttributeRepository {
   ): Promise<CategoryAttribute[]>;
   findMany(): Promise<CategoryAttribute[]>;
   save(categoryAttribute: CategoryAttribute): Promise<CategoryAttribute>;
-  delete(categoryId: string, attributeDefinitionId: string): Promise<void>;
+  /**
+   * Removes the binding, reporting whether this call removed it.
+   *
+   * The result is not decoration: the intelligence apply path must distinguish
+   * "I removed the binding" from "the binding was already gone" (someone removed
+   * it, perhaps by hand, between review and apply). Both are silent successes
+   * under a `void` contract, and the second one means the finding no longer
+   * describes the library.
+   */
+  delete(
+    categoryId: string,
+    attributeDefinitionId: string,
+  ): Promise<boolean>;
 }
 
 export interface ComponentAttributeRepository {

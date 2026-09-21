@@ -80,6 +80,18 @@ describe('Attribute Intelligence audit persistence (Pass 2)', () => {
     return category;
   };
 
+  /**
+   * Finding ids that already existed when this suite started.
+   *
+   * The audit is whole-library by design, so it can legitimately persist findings
+   * for the REAL attribute library — not just for this suite's fixtures. Those rows
+   * belong to this suite's run all the same, and subject-based cleanup cannot see
+   * them because the suite does not own their subjects. Diffing ids is the precise
+   * alternative: everything not in this set was created by this suite, and nothing
+   * else is touched.
+   */
+  const preExistingFindingIds = new Set<string>();
+
   beforeAll(async () => {
     if (!hasDbUrl) return;
     app = await NestFactory.createApplicationContext(AppModule, {
@@ -90,6 +102,12 @@ describe('Attribute Intelligence audit persistence (Pass 2)', () => {
     mlService = app.get(MlService);
     auditService = app.get(AttributeIntelligenceAuditService);
     findingsService = app.get(AttributeIntelligenceFindingsService);
+
+    for (const row of await db
+      .select({ id: attributeIntelligenceFindings.id })
+      .from(attributeIntelligenceFindings)) {
+      preExistingFindingIds.add(row.id);
+    }
 
     originalAudit = mlService.auditAttributeLibrary.bind(mlService);
     mlService.auditAttributeLibrary = (() =>
@@ -112,6 +130,19 @@ describe('Attribute Intelligence audit persistence (Pass 2)', () => {
     if (!hasDbUrl) return;
 
     if (originalAudit) mlService.auditAttributeLibrary = originalAudit;
+
+    // Findings this suite's audits created, including any for the real library.
+    // Deleted by id diff, so a whole-library audit leaves nothing behind without
+    // reaching for a timestamp window that could catch another suite's rows.
+    for (const row of await db
+      .select({ id: attributeIntelligenceFindings.id })
+      .from(attributeIntelligenceFindings)) {
+      if (!preExistingFindingIds.has(row.id)) {
+        await db
+          .delete(attributeIntelligenceFindings)
+          .where(eq(attributeIntelligenceFindings.id, row.id));
+      }
+    }
 
     // Order matters and follows the foreign keys:
     //  1. findings — their subject columns cascade/set-null with the definitions, so

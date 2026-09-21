@@ -128,6 +128,26 @@ export const attributeIntelligenceFindings = pgTable(
 
     status: varchar("status", { length: 32 }).notNull().default("PENDING"),
 
+    /**
+     * Whether the reviewed finding has been applied to the attribute library.
+     *
+     * Kept separate from `status` because accepting a finding and applying it are
+     * different acts: `ACCEPTED` records a human review decision, while
+     * `applicationResult` records that an authoritative mutation was performed as a
+     * result. A finding can legitimately be `ACCEPTED` and unapplied, and no finding
+     * may be applied while it is pending, rejected, dismissed or stale.
+     *
+     * `APPLIED` is only ever written by the apply path, inside the same transaction
+     * as the mutation, under a guard that requires `status = 'ACCEPTED'` and
+     * `application_result = 'NOT_APPLIED'`. That single guarded write is what makes
+     * "applied implies accepted" and "applied at most once" true; the codebase has
+     * no CHECK constraints anywhere, so the invariant lives with the one writer
+     * rather than in the schema.
+     */
+    applicationResult: varchar("application_result", { length: 32 })
+      .notNull()
+      .default("NOT_APPLIED"),
+
     reviewerId: uuid("reviewer_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -188,6 +208,12 @@ export const attributeIntelligenceFindings = pgTable(
     index("attribute_intel_findings_reviewer_idx").on(table.reviewerId),
     // FK maintenance for the option subject (ON DELETE SET NULL).
     index("attribute_intel_findings_option_idx").on(table.optionId),
+    // "Which findings were applied, and which accepted findings remain unapplied?"
+    // is the question the application ledger exists to answer.
+    index("attribute_intel_findings_application_result_idx").on(
+      table.applicationResult,
+      table.status,
+    ),
   ],
 );
 

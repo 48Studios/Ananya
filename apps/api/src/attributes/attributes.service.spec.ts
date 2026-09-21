@@ -111,12 +111,13 @@ describe('AttributesService', () => {
       }
       return Promise.resolve(ca);
     }),
-    delete: jest.fn((catId, defId) => {
-      const idx = mockCategoryAttrs.findIndex(
-        (m) => m.categoryId === catId && m.attributeDefinitionId === defId,
+    delete: jest.fn((catId: string, defId: string) => {
+      const index = mockCategoryAttrs.findIndex(
+        (ca) => ca.categoryId === catId && ca.attributeDefinitionId === defId,
       );
-      if (idx >= 0) mockCategoryAttrs.splice(idx, 1);
-      return Promise.resolve();
+      if (index < 0) return Promise.resolve(false);
+      mockCategoryAttrs.splice(index, 1);
+      return Promise.resolve(true);
     }),
   };
 

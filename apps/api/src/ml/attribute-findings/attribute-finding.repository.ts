@@ -63,9 +63,26 @@ export interface AttributeFindingStaleUpdate {
   ids?: string[];
   attributeDefinitionId?: string;
   categoryId?: string;
+  /** Restrict to these issue families, so a caller stales only what it affects. */
+  issueTypes?: string[];
   excludeSources?: string[];
   reason?: string;
   staledAt: Date;
+}
+
+/**
+ * The guarded application transition.
+ *
+ * `applicationResult` is deliberately not a caller-supplied field: it is always
+ * the literal `APPLIED`, because there is no other value this write may produce.
+ * Exposing it as a parameter would invite a future caller to "un-apply" a finding,
+ * which the ledger must never express.
+ */
+export interface AttributeFindingApplyUpdate {
+  id: string;
+  appliedAt: Date;
+  /** JSON patch merged into `metadata` (actor, action, before/after state). */
+  metadataPatch: Record<string, unknown>;
 }
 
 /**
@@ -186,6 +203,7 @@ export class AttributeFindingRepository {
     const statuses = normalizeList(query.status);
     const issueTypes = normalizeList(query.issueType);
     const issueCategories = normalizeList(query.issueCategory);
+    const applicationResults = normalizeList(query.applicationResult);
     const term = query.search?.trim();
 
     const conditions = [
@@ -197,6 +215,14 @@ export class AttributeFindingRepository {
         : undefined,
       issueCategories.length > 0
         ? inArray(attributeIntelligenceFindings.issueCategory, issueCategories)
+        : undefined,
+      // Application state composes with every other filter rather than replacing
+      // one, so `status=ACCEPTED&applicationResult=NOT_APPLIED` is a real query.
+      applicationResults.length > 0
+        ? inArray(
+            attributeIntelligenceFindings.applicationResult,
+            applicationResults,
+          )
         : undefined,
       query.confidenceLevel
         ? eq(
@@ -277,17 +303,40 @@ export class AttributeFindingRepository {
   }
 
   /**
+   * The filters a TAB COUNT ignores.
+   *
+   * `status`, `issueType` and `applicationResult` are the three dimensions the
+   * queue exposes as navigation (status selector, family tabs, worklist selector).
+   * A count that enumerates one of them must ignore all three, or picking any
+   * option changes the numbers used to choose between options — which is exactly
+   * the bug Pass 3 fixed when `countByIssueType` stopped honouring `status`, and
+   * which Pass 5 would have reintroduced by adding a fourth tab dimension without
+   * extending the rule.
+   *
+   * The scoping filters — category, source, confidence, search, subject ids — are
+   * NOT ignored: they narrow which findings are under discussion, so every count
+   * should describe the narrowed set.
+   */
+  private static readonly TAB_DIMENSIONS = {
+    status: undefined,
+    issueType: undefined,
+    applicationResult: undefined,
+  } as const;
+
+  /**
    * Counts findings grouped by lifecycle status.
    *
-   * Deliberately ignores the query's own status filter, so queue tabs can show
-   * true totals ("3 pending, 12 accepted") while the list shows one status at a
-   * time. Every other filter still applies.
+   * Ignores the tab dimensions (see {@link TAB_DIMENSIONS}), so queue tabs can show
+   * true totals while the list shows one status at a time.
    */
   async countByStatus(
     query: AttributeFindingListQuery,
     client: DbExecutor = this.client,
   ): Promise<Record<string, number>> {
-    const conditions = this.buildConditions({ ...query, status: undefined });
+    const conditions = this.buildConditions({
+      ...query,
+      ...AttributeFindingRepository.TAB_DIMENSIONS,
+    });
     const rows = await client
       .select({
         status: attributeIntelligenceFindings.status,
@@ -305,14 +354,16 @@ export class AttributeFindingRepository {
   /**
    * Counts findings grouped by issue category, for queue tab counts.
    *
-   * Ignores the status filter for the same reason {@link countByStatus} does: the
-   * summary describes the filtered slice, not the current page or tab.
+   * Ignores the tab dimensions for the same reason {@link countByStatus} does.
    */
   async countByIssueCategory(
     query: AttributeFindingListQuery,
     client: DbExecutor = this.client,
   ): Promise<Record<string, number>> {
-    const conditions = this.buildConditions({ ...query, status: undefined });
+    const conditions = this.buildConditions({
+      ...query,
+      ...AttributeFindingRepository.TAB_DIMENSIONS,
+    });
     const rows = await client
       .select({
         issueCategory: attributeIntelligenceFindings.issueCategory,
@@ -330,10 +381,9 @@ export class AttributeFindingRepository {
   /**
    * Counts findings grouped by issue family, for the queue's family tabs.
    *
-   * Ignores both the status and the issue-type filters, for the same reason
-   * {@link countByStatus} ignores the status filter: a tab count describes how many
-   * findings exist in each family, not how many match the family or status
-   * currently selected.
+   * Ignores the tab dimensions for the same reason {@link countByStatus} does: a
+   * tab count describes how many findings exist in each family, not how many match
+   * the family, status or worklist currently selected.
    */
   async countByIssueType(
     query: AttributeFindingListQuery,
@@ -341,8 +391,7 @@ export class AttributeFindingRepository {
   ): Promise<Record<string, number>> {
     const conditions = this.buildConditions({
       ...query,
-      issueType: undefined,
-      status: undefined,
+      ...AttributeFindingRepository.TAB_DIMENSIONS,
     });
     const rows = await client
       .select({
@@ -356,6 +405,146 @@ export class AttributeFindingRepository {
     return Object.fromEntries(
       rows.map((row) => [row.issueType, Number(row.value)]),
     );
+  }
+
+  /**
+   * Counts findings grouped by application state, for the queue's worklists.
+   *
+   * Ignores the tab dimensions, including the dimension it groups by: the numbers
+   * exist so a reviewer can choose a worklist, which they cannot do if the numbers
+   * change the moment they choose one.
+   */
+  async countByApplicationResult(
+    query: AttributeFindingListQuery,
+    client: DbExecutor = this.client,
+  ): Promise<Record<string, number>> {
+    const conditions = this.buildConditions({
+      ...query,
+      ...AttributeFindingRepository.TAB_DIMENSIONS,
+    });
+    const rows = await client
+      .select({
+        applicationResult: attributeIntelligenceFindings.applicationResult,
+        value: count(),
+      })
+      .from(attributeIntelligenceFindings)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(attributeIntelligenceFindings.applicationResult);
+
+    return Object.fromEntries(
+      rows.map((row) => [row.applicationResult, Number(row.value)]),
+    );
+  }
+
+  /**
+   * Counts findings that are approved and still unapplied.
+   *
+   * The intersection of two dimensions, so it cannot be derived from the status
+   * counts or the application counts. Ignores the tab dimensions like every other
+   * tab count, so it is a stable description of how much work is waiting rather
+   * than of the current selection — and so it always equals the number of rows the
+   * matching filter (`status=ACCEPTED&applicationResult=NOT_APPLIED`) returns.
+   */
+  async countReadyToApply(
+    query: AttributeFindingListQuery,
+    client: DbExecutor = this.client,
+  ): Promise<number> {
+    const conditions = this.buildConditions({
+      ...query,
+      ...AttributeFindingRepository.TAB_DIMENSIONS,
+    });
+    const rows = await client
+      .select({ value: count() })
+      .from(attributeIntelligenceFindings)
+      .where(
+        and(
+          ...conditions,
+          eq(attributeIntelligenceFindings.status, 'ACCEPTED'),
+          eq(attributeIntelligenceFindings.applicationResult, 'NOT_APPLIED'),
+        ),
+      );
+
+    return Number(rows[0]?.value ?? 0);
+  }
+
+  /**
+   * Records that the finding's suggestion was applied to the attribute library.
+   *
+   * The `WHERE` clause is the whole point of this method: the update only matches a
+   * row that is still `ACCEPTED` and still unapplied, so the database itself
+   * guarantees that a finding can be applied at most once and never while it is
+   * pending, rejected, dismissed or stale. Two concurrent applies cannot both win,
+   * because the second one's UPDATE matches no row.
+   *
+   * Returns the updated row, or `null` when the guard did not match — which the
+   * caller reports as a conflict rather than as a success it cannot prove.
+   */
+  async markApplied(
+    update: AttributeFindingApplyUpdate,
+    client: DbExecutor = this.client,
+  ): Promise<AttributeIntelligenceFinding | null> {
+    const metadataPatch = JSON.stringify(update.metadataPatch);
+    const rows = await client
+      .update(attributeIntelligenceFindings)
+      .set({
+        applicationResult: 'APPLIED',
+        updatedAt: update.appliedAt,
+        metadata: sql`coalesce(${attributeIntelligenceFindings.metadata}, '{}'::jsonb) || ${metadataPatch}::jsonb`,
+      })
+      .where(
+        and(
+          eq(attributeIntelligenceFindings.id, update.id),
+          eq(attributeIntelligenceFindings.status, 'ACCEPTED'),
+          eq(attributeIntelligenceFindings.applicationResult, 'NOT_APPLIED'),
+        ),
+      )
+      .returning();
+
+    return rows[0] ?? null;
+  }
+
+  /**
+   * Marks a finding STALE as the consequence of a refused application.
+   *
+   * Distinct from {@link markStale}, which the review workflow uses and which only
+   * touches PENDING rows so a terminal decision is never overwritten. The apply path
+   * needs the opposite: an ACCEPTED finding whose expected state no longer holds must
+   * become STALE, or it would stay applicable forever and keep reporting a condition
+   * that is no longer true. The guard is therefore `NOT_APPLIED` — an applied finding
+   * describes a change that already happened and may never be aged back out — and the
+   * `status IN ('PENDING','ACCEPTED')` predicate keeps the transition monotonic
+   * towards STALE without ever overwriting a rejection or a dismissal.
+   *
+   * Returns `null` when no row matched.
+   */
+  async markStaleForApplication(
+    update: { id: string; reason: string; staledAt: Date },
+    client: DbExecutor = this.client,
+  ): Promise<AttributeIntelligenceFinding | null> {
+    const stalePatch = JSON.stringify({
+      staleReason: update.reason,
+      staledAt: update.staledAt.toISOString(),
+    });
+    const rows = await client
+      .update(attributeIntelligenceFindings)
+      .set({
+        status: 'STALE',
+        updatedAt: update.staledAt,
+        metadata: sql`coalesce(${attributeIntelligenceFindings.metadata}, '{}'::jsonb) || ${stalePatch}::jsonb`,
+      })
+      .where(
+        and(
+          eq(attributeIntelligenceFindings.id, update.id),
+          eq(attributeIntelligenceFindings.applicationResult, 'NOT_APPLIED'),
+          inArray(attributeIntelligenceFindings.status, [
+            'PENDING',
+            'ACCEPTED',
+          ]),
+        ),
+      )
+      .returning();
+
+    return rows[0] ?? null;
   }
 
   /**
@@ -413,6 +602,9 @@ export class AttributeFindingRepository {
     const excluded = (update.excludeSources ?? []).filter((source) =>
       Boolean(source),
     );
+    const issueTypes = Array.from(
+      new Set((update.issueTypes ?? []).filter((value) => Boolean(value))),
+    );
 
     const conditions = [
       ids.length > 0
@@ -426,6 +618,9 @@ export class AttributeFindingRepository {
         : undefined,
       update.categoryId
         ? eq(attributeIntelligenceFindings.categoryId, update.categoryId)
+        : undefined,
+      issueTypes.length > 0
+        ? inArray(attributeIntelligenceFindings.issueType, issueTypes)
         : undefined,
       excluded.length > 0
         ? notInArray(attributeIntelligenceFindings.source, excluded)

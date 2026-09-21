@@ -1076,7 +1076,13 @@ export class MlService {
         status: string;
         reviewerNotes?: string;
         reviewedAt?: string;
-        reviewerEmail?: string;
+        /**
+         * Reviewer email, or `null` when no identity was supplied.
+         *
+         * `null` is representable because the honest record of "we do not know who
+         * reviewed this" is an absent reviewer, not a fabricated one.
+         */
+        reviewerEmail?: string | null;
       }>;
       if (!Array.isArray(items)) {
         return { success: false, message: 'Invalid quarantine file' };
@@ -1095,7 +1101,13 @@ export class MlService {
       }
       target.status = dto.status;
       target.reviewedAt = new Date().toISOString();
-      target.reviewerEmail = user?.email || 'admin@ananya.internal';
+      // The reviewer is the authenticated principal. This previously fell back to
+      // the literal string `admin@ananya.internal`, which fabricated a reviewer for
+      // an anonymous caller — the route is now guarded (`Inventory.Update`), so an
+      // absent identity means something is wrong with the guard wiring rather than
+      // a legitimate anonymous review. Recording `null` is honest; inventing an
+      // administrator is not.
+      target.reviewerEmail = user?.email ?? null;
       if (dto.reviewerNotes) target.reviewerNotes = dto.reviewerNotes;
 
       const rec = target.record;

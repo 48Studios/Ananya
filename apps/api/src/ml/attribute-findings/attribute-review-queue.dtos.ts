@@ -17,6 +17,7 @@ import {
   ATTRIBUTE_REVIEW_SORT_FIELDS,
   CONFIDENCE_LEVELS,
   MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
+  type AttributeApplicationResult,
   type AttributeFindingDto,
 } from './attribute-finding.dtos';
 
@@ -53,6 +54,19 @@ export class ListAttributeFindingsQueryDto {
   @IsString()
   @MaxLength(400)
   issueCategory?: string;
+
+  /**
+   * Application dimension: `NOT_APPLIED`, `APPLIED`, or both comma-separated.
+   *
+   * Validated at the transport layer as well as in the service, so an arbitrary
+   * value is a 400 rather than a silently ignored filter that returns the whole
+   * queue. `ACCEPTED` + `NOT_APPLIED` is the ready-to-apply worklist; `APPLIED`
+   * alone is the applied history.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  applicationResult?: string;
 
   @IsOptional()
   @IsIn([...CONFIDENCE_LEVELS])
@@ -170,6 +184,21 @@ export interface AttributeReviewQueueCounts {
   byCategory: Record<string, number>;
   /** Counts per issue type, for the queue's family tabs. */
   byIssueType: Record<string, number>;
+  /**
+   * Counts per application state, for the queue's worklist selector.
+   *
+   * Always carries both keys, so a client can read `APPLIED`/`NOT_APPLIED`
+   * without defaulting. Read from persisted rows and independent of the page.
+   */
+  applicationResults: Record<AttributeApplicationResult, number>;
+  /**
+   * How many findings are approved and still unapplied.
+   *
+   * The ready-to-apply worklist's size. Its own number rather than something a
+   * client derives, because it is the intersection of the status and application
+   * dimensions and neither count alone expresses it.
+   */
+  readyToApply: number;
 }
 
 export interface AttributeReviewQueuePageDto {

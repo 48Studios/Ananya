@@ -14,6 +14,11 @@ import {
 } from '../../auth/attribute-permissions';
 import type { AuthenticatedRequest } from '../../auth/permission.guard';
 import { AttributeReviewQueueService } from './attribute-review-queue.service';
+import { AttributeReviewApplyService } from './attribute-review-apply.service';
+import {
+  ApplyAttributeFindingDto,
+  type ApplyAttributeFindingResult,
+} from './attribute-review-apply.dtos';
 import {
   ListAttributeFindingsQueryDto,
   MarkAttributeFindingsStaleDto,
@@ -43,12 +48,17 @@ import type { AttributeFindingDto } from './attribute-finding.dtos';
  * validation pipe rejects unknown properties, so a body cannot assert an
  * identity.
  *
- * Nothing here mutates attribute data. `ACCEPTED` records that a human approved a
- * finding; applying a finding is a later pass.
+ * Nothing here mutates attribute data except the apply route, which requires an
+ * explicit action, an `ACCEPTED` finding and `Inventory.Update`. Accepting a finding
+ * still records a decision only: the queue cannot mutate the library as a side
+ * effect of a review.
  */
 @Controller('ml/attributes/review-queue')
 export class AttributeReviewQueueController {
-  constructor(private readonly reviewQueue: AttributeReviewQueueService) {}
+  constructor(
+    private readonly reviewQueue: AttributeReviewQueueService,
+    private readonly applyService: AttributeReviewApplyService,
+  ) {}
 
   /**
    * Reads a page of persisted findings.
@@ -66,6 +76,9 @@ export class AttributeReviewQueueController {
       status: query.status,
       issueType: query.issueType,
       issueCategory: query.issueCategory,
+      // Application state, so `status=ACCEPTED&applicationResult=NOT_APPLIED` is
+      // expressible over HTTP: the ready-to-apply worklist.
+      applicationResult: query.applicationResult,
       confidenceLevel: query.confidenceLevel,
       attributeDefinitionId: query.attributeDefinitionId,
       categoryId: query.categoryId,
@@ -143,5 +156,30 @@ export class AttributeReviewQueueController {
       },
       req.user,
     );
+  }
+
+  /**
+   * Applies an accepted finding to the attribute library.
+   *
+   * The ONLY route in the attribute-intelligence pipeline that mutates authoritative
+   * data, and it mutates exactly one thing: the category/attribute binding the
+   * finding identifies. `MISSING_EXPECTED_ATTRIBUTE` adds a binding for an existing
+   * definition; `SUSPICIOUS_BINDING` removes an existing one. Nothing is created
+   * except that binding — no attribute, option or component value.
+   *
+   * The request must name its action and prove the revision it reviewed, and the
+   * server re-verifies the finding's expected state against live rows inside the
+   * transaction, so a stale finding is refused rather than applied to newer state.
+   * Reviewer identity comes from the authenticated principal. A second apply of the
+   * same finding is refused: a finding is applied at most once.
+   */
+  @Post(':id/apply')
+  @UseGuards(AttributeWriteGuard)
+  applyFinding(
+    @Param('id') id: string,
+    @Body() dto: ApplyAttributeFindingDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<ApplyAttributeFindingResult> {
+    return this.applyService.applyFinding(id, dto, req.user);
   }
 }

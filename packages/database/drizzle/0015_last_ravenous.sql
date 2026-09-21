@@ -1,0 +1,2 @@
+ALTER TABLE "attribute_intelligence_findings" ADD COLUMN "application_result" varchar(32) DEFAULT 'NOT_APPLIED' NOT NULL;--> statement-breakpoint
+CREATE INDEX "attribute_intel_findings_application_result_idx" ON "attribute_intelligence_findings" USING btree ("application_result","status");

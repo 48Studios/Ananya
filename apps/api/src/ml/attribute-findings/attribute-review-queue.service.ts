@@ -91,6 +91,11 @@ export class AttributeReviewQueueService {
       stale: page.summary.stale,
       byCategory: page.summary.byCategory,
       byIssueType,
+      applicationResults: {
+        NOT_APPLIED: page.summary.applicationResults.NOT_APPLIED ?? 0,
+        APPLIED: page.summary.applicationResults.APPLIED ?? 0,
+      },
+      readyToApply: page.summary.readyToApply,
     };
 
     return {

@@ -863,6 +863,43 @@ describe('Attribute finding expected state and staleness', () => {
         }),
       ).toMatch(/category no longer exists/);
     });
+
+    it('is stale when the bound attribute changed since it was analysed', () => {
+      // The finding's evidence is the attribute as analysed, so a deactivation or
+      // rename means removing the binding would act on stale ground — the apply path
+      // refuses rather than removing a binding it can no longer justify.
+      const deactivated = { ...attribute, isActive: false };
+      expect(
+        describeAttributeFindingStaleness({
+          issueType: 'SUSPICIOUS_BINDING',
+          expectedState,
+          live: live({ attributes: new Map([[attribute.id, deactivated]]) }),
+        }),
+      ).toMatch(/changed since it was analysed/);
+
+      const renamed = { ...attribute, name: 'Renamed After Analysis' };
+      expect(
+        describeAttributeFindingStaleness({
+          issueType: 'SUSPICIOUS_BINDING',
+          expectedState,
+          live: live({ attributes: new Map([[attribute.id, renamed]]) }),
+        }),
+      ).toMatch(/changed since it was analysed/);
+    });
+
+    it('is not stale for a binding that was already anomalous when analysed', () => {
+      // The detector never analyses inactive attributes into a binding finding, so
+      // this guards the other direction: a snapshot that already records the current
+      // values must not be reported as drift.
+      const sameAttribute = { ...attribute };
+      expect(
+        describeAttributeFindingStaleness({
+          issueType: 'SUSPICIOUS_BINDING',
+          expectedState,
+          live: live({ attributes: new Map([[attribute.id, sameAttribute]]) }),
+        }),
+      ).toBeNull();
+    });
   });
 
   describe('expected attribute staleness', () => {

@@ -16,6 +16,7 @@ import {
   mapDecisionToFeedbackAction,
 } from '../intelligence-findings';
 import {
+  ATTRIBUTE_APPLICATION_RESULTS,
   ATTRIBUTE_REVIEW_ISSUE_CATEGORIES,
   MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
   resolveAttributeIssueCategory,
@@ -26,6 +27,7 @@ import {
   type AttributeFindingQueueSummary,
   type AttributeFindingReviewer,
   type AttributeFindingSubject,
+  type AttributeApplicationResult,
   type AttributeReviewIssueCategory,
   type AttributeReviewStatus,
   type ConfidenceLevel,
@@ -223,9 +225,85 @@ export class AttributeIntelligenceFindingsService {
   }
 
   /**
-   * Reads one finding. `notFound` is a 404 rather than an empty result so callers
-   * cannot confuse "no such finding" with "no findings".
+   * Reads one finding, taking a row lock, inside a caller's transaction.
+   *
+   * The lock is what serialises two applies of the same finding: the second waits
+   * for the first to commit and then observes `APPLIED`, so it refuses instead of
+   * performing the mutation a second time. Returns `null` when the row is gone,
+   * which the caller reports as a conflict rather than as a silent no-op.
    */
+  async getFindingForUpdate(
+    id: string,
+    executor: DbExecutor = db,
+  ): Promise<AttributeFindingDto | null> {
+    const row = await this.repository.findByIdForUpdate(id, executor);
+    return row ? toFindingDto(row) : null;
+  }
+
+  /**
+   * Checks a finding's expected state against live ERP rows.
+   *
+   * Public and executor-aware because two callers need it: the decision path, and
+   * the apply path — which must run the check on its own transaction's snapshot, or
+   * it would validate against committed state while mutating inside a transaction.
+   *
+   * Returns a human-readable reason when the expected state no longer holds, and
+   * `null` when it does (or when the finding has no state to compare).
+   */
+  describeFindingStaleness(
+    finding: StalenessSubject,
+    executor: DbExecutor = db,
+  ): Promise<string | null> {
+    return this.detectExpectedStateStaleness(finding, executor);
+  }
+
+  /**
+   * Records that a finding's suggestion was applied, guarded on ACCEPTED +
+   * unapplied.
+   *
+   * Returns `null` when the guard did not match — a concurrent apply, a finding
+   * that was not accepted, or one already applied. The caller decides which
+   * conflict to report; this method never assumes success.
+   */
+  async markFindingApplied(
+    id: string,
+    input: { appliedAt: Date; metadataPatch: Record<string, unknown> },
+    executor: DbExecutor = db,
+  ): Promise<AttributeFindingDto | null> {
+    const row = await this.repository.markApplied(
+      { id, appliedAt: input.appliedAt, metadataPatch: input.metadataPatch },
+      executor,
+    );
+    return row ? toFindingDto(row) : null;
+  }
+
+  /**
+   * Marks one finding STALE inside the caller's transaction, as the consequence of
+   * a refused application.
+   *
+   * Needed by the apply path, which must COMMIT the stale transition before it
+   * raises its conflict: calling the ordinary {@link markFindingsStale} there would
+   * use the root client and block on the row lock this transaction already holds.
+   *
+   * Deliberately NOT the ordinary method's PENDING-only scope. An ACCEPTED finding
+   * whose expected state no longer holds has to become STALE, otherwise it stays
+   * applicable forever and keeps asserting a condition that is no longer true. The
+   * guard is `NOT_APPLIED`, so the transition can never age out a finding that
+   * already records a completed mutation, and it can never overwrite a rejection or
+   * a dismissal.
+   */
+  async markFindingStaleInTransaction(
+    id: string,
+    reason: string,
+    executor: DbExecutor = db,
+  ): Promise<boolean> {
+    const row = await this.repository.markStaleForApplication(
+      { id, reason, staledAt: new Date() },
+      executor,
+    );
+    return row !== null;
+  }
+
   async getFinding(id: string): Promise<AttributeFindingDto> {
     const row = await this.repository.findById(id);
     if (!row) {
@@ -257,10 +335,18 @@ export class AttributeIntelligenceFindingsService {
   ): Promise<AttributeFindingQueuePage> {
     const normalized = this.normalizeQuery(query);
 
-    const [{ rows, total }, statusCounts, categoryCounts] = await Promise.all([
+    const [
+      { rows, total },
+      statusCounts,
+      categoryCounts,
+      applicationResultCounts,
+      readyToApply,
+    ] = await Promise.all([
       this.repository.list(normalized),
       this.repository.countByStatus(normalized),
       this.repository.countByIssueCategory(normalized),
+      this.repository.countByApplicationResult(normalized),
+      this.repository.countReadyToApply(normalized),
     ]);
 
     const summary: AttributeFindingQueueSummary = {
@@ -271,6 +357,13 @@ export class AttributeIntelligenceFindingsService {
       dismissed: statusCounts.DISMISSED ?? 0,
       stale: statusCounts.STALE ?? 0,
       byCategory: categoryCounts,
+      // Both application dimensions default to zero rather than being absent, so a
+      // client never has to distinguish "no findings" from "no such key".
+      applicationResults: {
+        NOT_APPLIED: applicationResultCounts.NOT_APPLIED ?? 0,
+        APPLIED: applicationResultCounts.APPLIED ?? 0,
+      },
+      readyToApply,
     };
 
     return {
@@ -450,6 +543,7 @@ export class AttributeIntelligenceFindingsService {
       ids,
       attributeDefinitionId: input.attributeDefinitionId,
       categoryId: input.categoryId,
+      issueTypes: input.issueTypes,
       excludeSources: input.excludeSources,
       reason: input.reason,
       staledAt: new Date(),
@@ -562,11 +656,28 @@ export class AttributeIntelligenceFindingsService {
       );
     }
 
+    // Rejected here as well as at the HTTP boundary: the controller's DTO catches a
+    // malformed query, and this catches a direct service caller, so neither path can
+    // silently ignore a filter it did not understand and return the whole queue as if
+    // the filter had matched everything.
+    const applicationResults = toStringList(query.applicationResult);
+    const unknownApplicationResults = applicationResults.filter(
+      (value) =>
+        !(ATTRIBUTE_APPLICATION_RESULTS as readonly string[]).includes(value),
+    );
+    if (unknownApplicationResults.length > 0) {
+      throw new BadRequestException(
+        `Unknown attribute application result: ${unknownApplicationResults.join(', ')}. Expected one of: ${ATTRIBUTE_APPLICATION_RESULTS.join(', ')}.`,
+      );
+    }
+
     return {
       ...query,
       status: statuses.length > 0 ? statuses : undefined,
       issueType: toStringList(query.issueType),
       issueCategory: issueCategories.length > 0 ? issueCategories : undefined,
+      applicationResult:
+        applicationResults.length > 0 ? applicationResults : undefined,
     };
   }
 
@@ -625,7 +736,8 @@ export class AttributeIntelligenceFindingsService {
    * contradiction.
    */
   private async detectExpectedStateStaleness(
-    finding: AttributeIntelligenceFinding,
+    finding: StalenessSubject,
+    executor: DbExecutor = db,
   ): Promise<string | null> {
     const expectedState =
       readSnapshotObject(finding.metadata, 'expectedState') ??
@@ -642,11 +754,14 @@ export class AttributeIntelligenceFindingsService {
     );
     const expectedAttributeCode = readExpectedAttributeCode(expectedState);
 
-    const live = await readAttributeFindingLiveState({
-      attributeDefinitionIds,
-      categoryIds,
-      attributeCodes: expectedAttributeCode ? [expectedAttributeCode] : [],
-    });
+    const live = await readAttributeFindingLiveState(
+      {
+        attributeDefinitionIds,
+        categoryIds,
+        attributeCodes: expectedAttributeCode ? [expectedAttributeCode] : [],
+      },
+      executor,
+    );
 
     return describeAttributeFindingStaleness({
       issueType: finding.issueType,
@@ -654,6 +769,22 @@ export class AttributeIntelligenceFindingsService {
       live,
     });
   }
+}
+
+/**
+ * The fields the staleness rules read.
+ *
+ * Structural rather than a concrete type so both the persisted row and the public
+ * DTO can be checked without the service having to expose its row shape — the two
+ * differ only in types the rules never touch.
+ */
+export interface StalenessSubject {
+  issueType: string;
+  attributeDefinitionId: string | null;
+  relatedAttributeDefinitionId: string | null;
+  categoryId: string | null;
+  metadata: Record<string, unknown> | null;
+  currentValue: Record<string, unknown> | null;
 }
 
 /** Reads the canonical code an expectation names, for the live-state lookup. */
@@ -768,6 +899,7 @@ export function toFindingDto(
     intelligenceVersion: row.intelligenceVersion ?? null,
     fingerprint: row.fingerprint,
     status: row.status as AttributeReviewStatus,
+    applicationResult: row.applicationResult as AttributeApplicationResult,
     reviewerId: row.reviewerId ?? null,
     reviewerEmail: row.reviewerEmail ?? null,
     reviewedAt: row.reviewedAt ? row.reviewedAt.toISOString() : null,

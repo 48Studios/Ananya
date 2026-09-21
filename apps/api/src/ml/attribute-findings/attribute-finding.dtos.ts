@@ -52,6 +52,21 @@ export const CONFIDENCE_LEVELS = ['HIGH', 'MEDIUM', 'LOW'] as const;
 export type ConfidenceLevel = (typeof CONFIDENCE_LEVELS)[number];
 
 /**
+ * Whether a reviewed finding has been applied to the authoritative library.
+ *
+ * Kept separate from the review status because accepting and applying are
+ * different acts: acceptance is a human decision, application is a mutation. The
+ * two are recorded together only in the sense that `APPLIED` requires `ACCEPTED`.
+ */
+export const ATTRIBUTE_APPLICATION_RESULTS = [
+  'NOT_APPLIED',
+  'APPLIED',
+] as const;
+
+export type AttributeApplicationResult =
+  (typeof ATTRIBUTE_APPLICATION_RESULTS)[number];
+
+/**
  * Issue categories describe the kind of attribute-library problem a finding
  * represents. `ATTRIBUTE_QUALITY` is intentionally empty until a rule needs it,
  * the same way the component queue reserves `DATA_QUALITY`.
@@ -404,6 +419,14 @@ export interface AttributeFindingListQuery {
   status?: string | string[];
   issueType?: string | string[];
   issueCategory?: string | string[];
+  /**
+   * Application dimension, as a comma-separated string or array.
+   *
+   * A finding's review status and its application state are independent, so this
+   * composes with `status` rather than replacing it: `ACCEPTED` + `NOT_APPLIED` is
+   * the ready-to-apply worklist, `APPLIED` alone is the history list.
+   */
+  applicationResult?: string | string[];
   confidenceLevel?: ConfidenceLevel;
   attributeDefinitionId?: string;
   categoryId?: string;
@@ -434,6 +457,12 @@ export interface MarkAttributeFindingsStaleInput {
   ids?: string[];
   attributeDefinitionId?: string;
   categoryId?: string;
+  /**
+   * Restrict to these issue families. A binding mutation invalidates the binding
+   * family and nothing else: duplicate and unused findings do not describe the
+   * binding set, so staling them would be untruthful noise.
+   */
+  issueTypes?: string[];
   reason?: string;
   /**
    * Producers to leave untouched, so a change that invalidates one producer's
@@ -507,6 +536,14 @@ export interface AttributeFindingDto {
   intelligenceVersion: string | null;
   fingerprint: string;
   status: AttributeReviewStatus;
+  /**
+   * Whether the reviewed suggestion has been applied to the attribute library.
+   *
+   * Distinct from `status`: `ACCEPTED` + `NOT_APPLIED` means a human approved the
+   * finding but no mutation has happened yet. `APPLIED` is only ever set by the
+   * apply path, inside the transaction that performs the mutation.
+   */
+  applicationResult: AttributeApplicationResult;
   reviewerId: string | null;
   reviewerEmail: string | null;
   reviewedAt: string | null;
@@ -524,6 +561,25 @@ export interface AttributeFindingQueueSummary {
   dismissed: number;
   stale: number;
   byCategory: Record<string, number>;
+  /**
+   * Counts per application state, for the queue's worklist selector.
+   *
+   * Follows the tab-count convention established for `byCategory`/`byIssueType`:
+   * the count describes the whole filtered slice, so it ignores the
+   * `applicationResult` filter itself. A selector whose own count moved when you
+   * selected it would be useless for choosing between its options.
+   */
+  applicationResults: Record<string, number>;
+  /**
+   * Size of the ready-to-apply worklist: `ACCEPTED` and `NOT_APPLIED`.
+   *
+   * Exposed as its own number rather than left to the client to compute, because
+   * it is the intersection of two dimensions and neither the status counts nor the
+   * application counts can express it. Like every other tab count it ignores the
+   * status and application filters, so it is a stable description of how much work
+   * is waiting rather than of the current selection.
+   */
+  readyToApply: number;
 }
 
 export interface AttributeFindingQueuePage {

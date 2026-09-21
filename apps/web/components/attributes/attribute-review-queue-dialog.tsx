@@ -6,6 +6,7 @@ import {
   FolderTree,
   Copy,
   ListOrdered,
+  AlertTriangle,
   HelpCircle,
   Check,
   X,
@@ -43,8 +44,17 @@ import { useAuth } from "@/lib/auth/auth-context";
 import {
   ATTRIBUTE_DECISION_COPY,
   ATTRIBUTE_QUEUE_TABS,
+  ATTRIBUTE_WORKLISTS,
   ATTRIBUTE_WRITE_PERMISSION,
   attributeAcceptNotice,
+  attributeApplyAction,
+  attributeApplyConfirmation,
+  attributeApplyConflictMessage,
+  attributeApplyLabel,
+  attributeApplySuccessMessage,
+  attributeApplyUnavailableReason,
+  attributeAppliedSummary,
+  attributeApplicationLabel,
   attributeAuditConflictMessage,
   attributeAuditUnavailableReason,
   attributeDecisionConflictMessage,
@@ -52,23 +62,32 @@ import {
   attributeReviewReadOnlyNotice,
   attributeStatusBadge,
   attributeStatusLabel,
+  attributeWorklistEmptyMessage,
   buildAttributeTabCounts,
+  buildAttributeWorklistCounts,
+  canApplyAttributeFinding,
   canDecideAttributeFinding,
   confidenceBadgeStatus,
   deriveAttributeReviewPermissions,
   findingHeadline,
   findingMatchesTab,
+  isAttributeFindingApplied,
   isExpectationForUndefinedAttribute,
   producerUsageEvidence,
+  statusFilterAfterApply,
   suggestedCanonicalCode,
   summarizeAttributeAudit,
   tabIssueTypeFilter,
+  worklistFilter,
   type AttributeQueueTabId,
+  type AttributeWorklistId,
 } from "@/lib/attribute-review-queue";
 import {
   attributeReviewQueueApi,
+  buildAttributeApplyPayload,
   buildAttributeDecisionPayload,
   DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE,
+  type AttributeApplyAction,
   type AttributeReviewDecision,
   type AttributeReviewFindingDto,
   type AttributeReviewQueuePageDto,
@@ -147,6 +166,16 @@ export function AttributeReviewQueueDialog({
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
 
   const [tab, setTab] = React.useState<AttributeQueueTabId>("ALL");
+  /**
+   * The application worklist.
+   *
+   * Defaults to `READY_TO_APPLY` rather than `ALL`, because the queue is a work
+   * list: the reviewer opens it to see what needs doing, and an approved finding
+   * that has not been carried out is the one thing that is actually waiting. The
+   * counts still show every worklist's true size, so nothing is hidden.
+   */
+  const [worklist, setWorklist] =
+    React.useState<AttributeWorklistId>("READY_TO_APPLY");
   const [statusFilter, setStatusFilter] = React.useState<string>("PENDING");
   const [confidenceFilter, setConfidenceFilter] =
     React.useState(ALL_FILTER_VALUE);
@@ -160,6 +189,20 @@ export function AttributeReviewQueueDialog({
   const [actionInProgress, setActionInProgress] = React.useState<
     Record<string, boolean>
   >({});
+
+  /**
+   * The finding awaiting apply confirmation, if any.
+   *
+   * Applying is the one path in this dialog that changes the attribute library, so
+   * it is always a two-step act: choose the action, then confirm it. Holding the
+   * pending finding (rather than a boolean) means the confirmation is rendered from
+   * the same finding the reviewer saw.
+   */
+  const [pendingApply, setPendingApply] = React.useState<{
+    finding: AttributeReviewFindingDto;
+    action: AttributeApplyAction;
+  } | null>(null);
+  const [applying, setApplying] = React.useState(false);
 
   /**
    * Loads one page of persisted findings.
@@ -178,6 +221,10 @@ export function AttributeReviewQueueDialog({
             ? statusFilter
             : undefined,
         issueType: tabIssueTypeFilter(tab),
+        // The worklist's own filter wins over the status selector when it pins one,
+        // so "Ready to Apply" means exactly `ACCEPTED + NOT_APPLIED` regardless of
+        // what the status dropdown happens to say.
+        ...worklistFilter(worklist),
         confidenceLevel:
           confidenceFilter && confidenceFilter !== ALL_FILTER_VALUE
             ? (confidenceFilter as "HIGH" | "MEDIUM" | "LOW")
@@ -199,7 +246,7 @@ export function AttributeReviewQueueDialog({
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, confidenceFilter, search, tab, pageNumber]);
+  }, [statusFilter, confidenceFilter, search, tab, worklist, pageNumber]);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -222,12 +269,17 @@ export function AttributeReviewQueueDialog({
     () => buildAttributeTabCounts(page?.counts ?? null),
     [page?.counts],
   );
+  const worklistCounts = React.useMemo(
+    () => buildAttributeWorklistCounts(page?.counts ?? null),
+    [page?.counts],
+  );
   const totalPages = page?.totalPages ?? 1;
 
   const filtersActive = Boolean(
     search.trim() ||
       (confidenceFilter && confidenceFilter !== ALL_FILTER_VALUE) ||
       (statusFilter && statusFilter !== "PENDING") ||
+      worklist !== "READY_TO_APPLY" ||
       tab !== "ALL",
   );
 
@@ -235,12 +287,18 @@ export function AttributeReviewQueueDialog({
     setStatusFilter("PENDING");
     setConfidenceFilter(ALL_FILTER_VALUE);
     setSearchInput("");
+    setWorklist("READY_TO_APPLY");
     setTab("ALL");
     setPageNumber(1);
   };
 
   const selectTab = (nextTab: AttributeQueueTabId) => {
     setTab(nextTab);
+    setPageNumber(1);
+  };
+
+  const selectWorklist = (next: AttributeWorklistId) => {
+    setWorklist(next);
     setPageNumber(1);
   };
 
@@ -332,7 +390,75 @@ export function AttributeReviewQueueDialog({
     }
   };
 
+  /**
+   * Applies an accepted finding to the attribute library.
+   *
+   * The only mutation this dialog can perform, and it is deliberately explicit:
+   * accepting records the review decision, applying changes the library. The
+   * backend re-checks the finding's expected state inside its transaction, so a
+   * refusal here (409) means the library moved and the finding was left untouched.
+   *
+   * On success the queue is re-read rather than patched in memory, so the row and
+   * the counts come from the database, and the view moves off the "needs review"
+   * filter because an applied finding is no longer awaiting review.
+   */
+  const confirmApply = async () => {
+    if (!pendingApply) return;
+    const { finding, action } = pendingApply;
+
+    setApplying(true);
+    setStatusMessage(null);
+    try {
+      const result = await attributeReviewQueueApi.applyFinding(
+        finding.id,
+        buildAttributeApplyPayload(finding, action),
+      );
+      setPendingApply(null);
+      setStatusMessage(attributeApplySuccessMessage(result));
+      setStatusFilter((current) => statusFilterAfterApply(current));
+      await loadQueue();
+      onActionComplete?.();
+    } catch (err) {
+      const statusCode = (err as { statusCode?: number })?.statusCode;
+      setPendingApply(null);
+      setStatusMessage(
+        (typeof statusCode === "number"
+          ? attributeApplyConflictMessage(statusCode, err)
+          : null) ??
+          (err instanceof Error
+            ? err.message
+            : "Failed to apply the finding."),
+      );
+      // A refusal means the stored finding or its target moved, so re-read instead
+      // of leaving the card offering an action that will fail again.
+      if (statusCode === 409 || statusCode === 404) {
+        await loadQueue();
+      }
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  /**
+   * Content for the pending apply confirmation.
+   *
+   * Derived from the pending finding so the confirmation names the same attribute
+   * and category the reviewer is looking at; null when nothing is pending, which
+   * is what keeps the confirmation dialog from rendering.
+   */
+  const applyConfirmation = React.useMemo(
+    () =>
+      pendingApply
+        ? attributeApplyConfirmation({
+            finding: pendingApply.finding,
+            action: pendingApply.action,
+          })
+        : null,
+    [pendingApply],
+  );
+
   return (
+    <>
     <DialogShell
       open={isOpen}
       onOpenChange={(open) => {
@@ -433,6 +559,31 @@ export function AttributeReviewQueueDialog({
               }`}
             >
               {definition.label} ({tabCounts[definition.id]})
+            </button>
+          ))}
+        </div>
+
+        {/*
+          Worklist selector.
+
+          The same control pattern as the family tabs above it rather than a second
+          filter system: one row of buttons, each carrying its own persisted count.
+          "Ready to Apply" is the work list (approved, not yet carried out) and
+          "Applied" is the history of what the intelligence actually changed.
+        */}
+        <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto pb-1">
+          {ATTRIBUTE_WORKLISTS.map((definition) => (
+            <button
+              key={definition.id}
+              type="button"
+              onClick={() => selectWorklist(definition.id)}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer shrink-0 ${
+                worklist === definition.id
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {definition.label} ({worklistCounts[definition.id]})
             </button>
           ))}
         </div>
@@ -545,6 +696,25 @@ export function AttributeReviewQueueDialog({
               const expectationWithoutDefinition =
                 isExpectationForUndefinedAttribute(finding);
 
+              /**
+               * Apply affordance.
+               *
+               * `applyAction` is null for the review-only families, which is what
+               * keeps the UI honest: a binding change is offered only where one is
+               * implemented, and no generic "Apply" is ever rendered.
+               */
+              const applyAction = attributeApplyAction(finding);
+              const applied = isAttributeFindingApplied(finding);
+              const showApplyButton =
+                applyAction !== null &&
+                canApplyAttributeFinding(finding, permissions.canApply);
+              const applyReason =
+                applyAction === null || showApplyButton || applied
+                  ? null
+                  : attributeApplyUnavailableReason(
+                      finding,
+                      permissions.canApply,
+                    );
               return (
                 <div
                   key={finding.id}
@@ -587,6 +757,28 @@ export function AttributeReviewQueueDialog({
                           ).toUpperCase()}
                         />
 
+                        {/*
+                          Application state, reported next to the review status
+                          because the two are separate facts: an ACCEPTED finding
+                          may or may not have been applied yet.
+                        */}
+                        {applied && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium">
+                            <Check className="size-3" /> APPLIED
+                          </span>
+                        )}
+
+                        {/*
+                          Says plainly that no change is offered for this family,
+                          rather than leaving the absence of an apply control to be
+                          guessed at.
+                        */}
+                        {applyAction === null && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border font-medium">
+                            REVIEW ONLY
+                          </span>
+                        )}
+
                         {finding.confidenceLevel && (
                           <StatusBadge
                             status={confidenceBadgeStatus(
@@ -621,6 +813,44 @@ export function AttributeReviewQueueDialog({
                             {finding.decisionNotes
                               ? ` — ${finding.decisionNotes}`
                               : ""}
+                          </span>
+                        </p>
+                      )}
+
+                      {/*
+                        What was applied, and when. Rendered only for applied
+                        findings; "Accepted" above plus "Applied" here is the
+                        reviewer's proof that the library changed.
+                      */}
+                      {applied && (
+                        <p className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400">
+                          <Check className="size-3 shrink-0" />
+                          <span>
+                            {attributeAppliedSummary(finding) ??
+                              "Applied to the attribute library"}
+                          </span>
+                        </p>
+                      )}
+
+                      {/*
+                        Acceptance and application as two separate facts.
+
+                        Shown together so the pair is legible at a glance —
+                        "Accepted · Not applied" is a finding waiting for someone to
+                        carry it out, "Accepted · Applied" is one that is done.
+                      */}
+                      {finding.reviewedAt && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {attributeStatusLabel(finding.status)}
+                          {" · "}
+                          <span
+                            className={
+                              applied
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : undefined
+                            }
+                          >
+                            {attributeApplicationLabel(finding)}
                           </span>
                         </p>
                       )}
@@ -707,6 +937,51 @@ export function AttributeReviewQueueDialog({
                           )}
                           Accept
                         </Button>
+                      )}
+
+                      {/*
+                        The apply control.
+
+                        Labelled with the action it performs rather than a generic
+                        "Apply", and shown only for an ACCEPTED, unapplied finding
+                        whose family has an implemented mutation. When it is hidden
+                        for a reason other than the family, that reason is in the
+                        tooltip via `applyReason` on the row's badges.
+                      */}
+                      {showApplyButton && applyAction && (
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="outline"
+                          disabled={inProgress || applying}
+                          onClick={() => setPendingApply({ finding, action: applyAction })}
+                          className="h-7 text-xs px-2.5 border-primary/40 text-primary hover:bg-primary/10 gap-1 font-medium"
+                          title={
+                            applyAction === "ADD_BINDING"
+                              ? "Apply this finding: bind the attribute to this category (changes the attribute library)"
+                              : "Apply this finding: remove this binding from the category (changes the attribute library)"
+                          }
+                        >
+                          {applying && pendingApply?.finding.id === finding.id ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : applyAction === "ADD_BINDING" ? (
+                            <FolderTree className="size-3" />
+                          ) : (
+                            <ShieldAlert className="size-3" />
+                          )}
+                          {attributeApplyLabel(applyAction)}
+                        </Button>
+                      )}
+
+                      {/*
+                        Why no apply control is available, for a user who could
+                        otherwise apply. Rendered as text so it is reachable by
+                        keyboard and screen readers, unlike a bare tooltip.
+                      */}
+                      {applyReason && (
+                        <span className="text-[10px] text-muted-foreground max-w-44 text-right leading-tight">
+                          {applyReason}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -825,7 +1100,7 @@ export function AttributeReviewQueueDialog({
               {error
                 ? "Retry the request with the refresh action above."
                 : filtersActive
-                  ? "Adjust or clear the search, status, confidence, or tab filters to see other findings."
+                  ? `${attributeWorklistEmptyMessage(worklist)} Adjust or clear the search, status, confidence, worklist, or tab filters to see other findings.`
                   : "No findings are awaiting review. Run a library audit to scan the attribute library for new findings."}
             </p>
           </div>
@@ -876,5 +1151,83 @@ export function AttributeReviewQueueDialog({
         </DialogShellCancelButton>
       </DialogShellFooter>
     </DialogShell>
+
+    {/*
+      Apply confirmation.
+
+      Structured like the workspace's ConfirmDialog, with the finding's subject
+      spelled out: the reviewer confirms a specific binding change between a named
+      attribute and a named category, not an abstract "apply". The confirm button
+      carries the same action-specific label as the button that opened it.
+    */}
+    {applyConfirmation && (
+      <DialogShell
+        open
+        onOpenChange={(open) => {
+          if (!open && !applying) setPendingApply(null);
+        }}
+        title={applyConfirmation.title}
+        description={applyConfirmation.description}
+        size="sm"
+        closeDisabled={applying}
+      >
+        <DialogShellBody>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <div
+                className={`rounded-full p-2 ${
+                  applyConfirmation.destructive
+                    ? "bg-destructive/10 text-destructive"
+                    : "bg-primary/10 text-primary"
+                }`}
+              >
+                <AlertTriangle className="size-5" />
+              </div>
+              <p className="pt-1 text-sm text-muted-foreground">
+                {applyConfirmation.description}
+              </p>
+            </div>
+            <div className="space-y-1.5 rounded-lg border border-border bg-muted/40 p-3 text-xs">
+              {applyConfirmation.subject.map((row) => (
+                <div
+                  key={row.label}
+                  className="flex items-center justify-between gap-3"
+                >
+                  <span className="text-muted-foreground">{row.label}</span>
+                  <span className="font-medium text-foreground text-right">
+                    {row.value}
+                  </span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-1.5">
+                <span className="text-muted-foreground">Action</span>
+                <span className="font-medium text-foreground">
+                  {applyConfirmation.confirmLabel}
+                </span>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              This updates the attribute library. No attribute definition,
+              category, or component value is created or deleted.
+            </p>
+          </div>
+        </DialogShellBody>
+        <DialogShellFooter>
+          <DialogShellCancelButton disabled={applying}>
+            Cancel
+          </DialogShellCancelButton>
+          <Button
+            variant={applyConfirmation.destructive ? "destructive" : "default"}
+            size="sm"
+            onClick={() => void confirmApply()}
+            disabled={applying}
+          >
+            {applying && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+            {applyConfirmation.confirmLabel}
+          </Button>
+        </DialogShellFooter>
+      </DialogShell>
+    )}
+    </>
   );
 }

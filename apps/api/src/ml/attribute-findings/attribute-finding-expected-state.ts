@@ -408,10 +408,8 @@ function describeBindingStaleness(
   expectedState: Record<string, unknown>,
   live: AttributeFindingLiveState,
 ): string | null {
-  const attributeId = readSnapshotString(
-    readSnapshotObject(expectedState, 'attribute'),
-    'id',
-  );
+  const attributeSnapshot = readSnapshotObject(expectedState, 'attribute');
+  const attributeId = readSnapshotString(attributeSnapshot, 'id');
   const categoryId = readSnapshotString(
     readSnapshotObject(expectedState, 'category'),
     'id',
@@ -423,6 +421,18 @@ function describeBindingStaleness(
   if (categoryId && !live.categories.has(categoryId)) {
     return 'the bound category no longer exists';
   }
+
+  // The finding's evidence is the attribute as it was analysed. If the definition
+  // has since been renamed, retyped or — most importantly — deactivated, the
+  // binding is no longer the one the finding described, so removing it on the
+  // strength of that evidence would be acting on stale ground.
+  if (attributeId) {
+    const liveIdentity = live.attributes.get(attributeId);
+    if (liveIdentity && identityChanged(attributeSnapshot, liveIdentity)) {
+      return 'the bound attribute changed since it was analysed';
+    }
+  }
+
   if (attributeId && categoryId) {
     const stillBound = live.bindingKeys.has(
       bindingKey(categoryId, attributeId),

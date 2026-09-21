@@ -334,8 +334,10 @@ export class DrizzleAttributeOptionRepository implements AttributeOptionReposito
 }
 
 export class DrizzleCategoryAttributeRepository implements CategoryAttributeRepository {
+  constructor(private readonly client: DbExecutor = db) {}
+
   async findByCategoryId(categoryId: string): Promise<CategoryAttribute[]> {
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(categoryAttributes)
       .where(eq(categoryAttributes.categoryId, categoryId))
@@ -357,7 +359,7 @@ export class DrizzleCategoryAttributeRepository implements CategoryAttributeRepo
 
   async findByCategoryIds(categoryIds: string[]): Promise<CategoryAttribute[]> {
     if (categoryIds.length === 0) return [];
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(categoryAttributes)
       .where(inArray(categoryAttributes.categoryId, categoryIds))
@@ -380,7 +382,7 @@ export class DrizzleCategoryAttributeRepository implements CategoryAttributeRepo
   async findByAttributeDefinitionId(
     attributeDefinitionId: string,
   ): Promise<CategoryAttribute[]> {
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(categoryAttributes)
       .where(
@@ -403,7 +405,7 @@ export class DrizzleCategoryAttributeRepository implements CategoryAttributeRepo
   }
 
   async findMany(): Promise<CategoryAttribute[]> {
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(categoryAttributes)
       .orderBy(categoryAttributes.sortOrder);
@@ -423,7 +425,7 @@ export class DrizzleCategoryAttributeRepository implements CategoryAttributeRepo
   }
 
   async save(catAttr: CategoryAttribute): Promise<CategoryAttribute> {
-    const [row] = await db
+    const [row] = await this.client
       .insert(categoryAttributes)
       .values({
         id: catAttr.id,
@@ -466,15 +468,18 @@ export class DrizzleCategoryAttributeRepository implements CategoryAttributeRepo
   async delete(
     categoryId: string,
     attributeDefinitionId: string,
-  ): Promise<void> {
-    await db
+  ): Promise<boolean> {
+    const removed = await this.client
       .delete(categoryAttributes)
       .where(
         and(
           eq(categoryAttributes.categoryId, categoryId),
           eq(categoryAttributes.attributeDefinitionId, attributeDefinitionId),
         ),
-      );
+      )
+      .returning({ id: categoryAttributes.id });
+
+    return removed.length > 0;
   }
 }
 
