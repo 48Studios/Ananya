@@ -14,6 +14,7 @@ import {
   Filter,
   Edit3,
   Loader2,
+  Plus,
   RefreshCw,
   ShieldAlert,
   Sliders,
@@ -48,6 +49,7 @@ import {
   ATTRIBUTE_WRITE_PERMISSION,
   attributeAcceptNotice,
   attributeApplyAction,
+  attributeApplyActionTitle,
   attributeApplyConfirmation,
   attributeApplyConflictMessage,
   attributeApplyLabel,
@@ -137,6 +139,20 @@ const CONFIDENCE_FILTER_OPTIONS = [
   { value: "MEDIUM", label: "Medium" },
   { value: "LOW", label: "Low" },
 ] as const;
+
+/**
+ * The icon on the apply button, per action.
+ *
+ * Action-specific for the same reason the label is: a removal must not carry the
+ * icon of an addition, and a creation must not be shown as either. Before Pass 7
+ * this was a two-way ternary, which would have drawn the removal icon on a Create
+ * button.
+ */
+function AttributeApplyIcon({ action }: { action: AttributeApplyAction }) {
+  if (action === "CREATE_DEFINITION") return <Plus className="size-3" />;
+  if (action === "ADD_BINDING") return <FolderTree className="size-3" />;
+  return <ShieldAlert className="size-3" />;
+}
 
 interface AttributeReviewQueueDialogProps {
   isOpen: boolean;
@@ -956,18 +972,12 @@ export function AttributeReviewQueueDialog({
                           disabled={inProgress || applying}
                           onClick={() => setPendingApply({ finding, action: applyAction })}
                           className="h-7 text-xs px-2.5 border-primary/40 text-primary hover:bg-primary/10 gap-1 font-medium"
-                          title={
-                            applyAction === "ADD_BINDING"
-                              ? "Apply this finding: bind the attribute to this category (changes the attribute library)"
-                              : "Apply this finding: remove this binding from the category (changes the attribute library)"
-                          }
+                          title={attributeApplyActionTitle(applyAction)}
                         >
                           {applying && pendingApply?.finding.id === finding.id ? (
                             <Loader2 className="size-3 animate-spin" />
-                          ) : applyAction === "ADD_BINDING" ? (
-                            <FolderTree className="size-3" />
                           ) : (
-                            <ShieldAlert className="size-3" />
+                            <AttributeApplyIcon action={applyAction} />
                           )}
                           {attributeApplyLabel(applyAction)}
                         </Button>

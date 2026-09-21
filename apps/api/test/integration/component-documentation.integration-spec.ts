@@ -14,13 +14,14 @@ import { StorageService } from '../../src/documents/storage.service';
 import { db, closeDatabaseConnection } from '@ananya/database';
 import {
   activityEvents,
+  aiSuggestionFeedback,
   documents,
   documentVersions,
   roles,
   securityAuditLogs,
   users,
 } from '@ananya/database/schema';
-import { and, eq, inArray } from '@ananya/database/query';
+import { and, eq, ilike, inArray, or, sql } from '@ananya/database/query';
 
 /** Typed view of documentation response bodies (supertest bodies are `any`). */
 interface DocumentationBody {
@@ -208,6 +209,55 @@ describe('Component Documentation', () => {
             inArray(documents.entityId, ids),
           ),
         );
+    }
+    // Feedback, activity and audit rows all name this suite's fixture component,
+    // and none of them can be found once it is gone: `ai_suggestion_feedback`
+    // nulls its subject (`ON DELETE SET NULL`), `activity_events.entity_id` is a
+    // plain varchar with no FK at all, and the audit details carry the component id
+    // in a jsonb blob. Deleting the component first is what produced this suite's
+    // share of the orphaned Component activity events.
+    if (createdComponentIds.length > 0) {
+      await db
+        .delete(aiSuggestionFeedback)
+        .where(inArray(aiSuggestionFeedback.componentId, createdComponentIds));
+      await db
+        .delete(activityEvents)
+        .where(
+          and(
+            eq(activityEvents.entityType, 'Component'),
+            inArray(activityEvents.entityId, createdComponentIds),
+          ),
+        );
+      await db.delete(securityAuditLogs).where(
+        sql`${securityAuditLogs.details}->>'componentId' IN (${sql.join(
+          createdComponentIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      );
+    }
+    // Actor rows carry the fixture address with `user_id` NULL; `ROLE_CREATED`
+    // carries neither id nor email, only `details->>'roleId'`.
+    await db
+      .delete(securityAuditLogs)
+      .where(
+        or(
+          ilike(
+            securityAuditLogs.userEmail,
+            `docs-reader-${runId}@ananya.local`,
+          ),
+          ilike(
+            securityAuditLogs.userEmail,
+            `docs-writer-${runId}@ananya.local`,
+          ),
+        ),
+      );
+    if (createdRoleIds.length > 0) {
+      await db.delete(securityAuditLogs).where(
+        sql`${securityAuditLogs.details}->>'roleId' IN (${sql.join(
+          createdRoleIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      );
     }
     for (const id of createdComponentIds) {
       await componentsService.delete(id).catch(() => undefined);

@@ -12,8 +12,9 @@ import {
   categories,
   componentIntelligenceFindings,
   manufacturers,
+  securityAuditLogs,
 } from '@ananya/database/schema';
-import { and, eq, inArray } from '@ananya/database/query';
+import { and, eq, ilike, inArray } from '@ananya/database/query';
 
 /**
  * Pass 4 coverage: applying accepted findings to components.
@@ -84,6 +85,26 @@ describe('Component Review Apply (finding application)', () => {
 
   afterAll(async () => {
     if (!hasDbUrl) return;
+
+    // Order is load-bearing. `ai_suggestion_feedback.component_id` is
+    // `ON DELETE SET NULL`, so a feedback row must be removed BEFORE the component
+    // it names: delete the component first and the row survives with every subject
+    // column nulled, which makes it unaddressable and leaks it permanently. This
+    // suite previously deleted components with no feedback cleanup at all, which is
+    // the origin of the null-subject feedback residue identified in Pass 6A.
+    if (createdComponentIds.length > 0) {
+      await db
+        .delete(aiSuggestionFeedback)
+        .where(inArray(aiSuggestionFeedback.componentId, createdComponentIds));
+    }
+
+    // The applied-application audit rows carry the fixture reviewer's address with
+    // `user_id` NULL (the reviewer is not a real user row), so the email is the only
+    // deterministic handle. It is a fixture-owned identity, not a timestamp.
+    await db
+      .delete(securityAuditLogs)
+      .where(ilike(securityAuditLogs.userEmail, reviewer.email));
+
     for (const id of createdComponentIds) {
       await componentsService.delete(id).catch(() => undefined);
     }

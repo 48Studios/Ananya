@@ -17,11 +17,28 @@ import {
 } from '../infrastructure/repositories/drizzle-attribute.repository';
 import { DrizzleCategoryRepository } from '../infrastructure/repositories/drizzle-category.repository';
 import { DrizzleUnitRepository } from '../infrastructure/repositories/drizzle-unit.repository';
+import {
+  AttributeDeleteGuard,
+  AttributeReadGuard,
+  AttributeWriteGuard,
+} from '../auth/attribute-permissions';
+// The attribute library routes are guarded (Pass 6C). Guards built by
+// `createPermissionGuard` depend on `AuthService` and `PermissionsService`, so the
+// module that declares the controller must import both — the same pair
+// `ComponentsModule` and `MlModule` import for their guards.
+import { AuthModule } from '../auth/auth.module';
+import { PermissionsModule } from '../permissions/permissions.module';
 
 @Module({
+  imports: [AuthModule, PermissionsModule],
   controllers: [AttributesController],
   providers: [
     AttributesService,
+    // Declared so Nest resolves them from this module's context; they are the
+    // same guard objects the review-queue controller uses.
+    AttributeReadGuard,
+    AttributeWriteGuard,
+    AttributeDeleteGuard,
     {
       provide: ATTRIBUTE_DEFINITION_REPOSITORY,
       useClass: DrizzleAttributeDefinitionRepository,

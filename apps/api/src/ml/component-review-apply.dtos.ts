@@ -140,6 +140,12 @@ export const APPLY_CONFLICT_REASONS = [
   'COMPONENT_RETIRED',
   /** The component's attribute value changed after the finding was generated. */
   'ATTRIBUTE_VALUE_CHANGED',
+  /**
+   * The transaction exceeded its configured lock or statement bound and was
+   * cancelled. The component was not changed and retrying is safe — the only
+   * refusal on this route that is worth retrying without a re-review.
+   */
+  'APPLY_TIMEOUT',
 ] as const;
 
 export type ApplyConflictReason = (typeof APPLY_CONFLICT_REASONS)[number];

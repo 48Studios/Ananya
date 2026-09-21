@@ -162,16 +162,26 @@ export class AttributeReviewQueueController {
    * Applies an accepted finding to the attribute library.
    *
    * The ONLY route in the attribute-intelligence pipeline that mutates authoritative
-   * data, and it mutates exactly one thing: the category/attribute binding the
-   * finding identifies. `MISSING_EXPECTED_ATTRIBUTE` adds a binding for an existing
-   * definition; `SUSPICIOUS_BINDING` removes an existing one. Nothing is created
-   * except that binding — no attribute, option or component value.
+   * data, and it mutates exactly what the finding identifies:
    *
-   * The request must name its action and prove the revision it reviewed, and the
-   * server re-verifies the finding's expected state against live rows inside the
-   * transaction, so a stale finding is refused rather than applied to newer state.
-   * Reviewer identity comes from the authenticated principal. A second apply of the
-   * same finding is refused: a finding is applied at most once.
+   *  - `MISSING_EXPECTED_ATTRIBUTE` whose expected attribute resolved to a definition
+   *    adds the category binding for it;
+   *  - `MISSING_EXPECTED_ATTRIBUTE` whose expected attribute does NOT exist creates
+   *    the definition from the persisted proposal (Pass 7) and binds it;
+   *  - `SUSPICIOUS_BINDING` removes an existing binding.
+   *
+   * Nothing beyond that is ever written: a finding can never create a category, edit
+   * a component value, or create a definition other than the one it names. The
+   * request carries an action and a revision proof only — no code, name, data type,
+   * unit, option or category — so this route cannot become a general write API for the
+   * attribute library, and the reviewer's confirmation is always a decision about
+   * what the producer proposed.
+   *
+   * The server re-verifies the finding's expected state against live rows inside the
+   * transaction, validates the proposal against the domain's vocabulary, and refuses
+   * to create anything whose identity already exists — retiring the finding as stale
+   * instead. Reviewer identity comes from the authenticated principal. A second apply
+   * of the same finding is refused: a finding is applied at most once.
    */
   @Post(':id/apply')
   @UseGuards(AttributeWriteGuard)

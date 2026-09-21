@@ -57,7 +57,18 @@ export type AttributeReviewStatus =
 export type AttributeApplicationResult = "NOT_APPLIED" | "APPLIED";
 
 /** Mutations the apply route can perform. */
-export type AttributeApplyAction = "ADD_BINDING" | "REMOVE_BINDING";
+/**
+ * The mutations the apply route performs.
+ *
+ * `CREATE_DEFINITION` (Pass 7) is offered only for a `MISSING_EXPECTED_ATTRIBUTE`
+ * finding whose expected attribute does not exist yet; which action a finding
+ * applies is decided by `attributeApplyAction()` from persisted finding state, never
+ * by the client.
+ */
+export type AttributeApplyAction =
+  | "ADD_BINDING"
+  | "REMOVE_BINDING"
+  | "CREATE_DEFINITION";
 
 export type AttributeReviewDecision = "ACCEPTED" | "REJECTED" | "DISMISSED";
 
@@ -258,6 +269,21 @@ export interface ApplyAttributeFindingResultDto {
   appliedByEmail: string | null;
   feedbackId: string | null;
   staledFindingCount: number;
+  /** The binding this application created, when it created one. */
+  bindingId: string | null;
+  /**
+   * The definition this application created, or `null` when it applied to one that
+   * already existed.
+   */
+  createdDefinition: {
+    id: string;
+    code: string;
+    name: string;
+    dataType: string;
+    unitCategory: string | null;
+    defaultUnit: string | null;
+    optionCount: number;
+  } | null;
 }
 
 /** Backend page-size ceiling (`MAX_ATTRIBUTE_QUEUE_PAGE_SIZE`). */

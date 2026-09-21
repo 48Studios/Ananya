@@ -57,6 +57,14 @@ describe('Legacy ML surface — authorization', () => {
   let anonymousToken = '';
   let readerToken = '';
   let writerToken = '';
+  /**
+   * Administrator identity for the training/export surface.
+   *
+   * Pass 6 moved `GET /ml/feedback/export`, `GET /ml/training/quarantine` and
+   * `POST /ml/training/quarantine/:id/review` behind an administrator-only guard,
+   * so the read-only and writer identities no longer reach them.
+   */
+  let adminToken = '';
   let writerUserId = '';
   let writerEmail = '';
 
@@ -123,7 +131,20 @@ describe('Legacy ML surface — authorization', () => {
       description: 'Authorization fixture: feedback and training write access',
       permissions: ['Inventory.Read', 'Inventory.Update'],
     });
-    createdRoleIds.push(noInventoryRole.id, readerRole.id, writerRole.id);
+    // Administrator-only surface (Pass 6): the ML training and dataset-export
+    // routes require `Administration.Roles`, which no system role except
+    // `Administrator` holds.
+    const adminRole = await rolesService.create({
+      name: `E2E ML Admin ${runId}`,
+      description: 'Authorization fixture: ML administration access',
+      permissions: ['Administration.Roles'],
+    });
+    createdRoleIds.push(
+      noInventoryRole.id,
+      readerRole.id,
+      writerRole.id,
+      adminRole.id,
+    );
 
     const noInventory = await usersService.create({
       email: `ml-noinv-${runId}@ananya.local`,
@@ -146,7 +167,14 @@ describe('Legacy ML surface — authorization', () => {
       lastName: 'Writer',
       roleId: writerRole.id,
     });
-    createdUserIds.push(noInventory.id, reader.id, writer.id);
+    const admin = await usersService.create({
+      email: `ml-admin-${runId}@ananya.local`,
+      password: 'AdminPassw0rd!',
+      firstName: 'ML',
+      lastName: 'Admin',
+      roleId: adminRole.id,
+    });
+    createdUserIds.push(noInventory.id, reader.id, writer.id, admin.id);
     writerUserId = writer.id;
     writerEmail = writer.email;
 
@@ -154,6 +182,7 @@ describe('Legacy ML surface — authorization', () => {
       .token;
     readerToken = (await authService.createSessionForUser(reader.id)).token;
     writerToken = (await authService.createSessionForUser(writer.id)).token;
+    adminToken = (await authService.createSessionForUser(admin.id)).token;
 
     // Deterministic compute: the guard boundary is what is under test, not which
     // producer answers or whether the ML container is running.
@@ -304,8 +333,6 @@ describe('Legacy ML surface — authorization', () => {
       payload?: Record<string, unknown>;
     }> = [
       { method: 'post', path: '/ml/suggest', payload: { query: 'resistor' } },
-      { method: 'get', path: '/ml/feedback/export' },
-      { method: 'get', path: '/ml/training/quarantine' },
       {
         method: 'post',
         path: '/ml/attributes/suggest-bindings',
@@ -491,33 +518,66 @@ describe('Legacy ML surface — authorization', () => {
   });
 
   // -------------------------------------------------------------------------
-  // AUTHENTICATED WRITE — training
+  // ADMIN ONLY — training and dataset export (Pass 6)
   // -------------------------------------------------------------------------
 
-  describe('training writes', () => {
+  describe('training and export administration', () => {
     const REVIEW_ROUTE = '/ml/training/quarantine/some-record/review';
+    const adminRoutes: Array<{ method: 'get' | 'post'; path: string }> = [
+      { method: 'get', path: '/ml/feedback/export' },
+      { method: 'get', path: '/ml/training/quarantine' },
+      { method: 'post', path: REVIEW_ROUTE },
+    ];
 
-    it('rejects an anonymous caller on the quarantine review', async () => {
-      const response = await http()
-        .post(REVIEW_ROUTE)
-        .send({ status: 'VERIFIED' });
-
-      expect(response.status).toBe(401);
+    it('rejects an anonymous caller on every admin route', async () => {
+      for (const route of adminRoutes) {
+        const response =
+          route.method === 'get'
+            ? await http().get(route.path)
+            : await http().post(route.path).send({ status: 'VERIFIED' });
+        expect(response.status).toBe(401);
+      }
     });
 
-    it('rejects a read-only caller on the quarantine review', async () => {
-      const response = await http()
-        .post(REVIEW_ROUTE)
-        .set('Authorization', `Bearer ${readerToken}`)
-        .send({ status: 'VERIFIED' });
+    it('rejects a read-only caller on every admin route', async () => {
+      for (const route of adminRoutes) {
+        const response =
+          route.method === 'get'
+            ? await http()
+                .get(route.path)
+                .set('Authorization', `Bearer ${readerToken}`)
+            : await http()
+                .post(route.path)
+                .set('Authorization', `Bearer ${readerToken}`)
+                .send({ status: 'VERIFIED' });
+        expect(response.status).toBe(403);
+      }
+    });
 
-      expect(response.status).toBe(403);
+    it('rejects a component writer: editing components is not training administration', async () => {
+      // The substantive change in Pass 6. `Inventory.Update` legitimately edits
+      // component master data, and this route can append to the corpus the model is
+      // trained from. Those are different capabilities, and the second is
+      // materially more dangerous: it changes future model behaviour rather than one
+      // row of master data.
+      for (const route of adminRoutes) {
+        const response =
+          route.method === 'get'
+            ? await http()
+                .get(route.path)
+                .set('Authorization', `Bearer ${writerToken}`)
+            : await http()
+                .post(route.path)
+                .set('Authorization', `Bearer ${writerToken}`)
+                .send({ status: 'VERIFIED' });
+        expect(response.status).toBe(403);
+      }
     });
 
     it('rejects an invalid review status before any training write', async () => {
       const response = await http()
         .post(REVIEW_ROUTE)
-        .set('Authorization', `Bearer ${writerToken}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .send({ status: 'NOT_A_REAL_STATUS' });
 
       // Validation runs after the guard, so an authorized caller with a bad body
@@ -525,16 +585,22 @@ describe('Legacy ML surface — authorization', () => {
       expect(response.status).toBe(400);
     });
 
-    it('allows an authorized caller through the guard', async () => {
-      const response = await http()
-        .post(REVIEW_ROUTE)
-        .set('Authorization', `Bearer ${writerToken}`)
-        .send({ status: 'VERIFIED' });
-
-      // The quarantine store may not exist in this checkout, in which case the
-      // service reports that rather than writing. Either way the request reached
-      // the handler, which is what the guard boundary is about.
-      expect(response.status).toBeLessThan(300);
+    it('allows an administrator through the guard', async () => {
+      for (const route of adminRoutes) {
+        const response =
+          route.method === 'get'
+            ? await http()
+                .get(route.path)
+                .set('Authorization', `Bearer ${adminToken}`)
+            : await http()
+                .post(route.path)
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({ status: 'VERIFIED' });
+        // The quarantine store does not exist in this checkout, so the service
+        // reports that rather than writing. Either way the request reached the
+        // handler, which is what the guard boundary is about.
+        expect(response.status).toBeLessThan(300);
+      }
     });
 
     it('never fabricates a reviewer identity for an anonymous review', async () => {
@@ -581,18 +647,24 @@ describe('Legacy ML surface — authorization', () => {
   // -------------------------------------------------------------------------
 
   describe('component-surface aliases (documented gap, not fixed in this pass)', () => {
-    it('POST /components/suggest/feedback reaches the same write without a guard', async () => {
-      // Both this route and `POST /ml/feedback` call `MlService.recordFeedback`.
-      // Guarding the `/ml/*` alias therefore does not close the feedback write on
-      // its own. This test PINS that fact: if a later pass guards the component
-      // route, it fails, and the failure is the reminder to update the route audit
-      // in `ml.controller.ts` and delete this test.
+    it('POST /components/suggest/feedback is now guarded, closing the Pass 5 gap', async () => {
+      // Pass 5 pinned this route as an OPEN gap: both it and `POST /ml/feedback`
+      // call `MlService.recordFeedback`, so guarding the `/ml/*` alias alone left
+      // the write reachable through the component surface.
       //
-      // The rows are identified by diffing the table's ids before and after, so the
-      // cleanup removes exactly what this test created and nothing else.
+      // Pass 6 closed it. This test is the replacement for the pinning test — the
+      // one Pass 5 said to delete once the route was guarded — and it asserts the
+      // closure from the outside: anonymous is refused, and a writer's row carries
+      // the SESSION's identity rather than nothing at all.
       const idsBefore = await allFeedbackIds();
 
-      const response = await http()
+      // Every assertion records status AND body. A Nest `Cannot POST …` body means
+      // the router never matched the route (registration/module-initialization),
+      // whereas a guard or handler refusal names its own reason — and the two have
+      // completely different causes. Without the body an intermittent non-401 is
+      // undiagnosable, which is exactly how the one-off 404 recorded in Pass 6A
+      // stayed unexplained.
+      const anonymous = await http()
         .post('/components/suggest/feedback')
         .send({
           items: [
@@ -603,16 +675,53 @@ describe('Legacy ML surface — authorization', () => {
             },
           ],
         });
+      expect({
+        status: anonymous.status,
+        body: anonymous.body as unknown,
+      }).toMatchObject({ status: 401 });
+      expect(await allFeedbackIds()).toEqual(idsBefore);
 
-      // Unauthenticated, and it wrote.
-      expect(response.status).toBe(201);
+      const readOnly = await http()
+        .post('/components/suggest/feedback')
+        .set('Authorization', `Bearer ${readerToken}`)
+        .send({
+          items: [
+            {
+              suggestionType: 'CATEGORY',
+              field: 'category',
+              userAction: 'ACCEPTED',
+            },
+          ],
+        });
+      expect({
+        status: readOnly.status,
+        body: readOnly.body as unknown,
+      }).toMatchObject({ status: 403 });
+      expect(await allFeedbackIds()).toEqual(idsBefore);
+
+      const authorized = await http()
+        .post('/components/suggest/feedback')
+        .set('Authorization', `Bearer ${writerToken}`)
+        .send({
+          items: [
+            {
+              suggestionType: 'CATEGORY',
+              field: 'category',
+              userAction: 'ACCEPTED',
+            },
+          ],
+        });
+      expect({
+        status: authorized.status,
+        body: authorized.body as unknown,
+      }).toMatchObject({ status: 201 });
 
       const idsAfter = await allFeedbackIds();
       const created = idsAfter.filter((id) => !idsBefore.includes(id));
       expect(created).toHaveLength(1);
 
-      // The component route records no actor at all, so the row is unattributed —
-      // which is why this is a finding and not merely an authorization omission.
+      // The actor is the session's, which is what the route previously failed to
+      // record at all.
       const rows = await db
         .select({
           reviewerId: aiSuggestionFeedback.reviewerId,
@@ -620,8 +729,8 @@ describe('Legacy ML surface — authorization', () => {
         })
         .from(aiSuggestionFeedback)
         .where(inArray(aiSuggestionFeedback.id, created));
-      expect(rows[0]!.reviewerId).toBeNull();
-      expect(rows[0]!.reviewerEmail).toBeNull();
+      expect(rows[0]!.reviewerId).toBe(writerUserId);
+      expect(rows[0]!.reviewerEmail).toBe(writerEmail);
 
       // Remove exactly the row this test created.
       await db

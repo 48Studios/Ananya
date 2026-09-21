@@ -5,8 +5,12 @@ import { DataPacksService } from '../../src/data-packs/data-packs.service';
 import { AttributesService } from '../../src/attributes/attributes.service';
 import { ComponentsService } from '../../src/components/components.service';
 import { db, closeDatabaseConnection } from '@ananya/database';
-import { componentAttributeValues, components } from '@ananya/database/schema';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import {
+  aiSuggestionFeedback,
+  componentAttributeValues,
+  components,
+} from '@ananya/database/schema';
+import { eq, and, gte, lte, inArray } from 'drizzle-orm';
 
 describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
   const hasDbUrl = Boolean(process.env.DATABASE_URL);
@@ -14,6 +18,27 @@ describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
   let dataPacksService: DataPacksService;
   let attributesService: AttributesService;
   let componentsService: ComponentsService;
+
+  /**
+   * The SKUs of every component this run creates.
+   *
+   * Recorded BEFORE the create call, not after. The resistor/capacitor scenarios
+   * call `componentsService.create`, which inserts the component and then saves its
+   * attributes in a second step; when that second step throws, the test aborts with
+   * the component already committed and its id never bound to a local. Deleting
+   * inline alone therefore cannot see the row, and `E2E-RES-*` / `E2E-CAP-*`
+   * components accumulated in the database across runs.
+   *
+   * The SKU is the deterministic handle: it is chosen here, so it is known even when
+   * the create throws, and `afterAll` can always find what this run left behind.
+   */
+  const fixtureSkus = new Set<string>();
+
+  function fixtureSku(prefix: string): string {
+    const sku = `${prefix}-${Date.now()}-${fixtureSkus.size}`;
+    fixtureSkus.add(sku);
+    return sku;
+  }
 
   beforeAll(async () => {
     if (!hasDbUrl) return;
@@ -26,6 +51,23 @@ describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
   });
 
   afterAll(async () => {
+    if (hasDbUrl && fixtureSkus.size > 0) {
+      // Ownership is by SKU, and feedback is removed BEFORE its component:
+      // `ai_suggestion_feedback.component_id` is `ON DELETE SET NULL`, so deleting
+      // the component first would leave the row with no subject at all, which makes
+      // it permanently unaddressable rather than merely orphaned.
+      const rows = await db
+        .select({ id: components.id })
+        .from(components)
+        .where(inArray(components.sku, [...fixtureSkus]));
+      const ownedIds = rows.map((row) => row.id);
+      if (ownedIds.length > 0) {
+        await db
+          .delete(aiSuggestionFeedback)
+          .where(inArray(aiSuggestionFeedback.componentId, ownedIds));
+        await db.delete(components).where(inArray(components.id, ownedIds));
+      }
+    }
     if (app) {
       await app.close();
     }
@@ -78,7 +120,7 @@ describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
 
     // Resistor creation
     const resistor = await componentsService.create({
-      sku: `E2E-RES-${Date.now()}`,
+      sku: fixtureSku('E2E-RES'),
       name: '10kΩ SMD Resistor',
       unit: 'pcs',
       attributes: [
@@ -123,7 +165,7 @@ describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
 
     // Capacitor creation
     const capacitor = await componentsService.create({
-      sku: `E2E-CAP-${Date.now()}`,
+      sku: fixtureSku('E2E-CAP'),
       name: '100nF Ceramic Capacitor',
       unit: 'pcs',
       attributes: [
@@ -151,7 +193,7 @@ describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
 
     // Scenario 4: Legacy product without attributes
     const legacy = await componentsService.create({
-      sku: `E2E-LEGACY-${Date.now()}`,
+      sku: fixtureSku('E2E-LEGACY'),
       name: 'Legacy Hardware Spacer',
       description: 'Standard nylon spacer created before attributes',
       unit: 'pcs',

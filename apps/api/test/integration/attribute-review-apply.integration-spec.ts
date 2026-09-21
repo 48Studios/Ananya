@@ -501,6 +501,14 @@ describe('Attribute Intelligence apply — API', () => {
         });
 
       expect(response.status).toBe(403);
+      // The body is part of the assertion so an intermittent non-403 is
+      // diagnosable from the failure alone: the guard runs BEFORE the validation
+      // pipe in Nest, so a 400 here cannot come from the guard and its body
+      // identifies what actually answered.
+      expect({
+        status: response.status,
+        body: response.body as unknown,
+      }).toMatchObject({ status: 403 });
       expect(String(body<ApplyResultBody>(response).message)).toMatch(
         /Inventory\.Update/,
       );
@@ -986,7 +994,7 @@ describe('Attribute Intelligence apply — API', () => {
       expect(await bindingExists(attribute.id, category.id)).toBe(0);
     });
 
-    it('refuses a category-first finding whose attribute does not exist yet', async () => {
+    it('refuses ADD_BINDING for a category-first finding whose attribute does not exist yet', async () => {
       if (!hasDbUrl) return;
       const category = await createCategory('add-undefined');
       fixtureCounter += 1;
@@ -1032,9 +1040,16 @@ describe('Attribute Intelligence apply — API', () => {
         });
 
       expect(response.status).toBe(409);
-      expect(body<ApplyResultBody>(response).reason).toBe('UNSUPPORTED_TARGET');
+      // Pass 7 changed which refusal this is, deliberately. A category-first finding
+      // whose attribute the library does not have is no longer an unusable target —
+      // it is the finding `CREATE_DEFINITION` exists for (`attribute-review-apply`
+      // service resolves the action from persisted state), so asking to ADD a binding
+      // is asking for the wrong action. The refusal is therefore `UNSUPPORTED_ACTION`,
+      // and a caller that sends the action the finding does apply succeeds — see
+      // `attribute-definition-creation.integration-spec.ts`.
+      expect(body<ApplyResultBody>(response).reason).toBe('UNSUPPORTED_ACTION');
 
-      // Master data is never invented by applying.
+      // Master data is never invented by applying the wrong action.
       const definitions = await db
         .select({ id: attributeDefinitions.id })
         .from(attributeDefinitions)

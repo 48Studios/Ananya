@@ -11,7 +11,11 @@ import {
 import { MlService } from './ml.service';
 import { MlClientService } from './ml-client.service';
 import { AttributeWriteGuard } from '../auth/attribute-permissions';
-import { MlReadGuard, MlWriteGuard } from '../auth/ml-permissions';
+import {
+  MlAdminGuard,
+  MlReadGuard,
+  MlWriteGuard,
+} from '../auth/ml-permissions';
 import {
   SuggestComponentDto,
   ComponentSuggestionResponseDto,
@@ -51,9 +55,9 @@ export class MlController {
    * | `GET  /ml/health` | PUBLIC HEALTH | none — see below |
    * | `POST /ml/suggest` | DEPRECATED, authenticated read/compute | `MlReadGuard` |
    * | `POST /ml/feedback` | AUTHENTICATED WRITE | `MlWriteGuard` |
-   * | `GET  /ml/feedback/export` | AUTHENTICATED READ | `MlReadGuard` |
-   * | `GET  /ml/training/quarantine` | AUTHENTICATED READ | `MlReadGuard` |
-   * | `POST /ml/training/quarantine/:id/review` | AUTHENTICATED WRITE | `MlWriteGuard` |
+   * | `GET  /ml/feedback/export` | **ADMIN AUTHENTICATED** | `MlAdminGuard` |
+   * | `GET  /ml/training/quarantine` | **ADMIN AUTHENTICATED** | `MlAdminGuard` |
+   * | `POST /ml/training/quarantine/:id/review` | **ADMIN AUTHENTICATED** | `MlAdminGuard` |
    * | `POST /ml/attributes/suggest-*` | AUTHENTICATED READ/COMPUTE | `MlReadGuard` |
    * | `POST /ml/attributes/detect-duplicates` | AUTHENTICATED READ/COMPUTE | `MlReadGuard` |
    * | `POST /ml/attributes/suggest-enum-values` | AUTHENTICATED READ/COMPUTE | `MlReadGuard` |
@@ -146,7 +150,7 @@ export class MlController {
    * sensitive one, so it requires the same permission as reading inventory.
    */
   @Get('feedback/export')
-  @UseGuards(MlReadGuard)
+  @UseGuards(MlAdminGuard)
   exportFeedback(@Query() query: ExportFeedbackQueryDto) {
     return this.mlService.exportFeedbackDataset(query);
   }
@@ -158,7 +162,7 @@ export class MlController {
    * payloads and the reasons they were rejected from the training set.
    */
   @Get('training/quarantine')
-  @UseGuards(MlReadGuard)
+  @UseGuards(MlAdminGuard)
   getQuarantine(@Query() query: QuarantineFilterQueryDto) {
     return this.mlService.getQuarantinedRecords(query);
   }
@@ -173,7 +177,7 @@ export class MlController {
    * guarded as one.
    */
   @Post('training/quarantine/:id/review')
-  @UseGuards(MlWriteGuard)
+  @UseGuards(MlAdminGuard)
   reviewQuarantine(
     @Param('id') id: string,
     @Body() input: ReviewQuarantineRecordDto,

@@ -9,8 +9,13 @@ import { UsersService } from '../../src/users/users.service';
 import { ComponentsService } from '../../src/components/components.service';
 import { ComponentReviewQueueService } from '../../src/ml/component-review-queue.service';
 import { db, closeDatabaseConnection } from '@ananya/database';
-import { aiSuggestionFeedback, roles, users } from '@ananya/database/schema';
-import { eq, inArray } from '@ananya/database/query';
+import {
+  aiSuggestionFeedback,
+  roles,
+  securityAuditLogs,
+  users,
+} from '@ananya/database/schema';
+import { eq, ilike, inArray, or, sql } from '@ananya/database/query';
 
 /** Typed view of the review-queue response bodies (supertest bodies are `any`). */
 interface ReviewResponseBody {
@@ -132,6 +137,47 @@ describe('Component Review Queue — write authorization', () => {
 
   afterAll(async () => {
     if (!hasDbUrl) return;
+
+    // Feedback BEFORE components: `component_id` is `ON DELETE SET NULL`, so a row
+    // left behind by the component delete keeps no subject and can never be found
+    // again. Deleting by owned component is what makes this complete rather than
+    // dependent on which decisions a test happened to track.
+    if (createdComponentIds.length > 0) {
+      await db
+        .delete(aiSuggestionFeedback)
+        .where(inArray(aiSuggestionFeedback.componentId, createdComponentIds));
+    }
+
+    // Applied-application audit rows name the fixture user by EMAIL with `user_id`
+    // NULL, so the email is the deterministic handle. `%apply-%@ananya.local` would
+    // be too broad; the two addresses are the ones this suite actually issues.
+    await db
+      .delete(securityAuditLogs)
+      .where(
+        or(
+          ilike(
+            securityAuditLogs.userEmail,
+            `apply-reader-${runId}@ananya.local`,
+          ),
+          ilike(
+            securityAuditLogs.userEmail,
+            `apply-writer-${runId}@ananya.local`,
+          ),
+        ),
+      );
+
+    // `ROLE_CREATED` is the second audit shape: `user_id` AND `user_email` are both
+    // NULL, so neither predicate above can see it. The role id inside the details
+    // blob is the only handle, and it is this suite's own fixture role.
+    if (createdRoleIds.length > 0) {
+      await db.delete(securityAuditLogs).where(
+        sql`${securityAuditLogs.details}->>'roleId' IN (${sql.join(
+          createdRoleIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      );
+    }
+
     for (const id of createdComponentIds) {
       await componentsService.delete(id).catch(() => undefined);
     }

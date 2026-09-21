@@ -19,6 +19,7 @@ import { ComponentReviewQueueService } from '../../src/ml/component-review-queue
 import { DOCUMENT_ATTRIBUTE_SOURCE } from '../../src/ml/document-attribute-value-review';
 import { db, closeDatabaseConnection } from '@ananya/database';
 import {
+  activityEvents,
   aiSuggestionFeedback,
   attributeDefinitions,
   componentAttributeValues,
@@ -27,9 +28,10 @@ import {
   documentIntelligenceAnalyses,
   documents,
   roles,
+  securityAuditLogs,
   users,
 } from '@ananya/database/schema';
-import { and, eq, inArray } from '@ananya/database/query';
+import { and, eq, ilike, inArray, or, sql } from '@ananya/database/query';
 import type { ComponentIntelligenceFinding } from '@ananya/database/schema';
 
 /** Response body of one analysis candidate. */
@@ -556,6 +558,67 @@ describe('Attribute Value Review and Apply', () => {
         .delete(documents)
         .where(inArray(documents.id, createdDocumentIds));
     }
+
+    // Feedback and activity events belong to this suite's components and must be
+    // removed BEFORE the components, because neither can be found afterwards:
+    // `ai_suggestion_feedback.component_id` is `ON DELETE SET NULL`, and
+    // `activity_events.entity_id` is a plain varchar with no FK at all. The
+    // document events in particular name the owning COMPONENT (`entity_type =
+    // 'Component'`, the document id lives in `metadata`), so deleting the component
+    // orphans them permanently — which is where this suite's share of the orphaned
+    // Component activity events came from.
+    if (createdComponentIds.length > 0) {
+      await db
+        .delete(aiSuggestionFeedback)
+        .where(inArray(aiSuggestionFeedback.componentId, createdComponentIds));
+      await db
+        .delete(activityEvents)
+        .where(
+          and(
+            eq(activityEvents.entityType, 'Component'),
+            inArray(activityEvents.entityId, createdComponentIds),
+          ),
+        );
+    }
+
+    // Audit rows come in the two shapes the other intelligence suites handle:
+    // actor rows carry the fixture address with `user_id` NULL, and `ROLE_CREATED`
+    // carries neither id nor email — only `details->>'roleId'`.
+    await db
+      .delete(securityAuditLogs)
+      .where(
+        or(
+          ilike(
+            securityAuditLogs.userEmail,
+            `avr-reader-${runId}@ananya.local`,
+          ),
+          ilike(
+            securityAuditLogs.userEmail,
+            `avr-writer-${runId}@ananya.local`,
+          ),
+        ),
+      );
+    if (createdRoleIds.length > 0) {
+      await db.delete(securityAuditLogs).where(
+        sql`${securityAuditLogs.details}->>'roleId' IN (${sql.join(
+          createdRoleIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      );
+    }
+
+    // The retired fixture is consolidated into the clean one, which makes the pair
+    // undeletable through the domain — deliberately. `assertCanBeDeleted` refuses a
+    // consolidated record because it is the history of where its activity went, and
+    // the FK `components.consolidated_into_component_id` is `ON DELETE RESTRICT`, so
+    // the clean row cannot be removed while the retired one still refers to it.
+    // Neither order works through the service, and the swallowed error is why two
+    // components leaked per run. A test fixture is not history, so the referring row
+    // goes first, directly, and the loop below then removes the target normally.
+    if (retiredComponentId) {
+      await db.delete(components).where(eq(components.id, retiredComponentId));
+    }
+
     for (const id of createdComponentIds) {
       await componentsService.delete(id).catch(() => undefined);
     }

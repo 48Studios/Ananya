@@ -1,5 +1,9 @@
 import type { ExecutionContext } from '@nestjs/common';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { PermissionsService } from '../permissions/permissions.service';
@@ -92,6 +96,31 @@ describe('ComponentWriteGuard', () => {
           buildContext({ headers: { authorization: 'Bearer token' } }),
         ),
       ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('reports a session whose user or role no longer exists as an invalid session', async () => {
+      getMeByToken.mockRejectedValue(new NotFoundException('User not found.'));
+      await expect(
+        guard.canActivate(
+          buildContext({ headers: { authorization: 'Bearer orphaned-token' } }),
+        ),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('does not report an infrastructure failure as an invalid session', async () => {
+      // A database error while validating the session is not an authorization
+      // result. Reporting it as a 401 tells the caller to sign in again (which
+      // cannot help) and hides the cause from every log and monitor, which is
+      // exactly what made an observed integration-run failure undiagnosable.
+      // `GET /auth/me` surfaces the same failure as a 5xx.
+      const failure = new Error('connection terminated unexpectedly');
+      getMeByToken.mockRejectedValue(failure);
+
+      await expect(
+        guard.canActivate(
+          buildContext({ headers: { authorization: 'Bearer token' } }),
+        ),
+      ).rejects.toBe(failure);
     });
   });
 

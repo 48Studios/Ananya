@@ -19,6 +19,7 @@ import { ComponentSpecificationIntelligenceService } from '../../src/ml/componen
 import { DOCUMENT_ATTRIBUTE_SOURCE } from '../../src/ml/document-attribute-value-review';
 import { db, closeDatabaseConnection } from '@ananya/database';
 import {
+  activityEvents,
   aiSuggestionFeedback,
   attributeDefinitions,
   componentAttributeValues,
@@ -26,9 +27,10 @@ import {
   documentIntelligenceAnalyses,
   documents,
   roles,
+  securityAuditLogs,
   users,
 } from '@ananya/database/schema';
-import { and, eq, inArray } from '@ananya/database/query';
+import { and, eq, inArray, sql } from '@ananya/database/query';
 import type { ComponentIntelligenceFinding } from '@ananya/database/schema';
 
 interface SpecificationBody {
@@ -530,6 +532,16 @@ describe('Specification Intelligence (component level)', () => {
         .delete(documents)
         .where(inArray(documents.id, createdDocumentIds));
     }
+    // Feedback BEFORE components. `ai_suggestion_feedback.component_id` is
+    // `ON DELETE SET NULL`, so deleting the component first leaves the row with
+    // every subject column null: it survives, it is no longer attributable to any
+    // fixture, and no later cleanup can find it. This suite writes feedback
+    // through the accept/apply path, so it has to own those rows explicitly.
+    if (createdComponentIds.length > 0) {
+      await db
+        .delete(aiSuggestionFeedback)
+        .where(inArray(aiSuggestionFeedback.componentId, createdComponentIds));
+    }
     for (const id of createdComponentIds) {
       await componentsService.delete(id).catch(() => undefined);
     }
@@ -546,6 +558,50 @@ describe('Specification Intelligence (component level)', () => {
     }
     if (createdRoleIds.length > 0) {
       await db.delete(roles).where(inArray(roles.id, createdRoleIds));
+    }
+    // Activity events have no foreign key to their subject, so deleting the
+    // component does not remove them — they would survive as orphaned rows whose
+    // `entity_id` points at nothing. Ownership is by the fixture component id the
+    // event was written against, never by orphanhood: an event whose component was
+    // deleted in normal use is history, not residue.
+    if (createdComponentIds.length > 0) {
+      await db
+        .delete(activityEvents)
+        .where(inArray(activityEvents.entityId, createdComponentIds));
+    }
+    // Audit rows name their actor by EMAIL with `user_id` NULL, so the fixture
+    // addresses are the deterministic handle (the same predicate `FixtureOwner`
+    // uses). The suite issues exactly these two.
+    await db
+      .delete(securityAuditLogs)
+      .where(
+        inArray(securityAuditLogs.userEmail, [
+          `p4-reader-${runId}@ananya.local`,
+          `p4-writer-${runId}@ananya.local`,
+        ]),
+      );
+    // `ROLE_CREATED` is the second audit shape: `user_id` AND `user_email` are both
+    // NULL, with the role id buried in the details blob. Neither predicate above can
+    // see it, which is why these rows accumulate silently.
+    if (createdRoleIds.length > 0) {
+      await db.delete(securityAuditLogs).where(
+        sql`${securityAuditLogs.details}->>'roleId' IN (${sql.join(
+          createdRoleIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      );
+    }
+    // The third shape: the analysis path writes its own `DOCUMENT_ANALYZED` rows
+    // under the actor it is handed, and this suite invokes it directly with a
+    // synthetic one (`{ email: 'service@ananya.local' }`) instead of a fixture
+    // account. The component id in the details blob is the deterministic handle.
+    if (createdComponentIds.length > 0) {
+      await db.delete(securityAuditLogs).where(
+        sql`${securityAuditLogs.details}->>'componentId' IN (${sql.join(
+          createdComponentIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      );
     }
     if (app) {
       await app.close();

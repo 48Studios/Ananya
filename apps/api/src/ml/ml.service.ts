@@ -892,6 +892,57 @@ export class MlService {
     };
   }
 
+  /**
+   * Writes a JSON document so a reader never observes a partial file.
+   *
+   * Pass 6. The training-state files were written with a bare
+   * `fs.writeFileSync(path, json)`, which truncates the target and then writes it.
+   * A crash, a kill or a full disk between those two steps leaves a truncated or
+   * empty file — and the next read treats an unparseable file as "no records", so
+   * the corruption is silent. That is the demonstrated risk this replaces.
+   *
+   * `writeFileSync` to a sibling temp file followed by `renameSync` is atomic on
+   * POSIX within one filesystem: a reader sees either the old file or the new one,
+   * never a half-written one. The temp file is a sibling rather than in `/tmp`
+   * precisely because `rename` is only atomic within a filesystem.
+   *
+   * What this does NOT fix, stated so it is not mistaken for more than it is:
+   *
+   *  - **Lost updates.** Two concurrent reviews still read-modify-write the same
+   *    array, and one update can overwrite the other. Fixing that needs real
+   *    locking or real storage, which is out of scope for this pass.
+   *  - **Multi-instance safety.** Nothing here coordinates two API replicas.
+   *  - **Production reachability.** These paths resolve relative to the API
+   *    process's working directory, and the production API image does not contain
+   *    `apps/ml/data` at all, so both training routes are inert in a container. The
+   *    exposure today is a developer running the API locally, where the resolved
+   *    path is the git-tracked `apps/ml/data/*.json`.
+   *
+   * The durable fix — training state in PostgreSQL, or at minimum a configured
+   * volume-backed directory — is recorded for a later pass rather than attempted
+   * here.
+   */
+  private writeJsonAtomically(filePath: string, value: unknown): void {
+    const directory = path.dirname(filePath);
+    const tempPath = path.join(
+      directory,
+      `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`,
+    );
+    try {
+      fs.writeFileSync(tempPath, JSON.stringify(value, null, 2));
+      fs.renameSync(tempPath, filePath);
+    } catch (error) {
+      // Leaving a temp file behind would accumulate across failures, and a stale
+      // `.tmp` next to a tracked JSON file is noise in every `git status`.
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {
+        // The temp file may never have been created; nothing to clean up.
+      }
+      throw error;
+    }
+  }
+
   private extractAttributesFallback(
     text: string,
   ): Record<string, RawExtractedAttribute> {
@@ -1103,9 +1154,9 @@ export class MlService {
       target.reviewedAt = new Date().toISOString();
       // The reviewer is the authenticated principal. This previously fell back to
       // the literal string `admin@ananya.internal`, which fabricated a reviewer for
-      // an anonymous caller — the route is now guarded (`Inventory.Update`), so an
-      // absent identity means something is wrong with the guard wiring rather than
-      // a legitimate anonymous review. Recording `null` is honest; inventing an
+      // an anonymous caller — the route is now administrator-guarded, so an absent
+      // identity means something is wrong with the guard wiring rather than a
+      // legitimate anonymous review. Recording `null` is honest; inventing an
       // administrator is not.
       target.reviewerEmail = user?.email ?? null;
       if (dto.reviewerNotes) target.reviewerNotes = dto.reviewerNotes;
@@ -1115,7 +1166,7 @@ export class MlService {
       if (dto.resolvedManufacturer && rec)
         rec.manufacturer = dto.resolvedManufacturer;
 
-      fs.writeFileSync(quarantinePath, JSON.stringify(items, null, 2));
+      this.writeJsonAtomically(quarantinePath, items);
 
       // If marked VERIFIED by human auditor, append to validated_records.json
       if (dto.status === 'VERIFIED') {
@@ -1141,10 +1192,7 @@ export class MlService {
           reviewedAt: new Date().toISOString(),
         };
         validatedRecords.push(rec);
-        fs.writeFileSync(
-          validatedPath,
-          JSON.stringify(validatedRecords, null, 2),
-        );
+        this.writeJsonAtomically(validatedPath, validatedRecords);
       }
 
       return { success: true, message: `Record ${id} marked as ${dto.status}` };

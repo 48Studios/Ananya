@@ -18,13 +18,16 @@ import { DocumentationAnalysisService } from '../../src/ml/documentation-analysi
 import { ComponentReviewQueueService } from '../../src/ml/component-review-queue.service';
 import { db, closeDatabaseConnection } from '@ananya/database';
 import {
+  activityEvents,
+  aiSuggestionFeedback,
   componentIntelligenceFindings,
   documentIntelligenceAnalyses,
   documents,
   roles,
+  securityAuditLogs,
   users,
 } from '@ananya/database/schema';
-import { and, eq, inArray } from '@ananya/database/query';
+import { and, eq, inArray, sql } from '@ananya/database/query';
 
 /** Typed view of documentation intelligence response bodies. */
 interface AnalysisBody {
@@ -367,6 +370,15 @@ describe('Datasheet Documentation Intelligence', () => {
         .delete(documents)
         .where(inArray(documents.id, createdDocumentIds));
     }
+    // Feedback BEFORE components. `ai_suggestion_feedback.component_id` is
+    // `ON DELETE SET NULL`: deleting the component first leaves the row with no
+    // subject at all, which makes it permanent residue rather than merely an
+    // orphan — nothing can match it afterwards.
+    if (createdComponentIds.length > 0) {
+      await db
+        .delete(aiSuggestionFeedback)
+        .where(inArray(aiSuggestionFeedback.componentId, createdComponentIds));
+    }
     for (const id of createdComponentIds) {
       await componentsService.delete(id).catch(() => undefined);
     }
@@ -375,6 +387,49 @@ describe('Datasheet Documentation Intelligence', () => {
     }
     if (createdRoleIds.length > 0) {
       await db.delete(roles).where(inArray(roles.id, createdRoleIds));
+    }
+    // Activity events carry no foreign key to their subject, so the component
+    // delete leaves them behind with a dangling `entity_id`. Removed by the fixture
+    // component id they were written against — not by orphanhood, which cannot
+    // distinguish residue from a legitimate event whose entity was later deleted.
+    if (createdComponentIds.length > 0) {
+      await db
+        .delete(activityEvents)
+        .where(inArray(activityEvents.entityId, createdComponentIds));
+    }
+    // Audit rows name their actor by EMAIL with `user_id` NULL, so the fixture
+    // addresses are the only deterministic handle.
+    await db
+      .delete(securityAuditLogs)
+      .where(
+        inArray(securityAuditLogs.userEmail, [
+          `di-reader-${runId}@ananya.local`,
+          `di-writer-${runId}@ananya.local`,
+        ]),
+      );
+    // `ROLE_CREATED` carries NO actor at all — `user_id` and `user_email` are both
+    // NULL and the role id lives in the details blob, so it is invisible to every
+    // predicate above.
+    if (createdRoleIds.length > 0) {
+      await db.delete(securityAuditLogs).where(
+        sql`${securityAuditLogs.details}->>'roleId' IN (${sql.join(
+          createdRoleIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      );
+    }
+    // A third shape: the analysis path records its own `DOCUMENT_ANALYZED` rows
+    // under whatever actor it is handed, and this suite drives it directly with a
+    // synthetic one (`{ email: 'e2e@local' }`) rather than a fixture account. The
+    // component id inside the details blob is the deterministic handle — no
+    // fixture email can match these rows.
+    if (createdComponentIds.length > 0) {
+      await db.delete(securityAuditLogs).where(
+        sql`${securityAuditLogs.details}->>'componentId' IN (${sql.join(
+          createdComponentIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      );
     }
     if (app) {
       await app.close();

@@ -370,8 +370,25 @@ describe('Attribute Intelligence review queue — API', () => {
     holdAudit = null;
   });
 
-  const outsiderToken = () =>
-    (app as unknown as { _outsiderToken?: string })._outsiderToken ?? '';
+  /**
+   * The outsider's session token, minted in `beforeAll`.
+   *
+   * Throws rather than falling back to `''`. The fallback silently produced an
+   * empty bearer token, which the guard reports as `401 Unauthorized` — so a token
+   * that was never minted was indistinguishable from a genuine authorization
+   * failure, and the test's real assertion (403) failed with a misleading status.
+   * Failing loudly keeps the two cases apart.
+   */
+  const outsiderToken = () => {
+    const token = (app as unknown as { _outsiderToken?: string })
+      ._outsiderToken;
+    if (!token) {
+      throw new Error(
+        'The outsider session token was never minted — check the fixture setup in beforeAll.',
+      );
+    }
+    return token;
+  };
 
   const createAttribute = async (suffix: string) => {
     const definition = await attributesService.createDefinition({
@@ -1783,6 +1800,22 @@ describe('Attribute Intelligence review queue — API', () => {
       const applicationFiltered = await http()
         .get(`${QUEUE_ROUTE}?applicationResult=APPLIED`)
         .set('Authorization', `Bearer ${readerToken}`);
+
+      // The status of each read is asserted first, with the body attached. These
+      // three requests share one bearer token, so a non-200 here means the read
+      // itself was refused — and the body says by what, instead of the failure
+      // surfacing as a confusing "cannot read property of undefined" further down.
+      for (const [label, response] of [
+        ['unfiltered', unfiltered],
+        ['status-filtered', statusFiltered],
+        ['application-filtered', applicationFiltered],
+      ] as const) {
+        expect({
+          request: label,
+          status: response.status,
+          body: response.body as unknown,
+        }).toMatchObject({ status: 200 });
+      }
 
       const baseline = body<QueuePageBody>(unfiltered).counts;
       // Family counts still ignore the status filter (Pass 3 behaviour)...

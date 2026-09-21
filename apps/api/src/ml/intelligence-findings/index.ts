@@ -28,3 +28,24 @@ export {
   type IntelligenceFindingDecision,
   type IntelligenceFindingStatus,
 } from './finding-lifecycle';
+
+/**
+ * Bounded apply transactions.
+ *
+ * Also subject-neutral: the mechanism is "set transaction-local lock and
+ * statement timeouts, and recognise the two SQLSTATEs that mean the database
+ * refused to wait". Each apply path declares its own scope (environment
+ * variables, defaults, error class) on top of it.
+ */
+export {
+  TIMEOUT_SQLSTATE_CODES,
+  applyTransactionTimeouts,
+  describeApplyTimeout,
+  isTimeoutSqlState,
+  readSqlState,
+  resolveApplyTimeouts,
+  type ApplyTimeoutConfig,
+  type ApplyTimeoutDescriptor,
+  type ApplyTimeoutKind,
+  type ApplyTimeoutScope,
+} from './apply-timeout';

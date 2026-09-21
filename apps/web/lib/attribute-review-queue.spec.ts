@@ -25,6 +25,7 @@ import {
   attributeAuditConflictMessage,
   attributeAuditUnavailableReason,
   attributeDecisionConflictMessage,
+  attributeDefinitionProposal,
   attributeIssueTypeLabel,
   attributeReviewReadOnlyNotice,
   attributeStatusBadge,
@@ -668,6 +669,23 @@ describe("Attribute review queue dialog — data source", () => {
     expect(dialog).not.toContain("location.reload");
     expect(dialog).not.toContain("setInterval");
   });
+
+  it('renders the creation action through the same apply control', () => {
+    // Pass 7 did not add a second control: the creation action flows through the
+    // existing action-specific apply button, which is what keeps creation gated by
+    // `canApplyAttributeFinding` and confirmed by `attributeApplyConfirmation`
+    // exactly like the binding actions.
+    expect(dialog).toContain("attributeApplyLabel(applyAction)");
+    expect(dialog).toContain("attributeApplyActionTitle(applyAction)");
+    expect(dialog).toContain("canApplyAttributeFinding(finding, permissions.canApply)");
+    expect(dialog).toContain("attributeApplyConfirmation(");
+
+    // The button's icon is action-specific, so a creation cannot be drawn with the
+    // removal icon the old two-way ternary would have produced.
+    expect(dialog).toContain("<AttributeApplyIcon action={applyAction} />");
+    expect(dialog).toContain('if (action === "CREATE_DEFINITION")');
+    expect(dialog).not.toContain('applyAction === "ADD_BINDING" ? (\n');
+  });
 });
 
 describe("Attribute categories dialog — guarded apply", () => {
@@ -718,6 +736,43 @@ describe("Attribute review queue — apply eligibility", () => {
       ...overrides,
     });
 
+  /**
+   * The Pass 7 shape: an expectation the library has no attribute for.
+   *
+   * `attributeDefinitionId: null` with the producer's own `isExisting: false` is
+   * exactly what the normalizer persists when resolution found nothing, and it is
+   * the only state that may create a definition.
+   */
+  const creatable = (overrides: Partial<AttributeReviewFindingDto> = {}) =>
+    finding({
+      issueType: "MISSING_EXPECTED_ATTRIBUTE",
+      issueCategory: "ATTRIBUTE_BINDING",
+      attributeDefinitionId: null,
+      categoryId: "cat-1",
+      status: "ACCEPTED",
+      title: 'Expect "Termination Style" for "Resistors"',
+      currentValue: {
+        category: { id: "cat-1", code: "RESISTORS", name: "Resistors", isActive: true },
+        expectedAttributeCode: "termination",
+        expectedAttributeName: "Termination Style",
+        existingAttribute: null,
+        attributeExists: false,
+        rule: "DOMAIN_EXPECTATION",
+      },
+      suggestedValue: {
+        rule: "DOMAIN_EXPECTATION",
+        suggestedAction: "BIND_ATTRIBUTE",
+        canonicalCode: "termination",
+        canonicalName: "Termination Style",
+        dataType: "SELECT",
+        groupName: "Physical",
+        isExisting: false,
+        isRequired: false,
+      },
+      metadata: { attributeCode: "termination", categoryCode: "RESISTORS" },
+      ...overrides,
+    });
+
   it('maps only the two binding families onto an action', () => {
     expect(attributeApplyAction(bindable())).toBe("ADD_BINDING");
     expect(
@@ -738,6 +793,171 @@ describe("Attribute review queue — apply eligibility", () => {
     ]) {
       expect(attributeApplyAction(finding({ issueType }))).toBeNull();
     }
+  });
+
+  it('offers Create Attribute only for an expectation with no definition', () => {
+    expect(attributeApplyAction(creatable())).toBe("CREATE_DEFINITION");
+
+    // The same family with a resolved definition stays a binding.
+    expect(attributeApplyAction(bindable())).toBe("ADD_BINDING");
+
+    // The audit's ambiguous case: the producer claimed the attribute exists, but
+    // no definition could be resolved. Neither binding nor creating is right.
+    expect(
+      attributeApplyAction(
+        creatable({
+          suggestedValue: {
+            canonicalCode: "termination",
+            canonicalName: "Termination Style",
+            dataType: "SELECT",
+            isExisting: true,
+          },
+        }),
+      ),
+    ).toBeNull();
+
+    // A Pass 1-era finding with no `isExisting` flag at all is refused, not guessed.
+    expect(
+      attributeApplyAction(
+        creatable({ suggestedValue: { canonicalCode: "termination" } }),
+      ),
+    ).toBeNull();
+    expect(attributeApplyAction(creatable({ suggestedValue: null }))).toBeNull();
+  });
+
+  it('labels creation as creating, never as a generic apply', () => {
+    expect(attributeApplyLabel("CREATE_DEFINITION")).toBe("Create Attribute");
+    expect(
+      canApplyAttributeFinding(creatable(), true),
+    ).toBe(true);
+    // Read-only users can inspect the finding but cannot create.
+    expect(canApplyAttributeFinding(creatable(), false)).toBe(false);
+    expect(attributeApplyUnavailableReason(creatable(), false)).toContain(
+      "Inventory.Update",
+    );
+    // Already applied, or not yet accepted, offers nothing.
+    expect(
+      canApplyAttributeFinding(creatable({ applicationResult: "APPLIED" }), true),
+    ).toBe(false);
+    expect(canApplyAttributeFinding(creatable({ status: "PENDING" }), true)).toBe(
+      false,
+    );
+  });
+
+  it('reads the proposal from the finding, with nothing defaulted', () => {
+    const proposal = attributeDefinitionProposal(creatable());
+    expect(proposal).toMatchObject({
+      code: "termination",
+      name: "Termination Style",
+      dataType: "SELECT",
+      unitCategory: null,
+      defaultUnit: null,
+      groupName: "Physical",
+      optionLabels: [],
+      complete: true,
+      missing: [],
+    });
+
+    // Nothing is invented for display: an undeclared field is reported as missing,
+    // because the server refuses such a proposal.
+    const incomplete = attributeDefinitionProposal(
+      creatable({
+        suggestedValue: {
+          canonicalCode: "termination",
+          canonicalName: "Termination Style",
+          isExisting: false,
+        },
+      }),
+    );
+    expect(incomplete.dataType).toBe("");
+    expect(incomplete.complete).toBe(false);
+    expect(incomplete.missing).toEqual(["data type"]);
+  });
+
+  it('falls back to the expected-state snapshot for the proposal', () => {
+    const proposal = attributeDefinitionProposal(
+      creatable({ suggestedValue: { isExisting: false } }),
+    );
+    expect(proposal.code).toBe("termination");
+    expect(proposal.name).toBe("Termination Style");
+    // The snapshot has no data type of its own, so the proposal is incomplete.
+    expect(proposal.complete).toBe(false);
+  });
+
+  it('lists option labels from either accepted option shape', () => {
+    const proposal = attributeDefinitionProposal(
+      creatable({
+        suggestedValue: {
+          canonicalCode: "termination",
+          canonicalName: "Termination Style",
+          dataType: "SELECT",
+          isExisting: false,
+          options: ["SMD / SMT", { code: "TH", label: "Through Hole" }],
+        },
+      }),
+    );
+    expect(proposal.optionLabels).toEqual(["SMD / SMT", "Through Hole"]);
+  });
+
+  it('confirms creation with the definition it will create', () => {
+    const confirmation = attributeApplyConfirmation({
+      finding: creatable(),
+      action: "CREATE_DEFINITION",
+    });
+    expect(confirmation.title).toMatch(/create this attribute definition/i);
+    expect(confirmation.confirmLabel).toBe("Create Attribute");
+    expect(confirmation.destructive).toBe(false);
+    expect(confirmation.description).toMatch(/adds "Termination Style"/);
+
+    const rows = Object.fromEntries(
+      confirmation.subject.map((row) => [row.label, row.value]),
+    );
+    expect(rows).toMatchObject({
+      Attribute: "Termination Style",
+      Code: "termination",
+      "Data type": "SELECT",
+      Category: "Resistors",
+      "Unit category": "None",
+      "Default unit": "None",
+      Group: "Physical",
+    });
+    // No options proposed: said plainly rather than shown as an empty cell.
+    expect(rows.Options).toMatch(/add them after/i);
+  });
+
+  it('warns in the confirmation when the proposal cannot be created', () => {
+    const confirmation = attributeApplyConfirmation({
+      finding: creatable({
+        suggestedValue: {
+          canonicalCode: "termination",
+          canonicalName: "Termination Style",
+          isExisting: false,
+        },
+      }),
+      action: "CREATE_DEFINITION",
+    });
+    expect(confirmation.description).toMatch(/does not declare its data type/i);
+    expect(confirmation.description).toMatch(/refuse/i);
+  });
+
+  it('reports what a completed creation produced', () => {
+    const message = attributeApplySuccessMessage({
+      action: "CREATE_DEFINITION",
+      attributeName: "Termination Style",
+      categoryName: "Resistors",
+      appliedState:
+        "Created 'Termination Style' (termination) and bound it to 'Resistors'",
+      createdDefinition: {
+        code: "termination",
+        name: "Termination Style",
+        dataType: "SELECT",
+        optionCount: 2,
+      },
+    });
+    expect(message).toMatch(/Created "Termination Style" \(termination, SELECT\)/);
+    expect(message).toMatch(/bound it to "Resistors"/);
+    expect(message).toMatch(/2 options were created with it/);
+    expect(message).toContain("Recorded state:");
   });
 
   it('offers apply only for an accepted, unapplied, writable finding', () => {
@@ -800,9 +1020,24 @@ describe("Attribute review queue — apply eligibility", () => {
     expect(
       attributeApplyUnavailableReason(bindable({ status: "STALE" }), true),
     ).toMatch(/stale/i);
+    // The ambiguous expectation gets its own explanation, because "review-only"
+    // would be wrong: the family is applicable, the subject is not resolvable.
+    expect(
+      attributeApplyUnavailableReason(
+        creatable({
+          suggestedValue: {
+            canonicalCode: "termination",
+            canonicalName: "Termination Style",
+            isExisting: true,
+          },
+        }),
+        true,
+      ),
+    ).toMatch(/could not resolve/i);
 
     // Offered: no reason to report.
     expect(attributeApplyUnavailableReason(bindable(), true)).toBeNull();
+    expect(attributeApplyUnavailableReason(creatable(), true)).toBeNull();
   });
 
   it('never claims a decision mutates, but may claim apply does', () => {

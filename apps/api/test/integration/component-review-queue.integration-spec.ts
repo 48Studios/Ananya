@@ -30,6 +30,15 @@ describe('Component Intelligence Review Queue (persistence + lifecycle)', () => 
   let componentsService: ComponentsService;
   let reviewQueue: ComponentReviewQueueService;
   let component!: Awaited<ReturnType<ComponentsService['create']>>;
+  /**
+   * The fixture component's id, in a variable that is never cleared.
+   *
+   * `component` itself is deliberately nulled by the final test (which deletes it,
+   * and must not have `afterAll` try again), so it cannot be the handle cleanup
+   * uses — with a null `component`, cleanup silently did nothing and the suite's
+   * feedback rows survived the component delete as null-subject rows.
+   */
+  let componentIdForCleanup = '';
   let feedbackIds: string[] = [];
 
   beforeAll(async () => {
@@ -43,14 +52,25 @@ describe('Component Intelligence Review Queue (persistence + lifecycle)', () => 
 
   afterAll(async () => {
     if (!hasDbUrl) return;
+    // Feedback is owned by the fixture component, so it is deleted by SUBJECT
+    // before the component itself. `ai_suggestion_feedback.component_id` is
+    // `ON DELETE SET NULL`: delete the component first and every row this suite
+    // wrote survives with no subject at all, unaddressable and permanent.
+    if (componentIdForCleanup) {
+      await db
+        .delete(aiSuggestionFeedback)
+        .where(eq(aiSuggestionFeedback.componentId, componentIdForCleanup));
+    }
     if (feedbackIds.length > 0) {
       await db
         .delete(aiSuggestionFeedback)
         .where(inArray(aiSuggestionFeedback.id, feedbackIds));
       feedbackIds = [];
     }
-    if (component) {
-      await componentsService.delete(component.id).catch(() => undefined);
+    if (componentIdForCleanup) {
+      await componentsService
+        .delete(componentIdForCleanup)
+        .catch(() => undefined);
     }
     if (app) {
       await app.close();
@@ -95,6 +115,7 @@ describe('Component Intelligence Review Queue (persistence + lifecycle)', () => 
       manufacturerPartNumber: 'RC0805FR-0727RL',
       unit: 'pcs',
     });
+    componentIdForCleanup = component.id;
 
     const first = await reviewQueue.persistFindings([buildFinding()]);
     expect(first.persistedCount).toBe(1);
@@ -178,7 +199,9 @@ describe('Component Intelligence Review Queue (persistence + lifecycle)', () => 
         ),
       );
     expect(feedbackRows.length).toBe(1);
-    feedbackIds = feedbackRows.map((row) => row.id);
+    // Accumulate rather than assign: this was `feedbackIds = …`, so a later test's
+    // rows were invisible to `afterAll`.
+    feedbackIds.push(...feedbackRows.map((row) => row.id));
     expect(feedbackRows[0]!.userAction).toBe('REJECTED');
     expect(feedbackRows[0]!.field).toBe('manufacturer');
     expect(feedbackRows[0]!.reviewerEmail).toBe(reviewer.email);
@@ -275,6 +298,16 @@ describe('Component Intelligence Review Queue (persistence + lifecycle)', () => 
     if (!hasDbUrl) return;
 
     const componentId = component.id;
+
+    // Feedback first, and this is the only place it can be done: the component
+    // delete below is what nulls `ai_suggestion_feedback.component_id`, and from
+    // that moment the rows can no longer be found by subject. `afterAll` keeps a
+    // by-subject delete as a safety net, but it runs after this test and would
+    // already be too late.
+    await db
+      .delete(aiSuggestionFeedback)
+      .where(eq(aiSuggestionFeedback.componentId, componentId));
+
     await componentsService.delete(componentId);
 
     const remaining = await db

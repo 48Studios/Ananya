@@ -22,6 +22,12 @@ import {
 } from '@ananya/inventory';
 import { DrizzleComponentRepository } from '../infrastructure/repositories/drizzle-component.repository';
 import {
+  applyComponentTransactionTimeouts,
+  classifyComponentApplyTimeout,
+  resolveComponentApplyTimeouts,
+  type ApplyTimeoutConfig,
+} from './component-apply-timeout';
+import {
   DrizzleAttributeDefinitionRepository,
   DrizzleAttributeOptionRepository,
   DrizzleComponentAttributeRepository,
@@ -409,16 +415,124 @@ export class ComponentReviewApplyService {
     @Optional() private readonly dataPacksService?: DataPacksService,
   ) {}
 
+  /**
+   * The bounds in force for this process.
+   *
+   * Resolved once at construction rather than per call, so a long-running process
+   * cannot change its own limits mid-flight and so the values are visible in one
+   * place when diagnosing an apply that timed out.
+   */
+  private readonly timeouts: ApplyTimeoutConfig =
+    resolveComponentApplyTimeouts();
+
   async applyFinding(
     id: string,
     input: ApplyComponentFindingInput,
     reviewer?: ApplyReviewerContext,
   ): Promise<ApplyComponentFindingResult> {
-    const [preflight] = await db
-      .select()
-      .from(componentIntelligenceFindings)
-      .where(eq(componentIntelligenceFindings.id, id))
-      .limit(1);
+    const startedAt = performance.now();
+    const timings: Record<string, number> = {};
+
+    const phase = async <T>(
+      name: string,
+      run: () => Promise<T>,
+    ): Promise<T> => {
+      const phaseStart = performance.now();
+      try {
+        return await run();
+      } finally {
+        timings[name] =
+          Math.round((performance.now() - phaseStart) * 100) / 100;
+      }
+    };
+
+    try {
+      return await this.applyFindingWithinBounds(
+        id,
+        input,
+        reviewer,
+        phase,
+        startedAt,
+        timings,
+      );
+    } catch (error) {
+      // The bounds are checked first, because a timeout is the one refusal that is
+      // worth retrying unchanged. Only the two PostgreSQL timeout SQLSTATEs
+      // qualify — a domain refusal, a unique violation or an unexpected driver
+      // failure keeps its own meaning below.
+      const timeout = classifyComponentApplyTimeout(error, this.timeouts);
+      if (timeout) {
+        timings.totalMs =
+          Math.round((performance.now() - startedAt) * 100) / 100;
+        this.logger.warn(
+          this.serialize({
+            event: 'component.apply.timed_out',
+            findingId: id,
+            reason: 'APPLY_TIMEOUT',
+            outcome: 'ROLLED_BACK',
+            timeout: timeout.detail.timeout,
+            limitMs: timeout.detail.limitMs,
+            ...timings,
+          }),
+        );
+        throw timeout;
+      }
+
+      if (error instanceof FindingApplyConflictError) {
+        timings.totalMs =
+          Math.round((performance.now() - startedAt) * 100) / 100;
+        this.logger.warn(
+          this.serialize({
+            event: 'component.apply.refused',
+            findingId: id,
+            reason: error.reason,
+            outcome: 'ROLLED_BACK',
+            reviewerId: reviewer?.id ?? null,
+            ...timings,
+          }),
+        );
+        throw error;
+      }
+
+      // Anything else is unexpected and must stay visible as a genuine failure
+      // rather than be dressed up as a transient conflict.
+      timings.totalMs = Math.round((performance.now() - startedAt) * 100) / 100;
+      this.logger.error(
+        this.serialize({
+          event: 'component.apply.failed',
+          findingId: id,
+          reason: 'UNEXPECTED_ERROR',
+          outcome: 'ROLLED_BACK',
+          reviewerId: reviewer?.id ?? null,
+          errorName: error instanceof Error ? error.name : typeof error,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          ...timings,
+        }),
+      );
+      throw error;
+    }
+  }
+
+  /** One structured line per event, matching the HTTP interceptor's convention. */
+  private serialize(value: Record<string, unknown>): string {
+    return JSON.stringify(value);
+  }
+
+  private async applyFindingWithinBounds(
+    id: string,
+    input: ApplyComponentFindingInput,
+    reviewer: ApplyReviewerContext | undefined,
+    phase: <T>(name: string, run: () => Promise<T>) => Promise<T>,
+    startedAt: number,
+    timings: Record<string, number>,
+  ): Promise<ApplyComponentFindingResult> {
+    const [preflight] = await phase('preflightMs', () =>
+      db
+        .select()
+        .from(componentIntelligenceFindings)
+        .where(eq(componentIntelligenceFindings.id, id))
+        .limit(1),
+    );
 
     if (!preflight) {
       throw new NotFoundException(`Component review finding '${id}' not found`);
@@ -432,16 +546,28 @@ export class ComponentReviewApplyService {
       );
     }
 
-    const packagePatterns = await this.loadPackagePatterns();
+    const packagePatterns = await phase('packagePatternsMs', () =>
+      this.loadPackagePatterns(),
+    );
 
     const result = await db.transaction(async (tx) => {
+      // 0. Bound this transaction only. `SET LOCAL` reverts on commit or
+      //    rollback, so the pooled connection carries no limit afterwards, and
+      //    nothing outside this transaction is affected.
+      await applyComponentTransactionTimeouts(
+        tx as unknown as DbExecutor,
+        this.timeouts,
+      );
+
       // 1. Lock the finding so a concurrent apply cannot interleave.
-      const [finding] = await tx
-        .select()
-        .from(componentIntelligenceFindings)
-        .where(eq(componentIntelligenceFindings.id, id))
-        .limit(1)
-        .for('update');
+      const [finding] = await phase('findingLockMs', () =>
+        tx
+          .select()
+          .from(componentIntelligenceFindings)
+          .where(eq(componentIntelligenceFindings.id, id))
+          .limit(1)
+          .for('update'),
+      );
 
       if (!finding) {
         throw new NotFoundException(
@@ -667,11 +793,24 @@ export class ComponentReviewApplyService {
     }
 
     const outcome = result.outcome;
-    const staledFindingCount = await this.reconcileSiblingFindings(outcome);
-    await this.recordAuditEvent(outcome, reviewer);
+    const staledFindingCount = await phase('reconcileMs', () =>
+      this.reconcileSiblingFindings(outcome),
+    );
+    await phase('auditMs', () => this.recordAuditEvent(outcome, reviewer));
 
+    timings.totalMs = Math.round((performance.now() - startedAt) * 100) / 100;
     this.logger.log(
-      `Applied finding ${outcome.findingId} (${outcome.issueType}) to component ${outcome.component.sku}: set ${outcome.field}.`,
+      this.serialize({
+        event: 'component.apply.succeeded',
+        findingId: outcome.findingId,
+        componentId: outcome.componentId,
+        issueType: outcome.issueType,
+        field: outcome.field,
+        reviewerId: reviewer?.id ?? null,
+        outcome: 'APPLIED',
+        staledFindingCount,
+        ...timings,
+      }),
     );
 
     return { ...outcome, staledFindingCount };

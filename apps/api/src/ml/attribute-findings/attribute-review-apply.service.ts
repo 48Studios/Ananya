@@ -14,9 +14,15 @@ import {
 import { and, eq } from '@ananya/database/query';
 import {
   CategoryAttribute,
+  AttributeDefinition as AttributeDefinitionAggregate,
+  AttributeOption as AttributeOptionAggregate,
   type CategoryAttributeRepository,
 } from '@ananya/inventory';
-import { DrizzleCategoryAttributeRepository } from '../../infrastructure/repositories/drizzle-attribute.repository';
+import {
+  DrizzleAttributeDefinitionRepository,
+  DrizzleAttributeOptionRepository,
+  DrizzleCategoryAttributeRepository,
+} from '../../infrastructure/repositories/drizzle-attribute.repository';
 import { SecurityAuditService } from '../../security-audit/security-audit.service';
 import {
   AttributeIntelligenceFindingsService,
@@ -24,7 +30,19 @@ import {
 } from './attribute-finding.service';
 import type { AttributeFindingDto } from './attribute-finding.dtos';
 import {
+  findProposalCollision,
+  readAttributeDefinitionProposal,
+  validateAttributeDefinitionProposal,
+  type AttributeDefinitionProposal,
+} from './attribute-definition-proposal';
+import { loadUnitCatalog } from '../current-attribute-value';
+import {
+  getPostgresErrorCode,
+  POSTGRES_UNIQUE_VIOLATION,
+} from '../../common/utils/postgres-error';
+import {
   resolveAttributeApplyRule,
+  resolveAttributeApplyAction,
   type ApplyAttributeFindingDto,
   type ApplyAttributeFindingResult,
   type AttributeApplyAction,
@@ -33,7 +51,7 @@ import {
 import {
   applyTransactionTimeouts,
   classifyApplyTimeout,
-  resolveApplyTimeouts,
+  resolveAttributeApplyTimeouts,
   type ApplyTimeoutConfig,
 } from './attribute-apply-timeout';
 
@@ -53,6 +71,8 @@ export interface ApplyAttributeActor {
 interface ApplyTimings {
   findingLockMs?: number;
   targetResolutionMs?: number;
+  /** Present only for `CREATE_DEFINITION`, which has an extra existence check. */
+  collisionCheckMs?: number;
   expectedStateMs?: number;
   mutationMs?: number;
   feedbackMs?: number;
@@ -75,6 +95,8 @@ interface ApplyLogContext {
   actorId?: string | null;
   fingerprint?: string | null;
   applicationResult?: string | null;
+  /** Identity of a definition this attempt created, when it created one. */
+  createdDefinitionId?: string | null;
 }
 
 const BINDING_FAMILY_ISSUE_TYPES = [
@@ -109,6 +131,69 @@ interface ResolvedTarget {
   categoryId: string;
   categoryCode: string;
   categoryName: string;
+}
+
+/** The category an application binds into, read inside the transaction. */
+interface ResolvedCategory {
+  id: string;
+  code: string;
+  name: string;
+}
+
+/**
+ * What an application is about to do, once its target is verified and locked.
+ *
+ * Two shapes rather than one, because `CREATE_DEFINITION` is the only action whose
+ * subject does not exist yet: it has a validated *proposal* instead of a resolved
+ * definition. Keeping them separate is what stops the mutation step from having to
+ * guess whether an id it holds is real, and it makes the compile-time rule the
+ * same as the domain rule — a definition is created from a proposal, a binding
+ * from a resolved target.
+ */
+type TargetResolution =
+  | {
+      kind: 'BINDING';
+      action: 'ADD_BINDING' | 'REMOVE_BINDING';
+      target: ResolvedTarget;
+    }
+  | {
+      kind: 'DEFINITION';
+      proposal: AttributeDefinitionProposal;
+      category: ResolvedCategory;
+    };
+
+/**
+ * The finding state `resolveTarget` needs.
+ *
+ * `StalenessSubject` plus the proposed state, because the create branch has to read
+ * the proposal and `suggestedValue` is where the producer recorded it — the
+ * persisted finding is the only source for what may be created.
+ */
+type ApplyFindingSubject = StalenessSubject & {
+  issueType: string;
+  suggestedValue: Record<string, unknown> | null;
+};
+
+/** The definition a `CREATE_DEFINITION` application created. */
+interface CreatedDefinitionSummary {
+  id: string;
+  code: string;
+  name: string;
+  dataType: string;
+  unitCategory: string | null;
+  defaultUnit: string | null;
+  optionCount: number;
+}
+
+/** What the mutation step actually wrote, in the form the rest of the flow needs. */
+interface MutationOutcome {
+  /** The entity the application acted on, resolved to its final identity. */
+  target: ResolvedTarget;
+  sortOrder: number | null;
+  /** The binding created or removed, when the action touched one. */
+  bindingId: string | null;
+  /** Set only by `CREATE_DEFINITION`. */
+  createdDefinition: CreatedDefinitionSummary | null;
 }
 
 /**
@@ -148,7 +233,8 @@ export class AttributeReviewApplyService {
    * cannot change its own limits mid-flight and so the values are visible in one
    * place when diagnosing an apply that timed out.
    */
-  private readonly timeouts: ApplyTimeoutConfig = resolveApplyTimeouts();
+  private readonly timeouts: ApplyTimeoutConfig =
+    resolveAttributeApplyTimeouts();
 
   async applyFinding(
     id: string,
@@ -200,6 +286,13 @@ export class AttributeReviewApplyService {
 
         // 2. Supported family and matching action. Both refusals are free of side
         //    effects, so they can be raised before any domain work.
+        //
+        //    The action is resolved from persisted state rather than from the
+        //    family alone, because `MISSING_EXPECTED_ATTRIBUTE` settles two ways:
+        //    bind a definition that exists, or create the one that does not. A
+        //    finding that names no definition while its producer claimed one exists
+        //    is the audit's ambiguous case and resolves to no action at all, which
+        //    is reported as an unusable target rather than as an unsupported family.
         const rule = resolveAttributeApplyRule(finding.issueType);
         if (!rule) {
           throw new AttributeApplyConflictError(
@@ -207,10 +300,17 @@ export class AttributeReviewApplyService {
             `Findings of type '${finding.issueType}' cannot be applied. Only attribute bindings can be applied; duplicate and unused findings are review-only because the domain has no merge or retirement operation.`,
           );
         }
-        if (rule.action !== input.action) {
+        const resolvedAction = resolveAttributeApplyAction(finding);
+        if (!resolvedAction) {
+          throw new AttributeApplyConflictError(
+            'UNSUPPORTED_TARGET',
+            `This finding expects an attribute for its category, but the definition could not be resolved and is not clearly absent either, so there is nothing to bind and nothing to create. Re-run the library audit to refresh it.`,
+          );
+        }
+        if (resolvedAction !== input.action) {
           throw new AttributeApplyConflictError(
             'UNSUPPORTED_ACTION',
-            `Finding '${id}' applies ${rule.action}, not ${input.action}.`,
+            `Finding '${id}' applies ${resolvedAction}, not ${input.action}.`,
           );
         }
 
@@ -248,13 +348,42 @@ export class AttributeReviewApplyService {
         //    more specific of the two: "the binding you want to add is already there"
         //    tells the reviewer what is actually wrong with the library, whereas the
         //    expected-state check can only report that the finding's premise moved.
-        const target = await phase('targetResolutionMs', () =>
+        //
+        //    For `CREATE_DEFINITION` this also builds and validates the proposal from
+        //    the finding — nothing about it comes from the request — and it does so
+        //    before the expected-state gate for the same reason: "this attribute
+        //    already exists" is the more informative refusal.
+        const resolution = await phase('targetResolutionMs', () =>
           this.resolveTarget({
             tx: client,
             finding,
             action: input.action,
           }),
         );
+
+        // 5b. A proposal that already exists in the library is not created again. The
+        //     premise of the finding ("this category has no such attribute") no longer
+        //     holds, so the finding is retired through the ordinary staleness mechanism
+        //     and the refusal is raised only after that bookkeeping commits — exactly
+        //     the protocol the expected-state gate uses below. Creating a second
+        //     definition is never an option.
+        if (resolution.kind === 'DEFINITION') {
+          const collision = await phase('collisionCheckMs', () =>
+            this.findDefinitionCollision(resolution.proposal, client),
+          );
+          if (collision) {
+            await this.findingsService.markFindingStaleInTransaction(
+              finding.id,
+              collision,
+              client,
+            );
+            return {
+              applied: false as const,
+              reason: 'TARGET_ALREADY_EXISTS' as AttributeApplyConflictReason,
+              message: `${collision}. Nothing was created — re-run the library audit to refresh this finding into a binding suggestion.`,
+            };
+          }
+        }
 
         // 6. Expected state, against THIS transaction's view of the library. A
         //    mismatch means the finding describes a library that no longer exists, so
@@ -284,15 +413,22 @@ export class AttributeReviewApplyService {
           this.performMutation({
             tx: client,
             action: input.action,
-            target,
+            resolution,
           }),
         );
 
+        const target = mutation.target;
+        const createdDefinition = mutation.createdDefinition;
+        if (createdDefinition) {
+          logContext.createdDefinitionId = createdDefinition.id;
+        }
+
         const appliedAt = new Date();
-        const previousState =
-          input.action === 'ADD_BINDING' ? 'Not bound' : 'Bound';
-        const appliedState =
-          input.action === 'ADD_BINDING' ? 'Bound' : 'Not bound';
+        const { previousState, appliedState } = describeTransition({
+          action: input.action,
+          target,
+          createdDefinition,
+        });
 
         const marked = await this.findingsService.markFindingApplied(
           finding.id,
@@ -314,6 +450,10 @@ export class AttributeReviewApplyService {
               fingerprint: finding.fingerprint,
               attributeDefinitionId: target.attributeDefinitionId,
               categoryId: target.categoryId,
+              // Recorded only when this application created the definition, so an
+              // applied finding says exactly which record it added to the library.
+              bindingId: mutation.bindingId,
+              createdDefinition,
               decisionNotes: input.decisionNotes ?? null,
             },
           },
@@ -367,6 +507,8 @@ export class AttributeReviewApplyService {
             appliedById: actor?.id ?? null,
             appliedByEmail: actor?.email ?? null,
             feedbackId,
+            bindingId: mutation.bindingId,
+            createdDefinition,
           },
         };
       });
@@ -480,25 +622,35 @@ export class AttributeReviewApplyService {
    * An inactive attribute only blocks ADD: adding requires an active definition
    * because the domain will not serve values for an inactive one, while removing an
    * undesirable binding from a deactivated attribute is still a legitimate cleanup.
+   *
+   * `CREATE_DEFINITION` (Pass 7) takes the other branch. Its subject does not exist
+   * yet, so there is no attribute row to lock: it locks the category it will bind
+   * into, verifies it is active, and builds the proposal from the finding. The
+   * definition's *absence* is what the caller checks next, and the proposal is
+   * validated here so an unusable one is refused before any existence check has a
+   * chance to write a staleness record for a finding that is merely malformed.
    */
   private async resolveTarget(input: {
     tx: DbExecutor;
-    finding: StalenessSubject & { issueType: string };
+    finding: ApplyFindingSubject;
     action: AttributeApplyAction;
-  }): Promise<ResolvedTarget> {
+  }): Promise<TargetResolution> {
     const { tx, finding, action } = input;
 
     const attributeDefinitionId = finding.attributeDefinitionId;
     const categoryId = finding.categoryId;
 
-    // Both actions operate on a binding, which needs both sides. A category-first
-    // finding whose attribute was never defined has no binding to add, and the pass
-    // explicitly forbids creating one — so it is refused rather than turned into a
-    // definition creation.
+    if (action === 'CREATE_DEFINITION') {
+      return this.resolveDefinitionTarget({ tx, finding, categoryId });
+    }
+
+    // Both binding actions operate on a binding, which needs both sides. A
+    // category-first finding whose attribute was never defined has no binding to
+    // change; the create branch above handles the case where one should be made.
     if (!attributeDefinitionId) {
       throw new AttributeApplyConflictError(
         'UNSUPPORTED_TARGET',
-        'This finding expects an attribute that does not exist in the library yet. Creating attribute definitions from intelligence is not supported, so there is nothing to apply — define the attribute first, then re-run the audit.',
+        'This finding expects an attribute that does not exist in the library yet, so there is no binding to change. It cannot be created from here either: re-run the library audit to refresh it, then apply the resulting suggestion.',
       );
     }
     if (!categoryId) {
@@ -586,12 +738,16 @@ export class AttributeReviewApplyService {
     }
 
     return {
-      attributeDefinitionId: attribute.id,
-      attributeCode: attribute.code,
-      attributeName: attribute.name,
-      categoryId: category.id,
-      categoryCode: category.code,
-      categoryName: category.name,
+      kind: 'BINDING',
+      action,
+      target: {
+        attributeDefinitionId: attribute.id,
+        attributeCode: attribute.code,
+        attributeName: attribute.name,
+        categoryId: category.id,
+        categoryCode: category.code,
+        categoryName: category.name,
+      },
     };
   }
 
@@ -603,18 +759,167 @@ export class AttributeReviewApplyService {
    * row. Domain refusals are translated into the conflict vocabulary rather than
    * escaping as a 500.
    */
+  /**
+   * Builds and validates the proposal for a `CREATE_DEFINITION` application.
+   *
+   * The whole proposal comes from the persisted finding — the request cannot carry
+   * one, which is what keeps this route from becoming a general attribute-library
+   * write API. Two things happen here:
+   *
+   *  1. the category the expectation belongs to is locked and must exist and be
+   *     active. There is no attribute row to lock: the point of the action is that it
+   *     does not exist. Locking the category therefore also serialises two applies
+   *     that would bind different attributes into the same category, in the same
+   *     order the binding actions use (attribute then category, category-only here).
+   *  2. the proposal is validated against the domain's vocabulary and the unit
+   *     catalogue. Validation runs before the existence check in the caller so a
+   *     malformed proposal is refused without writing a staleness record — the
+   *     finding is not stale, the producer is wrong.
+   */
+  private async resolveDefinitionTarget(input: {
+    tx: DbExecutor;
+    finding: ApplyFindingSubject;
+    categoryId: string | null;
+  }): Promise<TargetResolution> {
+    const { tx, finding, categoryId } = input;
+
+    if (!categoryId) {
+      throw new AttributeApplyConflictError(
+        'UNSUPPORTED_TARGET',
+        'This finding does not identify the category the attribute is expected for, so there is no binding to create.',
+      );
+    }
+
+    const [category] = await tx
+      .select({
+        id: categories.id,
+        code: categories.code,
+        name: categories.name,
+        isActive: categories.isActive,
+      })
+      .from(categories)
+      .where(eq(categories.id, categoryId))
+      .limit(1)
+      .for('update');
+
+    if (!category) {
+      throw new AttributeApplyConflictError(
+        'TARGET_NOT_FOUND',
+        'The category for this finding no longer exists in the library.',
+      );
+    }
+    if (!category.isActive) {
+      throw new AttributeApplyConflictError(
+        'TARGET_INACTIVE',
+        `The category "${category.name}" is inactive and cannot receive new attribute bindings.`,
+      );
+    }
+
+    const read = readAttributeDefinitionProposal(finding);
+    if ('refusal' in read) {
+      throw new AttributeApplyConflictError(
+        read.refusal.reason,
+        read.refusal.message,
+      );
+    }
+
+    const units = await loadUnitCatalog(tx);
+    const refusal = validateAttributeDefinitionProposal({
+      proposal: read.proposal,
+      units,
+    });
+    if (refusal) {
+      throw new AttributeApplyConflictError(refusal.reason, refusal.message);
+    }
+
+    return {
+      kind: 'DEFINITION',
+      proposal: read.proposal,
+      category: {
+        id: category.id,
+        code: category.code,
+        name: category.name,
+      },
+    };
+  }
+
+  /**
+   * Whether the proposed attribute already exists in the library.
+   *
+   * Returns a human-readable reason when it does, so the caller can retire the
+   * finding with an explanation, and `null` when creation is safe. The check runs
+   * inside the transaction against the transaction's own snapshot, after the
+   * category lock, so a definition another reviewer created a moment ago is seen.
+   *
+   * The comparison is the audit's: a definition is identified by its code, name *and*
+   * aliases through the same reduced key the producer uses, and a key two definitions
+   * already claim counts as existing. Anything else would let this path create a
+   * definition that the next audit immediately reports as a duplicate of an existing
+   * one.
+   */
+  private async findDefinitionCollision(
+    proposal: AttributeDefinitionProposal,
+    client: DbExecutor,
+  ): Promise<string | null> {
+    const definitions = await new DrizzleAttributeDefinitionRepository(
+      client,
+    ).findMany();
+
+    const collision = findProposalCollision({ proposal, definitions });
+    if (!collision) return null;
+
+    if (collision.ambiguous) {
+      return `The library already contains more than one attribute matching '${proposal.code}', so creating a definition for it would be ambiguous`;
+    }
+
+    const match = collision.definition;
+    const matchedOn =
+      collision.matchedOn === 'code'
+        ? 'code'
+        : collision.matchedOn === 'name'
+          ? 'name'
+          : 'alias';
+    const clause = match
+      ? `'${match.code}' (${match.name})`
+      : `'${proposal.code}'`;
+    return `The attribute ${clause} already exists in the library and matches the proposed ${matchedOn}`;
+  }
+
+  /**
+   * Performs the authoritative mutation through the domain aggregate.
+   *
+   * The repository is constructed against the transaction's executor, so it
+   * participates in the same transaction as the finding transition and the feedback
+   * row. Domain refusals are translated into the conflict vocabulary rather than
+   * escaping as a 500.
+   *
+   * `CREATE_DEFINITION` is the only branch that writes more than one kind of row:
+   * the definition, its options when the proposal carries any, and the binding that
+   * resolves the expectation. All three are written through their aggregates with
+   * this transaction's executor, which is what makes the whole application atomic —
+   * a failure at any point leaves no definition, no option and no binding behind.
+   */
   private async performMutation(input: {
     tx: DbExecutor;
     action: AttributeApplyAction;
-    target: ResolvedTarget;
-  }): Promise<{ sortOrder: number | null }> {
+    resolution: TargetResolution;
+  }): Promise<MutationOutcome> {
+    if (input.resolution.kind === 'DEFINITION') {
+      return this.createDefinition(
+        input.tx,
+        input.resolution.proposal,
+        input.resolution.category,
+      );
+    }
+
+    const { target } = input.resolution;
     const repository: CategoryAttributeRepository =
       new DrizzleCategoryAttributeRepository(input.tx);
 
     try {
       if (input.action === 'ADD_BINDING') {
         const existing = await repository.findByAttributeDefinitionId(
-          input.target.attributeDefinitionId,
+          target.attributeDefinitionId,
         );
         // Append after the category's existing attributes, matching how the
         // attribute UI orders a new binding; the exact value is presentational.
@@ -624,18 +929,23 @@ export class AttributeReviewApplyService {
             : Math.max(...existing.map((binding) => binding.sortOrder)) + 10;
 
         const binding = CategoryAttribute.create({
-          categoryId: input.target.categoryId,
-          attributeDefinitionId: input.target.attributeDefinitionId,
+          categoryId: target.categoryId,
+          attributeDefinitionId: target.attributeDefinitionId,
           isRequired: false,
           sortOrder,
         });
-        await repository.save(binding);
-        return { sortOrder };
+        const saved = await repository.save(binding);
+        return {
+          target,
+          sortOrder,
+          bindingId: saved.id,
+          createdDefinition: null,
+        };
       }
 
       const removed = await repository.delete(
-        input.target.categoryId,
-        input.target.attributeDefinitionId,
+        target.categoryId,
+        target.attributeDefinitionId,
       );
       if (!removed) {
         // Someone removed the binding between the check above and this write.
@@ -645,7 +955,12 @@ export class AttributeReviewApplyService {
           'The binding was removed by someone else while this application was running. The finding no longer describes the library — re-run the audit to refresh it.',
         );
       }
-      return { sortOrder: null };
+      return {
+        target,
+        sortOrder: null,
+        bindingId: null,
+        createdDefinition: null,
+      };
     } catch (error) {
       if (error instanceof AttributeApplyConflictError) throw error;
       throw new AttributeApplyConflictError(
@@ -658,6 +973,151 @@ export class AttributeReviewApplyService {
   }
 
   /**
+   * Creates the definition the proposal describes, binds it to its category, and
+   * reports the new identities.
+   *
+   * Order inside the transaction: definition, then options, then binding. The
+   * definition must exist before either dependent row, and the binding last so the
+   * expectation the finding asserted is closed only once the attribute is fully
+   * representable.
+   *
+   * A unique violation is possible despite the pre-checks — a concurrent creation
+   * outside this transaction, or an option code that the option table's own unique
+   * index rejects — so it is translated into `TARGET_ALREADY_EXISTS` rather than
+   * escaping as a 500. The check above is the ordinary path; this is the
+   * defence-in-depth the contract requires for a predictable conflict.
+   */
+  private async createDefinition(
+    tx: DbExecutor,
+    proposal: AttributeDefinitionProposal,
+    category: ResolvedCategory,
+  ): Promise<MutationOutcome> {
+    const definitionRepository = new DrizzleAttributeDefinitionRepository(tx);
+    const optionRepository = new DrizzleAttributeOptionRepository(tx);
+    const bindingRepository: CategoryAttributeRepository =
+      new DrizzleCategoryAttributeRepository(tx);
+
+    let definitionId: string;
+    let definitionRow: {
+      id: string;
+      code: string;
+      name: string;
+      dataType: string;
+      unitCategory: string | null;
+      defaultUnit: string | null;
+    };
+
+    try {
+      const definition = AttributeDefinitionAggregate.create({
+        code: proposal.code,
+        name: proposal.name,
+        description: proposal.description,
+        dataType: proposal.dataType as NonNullable<
+          AttributeDefinitionProposal['dataType']
+        >,
+        unitCategory: proposal.unitCategory,
+        defaultUnit: proposal.defaultUnit,
+        groupName: proposal.groupName,
+        aliases: proposal.aliases,
+      });
+      const saved = await definitionRepository.save(definition);
+      definitionId = saved.id;
+      definitionRow = {
+        id: saved.id,
+        code: saved.code,
+        name: saved.name,
+        dataType: saved.dataType,
+        unitCategory: saved.unitCategory ?? null,
+        defaultUnit: saved.defaultUnit ?? null,
+      };
+
+      for (const option of proposal.options) {
+        await optionRepository.save(
+          AttributeOptionAggregate.create({
+            attributeDefinitionId: saved.id,
+            code: option.code,
+            label: option.label,
+            sortOrder: option.sortOrder,
+          }),
+        );
+      }
+    } catch (error) {
+      throw this.translateDefinitionWriteFailure(error);
+    }
+
+    const existing =
+      await bindingRepository.findByAttributeDefinitionId(definitionId);
+    const sortOrder =
+      existing.length === 0
+        ? 10
+        : Math.max(...existing.map((binding) => binding.sortOrder)) + 10;
+
+    let bindingId: string | null = null;
+    try {
+      const binding = CategoryAttribute.create({
+        categoryId: category.id,
+        attributeDefinitionId: definitionId,
+        isRequired: proposal.isRequired,
+        sortOrder,
+      });
+      const savedBinding = await bindingRepository.save(binding);
+      bindingId = savedBinding.id;
+    } catch (error) {
+      throw this.translateDefinitionWriteFailure(error);
+    }
+
+    return {
+      target: {
+        attributeDefinitionId: definitionRow.id,
+        attributeCode: definitionRow.code,
+        attributeName: definitionRow.name,
+        categoryId: category.id,
+        categoryCode: category.code,
+        categoryName: category.name,
+      },
+      sortOrder,
+      bindingId,
+      createdDefinition: {
+        id: definitionRow.id,
+        code: definitionRow.code,
+        name: definitionRow.name,
+        dataType: definitionRow.dataType,
+        unitCategory: definitionRow.unitCategory,
+        defaultUnit: definitionRow.defaultUnit,
+        optionCount: proposal.options.length,
+      },
+    };
+  }
+
+  /**
+   * Turns a creation failure into the route's conflict vocabulary.
+   *
+   * A unique violation means the library gained a definition (or an option code)
+   * that collides with this proposal between the check and the write, which is
+   * exactly what `TARGET_ALREADY_EXISTS` describes; a domain error is
+   * `DOMAIN_REFUSED` with the aggregate's own message. Anything else stays
+   * unexpected, so a real infrastructure failure is never dressed up as a conflict.
+   */
+  private translateDefinitionWriteFailure(error: unknown): Error {
+    if (error instanceof AttributeApplyConflictError) return error;
+
+    const code = getPostgresErrorCode(error);
+    if (code === POSTGRES_UNIQUE_VIOLATION) {
+      return new AttributeApplyConflictError(
+        'TARGET_ALREADY_EXISTS',
+        'The attribute library gained a matching attribute or option while this application was running. Nothing was created — re-run the library audit to refresh this finding.',
+      );
+    }
+
+    return new AttributeApplyConflictError(
+      'DOMAIN_REFUSED',
+      `The attribute domain refused to create the definition: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
+  /**
    * Records the application in the existing telemetry ledger.
    *
    * Uses `ai_suggestion_feedback` rather than a new table. `userAction` stays within
@@ -665,6 +1125,10 @@ export class AttributeReviewApplyService {
    * is recorded as ACCEPTED with a distinguishing `action` in metadata, the same
    * convention the component apply path uses, so existing feedback queries keep
    * working.
+   *
+   * A `CREATE_DEFINITION` application records the created definition and the binding
+   * in metadata as well as in `finalValue`, so the ledger says what was added to the
+   * library rather than only which rule was accepted.
    */
   private async recordFeedback(input: {
     tx: DbExecutor;
@@ -693,7 +1157,7 @@ export class AttributeReviewApplyService {
     actor?: ApplyAttributeActor;
     previousState: string;
     appliedState: string;
-    mutation: { sortOrder: number | null };
+    mutation: MutationOutcome;
     decisionNotes?: string;
   }): Promise<string | null> {
     const [row] = await input.tx
@@ -717,6 +1181,8 @@ export class AttributeReviewApplyService {
           action: input.action,
           attributeDefinitionId: input.target.attributeDefinitionId,
           categoryId: input.target.categoryId,
+          bindingId: input.mutation.bindingId,
+          createdDefinition: input.mutation.createdDefinition,
         },
         reviewerId: input.actor?.id ?? null,
         reviewerEmail: input.actor?.email ?? null,
@@ -736,6 +1202,15 @@ export class AttributeReviewApplyService {
           previousState: input.previousState,
           appliedState: input.appliedState,
           sortOrder: input.mutation.sortOrder,
+          bindingId: input.mutation.bindingId,
+          createdDefinitionId: input.mutation.createdDefinition?.id ?? null,
+          createdDefinitionCode: input.mutation.createdDefinition?.code ?? null,
+          createdDefinitionDataType:
+            input.mutation.createdDefinition?.dataType ?? null,
+          createdDefinitionUnitCategory:
+            input.mutation.createdDefinition?.unitCategory ?? null,
+          createdDefinitionOptionCount:
+            input.mutation.createdDefinition?.optionCount ?? null,
           fingerprint: input.finding.fingerprint,
           intelligenceVersion: input.finding.intelligenceVersion ?? null,
           appliedAt: input.appliedAt.toISOString(),
@@ -757,22 +1232,44 @@ export class AttributeReviewApplyService {
    * they are left for the decision-time check and the next audit rather than being
    * aged by a change they do not depend on.
    *
+   * **`CREATE_DEFINITION` is scoped to the created definition, never the category.**
+   * The category-wide sweep the binding actions perform would retire every other
+   * expectation for that category — creating `termination` would stale "this
+   * category is missing `operating_temperature`" — which is false: each expectation
+   * depends on its own attribute being bound, exactly as
+   * `describeExpectedAttributeStaleness` encodes. The created definition is brand
+   * new, so no existing finding references it and the correct number of siblings to
+   * retire is zero. A second finding expecting the *same* code in a different
+   * category is genuinely still valid and stays applicable.
+   *
    * Best-effort: the mutation is committed and the finding truthfully records it, so
    * a failure here must not turn a successful application into an error.
    */
   private async reconcileBindingFindings(
     outcome: Omit<ApplyAttributeFindingResult, 'staledFindingCount'>,
   ): Promise<number> {
+    const verb =
+      outcome.action === 'CREATE_DEFINITION'
+        ? 'created'
+        : outcome.action === 'ADD_BINDING'
+          ? 'added'
+          : 'removed';
+
     try {
       const byAttribute = await this.findingsService.markFindingsStale({
         attributeDefinitionId: outcome.attributeDefinitionId,
         issueTypes: BINDING_FAMILY_ISSUE_TYPES,
-        reason: `Binding ${outcome.action === 'ADD_BINDING' ? 'added' : 'removed'} by applying finding ${outcome.findingId}`,
+        reason: `Binding ${verb} by applying finding ${outcome.findingId}`,
       });
+
+      if (outcome.action === 'CREATE_DEFINITION') {
+        return byAttribute.staledCount;
+      }
+
       const byCategory = await this.findingsService.markFindingsStale({
         categoryId: outcome.categoryId,
         issueTypes: BINDING_FAMILY_ISSUE_TYPES,
-        reason: `Binding ${outcome.action === 'ADD_BINDING' ? 'added' : 'removed'} by applying finding ${outcome.findingId}`,
+        reason: `Binding ${verb} by applying finding ${outcome.findingId}`,
       });
       return byAttribute.staledCount + byCategory.staledCount;
     } catch (error) {
@@ -814,6 +1311,11 @@ export class AttributeReviewApplyService {
           after: outcome.appliedState,
           applicationResult: outcome.applicationResult,
           fingerprint: outcome.fingerprint,
+          // Present only for a creation, so the audit trail distinguishes "added a
+          // definition to the library" from "edited a binding" without inferring it
+          // from the action name alone.
+          createdDefinition: outcome.createdDefinition,
+          bindingId: outcome.bindingId,
         },
       });
     } catch (error) {
@@ -847,6 +1349,36 @@ function resolveFeedbackField(finding: {
   const field = finding.field;
   if (typeof field === 'string' && field.length > 0) return field;
   return finding.issueType.toLowerCase();
+}
+
+/**
+ * The human-readable before/after pair recorded on the finding, the feedback row and
+ * the security audit.
+ *
+ * A binding transition is described in the library's own terms, unchanged from Pass
+ * 4. Creating a definition is described as creating *and* binding it, because that is
+ * what happened: a `CREATE_DEFINITION` that left the category unbound would not have
+ * resolved the expectation the reviewer approved.
+ */
+function describeTransition(input: {
+  action: AttributeApplyAction;
+  target: ResolvedTarget;
+  createdDefinition: CreatedDefinitionSummary | null;
+}): { previousState: string; appliedState: string } {
+  if (input.action === 'ADD_BINDING') {
+    return { previousState: 'Not bound', appliedState: 'Bound' };
+  }
+  if (input.action === 'REMOVE_BINDING') {
+    return { previousState: 'Bound', appliedState: 'Not bound' };
+  }
+
+  const created = input.createdDefinition;
+  const name = created?.name ?? input.target.attributeName;
+  const code = created?.code ?? input.target.attributeCode;
+  return {
+    previousState: `No attribute '${code}' in the library`,
+    appliedState: `Created '${name}' (${code}) and bound it to '${input.target.categoryName}'`,
+  };
 }
 
 /** Milliseconds to two decimals, matching the HTTP interceptor's precision. */

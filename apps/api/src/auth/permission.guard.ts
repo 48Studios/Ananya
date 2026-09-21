@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   Type,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -52,6 +53,12 @@ export function extractBearerToken(
  *  - authenticated but missing the required permission → `403 Forbidden`
  *  - otherwise populates `request.user` and allows the request
  *
+ * Only authentication failures are translated into a `401`. Any other failure
+ * while validating the session — a database error, an exhausted pool — is
+ * re-thrown so it keeps its own meaning (a `5xx`) instead of being reported to
+ * the caller as an invalid session. See {@link createPermissionGuard}'s
+ * `canActivate` for why that distinction is load-bearing.
+ *
  * @param permission Permission code that must be held, e.g. `Inventory.Update`.
  * @param subject    Human-readable operation used in error messages, phrased so
  *                   it reads after "to" (e.g. "modify component data").
@@ -81,10 +88,28 @@ export function createPermissionGuard(
       let me: Awaited<ReturnType<AuthService['getMeByToken']>>;
       try {
         me = await this.authService.getMeByToken(token);
-      } catch {
-        throw new UnauthorizedException(
-          'Your session is invalid or has expired. Sign in again.',
-        );
+      } catch (error) {
+        // Only the authentication-failure shapes become a 401. `getMeByToken`
+        // throws `UnauthorizedException` for a missing/expired/revoked session,
+        // and `NotFoundException` when the session's user or role no longer
+        // exists; both mean "this principal is not valid".
+        //
+        // Anything else is an operational failure and is re-thrown untouched.
+        // Swallowing it into a 401 is what made an observed integration-run
+        // failure undiagnosable: the caller was told to sign in again, no `5xx`
+        // was recorded, and nothing appeared in the logs — the request looked
+        // like an authorization result when it was an infrastructure fault.
+        // `GET /auth/me`, which this validation is borrowed from, surfaces a
+        // non-authentication failure as a `5xx` for the same reason.
+        if (
+          error instanceof UnauthorizedException ||
+          error instanceof NotFoundException
+        ) {
+          throw new UnauthorizedException(
+            'Your session is invalid or has expired. Sign in again.',
+          );
+        }
+        throw error;
       }
 
       const user = me?.user;

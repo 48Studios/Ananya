@@ -59,44 +59,54 @@ export async function readAttributeFindingLiveState(
   // Definitions are read by id AND by code in one pass: the code lookup exists so
   // an expectation's "does a definition for this code exist?" is answered from the
   // same snapshot as everything else.
-  const [definitionRows, categoryRows, bindingRows] = await Promise.all([
-    chunkedIn(attributeIds, (chunk) =>
-      client
-        .select({
-          id: attributeDefinitions.id,
-          code: attributeDefinitions.code,
-          name: attributeDefinitions.name,
-          dataType: attributeDefinitions.dataType,
-          unitCategory: attributeDefinitions.unitCategory,
-          defaultUnit: attributeDefinitions.defaultUnit,
-          aliases: attributeDefinitions.aliases,
-          groupName: attributeDefinitions.groupName,
-          isActive: attributeDefinitions.isActive,
-        })
-        .from(attributeDefinitions)
-        .where(inArray(attributeDefinitions.id, chunk)),
-    ),
-    chunkedIn(categoryIds, (chunk) =>
-      client
-        .select({
-          id: categories.id,
-          code: categories.code,
-          name: categories.name,
-          isActive: categories.isActive,
-        })
-        .from(categories)
-        .where(inArray(categories.id, chunk)),
-    ),
-    chunkedIn(categoryIds, (chunk) =>
-      client
-        .select({
-          categoryId: categoryAttributes.categoryId,
-          attributeDefinitionId: categoryAttributes.attributeDefinitionId,
-        })
-        .from(categoryAttributes)
-        .where(inArray(categoryAttributes.categoryId, chunk)),
-    ),
-  ]);
+  //
+  // These run SEQUENTIALLY, deliberately. `client` is a transaction executor on the
+  // apply path (see `describeFindingStaleness`), and a transaction owns exactly one
+  // pg client — issuing the three reads with `Promise.all` meant three concurrent
+  // `client.query()` calls on that single connection. node-postgres deprecates that
+  // and warns "Calling client.query() when the client is already executing a query",
+  // and pg@9 removes the implicit queueing it currently relies on.
+  //
+  // The cost is one extra round trip on a bounded, three-query read; the apply path
+  // was already serialized on the wire, so nothing is slowed down there. In exchange
+  // the helper is safe for any executor it is handed, which is what the shared
+  // signature promises.
+  const definitionRows = await chunkedIn(attributeIds, (chunk) =>
+    client
+      .select({
+        id: attributeDefinitions.id,
+        code: attributeDefinitions.code,
+        name: attributeDefinitions.name,
+        dataType: attributeDefinitions.dataType,
+        unitCategory: attributeDefinitions.unitCategory,
+        defaultUnit: attributeDefinitions.defaultUnit,
+        aliases: attributeDefinitions.aliases,
+        groupName: attributeDefinitions.groupName,
+        isActive: attributeDefinitions.isActive,
+      })
+      .from(attributeDefinitions)
+      .where(inArray(attributeDefinitions.id, chunk)),
+  );
+  const categoryRows = await chunkedIn(categoryIds, (chunk) =>
+    client
+      .select({
+        id: categories.id,
+        code: categories.code,
+        name: categories.name,
+        isActive: categories.isActive,
+      })
+      .from(categories)
+      .where(inArray(categories.id, chunk)),
+  );
+  const bindingRows = await chunkedIn(categoryIds, (chunk) =>
+    client
+      .select({
+        categoryId: categoryAttributes.categoryId,
+        attributeDefinitionId: categoryAttributes.attributeDefinitionId,
+      })
+      .from(categoryAttributes)
+      .where(inArray(categoryAttributes.categoryId, chunk)),
+  );
 
   const codeRows =
     attributeCodes.length > 0
@@ -151,29 +161,28 @@ export async function readAttributeFindingLiveState(
   const bindingCounts = new Map<string, number>();
 
   if (input.includeUsage !== false && attributeIds.length > 0) {
-    const [valueRows, bindingCountRows] = await Promise.all([
-      chunkedIn(attributeIds, (chunk) =>
-        client
-          .select({
-            attributeDefinitionId:
-              componentAttributeValues.attributeDefinitionId,
-            value: count(),
-          })
-          .from(componentAttributeValues)
-          .where(inArray(componentAttributeValues.attributeDefinitionId, chunk))
-          .groupBy(componentAttributeValues.attributeDefinitionId),
-      ),
-      chunkedIn(attributeIds, (chunk) =>
-        client
-          .select({
-            attributeDefinitionId: categoryAttributes.attributeDefinitionId,
-            value: count(),
-          })
-          .from(categoryAttributes)
-          .where(inArray(categoryAttributes.attributeDefinitionId, chunk))
-          .groupBy(categoryAttributes.attributeDefinitionId),
-      ),
-    ]);
+    // Sequential for the same reason as the reads above: `client` may be a
+    // transaction's single connection.
+    const valueRows = await chunkedIn(attributeIds, (chunk) =>
+      client
+        .select({
+          attributeDefinitionId: componentAttributeValues.attributeDefinitionId,
+          value: count(),
+        })
+        .from(componentAttributeValues)
+        .where(inArray(componentAttributeValues.attributeDefinitionId, chunk))
+        .groupBy(componentAttributeValues.attributeDefinitionId),
+    );
+    const bindingCountRows = await chunkedIn(attributeIds, (chunk) =>
+      client
+        .select({
+          attributeDefinitionId: categoryAttributes.attributeDefinitionId,
+          value: count(),
+        })
+        .from(categoryAttributes)
+        .where(inArray(categoryAttributes.attributeDefinitionId, chunk))
+        .groupBy(categoryAttributes.attributeDefinitionId),
+    );
 
     for (const row of valueRows) {
       componentValueCounts.set(row.attributeDefinitionId, Number(row.value));

@@ -120,6 +120,46 @@ describe('Component Duplicate Intelligence (deterministic)', () => {
   it('keeps the SQL normalization mirrors identical to the JavaScript rules', async () => {
     if (!hasDbUrl) return;
 
+    // Own fixtures, not whatever the catalog happens to contain.
+    //
+    // This test previously read the first 500 rows of `components` and asserted
+    // `> 0`. That made it pass only while some other spec's components were still
+    // present — it silently verified nothing once the catalog was empty, and it
+    // failed outright the moment the catalog was legitimately cleaned. The
+    // mirror is only meaningful against inputs that exercise its branches, so the
+    // rows below carry the cases the SQL expressions have to reproduce: mixed
+    // case, internal whitespace, punctuation, a numeric suffix, and a null MPN.
+    const normalizationFixtures: Array<{
+      sku: string;
+      name: string;
+      manufacturerPartNumber?: string;
+    }> = [
+      {
+        sku: `NORMMIR-${runTag}-1`,
+        name: '  Resistor  10KΩ  ',
+        manufacturerPartNumber: 'rc0805fr-0710kl',
+      },
+      {
+        sku: `NORMMIR-${runTag}-2`,
+        name: 'RC0805FR 0710KL',
+        manufacturerPartNumber: 'RC0805FR-0710KL',
+      },
+      {
+        sku: `NORMMIR-${runTag}-3`,
+        name: 'Capacitor 100nF (X7R)',
+        manufacturerPartNumber: 'C0805C104K5RACTU',
+      },
+      {
+        sku: `NORMMIR-${runTag}-4`,
+        name: 'Legacy Spacer',
+        // Deliberately absent: the SQL mirror must return NULL, not ''.
+      },
+    ];
+    for (const fixture of normalizationFixtures) {
+      await createComponent({ unit: 'pcs', ...fixture });
+    }
+
+    const fixtureSkus = normalizationFixtures.map((fixture) => fixture.sku);
     const rows = await db
       .select({
         id: components.id,
@@ -130,10 +170,13 @@ describe('Component Duplicate Intelligence (deterministic)', () => {
         normalizedName: normalizedNameSql(components.name),
       })
       .from(components)
+      .where(inArray(components.sku, fixtureSkus))
       .orderBy(asc(components.sku))
       .limit(500);
 
-    expect(rows.length).toBeGreaterThan(0);
+    // Every fixture must be present: a `where` that matched nothing would
+    // otherwise pass vacuously, which is the failure mode this test just had.
+    expect(rows.length).toBe(normalizationFixtures.length);
     for (const row of rows) {
       expect({ sku: row.sku, value: row.normalizedMpn }).toEqual({
         sku: row.sku,

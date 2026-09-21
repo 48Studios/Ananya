@@ -583,26 +583,53 @@ export function findingHeadline(finding: AttributeReviewFindingDto): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Finding families that can be applied, and the action each performs.
+ * Finding families that can be applied, in the order they are offered.
  *
  * Mirrors `ATTRIBUTE_APPLY_RULES` in the API. A family absent from this table is
  * review-only — `POSSIBLE_DUPLICATE` and `UNUSED_ATTRIBUTE` have no implemented
  * mutation, so the UI must not offer one.
+ *
+ * `MISSING_EXPECTED_ATTRIBUTE` lists two actions because the same expectation is
+ * settled either by binding a definition that exists or by creating the one that
+ * does not. Which one applies is decided per finding by {@link attributeApplyAction}.
  */
 export const ATTRIBUTE_APPLY_RULES: Partial<
-  Record<AttributeReviewIssueType, AttributeApplyAction>
+  Record<AttributeReviewIssueType, readonly AttributeApplyAction[]>
 > = {
-  MISSING_EXPECTED_ATTRIBUTE: "ADD_BINDING",
-  SUSPICIOUS_BINDING: "REMOVE_BINDING",
+  MISSING_EXPECTED_ATTRIBUTE: ["ADD_BINDING", "CREATE_DEFINITION"],
+  SUSPICIOUS_BINDING: ["REMOVE_BINDING"],
 };
 
-/** The action a finding would apply, or `null` when it is review-only. */
+/**
+ * The action a finding would apply, or `null` when none is justified.
+ *
+ * Mirrors the API's `resolveAttributeApplyAction`, and reads the same persisted
+ * fields: a category-first expectation (no resolved definition, producer said the
+ * attribute is not in the library) is a **Create Attribute**, an expectation whose
+ * definition resolved is an **Add Binding**, and an expectation that names no
+ * definition while its producer claimed one exists is neither — the audit's
+ * ambiguous case, which the UI must not offer an action for. The backend enforces
+ * the same rule and refuses anything else, so this is an affordance, not the
+ * authority.
+ */
 export function attributeApplyAction(
-  finding: Pick<AttributeReviewFindingDto, "issueType">,
+  finding: Pick<
+    AttributeReviewFindingDto,
+    "issueType" | "attributeDefinitionId" | "suggestedValue"
+  >,
 ): AttributeApplyAction | null {
-  return (
-    ATTRIBUTE_APPLY_RULES[finding.issueType as AttributeReviewIssueType] ?? null
-  );
+  const rule = ATTRIBUTE_APPLY_RULES[
+    finding.issueType as AttributeReviewIssueType
+  ];
+  if (!rule || rule.length === 0) return null;
+
+  if (finding.issueType === "MISSING_EXPECTED_ATTRIBUTE") {
+    if (finding.attributeDefinitionId) return "ADD_BINDING";
+    const isExisting = finding.suggestedValue?.isExisting;
+    return isExisting === false ? "CREATE_DEFINITION" : null;
+  }
+
+  return rule[0] ?? null;
 }
 
 /**
@@ -614,10 +641,36 @@ export function attributeApplyAction(
 export const ATTRIBUTE_APPLY_LABELS: Record<AttributeApplyAction, string> = {
   ADD_BINDING: "Add Binding",
   REMOVE_BINDING: "Remove Binding",
+  CREATE_DEFINITION: "Create Attribute",
 };
 
 export function attributeApplyLabel(action: AttributeApplyAction): string {
   return ATTRIBUTE_APPLY_LABELS[action];
+}
+
+/**
+ * The tooltip on the apply button.
+ *
+ * One sentence per action, so a hover states what will change in the library rather
+ * than naming the action again. Every one of them says the library changes, because
+ * that is what makes this control different from the decision buttons beside it.
+ */
+export const ATTRIBUTE_APPLY_ACTION_TITLES: Record<
+  AttributeApplyAction,
+  string
+> = {
+  ADD_BINDING:
+    "Apply this finding: bind the attribute to this category (changes the attribute library)",
+  REMOVE_BINDING:
+    "Apply this finding: remove this binding from the category (changes the attribute library)",
+  CREATE_DEFINITION:
+    "Apply this finding: create the expected attribute definition and bind it to this category (adds a new attribute to the library)",
+};
+
+export function attributeApplyActionTitle(
+  action: AttributeApplyAction,
+): string {
+  return ATTRIBUTE_APPLY_ACTION_TITLES[action];
 }
 
 export function isAttributeFindingApplied(
@@ -639,7 +692,7 @@ export function isAttributeFindingApplied(
 export function canApplyAttributeFinding(
   finding: Pick<
     AttributeReviewFindingDto,
-    "issueType" | "status" | "applicationResult"
+    "issueType" | "status" | "applicationResult" | "attributeDefinitionId" | "suggestedValue"
   >,
   canWriteAttributes: boolean,
 ): boolean {
@@ -658,7 +711,7 @@ export function canApplyAttributeFinding(
 export function attributeApplyUnavailableReason(
   finding: Pick<
     AttributeReviewFindingDto,
-    "issueType" | "status" | "applicationResult"
+    "issueType" | "status" | "applicationResult" | "attributeDefinitionId" | "suggestedValue"
   >,
   canWriteAttributes: boolean,
 ): string | null {
@@ -666,7 +719,9 @@ export function attributeApplyUnavailableReason(
     return "Already applied to the attribute library.";
   }
   if (attributeApplyAction(finding) === null) {
-    return "This finding is review-only: no change to the attribute library is implemented for it.";
+    return finding.issueType === "MISSING_EXPECTED_ATTRIBUTE"
+      ? "This finding expects an attribute that the audit could not resolve, so there is nothing to bind and nothing to create. Re-run the library audit to refresh it."
+      : "This finding is review-only: no change to the attribute library is implemented for it.";
   }
   if (!canWriteAttributes) {
     return `Applying a finding changes the attribute library, which requires the ${ATTRIBUTE_WRITE_PERMISSION} permission. You can still accept or reject this finding as a review decision.`;
@@ -719,6 +774,88 @@ export function attributeApplySubject(finding: AttributeReviewFindingDto): {
   return { attributeName, categoryName };
 }
 
+/** The attribute-definition proposal a creation would carry out. */
+export interface AttributeDefinitionProposalView {
+  /** Canonical code, or an empty string when the producer declared none. */
+  code: string;
+  name: string;
+  /** Empty when undeclared — creation is refused without one. */
+  dataType: string;
+  unitCategory: string | null;
+  defaultUnit: string | null;
+  groupName: string | null;
+  optionLabels: string[];
+  /** Whether the proposal carries everything the library needs to create it. */
+  complete: boolean;
+  /** What is missing, so the confirmation can say why a create would be refused. */
+  missing: string[];
+}
+
+/**
+ * The definition a `CREATE_DEFINITION` application would create.
+ *
+ * Read from the persisted finding — `suggestedValue` first, then the expected-state
+ * snapshot, which carries the same values by construction. Everything is displayed
+ * exactly as proposed: the client cannot edit any of it, and the confirmation must
+ * show the real thing rather than a paraphrase. Nothing is invented for display
+ * either: an undeclared data type reads as missing rather than defaulting, because
+ * the server refuses such a proposal and the reviewer needs to see that before
+ * confirming.
+ */
+export function attributeDefinitionProposal(
+  finding: AttributeReviewFindingDto,
+): AttributeDefinitionProposalView {
+  const suggested = readRecord(finding.suggestedValue);
+  const metadata = readRecord(finding.metadata);
+  // `metadata.expectedState` and `currentValue` hold the same snapshot by
+  // construction, and the API's staleness check falls back from one to the other —
+  // so the reader does too, rather than showing an incomplete proposal for a finding
+  // whose producer recorded the snapshot in the other of the two equivalent places.
+  const expected =
+    readRecord(metadata?.expectedState) ?? readRecord(finding.currentValue);
+
+  const code =
+    readString(suggested?.canonicalCode) ??
+    readString(metadata?.attributeCode) ??
+    readString(expected?.expectedAttributeCode) ??
+    "";
+  const name =
+    readString(suggested?.canonicalName) ??
+    readString(expected?.expectedAttributeName) ??
+    "";
+  const dataType = readString(suggested?.dataType) ?? "";
+  const unitCategory = readString(suggested?.unitCategory);
+  const defaultUnit = readString(suggested?.defaultUnit);
+  const groupName = readString(suggested?.groupName);
+
+  const optionLabels = Array.isArray(suggested?.options)
+    ? suggested.options
+        .map((option) => {
+          if (typeof option === "string") return option.trim();
+          const record = readRecord(option);
+          return readString(record?.label) ?? readString(record?.code);
+        })
+        .filter((label): label is string => Boolean(label))
+    : [];
+
+  const missing: string[] = [];
+  if (!code) missing.push("code");
+  if (!name) missing.push("name");
+  if (!dataType) missing.push("data type");
+
+  return {
+    code,
+    name,
+    dataType,
+    unitCategory,
+    defaultUnit,
+    groupName,
+    optionLabels,
+    complete: missing.length === 0,
+    missing,
+  };
+}
+
 function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)
@@ -744,10 +881,16 @@ export interface AttributeApplyConfirmation {
  * Content for the pre-apply confirmation.
  *
  * The mutation must be obvious before it happens, so the confirmation names the
- * attribute and the category and states the resulting library state in words.
- * The consequences are scoped deliberately: applying a binding finding never
- * creates or deletes an attribute definition, a category or a component value,
- * and saying so is what makes the confirmation usable.
+ * attribute and the category and states the resulting library state in words. The
+ * consequences are scoped deliberately: applying a binding finding never creates or
+ * deletes an attribute definition, a category or a component value, and saying so is
+ * what makes the confirmation usable.
+ *
+ * `CREATE_DEFINITION` is the one action here that *adds* to the library, so its
+ * confirmation lists the definition it will create — code, data type, unit category,
+ * default unit, options, group — field by field from the persisted proposal. A
+ * reviewer approving a new attribute must see exactly what will exist afterwards, and
+ * any field the producer did not declare is shown as missing rather than defaulted.
  */
 export function attributeApplyConfirmation(input: {
   finding: AttributeReviewFindingDto;
@@ -760,6 +903,39 @@ export function attributeApplyConfirmation(input: {
     { label: "Attribute", value: attributeName },
     { label: "Category", value: categoryName },
   ];
+
+  if (action === "CREATE_DEFINITION") {
+    const proposal = attributeDefinitionProposal(finding);
+    const optionSummary =
+      proposal.optionLabels.length > 0
+        ? proposal.optionLabels.join(", ")
+        : "None proposed — add them after creating the attribute";
+
+    const rows = [
+      ...subject,
+      { label: "Code", value: proposal.code || "Not declared" },
+      {
+        label: "Data type",
+        value: proposal.dataType || "Not declared — creation will be refused",
+      },
+      { label: "Unit category", value: proposal.unitCategory ?? "None" },
+      { label: "Default unit", value: proposal.defaultUnit ?? "None" },
+      { label: "Options", value: optionSummary },
+      { label: "Group", value: proposal.groupName ?? "None" },
+    ];
+
+    const warning = proposal.complete
+      ? ""
+      : ` This proposal does not declare its ${proposal.missing.join(", ")}, so the server will refuse it — create the attribute manually instead.`;
+
+    return {
+      title: "Create this attribute definition?",
+      description: `This adds "${proposal.name || attributeName}" to the attribute library as a new definition and binds it to "${categoryName}". It is the only action in this queue that creates an attribute, and nothing is created until you confirm.${warning}`,
+      confirmLabel: "Create Attribute",
+      subject: rows,
+      destructive: false,
+    };
+  }
 
   if (action === "ADD_BINDING") {
     return {
@@ -786,7 +962,25 @@ export function attributeApplySuccessMessage(result: {
   attributeName: string;
   categoryName: string;
   appliedState: string;
+  createdDefinition?: {
+    code: string;
+    name: string;
+    dataType: string;
+    optionCount: number;
+  } | null;
 }): string {
+  if (result.action === "CREATE_DEFINITION") {
+    const created = result.createdDefinition;
+    const identity = created
+      ? `"${created.name}" (${created.code}, ${created.dataType})`
+      : `"${result.attributeName}"`;
+    const options =
+      created && created.optionCount > 0
+        ? ` ${created.optionCount} option${created.optionCount === 1 ? "" : "s"} were created with it.`
+        : "";
+    return `Created ${identity} and bound it to "${result.categoryName}" — the attribute is now available to this category.${options} Recorded state: ${result.appliedState}.`;
+  }
+
   const verb = result.action === "ADD_BINDING" ? "Bound" : "Unbound";
   const consequence =
     result.action === "ADD_BINDING"
@@ -812,6 +1006,8 @@ export const ATTRIBUTE_APPLY_CONFLICT_REASONS = [
   "TARGET_NOT_FOUND",
   "TARGET_INACTIVE",
   "TARGET_ALREADY_EXISTS",
+  /** The persisted proposal failed definition validation; nothing was created. */
+  "INVALID_PROPOSAL",
   "CONCURRENT_APPLICATION",
   "DOMAIN_REFUSED",
 ] as const;
