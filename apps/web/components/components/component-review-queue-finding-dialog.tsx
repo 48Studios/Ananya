@@ -43,6 +43,7 @@ import {
   applyConsolidationToFinding,
   applySuccessMessage,
   applyUnavailableReason,
+  actionConsequenceNote,
   canApplyFindingAsUser,
   consolidationSuccessMessage,
   DECISION_COPY,
@@ -285,6 +286,18 @@ export function ComponentReviewFindingDialog({
   };
 
   const actions = finding ? decidableActions(finding.status) : [];
+  /**
+   * The decidable actions in footer order.
+   *
+   * Destructive outcomes first, the primary action last — DESIGN.md's footer rule
+   * ("Primary action appears last"). `decidableActions` returns them in lifecycle
+   * order, which would leave two reject/dismiss buttons after the button the
+   * reviewer is meant to reach for.
+   */
+  const footerActions = [
+    ...actions.filter((decision) => decision !== "ACCEPTED"),
+    ...actions.filter((decision) => decision === "ACCEPTED"),
+  ];
   const stale = finding?.status === "STALE";
   // Permission-driven: every write control is hidden for read-only reviewers.
   // The API enforces the same permission independently.
@@ -632,6 +645,20 @@ export function ComponentReviewFindingDialog({
                 </p>
               )}
 
+              {/*
+                What the primary action does.
+
+                Stated in the body rather than the footer, next to the other
+                consequence copy, so the reviewer reads it while reading the finding
+                instead of hunting for it beside the buttons.
+              */}
+              {!terminal && (
+                <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                  <Info className="mt-0.5 size-3 shrink-0" />
+                  {actionConsequenceNote(applicable)}
+                </p>
+              )}
+
               {terminal && (
                 <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <Info className="size-3" />
@@ -646,76 +673,72 @@ export function ComponentReviewFindingDialog({
           )}
         </DialogShellBody>
 
-        <DialogShellFooter className="justify-between">
-          <div className="min-w-0 text-[11px] text-muted-foreground">
-            {permissions.isReadOnly
-              ? `Review only: this action requires the ${COMPONENT_WRITE_PERMISSION} permission.`
-              : applicable
-                ? "Accept & Apply writes the suggested value to the component."
-                : "Accepting this finding does not modify the component."}
-          </div>
-          <div className="flex items-center gap-2">
-            <DialogShellCancelButton disabled={Boolean(submitting) || applying}>
-              Close
-            </DialogShellCancelButton>
+        {/*
+          Actions only. The consequence of the primary action is stated in the body,
+          so the footer stays a row of buttons: Close, then the destructive
+          outcomes, then the primary action last (DESIGN.md).
+        */}
+        <DialogShellFooter>
+          <DialogShellCancelButton disabled={Boolean(submitting) || applying}>
+            Close
+          </DialogShellCancelButton>
 
-            {finding &&
-              permissions.canDecide &&
-              actions.map((decision) => {
-                const isPrimary = decision === "ACCEPTED";
-                const copy = decisionCopyFor(decision);
-                // Applicable findings write to the component; everything else
-                // (duplicates) keeps the review-only accept behaviour.
-                const label = isPrimary
-                  ? applicable
-                    ? APPLY_COPY.label
-                    : copy.label
-                  : copy.label;
-                const title = isPrimary
-                  ? applicable
-                    ? APPLY_COPY.description
-                    : copy.description
-                  : copy.description;
-                const busy = Boolean(submitting) || applying;
+          {finding &&
+            permissions.canDecide &&
+            footerActions.map((decision) => {
+              const isPrimary = decision === "ACCEPTED";
+              const copy = decisionCopyFor(decision);
+              // Applicable findings write to the component; everything else
+              // (duplicates) keeps the review-only accept behaviour.
+              const label = isPrimary
+                ? applicable
+                  ? APPLY_COPY.label
+                  : copy.label
+                : copy.label;
+              const title = isPrimary
+                ? applicable
+                  ? APPLY_COPY.description
+                  : copy.description
+                : copy.description;
+              const busy = Boolean(submitting) || applying;
 
-                return (
-                  <Button
-                    key={decision}
-                    type="button"
-                    size="sm"
-                    variant={isPrimary ? "default" : "outline"}
-                    disabled={busy}
-                    title={title}
-                    className={
-                      isPrimary
-                        ? "gap-1.5"
-                        : "gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10"
+              return (
+                <Button
+                  key={decision}
+                  type="button"
+                  size="sm"
+                  variant={isPrimary ? "default" : "outline"}
+                  disabled={busy}
+                  title={title}
+                  className={
+                    isPrimary
+                      ? "gap-1.5"
+                      : "gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10"
+                  }
+                  onClick={() => {
+                    if (!isPrimary) {
+                      setPendingConfirm(decision);
+                    } else if (applicable) {
+                      setApplyDialogOpen(true);
+                    } else {
+                      void submitDecision(decision);
                     }
-                    onClick={() => {
-                      if (!isPrimary) {
-                        setPendingConfirm(decision);
-                      } else if (applicable) {
-                        setApplyDialogOpen(true);
-                      } else {
-                        void submitDecision(decision);
-                      }
-                    }}
-                  >
-                    {submitting === decision || (isPrimary && applying) ? (
-                      <Loader2 className="size-3 animate-spin" />
-                    ) : isPrimary && applicable ? (
-                      <PencilLine className="size-3" />
-                    ) : isPrimary ? (
-                      <Check className="size-3" />
-                    ) : (
-                      <X className="size-3" />
-                    )}
-                    {label}
-                    {!isPrimary && <ArrowRight className="size-3" />}
-                  </Button>
-                );
-              })}
-          </div>
+                  }}
+                >
+                  {submitting === decision || (isPrimary && applying) ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : isPrimary && applicable ? (
+                    <PencilLine className="size-3" />
+                  ) : isPrimary ? (
+                    <Check className="size-3" />
+                  ) : (
+                    <X className="size-3" />
+                  )}
+                  {label}
+                  {!isPrimary && <ArrowRight className="size-3" />}
+                </Button>
+              );
+            })}
         </DialogShellFooter>
       </DialogShell>
 

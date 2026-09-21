@@ -796,12 +796,6 @@ export function ComponentReviewQueueDialog({
                         >
                           {finding.component?.name ?? "Unknown component"}
                         </Link>
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          {finding.component?.sku ?? finding.componentId}
-                        </span>
-                        <span className="rounded border border-border bg-card px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                          {issueCategoryLabel(finding.issueCategory)}
-                        </span>
                       </div>
 
                       <div className="flex min-w-0 flex-wrap items-center gap-1.5">

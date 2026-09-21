@@ -2362,6 +2362,22 @@ export const APPLY_COPY = {
     "Writes the suggested value to the component and marks the finding accepted.",
 };
 
+/**
+ * What the detail dialog's primary action does, stated in the dialog body.
+ *
+ * The consequence belongs with the finding rather than in the footer: the footer
+ * carries actions only (DESIGN.md), and a reviewer should meet the consequence
+ * while reading the finding, before reaching for a button. The applicable wording
+ * is composed from the action label so it cannot drift from the button it
+ * describes; the review-only wording is its own sentence because it names no
+ * button ("Accept" is not what writes, and not what a duplicate gets offered).
+ */
+export function actionConsequenceNote(applicable: boolean): string {
+  return applicable
+    ? `${APPLY_COPY.label} writes the suggested value to the component.`
+    : "Accepting this finding does not modify the component.";
+}
+
 /** Success message for a completed application. */
 export function applySuccessMessage(
   result: Pick<

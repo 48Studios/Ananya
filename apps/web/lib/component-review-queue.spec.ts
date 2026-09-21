@@ -14,6 +14,8 @@ import {
   APPLY_DUPLICATE_NOTE,
   APPLY_REVIEW_ONLY_COPY,
   APPLY_WARNING,
+  APPLY_COPY,
+  actionConsequenceNote,
   actionableFindingCount,
   applyConflictMessage,
   applySuccessMessage,
@@ -1767,5 +1769,72 @@ describe("Intelligence queue list parity", () => {
 
     expect(after).toContain(") : (");
     expect(after).not.toContain("shrink-0 flex-col items-center justify-between");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Finding detail footer
+// ---------------------------------------------------------------------------
+
+describe("Component intelligence finding dialog footer", () => {
+  const webRoot = path.resolve(
+    fileURLToPath(new URL(".", import.meta.url)),
+    "..",
+  );
+  const read = (relativePath: string) =>
+    fs.readFileSync(path.join(webRoot, relativePath), "utf8");
+
+  const dialog = "components/components/component-review-queue-finding-dialog.tsx";
+
+  it("orders the footer with the primary action last", () => {
+    const source = read(dialog);
+
+    // DESIGN.md: "Footer actions are right-aligned", "Primary action appears last".
+    // `decidableActions` returns lifecycle order (ACCEPTED first), which would put
+    // Reject/Dismiss after the primary button.
+    expect(source).toContain("footerActions.map((decision) =>");
+    expect(source).toContain('decision !== "ACCEPTED"');
+    expect(source).toContain('decision === "ACCEPTED"');
+    // The lifecycle-order array must no longer drive the footer directly.
+    expect(source).not.toContain("actions.map((decision) =>");
+  });
+
+  it("leaves the consequence note out of the footer", () => {
+    const source = read(dialog);
+    const footer = source.slice(source.indexOf("<DialogShellFooter"));
+
+    // The footer is a row of buttons; it keeps no copy column of its own.
+    expect(footer).not.toContain("justify-between");
+    expect(footer).not.toContain("min-w-0 text-[11px]");
+    expect(footer).not.toContain("writes the suggested value");
+    expect(footer).not.toContain("Review only: this action requires");
+  });
+
+  it("states the consequence in the body instead, from one shared source", () => {
+    const source = read(dialog);
+
+    // Rendered in the body, gated on the finding still being decidable — the
+    // read-only and terminal cases are already explained there.
+    expect(source).toContain("actionConsequenceNote(applicable)");
+    expect(source.indexOf("actionConsequenceNote(applicable)")).toBeLessThan(
+      source.indexOf("<DialogShellFooter"),
+    );
+  });
+});
+
+describe("Component intelligence action consequence copy", () => {
+  it("names the writing action only where writing happens", () => {
+    const applicable = actionConsequenceNote(true);
+
+    expect(applicable).toContain(APPLY_COPY.label);
+    expect(applicable).toMatch(/writes the suggested value to the component/i);
+  });
+
+  it("says plainly that a review-only accept modifies nothing", () => {
+    const reviewOnly = actionConsequenceNote(false);
+
+    expect(reviewOnly).toMatch(/does not modify the component/i);
+    // No apply label may leak into the review-only case.
+    expect(reviewOnly).not.toContain(APPLY_COPY.label);
   });
 });
