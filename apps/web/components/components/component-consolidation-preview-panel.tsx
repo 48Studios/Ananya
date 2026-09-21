@@ -420,12 +420,12 @@ export function ConsolidationPreviewPanel({
           {impact.map((row) => (
             <div
               key={row.label}
-              className="grid grid-cols-1 gap-1 px-3 py-2 sm:grid-cols-[minmax(8rem,12rem)_1fr] sm:gap-3"
+              className="grid grid-cols-1 gap-1 px-3 py-2 sm:grid-cols-[minmax(8rem,max-content)_minmax(0,1fr)] sm:gap-3"
             >
               <dt className="text-[11px] font-medium text-muted-foreground">
                 {row.label}
               </dt>
-              <dd className="text-xs text-foreground">
+              <dd className="text-xs text-foreground break-words">
                 <span className="font-medium">{row.value}</span>
                 {row.detail && (
                   <span className="block text-[10px] text-muted-foreground">

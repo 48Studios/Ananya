@@ -69,7 +69,6 @@ import {
   formatConfidencePercent,
   isDuplicateFinding,
   isStale,
-  issueCategoryLabel,
   issueTypeShortLabel,
   matchesQueueTab,
   normalizeEvidence,

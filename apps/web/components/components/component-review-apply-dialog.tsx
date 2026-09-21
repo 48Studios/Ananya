@@ -74,7 +74,7 @@ export function ComponentReviewApplyDialog({
             {rows.map((row) => (
               <div
                 key={row.label}
-                className="grid grid-cols-1 gap-1 px-3 py-2 sm:grid-cols-[minmax(7rem,10rem)_1fr] sm:gap-3"
+                className="grid grid-cols-1 gap-1 px-3 py-2 sm:grid-cols-[minmax(7rem,max-content)_minmax(0,1fr)] sm:gap-3"
               >
                 <dt className="text-[11px] font-medium text-muted-foreground">
                   {row.label}

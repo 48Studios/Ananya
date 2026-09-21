@@ -113,11 +113,18 @@ function ValueBlock({
           {entries.map((entry) => (
             <div
               key={entry.label}
-              className="grid grid-cols-1 gap-1 px-3 py-2 sm:grid-cols-[minmax(9rem,14rem)_1fr] sm:gap-3"
+              className="grid grid-cols-1 gap-1 px-3 py-2 sm:grid-cols-[minmax(9rem,max-content)_minmax(0,1fr)] sm:gap-3"
             >
               <dt className="text-[11px] font-medium text-muted-foreground">
                 {entry.label}
               </dt>
+              {/*
+                `minmax(0,1fr)` rather than a bare `1fr`: a bare track cannot
+                shrink below its content's min-content width, so a long unbreakable
+                value (a document hash, an id) pushed the row out of the card. The
+                label column is capped at its own content so it cannot take the
+                space the value needs.
+              */}
               <dd className="text-xs font-medium text-foreground break-words">
                 {entry.value}
               </dd>
@@ -461,7 +468,7 @@ export function ComponentReviewFindingDialog({
                     {identityRows.map((row) => (
                       <div
                         key={row.label}
-                        className="grid grid-cols-1 gap-1 px-3 py-2 sm:grid-cols-[minmax(9rem,14rem)_1fr] sm:gap-3"
+                        className="grid grid-cols-1 gap-1 px-3 py-2 sm:grid-cols-[minmax(9rem,max-content)_minmax(0,1fr)] sm:gap-3"
                       >
                         <dt className="text-[11px] font-medium text-muted-foreground">
                           {row.label}
