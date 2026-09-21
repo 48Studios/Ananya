@@ -345,7 +345,12 @@ export interface ComponentDocumentSkipDto {
   documentIds: string[];
 }
 
-/** Server-derived counts for the documentation summary strip. */
+/**
+ * Server-derived counts for a component's documentation analysis.
+ *
+ * The review modal shows these as tab counts beside the specifications they
+ * describe, so a number and the list it refers to are never in two places.
+ */
 export interface ComponentDocumentationSummaryDto {
   componentId: string;
   documentsAnalyzed: number;

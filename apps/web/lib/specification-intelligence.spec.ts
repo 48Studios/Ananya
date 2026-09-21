@@ -16,9 +16,9 @@ import {
   applyApplicationToSpecifications,
   applyDecisionToSpecifications,
   buildSpecificationFilterCounts,
-  buildSummaryRows,
   canApplySpecification,
   canDecideSpecification,
+  confidenceLevel,
   confidenceLevelLabel,
   confidencePercent,
   confidenceReasons,
@@ -41,6 +41,7 @@ import {
   sectionLabel,
   sourceErpLabel,
   specificationBadge,
+  specificationChipTone,
   specificationEvidenceExcerpt,
   specificationStateLabel,
   specificationUnavailableReason,
@@ -607,41 +608,68 @@ describe("confidence presentation", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Summary
+// Card presentation
 // ---------------------------------------------------------------------------
 
-describe("summary strip", () => {
-  it("reports the server-derived counts", () => {
-    const rows = buildSummaryRows(summary());
-    const byKey = new Map(rows.map((row) => [row.key, row.value]));
-
-    expect(byKey.get("documents")).toBe(3);
-    expect(byKey.get("specifications")).toBe(18);
-    expect(byKey.get("needsReview")).toBe(3);
-    expect(byKey.get("applied")).toBe(11);
-    expect(byKey.get("conflicts")).toBe(2);
-    expect(byKey.get("ambiguous")).toBe(2);
-    expect(byKey.get("unresolved")).toBe(1);
-    expect(byKey.get("alreadyCurrent")).toBe(4);
-  });
-
-  it("omits empty rows but always shows the two headline counts", () => {
-    const rows = buildSummaryRows(
-      summary({
-        documentsAnalyzed: 0,
-        specificationsFound: 0,
-        needsReview: 0,
-        applied: 0,
-        conflicts: 0,
-        ambiguous: 0,
-        unresolved: 0,
-        alreadyCurrent: 0,
-      }),
+describe("review card presentation", () => {
+  it("tones the state chip by what the state means for a reviewer", () => {
+    // A conflict is the one state that always needs a human.
+    expect(specificationChipTone(specification({ state: "CONFLICT" }))).toBe(
+      "WARNING",
     );
-
-    expect(rows.map((row) => row.key)).toEqual(["documents", "specifications"]);
+    // Ready to review is the ordinary case.
+    expect(specificationChipTone(specification({ state: "AGREED" }))).toBe(
+      "PRIMARY",
+    );
+    // Informational states are not warnings.
+    expect(
+      specificationChipTone(specification({ state: "ALREADY_CURRENT" })),
+    ).toBe("SUCCESS");
+    expect(
+      specificationChipTone(specification({ state: "NOT_ACTIONABLE" })),
+    ).toBe("NEUTRAL");
   });
 
+  it("reports an applied specification as success whatever its state was", () => {
+    // Applying is the outcome the reviewer was working towards, so the chip must
+    // not keep reporting the pre-review state afterwards.
+    const applied = specification({
+      state: "CONFLICT",
+      review: {
+        findingId: "f",
+        status: "ACCEPTED",
+        fingerprint: "fp",
+        isNew: false,
+        applied: true,
+      },
+    });
+
+    expect(specificationChipTone(applied)).toBe("SUCCESS");
+    expect(specificationBadge(applied)).toBe("Applied");
+  });
+
+  it("buckets confidence on the same thresholds as the label", () => {
+    // The badge and the words must never disagree about the same number.
+    expect(confidenceLevel(0.95)).toBe("HIGH");
+    expect(confidenceLevel(0.8)).toBe("HIGH");
+    expect(confidenceLevel(0.79)).toBe("MEDIUM");
+    expect(confidenceLevel(0.6)).toBe("MEDIUM");
+    expect(confidenceLevel(0.59)).toBe("LOW");
+    expect(confidenceLevel(0)).toBe("LOW");
+
+    for (const value of [0, 0.3, 0.59, 0.6, 0.79, 0.8, 0.95, 1]) {
+      expect(confidenceLevelLabel(value).toUpperCase()).toContain(
+        confidenceLevel(value),
+      );
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Empty results
+// ---------------------------------------------------------------------------
+
+describe("empty result copy", () => {
   it("explains an empty result instead of showing nothing", () => {
     expect(
       emptySpecificationMessage(
@@ -789,12 +817,78 @@ describe("specification filters", () => {
 describe("specification intelligence dialog", () => {
   const source_ = read(dialogPath);
 
-  it("renders the summary from the server counts", () => {
-    expect(source_).toContain("buildSummaryRows");
-    // The modal renders state the host loaded; the host owns the API calls, so
-    // the "server-derived, never recomputed" claim is checked against both.
+  it("has no statistics card, so the counts live in the tabs", () => {
+    // The summary strip was removed to match the Component Intelligence queue:
+    // the same numbers are in the tab labels, next to the filter that acts on
+    // them, instead of in a second place that could disagree.
+    expect(source_).not.toContain("buildSummaryRows");
+    expect(source_).not.toContain("gap-x-5");
+    expect(source_).toContain("option.label} ({");
+  });
+
+  it("renders the state the host loaded rather than deriving it again", () => {
+    // The modal renders state the host loaded; the host owns the API calls.
     expect(read(componentPagePath)).toContain("componentSpecificationApi");
     expect(source_).toContain("state?.summary");
+  });
+
+  it("matches the Component queue's tab treatment", () => {
+    // Byte-identical classes to the Component Intelligence queue's tabs, so the
+    // two queues cannot drift apart again.
+    const componentQueue = read(
+      path.join(
+        webRoot,
+        "components/components/component-review-queue-dialog.tsx",
+      ),
+    );
+    const TAB_ROW = "flex shrink-0 items-center gap-1.5 overflow-x-auto pb-1";
+    const TAB_ACTIVE = "bg-primary text-primary-foreground";
+    const TAB_IDLE = "bg-muted text-muted-foreground hover:text-foreground";
+
+    for (const tabClass of [TAB_ROW, TAB_ACTIVE, TAB_IDLE]) {
+      expect(componentQueue, `component: ${tabClass}`).toContain(tabClass);
+      expect(source_, `documentation: ${tabClass}`).toContain(tabClass);
+    }
+  });
+
+  it("matches the Component queue's review card shape", () => {
+    const componentQueue = read(
+      path.join(
+        webRoot,
+        "components/components/component-review-queue-dialog.tsx",
+      ),
+    );
+
+    // One scroll region, one item wrapper, one subject row: the same strings the
+    // Component queue uses.
+    const LIST_CONTAINER =
+      "min-h-0 flex-1 divide-y divide-border overflow-y-auto rounded-xl border border-border bg-card shadow-2xs";
+    const ITEM = "space-y-2.5 p-4 transition-colors hover:bg-muted/15";
+    const CONTEXT_ROW =
+      "flex flex-col justify-between gap-2 rounded-lg border border-border/70 bg-muted/40 p-2.5 text-xs sm:flex-row sm:items-center";
+    const ACTIONS = "flex shrink-0 items-center gap-1.5 self-end pt-0.5 sm:self-start";
+
+    for (const shared of [LIST_CONTAINER, ITEM, CONTEXT_ROW, ACTIONS]) {
+      expect(componentQueue, `component: ${shared}`).toContain(shared);
+      expect(source_, `documentation: ${shared}`).toContain(shared);
+    }
+  });
+
+  it("hides the evidence behind the same help button the queue uses", () => {
+    // The card reads as a finding first; the grounding is one click away.
+    expect(source_).toContain("expandedWhy");
+    expect(source_).toContain("Reasoning Evidence &amp; Grounding:");
+    expect(source_).toContain('title="View reasoning evidence"');
+    // The body hands the scroll to the list, like the Component queue.
+    expect(source_).toContain("<DialogShellBody scrollable={false}>");
+  });
+
+  it("badges lifecycle and confidence with the shared vocabulary", () => {
+    // The same StatusBadge tones the Component queue uses, so a PENDING finding
+    // looks the same in both queues.
+    expect(source_).toContain("STATUS_BADGE[review.status]");
+    expect(source_).toContain("confidenceBadgeStatus(level)");
+    expect(source_).toContain("specificationChipTone");
   });
 
   it("drives every action from the shared presentation rules", () => {
@@ -835,8 +929,7 @@ describe("specification intelligence dialog", () => {
     expect(source_).toContain("DialogShellFooter");
     // The wide workbench the redesign asks for, with the shell's own height cap
     // and internal scrolling rather than a page that scrolls behind the modal.
-    expect(source_).toContain('size="xl"');
-    expect(source_).toContain("sm:max-w-[1200px]");
+    expect(source_).toContain('size="lg"');
   });
 
   it("shows evidence with its role, page, section and excerpt", () => {

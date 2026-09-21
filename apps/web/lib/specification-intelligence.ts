@@ -1,6 +1,7 @@
 import type {
   ApplyComponentFindingResultDto,
   ComponentReviewFindingDto,
+  ConfidenceLevel,
 } from "./api/component-review-queue-api";
 import type {
   ComponentDocumentationStateDto,
@@ -310,10 +311,24 @@ export function confidencePercent(confidence: number): number {
   return Math.round(Math.max(0, Math.min(1, confidence)) * 100);
 }
 
+/**
+ * The confidence bucket, on the thresholds the label already used.
+ *
+ * Exposed separately so a review card can badge the level with the design
+ * system's canonical tones, the way the Component queue badges a finding's
+ * confidence, instead of inventing a second scale.
+ */
+export function confidenceLevel(confidence: number): ConfidenceLevel {
+  if (confidence >= 0.8) return "HIGH";
+  if (confidence >= 0.6) return "MEDIUM";
+  return "LOW";
+}
+
 /** A short word for the confidence, so a number is not the whole story. */
 export function confidenceLevelLabel(confidence: number): string {
-  if (confidence >= 0.8) return "High confidence";
-  if (confidence >= 0.6) return "Medium confidence";
+  const level = confidenceLevel(confidence);
+  if (level === "HIGH") return "High confidence";
+  if (level === "MEDIUM") return "Medium confidence";
   return "Low confidence";
 }
 
@@ -339,83 +354,43 @@ export function confidenceReasons(
 }
 
 // ---------------------------------------------------------------------------
-// Summary
+// Card presentation
 // ---------------------------------------------------------------------------
 
-export interface SummaryRow {
-  key: string;
-  label: string;
-  value: number;
-  hint: string;
-}
+/**
+ * Colour family for a review card's state chip.
+ *
+ * A vocabulary rather than a class name, so the rule for *which* family a
+ * specification belongs to is testable and the class strings stay in the
+ * component beside the rest of its styling.
+ */
+export type SpecificationChipTone =
+  | "PRIMARY"
+  | "WARNING"
+  | "SUCCESS"
+  | "NEUTRAL";
 
 /**
- * The documentation summary strip.
+ * The chip tone for one specification, mirroring the state it reports.
  *
- * Every number comes from the server-derived summary, so the panel and the review
- * queue cannot disagree. Rows with nothing to report are omitted rather than
- * shown as zero.
+ * An applied specification reads as success because the library change is the
+ * outcome a reviewer is looking for; a conflict is the one state that always
+ * needs a human, so it is the warning case.
  */
-export function buildSummaryRows(
-  summary: ComponentDocumentationSummaryDto,
-): SummaryRow[] {
-  const rows: SummaryRow[] = [
-    {
-      key: "documents",
-      label: "Documents analyzed",
-      value: summary.documentsAnalyzed,
-      hint: "Documents that contributed specification evidence",
-    },
-    {
-      key: "specifications",
-      label: "Specifications found",
-      value: summary.specificationsFound,
-      hint: "Distinct attributes described by the analyzed documents",
-    },
-    {
-      key: "needsReview",
-      label: "Needs review",
-      value: summary.needsReview,
-      hint: "Findings awaiting a reviewer decision",
-    },
-    {
-      key: "applied",
-      label: "Applied",
-      value: summary.applied,
-      hint: "Specifications a reviewer wrote to the component",
-    },
-    {
-      key: "conflicts",
-      label: "Conflicts",
-      value: summary.conflicts,
-      hint: "Documents that disagree about a value",
-    },
-    {
-      key: "ambiguous",
-      label: "Ambiguous",
-      value: summary.ambiguous,
-      hint: "Properties that match more than one attribute",
-    },
-    {
-      key: "unresolved",
-      label: "Unmapped",
-      value: summary.unresolved,
-      hint: "Properties this ERP has no attribute for",
-    },
-    {
-      key: "alreadyCurrent",
-      label: "Already recorded",
-      value: summary.alreadyCurrent,
-      hint: "Specifications the component already satisfies",
-    },
-  ];
-
-  return rows.filter(
-    (row) =>
-      row.value > 0 ||
-      row.key === "documents" ||
-      row.key === "specifications",
-  );
+export function specificationChipTone(
+  specification: SpecificationAggregateDto,
+): SpecificationChipTone {
+  if (specification.review?.applied) return "SUCCESS";
+  switch (specification.state) {
+    case "CONFLICT":
+      return "WARNING";
+    case "ALREADY_CURRENT":
+      return "SUCCESS";
+    case "NOT_ACTIONABLE":
+      return "NEUTRAL";
+    default:
+      return "PRIMARY";
+  }
 }
 
 /** Copy for a run that produced nothing, explaining why. */
