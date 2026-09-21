@@ -61,6 +61,19 @@ function DocumentTypeIcon({ type }: { type: string }) {
 }
 
 /**
+ * Footer action buttons are one equal-width cell each, so the row fills the
+ * card instead of clustering against its right edge.
+ */
+const FOOTER_ACTION_CLASS = "h-7 w-full min-w-0 px-1 text-xs";
+
+/**
+ * The footer is its own container: when it is too narrow for five labelled
+ * cells, the label is dropped visually but stays in the accessibility tree,
+ * so the action is still announced by name.
+ */
+const FOOTER_ACTION_LABEL_CLASS = "sr-only @md/doc-actions:not-sr-only";
+
+/**
  * One documentation record.
  *
  * The card states what the record actually is — document type and whether it is
@@ -150,10 +163,16 @@ export function DocumentationCard({
             {size}
           </span>
         ) : null}
+        <span className="inline-flex items-center rounded border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground">
+          Updated {formatDocumentDate(document.updatedAt)}
+        </span>
       </div>
 
       {external && host ? (
-        <p className="truncate font-mono text-[11px] text-muted-foreground" title={document.externalUrl ?? ""}>
+        <p
+          className="truncate font-mono text-[11px] text-muted-foreground"
+          title={document.externalUrl ?? ""}
+        >
           {host}
         </p>
       ) : null}
@@ -207,15 +226,17 @@ export function DocumentationCard({
           <p className="text-[11px] text-muted-foreground">
             {analysis
               ? describeAnalysisStatus(analysis)
-              : analyzeAction.reason ??
-                "Extract manufacturer, part number, and specifications as review suggestions."}
+              : (analyzeAction.reason ??
+                "Extract manufacturer, part number, and specifications as review suggestions.")}
           </p>
 
           {analysis && analysis.status !== "ANALYSIS_FAILED" ? (
             <dl className="grid grid-cols-2 gap-x-3 gap-y-0.5 pt-0.5">
               {analysis.identity.manufacturerName ? (
                 <div className="flex justify-between gap-2">
-                  <dt className="text-[10px] text-muted-foreground">Manufacturer</dt>
+                  <dt className="text-[10px] text-muted-foreground">
+                    Manufacturer
+                  </dt>
                   <dd className="truncate font-mono text-[10px] text-foreground">
                     {analysis.identity.manufacturerName}
                   </dd>
@@ -230,13 +251,17 @@ export function DocumentationCard({
                 </div>
               ) : null}
               <div className="flex justify-between gap-2">
-                <dt className="text-[10px] text-muted-foreground">Specifications</dt>
+                <dt className="text-[10px] text-muted-foreground">
+                  Specifications
+                </dt>
                 <dd className="font-mono text-[10px] text-foreground">
                   {analysis.summary.extractedSpecifications}
                 </dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt className="text-[10px] text-muted-foreground">Unresolved</dt>
+                <dt className="text-[10px] text-muted-foreground">
+                  Unresolved
+                </dt>
                 <dd className="font-mono text-[10px] text-foreground">
                   {analysis.summary.unresolvedDefinitions +
                     analysis.summary.unresolvedValues}
@@ -249,7 +274,9 @@ export function DocumentationCard({
                 </dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt className="text-[10px] text-muted-foreground">Suggestions</dt>
+                <dt className="text-[10px] text-muted-foreground">
+                  Suggestions
+                </dt>
                 <dd className="font-mono text-[10px] text-foreground">
                   {analysis.summary.findingsPending}
                 </dd>
@@ -289,86 +316,91 @@ export function DocumentationCard({
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-        <span className="text-[11px] text-muted-foreground">
-          Updated {formatDocumentDate(document.updatedAt)}
-        </span>
-        <div className="flex items-center gap-0.5">
-          {external ? (
-            <a
-              href={document.externalUrl ?? "#"}
-              target="_blank"
-              rel="noopener noreferrer"
+      {/*
+       * Footer actions: one equal-width cell per action. External references
+       * offer three actions, stored files five.
+       */}
+      <div
+        className={`@container/doc-actions grid gap-1 border-t border-border pt-3 ${
+          external ? "grid-cols-3" : "grid-cols-5"
+        }`}
+      >
+        {external ? (
+          <a
+            href={document.externalUrl ?? "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-w-0"
+          >
+            <Button variant="ghost" size="sm" className={FOOTER_ACTION_CLASS}>
+              <ExternalLink className="size-3.5" />
+              <span className={FOOTER_ACTION_LABEL_CLASS}>Open</span>
+            </Button>
+          </a>
+        ) : (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={FOOTER_ACTION_CLASS}
+              disabled={busy || !canPreviewDocument(document)}
+              title={
+                canPreviewDocument(document)
+                  ? "Preview this document"
+                  : "Inline preview is not available for this format"
+              }
+              onClick={() => onPreview(document)}
             >
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                <ExternalLink className="mr-1 size-3.5" />
-                Open
-              </Button>
-            </a>
-          ) : (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                disabled={busy || !canPreviewDocument(document)}
-                title={
-                  canPreviewDocument(document)
-                    ? "Preview this document"
-                    : "Inline preview is not available for this format"
-                }
-                onClick={() => onPreview(document)}
-              >
-                <Eye className="mr-1 size-3.5" />
-                Preview
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                disabled={busy}
-                onClick={() => onDownload(document)}
-              >
-                {busy ? (
-                  <Loader2 className="mr-1 size-3.5 animate-spin" />
-                ) : (
-                  <Download className="mr-1 size-3.5" />
-                )}
-                Download
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                disabled={busy}
-                onClick={() => onVersions(document)}
-              >
-                <History className="mr-1 size-3.5" />
-                Versions
-              </Button>
-            </>
-          )}
+              <Eye className="size-3.5" />
+              <span className={FOOTER_ACTION_LABEL_CLASS}>Preview</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={FOOTER_ACTION_CLASS}
+              disabled={busy}
+              onClick={() => onDownload(document)}
+            >
+              {busy ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Download className="size-3.5" />
+              )}
+              <span className={FOOTER_ACTION_LABEL_CLASS}>Download</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={FOOTER_ACTION_CLASS}
+              disabled={busy}
+              onClick={() => onVersions(document)}
+            >
+              <History className="size-3.5" />
+              <span className={FOOTER_ACTION_LABEL_CLASS}>Versions</span>
+            </Button>
+          </>
+        )}
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={busy}
-            onClick={() => onEdit(document)}
-          >
-            <Pencil className="mr-1 size-3.5" />
-            Edit
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-            disabled={busy}
-            onClick={() => onDelete(document)}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={FOOTER_ACTION_CLASS}
+          disabled={busy}
+          onClick={() => onEdit(document)}
+        >
+          <Pencil className="size-3.5" />
+          <span className={FOOTER_ACTION_LABEL_CLASS}>Edit</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`${FOOTER_ACTION_CLASS} text-destructive hover:text-destructive`}
+          disabled={busy}
+          onClick={() => onDelete(document)}
+        >
+          <Trash2 className="size-3.5" />
+          <span className={FOOTER_ACTION_LABEL_CLASS}>Delete</span>
+        </Button>
       </div>
     </div>
   );
