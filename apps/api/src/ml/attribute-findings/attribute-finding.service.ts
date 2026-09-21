@@ -41,6 +41,8 @@ import {
   type AttributeFindingUpsertRow,
 } from './attribute-finding.repository';
 import { buildAttributeFindingFingerprint } from './attribute-finding.fingerprint';
+import { describeAttributeFindingStaleness } from './attribute-finding-expected-state';
+import { readAttributeFindingLiveState } from './attribute-finding-live-state';
 
 /**
  * Attribute Intelligence findings service.
@@ -111,7 +113,13 @@ export class AttributeIntelligenceFindingsService {
     inputs: PersistAttributeFindingInput[],
   ): Promise<PersistAttributeFindingsResult> {
     if (inputs.length === 0) {
-      return { persistedCount: 0, findings: [] };
+      return {
+        persistedCount: 0,
+        createdCount: 0,
+        refreshedCount: 0,
+        revivedCount: 0,
+        findings: [],
+      };
     }
 
     const rows: AttributeFindingUpsertRow[] = [];
@@ -182,13 +190,34 @@ export class AttributeIntelligenceFindingsService {
 
     await this.assertSubjectsExist(rows);
 
+    // Classified before the write so the caller can tell a first audit from a
+    // repeat one. A concurrent run can only make these counts conservative — the
+    // row-level guarantee is the unique index, not this read.
+    const existingStatuses = await this.repository.classifyFingerprints(
+      rows.map((row) => row.fingerprint),
+    );
+
     const persisted = await this.repository.upsertMany(rows);
+
+    let createdCount = 0;
+    let refreshedCount = 0;
+    let revivedCount = 0;
+    for (const row of rows) {
+      const previousStatus = existingStatuses.get(row.fingerprint);
+      if (!previousStatus) createdCount += 1;
+      else if (previousStatus === 'STALE') revivedCount += 1;
+      else refreshedCount += 1;
+    }
+
     this.logger.log(
-      `Persisted ${persisted.length} attribute intelligence finding(s).`,
+      `Persisted ${persisted.length} attribute intelligence finding(s) (${createdCount} created, ${refreshedCount} refreshed, ${revivedCount} revived).`,
     );
 
     return {
       persistedCount: persisted.length,
+      createdCount,
+      refreshedCount,
+      revivedCount,
       findings: persisted.map(toFindingDto),
     };
   }
@@ -257,6 +286,19 @@ export class AttributeIntelligenceFindingsService {
   }
 
   /**
+   * Counts findings grouped by issue family.
+   *
+   * Ignores the query's own `issueType` filter, for the same reason
+   * {@link listFindings} ignores the status filter: family tabs show how many
+   * findings exist per family, not how many match the family currently selected.
+   */
+  countByIssueType(
+    query: AttributeFindingListQuery = {},
+  ): Promise<Record<string, number>> {
+    return this.repository.countByIssueType(query);
+  }
+
+  /**
    * Records a reviewer decision and appends the matching AI feedback row
    * atomically.
    *
@@ -269,9 +311,16 @@ export class AttributeIntelligenceFindingsService {
    *  2. refuse a decision the current status does not permit (terminal states can
    *     never be overwritten, and a STALE finding can never be accepted);
    *  3. refuse a stale revision (`expectedFingerprint`);
-   *  4. transactionally: guarded update → feedback insert. The guarded update is
+   *  4. refuse a finding whose expected state no longer holds, retiring it as STALE;
+   *  5. transactionally: guarded update → feedback insert. The guarded update is
    *     the concurrency control, so two reviewers racing decide exactly one
    *     outcome and the loser gets a 409.
+   *
+   * Step 4 is why a persisted finding carries `metadata.expectedState`: it lets the
+   * decision path detect — between audits — that the world moved. A finding with no
+   * expected state (a hand-written one, or one from a producer that did not snapshot
+   * state) skips the check rather than being judged on nothing; the next audit
+   * reconciles it.
    */
   async recordDecision(
     id: string,
@@ -298,6 +347,14 @@ export class AttributeIntelligenceFindingsService {
     ) {
       throw new ConflictException(
         'This finding changed since it was loaded. Refresh the queue and try again.',
+      );
+    }
+
+    const staleReason = await this.detectExpectedStateStaleness(existing);
+    if (staleReason) {
+      await this.markFindingsStale({ ids: [existing.id], reason: staleReason });
+      throw new ConflictException(
+        `Finding '${id}' is stale (${staleReason}). Re-run attribute analysis to refresh it.`,
       );
     }
 
@@ -376,9 +433,8 @@ export class AttributeIntelligenceFindingsService {
   /**
    * Marks PENDING findings STALE.
    *
-   * Provides the status primitive only: this pass does not decide when attribute
-   * state invalidated a finding — that is per-family staleness detection, and it
-   * belongs to the pass that owns each rule. Terminal decisions are never touched.
+   * Terminal decisions are never touched: a decision is review history and must
+   * survive a later change to the record it was about.
    */
   async markFindingsStale(
     input: MarkAttributeFindingsStaleInput,
@@ -409,22 +465,33 @@ export class AttributeIntelligenceFindingsService {
   /**
    * Retires PENDING findings a producer no longer detects.
    *
-   * Same algorithm as the component queue: only the calling producer's own
-   * findings are reconciled (scoped by `sources`), only PENDING rows are affected,
-   * and findings whose fingerprint was detected again stay reviewable. This is
-   * what keeps the queue truthful — a condition that no longer exists must not
-   * remain actionable, and a decision someone already made must not be erased.
+   * Same algorithm as the component queue: only PENDING rows are affected and a
+   * finding whose fingerprint was detected again stays reviewable. A condition that
+   * no longer exists must not remain actionable, and a decision someone already made
+   * must not be erased.
+   *
+   * The scope is deliberately four-dimensional — producer, intelligence version,
+   * finding family and subject — because each dimension can describe a genuinely
+   * different condition. Staling on a subset would let one producer's run retire
+   * another producer's work, let a v2 normalization age v1 findings, or let a
+   * producer that emits only some families retire findings in the families it never
+   * examined.
    */
   async reconcileFindings(
     input: ReconcileAttributeFindingsInput,
   ): Promise<MarkAttributeFindingsStaleResult> {
-    const attributeDefinitionIds = Array.from(
-      new Set((input.attributeDefinitionIds ?? []).filter((id) => Boolean(id))),
+    const attributeDefinitionIds = uniqueStrings(input.attributeDefinitionIds);
+    const categoryIds = uniqueStrings(input.categoryIds ?? []);
+    const sources = uniqueStrings(input.sources);
+    const intelligenceVersions = uniqueStrings(
+      input.intelligenceVersions ?? [],
     );
-    const sources = Array.from(
-      new Set((input.sources ?? []).filter((source) => Boolean(source))),
-    );
-    if (attributeDefinitionIds.length === 0 || sources.length === 0) {
+    const issueTypes = uniqueStrings(input.issueTypes ?? []);
+
+    if (
+      sources.length === 0 ||
+      (attributeDefinitionIds.length === 0 && categoryIds.length === 0)
+    ) {
       return { staledCount: 0 };
     }
 
@@ -435,7 +502,10 @@ export class AttributeIntelligenceFindingsService {
 
     const pending = await this.repository.findPendingForReconciliation({
       attributeDefinitionIds,
+      categoryIds,
       sources,
+      intelligenceVersions,
+      issueTypes,
     });
 
     const staleIds = pending
@@ -496,10 +566,7 @@ export class AttributeIntelligenceFindingsService {
       ...query,
       status: statuses.length > 0 ? statuses : undefined,
       issueType: toStringList(query.issueType),
-      issueCategory:
-        issueCategories.length > 0
-          ? (issueCategories as AttributeReviewIssueCategory[])
-          : undefined,
+      issueCategory: issueCategories.length > 0 ? issueCategories : undefined,
     };
   }
 
@@ -539,6 +606,78 @@ export class AttributeIntelligenceFindingsService {
       ? reason
       : 'the attribute library changed after this finding was generated';
   }
+
+  /**
+   * Checks a stored finding's expected state against live ERP rows.
+   *
+   * Reads only the subjects the finding actually names, so a decision costs a
+   * bounded number of queries regardless of library size. Returns `null` when the
+   * finding has no expected state to compare, when its family has no rule, or when
+   * the state still holds.
+   *
+   * Where the expected state comes from: `metadata.expectedState` is what the audit
+   * producer writes, and `currentValue` holds the same snapshot by construction
+   * (see `attribute-finding-expected-state.ts`). Both are accepted so a finding is
+   * never left unprotected merely because its producer recorded the snapshot in the
+   * other of the two equivalent places. A `currentValue` that is not a snapshot
+   * degrades safely: the per-family rules look for named keys and return "no
+   * verdict" when they are absent, so a non-snapshot can never be misread as a
+   * contradiction.
+   */
+  private async detectExpectedStateStaleness(
+    finding: AttributeIntelligenceFinding,
+  ): Promise<string | null> {
+    const expectedState =
+      readSnapshotObject(finding.metadata, 'expectedState') ??
+      finding.currentValue ??
+      null;
+    if (!expectedState || Object.keys(expectedState).length === 0) return null;
+
+    const attributeDefinitionIds = [
+      finding.attributeDefinitionId,
+      finding.relatedAttributeDefinitionId,
+    ].filter((id): id is string => Boolean(id));
+    const categoryIds = [finding.categoryId].filter((id): id is string =>
+      Boolean(id),
+    );
+    const expectedAttributeCode = readExpectedAttributeCode(expectedState);
+
+    const live = await readAttributeFindingLiveState({
+      attributeDefinitionIds,
+      categoryIds,
+      attributeCodes: expectedAttributeCode ? [expectedAttributeCode] : [],
+    });
+
+    return describeAttributeFindingStaleness({
+      issueType: finding.issueType,
+      expectedState,
+      live,
+    });
+  }
+}
+
+/** Reads the canonical code an expectation names, for the live-state lookup. */
+function readExpectedAttributeCode(
+  expectedState: Record<string, unknown>,
+): string | null {
+  const value = expectedState.expectedAttributeCode;
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+/** Narrows a value to a non-empty object, for reading jsonb snapshots. */
+function readSnapshotObject(
+  source: Record<string, unknown> | null | undefined,
+  key: string,
+): Record<string, unknown> | null {
+  const value = source?.[key];
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+/** De-duplicates non-empty strings, preserving order. */
+function uniqueStrings(values: string[]): string[] {
+  return Array.from(new Set(values.filter((value) => Boolean(value))));
 }
 
 /**

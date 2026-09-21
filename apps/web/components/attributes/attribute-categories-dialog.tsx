@@ -21,6 +21,8 @@ import {
   type SuspiciousBindingDto,
 } from "@/lib/api/attributes-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
+import { useAuth } from "@/lib/auth/auth-context";
+import { ATTRIBUTE_WRITE_PERMISSION } from "@/lib/attribute-review-queue";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
   FolderTree,
@@ -51,6 +53,15 @@ export function AttributeCategoriesDialog({
   onClose,
   onBindingsUpdated,
 }: AttributeCategoriesDialogProps) {
+  /**
+   * Applying a suggested binding writes `category_attributes`, so the two apply
+   * actions below require the attribute-write permission. The endpoint behind them
+   * (`POST /ml/attributes/apply-bindings`) is guarded with the same permission, so
+   * hiding the controls here only avoids offering an action the API would refuse.
+   */
+  const { hasPermission } = useAuth();
+  const canWrite = hasPermission(ATTRIBUTE_WRITE_PERMISSION);
+
   const [bindings, setBindings] = React.useState<AttributeCategoryBindingDto[]>(
     [],
   );
@@ -339,7 +350,6 @@ export function AttributeCategoriesDialog({
           sortOrder: (bindings.length + idx + 1) * 10,
         })),
       });
-
       setSuccessMsg(`Applied ${highSuggestions.length} high-confidence bindings.`);
       setDismissedSuggestions(
         (prev) =>
@@ -545,8 +555,13 @@ export function AttributeCategoriesDialog({
                   <Button
                     type="button"
                     size="xs"
-                    disabled={applyingAllHigh}
+                    disabled={applyingAllHigh || !canWrite}
                     onClick={handleAcceptAllHighConfidence}
+                    title={
+                      canWrite
+                        ? "Apply all high-confidence suggested bindings"
+                        : `Applying suggested bindings requires the ${ATTRIBUTE_WRITE_PERMISSION} permission.`
+                    }
                     className="h-7 text-xs font-medium px-3 gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
                   >
                     {applyingAllHigh ? (
@@ -642,7 +657,13 @@ export function AttributeCategoriesDialog({
                             type="button"
                             size="xs"
                             variant="outline"
+                            disabled={!canWrite}
                             onClick={() => handleAcceptAiSuggestion(sug)}
+                            title={
+                              canWrite
+                                ? "Apply this suggested binding"
+                                : `Applying suggested bindings requires the ${ATTRIBUTE_WRITE_PERMISSION} permission.`
+                            }
                             className="h-6 text-[11px] px-2.5 border-primary/30 text-primary hover:bg-primary/10 gap-1 font-medium"
                           >
                             <Check className="size-3" /> Accept

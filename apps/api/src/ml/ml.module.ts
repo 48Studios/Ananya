@@ -16,6 +16,10 @@ import { SecurityAuditModule } from '../security-audit/security-audit.module';
 import { AuthModule } from '../auth/auth.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { ComponentWriteGuard } from '../auth/component-write.guard';
+import {
+  AttributeReadGuard,
+  AttributeWriteGuard,
+} from '../auth/attribute-permissions';
 import { DocumentsModule } from '../documents/documents.module';
 import { ActivityModule } from '../activity/activity.module';
 import { DocumentationAnalysisService } from './documentation-analysis.service';
@@ -24,6 +28,9 @@ import { ComponentSpecificationIntelligenceService } from './component-specifica
 import { ComponentSpecificationIntelligenceController } from './component-specification-intelligence.controller';
 import { AttributeFindingRepository } from './attribute-findings/attribute-finding.repository';
 import { AttributeIntelligenceFindingsService } from './attribute-findings/attribute-finding.service';
+import { AttributeIntelligenceAuditService } from './attribute-findings/attribute-intelligence-audit.service';
+import { AttributeReviewQueueService } from './attribute-findings/attribute-review-queue.service';
+import { AttributeReviewQueueController } from './attribute-findings/attribute-review-queue.controller';
 
 @Module({
   imports: [
@@ -42,6 +49,7 @@ import { AttributeIntelligenceFindingsService } from './attribute-findings/attri
     ComponentReviewQueueController,
     DocumentationIntelligenceController,
     ComponentSpecificationIntelligenceController,
+    AttributeReviewQueueController,
   ],
   providers: [
     MlClientService,
@@ -56,11 +64,14 @@ import { AttributeIntelligenceFindingsService } from './attribute-findings/attri
     ComponentWriteGuard,
     DocumentationAnalysisService,
     ComponentSpecificationIntelligenceService,
-    // Attribute Intelligence findings substrate (Pass 1). No controller is
-    // registered for it: the persisted-findings foundation is internal until a
-    // guarded review route is added in a later pass.
+    // Attribute Intelligence findings substrate (Pass 1) and the persisted
+    // review queue built on it (Pass 2 analyzer + Pass 3 secured API).
     AttributeFindingRepository,
     AttributeIntelligenceFindingsService,
+    AttributeIntelligenceAuditService,
+    AttributeReviewQueueService,
+    AttributeReadGuard,
+    AttributeWriteGuard,
   ],
   exports: [
     MlService,
@@ -70,6 +81,8 @@ import { AttributeIntelligenceFindingsService } from './attribute-findings/attri
     ComponentConsolidationService,
     ComponentSpecificationIntelligenceService,
     AttributeIntelligenceFindingsService,
+    AttributeIntelligenceAuditService,
+    AttributeReviewQueueService,
   ],
 })
 export class MlModule {}

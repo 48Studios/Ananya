@@ -1,6 +1,16 @@
-import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { MlService } from './ml.service';
 import { MlClientService } from './ml-client.service';
+import { AttributeWriteGuard } from '../auth/attribute-permissions';
 import {
   SuggestComponentDto,
   ComponentSuggestionResponseDto,
@@ -24,6 +34,30 @@ import {
 
 @Controller('ml')
 export class MlController {
+  /**
+   * Legacy ML surface.
+   *
+   * Route security audit (Pass 3):
+   *
+   *  - `GET /ml/health` — read-only, no data access.  
+   *  - `POST /ml/suggest`, `POST /ml/attributes/suggest-*`,
+   *    `POST /ml/attributes/detect-duplicates`, `POST /ml/attributes/audit` —
+   *    read-only computation: they read ERP rows and return suggestions without
+   *    writing anything, so they remain open like the rest of the API's read
+   *    endpoints.
+   *  - `POST /ml/attributes/apply-bindings` — MUTATION (inserts `category_attributes`).
+   *    Now guarded with `AttributeWriteGuard` (`Inventory.Update`).
+   *  - `GET /ml/attributes/review-queue` — REMOVED. It recomputed the whole
+   *    library audit on every call and regenerated unstable ids. The persisted
+   *    queue at `/ml/attributes/review-queue` (AttributeReviewQueueController) is
+   *    its replacement.
+   *  - `POST /ml/feedback`, `POST /ml/attributes/feedback`, `GET /ml/feedback/export`,
+   *    `GET/POST /ml/training/quarantine*` — the generic telemetry and training
+   *    surface, shared by every domain (component suggestions included). They are
+   *    NOT attribute-intelligence routes and were left unchanged in this pass;
+   *    guarding them is a separate decision because it would affect component
+   *    flows too.
+   */
   constructor(
     private readonly mlService: MlService,
     private readonly mlClient: MlClientService,
@@ -119,12 +153,21 @@ export class MlController {
     return this.mlService.auditAttributeLibrary();
   }
 
-  @Get('attributes/review-queue')
-  getReviewQueue() {
-    return this.mlService.getReviewQueue();
-  }
-
+  /**
+   * Applies suggested category bindings.
+   *
+   * This is the one legacy attribute-intelligence route that MUTATES
+   * authoritative data: it inserts `category_attributes` rows directly. It was
+   * previously unauthenticated, so any caller could create bindings; it now
+   * requires `Inventory.Update`, the permission that already gates attribute and
+   * component master-data edits.
+   *
+   * The endpoint's behaviour is otherwise unchanged — resolving and persisting
+   * findings is a separate route (`/ml/attributes/review-queue/audit`) and does not
+   * apply anything.
+   */
   @Post('attributes/apply-bindings')
+  @UseGuards(AttributeWriteGuard)
   applySuggestedBindings(
     @Body() input: ApplySuggestedBindingDto,
     @Req() req: { user?: { id?: string; email?: string } },

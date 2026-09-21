@@ -308,14 +308,6 @@ describe('MlService', () => {
     expect(result.issues).toBeInstanceOf(Array);
   });
 
-  it('should return attribute intelligence review queue', async () => {
-    const queue = await service.getReviewQueue();
-
-    expect(queue).toBeDefined();
-    expect(queue.summary).toBeDefined();
-    expect(queue.items).toBeInstanceOf(Array);
-  });
-
   it('should record attribute review queue feedback telemetry', async () => {
     const result = await service.recordFeedback(
       {

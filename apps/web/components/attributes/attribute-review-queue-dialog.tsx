@@ -16,9 +16,12 @@ import {
   RefreshCw,
   ShieldAlert,
   Sliders,
-  Unlink,
   Layers,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,53 +39,79 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/lib/auth/auth-context";
 import {
-  attributesApi,
-  type AttributeReviewQueueResponseDto,
-  type ReviewQueueItemDto,
-} from "@/lib/api/attributes-api";
+  ATTRIBUTE_DECISION_COPY,
+  ATTRIBUTE_QUEUE_TABS,
+  ATTRIBUTE_WRITE_PERMISSION,
+  attributeAcceptNotice,
+  attributeAuditConflictMessage,
+  attributeAuditUnavailableReason,
+  attributeDecisionConflictMessage,
+  attributeIssueTypeLabel,
+  attributeReviewReadOnlyNotice,
+  attributeStatusBadge,
+  attributeStatusLabel,
+  buildAttributeTabCounts,
+  canDecideAttributeFinding,
+  confidenceBadgeStatus,
+  deriveAttributeReviewPermissions,
+  findingHeadline,
+  findingMatchesTab,
+  isExpectationForUndefinedAttribute,
+  producerUsageEvidence,
+  suggestedCanonicalCode,
+  summarizeAttributeAudit,
+  tabIssueTypeFilter,
+  type AttributeQueueTabId,
+} from "@/lib/attribute-review-queue";
+import {
+  attributeReviewQueueApi,
+  buildAttributeDecisionPayload,
+  DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE,
+  type AttributeReviewDecision,
+  type AttributeReviewFindingDto,
+  type AttributeReviewQueuePageDto,
+} from "@/lib/api/attribute-review-queue-api";
 
-type FilterTabId =
-  | "ALL"
-  | "BINDINGS"
-  | "DUPLICATES"
-  | "SUSPICIOUS"
-  | "UNUSED"
-  | "ENUMS";
-
-function matchesTab(itemType: string, tabId: FilterTabId): boolean {
-  if (tabId === "ALL") return true;
-  if (tabId === "BINDINGS") {
-    return (
-      itemType === "SUGGESTED_BINDING" ||
-      itemType === "MISSING_EXPECTED_ATTRIBUTE" ||
-      itemType === "MISSING_ATTRIBUTE"
-    );
-  }
-  if (tabId === "DUPLICATES") {
-    return (
-      itemType === "POSSIBLE_DUPLICATE" ||
-      itemType === "DUPLICATE_ATTRIBUTE" ||
-      itemType === "DUPLICATE"
-    );
-  }
-  if (tabId === "SUSPICIOUS") {
-    return itemType === "SUSPICIOUS_BINDING";
-  }
-  if (tabId === "UNUSED") {
-    return itemType === "UNUSED_ATTRIBUTE";
-  }
-  if (tabId === "ENUMS") {
-    return (
-      itemType === "SUGGESTED_ENUM_VALUE" ||
-      itemType === "ENUM_INCONSISTENCY"
-    );
-  }
-  return false;
-}
+/**
+ * Attribute Intelligence Review Queue.
+ *
+ * The persisted review workflow for attribute-library findings. Opening the
+ * dialog reads stored findings; it does NOT run the intelligence producer. Only
+ * "Run Library Audit" does that, and a decision records the review outcome without
+ * changing any attribute data.
+ *
+ * This replaced the previous implementation, which recomputed the whole library
+ * audit on every open, regenerated unstable ids (`audit-1`, `audit-2`, ...), and
+ * labelled its primary action "Accept Binding" while the handler created a
+ * definition and a binding. The queue is now a true review surface: stable finding
+ * ids, a real lifecycle, server-side filtering and pagination, and no implicit
+ * mutation.
+ *
+ * Visual structure (dialog shell, tabs, filter card, finding card, evidence
+ * accordion, empty state) is intentionally unchanged from the previous version.
+ */
 
 /** Sentinel for "no filter applied", matching the Component queue's filters. */
 const ALL_FILTER_VALUE = "ALL";
+
+/**
+ * Status filter options.
+ *
+ * `PENDING` is the default because the queue is a work list: the reviewer opens it
+ * to see what needs a decision. The tab counts still show the true totals for every
+ * status, so nothing is hidden.
+ */
+const STATUS_FILTER_OPTIONS = [
+  { value: "PENDING", label: "Needs review" },
+  { value: "ACCEPTED", label: "Accepted" },
+  { value: "REJECTED", label: "Rejected" },
+  { value: "DISMISSED", label: "Dismissed" },
+  { value: "STALE", label: "Stale" },
+  { value: "PENDING,STALE", label: "Needs review + stale" },
+  { value: ALL_FILTER_VALUE, label: "All statuses" },
+] as const;
 
 const CONFIDENCE_FILTER_OPTIONS = [
   { value: "HIGH", label: "High" },
@@ -103,327 +132,205 @@ export function AttributeReviewQueueDialog({
   onActionComplete,
   onEditAttribute,
 }: AttributeReviewQueueDialogProps) {
-  const [queueData, setQueueData] =
-    React.useState<AttributeReviewQueueResponseDto | null>(null);
+  const { hasPermission } = useAuth();
+  const permissions = deriveAttributeReviewPermissions(
+    hasPermission(ATTRIBUTE_WRITE_PERMISSION),
+  );
+  const auditReason = attributeAuditUnavailableReason(permissions.canAudit);
+
+  const [page, setPage] = React.useState<AttributeReviewQueuePageDto | null>(
+    null,
+  );
   const [loading, setLoading] = React.useState(false);
   const [auditing, setAuditing] = React.useState(false);
-  const [filterType, setFilterType] = React.useState<FilterTabId>("ALL");
+  const [error, setError] = React.useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
+
+  const [tab, setTab] = React.useState<AttributeQueueTabId>("ALL");
+  const [statusFilter, setStatusFilter] = React.useState<string>("PENDING");
   const [confidenceFilter, setConfidenceFilter] =
     React.useState(ALL_FILTER_VALUE);
-  const [categoryFilter, setCategoryFilter] =
-    React.useState(ALL_FILTER_VALUE);
   const [searchInput, setSearchInput] = React.useState("");
+  const [search, setSearch] = React.useState("");
+  const [pageNumber, setPageNumber] = React.useState(1);
+
   const [expandedWhy, setExpandedWhy] = React.useState<Record<string, boolean>>(
     {},
   );
   const [actionInProgress, setActionInProgress] = React.useState<
     Record<string, boolean>
   >({});
-  const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
 
+  /**
+   * Loads one page of persisted findings.
+   *
+   * Every filter, the sort and the pagination are applied by the server, so the
+   * dialog never holds more rows than it shows and never derives counts from the
+   * rows it happens to have loaded.
+   */
   const loadQueue = React.useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const data = await attributesApi.getReviewQueue();
-      setQueueData(data);
-    } catch {
-      setStatusMessage("Failed to load attribute review queue.");
+      const data = await attributeReviewQueueApi.listFindings({
+        status:
+          statusFilter && statusFilter !== ALL_FILTER_VALUE
+            ? statusFilter
+            : undefined,
+        issueType: tabIssueTypeFilter(tab),
+        confidenceLevel:
+          confidenceFilter && confidenceFilter !== ALL_FILTER_VALUE
+            ? (confidenceFilter as "HIGH" | "MEDIUM" | "LOW")
+            : undefined,
+        search: search.trim() || undefined,
+        page: pageNumber,
+        pageSize: DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE,
+        sortBy: "createdAt",
+        sortDirection: "desc",
+      });
+      setPage(data);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load the attribute review queue.",
+      );
+      setPage(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [statusFilter, confidenceFilter, search, tab, pageNumber]);
 
   React.useEffect(() => {
     if (isOpen) {
-      loadQueue();
+      void loadQueue();
       setStatusMessage(null);
     }
   }, [isOpen, loadQueue]);
 
+  // Debounced server-side search, so typing does not fire a request per keystroke.
+  React.useEffect(() => {
+    const handle = setTimeout(() => {
+      setSearch(searchInput);
+      setPageNumber(1);
+    }, 350);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
+
+  const items = React.useMemo(() => page?.items ?? [], [page?.items]);
+  const tabCounts = React.useMemo(
+    () => buildAttributeTabCounts(page?.counts ?? null),
+    [page?.counts],
+  );
+  const totalPages = page?.totalPages ?? 1;
+
+  const filtersActive = Boolean(
+    search.trim() ||
+      (confidenceFilter && confidenceFilter !== ALL_FILTER_VALUE) ||
+      (statusFilter && statusFilter !== "PENDING") ||
+      tab !== "ALL",
+  );
+
+  const clearFilters = () => {
+    setStatusFilter("PENDING");
+    setConfidenceFilter(ALL_FILTER_VALUE);
+    setSearchInput("");
+    setTab("ALL");
+    setPageNumber(1);
+  };
+
+  const selectTab = (nextTab: AttributeQueueTabId) => {
+    setTab(nextTab);
+    setPageNumber(1);
+  };
+
+  const changeStatusFilter = (value: string) => {
+    setStatusFilter(value);
+    setPageNumber(1);
+  };
+
+  const toggleWhy = (findingId: string) => {
+    setExpandedWhy((prev) => ({ ...prev, [findingId]: !prev[findingId] }));
+  };
+
+  /**
+   * Runs the existing audit and persists its findings.
+   *
+   * The only action here that invokes intelligence, and it requires the
+   * attribute-write permission. Findings are re-read from the database afterwards,
+   * so the list reflects what was persisted rather than what the response claimed.
+   */
   const handleRunAudit = async () => {
     setAuditing(true);
     setStatusMessage(null);
     try {
-      const res = await attributesApi.auditLibrary();
-      const count =
-        res.summary.issuesCount ??
-        (res.issues ? res.issues.length : 0);
-      setStatusMessage(
-        `Audit completed: ${count} finding${count === 1 ? "" : "s"} across ${res.summary.totalAttributes} attributes.`,
-      );
+      const result = await attributeReviewQueueApi.runAudit();
+      setStatusMessage(summarizeAttributeAudit(result));
       await loadQueue();
       onActionComplete?.();
-    } catch {
-      setStatusMessage("Failed to execute library audit.");
+    } catch (err) {
+      const statusCode = (err as { statusCode?: number })?.statusCode;
+      setStatusMessage(
+        (typeof statusCode === "number"
+          ? attributeAuditConflictMessage(statusCode)
+          : null) ??
+          (err instanceof Error
+            ? err.message
+            : "Failed to run the attribute library audit."),
+      );
     } finally {
       setAuditing(false);
     }
   };
 
-  const toggleWhy = (itemId: string) => {
-    setExpandedWhy((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
-  };
+  /**
+   * Records a review decision against a persisted finding.
+   *
+   * A decision only: nothing in the attribute library is created, changed or
+   * removed. The finding's fingerprint travels with the request, so a decision
+   * taken against a revision that has since changed is refused rather than
+   * silently applied to newer state.
+   */
+  const recordDecision = async (
+    finding: AttributeReviewFindingDto,
+    decision: AttributeReviewDecision,
+  ) => {
+    if (!permissions.canDecide) return;
 
-  const handleAcceptItem = async (item: ReviewQueueItemDto) => {
-    setActionInProgress((prev) => ({ ...prev, [item.id]: true }));
-    const isBinding = matchesTab(item.type, "BINDINGS");
-    const isSuspicious = matchesTab(item.type, "SUSPICIOUS");
-    const isEnum = matchesTab(item.type, "ENUMS");
-
+    setActionInProgress((prev) => ({ ...prev, [finding.id]: true }));
+    setStatusMessage(null);
     try {
-      let resolvedAttributeId = item.attributeId || null;
-
-      if (isBinding && item.categoryId) {
-        if (!resolvedAttributeId) {
-          try {
-            const allAttributes = await attributesApi.getAll();
-            const normName = (item.attributeName || "").trim().toLowerCase();
-            const normCode = (item.attributeCode || String(item.payload?.canonicalCode || "")).trim().toLowerCase();
-            const found = allAttributes.find(
-              (a) =>
-                (normCode && a.code.toLowerCase() === normCode) ||
-                (normName && a.name.toLowerCase() === normName) ||
-                (a.aliases && a.aliases.some((al) => al.toLowerCase() === normName || al.toLowerCase() === normCode)),
-            );
-            if (found) {
-              resolvedAttributeId = found.id;
-            }
-          } catch {
-            // fallback error ignored
-          }
-        }
-
-        if (resolvedAttributeId) {
-          // Bind existing attribute to category
-          await attributesApi.bindCategory(resolvedAttributeId, {
-            categoryId: item.categoryId,
-            isRequired: Boolean(item.payload?.suggestedRequired),
-          });
-        } else if (item.payload?.canonicalCode || item.attributeCode) {
-          // If attribute definition does not exist yet, create canonical definition and bind
-          const codeToUse = String(item.payload?.canonicalCode || item.attributeCode)
-            .toLowerCase()
-            .replace(/[^a-z0-9_]/g, "_");
-          const nameToUse = item.attributeName || String(item.payload?.canonicalCode || codeToUse);
-
-          const newAttr = await attributesApi.createDefinition({
-            name: nameToUse,
-            code: codeToUse,
-            dataType:
-              (item.payload?.dataType as
-                | "TEXT"
-                | "NUMBER"
-                | "INTEGER"
-                | "BOOLEAN"
-                | "SELECT"
-                | "MULTI_SELECT"
-                | "QUANTITY"
-                | "DATE") || "QUANTITY",
-            unitCategory: item.payload?.unitCategory
-              ? String(item.payload.unitCategory)
-              : undefined,
-            defaultUnit: item.payload?.defaultUnit
-              ? String(item.payload.defaultUnit)
-              : undefined,
-            groupName: item.payload?.group
-              ? String(item.payload.group)
-              : undefined,
-          });
-          resolvedAttributeId = newAttr.id;
-          await attributesApi.bindCategory(newAttr.id, {
-            categoryId: item.categoryId,
-            isRequired: Boolean(item.payload?.suggestedRequired),
-          });
-        } else {
-          throw new Error(
-            `Unable to bind attribute: no definition found or specified for "${item.attributeName || item.title}".`,
-          );
-        }
-      } else if (isSuspicious && item.attributeId && item.categoryId) {
-        await attributesApi.unbindCategory(item.attributeId, item.categoryId);
-      } else if (
-        isEnum &&
-        item.attributeId &&
-        item.payload?.code
-      ) {
-        await attributesApi.addOption(item.attributeId, {
-          code: String(item.payload.code),
-          label: String(item.payload.label || item.payload.code),
-        });
-      } else {
-        throw new Error(
-          `Action cannot be applied: missing target identifiers for "${item.title || item.reason}".`,
-        );
-      }
-
-      await attributesApi
-        .recordFeedback({
-          attributeDefinitionId: resolvedAttributeId || item.attributeId || undefined,
-          categoryId: item.categoryId || undefined,
-          items: [
-            {
-              suggestionType: item.type,
-              field: "queue_item",
-              userAction: "ACCEPTED",
-              predictedValue: item.title || item.reason,
-              finalValue: item.title || item.reason,
-              confidenceLevel: item.confidenceLevel,
-            },
-          ],
-        })
-        .catch(() => { });
-
+      await attributeReviewQueueApi.recordDecision(
+        finding.id,
+        buildAttributeDecisionPayload(finding, decision),
+      );
       setStatusMessage(
-        `Applied decision: "${item.title || item.attributeName || item.reason}".`,
+        `${ATTRIBUTE_DECISION_COPY[decision].summary} — "${findingHeadline(finding)}"`,
       );
-      setQueueData((prev) =>
-        prev
-          ? {
-            ...prev,
-            summary: {
-              ...prev.summary,
-              total: Math.max(0, prev.summary.total - 1),
-            },
-            items: prev.items.filter((i) => i.id !== item.id),
-          }
-          : null,
-      );
+      await loadQueue();
       onActionComplete?.();
     } catch (err) {
+      const statusCode = (err as { statusCode?: number })?.statusCode;
       setStatusMessage(
-        err instanceof Error ? err.message : `Failed to apply "${item.title || item.attributeName || item.reason}".`,
+        (typeof statusCode === "number"
+          ? attributeDecisionConflictMessage(
+              statusCode,
+              err instanceof Error ? err.message : "",
+            )
+          : null) ??
+          (err instanceof Error
+            ? err.message
+            : "Failed to record the review decision."),
       );
+      // A conflict means the stored finding moved, so re-read rather than leaving
+      // the card showing a status nobody can act on any more.
+      if (statusCode === 409 || statusCode === 404) {
+        await loadQueue();
+      }
     } finally {
-      setActionInProgress((prev) => ({ ...prev, [item.id]: false }));
+      setActionInProgress((prev) => ({ ...prev, [finding.id]: false }));
     }
   };
-
-  const handleRejectItem = async (item: ReviewQueueItemDto) => {
-    setActionInProgress((prev) => ({ ...prev, [item.id]: true }));
-    try {
-      await attributesApi
-        .recordFeedback({
-          attributeDefinitionId: item.attributeId || undefined,
-          categoryId: item.categoryId || undefined,
-          items: [
-            {
-              suggestionType: item.type,
-              field: "queue_item",
-              userAction: "REJECTED",
-              predictedValue: item.title || item.reason,
-              finalValue: null,
-              confidenceLevel: item.confidenceLevel,
-            },
-          ],
-        })
-        .catch(() => { });
-
-      setStatusMessage(
-        `Dismissed proposal: "${item.title || item.attributeName || item.reason}".`,
-      );
-      setQueueData((prev) =>
-        prev
-          ? {
-            ...prev,
-            summary: {
-              ...prev.summary,
-              total: Math.max(0, prev.summary.total - 1),
-            },
-            items: prev.items.filter((i) => i.id !== item.id),
-          }
-          : null,
-      );
-      onActionComplete?.();
-    } finally {
-      setActionInProgress((prev) => ({ ...prev, [item.id]: false }));
-    }
-  };
-
-  const items = React.useMemo(() => queueData?.items || [], [queueData?.items]);
-
-  // Dynamically compute exact counts from loaded items to avoid undefined values
-  const counts = React.useMemo(() => {
-    return {
-      all: items.length,
-      bindings: items.filter((i) => matchesTab(i.type, "BINDINGS")).length,
-      duplicates: items.filter((i) => matchesTab(i.type, "DUPLICATES")).length,
-      suspicious: items.filter((i) => matchesTab(i.type, "SUSPICIOUS")).length,
-      unused: items.filter((i) => matchesTab(i.type, "UNUSED")).length,
-      enums: items.filter((i) => matchesTab(i.type, "ENUMS")).length,
-    };
-  }, [items]);
-
-  /** Categories present in the loaded queue, for the category filter. */
-  const categoryOptions = React.useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const item of items) {
-      if (item.categoryId && item.categoryName) {
-        seen.set(item.categoryId, item.categoryName);
-      }
-    }
-    return [...seen.entries()].map(([value, label]) => ({ value, label }));
-  }, [items]);
-
-  const filtersActive = Boolean(
-    searchInput.trim() ||
-      (confidenceFilter && confidenceFilter !== ALL_FILTER_VALUE) ||
-      (categoryFilter && categoryFilter !== ALL_FILTER_VALUE),
-  );
-
-  const clearFilters = () => {
-    setConfidenceFilter(ALL_FILTER_VALUE);
-    setCategoryFilter(ALL_FILTER_VALUE);
-    setSearchInput("");
-  };
-
-  const filteredItems = React.useMemo(() => {
-    const query = searchInput.trim().toLowerCase();
-
-    return items.filter((item) => {
-      if (!matchesTab(item.type, filterType)) return false;
-
-      if (
-        confidenceFilter !== ALL_FILTER_VALUE &&
-        item.confidenceLevel !== confidenceFilter
-      ) {
-        return false;
-      }
-
-      if (
-        categoryFilter !== ALL_FILTER_VALUE &&
-        item.categoryId !== categoryFilter
-      ) {
-        return false;
-      }
-
-      if (query) {
-        const haystack = [
-          item.title,
-          item.subtitle,
-          item.reason,
-          item.attributeName,
-          item.attributeCode,
-          item.categoryName,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-
-        if (!haystack.includes(query)) return false;
-      }
-
-      return true;
-    });
-  }, [items, filterType, confidenceFilter, categoryFilter, searchInput]);
-
-  const filterTabs: Array<{ id: FilterTabId; label: string; count: number }> = [
-    { id: "ALL", label: "All", count: counts.all },
-    { id: "BINDINGS", label: "Bindings", count: counts.bindings },
-    { id: "DUPLICATES", label: "Duplicates", count: counts.duplicates },
-    { id: "SUSPICIOUS", label: "Suspicious", count: counts.suspicious },
-    { id: "UNUSED", label: "Unused", count: counts.unused },
-    { id: "ENUMS", label: "Enums", count: counts.enums },
-  ];
 
   return (
     <DialogShell
@@ -432,7 +339,7 @@ export function AttributeReviewQueueDialog({
         if (!open) onClose();
       }}
       title="Attribute Intelligence Review Queue"
-      description="Supervised AI proposals for bindings, duplicates, and suspicious data"
+      description="Supervised AI findings for the attribute library"
       size="lg"
       icon={<Sparkles className="size-5" />}
       headerActions={
@@ -442,8 +349,8 @@ export function AttributeReviewQueueDialog({
             variant="outline"
             size="sm"
             disabled={loading}
-            onClick={loadQueue}
-            className="h-8 text-xs gap-1.5"
+            onClick={() => void loadQueue()}
+            className="h-8 gap-1.5 text-xs"
           >
             <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -451,9 +358,13 @@ export function AttributeReviewQueueDialog({
           <Button
             type="button"
             size="sm"
-            disabled={auditing}
-            onClick={handleRunAudit}
-            className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+            disabled={auditing || !permissions.canAudit}
+            onClick={() => void handleRunAudit()}
+            title={
+              auditReason ??
+              "Run the attribute library analysis and persist any new findings (no attribute data is modified)"
+            }
+            className="h-8 gap-1.5 text-xs"
           >
             {auditing ? (
               <Loader2 className="size-3.5 animate-spin" />
@@ -466,7 +377,20 @@ export function AttributeReviewQueueDialog({
       }
     >
       <DialogShellBody scrollable={false}>
-        {/* Status Alert */}
+        {/* Read-only notice for users without the write permission. */}
+        {permissions.isReadOnly && (
+          <div className="flex shrink-0 items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            <Info className="mt-0.5 size-3.5 shrink-0" />
+            <span>{attributeReviewReadOnlyNotice()}</span>
+          </div>
+        )}
+
+        {/* Which review outcome an action records, and what it leaves alone. */}
+        <p className="shrink-0 text-[11px] text-muted-foreground">
+          Decisions record a review outcome only — no binding, option,
+          definition, or component value is created or changed here.
+        </p>
+
         {statusMessage && (
           <div className="flex shrink-0 items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/10 p-3 text-xs text-foreground">
             <span>{statusMessage}</span>
@@ -481,19 +405,34 @@ export function AttributeReviewQueueDialog({
           </div>
         )}
 
+        {error && (
+          <div className="flex shrink-0 items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-foreground">
+            <span>{error}</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => void loadQueue()}
+            >
+              <RefreshCw className="size-3.5" />
+            </Button>
+          </div>
+        )}
+
         {/* Filter Tabs */}
         <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto pb-1">
-          {filterTabs.map((tab) => (
+          {ATTRIBUTE_QUEUE_TABS.map((definition) => (
             <button
-              key={tab.id}
+              key={definition.id}
               type="button"
-              onClick={() => setFilterType(tab.id)}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer shrink-0 ${filterType === tab.id
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:text-foreground"
-                }`}
+              onClick={() => selectTab(definition.id)}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer shrink-0 ${
+                tab === definition.id
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              }`}
             >
-              {tab.label} ({tab.count})
+              {definition.label} ({tabCounts[definition.id]})
             </button>
           ))}
         </div>
@@ -506,7 +445,7 @@ export function AttributeReviewQueueDialog({
               type="text"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search attributes, categories, or reasons..."
+              placeholder="Search findings by title or description..."
               className="h-8 pl-9 text-xs"
               aria-label="Search findings"
             />
@@ -514,10 +453,35 @@ export function AttributeReviewQueueDialog({
           <div className="flex flex-wrap items-center gap-2">
             <Filter className="mx-1.5 size-3.5 text-muted-foreground" />
             <Select
-              value={confidenceFilter}
+              value={statusFilter}
               onValueChange={(value) =>
-                setConfidenceFilter(value ?? ALL_FILTER_VALUE)
+                changeStatusFilter(value ?? ALL_FILTER_VALUE)
               }
+            >
+              <SelectTrigger
+                className="h-8 min-w-[140px] flex-1 text-xs"
+                aria-label="Status filter"
+              >
+                <SelectValue placeholder="Needs review" />
+              </SelectTrigger>
+              <SelectContent className="p-1.5">
+                {STATUS_FILTER_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={confidenceFilter}
+              onValueChange={(value) => {
+                setConfidenceFilter(value ?? ALL_FILTER_VALUE);
+                setPageNumber(1);
+              }}
             >
               <SelectTrigger
                 className="h-8 min-w-[140px] flex-1 text-xs"
@@ -530,33 +494,6 @@ export function AttributeReviewQueueDialog({
                   All confidence
                 </SelectItem>
                 {CONFIDENCE_FILTER_OPTIONS.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="text-xs"
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={categoryFilter}
-              onValueChange={(value) =>
-                setCategoryFilter(value ?? ALL_FILTER_VALUE)
-              }
-            >
-              <SelectTrigger
-                className="h-8 min-w-[140px] flex-1 text-xs"
-                aria-label="Category filter"
-              >
-                <SelectValue placeholder="All categories" />
-              </SelectTrigger>
-              <SelectContent className="p-1.5">
-                <SelectItem value={ALL_FILTER_VALUE} className="text-xs">
-                  All categories
-                </SelectItem>
-                {categoryOptions.map((option) => (
                   <SelectItem
                     key={option.value}
                     value={option.value}
@@ -586,38 +523,31 @@ export function AttributeReviewQueueDialog({
         {loading ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-xs text-muted-foreground">
             <Loader2 className="size-5 animate-spin text-primary" />
-            <span>Scanning attribute intelligence queue...</span>
+            <span>Loading persisted findings...</span>
           </div>
-        ) : filteredItems.length > 0 ? (
+        ) : items.length > 0 ? (
           <div className="min-h-0 flex-1 divide-y divide-border overflow-y-auto rounded-xl border border-border bg-card shadow-2xs">
-            {filteredItems.map((item) => {
-              const isWhyExpanded = Boolean(expandedWhy[item.id]);
-              const inProgress = Boolean(actionInProgress[item.id]);
+            {items.map((finding) => {
+              const isWhyExpanded = Boolean(expandedWhy[finding.id]);
+              const inProgress = Boolean(actionInProgress[finding.id]);
 
-              const isBinding = matchesTab(item.type, "BINDINGS");
-              const isDuplicate = matchesTab(item.type, "DUPLICATES");
-              const isSuspicious = matchesTab(item.type, "SUSPICIOUS");
-              const isUnused = matchesTab(item.type, "UNUSED");
-              const isEnum = matchesTab(item.type, "ENUMS");
+              const isBinding = findingMatchesTab(finding, "BINDINGS");
+              const isDuplicate = findingMatchesTab(finding, "DUPLICATES");
+              const isSuspicious = findingMatchesTab(finding, "SUSPICIOUS");
+              const isUnused = findingMatchesTab(finding, "UNUSED");
+              const isEnum = findingMatchesTab(finding, "ENUMS");
 
-              // Clear headline describing the decision
-              const displayTitle =
-                item.title ||
-                (isBinding
-                  ? `Bind "${item.attributeName || "Attribute"}" to category "${item.categoryName || "Category"}"`
-                  : isSuspicious
-                    ? `Unbind suspicious "${item.attributeName || "Attribute"}" from "${item.categoryName || "Category"}"`
-                    : isDuplicate
-                      ? `Possible Duplicate: "${item.attributeName || "Attribute"}"`
-                      : isUnused
-                        ? `Unused Attribute: "${item.attributeName || "Attribute"}"`
-                        : item.reason || "Review item");
-
-              const displaySubtitle = item.subtitle || item.reason || "";
+              const canAccept = canDecideAttributeFinding(finding, "ACCEPTED");
+              const canReject = canDecideAttributeFinding(finding, "REJECTED");
+              const canDismiss = canDecideAttributeFinding(finding, "DISMISSED");
+              const attributeSubjectId = finding.attributeDefinitionId;
+              const usage = producerUsageEvidence(finding);
+              const expectationWithoutDefinition =
+                isExpectationForUndefinedAttribute(finding);
 
               return (
                 <div
-                  key={item.id}
+                  key={finding.id}
                   className="p-4 space-y-2.5 hover:bg-muted/15 transition-colors"
                 >
                   {/* Top Bar: Badges, Title, and Action Controls */}
@@ -651,26 +581,47 @@ export function AttributeReviewQueueDialog({
                         )}
 
                         <StatusBadge
-                          status={
-                            item.confidenceLevel === "HIGH"
-                              ? "SUCCESS"
-                              : item.confidenceLevel === "MEDIUM"
-                                ? "IN_REVIEW"
-                                : "DRAFT"
-                          }
-                          label={`${item.confidenceLevel} CONFIDENCE`}
+                          status={attributeStatusBadge(finding.status)}
+                          label={attributeStatusLabel(
+                            finding.status,
+                          ).toUpperCase()}
                         />
+
+                        {finding.confidenceLevel && (
+                          <StatusBadge
+                            status={confidenceBadgeStatus(
+                              finding.confidenceLevel,
+                            )}
+                            label={`${finding.confidenceLevel} CONFIDENCE`}
+                          />
+                        )}
                       </div>
 
                       {/* Clear, Bold Action Title */}
                       <h4 className="text-sm font-semibold text-foreground tracking-tight">
-                        {displayTitle}
+                        {findingHeadline(finding)}
                       </h4>
 
-                      {/* Human-readable Reason / Subtitle */}
-                      {displaySubtitle && (
+                      {/* Human-readable Reason / Description */}
+                      {finding.description && (
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                          {displaySubtitle}
+                          {finding.description}
+                        </p>
+                      )}
+
+                      {/* Reviewer outcome, when a decision exists */}
+                      {finding.reviewedAt && (
+                        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <History className="size-3 shrink-0" />
+                          <span>
+                            {attributeStatusLabel(finding.status)}
+                            {finding.reviewerEmail
+                              ? ` by ${finding.reviewerEmail}`
+                              : ""}
+                            {finding.decisionNotes
+                              ? ` — ${finding.decisionNotes}`
+                              : ""}
+                          </span>
                         </p>
                       )}
                     </div>
@@ -681,109 +632,80 @@ export function AttributeReviewQueueDialog({
                         type="button"
                         variant="ghost"
                         size="icon-xs"
-                        onClick={() => toggleWhy(item.id)}
-                        className={`text-muted-foreground hover:text-foreground ${isWhyExpanded ? "bg-muted text-foreground" : ""
-                          }`}
+                        onClick={() => toggleWhy(finding.id)}
+                        className={`text-muted-foreground hover:text-foreground ${
+                          isWhyExpanded ? "bg-muted text-foreground" : ""
+                        }`}
                         title="View reasoning evidence"
                       >
                         <HelpCircle className="size-3.5" />
                       </Button>
 
-                      {item.attributeId && onEditAttribute && (
+                      {attributeSubjectId && onEditAttribute && (
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon-xs"
                           onClick={() => {
                             onClose();
-                            onEditAttribute(item.attributeId!);
+                            onEditAttribute(attributeSubjectId);
                           }}
                           className="text-muted-foreground hover:text-foreground"
-                          title="Edit attribute definition"
+                          title="Open attribute definition"
                         >
                           <Edit3 className="size-3.5" />
                         </Button>
                       )}
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        disabled={inProgress}
-                        onClick={() => handleRejectItem(item)}
-                        className="text-muted-foreground hover:text-destructive"
-                        title="Dismiss proposal"
-                      >
-                        <X className="size-3.5" />
-                      </Button>
-
-                      {/* Primary Action Button Contextualized */}
-                      {isBinding && (
+                      {permissions.canDecide && canDismiss && (
                         <Button
                           type="button"
-                          size="xs"
+                          variant="ghost"
+                          size="icon-xs"
                           disabled={inProgress}
-                          onClick={() => handleAcceptItem(item)}
-                          className="h-7 text-xs px-2.5 bg-primary text-primary-foreground hover:bg-primary/90 gap-1 font-medium"
+                          onClick={() =>
+                            void recordDecision(finding, "DISMISSED")
+                          }
+                          className="text-muted-foreground hover:text-foreground"
+                          title={ATTRIBUTE_DECISION_COPY.DISMISSED.summary}
                         >
-                          {inProgress ? (
-                            <Loader2 className="size-3 animate-spin" />
-                          ) : (
-                            <Check className="size-3" />
-                          )}
-                          Accept Binding
+                          <X className="size-3.5" />
                         </Button>
                       )}
 
-                      {isSuspicious && (
+                      {permissions.canDecide && canReject && (
                         <Button
                           type="button"
                           size="xs"
                           variant="outline"
                           disabled={inProgress}
-                          onClick={() => handleAcceptItem(item)}
-                          className="h-7 text-xs px-2.5 border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 gap-1 font-medium"
-                        >
-                          {inProgress ? (
-                            <Loader2 className="size-3 animate-spin" />
-                          ) : (
-                            <Unlink className="size-3" />
-                          )}
-                          Unbind
-                        </Button>
-                      )}
-
-                      {isEnum && (
-                        <Button
-                          type="button"
-                          size="xs"
-                          variant="outline"
-                          disabled={inProgress}
-                          onClick={() => handleAcceptItem(item)}
-                          className="h-7 text-xs px-2.5 border-primary/30 text-primary hover:bg-primary/10 gap-1 font-medium"
-                        >
-                          {inProgress ? (
-                            <Loader2 className="size-3 animate-spin" />
-                          ) : (
-                            <Check className="size-3" />
-                          )}
-                          Add Option
-                        </Button>
-                      )}
-
-                      {(isDuplicate || isUnused) && item.attributeId && onEditAttribute && (
-                        <Button
-                          type="button"
-                          size="xs"
-                          variant="outline"
-                          onClick={() => {
-                            onClose();
-                            onEditAttribute(item.attributeId!);
-                          }}
+                          onClick={() =>
+                            void recordDecision(finding, "REJECTED")
+                          }
                           className="h-7 text-xs px-2.5 border-border hover:bg-muted gap-1 font-medium"
+                          title={ATTRIBUTE_DECISION_COPY.REJECTED.summary}
                         >
-                          <Edit3 className="size-3" />
-                          Inspect
+                          Reject
+                        </Button>
+                      )}
+
+                      {permissions.canDecide && canAccept && (
+                        <Button
+                          type="button"
+                          size="xs"
+                          disabled={inProgress}
+                          onClick={() =>
+                            void recordDecision(finding, "ACCEPTED")
+                          }
+                          className="h-7 text-xs px-2.5 bg-primary text-primary-foreground hover:bg-primary/90 gap-1 font-medium"
+                          title={attributeAcceptNotice()}
+                        >
+                          {inProgress ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <Check className="size-3" />
+                          )}
+                          Accept
                         </Button>
                       )}
                     </div>
@@ -791,53 +713,60 @@ export function AttributeReviewQueueDialog({
 
                   {/* Relevant Data Grid / Context Details */}
                   <div className="flex justify-between gap-2 p-2.5 rounded-lg bg-muted/40 border border-border/70 text-xs">
-                    {/* Attribute Column */}
+                    {/* Subject Column */}
                     <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                       <Sliders className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="font-medium text-foreground/80">Attribute:</span>
-                      <span className="font-semibold text-foreground truncate">
-                        {item.attributeName || "—"}
+                      <span className="font-medium text-foreground/80">
+                        {expectationWithoutDefinition
+                          ? "Expected Attribute:"
+                          : "Attribute:"}
                       </span>
+                      <span className="font-semibold text-foreground truncate">
+                        {expectationWithoutDefinition
+                          ? (suggestedCanonicalCode(finding) ?? "—")
+                          : (attributeSubjectId ?? "—")}
+                      </span>
+                      {expectationWithoutDefinition && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border font-medium">
+                          Not defined yet
+                        </span>
+                      )}
                     </div>
 
-                    {/* Target / Association Details Column */}
-                    {item.categoryName ? (
+                    {/* Relationship / usage details */}
+                    {isDuplicate && finding.relatedAttributeDefinitionId ? (
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
+                        <span className="font-medium text-foreground/80">
+                          Matches:
+                        </span>
+                        <span className="font-semibold text-foreground truncate">
+                          {finding.relatedAttributeDefinitionId}
+                        </span>
+                      </div>
+                    ) : finding.categoryId ? (
                       <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                         <FolderTree className="size-3.5 shrink-0 text-muted-foreground" />
                         <span className="font-medium text-foreground/80">
                           {isSuspicious ? "Bound Category:" : "Target Category:"}
                         </span>
                         <span className="font-semibold text-foreground truncate">
-                          {item.categoryName}
+                          {finding.categoryId}
                         </span>
-                        {item.payload?.suggestedRequired ? (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-medium">
-                            Required
-                          </span>
-                        ) : isBinding ? (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border font-medium">
-                            Optional
-                          </span>
-                        ) : null}
                       </div>
-                    ) : item.payload?.targetAttributeName ? (
-                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                        <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
-                        <span className="font-medium text-foreground/80">Matches:</span>
-                        <span className="font-semibold text-foreground truncate">
-                          {String(item.payload.targetAttributeName)}
-                        </span>
-                        {Boolean(item.payload?.similarity) && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-medium">
-                            {Math.round(Number(item.payload?.similarity) * 100)}% match
-                          </span>
-                        )}
-                      </div>
-                    ) : (
+                    ) : isUnused ? (
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Layers className="size-3.5 shrink-0" />
                         <span className="text-[11px]">
-                          0 category bindings • 0 ledger references
+                          {usage.componentValueCount ?? 0} component values •{" "}
+                          {usage.bindingCount ?? 0} category bindings
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Info className="size-3.5 shrink-0" />
+                        <span className="text-[11px]">
+                          {attributeIssueTypeLabel(finding.issueType)}
                         </span>
                       </div>
                     )}
@@ -847,16 +776,18 @@ export function AttributeReviewQueueDialog({
                   {isWhyExpanded && (
                     <div className="pt-2 border-t border-border/60 text-[11px] space-y-1.5 animate-in fade-in-50 duration-150">
                       <span className="font-semibold text-foreground text-[10px] uppercase tracking-wider block">
-                        Reasoning Evidence & Grounding:
+                        Reasoning Evidence &amp; Grounding:
                       </span>
-                      {item.evidence && item.evidence.length > 0 ? (
+                      {finding.evidence && finding.evidence.length > 0 ? (
                         <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                          {item.evidence.map((ev, idx) => (
+                          {finding.evidence.map((ev, idx) => (
                             <li key={idx} className="leading-normal">
-                              <span className="text-foreground">{ev.description}</span>
+                              <span className="text-foreground">
+                                {String(ev.description ?? "")}
+                              </span>
                               {ev.source && (
                                 <span className="ml-1.5 text-[9px] font-mono text-muted-foreground/80 px-1 py-0.2 rounded bg-muted border border-border/50">
-                                  {ev.source}
+                                  {String(ev.source)}
                                 </span>
                               )}
                             </li>
@@ -864,9 +795,16 @@ export function AttributeReviewQueueDialog({
                         </ul>
                       ) : (
                         <p className="text-muted-foreground text-xs">
-                          {item.reason || "Determined via attribute taxonomy and category heuristics."}
+                          {finding.description ||
+                            "Determined via attribute taxonomy and category heuristics."}
                         </p>
                       )}
+                      <p className="text-[10px] font-mono text-muted-foreground/80">
+                        source: {finding.source}
+                        {finding.intelligenceVersion
+                          ? ` • ${finding.intelligenceVersion}`
+                          : ""}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -877,19 +815,57 @@ export function AttributeReviewQueueDialog({
           <div className="flex flex-1 flex-col items-center justify-center space-y-2 rounded-xl border border-dashed border-border bg-muted/5 py-12 text-center">
             <Sparkles className="size-8 text-muted-foreground/30 mx-auto" />
             <p className="text-xs font-semibold text-foreground">
-              {filtersActive
-                ? "No findings match these filters"
-                : filterType === "ALL"
-                  ? "Review queue is clear"
-                  : `No items in ${filterType.toLowerCase()} filter`}
+              {error
+                ? "The queue could not be loaded"
+                : filtersActive
+                  ? "No findings match these filters"
+                  : "Review queue is clear"}
             </p>
             <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
-              {filtersActive
-                ? "Adjust or clear the search, confidence, or category filters to see other findings."
-                : filterType === "ALL"
-                  ? "All attribute proposals have been reviewed. Run a library audit to scan for new configuration improvements."
-                  : `There are currently 0 pending items matching the ${filterType.toLowerCase()} queue category.`}
+              {error
+                ? "Retry the request with the refresh action above."
+                : filtersActive
+                  ? "Adjust or clear the search, status, confidence, or tab filters to see other findings."
+                  : "No findings are awaiting review. Run a library audit to scan the attribute library for new findings."}
             </p>
+          </div>
+        )}
+
+        {/* Server-side pagination */}
+        {page && page.total > 0 && (
+          <div className="flex shrink-0 items-center justify-between gap-2 pt-1 text-[11px] text-muted-foreground">
+            <span>
+              {page.total} finding{page.total === 1 ? "" : "s"} · page {page.page}{" "}
+              of {totalPages}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loading || pageNumber <= 1}
+                onClick={() =>
+                  setPageNumber((current) => Math.max(1, current - 1))
+                }
+                className="h-7 gap-1 text-xs"
+              >
+                <ChevronLeft className="size-3.5" />
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loading || pageNumber >= totalPages}
+                onClick={() =>
+                  setPageNumber((current) => Math.min(totalPages, current + 1))
+                }
+                className="h-7 gap-1 text-xs"
+              >
+                Next
+                <ChevronRight className="size-3.5" />
+              </Button>
+            </div>
           </div>
         )}
       </DialogShellBody>

@@ -477,23 +477,6 @@ export class AttributeAuditIssueDto {
   evidence!: EvidenceItemDto[];
 }
 
-export class ReviewQueueSummaryDto {
-  total!: number;
-  suggestedBindings!: number;
-  possibleDuplicates!: number;
-  suspiciousBindings!: number;
-  unusedAttributes!: number;
-  suggestedEnumValues!: number;
-  totalPending?: number;
-  duplicateWarnings?: number;
-  missingExpected?: number;
-}
-
-export class ReviewQueueResponseDto {
-  summary!: ReviewQueueSummaryDto;
-  items!: AttributeAuditIssueDto[];
-}
-
 export class AuditAttributeLibraryResponseDto {
   summary!: {
     totalAttributes: number;

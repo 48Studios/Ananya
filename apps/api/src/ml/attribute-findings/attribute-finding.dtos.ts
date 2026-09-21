@@ -1,6 +1,7 @@
-import type {
-  IntelligenceFindingDecision,
-  IntelligenceFindingStatus,
+import {
+  INTELLIGENCE_FINDING_DECISIONS,
+  type IntelligenceFindingDecision,
+  type IntelligenceFindingStatus,
 } from '../intelligence-findings';
 
 /**
@@ -34,6 +35,15 @@ export const ATTRIBUTE_REVIEW_STATUSES = [
 ] as const;
 
 export type AttributeReviewStatus = IntelligenceFindingStatus;
+
+/**
+ * Decisions a reviewer may record, as a runtime list.
+ *
+ * Re-exported from the shared lifecycle module rather than redeclared: HTTP
+ * validation and the workflow's own transition rules must accept exactly the
+ * same set, or the API could accept a decision the service then refuses.
+ */
+export const ATTRIBUTE_REVIEW_DECISIONS = INTELLIGENCE_FINDING_DECISIONS;
 
 export type AttributeReviewDecision = IntelligenceFindingDecision;
 
@@ -369,22 +379,31 @@ export interface PersistAttributeFindingInput {
 
 export interface PersistAttributeFindingsResult {
   persistedCount: number;
+  /** Findings that did not exist before this call. */
+  createdCount: number;
+  /** Findings that already existed and had their snapshot refreshed. */
+  refreshedCount: number;
+  /** Findings that were STALE and were returned to PENDING by re-detection. */
+  revivedCount: number;
   findings: AttributeFindingDto[];
 }
 
 /**
- * Queue read filters (Pass 1: service-level only; no HTTP route yet).
+ * Queue read filters.
+ *
+ * Every filter accepts either a single value or a list, and the service's
+ * `normalizeQuery` validates list values against the taxonomy (unknown values are
+ * a 400 rather than a silently empty page). HTTP callers therefore pass query
+ * strings straight through, while internal callers can pass typed literals.
  *
  * `search` covers the finding's own text. Subject-identity search (matching an
- * attribute or category name) needs a join and belongs to the pass that adds the
- * HTTP endpoint and its UI; the contract is fixed here so callers do not have to
- * change later.
+ * attribute or category name) needs a join and is not implemented.
  */
 export interface AttributeFindingListQuery {
   /** Accepts an array or a comma-separated string, like the component queue. */
   status?: string | string[];
   issueType?: string | string[];
-  issueCategory?: AttributeReviewIssueCategory | AttributeReviewIssueCategory[];
+  issueCategory?: string | string[];
   confidenceLevel?: ConfidenceLevel;
   attributeDefinitionId?: string;
   categoryId?: string;
@@ -426,10 +445,33 @@ export interface MarkAttributeFindingsStaleInput {
 export interface ReconcileAttributeFindingsInput {
   /** Attribute definitions that were re-analyzed in this run. */
   attributeDefinitionIds: string[];
+  /**
+   * Categories that were re-analyzed in this run.
+   *
+   * Required for a truthful whole-library sweep: a category-first finding (an
+   * expectation about an attribute that does not exist yet) has no attribute
+   * subject at all, so scoping reconciliation by attribute id alone would leave it
+   * PENDING forever.
+   */
+  categoryIds?: string[];
   /** Fingerprints of findings that are still valid after re-analysis. */
   activeFingerprints: Set<string> | string[];
   /** Producer tags owned by the caller. */
   sources: string[];
+  /**
+   * Intelligence versions owned by the caller.
+   *
+   * Scoping by producer alone is not enough: the same producer under a different
+   * normalization version reaches different conclusions from identical data, so a
+   * v2 run must not age a v1 run's findings.
+   */
+  intelligenceVersions?: string[];
+  /**
+   * Finding families owned by the caller. A producer that emits only some families
+   * must not stale another producer's findings in the families it does not cover,
+   * even when both share a source tag.
+   */
+  issueTypes?: string[];
   reason?: string;
 }
 

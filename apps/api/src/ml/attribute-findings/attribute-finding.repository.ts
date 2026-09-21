@@ -328,6 +328,37 @@ export class AttributeFindingRepository {
   }
 
   /**
+   * Counts findings grouped by issue family, for the queue's family tabs.
+   *
+   * Ignores both the status and the issue-type filters, for the same reason
+   * {@link countByStatus} ignores the status filter: a tab count describes how many
+   * findings exist in each family, not how many match the family or status
+   * currently selected.
+   */
+  async countByIssueType(
+    query: AttributeFindingListQuery,
+    client: DbExecutor = this.client,
+  ): Promise<Record<string, number>> {
+    const conditions = this.buildConditions({
+      ...query,
+      issueType: undefined,
+      status: undefined,
+    });
+    const rows = await client
+      .select({
+        issueType: attributeIntelligenceFindings.issueType,
+        value: count(),
+      })
+      .from(attributeIntelligenceFindings)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(attributeIntelligenceFindings.issueType);
+
+    return Object.fromEntries(
+      rows.map((row) => [row.issueType, Number(row.value)]),
+    );
+  }
+
+  /**
    * Records a reviewer decision with a guarded update.
    *
    * The `status IN (...)` predicate is the concurrency control: two reviewers who
@@ -448,26 +479,111 @@ export class AttributeFindingRepository {
   }
 
   /**
+   * Classifies a batch of fingerprints by the lifecycle state already stored.
+   *
+   * Used to report whether a persistence run created, refreshed or revived each
+   * finding. Kept as a pre-write read rather than a `RETURNING` trick because the
+   * row-level guarantee comes from the unique index, not from this read: under a
+   * concurrent run the counts are advisory while the row outcome is still exactly
+   * one finding per fingerprint.
+   */
+  async classifyFingerprints(
+    fingerprints: string[],
+    client: DbExecutor = this.client,
+  ): Promise<Map<string, string>> {
+    const unique = Array.from(
+      new Set(fingerprints.filter((fingerprint) => Boolean(fingerprint))),
+    );
+    if (unique.length === 0) return new Map();
+
+    const rows: Array<{ fingerprint: string; status: string }> = [];
+    const chunkSize = 200;
+    for (let index = 0; index < unique.length; index += chunkSize) {
+      const chunk = unique.slice(index, index + chunkSize);
+      rows.push(
+        ...(await client
+          .select({
+            fingerprint: attributeIntelligenceFindings.fingerprint,
+            status: attributeIntelligenceFindings.status,
+          })
+          .from(attributeIntelligenceFindings)
+          .where(inArray(attributeIntelligenceFindings.fingerprint, chunk))),
+      );
+    }
+
+    return new Map(rows.map((row) => [row.fingerprint, row.status]));
+  }
+
+  /**
    * PENDING findings from the given producers, for reconciliation.
    *
-   * Matches the attribute on *either* side of the finding: when attribute A is
-   * re-analyzed, relationship findings (`A ≍ B`) are in scope whether A was stored
-   * as the primary or the related side. Scoping only by the primary column would
-   * leave one side's findings alive forever.
+   * Scope is expressed on every dimension that can make two findings genuinely
+   * different conditions: the subject (either attribute of a pair, or the category
+   * a category-first finding belongs to), the producer tag, the intelligence
+   * version and the finding family. Omitting any one of them would let an audit age
+   * findings it never examined.
    */
   async findPendingForReconciliation(
     input: {
       attributeDefinitionIds: string[];
+      categoryIds?: string[];
       sources: string[];
+      intelligenceVersions?: string[];
+      issueTypes?: string[];
     },
     client: DbExecutor = this.client,
   ): Promise<Array<{ id: string; fingerprint: string }>> {
+    const attributeDefinitionIds = uniqueStrings(input.attributeDefinitionIds);
+    const categoryIds = uniqueStrings(input.categoryIds ?? []);
+    const sources = uniqueStrings(input.sources);
+    const intelligenceVersions = uniqueStrings(
+      input.intelligenceVersions ?? [],
+    );
+    const issueTypes = uniqueStrings(input.issueTypes ?? []);
+
     if (
-      input.attributeDefinitionIds.length === 0 ||
-      input.sources.length === 0
+      sources.length === 0 ||
+      (attributeDefinitionIds.length === 0 && categoryIds.length === 0)
     ) {
       return [];
     }
+
+    const subjectConditions = [
+      attributeDefinitionIds.length > 0
+        ? inArray(
+            attributeIntelligenceFindings.attributeDefinitionId,
+            attributeDefinitionIds,
+          )
+        : undefined,
+      attributeDefinitionIds.length > 0
+        ? inArray(
+            attributeIntelligenceFindings.relatedAttributeDefinitionId,
+            attributeDefinitionIds,
+          )
+        : undefined,
+      categoryIds.length > 0
+        ? inArray(attributeIntelligenceFindings.categoryId, categoryIds)
+        : undefined,
+    ].filter((condition): condition is NonNullable<typeof condition> =>
+      Boolean(condition),
+    );
+
+    const conditions = [
+      or(...subjectConditions),
+      eq(attributeIntelligenceFindings.status, 'PENDING'),
+      inArray(attributeIntelligenceFindings.source, sources),
+      intelligenceVersions.length > 0
+        ? inArray(
+            attributeIntelligenceFindings.intelligenceVersion,
+            intelligenceVersions,
+          )
+        : undefined,
+      issueTypes.length > 0
+        ? inArray(attributeIntelligenceFindings.issueType, issueTypes)
+        : undefined,
+    ].filter((condition): condition is NonNullable<typeof condition> =>
+      Boolean(condition),
+    );
 
     return client
       .select({
@@ -475,22 +591,7 @@ export class AttributeFindingRepository {
         fingerprint: attributeIntelligenceFindings.fingerprint,
       })
       .from(attributeIntelligenceFindings)
-      .where(
-        and(
-          or(
-            inArray(
-              attributeIntelligenceFindings.attributeDefinitionId,
-              input.attributeDefinitionIds,
-            ),
-            inArray(
-              attributeIntelligenceFindings.relatedAttributeDefinitionId,
-              input.attributeDefinitionIds,
-            ),
-          ),
-          eq(attributeIntelligenceFindings.status, 'PENDING'),
-          inArray(attributeIntelligenceFindings.source, input.sources),
-        ),
-      );
+      .where(and(...conditions));
   }
 }
 
@@ -502,7 +603,10 @@ function normalizeList(input?: string | string[]): string[] {
     .filter((token) => token.length > 0);
   return Array.from(new Set(tokens));
 }
-
+/** De-duplicates non-empty strings, preserving order. */
+function uniqueStrings(values: string[]): string[] {
+  return Array.from(new Set(values.filter((value) => Boolean(value))));
+}
 function resolveOrderBy(query: AttributeFindingListQuery) {
   const sortBy: AttributeReviewSortField = query.sortBy ?? 'createdAt';
   const column =

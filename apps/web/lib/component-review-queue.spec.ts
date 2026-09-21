@@ -1581,12 +1581,15 @@ describe("Intelligence queue filter section", () => {
     expect(component).toContain("setSearchInput");
     expect(attribute).toContain("setSearchInput");
 
-    // The Attribute queue filters client-side over its loaded items.
+    // Both offer a confidence filter. The Component queue filters client-side over
+    // its loaded items; the Attribute queue applies its filters server-side, because
+    // its queue is paginated and counting loaded rows would be wrong.
+    expect(component).toContain("confidenceFilter");
     expect(attribute).toContain("confidenceFilter");
-    expect(attribute).toContain("categoryFilter");
-    expect(attribute).toContain("item.confidenceLevel !== confidenceFilter");
-    expect(attribute).toContain("item.categoryId !== categoryFilter");
-    expect(attribute).toContain("item.categoryName");
+    expect(attribute).toContain("attributeReviewQueueApi.listFindings");
+    expect(attribute).toContain("page: pageNumber");
+    // No client-side filtering remains in the Attribute queue.
+    expect(attribute).not.toContain("item.confidenceLevel !== confidenceFilter");
   });
 
   it("offers a clear action that resets every filter", () => {

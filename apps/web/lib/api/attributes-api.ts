@@ -362,92 +362,6 @@ export interface EnumSuggestionsResponseDto {
   executionTimeMs: number;
 }
 
-export interface AttributeAuditIssueDto {
-  type:
-    | "DUPLICATE"
-    | "SUSPICIOUS_BINDING"
-    | "MISSING_COMMON_ATTRIBUTE"
-    | "UNUSED_ATTRIBUTE"
-    | "TYPE_INCONSISTENCY"
-    | "ENUM_INCONSISTENCY";
-  severity: "HIGH" | "MEDIUM" | "LOW";
-  title: string;
-  description: string;
-  attributeId?: string;
-  attributeCode?: string;
-  attributeName?: string;
-  categoryId?: string;
-  categoryName?: string;
-  suggestedAction: string;
-  evidence: Array<{
-    type: string;
-    description: string;
-    weight: number;
-    source?: string;
-  }>;
-}
-
-export interface AttributeLibraryAuditResponseDto {
-  summary: {
-    totalAttributes: number;
-    totalBindings: number;
-    issuesCount: number;
-    potentialDuplicatesCount: number;
-    suspiciousBindingsCount: number;
-    missingBindingsCount: number;
-  };
-  issues: AttributeAuditIssueDto[];
-  executionTimeMs: number;
-}
-
-export interface ReviewQueueSummaryDto {
-  total: number;
-  suggestedBindings: number;
-  possibleDuplicates: number;
-  suspiciousBindings: number;
-  unusedAttributes?: number;
-  suggestedEnumValues?: number;
-  totalPending?: number;
-  duplicateWarnings?: number;
-  missingExpected?: number;
-}
-
-export interface ReviewQueueItemDto {
-  id: string;
-  type:
-    | "SUGGESTED_BINDING"
-    | "POSSIBLE_DUPLICATE"
-    | "SUSPICIOUS_BINDING"
-    | "SUGGESTED_ENUM_VALUE"
-    | "MISSING_ATTRIBUTE"
-    | "MISSING_EXPECTED_ATTRIBUTE"
-    | "DUPLICATE_ATTRIBUTE"
-    | "UNUSED_ATTRIBUTE"
-    | string;
-  title?: string;
-  subtitle?: string;
-  confidence?: number;
-  confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
-  reason?: string;
-  attributeId?: string;
-  attributeCode?: string;
-  attributeName?: string;
-  categoryId?: string;
-  categoryName?: string;
-  payload?: Record<string, unknown>;
-  evidence: Array<{
-    type: string;
-    description: string;
-    weight: number;
-    source?: string;
-  }>;
-}
-
-export interface AttributeReviewQueueResponseDto {
-  summary: ReviewQueueSummaryDto;
-  items: ReviewQueueItemDto[];
-}
-
 export const attributesApi = {
   getAll: (): Promise<AttributeDefinitionDto[]> =>
     apiClient.get<AttributeDefinitionDto[]>("/attributes"),
@@ -615,16 +529,19 @@ export const attributesApi = {
       payload,
     ),
 
-  auditLibrary: (): Promise<AttributeLibraryAuditResponseDto> =>
-    apiClient.post<AttributeLibraryAuditResponseDto>(
-      "/ml/attributes/audit",
-      {},
-    ),
 
-  getReviewQueue: (): Promise<AttributeReviewQueueResponseDto> =>
-    apiClient.get<AttributeReviewQueueResponseDto>(
-      "/ml/attributes/review-queue",
-    ),
+  /**
+   * NOTE: the review queue is no longer served from this module.
+   *
+   * `GET /ml/attributes/review-queue` used to recompute the entire library audit on
+   * every call and return items with regenerated ids. It was replaced by the
+   * persisted queue in `attribute-review-queue-api.ts`
+   * (`/ml/attributes/review-queue`, backed by `attribute_intelligence_findings`),
+   * which supports server-side filtering, pagination, counts and a real lifecycle.
+   *
+   * `applyBindings` below still targets a legacy endpoint. It MUTATES
+   * `category_attributes` and is now behind the `Inventory.Update` permission.
+   */
 
   applyBindings: (payload: {
     attributeId: string;

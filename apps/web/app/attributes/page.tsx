@@ -40,6 +40,7 @@ import { AttributeFormDialog } from "@/components/attributes/attribute-form-dial
 import { AttributeOptionsDialog } from "@/components/attributes/attribute-options-dialog";
 import { AttributeCategoriesDialog } from "@/components/attributes/attribute-categories-dialog";
 import { AttributeReviewQueueDialog } from "@/components/attributes/attribute-review-queue-dialog";
+import { attributeReviewQueueApi } from "@/lib/api/attribute-review-queue-api";
 import {
   attributesApi,
   type AttributeDefinitionDto,
@@ -83,13 +84,19 @@ export default function AttributesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [data, queue] = await Promise.all([
+      const [data, queueCounts] = await Promise.all([
         attributesApi.getAll(),
-        attributesApi.getReviewQueue().catch(() => null),
+        // Counts come from persisted findings (a plain read). This used to call the
+        // legacy review-queue endpoint, which recomputed the whole library audit on
+        // every page load.
+        attributeReviewQueueApi
+          .listFindings({ status: "PENDING", page: 1, pageSize: 1 })
+          .then((page) => page.counts.pending)
+          .catch(() => null),
       ]);
       setAttributes(data);
-      if (queue) {
-        setReviewQueueCount(queue.summary.total);
+      if (queueCounts !== null) {
+        setReviewQueueCount(queueCounts);
       }
     } catch (err: unknown) {
       setError(
