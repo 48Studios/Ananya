@@ -22,6 +22,15 @@ import type { DocumentDto } from "./api/documents-api";
 /** Existing write permission for component data (`Inventory.Update`). */
 export const COMPONENT_WRITE_PERMISSION = "Inventory.Update";
 
+/**
+ * Existing read permission for component documentation (`Inventory.Read`).
+ *
+ * Mirrors `DOCUMENT_READ_PERMISSION` in the API, which guards every
+ * documentation read route — including the component specification
+ * intelligence state, so the UI does not request state it cannot be given.
+ */
+export const DOCUMENT_READ_PERMISSION = "Inventory.Read";
+
 /** Review queue route the analysis links into (existing Component queue). */
 export const COMPONENT_REVIEW_QUEUE_ROUTE = "/components/review-queue";
 

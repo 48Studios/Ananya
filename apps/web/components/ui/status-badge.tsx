@@ -39,6 +39,39 @@ interface StatusBadgeProps {
   className?: string;
 }
 
+/**
+ * The record-level active flag, as a pill.
+ *
+ * A master-data record's `isActive` flag is not a workflow status: it has two
+ * values, it never carries an icon, and it is rendered beside other record
+ * fields. `StatusBadge` maps a status vocabulary (PENDING, FULFILLED, …) onto
+ * icons and colours, so feeding "INACTIVE" through it produced a document icon
+ * next to the word Inactive. This keeps the two concerns apart while still
+ * defining the Active/Inactive palette exactly once, so every record page shows
+ * the same size and the same colours.
+ */
+export function RecordStatusBadge({
+  isActive,
+  className,
+}: {
+  isActive: boolean;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full",
+        isActive
+          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+          : "bg-muted text-muted-foreground border border-border",
+        className,
+      )}
+    >
+      {isActive ? "Active" : "Inactive"}
+    </span>
+  );
+}
+
 export function StatusBadge({ status, label, className }: StatusBadgeProps) {
   const normalized = (status || "").toUpperCase();
   const displayLabel = label || status || "UNKNOWN";

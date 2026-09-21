@@ -5,6 +5,7 @@ import { FileText, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SectionCard } from "@/components/ui/section-card";
 import { DocumentViewer } from "@/components/ui/document-viewer";
 import { VersionHistoryDialog } from "@/components/ui/version-history-dialog";
 import { AddDocumentationDialog } from "@/components/documentation/add-documentation-dialog";
@@ -38,6 +39,14 @@ import { useAuth } from "@/lib/auth/auth-context";
 export interface DocumentationPanelProps {
   entityType: string;
   entityId: string;
+  /**
+   * Extra header actions, rendered before "Add Documentation".
+   *
+   * The panel stays entity-agnostic: a host that has its own documentation
+   * workflow (component specification intelligence, for example) passes the
+   * entry point in rather than the panel learning about that workflow.
+   */
+  headerActions?: React.ReactNode;
 }
 
 /**
@@ -56,6 +65,7 @@ export interface DocumentationPanelProps {
 export function DocumentationPanel({
   entityType,
   entityId,
+  headerActions,
 }: DocumentationPanelProps) {
   const [documents, setDocuments] = React.useState<DocumentDto[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -180,28 +190,26 @@ export function DocumentationPanel({
   };
 
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card p-6 shadow-xs">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
-            <FileText className="size-4 text-primary" />
-            Documentation
-          </h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Datasheets, manuals, drawings, and links to external resources for
-            this component.
-          </p>
-        </div>
-        <Button
-          size="sm"
-          className="h-8 gap-1.5 text-xs"
-          onClick={() => setIsAddOpen(true)}
-        >
-          <Plus className="size-3.5" />
-          Add Documentation
-        </Button>
-      </div>
-
+    <SectionCard
+      title="Documentation"
+      description="Datasheets, manuals, drawings, and links to external resources for this component."
+      icon={FileText}
+      contentClassName="space-y-4"
+      actions={
+        <>
+          {headerActions}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => setIsAddOpen(true)}
+          >
+            <Plus className="size-3.5 text-primary" />
+            Add Documentation
+          </Button>
+        </>
+      }
+    >
       {actionError ? (
         <p className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
           {actionError}
@@ -222,6 +230,7 @@ export function DocumentationPanel({
         </div>
       ) : documents.length === 0 ? (
         <EmptyState
+          compact
           title={DOCUMENTATION_EMPTY_STATE.title}
           description={DOCUMENTATION_EMPTY_STATE.description}
           icon={FileText}
@@ -312,6 +321,6 @@ export function DocumentationPanel({
         onConfirm={handleDelete}
         onCancel={() => setPendingDelete(null)}
       />
-    </div>
+    </SectionCard>
   );
 }

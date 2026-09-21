@@ -9,13 +9,28 @@ import {
   ArrowLeft,
   FolderTree,
   Package,
-  Layers,
   CheckCircle2,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DetailChip,
+  DetailField,
+  DetailFields,
+  DetailMono,
+  DetailMuted,
+  DetailText,
+} from "@/components/ui/detail-field";
+import { DetailTable } from "@/components/ui/detail-table";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  RecordTimestamps,
+  SectionCard,
+  SectionCardFooter,
+} from "@/components/ui/section-card";
 import { StatCard } from "@/components/ui/stat-card";
+import { RecordStatusBadge } from "@/components/ui/status-badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -24,6 +39,15 @@ import { CategoryAttributesManager } from "@/components/categories/category-attr
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 
+/**
+ * One category, as a master-data record.
+ *
+ * Categories are hierarchical, so the page carries a dedicated hierarchy
+ * section that reads parent → this category → subcategories in order. The
+ * category's own fields stay in the information section, and its bound
+ * attribute definitions live in the specifications section — a definition is
+ * not a component value and is never presented as one.
+ */
 export default function ViewCategoryPage() {
   const params = useParams();
   const router = useRouter();
@@ -47,7 +71,10 @@ export default function ViewCategoryPage() {
 
   React.useEffect(() => {
     if (toastMessage || deleteError) {
-      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      noticeRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
     }
   }, [toastMessage, deleteError]);
 
@@ -108,7 +135,10 @@ export default function ViewCategoryPage() {
             : err.message;
       }
       setDeleteError(message);
-      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      noticeRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
     } finally {
       setDeleteLoading(false);
     }
@@ -130,16 +160,12 @@ export default function ViewCategoryPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Header */}
       <PageHeader
         title={category.name}
         description={`Code: ${category.code}`}
-        breadcrumbs={[
-          { label: "Categories", href: "/categories" },
-          { label: category.code },
-        ]}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -187,21 +213,24 @@ export default function ViewCategoryPage() {
         )}
       </div>
 
-      {/* Stat Cards Overview Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Catalog Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <StatCard
+          className="p-3.5"
           title="Total Components"
           value={components.length}
           subtitle="Categorized catalog items"
           icon={Package}
         />
         <StatCard
+          className="p-3.5"
           title="Active Components"
           value={activeComponentsCount}
           subtitle="Currently active inventory"
           icon={Package}
         />
         <StatCard
+          className="p-3.5"
           title="Subcategories"
           value={childCategories.length}
           subtitle="Nested child categories"
@@ -209,205 +238,224 @@ export default function ViewCategoryPage() {
         />
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* General Information Card */}
-        <div className="md:col-span-2 bg-card border border-border rounded-xl p-6 space-y-6 shadow-xs">
-          <div>
-            <h3 className="text-base font-semibold text-foreground">
-              General Information
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Category master record definition and parent hierarchy.
+      {/* Category Information */}
+      <SectionCard
+        title="Category Information"
+        description="Category master record definition."
+        icon={Info}
+        contentClassName="p-0"
+      >
+        <DetailFields className="px-6 py-5">
+          <DetailField label="Category ID">
+            <DetailChip mono>{category.id}</DetailChip>
+          </DetailField>
+
+          <DetailField label="Status">
+            <RecordStatusBadge isActive={category.isActive} />
+          </DetailField>
+
+          <DetailField label="Category Code">
+            <DetailMono className="uppercase">{category.code}</DetailMono>
+          </DetailField>
+
+          <DetailField label="Category Name">
+            <DetailText>{category.name}</DetailText>
+          </DetailField>
+
+          <DetailField
+            label="Description"
+            className="sm:col-span-2 lg:col-span-3 xl:col-span-4"
+          >
+            {category.description ? (
+              <DetailText>{category.description}</DetailText>
+            ) : (
+              <DetailMuted>No description provided.</DetailMuted>
+            )}
+          </DetailField>
+        </DetailFields>
+
+        <SectionCardFooter>
+          <RecordTimestamps
+            createdAt={category.createdAt}
+            updatedAt={category.updatedAt}
+          />
+        </SectionCardFooter>
+      </SectionCard>
+
+      {/* Category Hierarchy */}
+      <SectionCard
+        title="Category Hierarchy"
+        description="Where this category sits in the category tree."
+        icon={FolderTree}
+        contentClassName="p-0"
+      >
+        <div className="divide-y divide-border">
+          {/* Parent */}
+          <div className="px-6 py-4">
+            <p className="text-xs font-medium text-muted-foreground">
+              Parent category
             </p>
-          </div>
-
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
-            <div>
-              <dt className="text-xs font-medium text-muted-foreground">
-                Category ID
-              </dt>
-              <dd className="mt-1 font-mono text-xs text-foreground bg-muted/40 px-2 py-1 rounded inline-block">
-                {category.id}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-xs font-medium text-muted-foreground">
-                Status
-              </dt>
-              <dd className="mt-1">
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${
-                    category.isActive
-                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {category.isActive ? "Active" : "Inactive"}
-                </span>
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-xs font-medium text-muted-foreground">
-                Code
-              </dt>
-              <dd className="mt-1 font-mono text-xs font-semibold text-foreground uppercase">
-                {category.code}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-xs font-medium text-muted-foreground">
-                Name
-              </dt>
-              <dd className="mt-1 text-sm font-medium text-foreground">
-                {category.name}
-              </dd>
-            </div>
-
-            <div className="sm:col-span-2">
-              <dt className="text-xs font-medium text-muted-foreground">
-                Description
-              </dt>
-              <dd className="mt-1 text-sm text-foreground">
-                {category.description || "No description provided."}
-              </dd>
-            </div>
-          </dl>
-
-          {/* Audit Timestamps */}
-          <div className="pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-            <span>
-              Created: {new Date(category.createdAt).toLocaleString()}
-            </span>
-            <span>
-              Updated: {new Date(category.updatedAt).toLocaleString()}
-            </span>
-          </div>
-        </div>
-
-        {/* Hierarchy Card */}
-        <div className="space-y-6">
-          {/* Parent Category Tile */}
-          <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-foreground">
-                Parent Category
-              </h3>
-              <Layers className="w-4 h-4 text-muted-foreground" />
-            </div>
-
             {parentCategory ? (
-              <div className="p-3 bg-muted/30 border border-border rounded-lg space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-semibold text-foreground uppercase">
-                    {parentCategory.code}
-                  </span>
-                </div>
-                <p className="text-sm font-medium text-foreground">
+              <div className="mt-1.5 flex flex-wrap items-center gap-3">
+                <DetailChip mono className="uppercase">
+                  {parentCategory.code}
+                </DetailChip>
+                <Link
+                  href={`/categories/${parentCategory.id}`}
+                  className="text-sm text-foreground hover:text-primary hover:underline"
+                >
                   {parentCategory.name}
-                </p>
-                <Link href={`/categories/${parentCategory.id}`}>
-                  <Button
-                    variant="link"
-                    size="xs"
-                    className="px-0 text-primary"
-                  >
-                    View Parent Category →
-                  </Button>
+                </Link>
+                <Link
+                  href={`/categories/${parentCategory.id}`}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Open parent →
                 </Link>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground italic">
-                Top-level root category (No parent category assigned).
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                This is a top-level category with no parent assigned.
               </p>
             )}
           </div>
 
-          {/* Subcategories Tile */}
-          <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-foreground">
-                Child Subcategories ({childCategories.length})
-              </h3>
-              <FolderTree className="w-4 h-4 text-muted-foreground" />
+          {/* This category */}
+          <div className="border-l-2 border-primary bg-muted/30 px-6 py-4">
+            <p className="text-xs font-medium text-muted-foreground">
+              This category
+            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-3">
+              <DetailChip mono className="uppercase">
+                {category.code}
+              </DetailChip>
+              <span className="text-sm font-semibold text-foreground">
+                {category.name}
+              </span>
+              <RecordStatusBadge isActive={category.isActive} />
             </div>
+          </div>
 
-            {childCategories.length > 0 ? (
-              <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
-                {childCategories.map((sub) => (
-                  <div
-                    key={sub.id}
-                    className="p-3 flex items-center justify-between hover:bg-muted/30 transition-colors"
-                  >
-                    <div>
-                      <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded uppercase font-medium mr-2">
-                        {sub.code}
-                      </span>
-                      <span className="text-xs font-medium text-foreground">
-                        {sub.name}
-                      </span>
-                    </div>
-                    <Link href={`/categories/${sub.id}`}>
-                      <Button variant="ghost" size="xs">
-                        View
-                      </Button>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground italic">
-                No nested subcategories under this category.
+          {/* Children */}
+          <div className="px-6 pt-4 pb-1">
+            <p className="text-xs font-medium text-muted-foreground">
+              Subcategories ({childCategories.length})
+            </p>
+            {childCategories.length === 0 ? (
+              <p className="mt-1.5 pb-4 text-xs text-muted-foreground">
+                No child categories exist yet.
               </p>
-            )}
+            ) : null}
           </div>
         </div>
-      </div>
 
-      {/* Category Specifications & Attributes Section */}
-      <CategoryAttributesManager
-        categoryId={id}
-        categoryName={category.name}
-      />
-
-      {/* Associated Components Listing */}
-      <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
-        <h3 className="text-base font-semibold text-foreground">
-          Associated Inventory Components ({components.length})
-        </h3>
-
-        {components.length > 0 ? (
-          <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
-            {components.map((comp) => (
-              <div
-                key={comp.id}
-                className="p-3 flex items-center justify-between hover:bg-muted/30 transition-colors"
+        {childCategories.length > 0 ? (
+          <ul className="divide-y divide-border border-t border-border">
+            {childCategories.map((child) => (
+              <li
+                key={child.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-6 py-2.5 hover:bg-muted/20 transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded font-medium">
-                    {comp.sku}
-                  </span>
-                  <span className="text-sm font-medium text-foreground">
-                    {comp.name}
+                <div className="flex min-w-0 items-center gap-3">
+                  <DetailChip mono className="uppercase">
+                    {child.code}
+                  </DetailChip>
+                  <span className="text-sm text-foreground truncate">
+                    {child.name}
                   </span>
                 </div>
-                <Link href={`/components/${comp.id}`}>
-                  <Button variant="ghost" size="xs">
-                    View Component →
-                  </Button>
-                </Link>
-              </div>
+                <div className="flex items-center gap-3">
+                  <RecordStatusBadge isActive={child.isActive} />
+                  <Link href={`/categories/${child.id}`}>
+                    <Button variant="ghost" size="xs">
+                      View
+                    </Button>
+                  </Link>
+                </div>
+              </li>
             ))}
-          </div>
+          </ul>
+        ) : null}
+      </SectionCard>
+
+      {/* Configured Specifications & Attributes */}
+      <CategoryAttributesManager categoryId={id} categoryName={category.name} />
+
+      {/* Associated Inventory Components */}
+      <SectionCard
+        title="Associated Inventory Components"
+        description="Catalog parts assigned to this category."
+        icon={Package}
+        contentClassName="p-0"
+        actions={
+          components.length > 0 ? (
+            <span className="rounded bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-muted-foreground">
+              {components.length}{" "}
+              {components.length === 1 ? "component" : "components"}
+            </span>
+          ) : null
+        }
+      >
+        {components.length > 0 ? (
+          <DetailTable
+            rows={components}
+            rowKey={(component) => component.id}
+            columns={[
+              {
+                key: "sku",
+                header: "SKU",
+                width: "22%",
+                className: "min-w-0",
+                render: (component) => (
+                  <Link
+                    href={`/components/${component.id}`}
+                    className="font-mono text-xs font-semibold text-primary hover:underline truncate block"
+                  >
+                    {component.sku}
+                  </Link>
+                ),
+              },
+              {
+                key: "name",
+                header: "Component",
+                width: "52%",
+                className: "min-w-0",
+                render: (component) => (
+                  <span className="text-sm text-foreground truncate block">
+                    {component.name}
+                  </span>
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                width: "14%",
+                className: "whitespace-nowrap",
+                render: (component) => (
+                  <RecordStatusBadge isActive={component.isActive} />
+                ),
+              },
+              {
+                key: "actions",
+                header: "",
+                align: "right",
+                width: "12%",
+                render: (component) => (
+                  <Link href={`/components/${component.id}`}>
+                    <Button variant="ghost" size="xs">
+                      View
+                    </Button>
+                  </Link>
+                ),
+              },
+            ]}
+          />
         ) : (
-          <p className="text-xs text-muted-foreground italic">
-            No components currently assigned to this category.
+          <p className="px-6 py-5 text-xs text-muted-foreground">
+            No components are assigned to this category yet.
           </p>
         )}
-      </div>
+      </SectionCard>
 
       {/* Edit Form Modal */}
       <DialogShell

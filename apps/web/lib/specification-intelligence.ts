@@ -1,6 +1,12 @@
 import type {
+  ApplyComponentFindingResultDto,
+  ComponentReviewFindingDto,
+} from "./api/component-review-queue-api";
+import type {
+  ComponentDocumentationStateDto,
   ComponentDocumentationSummaryDto,
   DatasheetSection,
+  DocumentEvidenceDto,
   EvidenceRole,
   SpecificationAggregateDto,
   SpecificationSourceDto,
@@ -181,6 +187,29 @@ export function hasPrimaryEvidence(
   specification: SpecificationAggregateDto,
 ): boolean {
   return specification.evidence.some((item) => item.role === "PRIMARY");
+}
+
+/**
+ * What the documents state, for the row's "Documented" line.
+ *
+ * `display` is only populated for a value that can actually be applied, so an
+ * already-recorded or conflicting specification would otherwise read as "—" next
+ * to a current value the reviewer can plainly see. The stated values are read
+ * from the value groups instead — the same source `describeConflict` uses — so
+ * the line always says what the documents say.
+ */
+export function documentedValueText(
+  specification: SpecificationAggregateDto,
+): string {
+  if (specification.display) return specification.display;
+
+  const stated =
+    specification.groups.length > 0
+      ? specification.groups.map((group) => group.display)
+      : specification.sources.map((source) => source.display);
+
+  const unique = [...new Set(stated.filter(Boolean))];
+  return unique.length > 0 ? unique.join(" · ") : "—";
 }
 
 // ---------------------------------------------------------------------------
@@ -456,7 +485,15 @@ export function matchesSpecificationFilter(
     case "ALL":
       return true;
     case "NEEDS_REVIEW":
-      return specification.state === "AGREED" && !specification.review?.applied;
+      // Deliberately the server's definition, which is what the summary strip
+      // shows: a finding that is still open. Deriving it from the aggregate
+      // state instead would put a different number under the same label — a
+      // conflict also gets a pending finding, and a suggestion accepted without
+      // being applied stops being pending while staying AGREED.
+      return (
+        specification.review?.status === "PENDING" &&
+        !specification.review.applied
+      );
     case "CONFLICTS":
       return specification.state === "CONFLICT";
     case "ALREADY_CURRENT":
@@ -504,4 +541,153 @@ export function filterSpecifications(
   return specifications.filter((specification) =>
     matchesSpecificationFilter(specification, filter),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Entry point copy
+// ---------------------------------------------------------------------------
+
+/**
+ * The label for the Documentation section's intelligence entry point.
+ *
+ * Reads state that has already been loaded, so opening the component page never
+ * runs the analysis: the caller loads the stored state and this only names it.
+ */
+export function intelligenceEntryLabel(
+  state: ComponentDocumentationStateDto | null,
+): string {
+  if (!state) return "Documentation Intelligence";
+  if (state.summary.documentsAnalyzed === 0) return "Analyze documents";
+
+  const pending = state.summary.needsReview;
+  if (pending === 0) return "Documentation Intelligence";
+  return `Documentation Intelligence · ${pending} ${
+    pending === 1 ? "review" : "reviews"
+  }`;
+}
+
+/**
+ * Whether the entry point should be offered at all.
+ *
+ * A component with no documents has nothing to analyze and nothing to review,
+ * so the control is withheld rather than offered as a dead action. A stored
+ * analysis keeps the entry point available even after its documents are
+ * removed, so its findings can still be reviewed.
+ */
+export function hasSpecificationIntelligence(
+  state: ComponentDocumentationStateDto | null,
+): boolean {
+  if (!state) return false;
+  return (
+    state.eligibleDocumentIds.length > 0 || state.summary.documentsAnalyzed > 0
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Targeted state updates
+// ---------------------------------------------------------------------------
+
+/**
+ * Locates the aggregate a finding belongs to.
+ *
+ * Matched by fingerprint for the same reason the per-document candidates are:
+ * the queue response carries it, it is stable for a given (component, attribute,
+ * value, document revision) combination, and matching on it needs no extra
+ * identifier on the queue's finding contract.
+ */
+function replaceSpecificationForFinding(
+  specifications: SpecificationAggregateDto[],
+  finding: Pick<ComponentReviewFindingDto, "id" | "fingerprint">,
+  update: (specification: SpecificationAggregateDto) => SpecificationAggregateDto,
+): SpecificationAggregateDto[] {
+  return specifications.map((specification) =>
+    specification.review?.fingerprint === finding.fingerprint
+      ? update(specification)
+      : specification,
+  );
+}
+
+/**
+ * Applies a recorded decision to the aggregate list.
+ *
+ * The queue returns the updated finding, so the row's review block is rewritten
+ * from that response: no refetch, no page reload, and the row shows exactly what
+ * the backend now stores. The aggregate's own `state` is deliberately untouched —
+ * accepting a value does not change what the documents say.
+ */
+export function applyDecisionToSpecifications(
+  specifications: SpecificationAggregateDto[],
+  finding: ComponentReviewFindingDto,
+): SpecificationAggregateDto[] {
+  return replaceSpecificationForFinding(
+    specifications,
+    finding,
+    (specification) => ({
+      ...specification,
+      review: {
+        findingId: finding.id,
+        status: finding.status,
+        fingerprint: finding.fingerprint,
+        isNew: false,
+        applied: specification.review?.applied ?? false,
+      },
+    }),
+  );
+}
+
+/**
+ * Applies a completed application to the aggregate list.
+ *
+ * The component now records the extracted value, so `currentValue` moves with it
+ * and the state becomes ALREADY_CURRENT. Leaving either behind would show the
+ * reviewer a contradiction they had just resolved, and would keep offering an
+ * Apply that can no longer succeed.
+ */
+export function applyApplicationToSpecifications(
+  specifications: SpecificationAggregateDto[],
+  finding: ComponentReviewFindingDto,
+  result: ApplyComponentFindingResultDto,
+): SpecificationAggregateDto[] {
+  return replaceSpecificationForFinding(
+    specifications,
+    finding,
+    (specification) => ({
+      ...specification,
+      currentValue:
+        result.appliedValueLabel ?? result.appliedValue ?? specification.display,
+      erpComparison: null,
+      erpAgreement: "AGREES",
+      state: "ALREADY_CURRENT",
+      review: {
+        findingId: finding.id,
+        // The backend marks the finding ACCEPTED when it applies.
+        status: finding.status,
+        fingerprint: finding.fingerprint,
+        isNew: false,
+        applied: true,
+      },
+    }),
+  );
+}
+
+/** Rebuilds the state after a specification row changed, keeping the summary. */
+export function withUpdatedSpecifications(
+  state: ComponentDocumentationStateDto,
+  specifications: SpecificationAggregateDto[],
+): ComponentDocumentationStateDto {
+  return { ...state, specifications };
+}
+
+// ---------------------------------------------------------------------------
+// Evidence
+// ---------------------------------------------------------------------------
+
+/** The excerpt a reviewer reads, trimmed to what the extractor actually saw. */
+export function specificationEvidenceExcerpt(
+  evidence: DocumentEvidenceDto,
+  maxLength = 240,
+): string | null {
+  const text = evidence.text?.replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 }

@@ -8,17 +8,31 @@ import {
   Trash2,
   MapPin,
   Layers,
-  Calendar,
   ArrowLeft,
   Printer,
   Package,
-  Cpu,
   ExternalLink,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DetailChip,
+  DetailField,
+  DetailFields,
+  DetailMono,
+  DetailMuted,
+  DetailText,
+} from "@/components/ui/detail-field";
+import { DetailTable } from "@/components/ui/detail-table";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  RecordTimestamps,
+  SectionCard,
+  SectionCardFooter,
+} from "@/components/ui/section-card";
 import { StatCard } from "@/components/ui/stat-card";
+import { RecordStatusBadge } from "@/components/ui/status-badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -32,22 +46,14 @@ import {
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
 
-const kindBadgeColors: Record<string, string> = {
-  warehouse:
-    "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
-  aisle:
-    "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20",
-  rack: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  shelf:
-    "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20",
-  bin: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-  drawer:
-    "bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20",
-  room: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20",
-  cabinet:
-    "bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20",
-};
-
+/**
+ * One storage location, as a master-data record.
+ *
+ * Locations are hierarchical like categories, so the page shows where the
+ * location sits, what is stored in it, and what is stored directly beneath it.
+ * The location's kind is a classification, not a status, so it is rendered as a
+ * neutral chip rather than as a colour-coded badge.
+ */
 export default function ViewLocationPage() {
   const params = useParams();
   const router = useRouter();
@@ -55,9 +61,9 @@ export default function ViewLocationPage() {
 
   const [location, setLocation] = React.useState<LocationDto | null>(null);
   const [allLocations, setAllLocations] = React.useState<LocationDto[]>([]);
-  const [projections, setProjections] = React.useState<InventoryProjectionDto[]>(
-    [],
-  );
+  const [projections, setProjections] = React.useState<
+    InventoryProjectionDto[]
+  >([]);
   const [components, setComponents] = React.useState<ComponentDto[]>([]);
   const [categories, setCategories] = React.useState<CategoryDto[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -185,16 +191,16 @@ export default function ViewLocationPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Header */}
       <PageHeader
         title={location.name}
-        description={locationPath || `Code: ${location.code}`}
-        breadcrumbs={[
-          { label: "Locations", href: "/locations" },
-          { label: location.code },
-        ]}
+        // A nested location is identified by its path; a root location has no
+        // path to show, so it carries its code instead of repeating its name.
+        description={
+          parentLocation ? locationPath : `Code: ${location.code}`
+        }
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -241,274 +247,289 @@ export default function ViewLocationPage() {
         </div>
       )}
 
-      {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Storage Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <StatCard
-          title="Location Code"
-          value={location.code}
-          subtitle={`Kind: ${location.kind.toUpperCase()}`}
-          icon={MapPin}
-        />
-        <StatCard
-          title="Parent Location"
-          value={parentLocation ? parentLocation.code : "Top Level"}
-          subtitle={
-            parentLocation ? parentLocation.name : "No parent hierarchy"
-          }
-          icon={Layers}
-        />
-        <StatCard
+          className="p-3.5"
           title="Stored Components"
           value={projections.length}
-          subtitle={`${totalUnits} total physical unit(s)`}
+          subtitle="Distinct items on hand"
           icon={Package}
         />
         <StatCard
+          className="p-3.5"
+          title="Total Units"
+          value={totalUnits}
+          subtitle="Physical units stored"
+          icon={Layers}
+        />
+        <StatCard
+          className="p-3.5"
           title="Sub-Locations"
           value={childLocations.length}
-          subtitle={`${childLocations.length} nested child zones`}
-          icon={Calendar}
+          subtitle="Nested storage zones"
+          icon={MapPin}
         />
       </div>
 
-      {/* Containing Components & Stock Section */}
-      <div className="bg-card border border-border rounded-xl shadow-xs overflow-hidden">
-        <div className="p-6 border-b border-border flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-primary" />
-              Containing Components & Stock
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Live components and on-hand inventory stored directly in this {location.kind}.
-            </p>
-          </div>
-          <span className="text-xs font-mono font-medium text-muted-foreground bg-muted/50 px-2.5 py-1 rounded">
-            {projections.length} items • {totalUnits} total units
-          </span>
-        </div>
+      {/* Location Information */}
+      <SectionCard
+        title="Location Information"
+        description="Master record properties and hierarchy position."
+        icon={Info}
+        contentClassName="p-0"
+      >
+        <DetailFields className="px-6 py-5">
+          <DetailField label="Location ID">
+            <DetailChip mono>{location.id}</DetailChip>
+          </DetailField>
 
-        {projections.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-muted/40 text-muted-foreground font-medium text-xs border-b border-border">
-                <tr>
-                  <th className="px-6 py-3">Component / SKU</th>
-                  <th className="px-6 py-3">Category</th>
-                  <th className="px-6 py-3 text-right">Quantity On-Hand</th>
-                  <th className="px-6 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {projections.map((proj) => {
-                  const comp = componentMap.get(proj.componentId);
-                  const cat =
-                    comp?.categoryId ? categoryMap.get(comp.categoryId) : null;
+          <DetailField label="Status">
+            <RecordStatusBadge isActive={location.isActive} />
+          </DetailField>
 
-                  return (
-                    <tr key={proj.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-6 py-3.5">
-                        <div className="flex flex-col">
-                          <Link
-                            href={`/components/${proj.componentId}`}
-                            className="font-mono text-xs font-bold text-primary hover:underline flex items-center gap-1.5"
-                          >
-                            {comp ? comp.sku : proj.componentId}
-                            <ExternalLink className="size-3 opacity-60" />
-                          </Link>
-                          <span className="text-xs text-foreground mt-0.5">
-                            {comp ? comp.name : "Inventory Item"}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-3.5 text-xs text-muted-foreground">
-                        {cat ? cat.name : "—"}
-                      </td>
-                      <td className="px-6 py-3.5 text-right font-mono text-xs font-bold text-foreground">
-                        <span className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded">
-                          {proj.quantity} {proj.unitOfMeasure || comp?.unit || "units"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {comp && (
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              title="Print Component Label"
-                              onClick={() => setSelectedCompForPrint(comp)}
-                            >
-                              <Printer className="size-3.5 mr-1 text-muted-foreground hover:text-foreground" />
-                              Label
-                            </Button>
-                          )}
-                          <Link href={`/components/${proj.componentId}`}>
-                            <Button variant="outline" size="xs">
-                              View
-                            </Button>
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-8 text-center space-y-2">
-            <Package className="size-8 mx-auto text-muted-foreground/50" />
-            <p className="text-sm font-medium text-foreground">
-              No components currently stored in this location
-            </p>
-            <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              This storage section currently holds 0 units. Inward stock using Goods Receipts, Initial Stock, or Warehouse Transfers to assign inventory here.
-            </p>
-          </div>
-        )}
-      </div>
+          <DetailField label="Location Code">
+            <DetailMono className="uppercase">{location.code}</DetailMono>
+          </DetailField>
 
-      {/* Location Details Card */}
-      <div className="bg-card border border-border rounded-xl p-6 space-y-6 shadow-xs">
-        <div>
-          <h3 className="text-base font-semibold text-foreground">
-            Location Master Properties
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Hierarchy position and master record attributes.
-          </p>
-        </div>
+          <DetailField label="Location Name">
+            <DetailText>{location.name}</DetailText>
+          </DetailField>
 
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">Location ID</dt>
-            <dd className="mt-1 font-mono text-xs text-foreground bg-muted/40 px-2 py-1 rounded inline-block">
-              {location.id}
-            </dd>
-          </div>
+          <DetailField label="Kind">
+            <DetailChip className="capitalize">{location.kind}</DetailChip>
+          </DetailField>
 
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Status
-            </dt>
-            <dd className="mt-1">
-              <span
-                className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${
-                  location.isActive
-                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                    : "bg-muted text-muted-foreground"
-                }`}
+          <DetailField label="Hierarchy Path">
+            <DetailMono>{locationPath}</DetailMono>
+          </DetailField>
+
+          <DetailField label="Parent Location">
+            {parentLocation ? (
+              <Link
+                href={`/locations/${parentLocation.id}`}
+                className="font-mono text-xs font-semibold text-primary hover:underline break-words"
               >
-                {location.isActive ? "Active" : "Inactive"}
-              </span>
-            </dd>
-          </div>
+                {parentLocation.code} ({parentLocation.name})
+              </Link>
+            ) : (
+              <DetailMuted>Top-level location</DetailMuted>
+            )}
+          </DetailField>
 
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">Kind</dt>
-            <dd className="mt-1">
-              <span
-                className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium border rounded-full capitalize ${
-                  kindBadgeColors[location.kind.toLowerCase()] ||
-                  "bg-muted text-muted-foreground border-border"
-                }`}
-              >
-                {location.kind}
-              </span>
-            </dd>
-          </div>
-
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Hierarchy Breadcrumb
-            </dt>
-            <dd className="mt-1 text-xs font-mono text-foreground font-semibold">
-              {locationPath}
-            </dd>
-          </div>
-
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Parent Location
-            </dt>
-            <dd className="mt-1 text-foreground">
-              {parentLocation ? (
-                <Link
-                  href={`/locations/${parentLocation.id}`}
-                  className="font-mono text-xs text-primary hover:underline"
-                >
-                  {parentLocation.code} ({parentLocation.name})
-                </Link>
-              ) : (
-                <span className="text-muted-foreground italic text-xs">
-                  Top Level
-                </span>
-              )}
-            </dd>
-          </div>
-
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              QR Identifier Payload
-            </dt>
-            <dd className="mt-1 font-mono text-xs text-muted-foreground">
+          <DetailField label="QR Identifier Payload">
+            <DetailMono className="text-muted-foreground">
               ANANYA:V1:LOCATION:{location.id}
-            </dd>
-          </div>
+            </DetailMono>
+          </DetailField>
+        </DetailFields>
 
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Created Date
-            </dt>
-            <dd className="mt-1 text-foreground">
-              {new Date(location.createdAt).toLocaleString()}
-            </dd>
-          </div>
+        <SectionCardFooter>
+          <RecordTimestamps
+            createdAt={location.createdAt}
+            updatedAt={location.updatedAt}
+          />
+        </SectionCardFooter>
+      </SectionCard>
 
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Updated Date
-            </dt>
-            <dd className="mt-1 text-foreground">
-              {new Date(location.updatedAt).toLocaleString()}
-            </dd>
-          </div>
-        </dl>
+      {/* Containing Components & Stock */}
+      <SectionCard
+        title="Containing Components & Stock"
+        description={`Components physically stored in this ${location.kind}.`}
+        icon={Package}
+        contentClassName="p-0"
+        actions={
+          projections.length > 0 ? (
+            <span className="rounded bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-muted-foreground">
+              {projections.length} {projections.length === 1 ? "item" : "items"}{" "}
+              · {totalUnits} {totalUnits === 1 ? "unit" : "units"}
+            </span>
+          ) : null
+        }
+      >
+        {projections.length > 0 ? (
+          <DetailTable
+            rows={projections}
+            rowKey={(projection) => projection.id}
+            columns={[
+              {
+                key: "component",
+                header: "Component / SKU",
+                width: "34%",
+                className: "min-w-0",
+                render: (projection) => {
+                  const component = componentMap.get(projection.componentId);
+                  return (
+                    <>
+                      <Link
+                        href={`/components/${projection.componentId}`}
+                        className="flex items-center gap-1.5 font-mono text-xs font-semibold text-primary hover:underline"
+                      >
+                        {component ? component.sku : projection.componentId}
+                        <ExternalLink className="size-3 opacity-60" />
+                      </Link>
+                      <span className="text-xs text-foreground truncate block">
+                        {component ? component.name : "Inventory Item"}
+                      </span>
+                    </>
+                  );
+                },
+              },
+              {
+                key: "category",
+                header: "Category",
+                width: "24%",
+                className: "min-w-0",
+                render: (projection) => {
+                  const component = componentMap.get(projection.componentId);
+                  const category = component?.categoryId
+                    ? categoryMap.get(component.categoryId)
+                    : null;
+                  return category ? (
+                    <span className="text-xs text-foreground truncate block">
+                      {category.name}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  );
+                },
+              },
+              {
+                key: "quantity",
+                header: "Quantity On Hand",
+                align: "right",
+                width: "22%",
+                className: "whitespace-nowrap",
+                render: (projection) => {
+                  const component = componentMap.get(projection.componentId);
+                  return (
+                    <span className="inline-flex items-center rounded bg-emerald-500/10 px-2 py-0.5 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                      {projection.quantity}{" "}
+                      {projection.unitOfMeasure || component?.unit || "units"}
+                    </span>
+                  );
+                },
+              },
+              {
+                key: "actions",
+                header: "",
+                align: "right",
+                width: "20%",
+                className: "whitespace-nowrap",
+                render: (projection) => {
+                  const component = componentMap.get(projection.componentId);
+                  return (
+                    <div className="flex items-center justify-end gap-1.5">
+                      {component ? (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          title="Print component label"
+                          onClick={() => setSelectedCompForPrint(component)}
+                        >
+                          <Printer className="size-3.5 mr-1 text-muted-foreground" />
+                          Label
+                        </Button>
+                      ) : null}
+                      <Link href={`/components/${projection.componentId}`}>
+                        <Button variant="outline" size="xs">
+                          View
+                        </Button>
+                      </Link>
+                    </div>
+                  );
+                },
+              },
+            ]}
+          />
+        ) : (
+          <p className="px-6 py-5 text-xs text-muted-foreground">
+            No components are stored in this location. Inward stock using Goods
+            Receipts, Initial Stock, or Warehouse Transfers to assign inventory
+            here.
+          </p>
+        )}
+      </SectionCard>
 
-        {/* Child Locations Listing if any */}
-        {childLocations.length > 0 && (
-          <div className="pt-4 border-t border-border space-y-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Child Locations ({childLocations.length})
-            </h4>
-            <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
-              {childLocations.map((child) => (
-                <div
-                  key={child.id}
-                  className="p-3 flex items-center justify-between hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded font-medium">
-                      {child.code}
-                    </span>
-                    <span className="text-sm font-medium text-foreground">
-                      {child.name}
-                    </span>
-                    <span className="text-[10px] capitalize px-2 py-0.5 bg-muted/60 text-muted-foreground rounded">
-                      {child.kind}
-                    </span>
-                  </div>
+      {/* Sub-Locations */}
+      <SectionCard
+        title="Sub-Locations"
+        description="Storage zones nested directly under this location."
+        icon={Layers}
+        contentClassName="p-0"
+        actions={
+          childLocations.length > 0 ? (
+            <span className="rounded bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-muted-foreground">
+              {childLocations.length}{" "}
+              {childLocations.length === 1 ? "location" : "locations"}
+            </span>
+          ) : null
+        }
+      >
+        {childLocations.length > 0 ? (
+          <DetailTable
+            rows={childLocations}
+            rowKey={(child) => child.id}
+            columns={[
+              {
+                key: "code",
+                header: "Code",
+                width: "20%",
+                render: (child) => (
+                  <DetailChip mono className="uppercase">
+                    {child.code}
+                  </DetailChip>
+                ),
+              },
+              {
+                key: "name",
+                header: "Name",
+                width: "38%",
+                className: "min-w-0",
+                render: (child) => (
+                  <span className="text-sm text-foreground truncate block">
+                    {child.name}
+                  </span>
+                ),
+              },
+              {
+                key: "kind",
+                header: "Kind",
+                width: "16%",
+                render: (child) => (
+                  <DetailChip className="capitalize">{child.kind}</DetailChip>
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                width: "14%",
+                className: "whitespace-nowrap",
+                render: (child) => (
+                  <RecordStatusBadge isActive={child.isActive} />
+                ),
+              },
+              {
+                key: "actions",
+                header: "",
+                align: "right",
+                width: "12%",
+                render: (child) => (
                   <Link href={`/locations/${child.id}`}>
                     <Button variant="ghost" size="xs">
                       View
                     </Button>
                   </Link>
-                </div>
-              ))}
-            </div>
-          </div>
+                ),
+              },
+            ]}
+          />
+        ) : (
+          <p className="px-6 py-5 text-xs text-muted-foreground">
+            No sub-locations are nested under this location yet.
+          </p>
         )}
-      </div>
+      </SectionCard>
 
       {/* Edit Form Modal */}
       <DialogShell

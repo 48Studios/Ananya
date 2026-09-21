@@ -169,7 +169,12 @@ export interface SuggestedCategoryBindingDto {
   categoryName: string;
   confidence: number;
   confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
-  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+  evidence: Array<{
+    type: string;
+    description: string;
+    weight: number;
+    source?: string;
+  }>;
   reason: string;
   suggestedRequired?: boolean;
 }
@@ -180,7 +185,12 @@ export interface SuspiciousBindingDto {
   categoryName: string;
   confidence: number;
   confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
-  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+  evidence: Array<{
+    type: string;
+    description: string;
+    weight: number;
+    source?: string;
+  }>;
   reason: string;
 }
 
@@ -205,7 +215,12 @@ export interface SuggestedCategoryAttributeItemDto {
   isExisting: boolean;
   isRequired?: boolean;
   groupName?: string;
-  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+  evidence: Array<{
+    type: string;
+    description: string;
+    weight: number;
+    source?: string;
+  }>;
   reason: string;
 }
 
@@ -216,6 +231,68 @@ export interface CategoryAttributeSuggestionsResponseDto {
   missingExpectedAttributes: SuggestedCategoryAttributeItemDto[];
   isMlActive: boolean;
   executionTimeMs: number;
+}
+
+/**
+ * A category-attribute suggestion exactly as the ML service returns it.
+ *
+ * The service names the identity fields `code` and `name` (and the bound flag
+ * `isAlreadyBound`), while the panel consumes `attributeCode`, `attributeName`
+ * and `isExisting`. Reading the DTO names straight off the response left every
+ * suggestion without a code or a name, so the panel rendered nameless cards and
+ * could not key, select or dismiss them. The two shapes are reconciled in one
+ * place — here — rather than in the component.
+ */
+export interface RawSuggestedCategoryAttributeItem {
+  attributeDefinitionId?: string;
+  /** Preferred field; tolerated for callers that already receive the DTO shape. */
+  attributeCode?: string;
+  attributeName?: string;
+  code?: string;
+  name?: string;
+  dataType?: string;
+  unitCategory?: string;
+  defaultUnit?: string;
+  confidence?: number;
+  confidenceLevel?: "HIGH" | "MEDIUM" | "LOW";
+  isExisting?: boolean;
+  isAlreadyBound?: boolean;
+  isRequired?: boolean;
+  groupName?: string;
+  evidence?: Array<{
+    type: string;
+    description: string;
+    weight: number;
+    source?: string;
+  }>;
+  reason?: string;
+}
+
+/**
+ * Reconciles one suggestion payload with the panel's contract.
+ *
+ * Falls back to the definition id when the service omits every code, so a
+ * suggestion always has a stable identity to key and toggle on.
+ */
+export function normalizeSuggestedCategoryAttributeItem(
+  raw: RawSuggestedCategoryAttributeItem,
+): SuggestedCategoryAttributeItemDto {
+  return {
+    attributeDefinitionId: raw.attributeDefinitionId,
+    attributeCode:
+      raw.attributeCode ?? raw.code ?? raw.attributeDefinitionId ?? "",
+    attributeName: raw.attributeName ?? raw.name ?? "",
+    dataType: raw.dataType ?? "TEXT",
+    unitCategory: raw.unitCategory,
+    defaultUnit: raw.defaultUnit,
+    confidence: raw.confidence ?? 0,
+    confidenceLevel: raw.confidenceLevel ?? "LOW",
+    isExisting: raw.isExisting ?? raw.isAlreadyBound ?? false,
+    isRequired: raw.isRequired,
+    groupName: raw.groupName,
+    evidence: raw.evidence ?? [],
+    reason: raw.reason ?? "",
+  };
 }
 
 export interface AttributeConfigSuggestionDto {
@@ -231,7 +308,12 @@ export interface AttributeConfigSuggestionDto {
   suggestedEnumValues?: string[];
   likelyCategoryNames?: string[];
   confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
-  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+  evidence: Array<{
+    type: string;
+    description: string;
+    weight: number;
+    source?: string;
+  }>;
 }
 
 export interface AttributeConfigSuggestionsResponseDto {
@@ -249,7 +331,12 @@ export interface DuplicateAttributeMatchDto {
   matchType: string;
   existingBindingsCount: number;
   aliases: string[];
-  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+  evidence: Array<{
+    type: string;
+    description: string;
+    weight: number;
+    source?: string;
+  }>;
 }
 
 export interface AttributeDuplicateDetectionResponseDto {
@@ -292,7 +379,12 @@ export interface AttributeAuditIssueDto {
   categoryId?: string;
   categoryName?: string;
   suggestedAction: string;
-  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+  evidence: Array<{
+    type: string;
+    description: string;
+    weight: number;
+    source?: string;
+  }>;
 }
 
 export interface AttributeLibraryAuditResponseDto {
@@ -343,7 +435,12 @@ export interface ReviewQueueItemDto {
   categoryId?: string;
   categoryName?: string;
   payload?: Record<string, unknown>;
-  evidence: Array<{ type: string; description: string; weight: number; source?: string }>;
+  evidence: Array<{
+    type: string;
+    description: string;
+    weight: number;
+    source?: string;
+  }>;
 }
 
 export interface AttributeReviewQueueResponseDto {
@@ -435,9 +532,12 @@ export const attributesApi = {
     componentId: string,
     attributes: SetComponentAttributeItem[],
   ): Promise<unknown> =>
-    apiClient.post(`/components/${encodeURIComponent(componentId)}/attributes`, {
-      attributes,
-    }),
+    apiClient.post(
+      `/components/${encodeURIComponent(componentId)}/attributes`,
+      {
+        attributes,
+      },
+    ),
   deleteComponentAttribute: (
     componentId: string,
     attributeDefinitionId: string,
@@ -460,14 +560,30 @@ export const attributesApi = {
       payload,
     ),
 
-  suggestCategoryAttributes: (
+  suggestCategoryAttributes: async (
     categoryId: string,
     limit?: number,
-  ): Promise<CategoryAttributeSuggestionsResponseDto> =>
-    apiClient.post<CategoryAttributeSuggestionsResponseDto>(
-      "/ml/attributes/suggest-category-attributes",
-      { categoryId, limit },
-    ),
+  ): Promise<CategoryAttributeSuggestionsResponseDto> => {
+    const response = await apiClient.post<
+      Omit<
+        CategoryAttributeSuggestionsResponseDto,
+        "suggestions" | "missingExpectedAttributes"
+      > & {
+        suggestions?: RawSuggestedCategoryAttributeItem[];
+        missingExpectedAttributes?: RawSuggestedCategoryAttributeItem[];
+      }
+    >("/ml/attributes/suggest-category-attributes", { categoryId, limit });
+
+    return {
+      ...response,
+      suggestions: (response.suggestions ?? []).map(
+        normalizeSuggestedCategoryAttributeItem,
+      ),
+      missingExpectedAttributes: (response.missingExpectedAttributes ?? []).map(
+        normalizeSuggestedCategoryAttributeItem,
+      ),
+    };
+  },
 
   suggestConfig: (payload: {
     name: string;
@@ -500,10 +616,15 @@ export const attributesApi = {
     ),
 
   auditLibrary: (): Promise<AttributeLibraryAuditResponseDto> =>
-    apiClient.post<AttributeLibraryAuditResponseDto>("/ml/attributes/audit", {}),
+    apiClient.post<AttributeLibraryAuditResponseDto>(
+      "/ml/attributes/audit",
+      {},
+    ),
 
   getReviewQueue: (): Promise<AttributeReviewQueueResponseDto> =>
-    apiClient.get<AttributeReviewQueueResponseDto>("/ml/attributes/review-queue"),
+    apiClient.get<AttributeReviewQueueResponseDto>(
+      "/ml/attributes/review-queue",
+    ),
 
   applyBindings: (payload: {
     attributeId: string;

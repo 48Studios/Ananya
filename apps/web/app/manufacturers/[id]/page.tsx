@@ -11,11 +11,26 @@ import {
   Package,
   Calendar,
   CheckCircle2,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DetailChip,
+  DetailField,
+  DetailFields,
+  DetailMono,
+  DetailText,
+} from "@/components/ui/detail-field";
+import { DetailTable } from "@/components/ui/detail-table";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  RecordTimestamps,
+  SectionCard,
+  SectionCardFooter,
+} from "@/components/ui/section-card";
 import { StatCard } from "@/components/ui/stat-card";
+import { RecordStatusBadge } from "@/components/ui/status-badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -26,6 +41,13 @@ import {
 } from "@/lib/api/manufacturers-api";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 
+/**
+ * One manufacturer, as a master-data record.
+ *
+ * The record itself is four fields wide, so the page keeps the identity section
+ * short and gives the sourced components its own section rather than nesting a
+ * list inside the identity card.
+ */
 export default function ViewManufacturerPage() {
   const params = useParams();
   const router = useRouter();
@@ -111,16 +133,12 @@ export default function ViewManufacturerPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Header */}
       <PageHeader
         title={manufacturer.name}
         description={`Code: ${manufacturer.code}`}
-        breadcrumbs={[
-          { label: "Manufacturers", href: "/manufacturers" },
-          { label: manufacturer.code },
-        ]}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -166,21 +184,24 @@ export default function ViewManufacturerPage() {
         </div>
       )}
 
-      {/* Stat Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Catalog Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <StatCard
+          className="p-3.5"
           title="Total Components"
           value={components.length}
           subtitle="Catalog parts produced"
           icon={Package}
         />
         <StatCard
+          className="p-3.5"
           title="Active Components"
           value={activeComponentsCount}
           subtitle="Active in inventory"
           icon={Factory}
         />
         <StatCard
+          className="p-3.5"
           title="Archived Components"
           value={inactiveComponentsCount}
           subtitle="Inactive catalog parts"
@@ -188,113 +209,118 @@ export default function ViewManufacturerPage() {
         />
       </div>
 
-      {/* General Information Card */}
-      <div className="bg-card border border-border rounded-xl p-6 space-y-6 shadow-xs">
-        <div>
-          <h3 className="text-base font-semibold text-foreground">
-            General Information
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Master record parameters and active status.
-          </p>
-        </div>
+      {/* Manufacturer Information */}
+      <SectionCard
+        title="Manufacturer Information"
+        description="Master record identity and active status."
+        icon={Info}
+        contentClassName="p-0"
+      >
+        <DetailFields className="px-6 py-5">
+          <DetailField label="Manufacturer ID">
+            <DetailChip mono>{manufacturer.id}</DetailChip>
+          </DetailField>
 
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Manufacturer ID
-            </dt>
-            <dd className="mt-1 font-mono text-xs text-foreground bg-muted/40 px-2 py-1 rounded inline-block">
-              {manufacturer.id}
-            </dd>
-          </div>
+          <DetailField label="Status">
+            <RecordStatusBadge isActive={manufacturer.isActive} />
+          </DetailField>
 
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Status
-            </dt>
-            <dd className="mt-1">
-              <span
-                className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${
-                  manufacturer.isActive
-                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {manufacturer.isActive ? "Active" : "Inactive"}
-              </span>
-            </dd>
-          </div>
+          <DetailField label="Manufacturer Code">
+            <DetailMono className="uppercase">{manufacturer.code}</DetailMono>
+          </DetailField>
 
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">Code</dt>
-            <dd className="mt-1 font-mono text-xs font-semibold text-foreground uppercase">
-              {manufacturer.code}
-            </dd>
-          </div>
+          <DetailField label="Manufacturer Name">
+            <DetailText>{manufacturer.name}</DetailText>
+          </DetailField>
+        </DetailFields>
 
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">Name</dt>
-            <dd className="mt-1 text-sm font-medium text-foreground">
-              {manufacturer.name}
-            </dd>
-          </div>
+        <SectionCardFooter>
+          <RecordTimestamps
+            createdAt={manufacturer.createdAt}
+            updatedAt={manufacturer.updatedAt}
+          />
+        </SectionCardFooter>
+      </SectionCard>
 
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Created Date
-            </dt>
-            <dd className="mt-1 text-foreground">
-              {new Date(manufacturer.createdAt).toLocaleString()}
-            </dd>
-          </div>
-
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Updated Date
-            </dt>
-            <dd className="mt-1 text-foreground">
-              {new Date(manufacturer.updatedAt).toLocaleString()}
-            </dd>
-          </div>
-        </dl>
-
-        {/* Associated Components Listing */}
-        <div className="pt-4 border-t border-border space-y-3">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Associated Components ({components.length})
-          </h4>
-
-          {components.length > 0 ? (
-            <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
-              {components.map((comp) => (
-                <div
-                  key={comp.id}
-                  className="p-3 flex items-center justify-between hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded font-medium">
-                      {comp.sku}
-                    </span>
-                    <span className="text-sm font-medium text-foreground">
-                      {comp.name}
-                    </span>
-                  </div>
-                  <Link href={`/components/${comp.id}`}>
-                    <Button variant="ghost" size="xs">
-                      View
-                    </Button>
+      {/* Associated Components */}
+      <SectionCard
+        title="Associated Components"
+        description="Catalog parts sourced from this manufacturer."
+        icon={Package}
+        contentClassName="p-0"
+        actions={
+          components.length > 0 ? (
+            <span className="rounded bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-muted-foreground">
+              {components.length}{" "}
+              {components.length === 1 ? "component" : "components"}
+            </span>
+          ) : null
+        }
+      >
+        {components.length > 0 ? (
+          <DetailTable
+            rows={components}
+            rowKey={(component) => component.id}
+            columns={[
+              {
+                key: "sku",
+                header: "SKU",
+                width: "22%",
+                className: "min-w-0",
+                render: (component) => (
+                  <Link
+                    href={`/components/${component.id}`}
+                    className="font-mono text-xs font-semibold text-primary hover:underline truncate block"
+                  >
+                    {component.sku}
                   </Link>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground italic">
-              No inventory components currently reference this manufacturer.
-            </p>
-          )}
-        </div>
-      </div>
+                ),
+              },
+              {
+                key: "name",
+                header: "Component",
+                width: "38%",
+                className: "min-w-0",
+                render: (component) => (
+                  <span className="text-sm text-foreground truncate block">
+                    {component.name}
+                  </span>
+                ),
+              },
+              {
+                key: "manufacturerPartNumber",
+                header: "Manufacturer Part Number",
+                width: "26%",
+                className: "min-w-0",
+                render: (component) =>
+                  component.manufacturerPartNumber ? (
+                    <span
+                      className="font-mono text-xs text-foreground truncate block"
+                      title={component.manufacturerPartNumber}
+                    >
+                      {component.manufacturerPartNumber}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                width: "14%",
+                className: "whitespace-nowrap",
+                render: (component) => (
+                  <RecordStatusBadge isActive={component.isActive} />
+                ),
+              },
+            ]}
+          />
+        ) : (
+          <p className="px-6 py-5 text-xs text-muted-foreground">
+            No inventory components reference this manufacturer yet.
+          </p>
+        )}
+      </SectionCard>
 
       {/* Edit Form Modal */}
       <DialogShell

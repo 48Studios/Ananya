@@ -3,7 +3,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import type {
+  ComponentDocumentationStateDto,
   ComponentDocumentationSummaryDto,
+  DocumentEvidenceDto,
   SpecificationAggregateDto,
   SpecificationSourceDto,
   UnmappedSpecificationDto,
@@ -11,6 +13,8 @@ import type {
 import {
   SPECIFICATION_FILTERS,
   ambiguityHeading,
+  applyApplicationToSpecifications,
+  applyDecisionToSpecifications,
   buildSpecificationFilterCounts,
   buildSummaryRows,
   canApplySpecification,
@@ -25,17 +29,22 @@ import {
   describeErpComparison,
   describeRunOutcome,
   describeSpecificationEvidence,
+  documentedValueText,
   emptySpecificationMessage,
   evidenceRoleLabel,
   filterSpecifications,
   hasPrimaryEvidence,
+  hasSpecificationIntelligence,
+  intelligenceEntryLabel,
   isAmbiguous,
   matchesSpecificationFilter,
   sectionLabel,
   sourceErpLabel,
   specificationBadge,
+  specificationEvidenceExcerpt,
   specificationStateLabel,
   specificationUnavailableReason,
+  withUpdatedSpecifications,
 } from "./specification-intelligence";
 
 /**
@@ -46,10 +55,11 @@ import {
  */
 const webRoot = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const read = (absolutePath: string) => fs.readFileSync(absolutePath, "utf8");
-const panelPath = path.join(
+const dialogPath = path.join(
   webRoot,
-  "components/documentation/component-specification-intelligence-panel.tsx",
+  "components/documentation/component-specification-intelligence-dialog.tsx",
 );
+const componentPagePath = path.join(webRoot, "app/components/[id]/page.tsx");
 
 function source(
   overrides: Partial<SpecificationSourceDto> = {},
@@ -174,6 +184,40 @@ function unmapped(
       },
     ],
     documentIds: ["doc-1"],
+    ...overrides,
+  };
+}
+
+function state(
+  overrides: Partial<ComponentDocumentationSummaryDto> = {},
+  stateOverrides: Partial<ComponentDocumentationStateDto> = {},
+): ComponentDocumentationStateDto {
+  return {
+    componentId: "comp-1",
+    summary: summary(overrides),
+    specifications: [specification()],
+    unmapped: [],
+    eligibleDocumentIds: ["doc-1"],
+    ...stateOverrides,
+  };
+}
+
+function evidence(
+  overrides: Partial<DocumentEvidenceDto> = {},
+): DocumentEvidenceDto {
+  return {
+    type: "datasheet_param",
+    description: "Extracted resistance rating 300Ω",
+    weight: 0.95,
+    extractionMethod: "extractor:ee_regex",
+    documentId: "doc-1",
+    documentVersion: 1,
+    documentFileName: "datasheet.pdf",
+    documentContentHash: "hash-1",
+    page: 3,
+    text: "... resistance 300 ohm ...",
+    role: "PRIMARY",
+    section: "ELECTRICAL_CHARACTERISTICS",
     ...overrides,
   };
 }
@@ -691,12 +735,43 @@ describe("specification filters", () => {
     );
 
     expect(counts.ALL).toBe(3);
-    expect(counts.NEEDS_REVIEW).toBe(1);
+    // All three fixtures carry a pending finding, and "needs review" is the
+    // server's definition of that — the same one the summary strip reports.
+    expect(counts.NEEDS_REVIEW).toBe(3);
     expect(counts.CONFLICTS).toBe(1);
     expect(counts.ALREADY_CURRENT).toBe(1);
     expect(counts.APPLIED).toBe(0);
     // Ambiguity is a property of an unmapped property, not of an aggregate.
     expect(counts.AMBIGUOUS).toBe(1);
+  });
+
+  it("agrees with the summary's needs-review count", () => {
+    // The chip and the summary strip show the same label, so they must not
+    // derive the number from different things.
+    const rows = [
+      specification(),
+      specification({ state: "CONFLICT" }),
+      specification({
+        state: "ALREADY_CURRENT",
+        review: null,
+      }),
+      specification({
+        review: {
+          findingId: "finding-2",
+          status: "ACCEPTED",
+          fingerprint: "fp-2",
+          isNew: false,
+          applied: true,
+        },
+      }),
+    ];
+
+    const pending = rows.filter(
+      (row) => row.review?.status === "PENDING" && !row.review.applied,
+    ).length;
+
+    expect(buildSpecificationFilterCounts(rows, []).NEEDS_REVIEW).toBe(pending);
+    expect(pending).toBe(2);
   });
 
   it("filters without dropping the source list", () => {
@@ -711,12 +786,15 @@ describe("specification filters", () => {
 // Rendering (source assertions)
 // ---------------------------------------------------------------------------
 
-describe("specification intelligence panel", () => {
-  const source_ = read(panelPath);
+describe("specification intelligence dialog", () => {
+  const source_ = read(dialogPath);
 
   it("renders the summary from the server counts", () => {
     expect(source_).toContain("buildSummaryRows");
-    expect(source_).toContain("componentSpecificationApi");
+    // The modal renders state the host loaded; the host owns the API calls, so
+    // the "server-derived, never recomputed" claim is checked against both.
+    expect(read(componentPagePath)).toContain("componentSpecificationApi");
+    expect(source_).toContain("state?.summary");
   });
 
   it("drives every action from the shared presentation rules", () => {
@@ -735,5 +813,301 @@ describe("specification intelligence panel", () => {
   it("shows confidence as reasons rather than a score", () => {
     expect(source_).toContain("confidenceReasons");
     expect(source_).toContain("confidencePercent");
+  });
+
+  it("routes every review action through the existing queue endpoints", () => {
+    expect(source_).toContain("componentReviewQueueApi.recordDecision");
+    expect(source_).toContain("componentReviewQueueApi.applyFinding");
+    expect(source_).toContain("componentReviewQueueApi.getFinding");
+  });
+
+  it("accepts and applies in one step, like the review queue does", () => {
+    // Accepting on its own would leave an applicable finding with no next
+    // action: ACCEPTED is neither decidable nor appliable under the shared
+    // rules, so the primary action must do both.
+    expect(source_).toContain("Accept &amp; Apply");
+    expect(source_).toContain("canApply ?");
+  });
+
+  it("is a dialog built on the shared shell, not a second dialog", () => {
+    expect(source_).toContain("DialogShell");
+    expect(source_).toContain("DialogShellBody");
+    expect(source_).toContain("DialogShellFooter");
+    // The wide workbench the redesign asks for, with the shell's own height cap
+    // and internal scrolling rather than a page that scrolls behind the modal.
+    expect(source_).toContain('size="xl"');
+    expect(source_).toContain("sm:max-w-[1200px]");
+  });
+
+  it("shows evidence with its role, page, section and excerpt", () => {
+    expect(source_).toContain("describeSpecificationEvidence");
+    expect(source_).toContain("evidenceRoleLabel");
+    expect(source_).toContain("specificationEvidenceExcerpt");
+  });
+
+  it("reuses the existing document preview instead of inventing one", () => {
+    expect(source_).toContain("DocumentViewer");
+    expect(source_).toContain("documentsApi.getDocument");
+  });
+
+  it("never runs the analysis just because it opened", () => {
+    expect(source_).not.toContain("componentSpecificationApi.analyze");
+  });
+});
+
+describe("specification intelligence entry point", () => {
+  const page = read(componentPagePath);
+
+  it("replaces the permanent inline panel", () => {
+    expect(fs.existsSync(
+      path.join(
+        webRoot,
+        "components/documentation/component-specification-intelligence-panel.tsx",
+      ),
+    )).toBe(false);
+    expect(page).not.toContain("ComponentSpecificationIntelligencePanel");
+    expect(page).toContain("ComponentSpecificationIntelligenceDialog");
+  });
+
+  it("loads stored state once and only analyzes when nothing was analyzed", () => {
+    expect(page).toContain("componentSpecificationApi.getState");
+    expect(page).toContain("componentSpecificationApi.analyze");
+    expect(page).toContain("documentsAnalyzed === 0");
+  });
+
+  it("renders the entry point inside the documentation section header", () => {
+    expect(page).toContain("headerActions");
+    expect(page).toContain("intelligenceEntryLabel");
+    expect(page).toContain("hasSpecificationIntelligence");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Entry point copy
+// ---------------------------------------------------------------------------
+
+describe("intelligenceEntryLabel", () => {
+  it("offers to analyze when nothing has been analyzed", () => {
+    expect(intelligenceEntryLabel(state({ documentsAnalyzed: 0 }))).toBe(
+      "Analyze documents",
+    );
+  });
+
+  it("names the pending review count once an analysis exists", () => {
+    expect(intelligenceEntryLabel(state({ needsReview: 3 }))).toBe(
+      "Documentation Intelligence · 3 reviews",
+    );
+  });
+
+  it("uses the singular for one pending review", () => {
+    expect(intelligenceEntryLabel(state({ needsReview: 1 }))).toBe(
+      "Documentation Intelligence · 1 review",
+    );
+  });
+
+  it("drops the count when nothing is pending", () => {
+    expect(intelligenceEntryLabel(state({ needsReview: 0 }))).toBe(
+      "Documentation Intelligence",
+    );
+  });
+
+  it("falls back to the plain name before state has loaded", () => {
+    expect(intelligenceEntryLabel(null)).toBe("Documentation Intelligence");
+  });
+});
+
+describe("hasSpecificationIntelligence", () => {
+  it("withholds the entry point when there is nothing to read", () => {
+    expect(hasSpecificationIntelligence(null)).toBe(false);
+    expect(
+      hasSpecificationIntelligence(
+        state({ documentsAnalyzed: 0 }, { eligibleDocumentIds: [] }),
+      ),
+    ).toBe(false);
+  });
+
+  it("offers it once documents are eligible", () => {
+    expect(
+      hasSpecificationIntelligence(
+        state({ documentsAnalyzed: 0 }, { eligibleDocumentIds: ["doc-1"] }),
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps a stored analysis reachable after its documents are gone", () => {
+    expect(
+      hasSpecificationIntelligence(
+        state({ documentsAnalyzed: 2 }, { eligibleDocumentIds: [] }),
+      ),
+    ).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Targeted state updates
+// ---------------------------------------------------------------------------
+
+function finding(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "finding-1",
+    fingerprint: "fp-1",
+    status: "ACCEPTED" as const,
+    ...overrides,
+  } as unknown as Parameters<typeof applyDecisionToSpecifications>[1];
+}
+
+function applyResult(overrides: Record<string, unknown> = {}) {
+  return {
+    fieldLabel: "Resistance",
+    appliedValue: "300",
+    appliedValueLabel: "300Ω",
+    ...overrides,
+  } as unknown as Parameters<typeof applyApplicationToSpecifications>[2];
+}
+
+describe("applyDecisionToSpecifications", () => {
+  it("rewrites only the row the finding belongs to", () => {
+    const rows = [
+      specification(),
+      specification({
+        attributeDefinitionId: "def-power",
+        attributeName: "Power Rating",
+        review: {
+          findingId: "finding-2",
+          status: "PENDING",
+          fingerprint: "fp-2",
+          isNew: true,
+          applied: false,
+        },
+      }),
+    ];
+
+    const next = applyDecisionToSpecifications(
+      rows,
+      finding({ status: "REJECTED" }),
+    );
+
+    expect(next[0]?.review?.status).toBe("REJECTED");
+    expect(next[0]?.review?.isNew).toBe(false);
+    expect(next[1]?.review?.status).toBe("PENDING");
+  });
+
+  it("leaves the aggregate state alone: accepting does not change the documents", () => {
+    const next = applyDecisionToSpecifications([specification()], finding());
+    expect(next[0]?.state).toBe("AGREED");
+    expect(next[0]?.currentValue).toBeNull();
+  });
+});
+
+describe("applyApplicationToSpecifications", () => {
+  it("moves the recorded value and stops offering an apply", () => {
+    const next = applyApplicationToSpecifications(
+      [specification()],
+      finding(),
+      applyResult(),
+    );
+    const row = next[0]!;
+
+    expect(row.state).toBe("ALREADY_CURRENT");
+    expect(row.currentValue).toBe("300Ω");
+    expect(row.erpAgreement).toBe("AGREES");
+    expect(row.review?.applied).toBe(true);
+    // The shared rules now refuse to apply it again, and say why.
+    expect(canApplySpecification(row, true)).toBe(false);
+    expect(specificationUnavailableReason(row, true)).toContain(
+      "already applied",
+    );
+  });
+
+  it("falls back to the applied value when no label is returned", () => {
+    const next = applyApplicationToSpecifications(
+      [specification()],
+      finding(),
+      applyResult({ appliedValueLabel: null }),
+    );
+    expect(next[0]?.currentValue).toBe("300");
+  });
+});
+
+describe("withUpdatedSpecifications", () => {
+  it("keeps the summary that the server derived", () => {
+    const current = state();
+    const next = withUpdatedSpecifications(current, []);
+    expect(next.summary).toBe(current.summary);
+    expect(next.specifications).toEqual([]);
+  });
+});
+
+describe("documentedValueText", () => {
+  it("prefers the appliable display when there is one", () => {
+    expect(documentedValueText(specification())).toBe("300Ω");
+  });
+
+  it("reads the stated values when nothing is appliable", () => {
+    // An already-recorded value has no `display`, so without the fallback the
+    // row would read "Documented: —" beside a current value the reviewer sees.
+    expect(
+      documentedValueText(
+        specification({
+          state: "ALREADY_CURRENT",
+          display: null,
+          sources: [source({ display: "330 ohm", agreement: "AGREES" })],
+          groups: [
+            {
+              display: "330 ohm",
+              normalized: "330",
+              agreement: "AGREES",
+              sources: [source({ display: "330 ohm", agreement: "AGREES" })],
+            },
+          ],
+        }),
+      ),
+    ).toBe("330 ohm");
+  });
+
+  it("names every value a conflict is between, once each", () => {
+    expect(
+      documentedValueText(
+        specification({
+          state: "CONFLICT",
+          display: null,
+          groups: [
+            { display: "300Ω", normalized: "300", agreement: "CONFLICTS", sources: [] },
+            { display: "330Ω", normalized: "330", agreement: "CONFLICTS", sources: [] },
+            { display: "330Ω", normalized: "330", agreement: "CONFLICTS", sources: [] },
+          ],
+        }),
+      ),
+    ).toBe("300Ω · 330Ω");
+  });
+
+  it("falls back to a dash rather than rendering nothing", () => {
+    expect(
+      documentedValueText(
+        specification({ display: null, sources: [], groups: [] }),
+      ),
+    ).toBe("—");
+  });
+});
+
+describe("specificationEvidenceExcerpt", () => {
+  it("returns the extractor's own text, whitespace collapsed", () => {
+    expect(specificationEvidenceExcerpt(evidence({ text: "  a\n  b  " }))).toBe(
+      "a b",
+    );
+  });
+
+  it("truncates rather than letting one excerpt fill the modal", () => {
+    const excerpt = specificationEvidenceExcerpt(
+      evidence({ text: "x".repeat(500) }),
+      40,
+    );
+    expect(excerpt).toHaveLength(40);
+    expect(excerpt?.endsWith("…")).toBe(true);
+  });
+
+  it("returns null when the extractor recorded no text", () => {
+    expect(specificationEvidenceExcerpt(evidence({ text: null }))).toBeNull();
+    expect(specificationEvidenceExcerpt(evidence({ text: "   " }))).toBeNull();
   });
 });
