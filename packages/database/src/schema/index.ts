@@ -55,4 +55,5 @@ export * from "./preferences";
 export * from "./attributes";
 export * from "./ai-feedback";
 export * from "./component-intelligence-findings";
+export * from "./attribute-intelligence-findings";
 export * from "./consolidations";

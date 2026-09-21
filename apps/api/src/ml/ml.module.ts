@@ -22,6 +22,8 @@ import { DocumentationAnalysisService } from './documentation-analysis.service';
 import { DocumentationIntelligenceController } from './documentation-intelligence.controller';
 import { ComponentSpecificationIntelligenceService } from './component-specification-intelligence.service';
 import { ComponentSpecificationIntelligenceController } from './component-specification-intelligence.controller';
+import { AttributeFindingRepository } from './attribute-findings/attribute-finding.repository';
+import { AttributeIntelligenceFindingsService } from './attribute-findings/attribute-finding.service';
 
 @Module({
   imports: [
@@ -54,6 +56,11 @@ import { ComponentSpecificationIntelligenceController } from './component-specif
     ComponentWriteGuard,
     DocumentationAnalysisService,
     ComponentSpecificationIntelligenceService,
+    // Attribute Intelligence findings substrate (Pass 1). No controller is
+    // registered for it: the persisted-findings foundation is internal until a
+    // guarded review route is added in a later pass.
+    AttributeFindingRepository,
+    AttributeIntelligenceFindingsService,
   ],
   exports: [
     MlService,
@@ -62,6 +69,7 @@ import { ComponentSpecificationIntelligenceController } from './component-specif
     ComponentConsolidationPreviewService,
     ComponentConsolidationService,
     ComponentSpecificationIntelligenceService,
+    AttributeIntelligenceFindingsService,
   ],
 })
 export class MlModule {}

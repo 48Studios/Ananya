@@ -5,7 +5,6 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import * as crypto from 'crypto';
 import { db, type DbExecutor } from '@ananya/database';
 import {
   aiSuggestionFeedback,
@@ -214,82 +213,29 @@ export interface ComponentReviewQueuePage {
 }
 
 /**
- * Statuses from which a given decision is permitted.
+ * Status transitions, decision→feedback mapping and canonical JSON
+ * serialization are subject-neutral, so they live in the shared intelligence
+ * findings module and are re-exported here.
  *
- * ACCEPTED is intentionally impossible from STALE: accepting an outdated
- * suggestion could write values that no longer describe the component.
- * Reviewers must re-run analysis to obtain a fresh PENDING finding.
+ * Why re-export rather than import at each call site: the analyzer, the
+ * documentation intelligence pipeline and the specs all reach for these through
+ * this module, and the rules must be the same rules the Attribute queue uses.
+ * Re-exporting keeps every existing import path working while leaving exactly
+ * one implementation.
  */
-const DECISION_TRANSITIONS: Record<
-  ComponentReviewStatus,
-  readonly ComponentReviewDecision[]
-> = {
-  PENDING: ['ACCEPTED', 'REJECTED', 'DISMISSED'],
-  STALE: ['REJECTED', 'DISMISSED'],
-  ACCEPTED: [],
-  REJECTED: [],
-  DISMISSED: [],
-};
+export {
+  canDecide,
+  decidableStatusesFor,
+  mapDecisionToFeedbackAction,
+} from './intelligence-findings/finding-lifecycle';
+export { stableStringify } from './intelligence-findings/finding-fingerprint';
 
-export function canDecide(
-  status: ComponentReviewStatus,
-  decision: ComponentReviewDecision,
-): boolean {
-  return DECISION_TRANSITIONS[status].includes(decision);
-}
-
-export function decidableStatusesFor(
-  decision: ComponentReviewDecision,
-): ComponentReviewStatus[] {
-  return COMPONENT_REVIEW_STATUSES.filter((status) =>
-    canDecide(status, decision),
-  );
-}
-
-/**
- * `ai_suggestion_feedback` only supports ACCEPTED | REJECTED | EDITED.
- * Dismissal is recorded as a REJECTED action carrying a DISMISSED decision in
- * its metadata so the queue lifecycle remains distinguishable.
- */
-export function mapDecisionToFeedbackAction(
-  decision: ComponentReviewDecision,
-  hasReviewerFinalValue: boolean,
-): 'ACCEPTED' | 'REJECTED' | 'EDITED' {
-  if (decision !== 'ACCEPTED') return 'REJECTED';
-  return hasReviewerFinalValue ? 'EDITED' : 'ACCEPTED';
-}
-
-/**
- * Deterministic JSON serialization used for fingerprinting: object keys are
- * sorted recursively so logically identical payloads hash identically.
- */
-export function stableStringify(value: unknown): string {
-  return JSON.stringify(normalizeForStringify(value, new WeakSet<object>()));
-}
-
-function normalizeForStringify(value: unknown, seen: WeakSet<object>): unknown {
-  if (value === undefined || value === null) return null;
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value === 'function' || typeof value === 'symbol') return null;
-  if (typeof value !== 'object') return value;
-  if (seen.has(value)) {
-    throw new Error('Cannot fingerprint a circular value');
-  }
-  seen.add(value);
-  if (Array.isArray(value)) {
-    const list = value.map((item) => normalizeForStringify(item, seen));
-    seen.delete(value);
-    return list;
-  }
-  const record = value as Record<string, unknown>;
-  const sorted: Record<string, unknown> = {};
-  for (const key of Object.keys(record).sort()) {
-    sorted[key] = normalizeForStringify(record[key], seen);
-  }
-  seen.delete(value);
-  return sorted;
-}
+import { buildIntelligenceFingerprint } from './intelligence-findings/finding-fingerprint';
+import {
+  canDecide,
+  decidableStatusesFor,
+  mapDecisionToFeedbackAction,
+} from './intelligence-findings/finding-lifecycle';
 
 export interface FindingFingerprintInput {
   componentId: string;
@@ -306,11 +252,15 @@ export interface FindingFingerprintInput {
  * the same fingerprint (idempotent re-audits), while any material change to
  * the reviewed component, suggestion, or intelligence version creates a new
  * finding row instead of silently mutating an existing decision.
+ *
+ * The component subject is this module's contribution to the hash; the hashing
+ * strategy itself is shared. The payload keys and values are unchanged, so
+ * fingerprints persisted by earlier passes remain byte-identical.
  */
 export function buildFindingFingerprint(
   input: FindingFingerprintInput,
 ): string {
-  const payload = {
+  return buildIntelligenceFingerprint({
     componentId: input.componentId,
     relatedComponentId: input.relatedComponentId ?? null,
     issueType: input.issueType,
@@ -318,11 +268,7 @@ export function buildFindingFingerprint(
     currentValue: input.currentValue ?? null,
     suggestedValue: input.suggestedValue ?? null,
     intelligenceVersion: input.intelligenceVersion ?? null,
-  };
-  return crypto
-    .createHash('sha256')
-    .update(stableStringify(payload))
-    .digest('hex');
+  });
 }
 
 @Injectable()
