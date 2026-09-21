@@ -1582,12 +1582,14 @@ describe("Intelligence queue filter section", () => {
     expect(attribute).toContain("setSearchInput");
 
     // Both offer a confidence filter. The Component queue filters client-side over
-    // its loaded items; the Attribute queue applies its filters server-side, because
-    // its queue is paginated and counting loaded rows would be wrong.
+    // its loaded items; the Attribute queue applies its filters server-side, so its
+    // tab counts come from persisted rows rather than from the rows it holds.
     expect(component).toContain("confidenceFilter");
     expect(attribute).toContain("confidenceFilter");
     expect(attribute).toContain("attributeReviewQueueApi.listFindings");
-    expect(attribute).toContain("page: pageNumber");
+    // One request returns the whole filtered list, so neither queue has paging.
+    expect(attribute).toContain("pageSize: MAX_ATTRIBUTE_QUEUE_PAGE_SIZE");
+    expect(attribute).not.toContain("pageNumber");
     // No client-side filtering remains in the Attribute queue.
     expect(attribute).not.toContain("item.confidenceLevel !== confidenceFilter");
   });
@@ -1714,20 +1716,24 @@ describe("Intelligence queue list parity", () => {
     );
   });
 
-  it("no longer paginates the component list", () => {
-    const component = read(componentDialog);
+  it("no longer paginates either queue's list", () => {
+    // Pagination was removed from the Component list first, then from the Attribute
+    // list: both are now one scroll region over the whole filtered result.
+    for (const dialog of [componentDialog, attributeDialog]) {
+      const source = read(dialog);
 
-    for (const gone of [
-      "pageNumber",
-      "setPageNumber",
-      "totalPages",
-      "ChevronLeft",
-      "ChevronRight",
-      "Previous",
-      "Next",
-      "Page ",
-    ]) {
-      expect(component, gone).not.toContain(gone);
+      for (const gone of [
+        "pageNumber",
+        "setPageNumber",
+        "totalPages",
+        "ChevronLeft",
+        "ChevronRight",
+        "Previous",
+        "Next",
+        "Page ",
+      ]) {
+        expect(source, `${dialog}: ${gone}`).not.toContain(gone);
+      }
     }
   });
 
@@ -1737,6 +1743,13 @@ describe("Intelligence queue list parity", () => {
     expect(component).toContain("page: 1");
     expect(component).toContain("pageSize: MAX_QUEUE_PAGE_SIZE");
     expect(component).toContain("MAX_QUEUE_PAGE_SIZE");
+
+    // The Attribute queue loads its list the same way: one request per filter set,
+    // bounded only by the backend's page-size ceiling.
+    const attribute = read(attributeDialog);
+
+    expect(attribute).toContain("page: 1");
+    expect(attribute).toContain("pageSize: MAX_ATTRIBUTE_QUEUE_PAGE_SIZE");
   });
 
   it("still filters server-side, so the single request stays relevant", () => {

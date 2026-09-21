@@ -20,8 +20,6 @@ import {
   Sliders,
   Layers,
   ArrowRight,
-  ChevronLeft,
-  ChevronRight,
   Info,
   History,
 } from "lucide-react";
@@ -45,7 +43,6 @@ import { useAuth } from "@/lib/auth/auth-context";
 import {
   ATTRIBUTE_DECISION_COPY,
   ATTRIBUTE_QUEUE_TABS,
-  ATTRIBUTE_WORKLISTS,
   ATTRIBUTE_WRITE_PERMISSION,
   attributeAcceptNotice,
   attributeApplyAction,
@@ -64,15 +61,14 @@ import {
   attributeReviewReadOnlyNotice,
   attributeStatusBadge,
   attributeStatusLabel,
-  attributeWorklistEmptyMessage,
   buildAttributeTabCounts,
-  buildAttributeWorklistCounts,
   canApplyAttributeFinding,
   canDecideAttributeFinding,
   confidenceBadgeStatus,
   deriveAttributeReviewPermissions,
   findingHeadline,
   findingMatchesTab,
+  findingSubjectLabels,
   isAttributeFindingApplied,
   isExpectationForUndefinedAttribute,
   producerUsageEvidence,
@@ -80,15 +76,13 @@ import {
   suggestedCanonicalCode,
   summarizeAttributeAudit,
   tabIssueTypeFilter,
-  worklistFilter,
   type AttributeQueueTabId,
-  type AttributeWorklistId,
 } from "@/lib/attribute-review-queue";
 import {
   attributeReviewQueueApi,
   buildAttributeApplyPayload,
   buildAttributeDecisionPayload,
-  DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE,
+  MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
   type AttributeApplyAction,
   type AttributeReviewDecision,
   type AttributeReviewFindingDto,
@@ -107,8 +101,7 @@ import {
  * audit on every open, regenerated unstable ids (`audit-1`, `audit-2`, ...), and
  * labelled its primary action "Accept Binding" while the handler created a
  * definition and a binding. The queue is now a true review surface: stable finding
- * ids, a real lifecycle, server-side filtering and pagination, and no implicit
- * mutation.
+ * ids, a real lifecycle, server-side filtering, and no implicit mutation.
  *
  * Visual structure (dialog shell, tabs, filter card, finding card, evidence
  * accordion, empty state) is intentionally unchanged from the previous version.
@@ -182,22 +175,11 @@ export function AttributeReviewQueueDialog({
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
 
   const [tab, setTab] = React.useState<AttributeQueueTabId>("ALL");
-  /**
-   * The application worklist.
-   *
-   * Defaults to `READY_TO_APPLY` rather than `ALL`, because the queue is a work
-   * list: the reviewer opens it to see what needs doing, and an approved finding
-   * that has not been carried out is the one thing that is actually waiting. The
-   * counts still show every worklist's true size, so nothing is hidden.
-   */
-  const [worklist, setWorklist] =
-    React.useState<AttributeWorklistId>("READY_TO_APPLY");
   const [statusFilter, setStatusFilter] = React.useState<string>("PENDING");
   const [confidenceFilter, setConfidenceFilter] =
     React.useState(ALL_FILTER_VALUE);
   const [searchInput, setSearchInput] = React.useState("");
   const [search, setSearch] = React.useState("");
-  const [pageNumber, setPageNumber] = React.useState(1);
 
   const [expandedWhy, setExpandedWhy] = React.useState<Record<string, boolean>>(
     {},
@@ -221,11 +203,13 @@ export function AttributeReviewQueueDialog({
   const [applying, setApplying] = React.useState(false);
 
   /**
-   * Loads one page of persisted findings.
+   * Loads the persisted findings for the current filters.
    *
-   * Every filter, the sort and the pagination are applied by the server, so the
-   * dialog never holds more rows than it shows and never derives counts from the
-   * rows it happens to have loaded.
+   * Every filter and the sort are applied by the server, so the dialog never
+   * derives counts from the rows it happens to have loaded. One request returns
+   * the whole filtered list — the list stays a plain scroll region with no paging,
+   * matching the Component queue — and the backend's page-size ceiling is the only
+   * bound on how many findings can be shown at once.
    */
   const loadQueue = React.useCallback(async () => {
     setLoading(true);
@@ -237,17 +221,13 @@ export function AttributeReviewQueueDialog({
             ? statusFilter
             : undefined,
         issueType: tabIssueTypeFilter(tab),
-        // The worklist's own filter wins over the status selector when it pins one,
-        // so "Ready to Apply" means exactly `ACCEPTED + NOT_APPLIED` regardless of
-        // what the status dropdown happens to say.
-        ...worklistFilter(worklist),
         confidenceLevel:
           confidenceFilter && confidenceFilter !== ALL_FILTER_VALUE
             ? (confidenceFilter as "HIGH" | "MEDIUM" | "LOW")
             : undefined,
         search: search.trim() || undefined,
-        page: pageNumber,
-        pageSize: DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE,
+        page: 1,
+        pageSize: MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
         sortBy: "createdAt",
         sortDirection: "desc",
       });
@@ -262,7 +242,7 @@ export function AttributeReviewQueueDialog({
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, confidenceFilter, search, tab, worklist, pageNumber]);
+  }, [statusFilter, confidenceFilter, search, tab]);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -275,7 +255,6 @@ export function AttributeReviewQueueDialog({
   React.useEffect(() => {
     const handle = setTimeout(() => {
       setSearch(searchInput);
-      setPageNumber(1);
     }, 350);
     return () => clearTimeout(handle);
   }, [searchInput]);
@@ -285,17 +264,11 @@ export function AttributeReviewQueueDialog({
     () => buildAttributeTabCounts(page?.counts ?? null),
     [page?.counts],
   );
-  const worklistCounts = React.useMemo(
-    () => buildAttributeWorklistCounts(page?.counts ?? null),
-    [page?.counts],
-  );
-  const totalPages = page?.totalPages ?? 1;
 
   const filtersActive = Boolean(
     search.trim() ||
       (confidenceFilter && confidenceFilter !== ALL_FILTER_VALUE) ||
       (statusFilter && statusFilter !== "PENDING") ||
-      worklist !== "READY_TO_APPLY" ||
       tab !== "ALL",
   );
 
@@ -303,24 +276,7 @@ export function AttributeReviewQueueDialog({
     setStatusFilter("PENDING");
     setConfidenceFilter(ALL_FILTER_VALUE);
     setSearchInput("");
-    setWorklist("READY_TO_APPLY");
     setTab("ALL");
-    setPageNumber(1);
-  };
-
-  const selectTab = (nextTab: AttributeQueueTabId) => {
-    setTab(nextTab);
-    setPageNumber(1);
-  };
-
-  const selectWorklist = (next: AttributeWorklistId) => {
-    setWorklist(next);
-    setPageNumber(1);
-  };
-
-  const changeStatusFilter = (value: string) => {
-    setStatusFilter(value);
-    setPageNumber(1);
   };
 
   const toggleWhy = (findingId: string) => {
@@ -567,7 +523,7 @@ export function AttributeReviewQueueDialog({
             <button
               key={definition.id}
               type="button"
-              onClick={() => selectTab(definition.id)}
+              onClick={() => setTab(definition.id)}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer shrink-0 ${
                 tab === definition.id
                   ? "bg-primary text-primary-foreground"
@@ -575,31 +531,6 @@ export function AttributeReviewQueueDialog({
               }`}
             >
               {definition.label} ({tabCounts[definition.id]})
-            </button>
-          ))}
-        </div>
-
-        {/*
-          Worklist selector.
-
-          The same control pattern as the family tabs above it rather than a second
-          filter system: one row of buttons, each carrying its own persisted count.
-          "Ready to Apply" is the work list (approved, not yet carried out) and
-          "Applied" is the history of what the intelligence actually changed.
-        */}
-        <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto pb-1">
-          {ATTRIBUTE_WORKLISTS.map((definition) => (
-            <button
-              key={definition.id}
-              type="button"
-              onClick={() => selectWorklist(definition.id)}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer shrink-0 ${
-                worklist === definition.id
-                  ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {definition.label} ({worklistCounts[definition.id]})
             </button>
           ))}
         </div>
@@ -622,7 +553,7 @@ export function AttributeReviewQueueDialog({
             <Select
               value={statusFilter}
               onValueChange={(value) =>
-                changeStatusFilter(value ?? ALL_FILTER_VALUE)
+                setStatusFilter(value ?? ALL_FILTER_VALUE)
               }
             >
               <SelectTrigger
@@ -647,7 +578,6 @@ export function AttributeReviewQueueDialog({
               value={confidenceFilter}
               onValueChange={(value) => {
                 setConfidenceFilter(value ?? ALL_FILTER_VALUE);
-                setPageNumber(1);
               }}
             >
               <SelectTrigger
@@ -708,6 +638,13 @@ export function AttributeReviewQueueDialog({
               const canReject = canDecideAttributeFinding(finding, "REJECTED");
               const canDismiss = canDecideAttributeFinding(finding, "DISMISSED");
               const attributeSubjectId = finding.attributeDefinitionId;
+              /**
+               * Names rather than ids for every subject the row reports.
+               *
+               * A reviewer recognises "Package / Case"; a uuid tells them nothing,
+               * and the name is already persisted with the finding.
+               */
+              const subjectLabels = findingSubjectLabels(finding);
               const usage = producerUsageEvidence(finding);
               const expectationWithoutDefinition =
                 isExpectationForUndefinedAttribute(finding);
@@ -1009,7 +946,7 @@ export function AttributeReviewQueueDialog({
                       <span className="font-semibold text-foreground truncate">
                         {expectationWithoutDefinition
                           ? (suggestedCanonicalCode(finding) ?? "—")
-                          : (attributeSubjectId ?? "—")}
+                          : (subjectLabels.attribute ?? "—")}
                       </span>
                       {expectationWithoutDefinition && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border font-medium">
@@ -1026,7 +963,8 @@ export function AttributeReviewQueueDialog({
                           Matches:
                         </span>
                         <span className="font-semibold text-foreground truncate">
-                          {finding.relatedAttributeDefinitionId}
+                          {subjectLabels.relatedAttribute ??
+                            finding.relatedAttributeDefinitionId}
                         </span>
                       </div>
                     ) : finding.categoryId ? (
@@ -1036,7 +974,7 @@ export function AttributeReviewQueueDialog({
                           {isSuspicious ? "Bound Category:" : "Target Category:"}
                         </span>
                         <span className="font-semibold text-foreground truncate">
-                          {finding.categoryId}
+                          {subjectLabels.category ?? finding.categoryId}
                         </span>
                       </div>
                     ) : isUnused ? (
@@ -1110,47 +1048,9 @@ export function AttributeReviewQueueDialog({
               {error
                 ? "Retry the request with the refresh action above."
                 : filtersActive
-                  ? `${attributeWorklistEmptyMessage(worklist)} Adjust or clear the search, status, confidence, worklist, or tab filters to see other findings.`
+                  ? "Adjust or clear the search, status, confidence, or tab filters to see other findings."
                   : "No findings are awaiting review. Run a library audit to scan the attribute library for new findings."}
             </p>
-          </div>
-        )}
-
-        {/* Server-side pagination */}
-        {page && page.total > 0 && (
-          <div className="flex shrink-0 items-center justify-between gap-2 pt-1 text-[11px] text-muted-foreground">
-            <span>
-              {page.total} finding{page.total === 1 ? "" : "s"} · page {page.page}{" "}
-              of {totalPages}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={loading || pageNumber <= 1}
-                onClick={() =>
-                  setPageNumber((current) => Math.max(1, current - 1))
-                }
-                className="h-7 gap-1 text-xs"
-              >
-                <ChevronLeft className="size-3.5" />
-                Previous
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={loading || pageNumber >= totalPages}
-                onClick={() =>
-                  setPageNumber((current) => Math.min(totalPages, current + 1))
-                }
-                className="h-7 gap-1 text-xs"
-              >
-                Next
-                <ChevronRight className="size-3.5" />
-              </Button>
-            </div>
           </div>
         )}
       </DialogShellBody>

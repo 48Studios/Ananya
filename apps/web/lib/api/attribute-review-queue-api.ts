@@ -142,8 +142,8 @@ export interface AttributeReviewQueueCountsDto {
   /**
    * Counts per application state.
    *
-   * Always carries both keys, so the worklist selector can render both options
-   * without defaulting. Read from persisted findings and independent of the page.
+   * Always carries both keys, so a reader never has to default a missing one.
+   * Read from persisted findings and independent of the page.
    */
   applicationResults: Record<AttributeApplicationResult, number>;
   /** How many findings are approved and still unapplied. */

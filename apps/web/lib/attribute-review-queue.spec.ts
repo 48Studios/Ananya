@@ -5,7 +5,6 @@ import {
   ATTRIBUTE_APPLY_CONFLICT_REASONS,
   ATTRIBUTE_APPLY_LABELS,
   ATTRIBUTE_DECISION_COPY,
-  ATTRIBUTE_WORKLISTS,
   ATTRIBUTE_ISSUE_TYPES_BY_TAB,
   ATTRIBUTE_QUEUE_TABS,
   ATTRIBUTE_READ_PERMISSION,
@@ -30,16 +29,14 @@ import {
   attributeReviewReadOnlyNotice,
   attributeStatusBadge,
   attributeStatusLabel,
-  attributeWorklistEmptyMessage,
   buildAttributeTabCounts,
-  buildAttributeWorklistCounts,
   canApplyAttributeFinding,
   canDecideAttributeFinding,
   confidenceBadgeStatus,
   deriveAttributeReviewPermissions,
   findingHeadline,
   findingMatchesTab,
-  findingMatchesWorklist,
+  findingSubjectLabels,
   isAttributeApplyConflictReason,
   isAttributeFindingApplied,
   isExpectationForUndefinedAttribute,
@@ -49,7 +46,6 @@ import {
   suggestedCanonicalCode,
   summarizeAttributeAudit,
   tabIssueTypeFilter,
-  worklistFilter,
 } from "./attribute-review-queue";
 import type {
   AttributeReviewFindingDto,
@@ -507,6 +503,194 @@ describe("Attribute review queue — subject presentation", () => {
   });
 });
 
+describe("Attribute review queue — subject labels", () => {
+  const ATTRIBUTE_ID = "cef9ffa0-6e98-406d-b5d3-024c56b669a1";
+  const CATEGORY_ID = "5616c40c-f8a7-4d73-ab80-347fda515576";
+
+  const attributeSnapshot = (overrides: Record<string, unknown> = {}) => ({
+    id: ATTRIBUTE_ID,
+    code: "resistance",
+    name: "Resistance",
+    ...overrides,
+  });
+  const categorySnapshot = (overrides: Record<string, unknown> = {}) => ({
+    id: CATEGORY_ID,
+    code: "CAP",
+    name: "Capacitors",
+    ...overrides,
+  });
+
+  it('names the attribute and the category instead of showing their ids', () => {
+    // The persisted expected-state snapshot carries both names, so the row never
+    // needs a second request — nor a uuid.
+    const labels = findingSubjectLabels(
+      finding({
+        issueType: "SUSPICIOUS_BINDING",
+        attributeDefinitionId: ATTRIBUTE_ID,
+        categoryId: CATEGORY_ID,
+        currentValue: {
+          attribute: attributeSnapshot(),
+          category: categorySnapshot(),
+          bindingExists: true,
+        },
+      }),
+    );
+
+    expect(labels.attribute).toBe("Resistance");
+    expect(labels.category).toBe("Capacitors");
+    expect(labels.attribute).not.toBe(ATTRIBUTE_ID);
+    expect(labels.category).not.toBe(CATEGORY_ID);
+  });
+
+  it('names an unused attribute from its own snapshot', () => {
+    const labels = findingSubjectLabels(
+      finding({
+        issueType: "UNUSED_ATTRIBUTE",
+        attributeDefinitionId: ATTRIBUTE_ID,
+        currentValue: { attribute: attributeSnapshot(), usageBand: "ZERO" },
+      }),
+    );
+
+    expect(labels.attribute).toBe("Resistance");
+    // The family names no category at all, which the row states rather than fills in.
+    expect(labels.category).toBeNull();
+    expect(labels.relatedAttribute).toBeNull();
+  });
+
+  it('names the expected attribute of a category-first expectation', () => {
+    // No definition exists yet, so there is no attribute row to name: the
+    // producer's proposed name is the only human-readable identity available.
+    const labels = findingSubjectLabels(
+      finding({
+        issueType: "MISSING_EXPECTED_ATTRIBUTE",
+        attributeDefinitionId: null,
+        categoryId: CATEGORY_ID,
+        currentValue: {
+          category: categorySnapshot(),
+          expectedAttributeCode: "termination",
+          expectedAttributeName: "Termination Style",
+          existingAttribute: null,
+        },
+      }),
+    );
+
+    expect(labels.attribute).toBe("Termination Style");
+    expect(labels.category).toBe("Capacitors");
+  });
+
+  it('names a resolved expectation from the definition it resolved to', () => {
+    const labels = findingSubjectLabels(
+      finding({
+        issueType: "MISSING_EXPECTED_ATTRIBUTE",
+        attributeDefinitionId: ATTRIBUTE_ID,
+        categoryId: CATEGORY_ID,
+        currentValue: {
+          category: categorySnapshot(),
+          expectedAttributeCode: "package",
+          expectedAttributeName: "Package / Case",
+          existingAttribute: attributeSnapshot({ name: "Package / Case" }),
+        },
+      }),
+    );
+
+    expect(labels.attribute).toBe("Package / Case");
+    expect(labels.category).toBe("Capacitors");
+  });
+
+  it('separates the two sides of a duplicate pair by id', () => {
+    // The pair is canonicalized, so position is not the finding's own subject: the
+    // side carrying the finding's id is the attribute, the other is the match.
+    const labels = findingSubjectLabels(
+      finding({
+        issueType: "POSSIBLE_DUPLICATE",
+        attributeDefinitionId: ATTRIBUTE_ID,
+        relatedAttributeDefinitionId: "other-id",
+        currentValue: {
+          attributeA: attributeSnapshot(),
+          attributeB: { id: "other-id", code: "resistivity", name: "Resistivity" },
+          rule: "LEXICAL_SIMILARITY",
+        },
+      }),
+    );
+
+    expect(labels.attribute).toBe("Resistance");
+    expect(labels.relatedAttribute).toBe("Resistivity");
+  });
+
+  it('reads the pair by id even when the order is reversed', () => {
+    const labels = findingSubjectLabels(
+      finding({
+        issueType: "POSSIBLE_DUPLICATE",
+        attributeDefinitionId: "other-id",
+        relatedAttributeDefinitionId: ATTRIBUTE_ID,
+        currentValue: {
+          attributeA: attributeSnapshot(),
+          attributeB: { id: "other-id", code: "resistivity", name: "Resistivity" },
+        },
+      }),
+    );
+
+    expect(labels.attribute).toBe("Resistivity");
+    expect(labels.relatedAttribute).toBe("Resistance");
+  });
+
+  it('falls back to the code, then to the id, rather than rendering nothing', () => {
+    const byCode = findingSubjectLabels(
+      finding({
+        issueType: "UNUSED_ATTRIBUTE",
+        attributeDefinitionId: ATTRIBUTE_ID,
+        currentValue: { attribute: { id: ATTRIBUTE_ID, code: "resistance" } },
+      }),
+    );
+    expect(byCode.attribute).toBe("resistance");
+
+    // A finding persisted without any usable snapshot still identifies its subject.
+    const byId = findingSubjectLabels(
+      finding({
+        issueType: "UNUSED_ATTRIBUTE",
+        attributeDefinitionId: ATTRIBUTE_ID,
+        currentValue: null,
+      }),
+    );
+    expect(byId.attribute).toBe(ATTRIBUTE_ID);
+  });
+
+  it('reads the snapshot from metadata.expectedState when currentValue is absent', () => {
+    // The two hold the same object by construction and the API's staleness check
+    // falls back from one to the other, so a reader does too.
+    const labels = findingSubjectLabels(
+      finding({
+        issueType: "UNUSED_ATTRIBUTE",
+        attributeDefinitionId: ATTRIBUTE_ID,
+        currentValue: null,
+        metadata: {
+          expectedState: { attribute: attributeSnapshot({ name: "Voltage Rating" }) },
+        },
+      }),
+    );
+
+    expect(labels.attribute).toBe("Voltage Rating");
+  });
+
+  it('reports an empty subject for a finding that names nothing', () => {
+    const labels = findingSubjectLabels(
+      finding({
+        attributeDefinitionId: null,
+        relatedAttributeDefinitionId: null,
+        categoryId: null,
+        currentValue: null,
+        metadata: {},
+      }),
+    );
+
+    expect(labels).toEqual({
+      attribute: null,
+      relatedAttribute: null,
+      category: null,
+    });
+  });
+});
+
 describe("Attribute review queue — decision payload", () => {
   it('sends only lifecycle fields, so no mutation can be expressed', () => {
     const payload = buildAttributeDecisionPayload(
@@ -615,17 +799,35 @@ describe("Attribute review queue dialog — data source", () => {
     expect(openEffect).not.toContain("runAudit");
   });
 
-  it('applies filters, sort and pagination server-side', () => {
-    expect(dialog).toContain("page: pageNumber");
-    expect(dialog).toContain("pageSize: DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE");
-    expect(dialog).toContain("sortBy: \"createdAt\"");
+  it('applies filters and the sort server-side, and loads the list without paging', () => {
+    expect(dialog).toContain("page: 1");
+    expect(dialog).toContain("pageSize: MAX_ATTRIBUTE_QUEUE_PAGE_SIZE");
+    expect(dialog).toContain('sortBy: "createdAt"');
     expect(dialog).toContain("tabIssueTypeFilter(tab)");
     expect(dialog).toContain("confidenceLevel:");
+
+    // One request returns the whole filtered list, matching the Component queue:
+    // there is no page state and no paging control to move it.
+    expect(dialog).not.toContain("pageNumber");
+    expect(dialog).not.toContain("totalPages");
   });
 
   it('renders server-provided counts rather than counting loaded rows', () => {
     expect(dialog).toContain("buildAttributeTabCounts(page?.counts ?? null)");
     expect(dialog).not.toMatch(/items\.filter\(.*\)\.length/);
+  });
+
+  it('identifies each finding by name, never by uuid', () => {
+    // The card's subject row names the attribute and the category. Rendering the raw
+    // ids — `{attributeSubjectId ?? "—"}` or `{finding.categoryId}` — would tell the
+    // reviewer nothing, and the names are already persisted with the finding.
+    expect(dialog).toContain("const subjectLabels = findingSubjectLabels(finding)");
+    expect(dialog).toContain("subjectLabels.attribute");
+    expect(dialog).toContain("subjectLabels.category");
+    expect(dialog).toContain("subjectLabels.relatedAttribute");
+    expect(dialog).not.toContain("attributeSubjectId ?? ");
+    expect(dialog).not.toMatch(/\{finding\.categoryId\}/);
+    expect(dialog).not.toMatch(/\{finding\.relatedAttributeDefinitionId\}/);
   });
 
   it('offers all three decisions and an action-specific apply control', () => {
@@ -1181,7 +1383,7 @@ describe("Attribute review queue — apply confirmation", () => {
     expect(summary).toContain("reviewer@48studios.test");
   });
 
-  it('moves the work list onto accepted after an apply, and leaves other filters alone', () => {
+  it('moves "needs review" onto accepted after an apply, and leaves other filters alone', () => {
     // An applied finding is no longer awaiting review, so leaving the reviewer on
     // "needs review" would hide the row they just changed.
     expect(statusFilterAfterApply("PENDING")).toBe("ACCEPTED");
@@ -1352,68 +1554,7 @@ describe("Attribute review queue dialog — apply flow", () => {
   });
 });
 
-describe("Attribute review queue — application worklists", () => {
-  it('exposes exactly three worklists, in the order the UI renders them', () => {
-    expect(ATTRIBUTE_WORKLISTS.map((w) => w.id)).toEqual([
-      "ALL",
-      "READY_TO_APPLY",
-      "APPLIED",
-    ]);
-    expect(ATTRIBUTE_WORKLISTS.map((w) => w.label)).toEqual([
-      "All",
-      "Ready to Apply",
-      "Applied",
-    ]);
-  });
-
-  it('translates each worklist into a server-side filter', () => {
-    // Ready to Apply is the only one that pins the review status, because it is the
-    // intersection of approval and non-application.
-    expect(worklistFilter("READY_TO_APPLY")).toEqual({
-      status: "ACCEPTED",
-      applicationResult: "NOT_APPLIED",
-    });
-
-    // Applied deliberately does NOT pin the status: applying never changes it, so
-    // pinning would drop an applied finding whose status later moved.
-    expect(worklistFilter("APPLIED")).toEqual({ applicationResult: "APPLIED" });
-    expect(worklistFilter("APPLIED").status).toBeUndefined();
-
-    // All applies no application filter at all.
-    expect(worklistFilter("ALL")).toEqual({});
-  });
-
-  it('builds each worklist size from persisted counts', () => {
-    const sizes = buildAttributeWorklistCounts(
-      counts({
-        total: 40,
-        accepted: 12,
-        applicationResults: { NOT_APPLIED: 30, APPLIED: 7 },
-        readyToApply: 9,
-      }),
-    );
-
-    expect(sizes.ALL).toBe(40);
-    // The intersection of two dimensions, so it is neither count on its own.
-    expect(sizes.READY_TO_APPLY).toBe(9);
-    expect(sizes.APPLIED).toBe(7);
-    // Ready to apply is strictly narrower than both dimensions it intersects.
-    expect(sizes.READY_TO_APPLY).toBeLessThan(12);
-    expect(sizes.READY_TO_APPLY).toBeLessThan(30);
-  });
-
-  it('reports zeroes rather than NaN when counts are unavailable', () => {
-    expect(buildAttributeWorklistCounts(null)).toEqual({
-      ALL: 0,
-      READY_TO_APPLY: 0,
-      APPLIED: 0,
-    });
-    // A response from an older API would omit the new fields entirely.
-    expect(
-      buildAttributeWorklistCounts({} as AttributeReviewQueueCountsDto),
-    ).toEqual({ ALL: 0, READY_TO_APPLY: 0, APPLIED: 0 });
-  });
-
+describe("Attribute review queue — application state", () => {
   it('labels application state separately from review status', () => {
     expect(
       attributeApplicationLabel(finding({ applicationResult: "NOT_APPLIED" })),
@@ -1431,77 +1572,24 @@ describe("Attribute review queue — application worklists", () => {
     expect(attributeStatusLabel(accepted.status)).toBe("Accepted");
     expect(attributeApplicationLabel(accepted)).toBe("Not applied");
   });
-
-  it('places findings in the right worklist', () => {
-    const ready = finding({
-      status: "ACCEPTED",
-      applicationResult: "NOT_APPLIED",
-    });
-    const done = finding({ status: "ACCEPTED", applicationResult: "APPLIED" });
-    const pending = finding({
-      status: "PENDING",
-      applicationResult: "NOT_APPLIED",
-    });
-
-    expect(findingMatchesWorklist(ready, "READY_TO_APPLY")).toBe(true);
-    expect(findingMatchesWorklist(done, "READY_TO_APPLY")).toBe(false);
-    expect(findingMatchesWorklist(pending, "READY_TO_APPLY")).toBe(false);
-
-    // Applied is a history list, so it holds applied findings only.
-    expect(findingMatchesWorklist(done, "APPLIED")).toBe(true);
-    expect(findingMatchesWorklist(ready, "APPLIED")).toBe(false);
-
-    // All is unfiltered.
-    for (const f of [ready, done, pending]) {
-      expect(findingMatchesWorklist(f, "ALL")).toBe(true);
-    }
-  });
-
-  it('explains an empty worklist in the worklist’s own terms', () => {
-    expect(attributeWorklistEmptyMessage("READY_TO_APPLY")).toMatch(
-      /nothing is waiting to be applied/i,
-    );
-    expect(attributeWorklistEmptyMessage("APPLIED")).toMatch(
-      /no finding has been applied yet/i,
-    );
-    expect(attributeWorklistEmptyMessage("ALL")).toMatch(/no findings match/i);
-  });
-
-  it('keeps the worklist counts independent of the page and of each other', () => {
-    // A page of one row must not change any worklist size: the numbers come from
-    // server-side counts, never from the loaded items.
-    const source = readFileSync(
-      join(__dirname, "..", "components", "attributes", "attribute-review-queue-dialog.tsx"),
-      "utf8",
-    );
-    expect(source).toContain("buildAttributeWorklistCounts(page?.counts ?? null)");
-    expect(source).not.toMatch(/items\.filter\(.*applicationResult.*\)\.length/);
-  });
 });
 
-describe("Attribute review queue dialog — worklist UI", () => {
+describe("Attribute review queue dialog — application state", () => {
   const dialog = readFileSync(
     join(__dirname, "..", "components", "attributes", "attribute-review-queue-dialog.tsx"),
     "utf8",
   );
 
-  it('reuses the existing tab control pattern instead of adding a second filter system', () => {
-    // Both selectors are rows of buttons built from a table of definitions, so the
-    // worklist is visually and structurally the same control as the family tabs.
-    expect(dialog).toContain("ATTRIBUTE_QUEUE_TABS.map");
-    expect(dialog).toContain("ATTRIBUTE_WORKLISTS.map");
-    expect(dialog).toContain("selectWorklist(definition.id)");
-  });
-
-  it('defaults to the work list, and sends the worklist filter server-side', () => {
-    expect(dialog).toContain('useState<AttributeWorklistId>("READY_TO_APPLY")');
-    expect(dialog).toContain("...worklistFilter(worklist)");
-    // The filter is part of the query the server runs, not a client-side pass.
+  it('keeps application state out of the queue filter controls', () => {
+    // The worklist selector was removed, and its server-side filter went with it:
+    // an invisible application-state filter would show fewer findings than the
+    // controls on screen account for. The remaining filters are untouched.
+    expect(dialog).not.toContain("ATTRIBUTE_WORKLISTS");
+    expect(dialog).not.toContain("worklistFilter");
+    expect(dialog).not.toContain("Ready to Apply");
     expect(dialog).toContain("attributeReviewQueueApi.listFindings({");
-  });
-
-  it('clears the worklist along with the other filters', () => {
-    expect(dialog).toContain('setWorklist("READY_TO_APPLY")');
+    expect(dialog).toContain("tabIssueTypeFilter(tab)");
+    expect(dialog).toContain("confidenceLevel:");
   });
 
   it('shows acceptance and application as two separate facts per row', () => {
@@ -1512,17 +1600,16 @@ describe("Attribute review queue dialog — worklist UI", () => {
   });
 
   it('still hides Apply for review-only families and for read-only users', () => {
-    // Pass 4's eligibility rule is unchanged by the worklist: being in the work list
-    // is not permission to apply.
+    // Pass 4's eligibility rule is unchanged: appearing in the list is not
+    // permission to apply.
     expect(dialog).toContain("canApplyAttributeFinding(finding, permissions.canApply)");
     expect(dialog).toContain("attributeApplyAction(finding)");
     expect(dialog).toContain("attributeApplyUnavailableReason(");
   });
 
-  it('keeps an applied finding visible when the current worklist includes it', () => {
-    // Apply does not force the worklist back to a single value: it moves off the
-    // work list only when the reviewer was on it, so an applied finding stays
-    // visible in `All` and `Applied`.
+  it('keeps an applied finding visible after apply', () => {
+    // Apply does not filter the list down to one application state: it moves the
+    // status selector off "needs review", so an applied finding stays visible.
     const lines = dialog.split("\n");
     const handler = lines
       .slice(

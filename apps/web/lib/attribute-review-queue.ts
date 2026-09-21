@@ -134,68 +134,8 @@ export function buildAttributeTabCounts(
 }
 
 // ---------------------------------------------------------------------------
-// Application worklists
+// Application state
 // ---------------------------------------------------------------------------
-
-/**
- * The queue's worklist selector.
- *
- * Three options, not a second filter system: the same control pattern as the
- * status selector beside it, expressing the one dimension a reviewer needs in
- * order to work through findings rather than browse them.
- *
- *  - `ALL` — no application filter. Everything, including findings the reviewer
- *    has not decided yet.
- *  - `READY_TO_APPLY` — `ACCEPTED` + `NOT_APPLIED`. The work list: approved, not
- *    yet carried out.
- *  - `APPLIED` — `application_result = APPLIED`. History: what the intelligence
- *    actually changed. Kept readable rather than hidden once acted on, because it
- *    is the audit trail of the workflow.
- */
-export type AttributeWorklistId = "ALL" | "READY_TO_APPLY" | "APPLIED";
-
-export const ATTRIBUTE_WORKLISTS: ReadonlyArray<{
-  id: AttributeWorklistId;
-  label: string;
-}> = [
-  { id: "ALL", label: "All" },
-  { id: "READY_TO_APPLY", label: "Ready to Apply" },
-  { id: "APPLIED", label: "Applied" },
-];
-
-/**
- * The server-side filter a worklist expresses.
- *
- * `READY_TO_APPLY` is the only one that pins the review status as well, because
- * "ready to apply" is the intersection of approval and non-application. `APPLIED`
- * deliberately does NOT pin the status: applying never changes it, so an applied
- * finding is still `ACCEPTED`, and pinning it would silently drop any applied
- * finding whose status later moved.
- */
-export function worklistFilter(worklist: AttributeWorklistId): {
-  status?: string;
-  applicationResult?: string;
-} {
-  switch (worklist) {
-    case "READY_TO_APPLY":
-      return { status: "ACCEPTED", applicationResult: "NOT_APPLIED" };
-    case "APPLIED":
-      return { applicationResult: "APPLIED" };
-    default:
-      return {};
-  }
-}
-
-/** Size of each worklist, from persisted counts. */
-export function buildAttributeWorklistCounts(
-  counts: AttributeReviewQueuePageDto["counts"] | null,
-): Record<AttributeWorklistId, number> {
-  return {
-    ALL: counts?.total ?? 0,
-    READY_TO_APPLY: counts?.readyToApply ?? 0,
-    APPLIED: counts?.applicationResults?.APPLIED ?? 0,
-  };
-}
 
 /**
  * The application-state label for a finding.
@@ -208,41 +148,6 @@ export function attributeApplicationLabel(
   finding: Pick<AttributeReviewFindingDto, "applicationResult">,
 ): string {
   return isAttributeFindingApplied(finding) ? "Applied" : "Not applied";
-}
-
-/** Whether a finding belongs to a worklist, for the empty-state copy. */
-export function findingMatchesWorklist(
-  finding: Pick<
-    AttributeReviewFindingDto,
-    "status" | "applicationResult"
-  >,
-  worklist: AttributeWorklistId,
-): boolean {
-  switch (worklist) {
-    case "READY_TO_APPLY":
-      return (
-        finding.status === "ACCEPTED" &&
-        finding.applicationResult === "NOT_APPLIED"
-      );
-    case "APPLIED":
-      return finding.applicationResult === "APPLIED";
-    default:
-      return true;
-  }
-}
-
-/** Empty-state copy for a worklist with nothing in it. */
-export function attributeWorklistEmptyMessage(
-  worklist: AttributeWorklistId,
-): string {
-  switch (worklist) {
-    case "READY_TO_APPLY":
-      return "Nothing is waiting to be applied. Accept a finding to queue it here.";
-    case "APPLIED":
-      return "No finding has been applied yet. Applying one records what changed in the attribute library.";
-    default:
-      return "No findings match these filters";
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -543,6 +448,88 @@ export function findingAttributeSubjectId(
   >,
 ): string | null {
   return finding.attributeDefinitionId;
+}
+
+/** Names a queue row shows for the subject a finding is about. */
+export interface AttributeFindingSubjectLabels {
+  /** The finding's own attribute; null for a category-first expectation. */
+  attribute: string | null;
+  /** The attribute a duplicate finding matches; null for every other family. */
+  relatedAttribute: string | null;
+  /** The category the finding concerns; null when it names none. */
+  category: string | null;
+}
+
+/**
+ * Human-readable labels for a finding's subject, for the queue row.
+ *
+ * The row identifies its subject by name: a reviewer recognises "Package / Case",
+ * not a uuid. The names come from the expected-state snapshot the finding was
+ * persisted with — the same source the apply confirmation reads — so the row needs
+ * no second request and cannot describe a different attribute than the finding does.
+ *
+ * Every label degrades name → code → id: a name is what a reviewer reads, a code is
+ * still recognisable, and the id is a last resort so a subject is never blank. `null`
+ * means the family names no such subject, which the row states rather than fills in.
+ */
+export function findingSubjectLabels(
+  finding: Pick<
+    AttributeReviewFindingDto,
+    | "currentValue"
+    | "suggestedValue"
+    | "metadata"
+    | "attributeDefinitionId"
+    | "relatedAttributeDefinitionId"
+    | "categoryId"
+  >,
+): AttributeFindingSubjectLabels {
+  // `metadata.expectedState` and `currentValue` hold the same snapshot by
+  // construction, and the API's staleness check falls back from one to the other, so
+  // the reader does too rather than showing a blank subject for a finding whose
+  // producer recorded it in the other of the two equivalent places.
+  const snapshot =
+    readRecord(finding.metadata?.expectedState) ??
+    readRecord(finding.currentValue);
+  const suggested = readRecord(finding.suggestedValue);
+
+  // A duplicate/near-duplicate finding snapshots BOTH attributes as one canonical
+  // pair: the side carrying the finding's own subject id is the attribute, the other
+  // is the match. Matching by id rather than by position keeps that true if the
+  // canonical order ever changes.
+  const pair = [
+    readRecord(snapshot?.attributeA),
+    readRecord(snapshot?.attributeB),
+  ].filter((side): side is Record<string, unknown> => side !== null);
+  const declaredId = finding.attributeDefinitionId;
+  const subjectSide =
+    (declaredId
+      ? pair.find((side) => readString(side.id) === declaredId)
+      : undefined) ??
+    pair[0] ??
+    null;
+  const matchSide = subjectSide
+    ? (pair.find((side) => side !== subjectSide) ?? null)
+    : null;
+
+  return {
+    attribute:
+      snapshotLabel(readRecord(snapshot?.attribute)) ??
+      snapshotLabel(readRecord(snapshot?.existingAttribute)) ??
+      snapshotLabel(subjectSide) ??
+      readString(snapshot?.expectedAttributeName) ??
+      readString(suggested?.canonicalName) ??
+      finding.attributeDefinitionId,
+    relatedAttribute:
+      snapshotLabel(matchSide) ?? finding.relatedAttributeDefinitionId,
+    category:
+      snapshotLabel(readRecord(snapshot?.category)) ?? finding.categoryId,
+  };
+}
+
+/** A snapshot's own label: its name, then its code, then nothing. */
+function snapshotLabel(snapshot: Record<string, unknown> | null): string | null {
+  if (!snapshot) return null;
+  return readString(snapshot.name) ?? readString(snapshot.code);
 }
 
 /** Usage evidence recorded by the producer, for the unused/suspicious families. */
