@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  ATTRIBUTE_ACCEPT_AND_APPLY_LABEL,
   ATTRIBUTE_APPLY_CONFLICT_REASONS,
   ATTRIBUTE_APPLY_LABELS,
   ATTRIBUTE_DECISION_COPY,
@@ -11,6 +12,7 @@ import {
   ATTRIBUTE_STATUS_BADGES,
   ATTRIBUTE_STATUS_LABELS,
   ATTRIBUTE_WRITE_PERMISSION,
+  attributeAcceptAndApplyTitle,
   attributeAcceptNotice,
   attributeApplyAction,
   attributeApplyConfirmation,
@@ -30,6 +32,7 @@ import {
   attributeStatusBadge,
   attributeStatusLabel,
   buildAttributeTabCounts,
+  canAcceptAndApplyAttributeFinding,
   canApplyAttributeFinding,
   canDecideAttributeFinding,
   confidenceBadgeStatus,
@@ -321,13 +324,16 @@ describe("Attribute review queue — permissions", () => {
     const notice = attributeAcceptNotice();
     expect(notice).toMatch(/no binding|nothing/i);
     expect(notice.toLowerCase()).toContain("no binding");
-    // No copy may promise a mutation.
+    // No copy may promise a mutation, and acceptance no longer reads as a step on
+    // the way to one: the families that keep a decision-only Accept have no apply.
     for (const copy of Object.values(ATTRIBUTE_DECISION_COPY)) {
       expect(copy.summary.toLowerCase()).not.toMatch(
         /binding (was )?(created|added|removed)/,
       );
     }
-    expect(ATTRIBUTE_DECISION_COPY.ACCEPTED.summary).toMatch(/later step/);
+    expect(ATTRIBUTE_DECISION_COPY.ACCEPTED.summary).toMatch(
+      /nothing was changed/i,
+    );
   });
 });
 
@@ -857,6 +863,10 @@ describe("Attribute review queue dialog — data source", () => {
     expect(dialog).toContain("Decisions record a review outcome only");
     expect(dialog).toContain("no attribute data is modified");
     expect(dialog).toContain("attributeAcceptNotice()");
+    // And it no longer claims that nothing is created or changed here, which the
+    // combined control beside it would contradict.
+    expect(dialog).not.toContain("no binding, option");
+    expect(dialog).toContain("Accept &amp; Apply does both");
   });
 
   it('preserves the existing dialog structure and tabs', () => {
@@ -887,6 +897,11 @@ describe("Attribute review queue dialog — data source", () => {
     expect(dialog).toContain("<AttributeApplyIcon action={applyAction} />");
     expect(dialog).toContain('if (action === "CREATE_DEFINITION")');
     expect(dialog).not.toContain('applyAction === "ADD_BINDING" ? (\n');
+
+    // The confirmation's scope sentence is action-aware, because a creation is the
+    // one action here that does add a definition.
+    expect(dialog).toContain('pendingApply?.action === "CREATE_DEFINITION"');
+    expect(dialog).toContain("This adds one new attribute definition");
   });
 });
 
@@ -1216,9 +1231,11 @@ describe("Attribute review queue — apply eligibility", () => {
     expect(
       attributeApplyUnavailableReason(bindable(), false),
     ).toContain("Inventory.Update");
+    // A pending finding is offered through the combined "Accept & Apply" control,
+    // so it is not a dead end and has no reason to report.
     expect(
       attributeApplyUnavailableReason(bindable({ status: "PENDING" }), true),
-    ).toMatch(/accept this finding first/i);
+    ).toBeNull();
     expect(
       attributeApplyUnavailableReason(bindable({ status: "STALE" }), true),
     ).toMatch(/stale/i);
@@ -1242,10 +1259,67 @@ describe("Attribute review queue — apply eligibility", () => {
     expect(attributeApplyUnavailableReason(creatable(), true)).toBeNull();
   });
 
+  it('offers the combined control only for a pending, applicable, unapplied, writable finding', () => {
+    // The Component queue's primary card action is the model: a pending finding
+    // whose family has an implemented mutation is approved and carried out as one
+    // act, so the reviewer does not have to hunt for a second button afterwards.
+    expect(
+      canAcceptAndApplyAttributeFinding(bindable({ status: "PENDING" }), true),
+    ).toBe(true);
+    expect(
+      canAcceptAndApplyAttributeFinding(creatable({ status: "PENDING" }), true),
+    ).toBe(true);
+
+    // No write permission, no control.
+    expect(
+      canAcceptAndApplyAttributeFinding(bindable({ status: "PENDING" }), false),
+    ).toBe(false);
+
+    // Review-only families have nothing to apply, so they keep the decision-only
+    // Accept.
+    expect(
+      canAcceptAndApplyAttributeFinding(
+        finding({ issueType: "UNUSED_ATTRIBUTE", status: "PENDING" }),
+        true,
+      ),
+    ).toBe(false);
+
+    // An applied finding is done, and every other status is answered by the
+    // apply-only control.
+    expect(
+      canAcceptAndApplyAttributeFinding(
+        bindable({ status: "PENDING", applicationResult: "APPLIED" }),
+        true,
+      ),
+    ).toBe(false);
+    for (const status of ["ACCEPTED", "REJECTED", "DISMISSED", "STALE"] as const) {
+      expect(canAcceptAndApplyAttributeFinding(bindable({ status }), true)).toBe(
+        false,
+      );
+    }
+  });
+
+  it('labels the combined act the way the Component queue does', () => {
+    // Parity by wording: one act must not have two names across the two
+    // intelligence queues.
+    expect(ATTRIBUTE_ACCEPT_AND_APPLY_LABEL).toBe("Accept & Apply");
+
+    for (const action of [
+      "ADD_BINDING",
+      "REMOVE_BINDING",
+      "CREATE_DEFINITION",
+    ] as const) {
+      const title = attributeAcceptAndApplyTitle(action);
+      expect(title).toMatch(/accept this finding and apply it/i);
+      expect(title).toMatch(/record the review decision/i);
+      expect(title).toMatch(/library/);
+    }
+  });
+
   it('never claims a decision mutates, but may claim apply does', () => {
-    // The decision copy is unchanged: accepting still changes nothing. Only the
-    // apply copy is allowed to describe a library change.
-    expect(ATTRIBUTE_DECISION_COPY.ACCEPTED.summary).toMatch(/later step/i);
+    // Accepting still changes nothing, and it no longer reads as a step on the way
+    // to an apply either.
+    expect(ATTRIBUTE_DECISION_COPY.ACCEPTED.summary).not.toMatch(/later step/i);
     const confirmation = attributeApplyConfirmation({
       finding: bindable(),
       action: "ADD_BINDING",
@@ -1341,6 +1415,30 @@ describe("Attribute review queue — apply confirmation", () => {
     expect(confirmation.description).toContain("Electrical");
     // The definition and the category survive; only the link goes.
     expect(confirmation.description).toMatch(/kept/i);
+  });
+
+  it('records the decision in the confirmation only when the action accepts first', () => {
+    const combined = attributeApplyConfirmation({
+      finding: expectation(),
+      action: "ADD_BINDING",
+      acceptFirst: true,
+    });
+    expect(combined.subject).toContainEqual({
+      label: "Review decision",
+      value: "Accepted",
+    });
+    // The approval is listed after the subject it concerns, immediately before the
+    // action row the dialog appends.
+    expect(combined.subject.at(-1)?.label).toBe("Review decision");
+
+    // The apply-only path records no decision, so it must not claim one.
+    expect(
+      attributeApplyConfirmation({ finding: expectation(), action: "ADD_BINDING" })
+        .subject,
+    ).toEqual([
+      { label: "Attribute", value: "Voltage Rating" },
+      { label: "Category", value: "Electrical" },
+    ]);
   });
 
   it('summarises a completed application with the states the backend reported', () => {
@@ -1483,13 +1581,54 @@ describe("Attribute review queue dialog — apply flow", () => {
   });
 
   it('requires a confirmation before mutating', () => {
-    // The button only stages the intent; the mutation happens on confirm.
-    expect(dialog).toContain("setPendingApply({ finding, action: applyAction })");
+    // The buttons only stage the intent; the mutation happens on confirm.
+    expect(dialog).toContain("setPendingApply({");
     expect(dialog).toContain("onClick={() => void confirmApply()}");
     expect(dialog).toContain("attributeApplyConfirmation({");
     // The confirmation names a real subject, not an abstract target.
     expect(dialog).toContain("applyConfirmation.subject.map");
     expect(dialog).toContain("No attribute definition,");
+  });
+
+  it('offers the combined Accept & Apply control as the primary action', () => {
+    // Same act, same words, same icon as the Component queue's primary card action:
+    // a reviewer must not have to learn two vocabularies for one act.
+    expect(dialog).toContain("canAcceptAndApplyAttributeFinding(");
+    expect(dialog).toContain("ATTRIBUTE_ACCEPT_AND_APPLY_LABEL");
+    expect(dialog).toContain("attributeAcceptAndApplyTitle(applyAction)");
+    expect(dialog).toContain('<Sparkles className="size-3" />');
+    // Staged, not fired: the confirmation still stands between the reviewer and the
+    // library change.
+    expect(dialog).toContain("acceptFirst: true");
+    expect(dialog).toContain("acceptFirst: false");
+    // The decision-only Accept cannot double up beside it.
+    expect(dialog).toContain("canAccept && !showAcceptAndApply");
+  });
+
+  it('records the approval before the library changes, inside the confirmed handler', () => {
+    const lines = dialog.split("\n");
+    const start = lines.findIndex((line) =>
+      line.includes("const confirmApply = async"),
+    );
+    const end = lines.findIndex((line) =>
+      line.includes("const applyConfirmation = React.useMemo"),
+    );
+    const handler = lines.slice(start, end).join("\n");
+
+    // Decision first, apply second — the order the API requires.
+    const decision = handler.indexOf(
+      'buildAttributeDecisionPayload(finding, "ACCEPTED")',
+    );
+    const apply = handler.indexOf("attributeReviewQueueApi.applyFinding(");
+    expect(decision).toBeGreaterThan(-1);
+    expect(apply).toBeGreaterThan(decision);
+    expect(handler).toContain("if (acceptFirst)");
+
+    // Exactly one mutation call site in the whole dialog, so no card button can
+    // write to the library without going through the confirmation.
+    expect(
+      dialog.match(/attributeReviewQueueApi\.applyFinding\(/g),
+    ).toHaveLength(1);
   });
 
   it('offers the action-specific label on both the trigger and the confirm button', () => {
@@ -1518,18 +1657,19 @@ describe("Attribute review queue dialog — apply flow", () => {
     expect(dialog).toContain("attributeApplyConflictMessage(statusCode, err)");
     const lines = dialog.split("\n");
     const conflictIndex = lines.findIndex((line) =>
-      line.includes("if (statusCode === 409 || statusCode === 404)"),
+      line.includes("if (statusCode === 409 || statusCode === 404"),
     );
     expect(conflictIndex).toBeGreaterThan(-1);
-    // There are two such guards: one for decisions, one for apply. Both refresh.
+    // There are two such guards: one for decisions, one for apply. Both refresh,
+    // and the apply guard also refreshes when it recorded the approval first.
     expect(
       lines.filter((line) =>
-        line.includes("if (statusCode === 409 || statusCode === 404)"),
+        line.includes("if (statusCode === 409 || statusCode === 404"),
       ),
     ).toHaveLength(2);
   });
 
-  it('keeps Accept non-mutating: it never calls apply', () => {
+  it('keeps the decision-only Accept non-mutating: it never calls apply', () => {
     const lines = dialog.split("\n");
     const acceptIndex = lines.findIndex((line) =>
       line.includes('recordDecision(finding, "ACCEPTED")'),
@@ -1538,13 +1678,24 @@ describe("Attribute review queue dialog — apply flow", () => {
 
     const decisionHandler = lines.slice(0, acceptIndex).join("\n");
     // The decision handler is the only caller of recordDecision, and it must not
-    // have grown an apply call.
+    // have grown an apply call. The combined control is the one that mutates, and
+    // it does so through the confirmed apply handler instead.
     const recordStart = decisionHandler.lastIndexOf("const recordDecision = async");
     const recordBody = lines
       .slice(recordStart, lines.findIndex((line) => line.includes("const confirmApply = async")))
       .join("\n");
     expect(recordBody).not.toContain("applyFinding");
     expect(recordBody).not.toContain("apply-bindings");
+
+    // The combined control is reachable only from the render, and only through
+    // `setPendingApply` — never by calling the mutation inline.
+    const combined = lines.findIndex((line) =>
+      line.includes("acceptFirst: true"),
+    );
+    expect(combined).toBeGreaterThan(-1);
+    expect(lines.slice(combined - 4, combined + 3).join("\n")).toContain(
+      "setPendingApply({",
+    );
   });
 
   it('never routes apply through the legacy bulk endpoint', () => {

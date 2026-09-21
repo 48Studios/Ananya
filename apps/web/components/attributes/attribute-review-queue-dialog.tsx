@@ -41,9 +41,11 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth/auth-context";
 import {
+  ATTRIBUTE_ACCEPT_AND_APPLY_LABEL,
   ATTRIBUTE_DECISION_COPY,
   ATTRIBUTE_QUEUE_TABS,
   ATTRIBUTE_WRITE_PERMISSION,
+  attributeAcceptAndApplyTitle,
   attributeAcceptNotice,
   attributeApplyAction,
   attributeApplyActionTitle,
@@ -62,6 +64,7 @@ import {
   attributeStatusBadge,
   attributeStatusLabel,
   buildAttributeTabCounts,
+  canAcceptAndApplyAttributeFinding,
   canApplyAttributeFinding,
   canDecideAttributeFinding,
   confidenceBadgeStatus,
@@ -97,6 +100,11 @@ import {
  * "Run Library Audit" does that, and a decision records the review outcome without
  * changing any attribute data.
  *
+ * A finding whose family has an implemented mutation is offered as one act —
+ * "Accept & Apply" — which records the approval and then changes the library, in
+ * that order and only after the reviewer confirms it. Findings with no implemented
+ * mutation keep a decision-only "Accept", because there is nothing to apply.
+ *
  * This replaced the previous implementation, which recomputed the whole library
  * audit on every open, regenerated unstable ids (`audit-1`, `audit-2`, ...), and
  * labelled its primary action "Accept Binding" while the handler created a
@@ -124,7 +132,6 @@ const STATUS_FILTER_OPTIONS = [
   { value: "DISMISSED", label: "Dismissed" },
   { value: "STALE", label: "Stale" },
   { value: "PENDING,STALE", label: "Needs review + stale" },
-  { value: ALL_FILTER_VALUE, label: "All statuses" },
 ] as const;
 
 const CONFIDENCE_FILTER_OPTIONS = [
@@ -175,7 +182,7 @@ export function AttributeReviewQueueDialog({
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
 
   const [tab, setTab] = React.useState<AttributeQueueTabId>("ALL");
-  const [statusFilter, setStatusFilter] = React.useState<string>("PENDING");
+  const [statusFilter, setStatusFilter] = React.useState<string>("ALL");
   const [confidenceFilter, setConfidenceFilter] =
     React.useState(ALL_FILTER_VALUE);
   const [searchInput, setSearchInput] = React.useState("");
@@ -199,6 +206,12 @@ export function AttributeReviewQueueDialog({
   const [pendingApply, setPendingApply] = React.useState<{
     finding: AttributeReviewFindingDto;
     action: AttributeApplyAction;
+    /**
+     * Whether this act still has to record the review decision. True for the
+     * combined "Accept & Apply" control on a pending finding; false when the
+     * finding was accepted earlier and only the library change is left.
+     */
+    acceptFirst: boolean;
   } | null>(null);
   const [applying, setApplying] = React.useState(false);
 
@@ -363,12 +376,16 @@ export function AttributeReviewQueueDialog({
   };
 
   /**
-   * Applies an accepted finding to the attribute library.
+   * Applies a finding to the attribute library, recording the approval first when
+   * the reviewer used the combined control.
    *
-   * The only mutation this dialog can perform, and it is deliberately explicit:
-   * accepting records the review decision, applying changes the library. The
-   * backend re-checks the finding's expected state inside its transaction, so a
-   * refusal here (409) means the library moved and the finding was left untouched.
+   * The only mutation this dialog can perform, and it is deliberately explicit: the
+   * library is never changed without a recorded approval, so a pending finding is
+   * approved and applied as two ordered writes — decision first, then apply — which
+   * is also exactly what the API requires. An already-accepted finding skips
+   * straight to the apply. The backend re-checks the finding's expected state inside
+   * its transaction, so a refusal here (409) means the library moved and the finding
+   * was left untouched.
    *
    * On success the queue is re-read rather than patched in memory, so the row and
    * the counts come from the database, and the view moves off the "needs review"
@@ -376,11 +393,24 @@ export function AttributeReviewQueueDialog({
    */
   const confirmApply = async () => {
     if (!pendingApply) return;
-    const { finding, action } = pendingApply;
+    const { finding, action, acceptFirst } = pendingApply;
 
     setApplying(true);
     setStatusMessage(null);
+    /**
+     * Which half of the act is in flight, so a refusal is explained in the terms of
+     * the step that was refused, and so a failure after the approval was written is
+     * known to have moved the finding.
+     */
+    let step: "DECISION" | "APPLY" = acceptFirst ? "DECISION" : "APPLY";
     try {
+      if (acceptFirst) {
+        await attributeReviewQueueApi.recordDecision(
+          finding.id,
+          buildAttributeDecisionPayload(finding, "ACCEPTED"),
+        );
+        step = "APPLY";
+      }
       const result = await attributeReviewQueueApi.applyFinding(
         finding.id,
         buildAttributeApplyPayload(finding, action),
@@ -392,18 +422,26 @@ export function AttributeReviewQueueDialog({
       onActionComplete?.();
     } catch (err) {
       const statusCode = (err as { statusCode?: number })?.statusCode;
+      const approvalRecorded = acceptFirst && step === "APPLY";
       setPendingApply(null);
       setStatusMessage(
         (typeof statusCode === "number"
-          ? attributeApplyConflictMessage(statusCode, err)
+          ? step === "DECISION"
+            ? attributeDecisionConflictMessage(
+                statusCode,
+                err instanceof Error ? err.message : "",
+              )
+            : attributeApplyConflictMessage(statusCode, err)
           : null) ??
           (err instanceof Error
             ? err.message
             : "Failed to apply the finding."),
       );
       // A refusal means the stored finding or its target moved, so re-read instead
-      // of leaving the card offering an action that will fail again.
-      if (statusCode === 409 || statusCode === 404) {
+      // of leaving the card offering an action that will fail again — and always
+      // re-read once the approval has been recorded, because the finding is ACCEPTED
+      // from that point on and only the apply-only control may be offered.
+      if (statusCode === 409 || statusCode === 404 || approvalRecorded) {
         await loadQueue();
       }
     } finally {
@@ -424,6 +462,7 @@ export function AttributeReviewQueueDialog({
         ? attributeApplyConfirmation({
             finding: pendingApply.finding,
             action: pendingApply.action,
+            acceptFirst: pendingApply.acceptFirst,
           })
         : null,
     [pendingApply],
@@ -483,10 +522,10 @@ export function AttributeReviewQueueDialog({
           </div>
         )}
 
-        {/* Which review outcome an action records, and what it leaves alone. */}
+        {/* What each kind of action records, and what it changes. */}
         <p className="shrink-0 text-[11px] text-muted-foreground">
-          Decisions record a review outcome only — no binding, option,
-          definition, or component value is created or changed here.
+          Decisions record a review outcome only. Accept &amp; Apply does both: it
+          records the decision and then changes the attribute library.
         </p>
 
         {statusMessage && (
@@ -560,9 +599,12 @@ export function AttributeReviewQueueDialog({
                 className="h-8 min-w-[140px] flex-1 text-xs"
                 aria-label="Status filter"
               >
-                <SelectValue placeholder="Needs review" />
-              </SelectTrigger>
+                  <SelectValue placeholder="All statuses" />
+              </SelectTrigger> 
               <SelectContent className="p-1.5">
+                <SelectItem value={ALL_FILTER_VALUE} className="text-xs">
+                    All statuses
+                </SelectItem>
                 {STATUS_FILTER_OPTIONS.map((option) => (
                   <SelectItem
                     key={option.value}
@@ -658,11 +700,28 @@ export function AttributeReviewQueueDialog({
                */
               const applyAction = attributeApplyAction(finding);
               const applied = isAttributeFindingApplied(finding);
+              /**
+               * The combined control.
+               *
+               * A pending finding whose family has an implemented mutation is
+               * approved and carried out as one act, which is what the Component
+               * queue's primary card action does. Nothing about the API's rule
+               * changes: the approval is recorded first and the library second,
+               * through this dialog's confirmed apply path.
+               */
+              const showAcceptAndApply = canAcceptAndApplyAttributeFinding(
+                finding,
+                permissions.canApply,
+              );
               const showApplyButton =
+                !showAcceptAndApply &&
                 applyAction !== null &&
                 canApplyAttributeFinding(finding, permissions.canApply);
               const applyReason =
-                applyAction === null || showApplyButton || applied
+                applyAction === null ||
+                showAcceptAndApply ||
+                showApplyButton ||
+                applied
                   ? null
                   : attributeApplyUnavailableReason(
                       finding,
@@ -872,7 +931,49 @@ export function AttributeReviewQueueDialog({
                         </Button>
                       )}
 
-                      {permissions.canDecide && canAccept && (
+                      {/*
+                        The combined control.
+
+                        A pending finding whose family has an implemented mutation
+                        is approved and carried out in one act, mirroring the
+                        Component queue's primary action. The approval is still an
+                        explicit write — it is recorded before the library is
+                        touched, which is the order the API requires — so the single
+                        act is what the reviewer chose, not an implicit acceptance.
+                      */}
+                      {permissions.canDecide &&
+                        showAcceptAndApply &&
+                        applyAction && (
+                          <Button
+                            type="button"
+                            size="xs"
+                            disabled={inProgress || applying}
+                            onClick={() =>
+                              setPendingApply({
+                                finding,
+                                action: applyAction,
+                                acceptFirst: true,
+                              })
+                            }
+                            className="h-7 text-xs px-2.5 bg-primary text-primary-foreground hover:bg-primary/90 gap-1 font-medium"
+                            title={attributeAcceptAndApplyTitle(applyAction)}
+                          >
+                            {applying &&
+                            pendingApply?.finding.id === finding.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <Sparkles className="size-3" />
+                            )}
+                            {ATTRIBUTE_ACCEPT_AND_APPLY_LABEL}
+                          </Button>
+                        )}
+
+                      {/*
+                        Decision-only Accept, kept for the families with no
+                        implemented mutation: there is nothing to apply, so the
+                        finding is closed out by a decision that changes nothing.
+                      */}
+                      {permissions.canDecide && canAccept && !showAcceptAndApply && (
                         <Button
                           type="button"
                           size="xs"
@@ -907,7 +1008,13 @@ export function AttributeReviewQueueDialog({
                           size="xs"
                           variant="outline"
                           disabled={inProgress || applying}
-                          onClick={() => setPendingApply({ finding, action: applyAction })}
+                          onClick={() =>
+                            setPendingApply({
+                              finding,
+                              action: applyAction,
+                              acceptFirst: false,
+                            })
+                          }
                           className="h-7 text-xs px-2.5 border-primary/40 text-primary hover:bg-primary/10 gap-1 font-medium"
                           title={attributeApplyActionTitle(applyAction)}
                         >
@@ -1116,9 +1223,15 @@ export function AttributeReviewQueueDialog({
                 </span>
               </div>
             </div>
+            {/*
+              Scope of the change, stated per action: a creation is the one
+              action here that adds a definition, so the generic "nothing is
+              created" sentence would be false for it.
+            */}
             <p className="text-[11px] text-muted-foreground">
-              This updates the attribute library. No attribute definition,
-              category, or component value is created or deleted.
+              {pendingApply?.action === "CREATE_DEFINITION"
+                ? "This adds one new attribute definition to the library and binds it to the category. No component value is changed."
+                : "This updates the attribute library. No attribute definition, category, or component value is created or deleted."}
             </p>
           </div>
         </DialogShellBody>

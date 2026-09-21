@@ -257,7 +257,7 @@ export const ATTRIBUTE_DECISION_COPY: Record<
     action: "Accept",
     result: "Accepted",
     summary:
-      "Accepted for review. Nothing in the attribute library was changed — applying findings is a later step.",
+      "Accepted for review. Nothing was changed in the attribute library.",
   },
   REJECTED: {
     action: "Reject",
@@ -660,6 +660,39 @@ export function attributeApplyActionTitle(
   return ATTRIBUTE_APPLY_ACTION_TITLES[action];
 }
 
+/**
+ * The label on the combined "Accept & Apply" control.
+ *
+ * The same words the Component queue's primary action uses, because it is the same
+ * act: the reviewer approves the finding and it is carried out. Not a bare "Apply",
+ * which would hide the approval half of what happens.
+ */
+export const ATTRIBUTE_ACCEPT_AND_APPLY_LABEL = "Accept & Apply";
+
+/**
+ * The tooltip on the combined control, per action.
+ *
+ * Both halves are stated in the order they happen: the review decision is recorded
+ * first, then the named change is made — which is also the order the API requires.
+ */
+export const ATTRIBUTE_ACCEPT_AND_APPLY_TITLES: Record<
+  AttributeApplyAction,
+  string
+> = {
+  ADD_BINDING:
+    "Accept this finding and apply it: record the review decision, then bind the attribute to this category (changes the attribute library)",
+  REMOVE_BINDING:
+    "Accept this finding and apply it: record the review decision, then remove this binding from the category (changes the attribute library)",
+  CREATE_DEFINITION:
+    "Accept this finding and apply it: record the review decision, then create the expected attribute definition and bind it to this category (adds a new attribute to the library)",
+};
+
+export function attributeAcceptAndApplyTitle(
+  action: AttributeApplyAction,
+): string {
+  return ATTRIBUTE_ACCEPT_AND_APPLY_TITLES[action];
+}
+
 export function isAttributeFindingApplied(
   finding: Pick<AttributeReviewFindingDto, "applicationResult">,
 ): boolean {
@@ -667,12 +700,14 @@ export function isAttributeFindingApplied(
 }
 
 /**
- * Whether the UI should offer Apply for this finding.
+ * Whether the UI should offer the apply-only control for this finding.
  *
- * Three conditions, all required: the family has an implemented mutation, the
- * finding is ACCEPTED (acceptance is the reviewer's approval, applying is a
- * separate act), and it has not already been applied. The backend enforces the
- * same rules and more (expected state, target validity), so this is an
+ * Requiring ACCEPTED is the API's own rule: the attribute library is never
+ * mutated without a recorded approval. A finding whose decision is still
+ * outstanding is offered through {@link canAcceptAndApplyAttributeFinding}
+ * instead, which records the approval first. The other two conditions are an
+ * implemented mutation for the family and no prior application. The backend
+ * enforces all of this and more (expected state, target validity), so this is an
  * affordance rather than the authority — a finding that looks applicable here
  * can still be refused.
  */
@@ -687,6 +722,34 @@ export function canApplyAttributeFinding(
   if (attributeApplyAction(finding) === null) return false;
   if (isAttributeFindingApplied(finding)) return false;
   return finding.status === "ACCEPTED";
+}
+
+/**
+ * Whether the UI should offer the combined "Accept & Apply" control.
+ *
+ * Mirrors the Component queue's primary card action: a PENDING finding whose
+ * family has an implemented mutation is approved and carried out as one act, so
+ * the reviewer does not have to accept and then hunt for a second button. The
+ * approval is still recorded explicitly — the queue records the decision first and
+ * only then applies it, because the API refuses to mutate the library for an
+ * unreviewed finding; the combined control is what makes the approval part of the
+ * same act.
+ *
+ * Review-only families, already-applied findings, and every status other than
+ * PENDING are excluded: those are answered by the apply-only control, which the
+ * reviewer reaches once the approval exists.
+ */
+export function canAcceptAndApplyAttributeFinding(
+  finding: Pick<
+    AttributeReviewFindingDto,
+    "issueType" | "status" | "applicationResult" | "attributeDefinitionId" | "suggestedValue"
+  >,
+  canWriteAttributes: boolean,
+): boolean {
+  if (!canWriteAttributes) return false;
+  if (attributeApplyAction(finding) === null) return false;
+  if (isAttributeFindingApplied(finding)) return false;
+  return finding.status === "PENDING";
 }
 
 /**
@@ -713,12 +776,10 @@ export function attributeApplyUnavailableReason(
   if (!canWriteAttributes) {
     return `Applying a finding changes the attribute library, which requires the ${ATTRIBUTE_WRITE_PERMISSION} permission. You can still accept or reject this finding as a review decision.`;
   }
-  // Offered: the only status that can apply, with an implemented action and no
-  // prior application, has no reason to report.
-  if (finding.status === "ACCEPTED") return null;
-  if (finding.status === "PENDING") {
-    return "Accept this finding first. Accepting records your approval; applying is a separate, explicit step.";
-  }
+  // Offered: ACCEPTED applies through the apply-only control, and PENDING through
+  // the combined "Accept & Apply" control, which records the approval as part of
+  // the same act — so neither status has a reason to report.
+  if (finding.status === "ACCEPTED" || finding.status === "PENDING") return null;
   if (finding.status === "STALE") {
     return "This finding is stale. Re-run the library audit to refresh it before applying.";
   }
@@ -878,18 +939,32 @@ export interface AttributeApplyConfirmation {
  * default unit, options, group — field by field from the persisted proposal. A
  * reviewer approving a new attribute must see exactly what will exist afterwards, and
  * any field the producer did not declare is shown as missing rather than defaulted.
+ *
+ * `acceptFirst` is set by the combined "Accept & Apply" control, which still has to
+ * record the approval before the library may change. The confirmation then carries
+ * the recorded decision as a subject row, so a reviewer confirming one act can see
+ * both halves of it.
  */
 export function attributeApplyConfirmation(input: {
   finding: AttributeReviewFindingDto;
   action: AttributeApplyAction;
+  /**
+   * Whether confirming also records the finding as accepted, as the combined
+   * "Accept & Apply" control does for a pending finding.
+   */
+  acceptFirst?: boolean;
 }): AttributeApplyConfirmation {
-  const { finding, action } = input;
+  const { finding, action, acceptFirst = false } = input;
   const { attributeName, categoryName } = attributeApplySubject(finding);
 
   const subject = [
     { label: "Attribute", value: attributeName },
     { label: "Category", value: categoryName },
   ];
+
+  const decisionRows = acceptFirst
+    ? [{ label: "Review decision", value: "Accepted" }]
+    : [];
 
   if (action === "CREATE_DEFINITION") {
     const proposal = attributeDefinitionProposal(finding);
@@ -909,6 +984,7 @@ export function attributeApplyConfirmation(input: {
       { label: "Default unit", value: proposal.defaultUnit ?? "None" },
       { label: "Options", value: optionSummary },
       { label: "Group", value: proposal.groupName ?? "None" },
+      ...decisionRows,
     ];
 
     const warning = proposal.complete
@@ -929,7 +1005,7 @@ export function attributeApplyConfirmation(input: {
       title: "Add attribute binding?",
       description: `This will bind "${attributeName}" to "${categoryName}", making the attribute available to this category. The binding is applied to the stored attribute library now.`,
       confirmLabel: "Add Binding",
-      subject,
+      subject: [...subject, ...decisionRows],
       destructive: false,
     };
   }
@@ -938,7 +1014,7 @@ export function attributeApplyConfirmation(input: {
     title: "Remove attribute binding?",
     description: `This will remove the binding between "${attributeName}" and "${categoryName}", so the attribute will no longer be available to this category. The attribute and the category are kept; component values are not changed.`,
     confirmLabel: "Remove Binding",
-    subject,
+    subject: [...subject, ...decisionRows],
     destructive: true,
   };
 }
