@@ -69,10 +69,6 @@ export function resolveAttributeApplyRule(
   return ATTRIBUTE_APPLY_RULES[issueType as AttributeReviewIssueType] ?? null;
 }
 
-export function isApplicableAttributeFindingType(issueType: string): boolean {
-  return resolveAttributeApplyRule(issueType) !== null;
-}
-
 /**
  * The action a specific finding applies, or `null` when none can be justified.
  *

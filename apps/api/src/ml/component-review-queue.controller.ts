@@ -33,8 +33,24 @@ import { ConsolidationExecutionRequestDto } from './component-consolidation/comp
  *
  * The queue is a persisted review workflow, so every route that changes
  * persisted state is protected by {@link ComponentWriteGuard} (authenticated
- * session + `Inventory.Update`). The two `GET` routes stay open, matching the
- * rest of the API's read endpoints.
+ * session + `Inventory.Update`).
+ *
+ * **Known inconsistency, recorded rather than hidden (Pass 6C, re-verified Pass 8).**
+ * The two `GET` routes are unguarded. Their original justification — "matching the
+ * rest of the API's read endpoints" — is no longer true: the Attribute review queue
+ * guards its equivalent reads with `AttributeReadGuard` (`Inventory.Read`), and so do
+ * `/components`, `/attributes` and `/documents`. This is therefore the one read
+ * surface in the intelligence subsystem that an anonymous caller can reach. It is
+ * read-only (no mutation path exists on either route), it predates every guarded
+ * surface in this controller, and it is pinned by an integration test that asserts
+ * anonymous `200` (`component-review-write-auth.integration-spec.ts`), so changing it
+ * is a permission-posture decision for a security pass rather than a defect fix here.
+ *
+ * What it exposes: persisted findings including component SKU and name, issue types,
+ * evidence, suggested values, and the `reviewerId`/`reviewerEmail` columns — null
+ * until a human records a decision, and a real principal's email afterwards. Closing
+ * it is the recommended first item of the next security pass; the change is a read
+ * guard on both routes plus an update to the test that pins the current behaviour.
  *
  * Reviewer identity always comes from the authenticated principal
  * (`request.user`), never from the request body.

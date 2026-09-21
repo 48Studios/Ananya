@@ -372,7 +372,21 @@ describe('Specification Intelligence (component level)', () => {
       .field('title', `${runTag} ${filename}`)
       .attach('file', bytes, { filename, contentType: 'application/pdf' });
 
-    expect(response.status).toBe(201);
+    // Status AND body, plus whether a token was actually attached. A bare
+    // `toBe(201)` cannot distinguish "no token reached the guard" from "the session
+    // lookup failed", and this suite has produced one unreproduced 401 in a full
+    // 23-suite run (see the suite header). Pass 6B adopted this convention for an
+    // equally rare 404; without the body the next occurrence is undiagnosable.
+    expect({
+      status: response.status,
+      body: JSON.stringify(response.body),
+      tokenPresent: writerToken.length > 0,
+    }).toEqual({
+      status: 201,
+      body: JSON.stringify(response.body),
+      tokenPresent: true,
+    });
+
     const id = body<{ id: string }>(response).id;
     createdDocumentIds.push(id);
     return id;

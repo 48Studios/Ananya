@@ -46,3 +46,4 @@ Thumbs.db
 .turbo
 /test-results
 /playwright-report
+/apps/api/uploads
