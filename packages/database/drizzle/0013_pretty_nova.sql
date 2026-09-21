@@ -1,0 +1,1 @@
+ALTER TABLE "component_attribute_values" ADD COLUMN "provenance" jsonb;

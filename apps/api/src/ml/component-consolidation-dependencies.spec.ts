@@ -113,8 +113,46 @@ describe('Component dependency registry (Pass 6A, extended in Pass 6B)', () => {
       expect(registered).toContain(reference);
     }
 
+    // Pass 2 (Documentation Intelligence) added a real foreign key from
+    // `document_intelligence_analyses` to `components.id`. It is registered for
+    // the same reason: an unregistered component reference must fail closed.
+    const DOCUMENTATION_INTELLIGENCE_REFERENCES = [
+      'document_intelligence_analyses.component_id',
+    ];
+    for (const reference of DOCUMENTATION_INTELLIGENCE_REFERENCES) {
+      expect(registered).toContain(reference);
+    }
+
     expect(registered).toHaveLength(
-      PHASE_0_FK_REFERENCES.length + CONSOLIDATION_OWNED_REFERENCES.length,
+      PHASE_0_FK_REFERENCES.length +
+        CONSOLIDATION_OWNED_REFERENCES.length +
+        DOCUMENTATION_INTELLIGENCE_REFERENCES.length,
+    );
+  });
+
+  it('treats datasheet analysis evidence as a supported repoint', () => {
+    // An analysis describes a component's documentation now, so it follows the
+    // surviving component exactly as the document it analysed does. It keeps its
+    // document id, version and content hash, so it still identifies the exact
+    // bytes it read.
+    const analyses = ALL_DEPENDENCY_ADAPTERS.find(
+      (entry) => entry.id === 'document_intelligence_analyses',
+    );
+    expect(analyses).toBeDefined();
+    expect(analyses!.classification).toBe('MUST_REPOINT');
+    expect(analyses!.executionSupport).toBe('SUPPORTED');
+    expect(analyses!.temporality).toBe('CURRENT');
+    expect(analyses!.tables).toEqual([
+      { table: 'document_intelligence_analyses', column: 'component_id' },
+    ]);
+    expect(analyses!.supportNote).toMatch(/content hash/i);
+  });
+
+  it('has a registered identity for every reference the live database exposes', () => {
+    // The adapter ids must stay unique and discoverable by id, because
+    // consolidation and the coverage check resolve them that way.
+    expect(isRegisteredDependencyId('document_intelligence_analyses')).toBe(
+      true,
     );
   });
 
@@ -299,12 +337,13 @@ describe('Component dependency registry (Pass 6A, extended in Pass 6B)', () => {
   });
 
   it('counts the expected dependency surface', () => {
-    // 36 FK tables / 37 columns: the 33 tables Phase 0 discovered (34 columns,
+    // 37 FK tables / 38 columns: the 33 tables Phase 0 discovered (34 columns,
     // because findings carry both sides of a pair and two tables reference
     // components through a `product_id` column), plus the 3 consolidation-owned
-    // references added in Pass 6B. Plus 4 polymorphic systems.
-    expect(COMPONENT_DEPENDENCY_ADAPTERS).toHaveLength(36);
+    // references added in Pass 6B, plus the documentation intelligence analysis
+    // reference added in Pass 2. Plus 4 polymorphic systems.
+    expect(COMPONENT_DEPENDENCY_ADAPTERS).toHaveLength(37);
     expect(POLYMORPHIC_DEPENDENCY_ADAPTERS).toHaveLength(4);
-    expect(ALL_DEPENDENCY_ADAPTERS).toHaveLength(40);
+    expect(ALL_DEPENDENCY_ADAPTERS).toHaveLength(41);
   });
 });

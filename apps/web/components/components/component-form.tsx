@@ -570,7 +570,7 @@ export function ComponentForm({
       ...prev,
       ...Object.fromEntries(
         Object.entries(attrs)
-          .filter(([code, attrRaw]) => {
+          .filter(([, attrRaw]) => {
             const attr = attrRaw as {
               attributeDefinitionId?: string | null;
               resolution?: "RESOLVED" | "UNRESOLVED";
@@ -839,7 +839,7 @@ export function ComponentForm({
               {...register("manufacturerPartNumber")}
               className="font-mono"
             />
-            <FieldDescription>Manufacturer identity, separate from Ananya's internal SKU.</FieldDescription>
+            <FieldDescription>Manufacturer identity, separate from the internal SKU.</FieldDescription>
           </Field>
 
           {/* Unit */}

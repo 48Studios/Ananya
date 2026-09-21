@@ -1,4 +1,4 @@
-import { db } from '@ananya/database';
+import { db, type DbExecutor } from '@ananya/database';
 import { units } from '@ananya/database/schema';
 import type { Unit, UnitRepository } from '@ananya/inventory';
 import { eq } from '@ananya/database/query';
@@ -35,8 +35,9 @@ function toRow(unit: Unit): Omit<UnitRow, 'id' | 'createdAt' | 'updatedAt'> {
 }
 
 export class DrizzleUnitRepository implements UnitRepository {
+  constructor(private readonly client: DbExecutor = db) {}
   async findById(id: string): Promise<Unit | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(units)
       .where(eq(units.id, id))
@@ -46,7 +47,7 @@ export class DrizzleUnitRepository implements UnitRepository {
   }
 
   async findByName(name: string): Promise<Unit | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(units)
       .where(eq(units.name, name))
@@ -56,7 +57,7 @@ export class DrizzleUnitRepository implements UnitRepository {
   }
 
   async findByCategory(category: string): Promise<Unit[]> {
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(units)
       .where(eq(units.category, category));
@@ -65,13 +66,16 @@ export class DrizzleUnitRepository implements UnitRepository {
   }
 
   async findMany(): Promise<Unit[]> {
-    const rows = await db.select().from(units).orderBy(units.name);
+    const rows = await this.client.select().from(units).orderBy(units.name);
 
     return rows.map(toDomain);
   }
 
   async save(unit: Unit): Promise<Unit> {
-    const [row] = await db.insert(units).values(toRow(unit)).returning();
+    const [row] = await this.client
+      .insert(units)
+      .values(toRow(unit))
+      .returning();
 
     if (!row) {
       throw new Error('Failed to create unit');
@@ -81,7 +85,7 @@ export class DrizzleUnitRepository implements UnitRepository {
   }
 
   async update(unit: Unit): Promise<Unit> {
-    const [row] = await db
+    const [row] = await this.client
       .update(units)
       .set({
         name: unit.name,
@@ -105,6 +109,6 @@ export class DrizzleUnitRepository implements UnitRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await db.delete(units).where(eq(units.id, id));
+    await this.client.delete(units).where(eq(units.id, id));
   }
 }

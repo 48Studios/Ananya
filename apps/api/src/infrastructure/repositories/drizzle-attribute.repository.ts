@@ -23,8 +23,10 @@ import {
 } from '@ananya/inventory';
 
 export class DrizzleAttributeDefinitionRepository implements AttributeDefinitionRepository {
+  constructor(private readonly client: DbExecutor = db) {}
+
   async findById(id: string): Promise<AttributeDefinition | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(attributeDefinitions)
       .where(eq(attributeDefinitions.id, id))
@@ -51,7 +53,7 @@ export class DrizzleAttributeDefinitionRepository implements AttributeDefinition
   }
 
   async findByCode(code: string): Promise<AttributeDefinition | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(attributeDefinitions)
       .where(eq(attributeDefinitions.code, code))
@@ -78,7 +80,7 @@ export class DrizzleAttributeDefinitionRepository implements AttributeDefinition
   }
 
   async findMany(): Promise<AttributeDefinition[]> {
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(attributeDefinitions)
       .orderBy(attributeDefinitions.sortOrder, attributeDefinitions.name);
@@ -105,7 +107,7 @@ export class DrizzleAttributeDefinitionRepository implements AttributeDefinition
   }
 
   async save(def: AttributeDefinition): Promise<AttributeDefinition> {
-    const [row] = await db
+    const [row] = await this.client
       .insert(attributeDefinitions)
       .values({
         id: def.id,
@@ -148,7 +150,7 @@ export class DrizzleAttributeDefinitionRepository implements AttributeDefinition
   }
 
   async update(def: AttributeDefinition): Promise<AttributeDefinition> {
-    const [row] = await db
+    const [row] = await this.client
       .update(attributeDefinitions)
       .set({
         name: def.name,
@@ -190,15 +192,17 @@ export class DrizzleAttributeDefinitionRepository implements AttributeDefinition
   }
 
   async delete(id: string): Promise<void> {
-    await db
+    await this.client
       .delete(attributeDefinitions)
       .where(eq(attributeDefinitions.id, id));
   }
 }
 
 export class DrizzleAttributeOptionRepository implements AttributeOptionRepository {
+  constructor(private readonly client: DbExecutor = db) {}
+
   async findById(id: string): Promise<AttributeOption | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(attributeOptions)
       .where(eq(attributeOptions.id, id))
@@ -218,7 +222,7 @@ export class DrizzleAttributeOptionRepository implements AttributeOptionReposito
   }
 
   async findByDefinitionId(definitionId: string): Promise<AttributeOption[]> {
-    const rows = await db
+    const rows = await this.client
       .select()
       .from(attributeOptions)
       .where(eq(attributeOptions.attributeDefinitionId, definitionId))
@@ -242,7 +246,7 @@ export class DrizzleAttributeOptionRepository implements AttributeOptionReposito
     definitionId: string,
     code: string,
   ): Promise<AttributeOption | null> {
-    const [row] = await db
+    const [row] = await this.client
       .select()
       .from(attributeOptions)
       .where(
@@ -267,7 +271,7 @@ export class DrizzleAttributeOptionRepository implements AttributeOptionReposito
   }
 
   async save(option: AttributeOption): Promise<AttributeOption> {
-    const [row] = await db
+    const [row] = await this.client
       .insert(attributeOptions)
       .values({
         id: option.id,
@@ -296,7 +300,7 @@ export class DrizzleAttributeOptionRepository implements AttributeOptionReposito
   }
 
   async update(option: AttributeOption): Promise<AttributeOption> {
-    const [row] = await db
+    const [row] = await this.client
       .update(attributeOptions)
       .set({
         label: option.label,
@@ -323,7 +327,9 @@ export class DrizzleAttributeOptionRepository implements AttributeOptionReposito
   }
 
   async delete(id: string): Promise<void> {
-    await db.delete(attributeOptions).where(eq(attributeOptions.id, id));
+    await this.client
+      .delete(attributeOptions)
+      .where(eq(attributeOptions.id, id));
   }
 }
 
@@ -474,7 +480,6 @@ export class DrizzleCategoryAttributeRepository implements CategoryAttributeRepo
 
 export class DrizzleComponentAttributeRepository implements ComponentAttributeRepository {
   constructor(private readonly client: DbExecutor = db) {}
-
   async findByComponentId(
     componentId: string,
   ): Promise<ComponentAttributeValue[]> {
@@ -576,6 +581,7 @@ export class DrizzleComponentAttributeRepository implements ComponentAttributeRe
           optionId: v.optionId ?? null,
           selectedOptionIds: v.selectedOptionIds ?? null,
           jsonValue: v.jsonValue ?? null,
+          provenance: v.provenance ?? null,
           createdAt: v.createdAt,
           updatedAt: v.updatedAt,
         })
@@ -601,6 +607,9 @@ export class DrizzleComponentAttributeRepository implements ComponentAttributeRe
             optionId: v.optionId ?? null,
             selectedOptionIds: v.selectedOptionIds ?? null,
             jsonValue: v.jsonValue ?? null,
+            // Overwritten on every write, so a value a human replaced cannot
+            // keep pointing at the datasheet that produced the old value.
+            provenance: v.provenance ?? null,
             updatedAt: new Date(),
           },
         })

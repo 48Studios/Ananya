@@ -238,7 +238,7 @@ describe("Component Review Queue filters", () => {
     // DATA_QUALITY keeps a label but is not filterable: the backend emits no
     // findings in that category yet.
     expect(ISSUE_CATEGORY_FILTER_OPTIONS.map((option) => option.value)).toEqual(
-      ["IDENTITY", "CLASSIFICATION", "DUPLICATE"],
+      ["IDENTITY", "CLASSIFICATION", "ATTRIBUTE_VALUE", "DUPLICATE"],
     );
     expect(ISSUE_CATEGORY_LABELS.DATA_QUALITY).toBe("Data Quality");
 
@@ -251,6 +251,7 @@ describe("Component Review Queue filters", () => {
       "CATEGORY_CONFLICT",
       "EXACT_DUPLICATE",
       "POTENTIAL_DUPLICATE",
+      "ATTRIBUTE_VALUE_SUGGESTION",
     ]);
     expect(CONFIDENCE_FILTER_OPTIONS.map((option) => option.value)).toEqual([
       "HIGH",
@@ -1110,6 +1111,7 @@ describe("Component Review Queue tabs", () => {
       "ALL",
       "IDENTITY",
       "CLASSIFICATION",
+      "ATTRIBUTES",
       "DUPLICATES",
       "STALE",
     ]);
@@ -1120,12 +1122,15 @@ describe("Component Review Queue tabs", () => {
   it("groups findings by issue category", () => {
     const identity = buildFinding({ issueCategory: "IDENTITY" });
     const classification = buildFinding({ issueCategory: "CLASSIFICATION" });
+    const attributeValue = buildFinding({ issueCategory: "ATTRIBUTE_VALUE" });
     const duplicate = buildFinding({ issueCategory: "DUPLICATE" });
 
     expect(matchesQueueTab(identity, "ALL")).toBe(true);
     expect(matchesQueueTab(identity, "IDENTITY")).toBe(true);
     expect(matchesQueueTab(identity, "CLASSIFICATION")).toBe(false);
     expect(matchesQueueTab(classification, "CLASSIFICATION")).toBe(true);
+    expect(matchesQueueTab(attributeValue, "ATTRIBUTES")).toBe(true);
+    expect(matchesQueueTab(attributeValue, "IDENTITY")).toBe(false);
     expect(matchesQueueTab(duplicate, "DUPLICATES")).toBe(true);
   });
 
@@ -1150,12 +1155,14 @@ describe("Component Review Queue tabs", () => {
         status: "STALE",
       }),
       buildFinding({ id: "d", issueCategory: "DUPLICATE" }),
+      buildFinding({ id: "e", issueCategory: "ATTRIBUTE_VALUE" }),
     ];
 
     expect(buildQueueTabCounts(items)).toEqual({
-      ALL: 4,
+      ALL: 5,
       IDENTITY: 1,
       CLASSIFICATION: 2,
+      ATTRIBUTES: 1,
       DUPLICATES: 1,
       STALE: 1,
     });
@@ -1166,6 +1173,7 @@ describe("Component Review Queue tabs", () => {
       ALL: 0,
       IDENTITY: 0,
       CLASSIFICATION: 0,
+      ATTRIBUTES: 0,
       DUPLICATES: 0,
       STALE: 0,
     });

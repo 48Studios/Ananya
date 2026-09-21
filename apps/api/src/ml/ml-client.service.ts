@@ -26,6 +26,43 @@ export interface MlPredictCategoryItem {
   evidence?: EvidenceItemDto[];
 }
 
+/**
+ * Evidence as emitted by the ML service.
+ *
+ * `page` and `text` are produced only by the datasheet extractor (Pass 2): the
+ * page the value was read from and the verbatim excerpt that produced it. Every
+ * other producer leaves them unset, and this contract never invents them.
+ */
+export interface MlEvidenceItem {
+  type: string;
+  description: string;
+  weight: number;
+  source?: string | null;
+  page?: number | null;
+  text?: string | null;
+}
+
+/** One attribute as extracted from a datasheet by the ML extractor. */
+export interface MlExtractedAttribute {
+  code: string;
+  value: string | number | boolean | null;
+  unit?: string | null;
+  formatted: string;
+  confidence: number;
+  confidence_level?: 'HIGH' | 'MEDIUM' | 'LOW';
+  evidence?: MlEvidenceItem[];
+}
+
+/** Versioned payload returned by `POST /v1/extract/datasheet`. */
+export interface MlDatasheetExtractionResponse {
+  attributes: Record<string, MlExtractedAttribute>;
+  extracted_text_preview?: string | null;
+  extracted_text?: string | null;
+  page_count?: number | null;
+  pages_analyzed?: number | null;
+  extractor_version?: string | null;
+}
+
 export interface MlSuggestResponse {
   category_predictions: MlPredictCategoryItem[];
   manufacturer: {
@@ -171,11 +208,21 @@ export class MlClientService {
     }
   }
 
+  /**
+   * Calls the datasheet extraction endpoint.
+   *
+   * Returns the whole versioned extraction payload (attributes, evidence with
+   * page/excerpt, extracted text, page counts, extractor version) rather than
+   * just the attribute map: Documentation Intelligence needs the text to feed
+   * the existing identity/category intelligence and the evidence to justify a
+   * reviewer's decision. Returns `null` when the ML service is disabled or the
+   * call fails — the caller treats that as an explicit analysis failure.
+   */
   async extractDatasheet(payload: {
     text?: string;
     pdf_base64?: string;
     datapack_hints?: unknown[];
-  }): Promise<Record<string, unknown> | null> {
+  }): Promise<MlDatasheetExtractionResponse | null> {
     if (!this.isEnabled) return null;
 
     try {
@@ -186,11 +233,28 @@ export class MlClientService {
         signal: AbortSignal.timeout(this.timeoutMs * 2),
       });
 
-      if (!res.ok) return null;
-      const data = (await res.json()) as {
-        attributes?: Record<string, unknown>;
-      };
-      return data.attributes || null;
+      if (!res.ok) {
+        this.logger.warn(
+          `ananya-ml datasheet extraction returned HTTP status ${res.status}`,
+        );
+        return null;
+      }
+
+      const data = (await res.json()) as Record<string, unknown>;
+
+      // A response without an attributes map is not a usable extraction.
+      if (
+        typeof data.attributes !== 'object' ||
+        data.attributes === null ||
+        Array.isArray(data.attributes)
+      ) {
+        this.logger.warn(
+          'ananya-ml datasheet extraction returned no attributes map.',
+        );
+        return null;
+      }
+
+      return data as unknown as MlDatasheetExtractionResponse;
     } catch (err: unknown) {
       const errMsg = formatFetchError(err);
       this.logger.warn(`Datasheet extraction failed: ${errMsg}`);

@@ -214,6 +214,20 @@ export const componentAttributeValues = pgTable(
 
     jsonValue: jsonb("json_value"),
 
+    /**
+     * Why this value exists, when it was not typed by a human.
+     *
+     * Documentation Intelligence (Pass 3) records the datasheet, revision,
+     * content hash, page, excerpt, extraction method, review finding and
+     * reviewer for values a person applied from a document. The column is
+     * additive and nullable: a manual edit writes `null`, because the provenance
+     * of the previous value no longer describes the value now stored.
+     *
+     * Kept on the value row rather than in a side table so the question "why
+     * does this component have this value?" is answered by one row read.
+     */
+    provenance: jsonb("provenance").$type<Record<string, unknown> | null>(),
+
     createdAt: timestamp("created_at", {
       withTimezone: true,
     })

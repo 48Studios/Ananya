@@ -32,6 +32,7 @@ export class SaveComponentAttributes {
   public async execute(
     componentId: string,
     inputs: ComponentAttributeInput[],
+    provenance?: Record<string, unknown> | null,
   ): Promise<ComponentAttributeValue[]> {
     const valuesToUpsert: ComponentAttributeValue[] = [];
 
@@ -223,6 +224,9 @@ export class SaveComponentAttributes {
             unit: unitValue,
             optionId,
             selectedOptionIds,
+            // Written explicitly, including when absent: a value typed by a
+            // human must not keep the provenance of the value it replaced.
+            provenance: provenance ?? null,
           }),
         );
       }

@@ -6,6 +6,17 @@ class EvidenceItem(BaseModel):
     description: str
     weight: float = 1.0
     source: Optional[str] = None
+    # Datasheet extraction (Pass 2): the page the value was read from and the
+    # normalized excerpt of that page's text that produced it. Optional because
+    # only the datasheet extractor can locate a value in a document; every other
+    # producer leaves them unset rather than inventing a location.
+    page: Optional[int] = None
+    text: Optional[str] = None
+    # Datasheet extraction (Pass 4): the datasheet section the value was found in,
+    # e.g. "ELECTRICAL_CHARACTERISTICS". A closed vocabulary mirrored by the API,
+    # which turns it into an evidence role. Unset when the extractor could not
+    # identify the section, so evidence is never promoted on a guess.
+    section: Optional[str] = None
 
 class DataPackManufacturerHint(BaseModel):
     name: str
@@ -162,6 +173,13 @@ class ExtractDatasheetRequest(BaseModel):
 class ExtractDatasheetResponse(BaseModel):
     attributes: Dict[str, ExtractedAttribute]
     extracted_text_preview: Optional[str] = None
+    # Pass 2 additions. `extracted_text` is the document text the extractor
+    # actually read (bounded), so a caller can feed the same bytes into the
+    # existing identity/category intelligence without a second PDF pass.
+    extracted_text: Optional[str] = None
+    page_count: Optional[int] = None
+    pages_analyzed: Optional[int] = None
+    extractor_version: Optional[str] = None
 
 class SuggestComponentRequest(BaseModel):
     query: str

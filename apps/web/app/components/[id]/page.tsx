@@ -24,6 +24,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { ComponentForm } from "@/components/components/component-form";
 import { ManageComponentSpecificationsDialog } from "@/components/components/manage-component-specifications-dialog";
+import { DocumentationPanel } from "@/components/documentation/documentation-panel";
+import { ComponentSpecificationIntelligencePanel } from "@/components/documentation/component-specification-intelligence-panel";
 import { PrintLabelDialog } from "@/components/barcodes/print-label-dialog";
 import { cn } from "@/lib/utils";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
@@ -747,6 +749,14 @@ export default function ViewComponentPage() {
           </div>
         )}
       </div>
+
+      {/* Specification Intelligence: what the component's documents say about it */}
+      <div className="rounded-xl border border-border bg-card p-4">
+        <ComponentSpecificationIntelligencePanel componentId={component.id} />
+      </div>
+
+      {/* Documentation Section */}
+      <DocumentationPanel entityType="Component" entityId={component.id} />
 
       {/* Edit Form Modal */}
       <DialogShell

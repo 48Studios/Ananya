@@ -18,7 +18,7 @@ function buildContext(request: AuthenticatedRequest): ExecutionContext {
 }
 
 describe('ComponentWriteGuard', () => {
-  let guard: ComponentWriteGuard;
+  let guard: InstanceType<typeof ComponentWriteGuard>;
   let getMeByToken: jest.Mock;
 
   const activeUser = {

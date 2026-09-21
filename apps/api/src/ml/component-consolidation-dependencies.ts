@@ -834,6 +834,29 @@ export const COMPONENT_DEPENDENCY_ADAPTERS: readonly ComponentDependencyAdapter[
         ),
     }),
 
+    adapter({
+      id: 'document_intelligence_analyses',
+      label: 'Datasheet analysis evidence',
+      tables: [
+        {
+          table: 'document_intelligence_analyses',
+          column: 'component_id',
+        },
+      ],
+      classification: 'MUST_REPOINT',
+      executionSupport: 'SUPPORTED',
+      temporality: 'CURRENT',
+      supportNote:
+        'An analysis is evidence about a component’s documentation now, so it follows the surviving component exactly as the document it analysed does. The analysis keeps its document id, version and content hash, so it still identifies the exact bytes it read; only the owning component changes.',
+      analyze: (componentId, executor) =>
+        countComponentRows(
+          'document_intelligence_analyses',
+          'component_id',
+          componentId,
+          executor,
+        ),
+    }),
+
     // --- Consolidation records (owned by this feature) ----------------------
     adapter({
       id: 'components_consolidated_into',

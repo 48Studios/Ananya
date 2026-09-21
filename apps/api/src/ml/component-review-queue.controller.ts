@@ -51,7 +51,16 @@ export class ComponentReviewQueueController {
 
   @Get()
   listFindings(@Query() query: ListComponentFindingsQueryDto) {
-    return this.reviewQueueService.listFindings(query);
+    // `actionable` arrives as a query string; the service works in booleans.
+    // Converted here rather than in the service so the domain contract stays
+    // typed and the HTTP layer owns its own representation.
+    return this.reviewQueueService.listFindings({
+      ...query,
+      actionable:
+        query.actionable === undefined
+          ? undefined
+          : query.actionable === 'true',
+    });
   }
 
   /**

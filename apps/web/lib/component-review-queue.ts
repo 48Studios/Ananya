@@ -45,6 +45,7 @@ export const ISSUE_TYPE_LABELS: Record<ComponentReviewIssueType, string> = {
   CATEGORY_CONFLICT: "Category Conflict",
   EXACT_DUPLICATE: "Exact Duplicate",
   POTENTIAL_DUPLICATE: "Potential Duplicate",
+  ATTRIBUTE_VALUE_SUGGESTION: "Specification from Datasheet",
 };
 
 /** Compact labels for dense table cells. */
@@ -58,6 +59,7 @@ export const ISSUE_TYPE_SHORT_LABELS: Record<ComponentReviewIssueType, string> =
     CATEGORY_CONFLICT: "Category Conflict",
     EXACT_DUPLICATE: "Exact Duplicate",
     POTENTIAL_DUPLICATE: "Potential Duplicate",
+    ATTRIBUTE_VALUE_SUGGESTION: "Specification",
   };
 
 export const ISSUE_CATEGORY_LABELS: Record<
@@ -68,6 +70,7 @@ export const ISSUE_CATEGORY_LABELS: Record<
   CLASSIFICATION: "Classification",
   DUPLICATE: "Duplicate",
   DATA_QUALITY: "Data Quality",
+  ATTRIBUTE_VALUE: "Specifications",
 };
 
 export const STATUS_LABELS: Record<ComponentReviewStatus, string> = {
@@ -309,7 +312,7 @@ export const STATUS_FILTER_OPTIONS: FilterOption[] = (
  * backend currently emits no findings in that category.
  */
 export const ISSUE_CATEGORY_FILTER_OPTIONS: FilterOption[] = (
-  ["IDENTITY", "CLASSIFICATION", "DUPLICATE"] as const
+  ["IDENTITY", "CLASSIFICATION", "ATTRIBUTE_VALUE", "DUPLICATE"] as const
 ).map((category) => ({
   label: ISSUE_CATEGORY_LABELS[category],
   value: category,
@@ -393,6 +396,12 @@ export function deriveQueueCounts(
       hint: "Exact and potential duplicate findings",
     },
     {
+      key: "attributeValue",
+      label: "Specifications",
+      value: byCategory.ATTRIBUTE_VALUE ?? 0,
+      hint: "Specifications extracted from datasheets",
+    },
+    {
       key: "stale",
       label: "Stale",
       value: safe.stale,
@@ -440,13 +449,19 @@ export function hasActiveFilters(input: {
 // ---------------------------------------------------------------------------
 
 export type QueueTabId =
-  "ALL" | "IDENTITY" | "CLASSIFICATION" | "DUPLICATES" | "STALE";
+  | "ALL"
+  | "IDENTITY"
+  | "CLASSIFICATION"
+  | "ATTRIBUTES"
+  | "DUPLICATES"
+  | "STALE";
 
 /** Tab definitions, in the same order and style as the Attribute queue. */
 export const QUEUE_TABS: readonly { id: QueueTabId; label: string }[] = [
   { id: "ALL", label: "All" },
   { id: "IDENTITY", label: "Identity" },
   { id: "CLASSIFICATION", label: "Classification" },
+  { id: "ATTRIBUTES", label: "Specifications" },
   { id: "DUPLICATES", label: "Duplicates" },
   { id: "STALE", label: "Stale" },
 ];
@@ -468,6 +483,8 @@ export function matchesQueueTab(
       return finding.issueCategory === "IDENTITY";
     case "CLASSIFICATION":
       return finding.issueCategory === "CLASSIFICATION";
+    case "ATTRIBUTES":
+      return finding.issueCategory === "ATTRIBUTE_VALUE";
     case "DUPLICATES":
       return finding.issueCategory === "DUPLICATE";
     case "STALE":
@@ -482,12 +499,14 @@ export function buildQueueTabCounts(
     ALL: items.length,
     IDENTITY: 0,
     CLASSIFICATION: 0,
+    ATTRIBUTES: 0,
     DUPLICATES: 0,
     STALE: 0,
   };
   for (const item of items) {
     if (matchesQueueTab(item, "IDENTITY")) counts.IDENTITY += 1;
     if (matchesQueueTab(item, "CLASSIFICATION")) counts.CLASSIFICATION += 1;
+    if (matchesQueueTab(item, "ATTRIBUTES")) counts.ATTRIBUTES += 1;
     if (matchesQueueTab(item, "DUPLICATES")) counts.DUPLICATES += 1;
     if (matchesQueueTab(item, "STALE")) counts.STALE += 1;
   }
@@ -2161,6 +2180,8 @@ export const APPLY_CONFLICT_REASONS: readonly ApplyConflictReason[] = [
   "SUGGESTED_ENTITY_NOT_FOUND",
   "SUGGESTED_ENTITY_INACTIVE",
   "INVALID_SUGGESTED_VALUE",
+  "COMPONENT_RETIRED",
+  "ATTRIBUTE_VALUE_CHANGED",
 ];
 
 export interface ApplyConfirmationRow {
@@ -2210,6 +2231,7 @@ export function applyFieldLabel(
   finding: Pick<ComponentReviewFindingDto, "issueType" | "issueCategory">,
 ): string {
   if (finding.issueCategory === "CLASSIFICATION") return "Category";
+  if (finding.issueCategory === "ATTRIBUTE_VALUE") return "Attribute Value";
   if (
     finding.issueType === "MPN_MISSING" ||
     finding.issueType === "MPN_CONFLICT"
@@ -2249,6 +2271,15 @@ function applyCurrentDisplay(
     const id = finding.component?.categoryId;
     if (!id) return "Not set";
     return refs.categoryNames?.get(id) ?? "Assigned";
+  }
+
+  // Attribute-value findings carry the value the component recorded when the
+  // suggestion was generated; the live value is re-checked from it at apply time.
+  if (issueType === "ATTRIBUTE_VALUE_SUGGESTION") {
+    const recorded = finding.currentValue?.value;
+    return typeof recorded === "string" && recorded.trim().length > 0
+      ? recorded.trim()
+      : "Not set";
   }
 
   return "Not set";
@@ -2296,6 +2327,18 @@ function applySuggestedDisplay(
         ? suggested.categoryPath
         : null;
     return path ?? name ?? refs.categoryNames?.get(id) ?? "Existing category";
+  }
+
+  if (finding.issueType === "ATTRIBUTE_VALUE_SUGGESTION") {
+    const display = suggested.display;
+    if (typeof display === "string" && display.trim().length > 0) {
+      return display.trim();
+    }
+    const code =
+      typeof suggested.attributeCode === "string"
+        ? suggested.attributeCode
+        : null;
+    return code ?? "—";
   }
 
   return "—";
@@ -2359,6 +2402,10 @@ export function applyConflictMessage(
       return "The suggested manufacturer or category is inactive. The suggestion was not applied.";
     case "INVALID_SUGGESTED_VALUE":
       return "The suggested value is not valid for this field, so it was not applied.";
+    case "COMPONENT_RETIRED":
+      return "This component was consolidated into another component and can no longer be modified. The suggestion was not applied.";
+    case "ATTRIBUTE_VALUE_CHANGED":
+      return "The component's recorded value for this attribute changed after this finding was generated. The suggestion was not applied — re-run datasheet analysis to refresh it.";
     case "UNSUPPORTED_FINDING_TYPE":
       return "This finding type cannot be applied. It is review-only.";
     default:

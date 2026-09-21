@@ -21,6 +21,7 @@ import {
   eq,
   ilike,
   inArray,
+  notInArray,
   or,
   sql,
 } from '@ananya/database/query';
@@ -32,6 +33,18 @@ import {
   type ComponentReviewStatus,
   type ConfidenceLevel,
 } from './component-review-queue.dtos';
+import { ATTRIBUTE_VALUE_ISSUE_CATEGORY } from './document-attribute-value-review';
+import {
+  compareAttributeValues,
+  readAbsoluteTolerance,
+  readRelativeTolerance,
+  toComparableValue,
+} from './attribute-value-semantics';
+import {
+  loadUnitCatalog,
+  readAttributeDefinitionState,
+  readCurrentAttributeValue,
+} from './current-attribute-value';
 
 export interface ReviewerContext {
   id?: string;
@@ -69,6 +82,15 @@ export interface ListComponentFindingsQuery {
   issueType?: string;
   componentId?: string;
   confidenceLevel?: ConfidenceLevel;
+  /** Attribute definition a finding targets (attribute-value suggestions). */
+  attributeDefinitionId?: string;
+  /** Document a finding was derived from (document-derived findings). */
+  documentId?: string;
+  /**
+   * Restrict to findings a reviewer can act on right now (pending and
+   * actionable), or to those that are informational only.
+   */
+  actionable?: boolean;
   search?: string;
   page?: number;
   pageSize?: number;
@@ -87,6 +109,14 @@ export interface MarkFindingsStaleInput {
   ids?: string[];
   componentId?: string;
   reason?: string;
+  /**
+   * Producers to leave untouched. Used when a change invalidates findings that
+   * depend on one kind of state but not another: applying a component field ages
+   * identity findings (which snapshot the component row) without invalidating
+   * attribute-value suggestions, whose validity is defined by the attribute
+   * value and the document revision instead.
+   */
+  excludeSources?: string[];
 }
 
 export interface ReconcileFindingsInput {
@@ -683,12 +713,18 @@ export class ComponentReviewQueueService {
       );
     }
 
+    const excluded = (input.excludeSources ?? []).filter((source) =>
+      Boolean(source),
+    );
     const conditions = [
       ids.length > 0
         ? inArray(componentIntelligenceFindings.id, ids)
         : undefined,
       input.componentId
         ? eq(componentIntelligenceFindings.componentId, input.componentId)
+        : undefined,
+      excluded.length > 0
+        ? notInArray(componentIntelligenceFindings.source, excluded)
         : undefined,
       eq(componentIntelligenceFindings.status, 'PENDING'),
     ].filter((condition): condition is NonNullable<typeof condition> =>
@@ -793,6 +829,20 @@ export class ComponentReviewQueueService {
             query.confidenceLevel,
           )
         : undefined,
+      // Attribute and document relations live in the finding metadata, which is
+      // where every producer records them. The jsonb access is bounded by the
+      // component/status/issue-type conditions alongside it.
+      query.attributeDefinitionId
+        ? sql`${componentIntelligenceFindings.metadata} ->> 'attributeDefinitionId' = ${query.attributeDefinitionId}`
+        : undefined,
+      query.documentId
+        ? sql`${componentIntelligenceFindings.metadata} -> 'document' ->> 'documentId' = ${query.documentId}`
+        : undefined,
+      query.actionable === undefined
+        ? undefined
+        : query.actionable
+          ? sql`${componentIntelligenceFindings.metadata} ->> 'actionable' = 'true'`
+          : sql`coalesce(${componentIntelligenceFindings.metadata} ->> 'actionable', 'true') <> 'true'`,
     ].filter((condition): condition is NonNullable<typeof condition> =>
       Boolean(condition),
     );
@@ -887,12 +937,35 @@ export class ComponentReviewQueueService {
   }
 
   /**
-   * Compares the component snapshot captured at analysis time with the current
-   * component state. Returns a human-readable reason when the finding is stale.
+   * Compares the state a finding was generated from with the current state.
+   * Returns a human-readable reason when the finding is stale.
+   *
+   * Two staleness bases exist, because two kinds of finding depend on two kinds
+   * of state:
+   *
+   *  - component-field findings (identity, classification) snapshot the
+   *    component row's `updatedAt`;
+   *  - attribute-value findings snapshot the *attribute value* the component
+   *    recorded, which a component-row update does not change and which a manual
+   *    attribute edit changes without touching the row.
+   *
+   * Checking the wrong one would either let a stale suggestion be applied over a
+   * newer manual value, or invalidate a perfectly good suggestion whenever an
+   * unrelated field changed.
    */
   private async detectStaleness(
     finding: ComponentIntelligenceFinding,
   ): Promise<string | null> {
+    const attributeDefinitionId = readMetadataString(
+      finding.metadata?.attributeDefinitionId,
+    );
+    if (
+      finding.issueCategory === ATTRIBUTE_VALUE_ISSUE_CATEGORY &&
+      attributeDefinitionId
+    ) {
+      return this.detectAttributeValueStaleness(finding, attributeDefinitionId);
+    }
+
     const snapshot = finding.metadata?.componentUpdatedAt;
     if (typeof snapshot !== 'string' || snapshot.length === 0) return null;
 
@@ -915,6 +988,64 @@ export class ComponentReviewQueueService {
     return null;
   }
 
+  /**
+   * Staleness for attribute-value suggestions: the recorded value must still be
+   * the one the suggestion was generated against.
+   *
+   * Compared through the semantic layer, so an equivalent value re-expressed in
+   * another unit (`1000 Ω` becoming `1 kΩ`) is recognised as the same recorded
+   * value instead of invalidating a suggestion that is still correct.
+   */
+  private async detectAttributeValueStaleness(
+    finding: ComponentIntelligenceFinding,
+    attributeDefinitionId: string,
+  ): Promise<string | null> {
+    const recorded = readRecordedCurrentValue(finding.currentValue);
+    const live = await readCurrentAttributeValue(
+      finding.componentId,
+      attributeDefinitionId,
+    );
+
+    // No value recorded at analysis time: the suggestion was "this attribute is
+    // not set". It becomes stale as soon as anything sets it.
+    if (recorded === null) {
+      return live
+        ? 'the component now records a value for this attribute'
+        : null;
+    }
+
+    if (!live) {
+      return 'the recorded value for this attribute was removed';
+    }
+
+    if (live.display === recorded) return null;
+
+    const [definition, units] = await Promise.all([
+      readAttributeDefinitionState(attributeDefinitionId),
+      loadUnitCatalog(),
+    ]);
+
+    const comparison = compareAttributeValues({
+      dataType: definition?.dataType ?? 'QUANTITY',
+      unitCategory: definition?.unitCategory ?? null,
+      units,
+      first: toComparableValue({
+        dataType: definition?.dataType ?? 'QUANTITY',
+        display: recorded,
+      }),
+      second: toComparableValue({
+        dataType: definition?.dataType ?? 'QUANTITY',
+        display: live.display,
+      }),
+      relativeTolerance: readRelativeTolerance(definition?.validationRules),
+      absoluteTolerance: readAbsoluteTolerance(definition?.validationRules),
+    });
+
+    if (comparison.equivalent) return null;
+
+    return 'the recorded value for this attribute changed after this finding was generated';
+  }
+
   private describeStaleReason(finding: ComponentIntelligenceFinding): string {
     const reason = finding.metadata?.staleReason;
     return typeof reason === 'string' && reason.length > 0
@@ -927,6 +1058,25 @@ function resolveFeedbackField(finding: ComponentIntelligenceFinding): string {
   const field = finding.metadata?.field;
   if (typeof field === 'string' && field.length > 0) return field;
   return finding.issueType.toLowerCase();
+}
+
+/** Narrows a metadata value to a non-empty string. */
+function readMetadataString(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+/**
+ * Reads the attribute value recorded on a finding when it was generated.
+ *
+ * Returns `null` both when the attribute had no value and when the payload is
+ * unusable, which the caller treats identically: the suggestion claimed "not
+ * set", so any value now present invalidates it.
+ */
+function readRecordedCurrentValue(
+  currentValue: Record<string, unknown> | null,
+): string | null {
+  const value = currentValue?.value;
+  return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
 /**

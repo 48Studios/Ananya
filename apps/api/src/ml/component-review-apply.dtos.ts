@@ -22,18 +22,27 @@ export const APPLICABLE_FINDING_TYPES = [
   'MANUFACTURER_CONFLICT',
   'CATEGORY_UNRESOLVED',
   'CATEGORY_CONFLICT',
+  'ATTRIBUTE_VALUE_SUGGESTION',
 ] as const;
 
 export type ApplicableFindingType = (typeof APPLICABLE_FINDING_TYPES)[number];
 
 /** Component fields the queue is allowed to write, one per finding type. */
 export type ApplicableComponentField =
-  'manufacturerPartNumber' | 'manufacturerId' | 'categoryId';
+  'manufacturerPartNumber' | 'manufacturerId' | 'categoryId' | 'attributes';
 
+/**
+ * How an application reaches the component.
+ *
+ *  - `mpn`       normalizes and guards a part number, then patches the field
+ *  - `entity`    resolves an active ERP row (manufacturer / category)
+ *  - `attribute` writes a component attribute VALUE through the existing
+ *                attribute use case; `field` is only a label for this kind and
+ *                never a component column
+ */
 export interface ComponentApplyRule {
   field: ApplicableComponentField;
-  /** `mpn` values are normalized and guarded; `entity` values must resolve to an active ERP row. */
-  kind: 'mpn' | 'entity';
+  kind: 'mpn' | 'entity' | 'attribute';
   entity?: 'manufacturer' | 'category';
   /** Human label used in confirmation copy and audit details. */
   label: string;
@@ -83,6 +92,17 @@ export const COMPONENT_APPLY_RULES: Record<
     entity: 'category',
     label: 'Category',
   },
+  /**
+   * A specification extracted from a datasheet, applied to the component's
+   * attribute values. The attribute definition and the value both come from the
+   * finding, never from the request, and the write goes through the existing
+   * `SaveComponentAttributes` use case inside the apply transaction.
+   */
+  ATTRIBUTE_VALUE_SUGGESTION: {
+    field: 'attributes',
+    kind: 'attribute',
+    label: 'Attribute Value',
+  },
 };
 
 export function resolveApplyRule(issueType: string): ComponentApplyRule | null {
@@ -116,6 +136,10 @@ export const APPLY_CONFLICT_REASONS = [
   'SUGGESTED_ENTITY_INACTIVE',
   /** The suggested value failed validation for its field. */
   'INVALID_SUGGESTED_VALUE',
+  /** The component was consolidated/retired and may no longer be written to. */
+  'COMPONENT_RETIRED',
+  /** The component's attribute value changed after the finding was generated. */
+  'ATTRIBUTE_VALUE_CHANGED',
 ] as const;
 
 export type ApplyConflictReason = (typeof APPLY_CONFLICT_REASONS)[number];

@@ -51,62 +51,107 @@ function getStoredToken(): string | null {
   return token;
 }
 
-async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const url = endpoint.startsWith("http")
+function resolveUrl(endpoint: string): string {
+  return endpoint.startsWith("http")
     ? endpoint
     : `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+}
 
+/** Authorization header for the stored session, when one exists. */
+function authorizationHeaders(
+  extra?: Record<string, string>,
+): Record<string, string> {
+  const headers: Record<string, string> = { ...extra };
+  const storedToken = getStoredToken();
+  if (storedToken && !headers["Authorization"] && !headers["authorization"]) {
+    headers["Authorization"] = `Bearer ${storedToken}`;
+  }
+  return headers;
+}
+
+/**
+ * Shared failure handling for JSON and binary requests: reads the API error
+ * message, and performs the global 401 interception exactly once.
+ */
+async function throwApiError(
+  response: Response,
+  endpoint: string,
+): Promise<never> {
+  let errorData: { message?: string | string[]; error?: string } = {};
+  try {
+    errorData = (await response.json()) as {
+      message?: string | string[];
+      error?: string;
+    };
+  } catch {
+    // JSON parse failed
+  }
+
+  const message = Array.isArray(errorData.message)
+    ? errorData.message.join(", ")
+    : errorData.message ||
+      response.statusText ||
+      "An unexpected API error occurred";
+
+  // Global 401 Unauthorized Interceptor
+  if (response.status === 401 && !endpoint.includes("/auth/login")) {
+    clearStoredAuthToken();
+    broadcastAuthEvent("SESSION_EXPIRED");
+
+    if (onUnauthorizedHandler) {
+      onUnauthorizedHandler();
+    }
+
+    if (
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/login")
+    ) {
+      window.location.href = "/login?expired=true";
+    }
+  }
+
+  throw new ApiError(response.status, message, errorData);
+}
+
+/**
+ * Fetches a protected binary resource.
+ *
+ * Document bytes are served by authenticated endpoints, so they cannot be
+ * referenced with a plain `<a href>`/`<img src>`: the session token travels in
+ * the `Authorization` header, not in the URL. Callers receive a Blob and decide
+ * whether to preview it or save it.
+ */
+async function requestBlob(endpoint: string, options?: RequestInit): Promise<Blob> {
+  const response = await fetch(resolveUrl(endpoint), {
+    credentials: "include",
+    ...options,
+    method: options?.method ?? "GET",
+    headers: authorizationHeaders(
+      options?.headers as Record<string, string> | undefined,
+    ),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, endpoint);
+  }
+
+  return response.blob();
+}
+
+async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options?.headers as Record<string, string>),
   };
 
-  const storedToken = getStoredToken();
-  if (storedToken && !headers["Authorization"] && !headers["authorization"]) {
-    headers["Authorization"] = `Bearer ${storedToken}`;
-  }
-
-  const response = await fetch(url, {
+  const response = await fetch(resolveUrl(endpoint), {
     credentials: "include",
     ...options,
-    headers,
+    headers: authorizationHeaders(headers),
   });
 
   if (!response.ok) {
-    let errorData: { message?: string | string[]; error?: string } = {};
-    try {
-      errorData = (await response.json()) as {
-        message?: string | string[];
-        error?: string;
-      };
-    } catch {
-      // JSON parse failed
-    }
-
-    const message = Array.isArray(errorData.message)
-      ? errorData.message.join(", ")
-      : errorData.message ||
-        response.statusText ||
-        "An unexpected API error occurred";
-
-    // Global 401 Unauthorized Interceptor
-    if (response.status === 401 && !endpoint.includes("/auth/login")) {
-      clearStoredAuthToken();
-      broadcastAuthEvent("SESSION_EXPIRED");
-
-      if (onUnauthorizedHandler) {
-        onUnauthorizedHandler();
-      }
-
-      if (
-        typeof window !== "undefined" &&
-        !window.location.pathname.startsWith("/login")
-      ) {
-        window.location.href = "/login?expired=true";
-      }
-    }
-
-    throw new ApiError(response.status, message, errorData);
+    await throwApiError(response, endpoint);
   }
 
   if (response.status === 204) {
@@ -150,6 +195,21 @@ export const apiClient = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+
+  patch: <T, B = unknown>(
+    endpoint: string,
+    body: B,
+    options?: RequestInit,
+  ): Promise<T> =>
+    request<T>(endpoint, {
+      ...options,
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  /** Fetches a protected binary resource (document download/preview). */
+  getBlob: (endpoint: string, options?: RequestInit): Promise<Blob> =>
+    requestBlob(endpoint, options),
 
   delete: <T>(endpoint: string, options?: RequestInit): Promise<T> =>
     request<T>(endpoint, { ...options, method: "DELETE" }),

@@ -48,6 +48,7 @@ export * from "./auth";
 export * from "./activity";
 export * from "./import-export";
 export * from "./documents";
+export * from "./document-intelligence";
 export * from "./notifications";
 export * from "./settings";
 export * from "./preferences";

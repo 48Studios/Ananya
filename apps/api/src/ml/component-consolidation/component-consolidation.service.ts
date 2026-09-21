@@ -38,6 +38,7 @@ import { ReservationConsolidationAdapter } from './adapters/reservation-consolid
 import { SupplierConsolidationAdapter } from './adapters/supplier-consolidation.adapter';
 import { ProcurementConsolidationAdapter } from './adapters/procurement-consolidation.adapter';
 import { PolymorphicConsolidationAdapter } from './adapters/polymorphic-consolidation.adapter';
+import { DocumentationIntelligenceConsolidationAdapter } from './adapters/documentation-intelligence-consolidation.adapter';
 import { FindingConsolidationAdapter } from './adapters/finding-consolidation.adapter';
 import { RetirementConsolidationAdapter } from './adapters/retirement-consolidation.adapter';
 import { DependencyGuardAdapter } from './adapters/dependency-guard.adapter';
@@ -429,6 +430,7 @@ export class ComponentConsolidationService {
       new SerialConsolidationAdapter(serials),
       new ReservationConsolidationAdapter(reservations, projections),
       new PolymorphicConsolidationAdapter(),
+      new DocumentationIntelligenceConsolidationAdapter(),
       new FindingConsolidationAdapter(),
       new RetirementConsolidationAdapter(componentRepository),
     ].sort((left, right) =>

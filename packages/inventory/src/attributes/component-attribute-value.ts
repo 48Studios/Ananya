@@ -1,5 +1,45 @@
 import { ObjectId } from "@ananya/core";
 
+/**
+ * Provenance of a value that was not typed by a human.
+ *
+ * Documentation Intelligence records where a value came from so the component
+ * can always answer "why is this value here, and which evidence produced it?".
+ * The shape is intentionally plain JSON: the attribute model does not need a
+ * typed provenance hierarchy, and the fields are consumed by the UI and audit
+ * trail rather than by domain rules.
+ */
+export interface ComponentAttributeProvenance {
+  source: string;
+  documentId?: string;
+  documentVersion?: number;
+  contentHash?: string;
+  page?: number | null;
+  evidenceExcerpt?: string | null;
+  extractionMethod?: string;
+  intelligenceVersion?: string;
+  findingId?: string;
+  reviewerId?: string | null;
+  reviewerEmail?: string | null;
+  appliedAt?: string;
+  /**
+   * Every other document that stated the same value.
+   *
+   * A value corroborated by several documents records the one it was applied
+   * from as the primary source and the rest here, so "which documents said this,
+   * and which one was it applied from" stays answerable after the fact. Absent
+   * for a single-source value, which is the common case.
+   */
+  supportingDocuments?: Array<{
+    documentId: string;
+    documentVersion: number;
+    contentHash: string;
+    documentFileName: string | null;
+    documentType: string | null;
+    page: number | null;
+  }>;
+}
+
 export interface ComponentAttributeValueProps {
   id: string;
   componentId: string;
@@ -13,6 +53,7 @@ export interface ComponentAttributeValueProps {
   optionId?: string | null;
   selectedOptionIds?: string[] | null;
   jsonValue?: Record<string, unknown> | null;
+  provenance?: Record<string, unknown> | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +70,7 @@ export interface CreateComponentAttributeValueInput {
   optionId?: string | null;
   selectedOptionIds?: string[] | null;
   jsonValue?: Record<string, unknown> | null;
+  provenance?: Record<string, unknown> | null;
 }
 
 export class ComponentAttributeValue {
@@ -44,6 +86,7 @@ export class ComponentAttributeValue {
   public readonly optionId?: string | null;
   public readonly selectedOptionIds?: string[] | null;
   public readonly jsonValue?: Record<string, unknown> | null;
+  public readonly provenance?: Record<string, unknown> | null;
   public readonly createdAt: Date;
   public readonly updatedAt: Date;
 
@@ -60,6 +103,7 @@ export class ComponentAttributeValue {
     this.optionId = props.optionId ?? null;
     this.selectedOptionIds = props.selectedOptionIds ?? null;
     this.jsonValue = props.jsonValue ?? null;
+    this.provenance = props.provenance ?? null;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }
@@ -84,6 +128,7 @@ export class ComponentAttributeValue {
       optionId: input.optionId,
       selectedOptionIds: input.selectedOptionIds,
       jsonValue: input.jsonValue,
+      provenance: input.provenance,
       createdAt,
       updatedAt,
     });

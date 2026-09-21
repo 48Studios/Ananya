@@ -91,6 +91,10 @@ describe('Component Review Analyzer (finding generation)', () => {
         'MANUFACTURER_CONFLICT',
       ],
       CLASSIFICATION: ['CATEGORY_UNRESOLVED', 'CATEGORY_CONFLICT'],
+      // Pass 3: datasheet specifications become reviewable on the same queue.
+      // Pass 4 adds DOCUMENT_CONFLICT: the queue must distinguish "here is a value
+      // to apply" from "the component's documents disagree".
+      ATTRIBUTE_VALUE: ['ATTRIBUTE_VALUE_SUGGESTION', 'DOCUMENT_CONFLICT'],
       DUPLICATE: ['EXACT_DUPLICATE', 'POTENTIAL_DUPLICATE'],
       DATA_QUALITY: [],
     });

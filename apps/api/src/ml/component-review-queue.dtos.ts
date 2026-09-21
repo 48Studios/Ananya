@@ -51,6 +51,7 @@ export const COMPONENT_REVIEW_ISSUE_CATEGORIES = [
   'CLASSIFICATION',
   'DUPLICATE',
   'DATA_QUALITY',
+  'ATTRIBUTE_VALUE',
 ] as const;
 
 export type ComponentReviewIssueCategory =
@@ -71,7 +72,9 @@ export type ComponentReviewIssueType =
   | 'CATEGORY_UNRESOLVED'
   | 'CATEGORY_CONFLICT'
   | 'EXACT_DUPLICATE'
-  | 'POTENTIAL_DUPLICATE';
+  | 'POTENTIAL_DUPLICATE'
+  | 'ATTRIBUTE_VALUE_SUGGESTION'
+  | 'DOCUMENT_CONFLICT';
 
 export const COMPONENT_REVIEW_ISSUE_TYPES: Record<
   ComponentReviewIssueCategory,
@@ -86,6 +89,20 @@ export const COMPONENT_REVIEW_ISSUE_TYPES: Record<
   CLASSIFICATION: ['CATEGORY_UNRESOLVED', 'CATEGORY_CONFLICT'],
   DUPLICATE: ['EXACT_DUPLICATE', 'POTENTIAL_DUPLICATE'],
   DATA_QUALITY: [],
+  /**
+   * Documentation Intelligence (Pass 3): a specification extracted from a
+   * datasheet that an existing attribute definition can represent, and that a
+   * component does not already record identically. Applying one writes through
+   * the existing component-attribute use case; it is never applied by analysis.
+   *
+   * DOCUMENT_CONFLICT (Pass 4) shares the category because its subject is also an
+   * attribute value, and it needs its own *type* because the queue must
+   * distinguish "here is a value to apply" from "the component's documents
+   * disagree, a human must adjudicate". A conflict is deliberately absent from
+   * `COMPONENT_APPLY_RULES`, so it can never be applied through the review
+   * queue: the system never picks a winner between sources.
+   */
+  ATTRIBUTE_VALUE: ['ATTRIBUTE_VALUE_SUGGESTION', 'DOCUMENT_CONFLICT'],
 };
 
 /** Flat, ordered view of {@link COMPONENT_REVIEW_ISSUE_TYPES}. */
@@ -230,6 +247,21 @@ export class ListComponentFindingsQueryDto {
   @IsOptional()
   @IsUUID()
   componentId?: string;
+
+  /** Attribute definition a finding targets (attribute-value suggestions). */
+  @IsOptional()
+  @IsUUID()
+  attributeDefinitionId?: string;
+
+  /** Document a finding was derived from (document-derived findings). */
+  @IsOptional()
+  @IsUUID()
+  documentId?: string;
+
+  /** Restrict to actionable (or informational-only) findings. */
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  actionable?: string;
 
   @IsOptional()
   @IsIn([...CONFIDENCE_LEVELS])

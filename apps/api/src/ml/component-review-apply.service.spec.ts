@@ -13,7 +13,7 @@ import {
 const PACKAGE_PATTERNS = ['0201', '0402', '0603', '0805', '1206', 'SOT-23'];
 
 describe('Component apply rule mapping', () => {
-  it('maps exactly the six supported finding types to one field each', () => {
+  it('maps every supported finding type to one field each', () => {
     expect([...APPLICABLE_FINDING_TYPES]).toEqual([
       'MPN_MISSING',
       'MPN_CONFLICT',
@@ -21,6 +21,9 @@ describe('Component apply rule mapping', () => {
       'MANUFACTURER_CONFLICT',
       'CATEGORY_UNRESOLVED',
       'CATEGORY_CONFLICT',
+      // Pass 3: an extracted datasheet specification, written through the
+      // existing component attribute use case rather than a component column.
+      'ATTRIBUTE_VALUE_SUGGESTION',
     ]);
 
     expect(COMPONENT_APPLY_RULES.MPN_MISSING.field).toBe(
@@ -37,6 +40,12 @@ describe('Component apply rule mapping', () => {
     );
     expect(COMPONENT_APPLY_RULES.CATEGORY_UNRESOLVED.field).toBe('categoryId');
     expect(COMPONENT_APPLY_RULES.CATEGORY_CONFLICT.field).toBe('categoryId');
+    expect(COMPONENT_APPLY_RULES.ATTRIBUTE_VALUE_SUGGESTION.field).toBe(
+      'attributes',
+    );
+    expect(COMPONENT_APPLY_RULES.ATTRIBUTE_VALUE_SUGGESTION.kind).toBe(
+      'attribute',
+    );
   });
 
   it('treats duplicate findings as non-applicable', () => {
@@ -75,9 +84,16 @@ describe('Component apply rule mapping', () => {
     const fields = Object.values(COMPONENT_APPLY_RULES).map(
       (rule) => rule.field,
     );
-    // Three writable fields, two finding types each.
+    // Three writable component columns, two finding types each, plus the
+    // attribute-value rule whose `attributes` field is a label for the attribute
+    // use case rather than a component column.
     expect(new Set(fields)).toEqual(
-      new Set(['manufacturerPartNumber', 'manufacturerId', 'categoryId']),
+      new Set([
+        'manufacturerPartNumber',
+        'manufacturerId',
+        'categoryId',
+        'attributes',
+      ]),
     );
   });
 });

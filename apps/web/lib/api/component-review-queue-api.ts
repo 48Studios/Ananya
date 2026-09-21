@@ -20,7 +20,8 @@ export type ComponentReviewIssueCategory =
   | "IDENTITY"
   | "CLASSIFICATION"
   | "DUPLICATE"
-  | "DATA_QUALITY";
+  | "DATA_QUALITY"
+  | "ATTRIBUTE_VALUE";
 
 export type ComponentReviewIssueType =
   | "MPN_MISSING"
@@ -30,7 +31,8 @@ export type ComponentReviewIssueType =
   | "CATEGORY_UNRESOLVED"
   | "CATEGORY_CONFLICT"
   | "EXACT_DUPLICATE"
-  | "POTENTIAL_DUPLICATE";
+  | "POTENTIAL_DUPLICATE"
+  | "ATTRIBUTE_VALUE_SUGGESTION";
 
 export type ComponentReviewStatus =
   | "PENDING"
@@ -586,14 +588,20 @@ export type ApplyConflictReason =
   | "COMPONENT_CHANGED"
   | "SUGGESTED_ENTITY_NOT_FOUND"
   | "SUGGESTED_ENTITY_INACTIVE"
-  | "INVALID_SUGGESTED_VALUE";
+  | "INVALID_SUGGESTED_VALUE"
+  | "COMPONENT_RETIRED"
+  | "ATTRIBUTE_VALUE_CHANGED";
 
 export interface ApplyComponentFindingResultDto {
   findingId: string;
   componentId: string;
   issueType: string;
   /** Backend-declared field that was written. */
-  field: "manufacturerPartNumber" | "manufacturerId" | "categoryId";
+  field:
+    | "manufacturerPartNumber"
+    | "manufacturerId"
+    | "categoryId"
+    | "attributes";
   fieldLabel: string;
   previousValue: string | null;
   appliedValue: string | null;

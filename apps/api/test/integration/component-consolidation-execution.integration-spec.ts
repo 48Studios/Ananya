@@ -1911,6 +1911,45 @@ describe('Consolidation execution (Pass 6B)', () => {
     await db.execute(
       sql`insert into documents (entity_type, entity_id, title, file_name, file_url, storage_key, mime_type) values ('Component', ${duplicate.id}, ${`Doc ${runTag}`}, 'x.pdf', 'local://x.pdf', ${`e2e/${runId}`}, 'application/pdf')`,
     );
+
+    // Pass 1 documentation: an external reference and a second, revisioned
+    // upload share the same polymorphic association as the file above, so the
+    // survivor must inherit all three without losing destinations or history.
+    const externalDoc = await db.execute<{ id: string }>(
+      sql`insert into documents (entity_type, entity_id, title, document_type, source_type, external_url) values ('Component', ${duplicate.id}, ${`Link ${runTag}`}, 'PRODUCT_PAGE', 'EXTERNAL_URL', 'https://example.com/part') returning id`,
+    );
+    const externalDocId = externalDoc.rows[0]!.id;
+
+    const revisionedDoc = await db.execute<{ id: string }>(
+      sql`insert into documents (entity_type, entity_id, title, document_type, source_type, file_name, file_url, storage_key, mime_type, size_bytes, current_version) values ('Component', ${duplicate.id}, ${`Doc v2 ${runTag}`}, 'DATASHEET', 'UPLOADED_FILE', 'y2.pdf', 'local://y2.pdf', ${`e2e/${runId}-v2`}, 'application/pdf', 12, 2) returning id`,
+    );
+    const revisionedDocId = revisionedDoc.rows[0]!.id;
+    await db.execute(
+      sql`insert into document_versions (document_id, version_number, file_name, file_url, storage_key, mime_type, size_bytes) values (${revisionedDocId}, 1, 'y1.pdf', 'local://y1.pdf', ${`e2e/${runId}-v1`}, 'application/pdf', 10)`,
+    );
+    await db.execute(
+      sql`insert into document_versions (document_id, version_number, file_name, file_url, storage_key, mime_type, size_bytes) values (${revisionedDocId}, 2, 'y2.pdf', 'local://y2.pdf', ${`e2e/${runId}-v2`}, 'application/pdf', 12)`,
+    );
+
+    // Pass 2 documentation intelligence: an analysis row and a document-derived
+    // finding. The analysis references the document (not the component), and the
+    // finding carries the document identity in its metadata, so consolidation
+    // must leave both coherent when the document moves to the survivor.
+    const analysisRow = await db.execute<{ id: string }>(
+      sql`insert into document_intelligence_analyses
+            (document_id, component_id, document_version, content_hash, intelligence_version, status, summary)
+          values (${revisionedDocId}, ${duplicate.id}, 2, ${`hash${runId}`}, 'datasheet-extract-v1', 'FINDINGS_AVAILABLE', '{}'::jsonb)
+          returning id`,
+    );
+    const analysisId = analysisRow.rows[0]!.id;
+
+    await db.execute(
+      sql`insert into component_intelligence_findings
+            (component_id, issue_type, issue_category, title, description, fingerprint, status, source, intelligence_version, metadata)
+          values (${duplicate.id}, 'MPN_MISSING', 'IDENTITY', ${`Datasheet MPN ${runTag}`}, 'The datasheet identifies a part number.', ${`docfind-${runId}`}, 'PENDING', 'document:datasheet', 'datasheet-extract-v1',
+                  ${JSON.stringify({ rule: 'MPN_MISSING', origin: 'DATASHEET', document: { documentId: revisionedDocId, documentVersion: 2, documentContentHash: `hash${runId}` } })}::jsonb)`,
+    );
+
     await db.execute(
       sql`insert into activity_events (event_type, module, entity_type, entity_id, description) values ('UPDATED', 'Inventory', 'Component', ${duplicate.id}, ${`History ${runTag}`})`,
     );
@@ -1942,6 +1981,93 @@ describe('Consolidation execution (Pass 6B)', () => {
       sql`select entity_id from documents where entity_type = 'Component' and storage_key = ${`e2e/${runId}`}`,
     );
     expect(doc.rows[0]!.entity_id).toBe(canonical.id);
+
+    // An external reference follows the survivor and keeps its destination.
+    const external = await db.execute<{
+      entity_id: string;
+      external_url: string;
+      source_type: string;
+    }>(
+      sql`select entity_id, external_url, source_type from documents where id = ${externalDocId}`,
+    );
+    expect(external.rows[0]!.entity_id).toBe(canonical.id);
+    expect(external.rows[0]!.source_type).toBe('EXTERNAL_URL');
+    expect(external.rows[0]!.external_url).toBe('https://example.com/part');
+
+    // A second document follows with its revision history intact.
+    const revisioned = await db.execute<{
+      entity_id: string;
+      current_version: number;
+    }>(
+      sql`select entity_id, current_version from documents where id = ${revisionedDocId}`,
+    );
+    expect(revisioned.rows[0]!.entity_id).toBe(canonical.id);
+    expect(Number(revisioned.rows[0]!.current_version)).toBe(2);
+
+    const versions = await db.execute<{ total: number }>(
+      sql`select count(*)::int as total from document_versions where document_id = ${revisionedDocId}`,
+    );
+    expect(Number(versions.rows[0]!.total)).toBe(2);
+
+    // Nothing is stranded on the retired component.
+    const strandedDocuments = await db.execute<{ total: number }>(
+      sql`select count(*)::int as total from documents where entity_type = 'Component' and entity_id = ${duplicate.id}`,
+    );
+    expect(Number(strandedDocuments.rows[0]!.total)).toBe(0);
+
+    // ---- Pass 2: documentation intelligence coherence ----------------------
+
+    // The analysis still points at the document it analysed, and its recorded
+    // component is the survivor so the review evidence is not orphaned.
+    const analysis = await db.execute<{
+      document_id: string;
+      component_id: string;
+      document_version: number;
+      content_hash: string;
+    }>(
+      sql`select document_id, component_id, document_version, content_hash from document_intelligence_analyses where id = ${analysisId}`,
+    );
+    expect(analysis.rows[0]!.document_id).toBe(revisionedDocId);
+    expect(analysis.rows[0]!.document_version).toBe(2);
+    expect(analysis.rows[0]!.content_hash).toBe(`hash${runId}`);
+    // The document moved, so the analysis follows it to the surviving component.
+    expect(analysis.rows[0]!.component_id).toBe(canonical.id);
+
+    // The document-derived finding is preserved (consolidation never deletes
+    // findings) and is marked STALE: its document now belongs to the survivor, so
+    // the suggestion must be re-derived there instead of being applied to a
+    // retired record the apply workflow would refuse.
+    const docFindings = await db.execute<{
+      component_id: string;
+      status: string;
+      metadata: {
+        document?: Record<string, unknown>;
+        staleCause?: string;
+        canonicalComponentId?: string;
+      };
+    }>(
+      sql`select component_id, status, metadata from component_intelligence_findings where fingerprint = ${`docfind-${runId}`}`,
+    );
+    expect(docFindings.rows).toHaveLength(1);
+    expect(docFindings.rows[0]!.status).toBe('STALE');
+    expect(docFindings.rows[0]!.metadata.staleCause).toBe('CONSOLIDATION');
+    expect(docFindings.rows[0]!.metadata.canonicalComponentId).toBe(
+      canonical.id,
+    );
+    // The finding still names the component it was derived for, and still
+    // identifies the exact document revision it came from.
+    expect(docFindings.rows[0]!.component_id).toBe(duplicate.id);
+    expect(docFindings.rows[0]!.metadata.document?.documentId).toBe(
+      revisionedDocId,
+    );
+    expect(docFindings.rows[0]!.metadata.document?.documentVersion).toBe(2);
+
+    // The referenced document still exists, so no intelligence record points at
+    // a deleted target.
+    const documentStillExists = await db.execute<{ total: number }>(
+      sql`select count(*)::int as total from documents where id = ${revisionedDocId}`,
+    );
+    expect(Number(documentStillExists.rows[0]!.total)).toBe(1);
 
     // Activity history is preserved on the retired component.
     const activity = await db.execute<{ entity_id: string }>(

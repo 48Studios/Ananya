@@ -626,8 +626,13 @@ export class AttributesService {
   async saveComponentAttributes(
     componentId: string,
     inputs: ComponentAttributeInput[],
+    provenance?: Record<string, unknown> | null,
   ): Promise<ComponentAttributeValue[]> {
-    return this.saveComponentAttributesUseCase.execute(componentId, inputs);
+    return this.saveComponentAttributesUseCase.execute(
+      componentId,
+      inputs,
+      provenance,
+    );
   }
 
   async removeComponentAttribute(

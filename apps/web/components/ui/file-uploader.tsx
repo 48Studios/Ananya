@@ -5,12 +5,10 @@ import {
   Upload,
   Loader2,
   X,
-  CheckCircle2,
   FileText,
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { documentsApi } from "@/lib/api/documents-api";
 
 export interface FileUploaderRef {
   openFilePicker: () => void;
@@ -32,12 +30,6 @@ export interface FileUploaderProps {
   onFileSelected?: (file: File) => void | Promise<void>;
   /** Callback fired when multiple files are selected */
   onFilesSelected?: (files: File[]) => void | Promise<void>;
-  /** Direct Document API upload target: Entity Type */
-  entityType?: string;
-  /** Direct Document API upload target: Entity ID */
-  entityId?: string;
-  /** Callback fired after direct Document API upload completes successfully */
-  onUploadSuccess?: () => void;
   /** Custom heading text */
   title?: string;
   /** Custom subtitle/description text */
@@ -58,9 +50,6 @@ export const FileUploader = React.forwardRef<
     loading: externalLoading = false,
     onFileSelected,
     onFilesSelected,
-    entityType,
-    entityId,
-    onUploadSuccess,
     title = "Drag & Drop file or click to browse",
     description = "Supports CSV, Excel, JSON, PDF, Images & CAD up to 50MB (Paste images directly)",
     className = "",
@@ -68,13 +57,11 @@ export const FileUploader = React.forwardRef<
   ref,
 ) {
   const [isDragging, setIsDragging] = React.useState(false);
-  const [internalLoading, setInternalLoading] = React.useState(false);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const isLoading = externalLoading || internalLoading;
+  const isLoading = externalLoading;
 
   const handleButtonClick = React.useCallback(() => {
     if (disabled || isLoading) return;
@@ -91,7 +78,6 @@ export const FileUploader = React.forwardRef<
       reset: () => {
         setSelectedFile(null);
         setErrorMsg(null);
-        setSuccessMsg(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -143,11 +129,17 @@ export const FileUploader = React.forwardRef<
     return true;
   };
 
+  /**
+   * Hands the selected file(s) to the caller.
+   *
+   * This component only selects and validates files: uploads belong to the
+   * feature that owns the metadata being captured (imports, documentation),
+   * which is what keeps a single multipart request possible.
+   */
   const processSelectedFiles = async (files: File[]) => {
     if (files.length === 0 || disabled || isLoading) return;
 
     setErrorMsg(null);
-    setSuccessMsg(null);
 
     const validFiles = files.filter(validateFile);
     if (validFiles.length === 0) return;
@@ -155,7 +147,6 @@ export const FileUploader = React.forwardRef<
     const primaryFile = validFiles[0]!;
     setSelectedFile(primaryFile);
 
-    // 1. Call onFilesSelected or onFileSelected if provided
     if (multiple && onFilesSelected) {
       try {
         await onFilesSelected(validFiles);
@@ -172,43 +163,6 @@ export const FileUploader = React.forwardRef<
           err instanceof Error ? err.message : "Failed to process file",
         );
       }
-    }
-
-    // 2. Direct Document API upload if entityType and entityId are specified
-    if (entityType && entityId) {
-      setInternalLoading(true);
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-        try {
-          const result = evt.target?.result as string;
-          const base64Data = result.split(",")[1] || result;
-
-          await documentsApi.uploadDocument({
-            entityType,
-            entityId,
-            title: primaryFile.name,
-            fileName: primaryFile.name,
-            fileContent: base64Data,
-            mimeType: primaryFile.type || "application/octet-stream",
-            sizeBytes: primaryFile.size,
-          });
-
-          setSuccessMsg(`Successfully uploaded ${primaryFile.name}`);
-          if (onUploadSuccess) onUploadSuccess();
-          setTimeout(() => setSuccessMsg(null), 4000);
-        } catch (err: unknown) {
-          setErrorMsg(
-            err instanceof Error ? err.message : "Document upload failed",
-          );
-        } finally {
-          setInternalLoading(false);
-        }
-      };
-      reader.onerror = () => {
-        setErrorMsg("Failed to read file contents");
-        setInternalLoading(false);
-      };
-      reader.readAsDataURL(primaryFile);
     }
   };
 
@@ -250,7 +204,6 @@ export const FileUploader = React.forwardRef<
     e.stopPropagation();
     setSelectedFile(null);
     setErrorMsg(null);
-    setSuccessMsg(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -371,13 +324,6 @@ export const FileUploader = React.forwardRef<
               <RefreshCw className="w-3 h-3 mr-1" />
               Retry
             </Button>
-          </div>
-        )}
-
-        {successMsg && (
-          <div className="pointer-events-auto mt-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-            <span>{successMsg}</span>
           </div>
         )}
       </div>
