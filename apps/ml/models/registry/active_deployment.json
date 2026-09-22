@@ -1,7 +1,7 @@
 {
-  "activeVersion": "1.4.0",
-  "deployedAt": "2026-09-22T13:22:37.532946+00:00",
-  "sourceArtifact": "apps/ml/models/registry/v1.4.0/category_classifier.pkl",
+  "activeVersion": "1.6.0",
+  "deployedAt": "2026-09-22T16:52:09.748052+00:00",
+  "sourceArtifact": "apps/ml/models/registry/v1.6.0/category_classifier.pkl",
   "productionPath": "apps/ml/models/category_classifier.pkl",
   "backupPath": "apps/ml/models/category_classifier.pkl.backup",
   "qualityGatesPassed": true

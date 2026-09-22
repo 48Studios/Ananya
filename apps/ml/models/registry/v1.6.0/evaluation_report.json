@@ -1,0 +1,33 @@
+{
+  "candidateVersion": "1.6.0",
+  "evaluatedAt": "2026-09-22T16:52:09Z",
+  "validationSamplesCount": 7,
+  "validationSource": "apps/ml/data/datasets/components-2026-09-22-v1.6.0/val.json",
+  "metrics": {
+    "candidateTop1Accuracy": 0.7143,
+    "candidateTop3Accuracy": 0.7143,
+    "activeModelTop1Accuracy": 0.7143,
+    "activeModelTop3Accuracy": 0.7143,
+    "manufacturerAccuracy": 0.625,
+    "duplicatePrecision": 1.0,
+    "duplicateRecall": 1.0,
+    "criticalFalsePositives": 0,
+    "latencyMs": {
+      "p50": 0.212,
+      "p95": 0.246,
+      "p99": 0.254
+    },
+    "modelSizeBytes": 226628,
+    "peakMemoryMb": 137.31,
+    "unverifiedProvenanceCount": 0
+  },
+  "qualityGates": {
+    "accuracy_gate": true,
+    "duplicate_precision_gate": true,
+    "duplicate_recall_gate": true,
+    "latency_gate": true,
+    "memory_gate": true,
+    "provenance_gate": true
+  },
+  "promotionEligible": true
+}

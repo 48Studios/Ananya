@@ -20,22 +20,22 @@
     "source": "authoritative"
   },
   {
-    "text": "RC0805FR-0710KL RES SMD 10K OHM 1% 1/8W 0805 Yageo",
-    "category": "Resistors",
-    "source": "authoritative"
-  },
-  {
     "text": "RC0805FR0710KL RES SMD 10K OHM 1% 1/8W 0805 Yageo",
     "category": "Resistors",
     "source": "authoritative"
   },
   {
-    "text": "RC0805FR-07100KL RES SMD 100K OHM 1% 1/8W 0805 Yageo",
+    "text": "RC0805FR-0710KL RES SMD 10K OHM 1% 1/8W 0805 Yageo",
     "category": "Resistors",
     "source": "authoritative"
   },
   {
     "text": "RC0805FR07100KL RES SMD 100K OHM 1% 1/8W 0805 Yageo",
+    "category": "Resistors",
+    "source": "authoritative"
+  },
+  {
+    "text": "RC0805FR-07100KL RES SMD 100K OHM 1% 1/8W 0805 Yageo",
     "category": "Resistors",
     "source": "authoritative"
   },
@@ -60,12 +60,12 @@
     "source": "authoritative"
   },
   {
-    "text": "SS34E357T DIODE SCHOTTKY 40V 3A DO214AB SMC Vishay Semiconductors",
+    "text": "SS34-E3/57T DIODE SCHOTTKY 40V 3A DO214AB SMC Vishay Semiconductors",
     "category": "Diodes",
     "source": "authoritative"
   },
   {
-    "text": "SS34-E3/57T DIODE SCHOTTKY 40V 3A DO214AB SMC Vishay Semiconductors",
+    "text": "SS34E357T DIODE SCHOTTKY 40V 3A DO214AB SMC Vishay Semiconductors",
     "category": "Diodes",
     "source": "authoritative"
   },
@@ -110,12 +110,12 @@
     "source": "authoritative"
   },
   {
-    "text": "B3F1000 SWITCH TACTILE SPST-NO 0.05A 24V Omron Electronics",
+    "text": "B3F-1000 SWITCH TACTILE SPST-NO 0.05A 24V Omron Electronics",
     "category": "Switches",
     "source": "authoritative"
   },
   {
-    "text": "B3F-1000 SWITCH TACTILE SPST-NO 0.05A 24V Omron Electronics",
+    "text": "B3F1000 SWITCH TACTILE SPST-NO 0.05A 24V Omron Electronics",
     "category": "Switches",
     "source": "authoritative"
   },
@@ -140,12 +140,12 @@
     "source": "authoritative"
   },
   {
-    "text": "FR41.61OZ FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Shengyi Technology",
+    "text": "FR4-1.6-1OZ FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Shengyi Technology",
     "category": "Raw Materials",
     "source": "authoritative"
   },
   {
-    "text": "FR4-1.6-1OZ FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Shengyi Technology",
+    "text": "FR41.61OZ FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Shengyi Technology",
     "category": "Raw Materials",
     "source": "authoritative"
   }
