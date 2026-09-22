@@ -85,11 +85,26 @@ export function AiSuggestionReviewCard({
       suggestion.category?.subcategoryName || suggestion.category?.categoryName || ""
     );
     setManufacturerInput(suggestion.manufacturer?.manufacturerName || "");
+    // A different suggestion starts from its own values, not the previous edit.
+    setEditedCategory(null);
+    setEditedManufacturer(null);
   }, [suggestion]);
 
   // Field dismissed / rejected state
   const [rejectedFields, setRejectedFields] = React.useState<Record<string, boolean>>({});
   const [acceptedFields, setAcceptedFields] = React.useState<Record<string, boolean>>({});
+  /**
+   * What the reviewer applied instead of the suggestion, per field.
+   *
+   * The row keeps showing the model's value otherwise, so a corrected category
+   * looked identical to an untouched one and appeared to have been reverted. The
+   * stored label is the value that was actually handed to the form.
+   */
+  const [editedCategory, setEditedCategory] = React.useState<string | null>(null);
+  const [editedManufacturer, setEditedManufacturer] = React.useState<string | null>(null);
+  /** The suggestion this edit replaced, when the model named one. */
+  const replacedCategoryName =
+    suggestion.category?.subcategoryName || suggestion.category?.categoryName || null;
 
   const toggleWhy = (fieldKey: string) => {
     setExpandedWhy((prev) => ({ ...prev, [fieldKey]: !prev[fieldKey] }));
@@ -135,6 +150,8 @@ export function AiSuggestionReviewCard({
 
   const handleAcceptCategory = () => {
     setAcceptedFields((prev) => ({ ...prev, category: true }));
+    // Accepting the suggestion replaces any earlier correction for this field.
+    setEditedCategory(null);
     recordFeedbackEvent(
       "CATEGORY",
       "category",
@@ -178,11 +195,14 @@ export function AiSuggestionReviewCard({
     );
     // The typed value travels with the apply: recording it as feedback alone
     // left the form holding the model's suggestion instead of the reviewer's.
-    onApplyCategory?.(categoryInput.trim() || undefined);
+    const typed = categoryInput.trim();
+    setEditedCategory(typed || null);
+    onApplyCategory?.(typed || undefined);
   };
 
   const handleAcceptManufacturer = () => {
     setAcceptedFields((prev) => ({ ...prev, manufacturer: true }));
+    setEditedManufacturer(null);
     recordFeedbackEvent(
       "MANUFACTURER",
       "manufacturer",
@@ -225,7 +245,9 @@ export function AiSuggestionReviewCard({
       suggestion.manufacturer?.evidence
     );
     // Same contract as the category row: the typed name is applied, not just logged.
-    onApplyManufacturer?.(manufacturerInput.trim() || undefined);
+    const typed = manufacturerInput.trim();
+    setEditedManufacturer(typed || null);
+    onApplyManufacturer?.(typed || undefined);
   };
 
   const handleAcceptSingleAttribute = (
@@ -417,10 +439,15 @@ export function AiSuggestionReviewCard({
           </div>
         </div>
         <div className="flex flex-wrap gap-2 border-t border-border/60 pt-2">
-          {onApplyIdentity && <Button type="button" variant="outline" size="xs" onClick={onApplyIdentity}>Apply Identity</Button>}
-          {onApplyClassification && <Button type="button" variant="outline" size="xs" onClick={onApplyClassification}>Apply Classification</Button>}
+          {/*
+            Each handler is invoked with no arguments. Wiring one straight to
+            `onClick` would hand it the click event instead, which an apply
+            handler that accepts an optional value would mistake for one.
+          */}
+          {onApplyIdentity && <Button type="button" variant="outline" size="xs" onClick={() => onApplyIdentity()}>Apply Identity</Button>}
+          {onApplyClassification && <Button type="button" variant="outline" size="xs" onClick={() => onApplyClassification()}>Apply Classification</Button>}
           {onApplyAttributes && <Button type="button" variant="outline" size="xs" onClick={() => onApplyAttributes(suggestion.attributes)}>Apply Specifications</Button>}
-          {onApplyNameDescription && <Button type="button" variant="outline" size="xs" onClick={onApplyNameDescription}>Apply Name &amp; Description</Button>}
+          {onApplyNameDescription && <Button type="button" variant="outline" size="xs" onClick={() => onApplyNameDescription()}>Apply Name &amp; Description</Button>}
         </div>
       </div>
 
@@ -476,17 +503,29 @@ export function AiSuggestionReviewCard({
                 <div className="space-y-0.5">
                   <p
                     className="text-xs font-semibold text-foreground truncate"
-                    title={suggestion.category.subcategoryName || suggestion.category.categoryName}
+                    title={editedCategory ?? suggestion.category.subcategoryName ?? suggestion.category.categoryName}
                   >
-                    {suggestion.category.subcategoryName || suggestion.category.categoryName}
+                    {editedCategory ??
+                      suggestion.category.subcategoryName ??
+                      suggestion.category.categoryName}
                   </p>
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                    <span>{suggestion.category.categoryName}</span>
-                    <span>•</span>
-                    <StatusBadge
-                      status={getStatusBadgeType(suggestion.category.confidenceLevel)}
-                      label={`${catConfidencePct}%`}
-                    />
+                    {editedCategory ? (
+                      <span className="inline-flex items-center rounded border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-700 dark:text-amber-400">
+                        {replacedCategoryName
+                          ? `Edited · was ${replacedCategoryName}`
+                          : "Edited"}
+                      </span>
+                    ) : (
+                      <>
+                        <span>{suggestion.category.categoryName}</span>
+                        <span>•</span>
+                        <StatusBadge
+                          status={getStatusBadgeType(suggestion.category.confidenceLevel)}
+                          label={`${catConfidencePct}%`}
+                        />
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -609,17 +648,27 @@ export function AiSuggestionReviewCard({
                 <div className="space-y-0.5">
                   <p
                     className="text-xs font-semibold text-foreground truncate"
-                    title={suggestion.manufacturer.manufacturerName}
+                    title={editedManufacturer ?? suggestion.manufacturer.manufacturerName ?? undefined}
                   >
-                    {suggestion.manufacturer.manufacturerName}
+                    {editedManufacturer ?? suggestion.manufacturer.manufacturerName}
                   </p>
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                    <span>Match: {suggestion.manufacturer.matchType}</span>
-                    <span>•</span>
-                    <StatusBadge
-                      status={getStatusBadgeType(suggestion.manufacturer.confidenceLevel)}
-                      label={`${mfgConfidencePct}%`}
-                    />
+                    {editedManufacturer ? (
+                      <span className="inline-flex items-center rounded border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-700 dark:text-amber-400">
+                        {suggestion.manufacturer.manufacturerName
+                          ? `Edited · was ${suggestion.manufacturer.manufacturerName}`
+                          : "Edited"}
+                      </span>
+                    ) : (
+                      <>
+                        <span>Match: {suggestion.manufacturer.matchType}</span>
+                        <span>•</span>
+                        <StatusBadge
+                          status={getStatusBadgeType(suggestion.manufacturer.confidenceLevel)}
+                          label={`${mfgConfidencePct}%`}
+                        />
+                      </>
+                    )}
                   </div>
                 </div>
               )}

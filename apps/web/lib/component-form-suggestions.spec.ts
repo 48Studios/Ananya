@@ -44,7 +44,8 @@ describe("AI suggestion card — edited values reach the caller", () => {
 
     // The typed value is recorded AND handed over.
     expect(body).toContain("categoryInput,");
-    expect(body).toContain("onApplyCategory?.(categoryInput.trim()");
+    expect(body).toContain("onApplyCategory?.(typed || undefined)");
+    expect(body).toContain("const typed = categoryInput.trim();");
     expect(body).not.toContain("onApplyCategory?.();");
   });
 
@@ -52,8 +53,39 @@ describe("AI suggestion card — edited values reach the caller", () => {
     const body = handlerBody(cardSource, "handleSaveEditManufacturer");
 
     expect(body).toContain("manufacturerInput,");
-    expect(body).toContain("onApplyManufacturer?.(manufacturerInput.trim()");
+    expect(body).toContain("onApplyManufacturer?.(typed || undefined)");
+    expect(body).toContain("const typed = manufacturerInput.trim();");
     expect(body).not.toContain("onApplyManufacturer?.();");
+  });
+
+  it("shows the value that was actually applied after an edit", () => {
+    // The row used to keep rendering the model's suggestion, so a correction
+    // looked like it had been reverted.
+    expect(cardSource).toContain("setEditedCategory(typed || null)");
+    expect(cardSource).toContain("setEditedManufacturer(typed || null)");
+    expect(cardSource).toContain("editedCategory ??");
+    expect(cardSource).toContain("editedManufacturer ??");
+    // The replaced value is only named when the model actually proposed one.
+    expect(cardSource).toContain("`Edited · was ${replacedCategoryName}`");
+    expect(cardSource).toContain(': "Edited"}');
+    // Accepting the suggestion again clears the correction.
+    expect(handlerBody(cardSource, "handleAcceptCategory")).toContain(
+      "setEditedCategory(null)",
+    );
+    expect(handlerBody(cardSource, "handleAcceptManufacturer")).toContain(
+      "setEditedManufacturer(null)",
+    );
+  });
+
+  it("invokes every header action with no arguments", () => {
+    // `onClick={onApplyClassification}` handed the click event to a handler that
+    // accepts an optional value, which then threw on `customName.trim`.
+    expect(cardSource).not.toContain("onClick={onApplyClassification}");
+    expect(cardSource).not.toContain("onClick={onApplyIdentity}");
+    expect(cardSource).not.toContain("onClick={onApplyNameDescription}");
+    expect(cardSource).toContain("onClick={() => onApplyClassification()}");
+    expect(cardSource).toContain("onClick={() => onApplyIdentity()}");
+    expect(cardSource).toContain("onClick={() => onApplyNameDescription()}");
   });
 
   it("declares both apply callbacks as accepting the custom name", () => {
@@ -67,34 +99,63 @@ describe("AI suggestion card — edited values reach the caller", () => {
     // Only the edit path carries a value; a plain accept must not invent one.
     const body = handlerBody(cardSource, "handleAcceptCategory");
     expect(body).toContain("onApplyCategory?.();");
+    expect(body).not.toContain("onApplyCategory?.(undefined)");
   });
 });
 
-describe("Component form — a typed value becomes a pending entity", () => {
-  it("holds a typed category as pending and clears the reference", () => {
+describe("Component form — a typed value resolves against the ERP", () => {
+  it("selects an existing category instead of proposing a new one", () => {
     const body = handlerBody(formSource, "handleApplyCategory");
 
-    expect(body).toContain("customName?: string");
-    expect(body).toContain('setValue("categoryId", null');
-    expect(body).toContain("setPendingCategory({");
-    expect(body).toContain("name: typed");
-    // Created under the suggested family, so it lands in the right place.
-    expect(body).toContain("parentId: suggestion.category?.parentCategoryId ?? null");
+    // The reported bug: a name the ERP already holds was always held as a
+    // pending entity, so the field showed "NEW" beside an existing record.
+    expect(body).toContain("findAssignableEntity({");
+    expect(body).toContain("entities: assignableCategories");
+    expect(body).toContain("setValue(\"categoryId\", existing?.id ?? null");
+    expect(body).toContain(
+      "existing ? null : { name: typed, parentId: suggestedParentId }",
+    );
   });
 
-  it("holds a typed manufacturer as pending and clears the reference", () => {
+  it("selects an existing manufacturer instead of proposing a new one", () => {
     const body = handlerBody(formSource, "handleApplyManufacturer");
 
-    expect(body).toContain("customName?: string");
-    expect(body).toContain('setValue("manufacturerId", null');
-    expect(body).toContain("setPendingManufacturer({ name: typed })");
+    expect(body).toContain("findAssignableEntity({");
+    expect(body).toContain("entities: assignableManufacturers");
+    expect(body).toContain("setValue(\"manufacturerId\", existing?.id ?? null");
+    expect(body).toContain("setPendingManufacturer(existing ? null : { name: typed })");
+  });
+
+  it("loads the records a typed name is matched against", () => {
+    expect(formSource).toContain("categoriesApi.getAll()");
+    expect(formSource).toContain("manufacturersApi.getAll()");
+    expect(formSource).toContain("setAssignableCategories(categories)");
+    expect(formSource).toContain("setAssignableManufacturers(manufacturers)");
+  });
+
+  it("resolves a model candidate the ERP already holds, too", () => {
+    // A NEW_CANDIDATE names a record only the model failed to resolve; if the
+    // ERP holds that name the field must show the record, not a "NEW" badge.
+    const body = handlerBody(formSource, "applyEntitySuggestions");
+    expect(body).toContain("findAssignableEntity({");
+    expect(body).toContain("typedName: proposedName");
+    expect(body).toContain("setPendingCategory(");
+    expect(body).toContain("existing");
   });
 
   it("never borrows the suggestion's code for a typed name", () => {
     // Reusing the suggested code would collide with the category it came from:
     // the pending entity service derives a code from the name instead.
+    const categoryBody = handlerBody(formSource, "handleApplyCategory");
+    expect(categoryBody).not.toContain("code:");
+  });
+
+  it("treats only a string as a typed value", () => {
+    // A click handler wired straight to one of these would pass the event.
     for (const name of ["handleApplyCategory", "handleApplyManufacturer"]) {
-      expect(handlerBody(formSource, name)).not.toContain("code:");
+      expect(handlerBody(formSource, name)).toContain(
+        'typeof customName === "string" ? customName.trim() : ""',
+      );
     }
   });
 
@@ -105,7 +166,52 @@ describe("Component form — a typed value becomes a pending entity", () => {
       expect(body).toContain("applyEntitySuggestions(");
     }
   });
+});
 
+describe("Component form — an explicit choice survives a bulk apply", () => {
+  it("records that the reviewer chose the field", () => {
+    expect(formSource).toContain("setCategoryChosenByReviewer(true)");
+    expect(formSource).toContain("setManufacturerChosenByReviewer(true)");
+  });
+
+  it("releases the choice when the reviewer accepts the suggestion again", () => {
+    for (const name of ["handleApplyCategory", "handleApplyManufacturer"]) {
+      expect(handlerBody(formSource, name)).toContain(
+        "ChosenByReviewer(false)",
+      );
+    }
+  });
+
+  it("makes a bulk apply respect a chosen field", () => {
+    const body = handlerBody(formSource, "handleApplyAllSuggestions");
+    // `includeReviewerChoices` stays false, so the bulk apply completes the
+    // card without reverting a correction the reviewer already made.
+    expect(body).toContain("applyEntitySuggestions(suggestion, { overwrite: true })");
+    expect(body).not.toContain("includeReviewerChoices: true");
+  });
+
+  it("conducts the decision in applyEntitySuggestions", () => {
+    const body = handlerBody(formSource, "applyEntitySuggestions");
+    expect(body).toContain("includeReviewerChoices || !manufacturerChosenByReviewer");
+    expect(body).toContain("includeReviewerChoices || !categoryChosenByReviewer");
+  });
+
+  it("treats a direct dropdown pick as the reviewer's choice", () => {
+    expect(formSource).toContain("setCategoryChosenByReviewer(true);\n                    field.onChange(val);");
+    expect(formSource).toContain("setManufacturerChosenByReviewer(true);\n                    field.onChange(val);");
+  });
+
+  it("clears the choices when the suggestion is dismissed", () => {
+    const dismissStart = formSource.indexOf("onDismiss={() => {");
+    expect(dismissStart).toBeGreaterThan(-1);
+    const body = formSource.slice(dismissStart, formSource.indexOf("}}", dismissStart));
+    expect(body).toContain("setSuggestion(null)");
+    expect(body).toContain("setCategoryChosenByReviewer(false)");
+    expect(body).toContain("setManufacturerChosenByReviewer(false)");
+  });
+});
+
+describe("Component form — suggestion wiring", () => {
   it("wires the card's callbacks to these handlers", () => {
     expect(formSource).toContain("onApplyCategory={handleApplyCategory}");
     expect(formSource).toContain("onApplyManufacturer={handleApplyManufacturer}");

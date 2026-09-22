@@ -38,6 +38,11 @@ import {
   type AttributeOptionDto,
   type ResolvedCategoryAttributeDto,
 } from "@/lib/api/attributes-api";
+import { categoriesApi } from "@/lib/api/categories-api";
+import { manufacturersApi } from "@/lib/api/manufacturers-api";
+import { findAssignableEntity } from "@/lib/component-entity-assignment";
+import type { CategoryDto } from "@/lib/api/categories-api";
+import type { ManufacturerDto } from "@/lib/api/manufacturers-api";
 
 const componentSchema = z.object({
   sku: z
@@ -135,6 +140,31 @@ export function ComponentForm({
     React.useState<PendingManufacturer | null>(null);
   const [pendingCategory, setPendingCategory] =
     React.useState<PendingCategory | null>(null);
+  /**
+   * Records the reviewer already holds, for resolving a typed name.
+   *
+   * Loaded once rather than per keystroke, and only read when a reviewer types
+   * over a suggestion: the answer decides whether the field shows an existing
+   * record or a to-be-created one, which is a decision the reviewer has to be
+   * able to trust.
+   */
+  const [assignableCategories, setAssignableCategories] = React.useState<
+    CategoryDto[]
+  >([]);
+  const [assignableManufacturers, setAssignableManufacturers] = React.useState<
+    ManufacturerDto[]
+  >([]);
+  /**
+   * Fields the reviewer chose by hand.
+   *
+   * An explicit choice — applying one row, or typing a correct one — outranks a
+   * later bulk apply: "Apply All Suggestions" completing the rest of the card
+   * must not silently revert a correction the reviewer already made.
+   */
+  const [categoryChosenByReviewer, setCategoryChosenByReviewer] =
+    React.useState(false);
+  const [manufacturerChosenByReviewer, setManufacturerChosenByReviewer] =
+    React.useState(false);
   const [loadingSkuPreview, setLoadingSkuPreview] = React.useState(false);
   const [attributeDefinitions, setAttributeDefinitions] = React.useState<
     AttributeDefinitionDto[]
@@ -244,6 +274,8 @@ export function ComponentForm({
     });
     setPendingManufacturer(null);
     setPendingCategory(null);
+    setCategoryChosenByReviewer(false);
+    setManufacturerChosenByReviewer(false);
 
     if (initialData?.attributes) {
       const initialAttrs: Record<
@@ -286,6 +318,28 @@ export function ComponentForm({
         if (current) setAttributeDefinitions(definitions);
       })
       .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, []);
+
+  /**
+   * The records a typed suggestion value can resolve to.
+   *
+   * Failure is non-blocking: without them a typed name simply cannot be matched,
+   * so it is treated as new and created on save — which is what the API does
+   * with a name it cannot find anyway.
+   */
+  React.useEffect(() => {
+    let current = true;
+    Promise.all([
+      categoriesApi.getAll().catch(() => []),
+      manufacturersApi.getAll().catch(() => []),
+    ]).then(([categories, manufacturers]) => {
+      if (!current) return;
+      setAssignableCategories(categories);
+      setAssignableManufacturers(manufacturers);
+    });
     return () => {
       current = false;
     };
@@ -391,14 +445,16 @@ export function ComponentForm({
 
   const applyEntitySuggestions = (
     nextSuggestion: ComponentSuggestionResponseDto,
-    force = false,
+    options: { overwrite?: boolean; includeReviewerChoices?: boolean } = {},
   ) => {
+    const { overwrite = false, includeReviewerChoices = false } = options;
     const currentManufacturerId = watch("manufacturerId");
     const currentCategoryId = watch("categoryId");
 
     if (
       nextSuggestion.manufacturer &&
-      (force || (!currentManufacturerId && !pendingManufacturer))
+      (includeReviewerChoices || !manufacturerChosenByReviewer) &&
+      (overwrite || (!currentManufacturerId && !pendingManufacturer))
     ) {
       if (
         nextSuggestion.manufacturer.resolution === "EXISTING" &&
@@ -410,20 +466,32 @@ export function ComponentForm({
         });
         setPendingManufacturer(null);
       } else if (nextSuggestion.manufacturer.resolution === "NEW_CANDIDATE") {
-        setValue("manufacturerId", null, {
+        // The model proposed a name; the ERP may already hold it. Resolving it
+        // here is what keeps the field from claiming "NEW" beside a record that
+        // exists and will be bound on save.
+        const existing = findAssignableEntity({
+          typedName: nextSuggestion.manufacturer.manufacturerName ?? "",
+          entities: assignableManufacturers,
+        });
+        setValue("manufacturerId", existing?.id ?? null, {
           shouldDirty: true,
           shouldValidate: true,
         });
-        setPendingManufacturer({
-          name: nextSuggestion.manufacturer.manufacturerName,
-          code: nextSuggestion.manufacturer.manufacturerCode,
-        });
+        setPendingManufacturer(
+          existing
+            ? null
+            : {
+                name: nextSuggestion.manufacturer.manufacturerName,
+                code: nextSuggestion.manufacturer.manufacturerCode,
+              },
+        );
       }
     }
 
     if (
       nextSuggestion.category &&
-      (force || (!currentCategoryId && !pendingCategory))
+      (includeReviewerChoices || !categoryChosenByReviewer) &&
+      (overwrite || (!currentCategoryId && !pendingCategory))
     ) {
       if (
         nextSuggestion.category.resolution === "EXISTING" &&
@@ -435,20 +503,31 @@ export function ComponentForm({
         });
         setPendingCategory(null);
       } else if (nextSuggestion.category.resolution === "NEW_CANDIDATE") {
-        setValue("categoryId", null, {
+        const proposedName =
+          nextSuggestion.category.subcategoryName ||
+          nextSuggestion.category.categoryName;
+        const existing = findAssignableEntity({
+          typedName: proposedName,
+          entities: assignableCategories,
+          preferredParentId: nextSuggestion.category.parentCategoryId ?? null,
+        });
+        setValue("categoryId", existing?.id ?? null, {
           shouldDirty: true,
           shouldValidate: true,
         });
-        setPendingCategory({
-          name:
-            nextSuggestion.category.subcategoryName ||
-            nextSuggestion.category.categoryName,
-          code:
-            nextSuggestion.category.subcategoryCode ||
-            nextSuggestion.category.categoryCode,
-          parentId: nextSuggestion.category.parentCategoryId ?? null,
-          description: nextSuggestion.category.proposedDescription ?? null,
-        });
+        setPendingCategory(
+          existing
+            ? null
+            : {
+                name: proposedName,
+                code:
+                  nextSuggestion.category.subcategoryCode ||
+                  nextSuggestion.category.categoryCode,
+                parentId: nextSuggestion.category.parentCategoryId ?? null,
+                description:
+                  nextSuggestion.category.proposedDescription ?? null,
+              },
+        );
       }
     }
   };
@@ -496,7 +575,8 @@ export function ComponentForm({
   const handleApplyAllSuggestions = () => {
     if (!suggestion) return;
 
-    applyEntitySuggestions(suggestion, true);
+    // Completes the card without reverting a field the reviewer already chose.
+    applyEntitySuggestions(suggestion, { overwrite: true });
 
     if (suggestion.manufacturerPartNumber) {
       setValue("manufacturerPartNumber", suggestion.manufacturerPartNumber, {
@@ -533,46 +613,79 @@ export function ComponentForm({
   };
 
   /**
-   * Applies the suggested category, or the name the reviewer typed over it.
+   * Applies the suggested category, or the value the reviewer chose over it.
    *
-   * A typed name is a custom category: the field holds no existing record, so it
-   * is held as a pending entity and created when the component is saved — the
-   * same path the suggestion's own `NEW_CANDIDATE` takes. Its code is left unset
+   * A typed name is matched against the records the ERP already holds, so
+   * typing an existing category selects that category instead of showing a
+   * duplicate as new. Only a name nothing matches is held as a pending entity
+   * and created when the component is saved. A pending entity carries no code
    * on purpose: `PendingComponentEntityService` derives one from the name, while
    * reusing the suggestion's code would collide with the category it came from.
+   *
+   * Called with no argument by the card's own Apply button, which means "use the
+   * model's suggestion" and releases any earlier choice for this field.
    */
   const handleApplyCategory = (customName?: string) => {
     if (!suggestion) return;
-    const typed = customName?.trim();
-    if (typed) {
-      setValue("categoryId", null, { shouldDirty: true, shouldValidate: true });
-      setPendingCategory({
-        name: typed,
-        parentId: suggestion.category?.parentCategoryId ?? null,
-      });
-      return;
-    }
-    applyEntitySuggestions({ ...suggestion, manufacturer: null }, true);
-  };
+    // A click handler can be wired straight to this function, so only a string
+    // is ever treated as a typed value.
+    const typed = typeof customName === "string" ? customName.trim() : "";
 
-  /**
-   * Applies the suggested manufacturer, or the name the reviewer typed over it.
-   *
-   * A typed manufacturer is held as a pending entity for the same reason as a
-   * typed category, and the select then displays the reviewer's own value.
-   */
-  const handleApplyManufacturer = (customName?: string) => {
-    if (!suggestion) return;
-    const typed = customName?.trim();
     if (typed) {
-      setValue("manufacturerId", null, {
+      const suggestedParentId =
+        suggestion.category?.parentCategoryId ?? null;
+      const existing = findAssignableEntity({
+        typedName: typed,
+        entities: assignableCategories,
+        preferredParentId: suggestedParentId,
+      });
+      setCategoryChosenByReviewer(true);
+      setValue("categoryId", existing?.id ?? null, {
         shouldDirty: true,
         shouldValidate: true,
       });
-      setPendingManufacturer({ name: typed });
+      setPendingCategory(
+        existing ? null : { name: typed, parentId: suggestedParentId },
+      );
       return;
     }
-    applyEntitySuggestions({ ...suggestion, category: null }, true);
+
+    setCategoryChosenByReviewer(false);
+    applyEntitySuggestions(
+      { ...suggestion, manufacturer: null },
+      { overwrite: true, includeReviewerChoices: true },
+    );
+  };
+
+  /**
+   * Applies the suggested manufacturer, or the value the reviewer chose over it.
+   *
+   * Mirrors {@link handleApplyCategory}: a typed name that the ERP already holds
+   * selects that record, and only an unknown name becomes a pending entity.
+   */
+  const handleApplyManufacturer = (customName?: string) => {
+    if (!suggestion) return;
+    const typed = typeof customName === "string" ? customName.trim() : "";
+
+    if (typed) {
+      const existing = findAssignableEntity({
+        typedName: typed,
+        entities: assignableManufacturers,
+      });
+      setManufacturerChosenByReviewer(true);
+      setValue("manufacturerId", existing?.id ?? null, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setPendingManufacturer(existing ? null : { name: typed });
+      return;
+    }
+
+    setManufacturerChosenByReviewer(false);
+    applyEntitySuggestions(
+      { ...suggestion, category: null },
+      { overwrite: true, includeReviewerChoices: true },
+    );
   };
 
   const handleApplyAttributes = (attrs: Record<string, unknown>) => {
@@ -837,7 +950,13 @@ export function ComponentForm({
             onApplyCategory={handleApplyCategory}
             onApplyManufacturer={handleApplyManufacturer}
             onApplyAttributes={handleApplyAttributes}
-            onDismiss={() => setSuggestion(null)}
+            onDismiss={() => {
+              // Dismissing discards the suggestion entirely, so the reviewer's
+              // per-field choices for it are cleared with it.
+              setSuggestion(null);
+              setCategoryChosenByReviewer(false);
+              setManufacturerChosenByReviewer(false);
+            }}
           />
         )}
 
@@ -929,6 +1048,9 @@ export function ComponentForm({
                   value={field.value ?? null}
                   onChange={(val) => {
                     setPendingCategory(null);
+                    // Picking in the field itself is the reviewer's own choice,
+                    // so it outranks anything a later bulk apply would write.
+                    setCategoryChosenByReviewer(true);
                     field.onChange(val);
                   }}
                   placeholder="Select or search category..."
@@ -969,6 +1091,7 @@ export function ComponentForm({
                   value={field.value ?? null}
                   onChange={(val) => {
                     setPendingManufacturer(null);
+                    setManufacturerChosenByReviewer(true);
                     field.onChange(val);
                   }}
                   placeholder="Select or search manufacturer..."
