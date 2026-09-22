@@ -31,9 +31,17 @@ interface AiSuggestionReviewCardProps {
   onApplyClassification?: () => void;
   onApplyNameDescription?: () => void;
   attributeConflicts?: Array<{ code: string; existing: string; extracted: string }>;
-  onApplyCategory?: () => void;
+  /**
+   * Applies the suggested category, or — when the reviewer edited the row —
+   * exactly the name they typed.
+   *
+   * The edited value is passed on rather than only being recorded as telemetry:
+   * a custom name is the reviewer's decision, and the form is where it has to
+   * end up (held as a pending category until the component is saved).
+   */
+  onApplyCategory?: (customName?: string) => void;
   onRejectCategory?: () => void;
-  onApplyManufacturer?: () => void;
+  onApplyManufacturer?: (customName?: string) => void;
   onRejectManufacturer?: () => void;
   onApplyAttributes?: (attributes: Record<string, unknown>) => void;
   onApplySingleAttribute?: (code: string, attr: unknown) => void;
@@ -168,7 +176,9 @@ export function AiSuggestionReviewCard({
       suggestion.category?.confidenceLevel,
       suggestion.category?.evidence
     );
-    onApplyCategory?.();
+    // The typed value travels with the apply: recording it as feedback alone
+    // left the form holding the model's suggestion instead of the reviewer's.
+    onApplyCategory?.(categoryInput.trim() || undefined);
   };
 
   const handleAcceptManufacturer = () => {
@@ -214,7 +224,8 @@ export function AiSuggestionReviewCard({
       suggestion.manufacturer?.confidenceLevel,
       suggestion.manufacturer?.evidence
     );
-    onApplyManufacturer?.();
+    // Same contract as the category row: the typed name is applied, not just logged.
+    onApplyManufacturer?.(manufacturerInput.trim() || undefined);
   };
 
   const handleAcceptSingleAttribute = (

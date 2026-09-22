@@ -45,6 +45,7 @@ import {
   AttributeAuditIssueDto,
   AttributeConfigSuggestionDto,
 } from './dtos';
+import { resolveCategorySuggestion } from './category-suggestion-resolution';
 
 interface RawExtractedAttribute {
   code?: string;
@@ -265,6 +266,25 @@ export class MlService {
       allCategories.map((category) => [category.id, category]),
     );
 
+    /**
+     * The categories the installed Data Packs declare for their part families.
+     *
+     * They are the tie-break of last resort when two ERP categories share a name
+     * (the live library has two "Resistors" rows, only one of which carries
+     * components), because a pack's declaration is deliberate while the row the
+     * ML picked among identical names depends on the order it received them in.
+     */
+    const packCategoryDeclarations = datapackHints
+      .map((hint) => ({
+        categoryCode: hint.categoryCode ?? '',
+        categoryName: hint.categoryName ?? '',
+      }))
+      .filter(
+        (declaration) =>
+          declaration.categoryCode.length > 0 &&
+          declaration.categoryName.length > 0,
+      );
+
     partNumber = (
       extractManufacturerPartNumber(
         requestedPartNumber || query,
@@ -327,13 +347,23 @@ export class MlService {
 
     if (mlResponse && mlResponse.category_predictions.length > 0) {
       for (const [idx, pred] of mlResponse.category_predictions.entries()) {
-        const subName = pred.subcategory || pred.category;
-        const matchedCat = allCategories.find(
-          (c) =>
-            c.name.toLowerCase() === subName.toLowerCase() ||
-            c.code.toLowerCase() === subName.toLowerCase() ||
-            c.name.toLowerCase() === pred.category.toLowerCase(),
+        // The ML resolves the category against the same ERP list this service
+        // just sent it, so its answer is resolved again here rather than
+        // re-derived: matching the group name at the same priority as the
+        // family name is what used to turn every capacitor, inductor and diode
+        // suggestion into "Electronic Components".
+        const resolved = resolveCategorySuggestion(
+          {
+            categoryName: pred.category,
+            subcategoryName: pred.subcategory,
+            categoryId: pred.category_id,
+            categoryCode: pred.category_code,
+            parentCategoryId: pred.parent_category_id,
+          },
+          allCategories,
+          packCategoryDeclarations,
         );
+        const matchedCat = resolved?.category ?? null;
 
         const item: CategorySuggestionDto = {
           resolution:
@@ -341,7 +371,12 @@ export class MlService {
           categoryId:
             matchedCat?.id ||
             (pred.resolution === 'EXISTING' ? pred.category_id || null : null),
-          categoryCode: pred.category_code || matchedCat?.code,
+          // The resolved row's own code wins: the resolver may deliberately have
+          // kept a different row than the ML named (two categories can share a
+          // name), and reporting the ML's code for a different row is what made
+          // the payload self-contradictory. The ML's code is still the fallback
+          // when nothing local matched, where it is a new-category hint.
+          categoryCode: matchedCat?.code ?? pred.category_code ?? undefined,
           categoryName: pred.category,
           subcategoryId: matchedCat?.parentId
             ? matchedCat.id
@@ -349,14 +384,24 @@ export class MlService {
               (pred.resolution === 'EXISTING'
                 ? pred.category_id || null
                 : null),
-          subcategoryCode:
-            pred.category_code ||
-            (matchedCat?.parentId ? matchedCat.code : undefined),
+          subcategoryCode: matchedCat?.parentId
+            ? matchedCat.code
+            : (pred.category_code ?? undefined),
           subcategoryName: pred.subcategory,
-          categoryPath:
-            pred.category_path ||
-            (matchedCat ? buildCategoryPath(matchedCat.id, categoryMap) : []),
-          parentCategoryId: matchedCat?.parentId || pred.parent_category_id,
+          // Same reasoning as the code above: a resolved row's path is derived
+          // from the ERP hierarchy, while the ML's path describes the row IT
+          // picked. Keeping the ML's path beside a different row made the
+          // suggestion contradict itself (code RES, path "Resistors").
+          categoryPath: matchedCat
+            ? buildCategoryPath(matchedCat.id, categoryMap)
+            : pred.category_path || [],
+          // A resolved row's own parent is authoritative: the ML's recorded
+          // parent describes ITS resolution, which may not be the row kept
+          // above, and the two were previously OR'd together, so a category
+          // could come back as its own parent.
+          parentCategoryId: matchedCat
+            ? matchedCat.parentId
+            : pred.parent_category_id,
           parentCategoryCode: pred.parent_category_code,
           suggestedParent: pred.suggested_parent,
           proposedDescription: pred.proposed_description,
@@ -482,9 +527,15 @@ export class MlService {
         }
       }
 
-      const dbCat = allCategories.find(
-        (c) => c.isActive && c.name.toLowerCase() === matchedName.toLowerCase(),
+      // The deterministic path resolves the same way the ML path does, so a name
+      // shared by two rows lands on the pack's category here as well. Only the
+      // name is known on this path, so that is all the resolver is given.
+      const matchedEntry = resolveCategorySuggestion(
+        { categoryName: matchedName },
+        allCategories,
+        packCategoryDeclarations,
       );
+      const dbCat = matchedEntry?.category ?? null;
       primaryCategory = {
         resolution: dbCat ? 'EXISTING' : 'NEW_CANDIDATE',
         categoryId: dbCat?.id || null,

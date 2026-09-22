@@ -532,16 +532,47 @@ export function ComponentForm({
     }
   };
 
-  const handleApplyCategory = () => {
-    if (suggestion) {
-      applyEntitySuggestions({ ...suggestion, manufacturer: null }, true);
+  /**
+   * Applies the suggested category, or the name the reviewer typed over it.
+   *
+   * A typed name is a custom category: the field holds no existing record, so it
+   * is held as a pending entity and created when the component is saved — the
+   * same path the suggestion's own `NEW_CANDIDATE` takes. Its code is left unset
+   * on purpose: `PendingComponentEntityService` derives one from the name, while
+   * reusing the suggestion's code would collide with the category it came from.
+   */
+  const handleApplyCategory = (customName?: string) => {
+    if (!suggestion) return;
+    const typed = customName?.trim();
+    if (typed) {
+      setValue("categoryId", null, { shouldDirty: true, shouldValidate: true });
+      setPendingCategory({
+        name: typed,
+        parentId: suggestion.category?.parentCategoryId ?? null,
+      });
+      return;
     }
+    applyEntitySuggestions({ ...suggestion, manufacturer: null }, true);
   };
 
-  const handleApplyManufacturer = () => {
-    if (suggestion) {
-      applyEntitySuggestions({ ...suggestion, category: null }, true);
+  /**
+   * Applies the suggested manufacturer, or the name the reviewer typed over it.
+   *
+   * A typed manufacturer is held as a pending entity for the same reason as a
+   * typed category, and the select then displays the reviewer's own value.
+   */
+  const handleApplyManufacturer = (customName?: string) => {
+    if (!suggestion) return;
+    const typed = customName?.trim();
+    if (typed) {
+      setValue("manufacturerId", null, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setPendingManufacturer({ name: typed });
+      return;
     }
+    applyEntitySuggestions({ ...suggestion, category: null }, true);
   };
 
   const handleApplyAttributes = (attrs: Record<string, unknown>) => {
