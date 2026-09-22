@@ -811,7 +811,7 @@ export function ComponentReviewQueueDialog({
                         </Link>
                       </div>
 
-                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5 justify-end">
                         {summary.fieldLabel ? (
                           <>
                             <span className="font-medium text-foreground/80">
