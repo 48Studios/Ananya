@@ -30,7 +30,7 @@
     "@playwright/test": "^1.50.1",
     "drizzle-kit": "^0.31.0",
     "prettier": "^3.7.4",
-    "turbo": "^2.10.5",
+    "turbo": "^2.11.2",
     "typescript": "5.9.2",
     "vitest": "^4.1.10"
   },
