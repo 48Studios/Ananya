@@ -1057,10 +1057,19 @@ describe("specification intelligence dialog", () => {
   });
 
   it("drives every action from the shared presentation rules", () => {
+    // The affordances are the shared capability checks, never a local guess at
+    // what is appliable or decidable.
     expect(source_).toContain("canApplySpecification");
     expect(source_).toContain("canDecideSpecification");
-    expect(source_).toContain("specificationUnavailableReason");
     expect(source_).toContain("specificationBadge");
+    // A withheld action is explained by the shared comparison line the card
+    // renders in place of a dead button, so the reviewer is told why.
+    // (`specificationUnavailableReason` is the other half of that vocabulary and
+    // stays covered by its own unit tests; this dialog renders the comparison,
+    // not a second copy of the reason, so asserting it here was asserting an
+    // implementation detail the dialog never had.)
+    expect(source_).toContain("describeErpComparison");
+    expect(source_).toContain("erp ?? specificationBadge(specification)");
   });
 
   it("shows conflicts and ambiguities through the shared helpers", () => {

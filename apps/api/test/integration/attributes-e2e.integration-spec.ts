@@ -118,14 +118,19 @@ describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
   it('Scenario 1 & 2: should create Resistor and Capacitor and preserve structured specifications', async () => {
     if (!hasDbUrl) return;
 
-    // Resistor creation
+    // Resistor creation.
+    //
+    // `tolerance` is a QUANTITY in the Percentage dimension with `%` as its
+    // default unit, so a percentage is written as a number plus its unit. A
+    // token such as '1pct' is not a quantity and is refused by the attribute
+    // domain, and the definition carries no options for `optionCode` to resolve.
     const resistor = await componentsService.create({
       sku: fixtureSku('E2E-RES'),
       name: '10kΩ SMD Resistor',
       unit: 'pcs',
       attributes: [
         { code: 'resistance', value: 10, unit: 'kohm' },
-        { code: 'tolerance', value: '1pct', optionCode: '1pct' },
+        { code: 'tolerance', value: 1, unit: '%' },
         { code: 'power_rating', value: 0.125, unit: 'W' },
         { code: 'package', value: '0805', optionCode: '0805' },
       ],
@@ -136,7 +141,13 @@ describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
     );
     expect(populatedResistor.resistance).toBeDefined();
     expect(populatedResistor.resistance!.normalizedValue).toBe(10000);
-    expect(populatedResistor.tolerance!.displayValue).toBe('±1%');
+    // A quantity round-trips as a number and its unit, and renders "<value> <unit>".
+    expect(populatedResistor.tolerance).toBeDefined();
+    expect(populatedResistor.tolerance!.value).toBe(1);
+    expect(populatedResistor.tolerance!.unit).toBe('%');
+    expect(populatedResistor.tolerance!.displayValue).toBe('1 %');
+    // A SELECT round-trips the option code and renders the option's label.
+    expect(populatedResistor.package!.optionCode).toBe('0805');
     expect(populatedResistor.package!.displayValue).toBe('0805 (2012 Metric)');
 
     // Verify database range filtering query using normalized values
@@ -163,7 +174,8 @@ describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
     expect(matchingRange.length).toBeGreaterThanOrEqual(1);
     expect(matchingRange.some((m) => m.sku === resistor.sku)).toBe(true);
 
-    // Capacitor creation
+    // Capacitor creation. Option codes are matched case-sensitively against the
+    // definition, so the dielectric is addressed as the pack defines it ('X7R').
     const capacitor = await componentsService.create({
       sku: fixtureSku('E2E-CAP'),
       name: '100nF Ceramic Capacitor',
@@ -171,8 +183,8 @@ describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
       attributes: [
         { code: 'capacitance', value: 100, unit: 'nF' },
         { code: 'voltage_rating', value: 50, unit: 'V' },
-        { code: 'tolerance', value: '10pct', optionCode: '10pct' },
-        { code: 'dielectric', value: 'x7r', optionCode: 'x7r' },
+        { code: 'tolerance', value: 10, unit: '%' },
+        { code: 'dielectric', value: 'X7R', optionCode: 'X7R' },
         { code: 'package', value: '0805', optionCode: '0805' },
       ],
     });
@@ -181,7 +193,8 @@ describe('Dynamic Attributes & Electronics Data Pack E2E Integration', () => {
       capacitor.id,
     );
     expect(populatedCap.capacitance).toBeDefined();
-    expect(populatedCap.dielectric!.displayValue).toBe('X7R');
+    expect(populatedCap.dielectric!.optionCode).toBe('X7R');
+    expect(populatedCap.dielectric!.displayValue).toBe('X7R (Stable)');
 
     // Clean up
     await componentsService.delete(resistor.id);
