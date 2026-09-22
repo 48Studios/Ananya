@@ -75,7 +75,6 @@ import {
   isAttributeFindingApplied,
   isExpectationForUndefinedAttribute,
   producerUsageEvidence,
-  statusFilterAfterApply,
   suggestedCanonicalCode,
   summarizeAttributeAudit,
   tabIssueTypeFilter,
@@ -388,8 +387,9 @@ export function AttributeReviewQueueDialog({
    * was left untouched.
    *
    * On success the queue is re-read rather than patched in memory, so the row and
-   * the counts come from the database, and the view moves off the "needs review"
-   * filter because an applied finding is no longer awaiting review.
+   * the counts come from the database. The reviewer's filters are left exactly as
+   * they set them — applying a finding must never move the view under their hands,
+   * so an applied row simply leaves a "needs review" list on its own merits.
    */
   const confirmApply = async () => {
     if (!pendingApply) return;
@@ -417,7 +417,6 @@ export function AttributeReviewQueueDialog({
       );
       setPendingApply(null);
       setStatusMessage(attributeApplySuccessMessage(result));
-      setStatusFilter((current) => statusFilterAfterApply(current));
       await loadQueue();
       onActionComplete?.();
     } catch (err) {

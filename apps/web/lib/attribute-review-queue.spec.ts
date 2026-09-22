@@ -45,7 +45,6 @@ import {
   isExpectationForUndefinedAttribute,
   producerIssueTypeLabel,
   producerUsageEvidence,
-  statusFilterAfterApply,
   suggestedCanonicalCode,
   summarizeAttributeAudit,
   tabIssueTypeFilter,
@@ -1480,16 +1479,6 @@ describe("Attribute review queue — apply confirmation", () => {
     expect(summary).toContain("Applied to the attribute library");
     expect(summary).toContain("reviewer@48studios.test");
   });
-
-  it('moves "needs review" onto accepted after an apply, and leaves other filters alone', () => {
-    // An applied finding is no longer awaiting review, so leaving the reviewer on
-    // "needs review" would hide the row they just changed.
-    expect(statusFilterAfterApply("PENDING")).toBe("ACCEPTED");
-    expect(statusFilterAfterApply("PENDING,STALE")).toBe("ACCEPTED");
-    for (const untouched of ["ALL", "ACCEPTED", "REJECTED", "DISMISSED", "STALE"]) {
-      expect(statusFilterAfterApply(untouched)).toBe(untouched);
-    }
-  });
 });
 
 describe("Attribute review queue — apply payload", () => {
@@ -1758,9 +1747,9 @@ describe("Attribute review queue dialog — application state", () => {
     expect(dialog).toContain("attributeApplyUnavailableReason(");
   });
 
-  it('keeps an applied finding visible after apply', () => {
-    // Apply does not filter the list down to one application state: it moves the
-    // status selector off "needs review", so an applied finding stays visible.
+  it('never rewrites the status filter from the apply handler', () => {
+    // The reviewer's filter selection survives an apply untouched — the handler may
+    // re-read the queue, but it must not change what the queue is filtered to.
     const lines = dialog.split("\n");
     const handler = lines
       .slice(
@@ -1769,7 +1758,7 @@ describe("Attribute review queue dialog — application state", () => {
       )
       .join("\n");
 
-    expect(handler).toContain("statusFilterAfterApply");
+    expect(handler).not.toContain("setStatusFilter");
     // No reload, no polling, no router refresh — the queue is re-read.
     expect(handler).not.toContain("window.location");
     expect(handler).not.toContain("setInterval");

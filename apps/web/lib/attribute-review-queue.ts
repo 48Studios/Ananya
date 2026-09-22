@@ -1109,20 +1109,6 @@ export function attributeApplyConflictMessage(
 }
 
 /**
- * The status filter to apply after a finding is applied successfully.
- *
- * A work-list filter ("needs review") would hide the finding the reviewer just
- * applied, so applying one moves the view to the accepted list — which is where an
- * applied finding now belongs, since applying resolves it out of the work list.
- * Any other filter is left exactly as the reviewer set it.
- */
-export function statusFilterAfterApply(currentStatusFilter: string): string {
-  return currentStatusFilter === "PENDING" || currentStatusFilter === "PENDING,STALE"
-    ? "ACCEPTED"
-    : currentStatusFilter;
-}
-
-/**
  * Post-application state line for a finding that has been applied.
  *
  * Acceptance and application are reported together and separately: the reviewer
