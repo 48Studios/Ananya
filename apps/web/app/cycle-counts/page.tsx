@@ -373,16 +373,14 @@ export default function CycleCountsPage() {
         }
         size="sm"
       >
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          <CycleCountForm
-            initialData={editingCount}
-            onSuccess={handleFormSuccess}
-            onCancel={() => {
-              setIsFormOpen(false);
-              setEditingCount(null);
-            }}
-          />
-        </div>
+        <CycleCountForm
+          initialData={editingCount}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingCount(null);
+          }}
+        />
       </DialogShell>
 
       {/* Delete Dialog */}

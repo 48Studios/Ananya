@@ -22,6 +22,11 @@ import {
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
+import {
   reservationsApi,
   type ReservationDto,
   type CreateReservationPayload,
@@ -200,263 +205,259 @@ export function ReservationForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {serverError && (
-        <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{serverError}</span>
-        </div>
-      )}
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <DialogShellBody className="space-y-4">
+        {serverError && (
+          <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{serverError}</span>
+          </div>
+        )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field>
-          <FieldLabel htmlFor="res-type">
-            Reservation Purpose / Type{" "}
-            <span className="text-destructive">*</span>
-          </FieldLabel>
-          <Controller
-            name="reservationType"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="res-type">
-                  <SelectValue placeholder="Select purpose" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="WORK_ORDER">
-                    Work Order Commitment
-                  </SelectItem>
-                  <SelectItem value="PROJECT">
-                    Project Stock Allocation
-                  </SelectItem>
-                  <SelectItem value="PURCHASE_REQUEST">
-                    Purchase Request Reservation
-                  </SelectItem>
-                  <SelectItem value="SALES_ORDER">
-                    Sales Order Reservation
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="res-type">
+              Reservation Purpose / Type{" "}
+              <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Controller
+              name="reservationType"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="res-type">
+                    <SelectValue placeholder="Select purpose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="WORK_ORDER">
+                      Work Order Commitment
+                    </SelectItem>
+                    <SelectItem value="PROJECT">
+                      Project Stock Allocation
+                    </SelectItem>
+                    <SelectItem value="PURCHASE_REQUEST">
+                      Purchase Request Reservation
+                    </SelectItem>
+                    <SelectItem value="SALES_ORDER">
+                      Sales Order Reservation
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="res-ref">Reference Document #</FieldLabel>
+            <Input
+              id="res-ref"
+              type="text"
+              placeholder="e.g. WO-2026-0012 or PRJ-BUILD-01"
+              {...register("referenceDocument")}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="res-by">
+              Reserved By <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="res-by"
+              type="text"
+              placeholder="e.g. Assembly Lead (Jane Doe)"
+              {...register("reservedBy")}
+            />
+            {errors.reservedBy?.message && (
+              <FieldError>{errors.reservedBy.message}</FieldError>
             )}
-          />
-        </Field>
+          </Field>
 
-        <Field>
-          <FieldLabel htmlFor="res-ref">Reference Document #</FieldLabel>
-          <Input
-            id="res-ref"
-            type="text"
-            placeholder="e.g. WO-2026-0012 or PRJ-BUILD-01"
-            {...register("referenceDocument")}
-          />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field>
-          <FieldLabel htmlFor="res-by">
-            Reserved By <span className="text-destructive">*</span>
-          </FieldLabel>
-          <Input
-            id="res-by"
-            type="text"
-            placeholder="e.g. Assembly Lead (Jane Doe)"
-            {...register("reservedBy")}
-          />
-          {errors.reservedBy?.message && (
-            <FieldError>{errors.reservedBy.message}</FieldError>
-          )}
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="res-expires">
-            Expiration Date (Lock Hold)
-          </FieldLabel>
-          <Input
-            id="res-expires"
-            type="date"
-            {...register("expiresAt")}
-            className="font-mono"
-          />
-        </Field>
-      </div>
-
-      <Field>
-        <FieldLabel htmlFor="res-notes">
-          Allocation Notes / Justification
-        </FieldLabel>
-        <Input
-          id="res-notes"
-          type="text"
-          placeholder="e.g. Hold critical high-precision sensors for scheduled Work Order WO-2026-0012"
-          {...register("notes")}
-        />
-      </Field>
-
-      <div className="space-y-2 pt-2 border-t border-border">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-            Reserved Line Items ({fields.length})
-          </h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              append({
-                componentId: "",
-                locationId: "",
-                reservedQuantity: 10,
-                unitOfMeasure: "pcs",
-                notes: "",
-              })
-            }
-          >
-            <Plus className="w-3 h-3 mr-1" />
-            Add Item
-          </Button>
+          <Field>
+            <FieldLabel htmlFor="res-expires">
+              Expiration Date (Lock Hold)
+            </FieldLabel>
+            <Input
+              id="res-expires"
+              type="date"
+              {...register("expiresAt")}
+              className="font-mono"
+            />
+          </Field>
         </div>
 
-        <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-md text-[11px] text-blue-800 dark:text-blue-200 flex items-center gap-1.5">
-          <Info className="w-3.5 h-3.5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
-          <span>
-            Reservations commit stock and reduce{" "}
-            <strong>Available Quantity</strong>.
-          </span>
-        </div>
+        <Field>
+          <FieldLabel htmlFor="res-notes">
+            Allocation Notes / Justification
+          </FieldLabel>
+          <Input
+            id="res-notes"
+            type="text"
+            placeholder="e.g. Hold critical high-precision sensors for scheduled Work Order WO-2026-0012"
+            {...register("notes")}
+          />
+        </Field>
 
-        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-          {fields.map((field, idx) => (
-            <div
-              key={field.id}
-              className="p-3 bg-muted/20 border border-border rounded-lg grid grid-cols-1 sm:grid-cols-12 gap-2 items-end"
+        <div className="space-y-2 pt-2 border-t border-border">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+              Reserved Line Items ({fields.length})
+            </h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                append({
+                  componentId: "",
+                  locationId: "",
+                  reservedQuantity: 10,
+                  unitOfMeasure: "pcs",
+                  notes: "",
+                })
+              }
             >
-              <div className="sm:col-span-4 space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Component <span className="text-destructive">*</span>
-                </label>
-                <Controller
-                  name={`lines.${idx}.componentId` as const}
-                  control={control}
-                  render={({ field: compField }) => (
-                    <SearchableSelect
-                      value={compField.value}
-                      onValueChange={(val) => {
-                        compField.onChange(val ?? "");
-                        handleLineComponentChange(idx, val ?? "");
-                      }}
-                      placeholder="Select component..."
-                      searchPlaceholder="Search components..."
-                      triggerClassName="h-8 text-xs"
-                      options={components.map((c) => ({
-                        value: c.id,
-                        label: c.name,
-                        chip: c.sku,
-                      }))}
-                    />
+              <Plus className="w-3 h-3 mr-1" />
+              Add Item
+            </Button>
+          </div>
+
+          <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-md text-[11px] text-blue-800 dark:text-blue-200 flex items-center gap-1.5">
+            <Info className="w-3.5 h-3.5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+            <span>
+              Reservations commit stock and reduce{" "}
+              <strong>Available Quantity</strong>.
+            </span>
+          </div>
+
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {fields.map((field, idx) => (
+              <div
+                key={field.id}
+                className="p-3 bg-muted/20 border border-border rounded-lg grid grid-cols-1 sm:grid-cols-12 gap-2 items-end"
+              >
+                <div className="sm:col-span-4 space-y-1">
+                  <label className="text-[11px] font-medium text-muted-foreground">
+                    Component <span className="text-destructive">*</span>
+                  </label>
+                  <Controller
+                    name={`lines.${idx}.componentId` as const}
+                    control={control}
+                    render={({ field: compField }) => (
+                      <SearchableSelect
+                        value={compField.value}
+                        onValueChange={(val) => {
+                          compField.onChange(val ?? "");
+                          handleLineComponentChange(idx, val ?? "");
+                        }}
+                        placeholder="Select component..."
+                        searchPlaceholder="Search components..."
+                        triggerClassName="h-8 text-xs"
+                        options={components.map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                          chip: c.sku,
+                        }))}
+                      />
+                    )}
+                  />
+                  {errors.lines?.[idx]?.componentId && (
+                    <p className="text-[11px] text-destructive">
+                      {errors.lines[idx]?.componentId?.message}
+                    </p>
                   )}
-                />
-                {errors.lines?.[idx]?.componentId && (
-                  <p className="text-[11px] text-destructive">
-                    {errors.lines[idx]?.componentId?.message}
-                  </p>
-                )}
-              </div>
+                </div>
 
-              <div className="sm:col-span-4 space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Warehouse Location <span className="text-destructive">*</span>
-                </label>
-                <Controller
-                  name={`lines.${idx}.locationId` as const}
-                  control={control}
-                  render={({ field: locField }) => (
-                    <SearchableSelect
-                      value={locField.value}
-                      onValueChange={locField.onChange}
-                      placeholder="Select warehouse location..."
-                      searchPlaceholder="Search locations..."
-                      triggerClassName="h-8 text-xs"
-                      options={locations.map((loc) => ({
-                        value: loc.id,
-                        label: loc.name,
-                        chip: loc.code,
-                      }))}
-                    />
+                <div className="sm:col-span-4 space-y-1">
+                  <label className="text-[11px] font-medium text-muted-foreground">
+                    Warehouse Location{" "}
+                    <span className="text-destructive">*</span>
+                  </label>
+                  <Controller
+                    name={`lines.${idx}.locationId` as const}
+                    control={control}
+                    render={({ field: locField }) => (
+                      <SearchableSelect
+                        value={locField.value}
+                        onValueChange={locField.onChange}
+                        placeholder="Select warehouse location..."
+                        searchPlaceholder="Search locations..."
+                        triggerClassName="h-8 text-xs"
+                        options={locations.map((loc) => ({
+                          value: loc.id,
+                          label: loc.name,
+                          chip: loc.code,
+                        }))}
+                      />
+                    )}
+                  />
+                  {errors.lines?.[idx]?.locationId && (
+                    <p className="text-[11px] text-destructive">
+                      {errors.lines[idx]?.locationId?.message}
+                    </p>
                   )}
-                />
-                {errors.lines?.[idx]?.locationId && (
-                  <p className="text-[11px] text-destructive">
-                    {errors.lines[idx]?.locationId?.message}
-                  </p>
-                )}
-              </div>
+                </div>
 
-              <div className="sm:col-span-2 space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Reserved Qty <span className="text-destructive">*</span>
-                </label>
-                <Input
-                  type="number"
-                  step="any"
-                  min={0.0001}
-                  {...register(`lines.${idx}.reservedQuantity` as const, {
-                    valueAsNumber: true,
-                  })}
-                  className="h-8 text-xs font-mono font-bold"
-                />
-                {errors.lines?.[idx]?.reservedQuantity && (
-                  <p className="text-[11px] text-destructive">
-                    {errors.lines[idx]?.reservedQuantity?.message}
-                  </p>
-                )}
-              </div>
+                <div className="sm:col-span-2 space-y-1">
+                  <label className="text-[11px] font-medium text-muted-foreground">
+                    Reserved Qty <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    step="any"
+                    min={0.0001}
+                    {...register(`lines.${idx}.reservedQuantity` as const, {
+                      valueAsNumber: true,
+                    })}
+                    className="h-8 text-xs font-mono font-bold"
+                  />
+                  {errors.lines?.[idx]?.reservedQuantity && (
+                    <p className="text-[11px] text-destructive">
+                      {errors.lines[idx]?.reservedQuantity?.message}
+                    </p>
+                  )}
+                </div>
 
-              <div className="sm:col-span-1 space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Unit
-                </label>
-                <Input
-                  type="text"
-                  {...register(`lines.${idx}.unitOfMeasure` as const)}
-                  className="h-8 text-xs font-mono"
-                />
-              </div>
+                <div className="sm:col-span-1 space-y-1">
+                  <label className="text-[11px] font-medium text-muted-foreground">
+                    Unit
+                  </label>
+                  <Input
+                    type="text"
+                    {...register(`lines.${idx}.unitOfMeasure` as const)}
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
 
-              <div className="sm:col-span-1 flex justify-end">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={fields.length === 1}
-                  onClick={() => remove(idx)}
-                  className="text-destructive hover:bg-destructive/10 h-8 w-8"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="sm:col-span-1 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={fields.length === 1}
+                    onClick={() => remove(idx)}
+                    className="text-destructive hover:bg-destructive/10 h-8 w-8"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      </DialogShellBody>
 
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          disabled={isSubmitting}
-        >
-          Cancel
-        </Button>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && (
-            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-          )}
+          {isSubmitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
           {isEdit ? "Save Changes" : "Create Reservation"}
         </Button>
-      </div>
+      </DialogShellFooter>
     </form>
   );
 }

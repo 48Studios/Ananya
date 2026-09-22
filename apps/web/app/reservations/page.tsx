@@ -389,16 +389,14 @@ export default function ReservationsPage() {
         }
         size="sm"
       >
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          <ReservationForm
-            initialData={editingReservation}
-            onSuccess={handleFormSuccess}
-            onCancel={() => {
-              setIsFormOpen(false);
-              setEditingReservation(null);
-            }}
-          />
-        </div>
+        <ReservationForm
+          initialData={editingReservation}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingReservation(null);
+          }}
+        />
       </DialogShell>
 
       {/* Delete Dialog */}

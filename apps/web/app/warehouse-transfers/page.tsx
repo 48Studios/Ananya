@@ -404,16 +404,14 @@ export default function WarehouseTransfersPage() {
         }
         size="sm"
       >
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          <WarehouseTransferForm
-            initialData={editingTransfer}
-            onSuccess={handleFormSuccess}
-            onCancel={() => {
-              setIsFormOpen(false);
-              setEditingTransfer(null);
-            }}
-          />
-        </div>
+        <WarehouseTransferForm
+          initialData={editingTransfer}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingTransfer(null);
+          }}
+        />
       </DialogShell>
 
       {/* Confirmation Dialog for Deleting */}

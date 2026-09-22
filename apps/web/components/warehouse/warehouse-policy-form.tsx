@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -87,124 +92,123 @@ export function WarehousePolicyForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {serverError && (
-        <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
-          {serverError}
-        </div>
-      )}
-
-      {/* Policy Name */}
-      <Field>
-        <FieldLabel htmlFor="policy-name">
-          Storage Policy Name <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="policy-name"
-          placeholder="e.g. Electronics FIFO Picking & Putaway Rule"
-          {...register("policyName")}
-        />
-        {errors.policyName?.message && (
-          <FieldError>{errors.policyName.message}</FieldError>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <DialogShellBody className="space-y-4">
+        {serverError && (
+          <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+            {serverError}
+          </div>
         )}
-      </Field>
 
-      {/* Warehouse Selector */}
-      <Field>
-        <FieldLabel htmlFor="policy-warehouse">
-          Target Warehouse Facility <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Controller
-          name="warehouseName"
-          control={control}
-          render={({ field }) => (
-            <EntitySelector
-              id="policy-warehouse"
-              entity="warehouse"
-              value={field.value}
-              onChange={(val, label) => field.onChange(label || val)}
-              placeholder="Select warehouse facility..."
-              creatable
+        {/* Policy Name */}
+        <Field>
+          <FieldLabel htmlFor="policy-name">
+            Storage Policy Name <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Input
+            id="policy-name"
+            placeholder="e.g. Electronics FIFO Picking & Putaway Rule"
+            {...register("policyName")}
+          />
+          {errors.policyName?.message && (
+            <FieldError>{errors.policyName.message}</FieldError>
+          )}
+        </Field>
+
+        {/* Warehouse Selector */}
+        <Field>
+          <FieldLabel htmlFor="policy-warehouse">
+            Target Warehouse Facility{" "}
+            <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Controller
+            name="warehouseName"
+            control={control}
+            render={({ field }) => (
+              <EntitySelector
+                id="policy-warehouse"
+                entity="warehouse"
+                value={field.value}
+                onChange={(val, label) => field.onChange(label || val)}
+                placeholder="Select warehouse facility..."
+                creatable
+              />
+            )}
+          />
+          {errors.warehouseName?.message && (
+            <FieldError>{errors.warehouseName.message}</FieldError>
+          )}
+        </Field>
+
+        {/* Picking & Putaway Rules */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="picking-rule">Picking Strategy</FieldLabel>
+            <Controller
+              name="pickingRule"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="picking-rule">
+                    <SelectValue placeholder="Select picking rule" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FIFO">
+                      FIFO (First In First Out)
+                    </SelectItem>
+                    <SelectItem value="FEFO">
+                      FEFO (First Expired First Out)
+                    </SelectItem>
+                    <SelectItem value="LIFO">
+                      LIFO (Last In First Out)
+                    </SelectItem>
+                    <SelectItem value="ZONE_BASED">
+                      Zone-Based Optimal
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             />
-          )}
-        />
-        {errors.warehouseName?.message && (
-          <FieldError>{errors.warehouseName.message}</FieldError>
-        )}
-      </Field>
+          </Field>
 
-      {/* Picking & Putaway Rules */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field>
-          <FieldLabel htmlFor="picking-rule">Picking Strategy</FieldLabel>
-          <Controller
-            name="pickingRule"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="picking-rule">
-                  <SelectValue placeholder="Select picking rule" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FIFO">
-                    FIFO (First In First Out)
-                  </SelectItem>
-                  <SelectItem value="FEFO">
-                    FEFO (First Expired First Out)
-                  </SelectItem>
-                  <SelectItem value="LIFO">LIFO (Last In First Out)</SelectItem>
-                  <SelectItem value="ZONE_BASED">Zone-Based Optimal</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </Field>
+          <Field>
+            <FieldLabel htmlFor="putaway-rule">Putaway Strategy</FieldLabel>
+            <Controller
+              name="putawayRule"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="putaway-rule">
+                    <SelectValue placeholder="Select putaway rule" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FAST_MOVING_FRONT">
+                      Fast-Moving Front Zone
+                    </SelectItem>
+                    <SelectItem value="VOLUME_MATCHED">
+                      Volume & Dimension Matched
+                    </SelectItem>
+                    <SelectItem value="DIRECT_TO_BIN">
+                      Direct-to-Bin Fixed Slotting
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+        </div>
+      </DialogShellBody>
 
-        <Field>
-          <FieldLabel htmlFor="putaway-rule">Putaway Strategy</FieldLabel>
-          <Controller
-            name="putawayRule"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="putaway-rule">
-                  <SelectValue placeholder="Select putaway rule" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FAST_MOVING_FRONT">
-                    Fast-Moving Front Zone
-                  </SelectItem>
-                  <SelectItem value="VOLUME_MATCHED">
-                    Volume & Dimension Matched
-                  </SelectItem>
-                  <SelectItem value="DIRECT_TO_BIN">
-                    Direct-to-Bin Fixed Slotting
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </Field>
-      </div>
-
-      {/* Form Actions */}
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          disabled={isSubmitting}
-        >
-          Cancel
-        </Button>
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
         <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && (
-            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-          )}
+          {isSubmitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
           {isEditing ? "Save Changes" : "Create Storage Policy"}
         </Button>
-      </div>
+      </DialogShellFooter>
     </form>
   );
 }
