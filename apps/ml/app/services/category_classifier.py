@@ -1,7 +1,10 @@
+import hashlib
 import json
 import os
 import pickle
 import re
+import threading
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from ..config import settings
@@ -44,6 +47,69 @@ class CategoryClassifierService:
         self._is_loaded = False
         self._knowledge: List[Dict[str, Any]] = []
         self._knowledge_loaded = False
+        self._swap_lock = threading.Lock()
+        self._artifact = self._empty_artifact_identity()
+
+    @staticmethod
+    def _empty_artifact_identity() -> Dict[str, Any]:
+        return {
+            "loaded": False,
+            "loadedAt": None,
+            "artifactSha256": None,
+            "activeVersion": None,
+        }
+
+    @staticmethod
+    def _read_active_version() -> Optional[str]:
+        """
+        Reads the version recorded by the deployment tool (`deploy.py`).
+
+        The version is metadata written NEXT TO the artifact, not inside it: the
+        pickled sklearn pipeline carries no version field, and the training
+        pipeline was not changed to add one. Reading the sidecar is therefore the
+        only honest way to name the artifact that was loaded. A missing or
+        unreadable sidecar yields None rather than a guess.
+        """
+        metadata_path = os.path.join(settings.model_dir, "model_metadata.json")
+        try:
+            with open(metadata_path, "r", encoding="utf-8") as metadata_file:
+                version = json.load(metadata_file).get("activeVersion")
+            return str(version) if version else None
+        except (OSError, ValueError):
+            return None
+
+    def _artifact_identity(self, loaded: bool) -> Dict[str, Any]:
+        """
+        Identity of the model artifact this process is serving.
+
+        The version is resolved from the artifact CHECKSUM against the registry,
+        not trusted from `model_metadata.json`: the existing promotion tool does not
+        rewrite that sidecar when it rolls back, so a metadata-only answer would
+        report the candidate version while the rolled-back artifact is running.
+        The sidecar value is reported separately as the deployment record's claim.
+        """
+        from .model_registry import resolve_version_for_checksum
+
+        identity = self._empty_artifact_identity()
+        identity["loaded"] = loaded
+        identity["loadedAt"] = datetime.now(timezone.utc).isoformat()
+        model_path = settings.category_model_path
+        checksum = None
+        try:
+            with open(model_path, "rb") as model_file:
+                checksum = hashlib.sha256(model_file.read()).hexdigest()
+        except OSError:
+            checksum = None
+        identity["artifactSha256"] = checksum
+
+        resolved = resolve_version_for_checksum(checksum)
+        recorded = self._read_active_version()
+        identity["activeVersion"] = resolved or recorded
+        identity["versionSource"] = (
+            "CHECKSUM" if resolved else ("DEPLOYMENT_METADATA" if recorded else None)
+        )
+        identity["recordedActiveVersion"] = recorded
+        return identity
 
     def load(self):
         if not self._is_loaded:
@@ -51,6 +117,7 @@ class CategoryClassifierService:
                 with open(settings.category_model_path, "rb") as model_file:
                     self._model = pickle.load(model_file)
                 self._is_loaded = True
+                self._artifact = self._artifact_identity(True)
             else:
                 self._model = None
         if not self._knowledge_loaded:
@@ -59,6 +126,53 @@ class CategoryClassifierService:
                 with open(knowledge_path, "r", encoding="utf-8") as knowledge_file:
                     self._knowledge = json.load(knowledge_file).get("categories", [])
             self._knowledge_loaded = True
+
+    def reload(self) -> Dict[str, Any]:
+        """
+        Re-reads the production artifact and swaps it in atomically.
+
+        Exists because `load()` is deliberately once-only: without this, a
+        deployment that copies a new `category_classifier.pkl` into place leaves
+        the running process serving the OLD model until the container restarts.
+        That gap is exactly what makes an "artifact deployed" claim misleading, so
+        the service reports the artifact it actually holds instead of the one on
+        disk (`describe_artifact()`), and this method is the only way to close it.
+
+        Safety properties:
+          - the new artifact is fully parsed BEFORE the reference is swapped, so a
+            corrupt or missing file leaves the previous model serving traffic;
+          - the swap is a single attribute assignment under a lock, and `predict`
+            reads one local reference, so a request sees either the old or the new
+            pipeline — never a half-loaded one;
+          - nothing here trains, promotes or writes a file.
+
+        Raises `RuntimeError` when the artifact is missing or cannot be parsed;
+        the caller (the deployment route) reports that as `reloadPending=true`
+        rather than as a successful reload.
+        """
+        model_path = settings.category_model_path
+        if not os.path.exists(model_path):
+            raise RuntimeError("Production model artifact is missing")
+        with open(model_path, "rb") as model_file:
+            loaded_model = pickle.load(model_file)
+
+        with self._swap_lock:
+            self._model = loaded_model
+            self._is_loaded = True
+            self._artifact = self._artifact_identity(True)
+        # Knowledge is intentionally NOT re-read: it is a separate artifact
+        # (`category_knowledge.json`) that no deployment step writes.
+        return dict(self._artifact)
+
+    def describe_artifact(self) -> Dict[str, Any]:
+        """
+        The identity of the artifact this process is SERVING.
+
+        Distinct from what is on disk. `deployment.py` exposes the on-disk view;
+        comparing the two is how the operator dashboard distinguishes "artifact
+        deployed" from "running model version".
+        """
+        return dict(self._artifact)
 
     @property
     def is_loaded(self) -> bool:

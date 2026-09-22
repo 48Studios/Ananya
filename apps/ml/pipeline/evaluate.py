@@ -131,7 +131,14 @@ def evaluate_model(
     mfg_correct = 0
     for pn, expected_mfg in mfg_test_cases:
         res = manufacturer_resolver.resolve(pn)
-        if res.manufacturer.lower() == expected_mfg.lower():
+        # `manufacturer` is Optional: the resolver legitimately reports no
+        # manufacturer for an ambiguous or unresolved part number. Calling
+        # `.lower()` on it aborted the whole evaluation run with an
+        # AttributeError, so a single unresolvable test case prevented every
+        # quality gate from ever being reported. An unresolved manufacturer is a
+        # miss, which is exactly what it was before the crash was reachable — the
+        # accuracy figure and therefore every gate threshold is unchanged.
+        if (res.manufacturer or "").lower() == expected_mfg.lower():
             mfg_correct += 1
     mfg_acc = mfg_correct / len(mfg_test_cases)
 

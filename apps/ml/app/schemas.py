@@ -209,6 +209,112 @@ class ReadyResponse(BaseModel):
     ready: bool
     models_loaded: Dict[str, bool]
     version: str
+    # Identity of the artifact this process is SERVING (not the one on disk).
+    # Reported here because `/ready` is the only endpoint an orchestrator polls, and
+    # "the container is up" is not the same statement as "the new model is live".
+    running_model: Optional[Dict[str, Any]] = None
+
+# ---------------------------------------------------------
+# ML Operations Schemas (training control plane)
+#
+# These routes are internal: they are reached only by the authenticated NestJS API
+# (`MlClientService`), never by a browser. Authorisation, the durable run record and
+# the audit trail all live on the API side; this surface only executes and reports.
+#
+# No schema here carries a filesystem path, an environment value or a credential.
+# The pipeline's own report fields (`validationSource`, `sourceArtifact`,
+# `productionPath`) are dropped by `services/model_registry.py` before they reach
+# these models, and `response_model` filtering is the second line of defence.
+# ---------------------------------------------------------
+
+class TrainingRunRequest(BaseModel):
+    """Start request. There is deliberately no free-form argument surface."""
+
+    runId: Optional[str] = Field(default=None, max_length=128)
+    requestedBy: Optional[str] = Field(default=None, max_length=255)
+
+class TrainingRunResponse(BaseModel):
+    runId: str
+    status: str
+    phase: Optional[str] = None
+    requestedBy: Optional[str] = None
+    queuedAt: Optional[str] = None
+    startedAt: Optional[str] = None
+    completedAt: Optional[str] = None
+    durationMs: Optional[int] = None
+    candidateVersion: Optional[str] = None
+    baseModelVersion: Optional[str] = None
+    # Identity of the training code (pipeline revision) that produced the candidate.
+    pipelineVersion: Optional[str] = None
+    datasetVersion: Optional[str] = None
+    datasetFingerprint: Optional[str] = None
+    datasetRecordCount: Optional[int] = None
+    feedbackRecordCount: Optional[int] = None
+    trainingRecordCount: Optional[int] = None
+    validationRecordCount: Optional[int] = None
+    quarantineRecordCount: Optional[int] = None
+    evaluationSummary: Optional[Dict[str, Any]] = None
+    gateSummary: Optional[Dict[str, Any]] = None
+    errorCode: Optional[str] = None
+    errorMessage: Optional[str] = None
+    artifactReference: Optional[str] = None
+    log: List[str] = Field(default_factory=list)
+    # A background thread cannot be interrupted safely, so this is always False and
+    # the dashboard offers no cancel control.
+    cancellable: bool = False
+
+class TrainingRunListResponse(BaseModel):
+    runs: List[TrainingRunResponse]
+
+class ModelVersionResponse(BaseModel):
+    version: str
+    createdAt: Optional[str] = None
+    artifactExists: bool
+    artifactSha256: Optional[str] = None
+    artifactSizeBytes: Optional[int] = None
+    championModel: Optional[str] = None
+    evaluation: Optional[Dict[str, Any]] = None
+    datasetVersion: Optional[str] = None
+    deployable: bool
+
+class ModelRegistryResponse(BaseModel):
+    active: Dict[str, Any]
+    running: Dict[str, Any]
+    versions: List[ModelVersionResponse]
+
+class ModelDeployRequest(BaseModel):
+    runId: str = Field(min_length=1, max_length=128)
+
+class ModelDeploymentResponse(BaseModel):
+    artifactVersion: Optional[str] = None
+    previousVersion: Optional[str] = None
+    restoredVersion: Optional[str] = None
+    deployedAt: Optional[str] = None
+    artifactSha256: Optional[str] = None
+    runningVersion: Optional[str] = None
+    reloadPending: bool = False
+    reloadError: Optional[str] = None
+    deploymentMetadataStale: bool = False
+
+class DatasetSnapshotResponse(BaseModel):
+    datasetVersion: str
+    createdAt: Optional[str] = None
+    fingerprint: Optional[str] = None
+    totalSourceRecords: Optional[int] = None
+    totalExpandedExamples: Optional[int] = None
+    trainSize: Optional[int] = None
+    valSize: Optional[int] = None
+    duplicatePairsCount: Optional[int] = None
+    distinctBaseFamilies: Optional[int] = None
+    dataLeakageVerified: Optional[bool] = None
+    overlapCount: Optional[int] = None
+    categories: List[str] = Field(default_factory=list)
+
+class DatasetOverviewResponse(BaseModel):
+    current: Optional[DatasetSnapshotResponse] = None
+    snapshots: List[DatasetSnapshotResponse] = Field(default_factory=list)
+    quarantine: Dict[str, Any]
+    distribution: Dict[str, Any]
 
 # ---------------------------------------------------------
 # Attribute Intelligence Schemas (RFC-0059)

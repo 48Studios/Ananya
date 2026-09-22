@@ -36,6 +36,15 @@ ENV PYTHONPATH=/app
 # Copy application source & model artifacts
 COPY apps/ml/app /app/apps/ml/app
 COPY apps/ml/models /app/apps/ml/models
+# The training control plane runs the EXISTING pipeline in this container, so the
+# pipeline, its benchmark cases and the data directory it reads and writes must be
+# present. Without them the ML operations dashboard can report status but cannot
+# train. `data/` and `models/registry/` are the pipeline's own working directories
+# (dataset snapshots and candidate artifacts); they are container-local, which is
+# documented in docs/ML_OPERATIONS.md.
+COPY apps/ml/pipeline /app/apps/ml/pipeline
+COPY apps/ml/benchmarks /app/apps/ml/benchmarks
+COPY apps/ml/data /app/apps/ml/data
 
 # Set permissions
 RUN chown -R ananya:ananya /app /opt/venv

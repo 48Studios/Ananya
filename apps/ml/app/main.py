@@ -1,5 +1,6 @@
 import time
 from contextlib import asynccontextmanager
+from typing import Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
@@ -31,12 +32,28 @@ from .schemas import (
     SuggestEnumValuesResponse,
     AuditAttributeLibraryRequest,
     AuditAttributeLibraryResponse,
+    TrainingRunRequest,
+    TrainingRunResponse,
+    TrainingRunListResponse,
+    ModelVersionResponse,
+    ModelRegistryResponse,
+    ModelDeployRequest,
+    ModelDeploymentResponse,
+    DatasetSnapshotResponse,
+    DatasetOverviewResponse,
 )
 from .services.category_classifier import category_classifier
 from .services.manufacturer_resolver import manufacturer_resolver
 from .services.duplicate_detector import duplicate_detector
 from .services.datasheet_extractor import datasheet_extractor
 from .services.attribute_intelligence import attribute_intelligence_service
+from .services import model_registry
+from .services.training_runner import (
+    DeploymentRefusedError,
+    TrainingRunConflictError,
+    TrainingRunNotFoundError,
+    training_runner,
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -77,7 +94,8 @@ def ready():
     return ReadyResponse(
         ready=is_ready,
         models_loaded=models_loaded,
-        version=settings.service_version
+        version=settings.service_version,
+        running_model=category_classifier.describe_artifact(),
     )
 
 @app.post("/v1/predict/category", response_model=PredictCategoryResponse)
@@ -286,4 +304,129 @@ def audit_attribute_library(req: AuditAttributeLibraryRequest):
         datapack_hints=req.datapack_hints,
     )
     return AuditAttributeLibraryResponse(summary=summary, issues=issues)
+
+# ---------------------------------------------------------
+# ML Operations — training control plane
+#
+# INTERNAL SURFACE. Every route below is called only by the authenticated NestJS
+# API (`MlClientService`), which is where authorisation, the durable training-run
+# record and the security audit live. There is no service-to-service
+# authentication between the API and this service today — that is pre-existing
+# infrastructure debt, documented in docs/ML_OPERATIONS.md, and it is the reason
+# these routes are never called from a browser and are not exposed through the
+# public web app.
+#
+# What is enforced HERE, independently of the API:
+#   - exactly one training run may be active (a second start is a 409);
+#   - a run never promotes a model (`auto_deploy=False` by construction);
+#   - deployment refuses anything that is not a PASSED candidate with a
+#     `promotionEligible` evaluation report;
+#   - a rollback is refused when no backup artifact exists.
+# ---------------------------------------------------------
+
+
+@app.post("/v1/training/runs", response_model=TrainingRunResponse, status_code=201)
+def start_training_run(req: TrainingRunRequest):
+    try:
+        return TrainingRunResponse(**training_runner.start_run(req.runId, req.requestedBy))
+    except TrainingRunConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.get("/v1/training/runs/active", response_model=Optional[TrainingRunResponse])
+def get_active_training_run():
+    run = training_runner.active_run()
+    return TrainingRunResponse(**run) if run else None
+
+
+@app.get("/v1/training/runs", response_model=TrainingRunListResponse)
+def list_training_runs():
+    return TrainingRunListResponse(
+        runs=[TrainingRunResponse(**run) for run in training_runner.list_runs()]
+    )
+
+
+@app.get("/v1/training/runs/{run_id}", response_model=TrainingRunResponse)
+def get_training_run(run_id: str):
+    run = training_runner.get_run(run_id)
+    if run is None:
+        # The API turns this into `ML_JOB_LOST` for a run it still believes is
+        # active: this process restarted, so nothing is progressing any more.
+        raise HTTPException(status_code=404, detail="Unknown training run")
+    return TrainingRunResponse(**run)
+
+
+@app.get("/v1/models", response_model=ModelRegistryResponse)
+def list_models():
+    return ModelRegistryResponse(
+        active=model_registry.active_deployment(),
+        running=category_classifier.describe_artifact(),
+        versions=[ModelVersionResponse(**item) for item in model_registry.list_versions()],
+    )
+
+
+@app.get("/v1/models/active", response_model=ModelRegistryResponse)
+def get_active_model():
+    """Alias kept for the dashboard's overview poll; identical body to /v1/models."""
+    return list_models()
+
+
+@app.post("/v1/models/deploy", response_model=ModelDeploymentResponse)
+def deploy_candidate(req: ModelDeployRequest):
+    try:
+        return ModelDeploymentResponse(**training_runner.deploy_run(req.runId))
+    except TrainingRunNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except DeploymentRefusedError as error:
+        raise HTTPException(
+            status_code=409, detail={"reason": error.code, "message": str(error)}
+        ) from error
+    except Exception as error:  # noqa: BLE001 - promotion failure must be explicit
+        raise HTTPException(
+            status_code=500,
+            detail={"reason": "DEPLOYMENT_FAILED", "message": str(error) or "Deployment failed"},
+        ) from error
+
+
+@app.post("/v1/models/rollback", response_model=ModelDeploymentResponse)
+def rollback_model():
+    try:
+        return ModelDeploymentResponse(**training_runner.rollback())
+    except DeploymentRefusedError as error:
+        raise HTTPException(
+            status_code=409, detail={"reason": error.code, "message": str(error)}
+        ) from error
+    except Exception as error:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500,
+            detail={"reason": "ROLLBACK_FAILED", "message": str(error) or "Rollback failed"},
+        ) from error
+
+
+@app.post("/v1/models/reload", response_model=ModelDeploymentResponse)
+def reload_model():
+    """
+    Re-reads the production artifact into the running process.
+
+    Exposed so an operator can close a `reloadPending` state without restarting the
+    container. It writes nothing: it only re-parses the artifact already on disk.
+    """
+    result = training_runner.reload_running_model()
+    return ModelDeploymentResponse(
+        artifactVersion=result.get("runningVersion"),
+        runningVersion=result.get("runningVersion"),
+        reloadPending=bool(result.get("reloadPending")),
+        reloadError=result.get("reloadError"),
+    )
+
+
+@app.get("/v1/datasets/current", response_model=DatasetOverviewResponse)
+def get_current_dataset():
+    snapshots = model_registry.list_dataset_snapshots()
+    return DatasetOverviewResponse(
+        current=DatasetSnapshotResponse(**snapshots[0]) if snapshots else None,
+        snapshots=[DatasetSnapshotResponse(**item) for item in snapshots],
+        quarantine=model_registry.quarantine_summary(),
+        distribution=model_registry.validated_record_distribution(),
+    )
 

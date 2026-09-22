@@ -123,6 +123,166 @@ function formatFetchError(err: unknown): string {
   return `${err.message}${causeMsg}`;
 }
 
+/** Why an ML operations call did not succeed. See `callMlOps`. */
+export type MlOpsFailureKind =
+  'DISABLED' | 'UNREACHABLE' | 'CONFLICT' | 'NOT_FOUND' | 'ERROR';
+
+export type MlOpsCallOutcome<T> =
+  | { ok: true; data: T }
+  | {
+      ok: false;
+      kind: MlOpsFailureKind;
+      message: string;
+      status?: number;
+      /** Machine-readable reason when the ML service supplied one. */
+      reason?: string;
+    };
+
+/** Identity of the model artifact the ML process is SERVING (not the one on disk). */
+export interface MlRunningModel {
+  loaded: boolean;
+  loadedAt?: string | null;
+  artifactSha256?: string | null;
+  activeVersion?: string | null;
+  versionSource?: 'CHECKSUM' | 'DEPLOYMENT_METADATA' | null;
+  recordedActiveVersion?: string | null;
+}
+
+export interface MlReadyResponse {
+  ready: boolean;
+  models_loaded: Record<string, boolean>;
+  version: string;
+  running_model?: MlRunningModel | null;
+}
+
+export interface MlModelVersion {
+  version: string;
+  createdAt?: string | null;
+  artifactExists: boolean;
+  artifactSha256?: string | null;
+  artifactSizeBytes?: number | null;
+  championModel?: string | null;
+  evaluation?: Record<string, unknown> | null;
+  datasetVersion?: string | null;
+  deployable: boolean;
+}
+
+export interface MlActiveDeployment {
+  /** The version the deployment tool recorded. */
+  deployedVersion?: string | null;
+  /** The version whose artifact checksum matches production — the trustworthy one. */
+  artifactVersion?: string | null;
+  artifactVersionSource?: 'CHECKSUM' | 'DEPLOYMENT_METADATA' | null;
+  deployedAt?: string | null;
+  qualityGatesPassed?: boolean | null;
+  artifactSha256?: string | null;
+  artifactSizeBytes?: number | null;
+  rollbackAvailable: boolean;
+  backupSha256?: string | null;
+}
+
+export interface MlModelRegistryResponse {
+  active: MlActiveDeployment;
+  running: MlRunningModel;
+  versions: MlModelVersion[];
+}
+
+export interface MlTrainingRunPayload {
+  runId: string;
+  status: string;
+  phase?: string | null;
+  queuedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  durationMs?: number | null;
+  candidateVersion?: string | null;
+  baseModelVersion?: string | null;
+  pipelineVersion?: string | null;
+  datasetVersion?: string | null;
+  datasetFingerprint?: string | null;
+  datasetRecordCount?: number | null;
+  feedbackRecordCount?: number | null;
+  trainingRecordCount?: number | null;
+  validationRecordCount?: number | null;
+  quarantineRecordCount?: number | null;
+  evaluationSummary?: Record<string, unknown> | null;
+  gateSummary?: Record<string, unknown> | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  artifactReference?: string | null;
+  log?: string[];
+  cancellable?: boolean;
+}
+
+export interface MlModelDeploymentPayload {
+  artifactVersion?: string | null;
+  previousVersion?: string | null;
+  restoredVersion?: string | null;
+  deployedAt?: string | null;
+  artifactSha256?: string | null;
+  runningVersion?: string | null;
+  reloadPending?: boolean;
+  reloadError?: string | null;
+  deploymentMetadataStale?: boolean;
+}
+
+export interface MlDatasetSnapshot {
+  datasetVersion: string;
+  createdAt?: string | null;
+  fingerprint?: string | null;
+  totalSourceRecords?: number | null;
+  totalExpandedExamples?: number | null;
+  trainSize?: number | null;
+  valSize?: number | null;
+  duplicatePairsCount?: number | null;
+  distinctBaseFamilies?: number | null;
+  dataLeakageVerified?: boolean | null;
+  overlapCount?: number | null;
+  categories?: string[];
+}
+
+export interface MlDatasetOverview {
+  current?: MlDatasetSnapshot | null;
+  snapshots: MlDatasetSnapshot[];
+  quarantine: Record<string, unknown>;
+  distribution: Record<string, unknown>;
+}
+
+/**
+ * Reads the ML service's error body without assuming its shape.
+ *
+ * FastAPI answers a raised `HTTPException` with `{detail: ...}`, and our routes
+ * raise `detail` as either a string or `{reason, message}`. Both are accepted; an
+ * unparseable body degrades to a generic message rather than throwing inside the
+ * error path.
+ */
+async function readMlErrorBody(res: Response): Promise<{
+  reason?: string;
+  message: string;
+}> {
+  const fallback = `ananya-ml returned HTTP status ${res.status}`;
+  try {
+    const body = (await res.json()) as { detail?: unknown };
+    const detail = body?.detail;
+    if (typeof detail === 'string' && detail.length > 0) {
+      return { message: detail };
+    }
+    if (detail && typeof detail === 'object') {
+      const record = detail as { reason?: unknown; message?: unknown };
+      const reason =
+        typeof record.reason === 'string' ? record.reason : undefined;
+      const message =
+        typeof record.message === 'string' && record.message.length > 0
+          ? record.message
+          : fallback;
+      return { reason, message };
+    }
+  } catch {
+    // Body was not JSON; the status-derived message is the honest answer.
+  }
+  return { message: fallback };
+}
+
 @Injectable()
 export class MlClientService {
   private readonly logger = new Logger(MlClientService.name);
@@ -617,5 +777,165 @@ export class MlClientService {
       this.logger.warn(`Audit attribute library failed: ${errMsg}`);
       return null;
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // ML Operations — training control plane
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Outcome of an ML operations call.
+   *
+   * The older methods on this client collapse every failure to `null`, which is
+   * fine for a suggestion that can fall back to a deterministic rule. It is not
+   * fine for a control plane: "the ML service is disabled", "the ML service did
+   * not answer", "the ML service refused because a run is already active" and "the
+   * candidate did not pass its gates" are four different operator messages and
+   * three different HTTP statuses. So these methods report the distinction instead
+   * of erasing it.
+   */
+  private async callMlOps<T>(
+    path: string,
+    init: RequestInit,
+    timeoutMs: number,
+  ): Promise<MlOpsCallOutcome<T>> {
+    if (!this.isEnabled) {
+      return {
+        ok: false,
+        kind: 'DISABLED',
+        message: 'The ML service is disabled in this deployment.',
+      };
+    }
+    try {
+      const res = await fetch(`${this.baseUrl}${path}`, {
+        ...init,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (res.ok) {
+        return { ok: true, data: (await res.json()) as T };
+      }
+      const body = await readMlErrorBody(res);
+      if (res.status === 409) {
+        return {
+          ok: false,
+          kind: 'CONFLICT',
+          status: res.status,
+          reason: body.reason,
+          message: body.message,
+        };
+      }
+      if (res.status === 404) {
+        return {
+          ok: false,
+          kind: 'NOT_FOUND',
+          status: res.status,
+          reason: body.reason,
+          message: body.message,
+        };
+      }
+      return {
+        ok: false,
+        kind: 'ERROR',
+        status: res.status,
+        reason: body.reason,
+        message: body.message,
+      };
+    } catch (err: unknown) {
+      const errMsg = formatFetchError(err);
+      this.logger.warn(`ML operations call ${path} failed: ${errMsg}`);
+      return { ok: false, kind: 'UNREACHABLE', message: errMsg };
+    }
+  }
+
+  /** Liveness + readiness + the identity of the model actually being served. */
+  mlOpsReady(): Promise<MlOpsCallOutcome<MlReadyResponse>> {
+    return this.callMlOps<MlReadyResponse>(
+      '/ready',
+      { method: 'GET' },
+      this.timeoutMs,
+    );
+  }
+
+  /** Registry contents, the recorded deployment and the running model. */
+  mlOpsModels(): Promise<MlOpsCallOutcome<MlModelRegistryResponse>> {
+    return this.callMlOps<MlModelRegistryResponse>(
+      '/v1/models',
+      { method: 'GET' },
+      this.timeoutMs,
+    );
+  }
+
+  /** Current dataset snapshot, quarantine counts and corpus distribution. */
+  mlOpsDataset(): Promise<MlOpsCallOutcome<MlDatasetOverview>> {
+    return this.callMlOps<MlDatasetOverview>(
+      '/v1/datasets/current',
+      { method: 'GET' },
+      this.timeoutMs * 2,
+    );
+  }
+
+  /**
+   * Starts a training run.
+   *
+   * The `runId` is the API's own run id, so the job the ML service reports back is
+   * unambiguously the row the operator triggered. No pipeline argument crosses this
+   * boundary: there is no version, no path, no hyperparameter and no command.
+   */
+  mlOpsStartTrainingRun(payload: {
+    runId: string;
+    requestedBy?: string | null;
+  }): Promise<MlOpsCallOutcome<MlTrainingRunPayload>> {
+    return this.callMlOps<MlTrainingRunPayload>(
+      '/v1/training/runs',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      this.timeoutMs * 2,
+    );
+  }
+
+  mlOpsTrainingRun(
+    runId: string,
+  ): Promise<MlOpsCallOutcome<MlTrainingRunPayload>> {
+    return this.callMlOps<MlTrainingRunPayload>(
+      `/v1/training/runs/${encodeURIComponent(runId)}`,
+      { method: 'GET' },
+      this.timeoutMs,
+    );
+  }
+
+  /** Promotes a PASSED candidate through the existing `deploy.py` tool. */
+  mlOpsDeployCandidate(
+    runId: string,
+  ): Promise<MlOpsCallOutcome<MlModelDeploymentPayload>> {
+    return this.callMlOps<MlModelDeploymentPayload>(
+      '/v1/models/deploy',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId }),
+      },
+      this.timeoutMs * 4,
+    );
+  }
+
+  /** Restores the previous production artifact through `deploy.py --rollback`. */
+  mlOpsRollback(): Promise<MlOpsCallOutcome<MlModelDeploymentPayload>> {
+    return this.callMlOps<MlModelDeploymentPayload>(
+      '/v1/models/rollback',
+      { method: 'POST' },
+      this.timeoutMs * 4,
+    );
+  }
+
+  /** Re-reads the production artifact into the running process (writes nothing). */
+  mlOpsReloadModel(): Promise<MlOpsCallOutcome<MlModelDeploymentPayload>> {
+    return this.callMlOps<MlModelDeploymentPayload>(
+      '/v1/models/reload',
+      { method: 'POST' },
+      this.timeoutMs * 4,
+    );
   }
 }

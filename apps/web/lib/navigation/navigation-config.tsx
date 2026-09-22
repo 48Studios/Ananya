@@ -35,6 +35,7 @@ import {
   Sliders,
   Box,
   Database,
+  Brain,
 } from "lucide-react";
 import { NavigationModule } from "./types";
 
@@ -678,6 +679,15 @@ export const navigationModules: NavigationModule[] = [
             title: "Organization Profile",
             href: "/settings",
             icon: <Settings className="w-4 h-4" />,
+          },
+          {
+            // ML & Intelligence control plane. Administrator-only: the page and
+            // every `/ml/ops/*` route require `Administration.Roles`.
+            id: "settings-ml",
+            title: "ML & Intelligence",
+            href: "/intelligence",
+            icon: <Brain className="w-4 h-4" />,
+            permissions: ["Administration.Roles"],
           },
           {
             id: "settings-users",

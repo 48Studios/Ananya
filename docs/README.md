@@ -13,6 +13,18 @@ High-level design and repository organization.
 
 ---
 
+## Operations
+
+How the running system behaves in production, and what an operator controls.
+
+- [ML Operations](ML_OPERATIONS.md) — training, evaluation, deployment and rollback
+  of the category model, and the ML & Intelligence control plane.
+- [Authentication](AUTHENTICATION.md)
+- [Data Lifecycle](DATA_LIFECYCLE.md)
+- [Information Architecture](INFORMATION_ARCHITECTURE.md)
+
+---
+
 ## Development
 
 Guides for setting up and contributing to the project.

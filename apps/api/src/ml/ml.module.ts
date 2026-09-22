@@ -32,6 +32,10 @@ import { AttributeIntelligenceAuditService } from './attribute-findings/attribut
 import { AttributeReviewQueueService } from './attribute-findings/attribute-review-queue.service';
 import { AttributeReviewQueueController } from './attribute-findings/attribute-review-queue.controller';
 import { AttributeReviewApplyService } from './attribute-findings/attribute-review-apply.service';
+import { MlAdminGuard } from '../auth/ml-permissions';
+import { MlOpsController } from './ops/ml-ops.controller';
+import { MlOpsService } from './ops/ml-ops.service';
+import { MlOpsRepository } from './ops/ml-ops.repository';
 
 @Module({
   imports: [
@@ -51,6 +55,7 @@ import { AttributeReviewApplyService } from './attribute-findings/attribute-revi
     DocumentationIntelligenceController,
     ComponentSpecificationIntelligenceController,
     AttributeReviewQueueController,
+    MlOpsController,
   ],
   providers: [
     MlClientService,
@@ -74,6 +79,10 @@ import { AttributeReviewApplyService } from './attribute-findings/attribute-revi
     AttributeReviewApplyService,
     AttributeReadGuard,
     AttributeWriteGuard,
+    // ML Operations control plane: training runs, model versions and deployments.
+    MlOpsRepository,
+    MlOpsService,
+    MlAdminGuard,
   ],
   exports: [
     MlService,
@@ -86,6 +95,7 @@ import { AttributeReviewApplyService } from './attribute-findings/attribute-revi
     AttributeIntelligenceAuditService,
     AttributeReviewQueueService,
     AttributeReviewApplyService,
+    MlOpsService,
   ],
 })
 export class MlModule {}
