@@ -166,6 +166,64 @@ describe('Component Intelligence Review Queue (persistence + lifecycle)', () => 
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('returns every match when no page size is requested', async () => {
+    if (!hasDbUrl) return;
+
+    /*
+     * Its own component: the surrounding tests read this suite's shared fixture
+     * by `componentId`, so extra findings on that component would change what
+     * they see (a second pending row becomes `items[0]`, and a second finding
+     * goes stale with it).
+     */
+    const scratch = await componentsService.create({
+      sku: `E2E-CRQ-UNBOUNDED-${Date.now()}`,
+      name: 'Unbounded Queue Fixture',
+      unit: 'pcs',
+    });
+
+    try {
+      for (let index = 0; index < 3; index += 1) {
+        // The fingerprint covers the suggested value, so each row must differ
+        // there to be its own finding rather than a refresh of the previous one.
+        await reviewQueue.persistFindings([
+          buildFinding({
+            componentId: scratch.id,
+            componentUpdatedAt: scratch.updatedAt.toISOString(),
+            title: `Unbounded finding ${index}`,
+            description: `Fixture ${index} for the unbounded read.`,
+            suggestedValue: { manufacturerName: `Fixture ${index}` },
+          }),
+        ]);
+      }
+
+      // No `page`/`pageSize` — what the review dialogs send. The whole filtered
+      // list comes back, so a long queue is never silently truncated while the
+      // tab counts (read from the summary) keep reporting the larger number.
+      const unbounded = await reviewQueue.listFindings({
+        componentId: scratch.id,
+      });
+      expect(unbounded.items).toHaveLength(3);
+      expect(unbounded.items.length).toBe(unbounded.total);
+      expect(unbounded.pageSize).toBe(3);
+
+      // An explicit page size is still honoured, and still bounded by the ceiling.
+      const bounded = await reviewQueue.listFindings({
+        componentId: scratch.id,
+        page: 1,
+        pageSize: 1,
+      });
+      expect(bounded.items).toHaveLength(1);
+      expect(bounded.pageSize).toBe(1);
+      expect(bounded.total).toBe(3);
+    } finally {
+      // Feedback by subject first: the component delete nulls the column.
+      await db
+        .delete(aiSuggestionFeedback)
+        .where(eq(aiSuggestionFeedback.componentId, scratch.id));
+      await componentsService.delete(scratch.id).catch(() => undefined);
+    }
+  });
+
   it('records a reviewer decision and appends AI feedback telemetry', async () => {
     if (!hasDbUrl) return;
 

@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Eye,
   FileText,
+  Filter,
   HelpCircle,
   Loader2,
   RefreshCw,
@@ -22,7 +23,17 @@ import {
 } from "@/components/ui/dialog-shell";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DocumentViewer } from "@/components/ui/document-viewer";
-import { componentReviewQueueApi } from "@/lib/api/component-review-queue-api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  componentReviewQueueApi,
+  type ComponentReviewFindingDto,
+} from "@/lib/api/component-review-queue-api";
 import {
   documentsApi,
   type DocumentDto,
@@ -62,14 +73,19 @@ import {
   evidenceRoleLabel,
   filterSpecifications,
   hasPrimaryEvidence,
+  matchesSpecificationReviewFilters,
   sourceErpLabel,
   specificationBadge,
   specificationChipTone,
   specificationEvidenceExcerpt,
-  specificationUnavailableReason,
   type SpecificationChipTone,
   type SpecificationFilterId,
 } from "@/lib/specification-intelligence";
+import {
+  ALL_FILTER_VALUE,
+  INTELLIGENCE_CONFIDENCE_FILTER_OPTIONS,
+  INTELLIGENCE_STATUS_FILTER_OPTIONS,
+} from "@/lib/intelligence-review-filters";
 
 export interface ComponentSpecificationIntelligenceDialogProps {
   isOpen: boolean;
@@ -129,6 +145,18 @@ export function ComponentSpecificationIntelligenceDialog({
   onApplied,
 }: ComponentSpecificationIntelligenceDialogProps) {
   const [filter, setFilter] = React.useState<SpecificationFilterId>("ALL");
+  /**
+   * The review filters this surface shares with the two review queues.
+   *
+   * Documentation Intelligence used to have no status or confidence control at
+   * all, so "what still needs review, at what confidence" could not be asked here
+   * even though the same findings are visible in the Component queue. The two
+   * selects are the shared vocabulary, so the options and their labels cannot
+   * drift from the queues'.
+   */
+  const [statusFilter, setStatusFilter] = React.useState(ALL_FILTER_VALUE);
+  const [confidenceFilter, setConfidenceFilter] =
+    React.useState(ALL_FILTER_VALUE);
   const [busyAttributeId, setBusyAttributeId] = React.useState<string | null>(
     null,
   );
@@ -216,9 +244,29 @@ export function ComponentSpecificationIntelligenceDialog({
         { expectedFingerprint: review.fingerprint },
       );
 
-      // The apply response carries the outcome; the finding's new state is read
-      // back so the row shows exactly what the backend stores.
-      const finding = await componentReviewQueueApi.getFinding(review.findingId);
+      /*
+       * The apply response carries the outcome; the finding's new state is read
+       * back so the row shows exactly what the backend stores.
+       *
+       * That re-read is best-effort: the write is already committed by the time
+       * it runs, so a failure here must not be reported as a failed apply. The row
+       * falls back to a patch built from the apply result — the backend marks the
+       * finding ACCEPTED when it applies — and the host re-reads the authoritative
+       * state in either case.
+       */
+      let finding: Pick<
+        ComponentReviewFindingDto,
+        "id" | "status" | "fingerprint"
+      > = {
+        id: review.findingId,
+        fingerprint: result.fingerprint,
+        status: "ACCEPTED",
+      };
+      try {
+        finding = await componentReviewQueueApi.getFinding(review.findingId);
+      } catch {
+        // Keep the patch derived from the apply result.
+      }
 
       onSpecificationsChange(
         applyApplicationToSpecifications(
@@ -258,11 +306,28 @@ export function ComponentSpecificationIntelligenceDialog({
   };
 
   const summary = state?.summary ?? null;
+  const reviewFilters = {
+    status: statusFilter,
+    confidence: confidenceFilter,
+  };
+  /**
+   * The specifications the review filters leave in scope.
+   *
+   * The tab counts are computed over this set: the selects narrow which
+   * specifications are under discussion, so every count should describe the
+   * narrowed set. That is the rule both review queues document — a count ignores
+   * the navigation dimension (here the tab row) and honours the scoping filters.
+   */
+  const scopedSpecifications = state
+    ? state.specifications.filter((specification) =>
+        matchesSpecificationReviewFilters(specification, reviewFilters),
+      )
+    : [];
   const counts = state
-    ? buildSpecificationFilterCounts(state.specifications, state.unmapped)
+    ? buildSpecificationFilterCounts(scopedSpecifications, state.unmapped)
     : null;
   const visible = state
-    ? filterSpecifications(state.specifications, filter)
+    ? filterSpecifications(state.specifications, filter, reviewFilters)
     : [];
   const showAmbiguities = filter === "ALL" || filter === "AMBIGUOUS";
   const ambiguities = state && showAmbiguities ? state.unmapped : [];
@@ -270,6 +335,23 @@ export function ComponentSpecificationIntelligenceDialog({
     state !== null &&
     state.specifications.length === 0 &&
     state.unmapped.length === 0;
+
+  /**
+   * Whether anything narrows the list, so "nothing here" can say why.
+   *
+   * The tab row counts too: a reviewer who clicked "Conflicts" and found none is
+   * in a different situation from one whose component has no specifications.
+   */
+  const filtersActive =
+    filter !== "ALL" ||
+    statusFilter !== ALL_FILTER_VALUE ||
+    confidenceFilter !== ALL_FILTER_VALUE;
+
+  const clearFilters = () => {
+    setFilter("ALL");
+    setStatusFilter(ALL_FILTER_VALUE);
+    setConfidenceFilter(ALL_FILTER_VALUE);
+  };
 
   return (
     <>
@@ -413,6 +495,92 @@ export function ComponentSpecificationIntelligenceDialog({
                 </div>
               ) : null}
 
+              {/*
+                Review status and confidence, the same two controls the Component
+                and Attribute queues offer, from the same shared vocabulary. They
+                scope the list and the tab counts above; the tab row stays the
+                navigation dimension.
+              */}
+              {!nothingFound ? (
+                <div className="shrink-0 rounded-xl border border-border bg-card p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Filter className="mx-1.5 size-3.5 text-muted-foreground" />
+                    <Select
+                      value={statusFilter}
+                      onValueChange={(value) =>
+                        setStatusFilter(value ?? ALL_FILTER_VALUE)
+                      }
+                    >
+                      <SelectTrigger
+                        className="h-8 min-w-[140px] flex-1 text-xs"
+                        aria-label="Status filter"
+                      >
+                        <SelectValue placeholder="All statuses" />
+                      </SelectTrigger>
+                      <SelectContent className="p-1.5">
+                        <SelectItem
+                          value={ALL_FILTER_VALUE}
+                          className="text-xs"
+                        >
+                          All statuses
+                        </SelectItem>
+                        {INTELLIGENCE_STATUS_FILTER_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="text-xs"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={confidenceFilter}
+                      onValueChange={(value) =>
+                        setConfidenceFilter(value ?? ALL_FILTER_VALUE)
+                      }
+                    >
+                      <SelectTrigger
+                        className="h-8 min-w-[140px] flex-1 text-xs"
+                        aria-label="Confidence filter"
+                      >
+                        <SelectValue placeholder="All confidence" />
+                      </SelectTrigger>
+                      <SelectContent className="p-1.5">
+                        <SelectItem
+                          value={ALL_FILTER_VALUE}
+                          className="text-xs"
+                        >
+                          All confidence
+                        </SelectItem>
+                        {INTELLIGENCE_CONFIDENCE_FILTER_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="text-xs"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {filtersActive ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearFilters}
+                        className="h-8 gap-1.5 text-xs text-muted-foreground"
+                      >
+                        <X className="size-3.5" />
+                        Clear
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
               {nothingFound ? (
                 <div className="flex flex-1 flex-col items-center justify-center space-y-2 rounded-xl border border-dashed border-border bg-muted/5 py-12 text-center">
                   <Sparkles className="mx-auto size-8 text-muted-foreground/30" />
@@ -432,8 +600,21 @@ export function ComponentSpecificationIntelligenceDialog({
                     Nothing in this view
                   </p>
                   <p className="mx-auto max-w-sm text-[11px] text-muted-foreground">
-                    Adjust or clear the filters to see other specifications.
+                    Adjust or clear the status, confidence, or tab filters to see
+                    other specifications.
                   </p>
+                  {filtersActive ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="mt-1 h-8 gap-1.5 text-xs"
+                    >
+                      <X className="size-3.5" />
+                      Clear filters
+                    </Button>
+                  ) : null}
                 </div>
               ) : (
                 <div className="min-h-0 flex-1 divide-y divide-border overflow-y-auto rounded-xl border border-border bg-card shadow-2xs">
@@ -546,8 +727,6 @@ function SpecificationRow({
 }) {
   const review = specification.review;
   const stale = review?.status === "STALE";
-  const decided =
-    review?.status === "REJECTED" || review?.status === "DISMISSED";
   const conflict = specification.state === "CONFLICT";
 
   const reasons = confidenceReasons(specification);
@@ -555,7 +734,6 @@ function SpecificationRow({
   const erp = describeErpComparison(specification);
   const canApply = canApplySpecification(specification, canWrite);
   const canDecide = canDecideSpecification(specification, canWrite);
-  const blocked = specificationUnavailableReason(specification, canWrite);
   const level = confidenceLevel(specification.confidence);
   const documented = conflict
     ? describeConflict(specification).join(" · ")
@@ -683,13 +861,6 @@ function SpecificationRow({
                   <Check className="size-3" />
                   Accept
                 </Button>
-              ) : blocked && !decided ? (
-                <span
-                  className="max-w-44 text-right text-[10px] leading-tight text-muted-foreground"
-                  title={blocked}
-                >
-                  {blocked}
-                </span>
               ) : null}
             </>
           )}

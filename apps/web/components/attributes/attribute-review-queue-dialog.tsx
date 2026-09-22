@@ -42,9 +42,12 @@ import {
 import { useAuth } from "@/lib/auth/auth-context";
 import {
   ATTRIBUTE_ACCEPT_AND_APPLY_LABEL,
+  ATTRIBUTE_CONFIDENCE_FILTER_OPTIONS,
   ATTRIBUTE_DECISION_COPY,
   ATTRIBUTE_QUEUE_TABS,
+  ATTRIBUTE_STATUS_FILTER_OPTIONS,
   ATTRIBUTE_WRITE_PERMISSION,
+  ALL_FILTER_VALUE,
   attributeAcceptAndApplyTitle,
   attributeAcceptNotice,
   attributeApplyAction,
@@ -84,7 +87,6 @@ import {
   attributeReviewQueueApi,
   buildAttributeApplyPayload,
   buildAttributeDecisionPayload,
-  MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
   type AttributeApplyAction,
   type AttributeReviewDecision,
   type AttributeReviewFindingDto,
@@ -114,30 +116,18 @@ import {
  * accordion, empty state) is intentionally unchanged from the previous version.
  */
 
-/** Sentinel for "no filter applied", matching the Component queue's filters. */
-const ALL_FILTER_VALUE = "ALL";
-
 /**
- * Status filter options.
+ * Status and confidence filter options.
  *
- * `PENDING` is the default because the queue is a work list: the reviewer opens it
- * to see what needs a decision. The tab counts still show the true totals for every
- * status, so nothing is hidden.
+ * Both come from the shared review vocabulary
+ * (`@/lib/intelligence-review-filters`, re-exported by the queue lib), which is
+ * also what the Component queue and the Documentation dialog render, so the
+ * surfaces can no longer label the same lifecycle state differently. They were
+ * previously declared here, which is exactly how "Needs review" and "Pending
+ * Review" drifted apart.
  */
-const STATUS_FILTER_OPTIONS = [
-  { value: "PENDING", label: "Needs review" },
-  { value: "ACCEPTED", label: "Accepted" },
-  { value: "REJECTED", label: "Rejected" },
-  { value: "DISMISSED", label: "Dismissed" },
-  { value: "STALE", label: "Stale" },
-  { value: "PENDING,STALE", label: "Needs review + stale" },
-] as const;
-
-const CONFIDENCE_FILTER_OPTIONS = [
-  { value: "HIGH", label: "High" },
-  { value: "MEDIUM", label: "Medium" },
-  { value: "LOW", label: "Low" },
-] as const;
+const STATUS_FILTER_OPTIONS = ATTRIBUTE_STATUS_FILTER_OPTIONS;
+const CONFIDENCE_FILTER_OPTIONS = ATTRIBUTE_CONFIDENCE_FILTER_OPTIONS;
 
 /**
  * The icon on the apply button, per action.
@@ -181,7 +171,8 @@ export function AttributeReviewQueueDialog({
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
 
   const [tab, setTab] = React.useState<AttributeQueueTabId>("ALL");
-  const [statusFilter, setStatusFilter] = React.useState<string>("ALL");
+  const [statusFilter, setStatusFilter] =
+    React.useState<string>(ALL_FILTER_VALUE);
   const [confidenceFilter, setConfidenceFilter] =
     React.useState(ALL_FILTER_VALUE);
   const [searchInput, setSearchInput] = React.useState("");
@@ -238,8 +229,9 @@ export function AttributeReviewQueueDialog({
             ? (confidenceFilter as "HIGH" | "MEDIUM" | "LOW")
             : undefined,
         search: search.trim() || undefined,
-        page: 1,
-        pageSize: MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
+        // No `page`/`pageSize`: one request returns every finding matching the
+        // filters, so the list is never truncated at a page boundary and the
+        // counts below describe the same set the reviewer is looking at.
         sortBy: "createdAt",
         sortDirection: "desc",
       });
@@ -277,17 +269,35 @@ export function AttributeReviewQueueDialog({
     [page?.counts],
   );
 
+  /**
+   * Whether anything narrows the list.
+   *
+   * Compared against the DEFAULT status (`ALL`), not against `PENDING`: this used
+   * to read `statusFilter !== "PENDING"`, which was true the moment the dialog
+   * opened — so the Clear control was always visible and the empty state always
+   * blamed the filters, even on an unfiltered queue with nothing in it.
+   */
   const filtersActive = Boolean(
     search.trim() ||
       (confidenceFilter && confidenceFilter !== ALL_FILTER_VALUE) ||
-      (statusFilter && statusFilter !== "PENDING") ||
+      (statusFilter && statusFilter !== ALL_FILTER_VALUE) ||
       tab !== "ALL",
   );
 
+  /**
+   * Resets every control to its default.
+   *
+   * The status default is `ALL`, matching the Component queue and the state the
+   * dialog opens in. This used to reset to `PENDING`, so "Clear" silently applied
+   * a filter the reviewer had never chosen.
+   */
   const clearFilters = () => {
-    setStatusFilter("PENDING");
+    setStatusFilter(ALL_FILTER_VALUE);
     setConfidenceFilter(ALL_FILTER_VALUE);
+    // Both the box and the applied term: leaving the debounced value behind would
+    // let the next request run with the search the reviewer just cleared.
     setSearchInput("");
+    setSearch("");
     setTab("ALL");
   };
 
@@ -658,7 +668,7 @@ export function AttributeReviewQueueDialog({
         </div>
 
         {/* Items List */}
-        {loading ? (
+        {loading && !page ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-xs text-muted-foreground">
             <Loader2 className="size-5 animate-spin text-primary" />
             <span>Loading persisted findings...</span>

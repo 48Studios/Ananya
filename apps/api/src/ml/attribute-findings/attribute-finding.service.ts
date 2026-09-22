@@ -371,10 +371,13 @@ export class AttributeIntelligenceFindingsService {
       items: rows.map(toFindingDto),
       total,
       page: normalized.page ?? 1,
-      pageSize: Math.min(
-        MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
-        normalized.pageSize ?? 20,
-      ),
+      // An unbounded read (no `pageSize`) reports the number of rows it returned,
+      // so the field still describes the response rather than a page size nobody
+      // applied.
+      pageSize:
+        normalized.pageSize === undefined
+          ? rows.length
+          : Math.min(MAX_ATTRIBUTE_QUEUE_PAGE_SIZE, normalized.pageSize),
     };
   }
 

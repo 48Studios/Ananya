@@ -376,6 +376,23 @@ export default function ViewComponentPage() {
     }
   }, [id]);
 
+  /**
+   * Everything an application changed, re-read from the server.
+   *
+   * Applying a specification writes the value to the component AND moves the
+   * finding's review state, so both are re-read: the record, and the
+   * specification state the dialog renders (whose summary — "needs review" — is
+   * server-derived and would otherwise keep counting a row that was just
+   * applied). The dialog's own row patch stays on screen while this runs, so the
+   * list never flashes, and `intelligenceDirty` is cleared because what is on
+   * screen is now the server's own state.
+   */
+  const handleApplied = React.useCallback(() => {
+    void refreshComponent();
+    setIntelligenceDirty(false);
+    void loadIntelligence();
+  }, [refreshComponent, loadIntelligence]);
+
   const handleDelete = async () => {
     if (!id) return;
     setDeleteLoading(true);
@@ -951,7 +968,7 @@ export default function ViewComponentPage() {
         onRefresh={() => void loadIntelligence()}
         onAnalyze={() => void runIntelligence()}
         onSpecificationsChange={handleSpecificationsChange}
-        onApplied={() => void refreshComponent()}
+        onApplied={handleApplied}
       />
 
       {/* Edit Form Modal */}

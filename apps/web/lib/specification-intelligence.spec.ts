@@ -37,7 +37,10 @@ import {
   hasSpecificationIntelligence,
   intelligenceEntryLabel,
   isAmbiguous,
+  matchesSpecificationConfidenceFilter,
   matchesSpecificationFilter,
+  matchesSpecificationReviewFilters,
+  matchesSpecificationStatusFilter,
   sectionLabel,
   sourceErpLabel,
   specificationBadge,
@@ -811,6 +814,118 @@ describe("specification filters", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Shared review filters (status + confidence)
+// ---------------------------------------------------------------------------
+
+describe("specification review filters", () => {
+  it("matches a review status, including the combined outstanding-work option", () => {
+    const pending = specification();
+    const accepted = specification({
+      review: {
+        findingId: "finding-2",
+        status: "ACCEPTED",
+        fingerprint: "fp-2",
+        isNew: false,
+        applied: false,
+      },
+    });
+    const stale = specification({
+      review: {
+        findingId: "finding-3",
+        status: "STALE",
+        fingerprint: "fp-3",
+        isNew: false,
+        applied: false,
+      },
+    });
+    const undecided = specification({ review: null });
+
+    expect(matchesSpecificationStatusFilter(pending, "ALL")).toBe(true);
+    expect(matchesSpecificationStatusFilter(pending, "PENDING")).toBe(true);
+    expect(matchesSpecificationStatusFilter(accepted, "PENDING")).toBe(false);
+    expect(matchesSpecificationStatusFilter(stale, "PENDING,STALE")).toBe(true);
+    expect(matchesSpecificationStatusFilter(pending, "PENDING,STALE")).toBe(
+      true,
+    );
+    expect(matchesSpecificationStatusFilter(accepted, "PENDING,STALE")).toBe(
+      false,
+    );
+    // A specification with no review item is not a member of any status filter.
+    expect(matchesSpecificationStatusFilter(undecided, "PENDING")).toBe(false);
+  });
+
+  it("matches a confidence band through the shared vocabulary", () => {
+    const high = specification({ confidence: 0.96 });
+    const medium = specification({ confidence: 0.7 });
+    const low = specification({ confidence: 0.3 });
+
+    expect(matchesSpecificationConfidenceFilter(high, "HIGH")).toBe(true);
+    expect(matchesSpecificationConfidenceFilter(high, "MEDIUM")).toBe(false);
+    expect(matchesSpecificationConfidenceFilter(medium, "MEDIUM")).toBe(true);
+    expect(matchesSpecificationConfidenceFilter(low, "LOW")).toBe(true);
+    expect(matchesSpecificationConfidenceFilter(low, "ALL")).toBe(true);
+  });
+
+  it("combines both filters for the list and the tab counts", () => {
+    const rows = [
+      specification(),
+      specification({
+        attributeDefinitionId: "def-2",
+        state: "CONFLICT",
+        confidence: 0.4,
+      }),
+      specification({
+        attributeDefinitionId: "def-3",
+        review: {
+          findingId: "finding-3",
+          status: "ACCEPTED",
+          fingerprint: "fp-3",
+          isNew: false,
+          applied: true,
+        },
+      }),
+    ];
+
+    const filters = { status: "PENDING", confidence: "HIGH" };
+
+    // Only the first row is pending at high confidence.
+    expect(
+      rows.filter((row) => matchesSpecificationReviewFilters(row, filters)),
+    ).toHaveLength(1);
+
+    // The list and the counts are computed from the SAME scoped set, so a tab
+    // can never report a number the reviewer cannot reach by clicking it.
+    const scoped = rows.filter((row) =>
+      matchesSpecificationReviewFilters(row, filters),
+    );
+    expect(filterSpecifications(scoped, "ALL", filters)).toHaveLength(1);
+    expect(buildSpecificationFilterCounts(scoped, []).CONFLICTS).toBe(0);
+    expect(buildSpecificationFilterCounts(scoped, []).NEEDS_REVIEW).toBe(1);
+  });
+
+  it("leaves an unmapped property visible whatever the filters say", () => {
+    // An ambiguous property has no review status and no confidence of its own, so
+    // filtering on either must not hide a property that still needs a decision.
+    const scoped = [specification()].filter((row) =>
+      matchesSpecificationReviewFilters(row, {
+        status: "REJECTED",
+        confidence: "LOW",
+      }),
+    );
+
+    expect(scoped).toHaveLength(0);
+    expect(filterSpecifications(scoped, "ALL", {
+      status: "REJECTED",
+      confidence: "LOW",
+    })).toHaveLength(0);
+    // The unmapped list is passed through untouched by the dialog.
+    expect(buildSpecificationFilterCounts(scoped, [unmapped()]).AMBIGUOUS).toBe(
+      1,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Rendering (source assertions)
 // ---------------------------------------------------------------------------
 
@@ -824,6 +939,56 @@ describe("specification intelligence dialog", () => {
     expect(source_).not.toContain("buildSummaryRows");
     expect(source_).not.toContain("gap-x-5");
     expect(source_).toContain("option.label} ({");
+  });
+
+  it("offers the shared status and confidence filters", () => {
+    // The two controls the Component and Attribute queues have, from the same
+    // vocabulary: this surface used to have no status or confidence filter at
+    // all, so "what still needs review" could not be asked here.
+    expect(source_).toContain('aria-label="Status filter"');
+    expect(source_).toContain('aria-label="Confidence filter"');
+    expect(source_).toContain("INTELLIGENCE_STATUS_FILTER_OPTIONS");
+    expect(source_).toContain("INTELLIGENCE_CONFIDENCE_FILTER_OPTIONS");
+    expect(source_).toContain("All statuses");
+    expect(source_).toContain("All confidence");
+    // No local option list of its own.
+    expect(source_).not.toContain('label: "Needs review"');
+  });
+
+  it("scopes the tab counts with the review filters", () => {
+    // The counts and the list must be computed from the same scoped set, or a tab
+    // could report a number the reviewer cannot reach.
+    expect(source_).toContain("matchesSpecificationReviewFilters");
+    expect(source_).toContain("buildSpecificationFilterCounts(scopedSpecifications");
+    expect(source_).toContain("filterSpecifications(state.specifications, filter, reviewFilters)");
+  });
+
+  it("offers a clear action only when something is actually filtered", () => {
+    expect(source_).toContain("clearFilters");
+    expect(source_).toContain("filtersActive");
+    // Clearing resets all three controls, including the tab row.
+    const clear = source_.slice(
+      source_.indexOf("const clearFilters = () => {"),
+      source_.indexOf("};", source_.indexOf("const clearFilters = () => {")),
+    );
+    expect(clear).toContain('setFilter("ALL")');
+    expect(clear).toContain("ALL_FILTER_VALUE");
+  });
+
+  it("treats a failed post-apply re-read as a patch, not as a failed apply", () => {
+    // The write is committed before the re-read runs, so a failure there must not
+    // be reported as an apply failure. The row falls back to the apply result.
+    const apply = source_.slice(
+      source_.indexOf("const applyValue = async"),
+      source_.indexOf("const previewDocument"),
+    );
+    expect(apply).toContain("applyFinding");
+    expect(apply).toContain("getFinding");
+    expect(apply).toMatch(/try \{\s*finding = await componentReviewQueueApi\.getFinding/);
+    // And the host is told, so the component AND the stored state are re-read.
+    expect(apply).toContain("onApplied()");
+    expect(read(componentPagePath)).toContain("onApplied={handleApplied}");
+    expect(read(componentPagePath)).toContain("void loadIntelligence();");
   });
 
   it("renders the state the host loaded rather than deriving it again", () => {

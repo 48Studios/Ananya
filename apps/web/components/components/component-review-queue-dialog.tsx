@@ -38,7 +38,6 @@ import {
 import { useAuth } from "@/lib/auth/auth-context";
 import {
   componentReviewQueueApi,
-  MAX_QUEUE_PAGE_SIZE,
   type ComponentReviewFindingDto,
   type ComponentReviewIssueCategory,
   type ComponentReviewIssueType,
@@ -165,10 +164,9 @@ export function ComponentReviewQueueDialog({
         confidenceLevel: filterValueToParam(confidenceFilter) as
           ConfidenceLevel | undefined,
         search: search.trim() || undefined,
-        // One request returns the whole filtered list, matching the Attribute
-        // queue, so the list stays a plain scroll region with no paging.
-        page: 1,
-        pageSize: MAX_QUEUE_PAGE_SIZE,
+        // No `page`/`pageSize`: one request returns every finding matching the
+        // filters, so the list stays a plain scroll region with no paging and
+        // nothing is silently truncated at a page boundary.
         sortBy: "createdAt",
         sortDirection: "desc",
       });
@@ -223,6 +221,9 @@ export function ComponentReviewQueueDialog({
   }, [searchInput]);
 
   const items = React.useMemo(() => page?.items ?? [], [page?.items]);
+  // Counted from the loaded rows, which are complete: the request above sends no
+  // page size, so the backend returns every match. A count therefore describes
+  // exactly what clicking the tab shows.
   const tabCounts = React.useMemo(() => buildQueueTabCounts(items), [items]);
   const visibleItems = React.useMemo(
     () => items.filter((item) => matchesQueueTab(item, tab)),
@@ -246,7 +247,10 @@ export function ComponentReviewQueueDialog({
     setCategoryFilter(ALL_FILTER_VALUE);
     setIssueTypeFilter(ALL_FILTER_VALUE);
     setConfidenceFilter(ALL_FILTER_VALUE);
+    // Both the box and the applied term: leaving the debounced value behind would
+    // let the next request run with the search the reviewer just cleared.
     setSearchInput("");
+    setSearch("");
     setTab("ALL");
   };
 

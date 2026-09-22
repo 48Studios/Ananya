@@ -103,7 +103,12 @@ export class AttributeReviewQueueService {
       page: page.page,
       pageSize: page.pageSize,
       total: page.total,
-      totalPages: Math.max(1, Math.ceil(page.total / page.pageSize)),
+      // Guarded because an unbounded read reports the rows it returned: a queue
+      // with no findings would otherwise divide by zero.
+      totalPages:
+        page.pageSize > 0
+          ? Math.max(1, Math.ceil(page.total / page.pageSize))
+          : 1,
       counts,
     };
   }

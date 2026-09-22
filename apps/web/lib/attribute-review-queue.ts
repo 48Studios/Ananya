@@ -7,6 +7,16 @@ import type {
   AttributeReviewQueuePageDto,
   AttributeReviewStatus,
 } from "./api/attribute-review-queue-api";
+import {
+  ALL_FILTER_VALUE,
+  INTELLIGENCE_CONFIDENCE_FILTER_OPTIONS,
+  INTELLIGENCE_STATUS_FILTER_OPTIONS,
+  INTELLIGENCE_STATUS_LABELS,
+  type ReviewFilterOption,
+} from "./intelligence-review-filters";
+
+/** Re-exported so the queue keeps a single import site for its vocabulary. */
+export { ALL_FILTER_VALUE };
 
 /**
  * Attribute Intelligence review queue presentation logic.
@@ -154,13 +164,21 @@ export function attributeApplicationLabel(
 // Status presentation
 // ---------------------------------------------------------------------------
 
-export const ATTRIBUTE_STATUS_LABELS: Record<AttributeReviewStatus, string> = {
-  PENDING: "Needs review",
-  ACCEPTED: "Accepted",
-  REJECTED: "Rejected",
-  DISMISSED: "Dismissed",
-  STALE: "Stale",
-};
+export const ATTRIBUTE_STATUS_LABELS: Record<AttributeReviewStatus, string> =
+  INTELLIGENCE_STATUS_LABELS;
+
+/**
+ * Status and confidence filter options, from the shared vocabulary.
+ *
+ * The Attribute queue was the surface that already used "Needs review"; the
+ * Component queue now matches it, and both offer the identical option list so a
+ * reviewer moving between the two queues sees the same controls.
+ */
+export const ATTRIBUTE_STATUS_FILTER_OPTIONS: ReviewFilterOption[] =
+  INTELLIGENCE_STATUS_FILTER_OPTIONS;
+
+export const ATTRIBUTE_CONFIDENCE_FILTER_OPTIONS: ReviewFilterOption[] =
+  INTELLIGENCE_CONFIDENCE_FILTER_OPTIONS;
 
 /** Badge tone per status, using the shared `StatusBadge` vocabulary. */
 export const ATTRIBUTE_STATUS_BADGES: Record<AttributeReviewStatus, string> = {

@@ -16,6 +16,22 @@ import type {
   ConsolidationResultDto,
   ConsolidationSeverity,
 } from "./api/component-review-queue-api";
+import {
+  ALL_FILTER_VALUE,
+  INTELLIGENCE_CONFIDENCE_FILTER_OPTIONS,
+  INTELLIGENCE_STATUS_FILTER_OPTIONS,
+  INTELLIGENCE_STATUS_LABELS,
+  filterValueToParam,
+  type ReviewFilterOption,
+} from "./intelligence-review-filters";
+
+/**
+ * The shared review-filter vocabulary is re-exported here so every existing
+ * importer of this module keeps working, and so the Component queue cannot drift
+ * from the Attribute and Documentation surfaces (see
+ * `intelligence-review-filters.ts`).
+ */
+export { ALL_FILTER_VALUE, filterValueToParam };
 
 /**
  * Component Intelligence Review Queue presentation logic.
@@ -73,13 +89,15 @@ export const ISSUE_CATEGORY_LABELS: Record<
   ATTRIBUTE_VALUE: "Specifications",
 };
 
-export const STATUS_LABELS: Record<ComponentReviewStatus, string> = {
-  PENDING: "Pending Review",
-  ACCEPTED: "Accepted",
-  REJECTED: "Rejected",
-  DISMISSED: "Dismissed",
-  STALE: "Stale",
-};
+/**
+ * Status wording, from the shared vocabulary.
+ *
+ * `PENDING` reads "Needs review" on every intelligence surface. It used to read
+ * "Pending Review" here and "Needs review" in the Attribute queue, so the same
+ * lifecycle state had two names depending on which dialog the reviewer opened.
+ */
+export const STATUS_LABELS: Record<ComponentReviewStatus, string> =
+  INTELLIGENCE_STATUS_LABELS;
 
 /**
  * Maps review statuses onto the design system's canonical `StatusBadge` values.
@@ -293,16 +311,18 @@ export function staleExplanation(finding: ComponentReviewFindingDto): string {
 // Filters and counts
 // ---------------------------------------------------------------------------
 
-export interface FilterOption {
-  label: string;
-  value: string;
-}
+export type FilterOption = ReviewFilterOption;
 
-export const ALL_FILTER_VALUE = "ALL";
-
-export const STATUS_FILTER_OPTIONS: FilterOption[] = (
-  ["PENDING", "ACCEPTED", "REJECTED", "DISMISSED", "STALE"] as const
-).map((status) => ({ label: STATUS_LABELS[status], value: status }));
+/**
+ * Status filter options, from the shared vocabulary.
+ *
+ * Identical to the Attribute and Documentation queues, including the combined
+ * "Needs review + stale" option: both list endpoints accept a comma-separated
+ * status list, so the outstanding-work view is available everywhere rather than
+ * only where it was first implemented.
+ */
+export const STATUS_FILTER_OPTIONS: FilterOption[] =
+  INTELLIGENCE_STATUS_FILTER_OPTIONS;
 
 /**
  * Filterable categories.
@@ -325,16 +345,9 @@ export const ISSUE_TYPE_FILTER_OPTIONS: FilterOption[] = (
   value: issueType,
 }));
 
-export const CONFIDENCE_FILTER_OPTIONS: FilterOption[] = (
-  ["HIGH", "MEDIUM", "LOW"] as const
-).map((level) => ({ label: `${level} confidence`, value: level }));
-
-export function filterValueToParam(
-  value: string | undefined,
-): string | undefined {
-  if (!value || value === ALL_FILTER_VALUE) return undefined;
-  return value;
-}
+/** Confidence filter options, from the shared vocabulary. */
+export const CONFIDENCE_FILTER_OPTIONS: FilterOption[] =
+  INTELLIGENCE_CONFIDENCE_FILTER_OPTIONS;
 
 export interface QueueCountDescriptor {
   key: string;
@@ -469,8 +482,10 @@ export const QUEUE_TABS: readonly { id: QueueTabId; label: string }[] = [
 /**
  * Whether a finding belongs to a tab.
  *
- * Tabs are a presentation grouping over the loaded findings; the authoritative
- * filters are still sent to the API.
+ * Tabs are a presentation grouping applied to the loaded findings. The list is
+ * fetched whole (the API returns every match when no page size is requested), so
+ * the grouping is complete for the active filters rather than a slice of a page —
+ * which is what makes a client-side grouping here equivalent to a server-side one.
  */
 export function matchesQueueTab(
   finding: Pick<ComponentReviewFindingDto, "issueCategory" | "status">,
@@ -492,6 +507,23 @@ export function matchesQueueTab(
   }
 }
 
+/**
+ * Tab counts, from the findings the queue is holding.
+ *
+ * The list is fetched WHOLE — the review queue sends no page size, so the API
+ * returns every match — which is what makes counting the loaded rows complete
+ * rather than a slice of one page. Before that, "All" could never exceed the page
+ * size and a tab could hide findings that existed.
+ *
+ * A count therefore describes exactly the rows the tab yields under the active
+ * filters: clicking "Stale (0)" shows nothing, and clicking "Stale (59)" shows 59.
+ * The alternative — counting from the backend summary, which ignores the status
+ * filter — was tried and rejected live: with `status=PENDING` selected, the Stale
+ * tab read "Stale (59)" while showing an empty list, which reads as a bug rather
+ * than as a total. (The Attribute queue documents the opposite rule for its own
+ * tabs because its tabs are applied server-side, so its list is a subset of the
+ * counted set rather than a disjoint one.)
+ */
 export function buildQueueTabCounts(
   items: ComponentReviewFindingDto[],
 ): Record<QueueTabId, number> {

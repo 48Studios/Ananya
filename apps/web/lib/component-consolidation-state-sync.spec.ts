@@ -351,8 +351,8 @@ describe("C. the review queue status and counts update consistently", () => {
   });
 
   it("keeps the tab counts derived from the list in step", () => {
-    // Tabs are computed from the items, so the targeted row update is what keeps
-    // the Duplicates tab badge honest without a second request.
+    // Tabs are counted from the loaded rows, so the targeted row update is what
+    // keeps the Duplicates badge honest without a second request.
     const before = page([pending, other]);
     expect(buildQueueTabCounts(before.items).DUPLICATES).toBe(2);
 

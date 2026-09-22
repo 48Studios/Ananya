@@ -905,6 +905,16 @@ describe('Attribute Intelligence findings (persistence + lifecycle)', () => {
       expect(secondPage.items).toHaveLength(1);
       expect(secondPage.items[0]!.id).not.toBe(paged.items[0]!.id);
 
+      // Without a page size the listing is UNBOUNDED: the review queue reads the
+      // whole filtered list, so a page boundary cannot silently truncate it.
+      const unbounded = await findingsService.listFindings({
+        attributeDefinitionId: attribute.id,
+        source,
+      });
+      expect(unbounded.items).toHaveLength(unbounded.total);
+      expect(unbounded.items.length).toBeGreaterThanOrEqual(3);
+      expect(unbounded.pageSize).toBe(unbounded.items.length);
+
       const search = await findingsService.listFindings({
         attributeDefinitionId: attribute.id,
         source,

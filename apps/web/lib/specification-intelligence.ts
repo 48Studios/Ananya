@@ -13,6 +13,10 @@ import type {
   SpecificationSourceDto,
   UnmappedSpecificationDto,
 } from "./api/documentation-intelligence-api";
+import {
+  matchesConfidenceFilter,
+  matchesStatusFilter,
+} from "./intelligence-review-filters";
 
 /**
  * Specification Intelligence presentation (Pass 4).
@@ -451,6 +455,56 @@ export const SPECIFICATION_FILTERS = [
 export type SpecificationFilterId =
   (typeof SPECIFICATION_FILTERS)[number]["id"];
 
+/**
+ * The review filters this surface shares with the two review queues.
+ *
+ * Documentation Intelligence used to be the one review surface with no status or
+ * confidence control: its tab row was the only way to narrow the list, and the
+ * tab row mixes specification state ("Documents disagree") with review lifecycle
+ * ("Applied"). Adding the same two selects the Component and Attribute queues
+ * offer is what makes "what needs review, at what confidence" answerable here too.
+ *
+ * The selects are SCOPING filters: they narrow which specifications are under
+ * discussion, so the tab counts describe the narrowed set (the rule both queues
+ * document — counts ignore the navigation dimension, which here is the tab row).
+ */
+export interface SpecificationReviewFilters {
+  /** Shared status vocabulary; `ALL` means "no status filter". */
+  status: string;
+  /** Shared confidence vocabulary; `ALL` means "no confidence filter". */
+  confidence: string;
+}
+
+/** Whether a specification's review status matches the status filter. */
+export function matchesSpecificationStatusFilter(
+  specification: SpecificationAggregateDto,
+  statusFilter: string,
+): boolean {
+  return matchesStatusFilter(specification.review?.status, statusFilter);
+}
+
+/** Whether a specification's confidence band matches the confidence filter. */
+export function matchesSpecificationConfidenceFilter(
+  specification: SpecificationAggregateDto,
+  confidenceFilter: string,
+): boolean {
+  return matchesConfidenceFilter(
+    confidenceLevel(specification.confidence),
+    confidenceFilter,
+  );
+}
+
+/** Whether a specification passes the shared review filters. */
+export function matchesSpecificationReviewFilters(
+  specification: SpecificationAggregateDto,
+  filters: SpecificationReviewFilters,
+): boolean {
+  return (
+    matchesSpecificationStatusFilter(specification, filters.status) &&
+    matchesSpecificationConfidenceFilter(specification, filters.confidence)
+  );
+}
+
 /** Whether a specification belongs to a filter. */
 export function matchesSpecificationFilter(
   specification: SpecificationAggregateDto,
@@ -484,7 +538,12 @@ export function matchesSpecificationFilter(
   }
 }
 
-/** Counts per filter, from the specifications themselves. */
+/** Counts per filter, from the specifications themselves.
+ *
+ * Computed over the specifications that already passed the shared review filters,
+ * so the tabs describe the set the reviewer narrowed to rather than the whole
+ * component.
+ */
 export function buildSpecificationFilterCounts(
   specifications: SpecificationAggregateDto[],
   unmapped: UnmappedSpecificationDto[],
@@ -506,16 +565,26 @@ export function buildSpecificationFilterCounts(
  *
  * Ambiguous properties are not aggregates — there is no attribute to aggregate
  * on — but a reviewer looking for "everything that needs attention" expects to
- * see them, so they are presented alongside.
+ * see them, so they are presented alongside. The shared review filters apply to
+ * mapped specifications only: an unmapped property has no review status or
+ * confidence of its own, so filtering it out by either would hide a property that
+ * still needs a decision.
  */
 export function filterSpecifications(
   specifications: SpecificationAggregateDto[],
   filter: SpecificationFilterId,
+  reviewFilters?: SpecificationReviewFilters,
 ): SpecificationAggregateDto[] {
   if (filter === "AMBIGUOUS") return [];
-  return specifications.filter((specification) =>
-    matchesSpecificationFilter(specification, filter),
-  );
+  return specifications
+    .filter((specification) =>
+      matchesSpecificationFilter(specification, filter),
+    )
+    .filter((specification) =>
+      reviewFilters
+        ? matchesSpecificationReviewFilters(specification, reviewFilters)
+        : true,
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -592,7 +661,7 @@ function replaceSpecificationForFinding(
  */
 export function applyDecisionToSpecifications(
   specifications: SpecificationAggregateDto[],
-  finding: ComponentReviewFindingDto,
+  finding: Pick<ComponentReviewFindingDto, "id" | "status" | "fingerprint">,
 ): SpecificationAggregateDto[] {
   return replaceSpecificationForFinding(
     specifications,
@@ -620,7 +689,7 @@ export function applyDecisionToSpecifications(
  */
 export function applyApplicationToSpecifications(
   specifications: SpecificationAggregateDto[],
-  finding: ComponentReviewFindingDto,
+  finding: Pick<ComponentReviewFindingDto, "id" | "status" | "fingerprint">,
   result: ApplyComponentFindingResultDto,
 ): SpecificationAggregateDto[] {
   return replaceSpecificationForFinding(

@@ -272,12 +272,25 @@ export class ListComponentFindingsQueryDto {
   @MaxLength(200)
   search?: string;
 
+  /**
+   * Page to read. Only meaningful together with `pageSize`.
+   *
+   * Optional on purpose: a review list is read whole (see `pageSize`).
+   */
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number;
 
+  /**
+   * Rows to read, at most 100.
+   *
+   * OPTIONAL, and omitting it is what the review surfaces do: without a page size
+   * the queue returns every matching finding, so a long list is never truncated
+   * at a page boundary while the counts keep reporting the true total. Supplying
+   * it keeps the paged behaviour for callers that only need the summary.
+   */
   @IsOptional()
   @Type(() => Number)
   @IsInt()

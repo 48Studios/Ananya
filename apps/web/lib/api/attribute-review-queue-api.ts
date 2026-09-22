@@ -212,7 +212,17 @@ export interface ListAttributeFindingsParams {
   relatedAttributeDefinitionId?: string;
   source?: string;
   search?: string;
+  /**
+   * Page to read. Omit it (with `pageSize`) to receive every match.
+   *
+   * Kept optional for callers that only need the counts; the review queue does
+   * not page, because a reviewer works the whole filtered list.
+   */
   page?: number;
+  /**
+   * Rows to read. Omitted by the review queue, which is what makes the backend
+   * return the complete list rather than a silently truncated page.
+   */
   pageSize?: number;
   sortBy?: AttributeReviewSortField;
   sortDirection?: "asc" | "desc";
@@ -286,11 +296,15 @@ export interface ApplyAttributeFindingResultDto {
   } | null;
 }
 
-/** Backend page-size ceiling (`MAX_ATTRIBUTE_QUEUE_PAGE_SIZE`). */
+/**
+ * Ceiling applied to an explicitly requested page size.
+ *
+ * The review surfaces no longer page: omitting `pageSize` returns every matching
+ * finding in one response, which is what a review list needs. The ceiling still
+ * bounds a caller that asks for an explicit page — the library header chip reads
+ * only the counts and asks for a single row.
+ */
 export const MAX_ATTRIBUTE_QUEUE_PAGE_SIZE = 100;
-
-/** Default page size, matching the backend's `DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE`. */
-export const DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE = 20;
 
 /**
  * Builds the decision request body from a finding.
@@ -351,18 +365,25 @@ const BASE_PATH = "/ml/attributes/review-queue";
 
 export const attributeReviewQueueApi = {
   /**
-   * Reads a page of persisted findings.
+   * Reads the persisted findings matching the given filters.
    *
    * This is a READ: it does not run the producer and does not create findings, so
    * opening the queue is cheap regardless of how expensive analysis is.
+   *
+   * `page`/`pageSize` are OPTIONAL and omitted by the review queue: without them
+   * the backend returns every match, so the list is never silently truncated.
+   * They remain available for callers that want the counts alone.
    */
   listFindings: (
     params: ListAttributeFindingsParams = {},
   ): Promise<AttributeReviewQueuePageDto> => {
-    const pageSize = Math.min(
-      Math.max(1, params.pageSize ?? DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE),
-      MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
-    );
+    const pageSize =
+      params.pageSize === undefined
+        ? undefined
+        : Math.min(
+            Math.max(1, params.pageSize),
+            MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
+          );
     return apiClient.get<AttributeReviewQueuePageDto>(
       `${BASE_PATH}${buildQueryString({
         status: params.status,
@@ -375,7 +396,7 @@ export const attributeReviewQueueApi = {
         relatedAttributeDefinitionId: params.relatedAttributeDefinitionId,
         source: params.source,
         search: params.search,
-        page: params.page ?? 1,
+        page: params.page,
         pageSize,
         sortBy: params.sortBy,
         sortDirection: params.sortDirection,

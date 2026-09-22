@@ -54,7 +54,6 @@ import type {
   AttributeReviewQueueCountsDto,
 } from "./api/attribute-review-queue-api";
 import {
-  DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE,
   MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
   buildAttributeApplyPayload,
   buildAttributeDecisionPayload,
@@ -755,10 +754,13 @@ describe("Attribute review queue API client", () => {
     expect(source).not.toContain("unbindCategory");
   });
 
-  it('clamps page size to the backend ceiling', () => {
+  it('bounds an explicitly requested page size, and omits it otherwise', () => {
+    // Omitting `pageSize` is what makes the listing return the whole filtered
+    // list; the ceiling only applies to a caller that asks for a page.
     expect(source).toContain("MAX_ATTRIBUTE_QUEUE_PAGE_SIZE");
     expect(MAX_ATTRIBUTE_QUEUE_PAGE_SIZE).toBe(100);
-    expect(DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE).toBe(20);
+    expect(source).toContain("params.pageSize === undefined");
+    expect(source).not.toContain("params.pageSize ??");
   });
 });
 
@@ -804,17 +806,17 @@ describe("Attribute review queue dialog — data source", () => {
     expect(openEffect).not.toContain("runAudit");
   });
 
-  it('applies filters and the sort server-side, and loads the list without paging', () => {
-    expect(dialog).toContain("page: 1");
-    expect(dialog).toContain("pageSize: MAX_ATTRIBUTE_QUEUE_PAGE_SIZE");
+  it('applies filters and the sort server-side, and asks for the whole list', () => {
     expect(dialog).toContain('sortBy: "createdAt"');
     expect(dialog).toContain("tabIssueTypeFilter(tab)");
     expect(dialog).toContain("confidenceLevel:");
 
     // One request returns the whole filtered list, matching the Component queue:
-    // there is no page state and no paging control to move it.
+    // there is no page state, no paging control, and no page size to truncate it.
     expect(dialog).not.toContain("pageNumber");
     expect(dialog).not.toContain("totalPages");
+    expect(dialog).not.toContain("page: 1");
+    expect(dialog).not.toContain("pageSize:");
   });
 
   it('renders server-provided counts rather than counting loaded rows', () => {

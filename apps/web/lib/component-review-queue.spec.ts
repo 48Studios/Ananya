@@ -229,13 +229,19 @@ describe("Component Review Queue lifecycle", () => {
 
 describe("Component Review Queue filters", () => {
   it("offers every canonical status, issue category, and issue type", () => {
+    // The five lifecycle statuses plus the combined outstanding-work option, in
+    // the shared order — identical to the Attribute and Documentation surfaces.
     expect(STATUS_FILTER_OPTIONS.map((option) => option.value)).toEqual([
       "PENDING",
       "ACCEPTED",
       "REJECTED",
       "DISMISSED",
       "STALE",
+      "PENDING,STALE",
     ]);
+    expect(
+      STATUS_FILTER_OPTIONS.find((option) => option.value === "PENDING")?.label,
+    ).toBe("Needs review");
 
     // DATA_QUALITY keeps a label but is not filterable: the backend emits no
     // findings in that category yet.
@@ -259,6 +265,11 @@ describe("Component Review Queue filters", () => {
       "HIGH",
       "MEDIUM",
       "LOW",
+    ]);
+    expect(CONFIDENCE_FILTER_OPTIONS.map((option) => option.label)).toEqual([
+      "High confidence",
+      "Medium confidence",
+      "Low confidence",
     ]);
   });
 
@@ -1147,7 +1158,9 @@ describe("Component Review Queue tabs", () => {
     expect(matchesQueueTab(buildFinding(), "STALE")).toBe(false);
   });
 
-  it("counts every tab from one page of findings", () => {
+  it("counts every tab from the loaded findings", () => {
+    // The list is fetched whole (no page size), so counting the loaded rows is
+    // complete — and it is what makes a tab's number match what clicking it shows.
     const items = [
       buildFinding({ id: "a", issueCategory: "IDENTITY" }),
       buildFinding({ id: "b", issueCategory: "CLASSIFICATION" }),
@@ -1170,7 +1183,7 @@ describe("Component Review Queue tabs", () => {
     });
   });
 
-  it("reports zero for every tab on an empty queue", () => {
+  it("reports zero for every tab on an empty list", () => {
     expect(buildQueueTabCounts([])).toEqual({
       ALL: 0,
       IDENTITY: 0,
@@ -1583,15 +1596,16 @@ describe("Intelligence queue filter section", () => {
     expect(component).toContain("setSearchInput");
     expect(attribute).toContain("setSearchInput");
 
-    // Both offer a confidence filter. The Component queue filters client-side over
-    // its loaded items; the Attribute queue applies its filters server-side, so its
-    // tab counts come from persisted rows rather than from the rows it holds.
+    // Both offer a confidence filter. The Component queue groups the loaded list
+    // by tab; the Attribute queue applies its tab as a server-side filter. Either
+    // way the list is fetched whole, so both see every match.
     expect(component).toContain("confidenceFilter");
     expect(attribute).toContain("confidenceFilter");
     expect(attribute).toContain("attributeReviewQueueApi.listFindings");
-    // One request returns the whole filtered list, so neither queue has paging.
-    expect(attribute).toContain("pageSize: MAX_ATTRIBUTE_QUEUE_PAGE_SIZE");
+    // One request returns the whole filtered list: no page parameters at all.
     expect(attribute).not.toContain("pageNumber");
+    expect(attribute).not.toContain("pageSize:");
+    expect(component).not.toContain("pageSize:");
     // No client-side filtering remains in the Attribute queue.
     expect(attribute).not.toContain("item.confidenceLevel !== confidenceFilter");
   });
@@ -1742,16 +1756,16 @@ describe("Intelligence queue list parity", () => {
   it("fetches the whole filtered list in a single request", () => {
     const component = read(componentDialog);
 
-    expect(component).toContain("page: 1");
-    expect(component).toContain("pageSize: MAX_QUEUE_PAGE_SIZE");
-    expect(component).toContain("MAX_QUEUE_PAGE_SIZE");
+    // No `page`/`pageSize`: the backend returns every match when no page size is
+    // requested, which is what makes one request per filter set complete.
+    expect(component).not.toContain("page: 1");
+    expect(component).not.toContain("pageSize:");
 
-    // The Attribute queue loads its list the same way: one request per filter set,
-    // bounded only by the backend's page-size ceiling.
+    // The Attribute queue loads its list the same way.
     const attribute = read(attributeDialog);
 
-    expect(attribute).toContain("page: 1");
-    expect(attribute).toContain("pageSize: MAX_ATTRIBUTE_QUEUE_PAGE_SIZE");
+    expect(attribute).not.toContain("page: 1");
+    expect(attribute).not.toContain("pageSize:");
   });
 
   it("still filters server-side, so the single request stays relevant", () => {
@@ -1759,6 +1773,36 @@ describe("Intelligence queue list parity", () => {
 
     expect(component).toContain("status: filterValueToParam(statusFilter)");
     expect(component).toContain("search: search.trim() || undefined");
+  });
+
+  it("re-reads the persisted list after a decision or an apply", () => {
+    // Every write in these dialogs is followed by the same scoped re-read, so the
+    // affected row and the tab counts come from the database rather than from a
+    // local prediction. This is what a reviewer sees as "the row left the list on
+    // its own".
+    const component = read(componentDialog);
+    const componentApply = component.slice(
+      component.indexOf("const applyFinding"),
+      component.indexOf("return (", component.indexOf("const applyFinding")),
+    );
+    expect(componentApply).toContain("await loadQueue();");
+    expect(componentApply).toContain("onActionComplete");
+
+    const attribute = read(attributeDialog);
+    const attributeApply = attribute.slice(
+      attribute.indexOf("const confirmApply"),
+      attribute.indexOf("const applyConfirmation"),
+    );
+    expect(attributeApply).toContain("await loadQueue();");
+    expect(attributeApply).toContain("onActionComplete");
+
+    // The Documentation surface is the third place the same findings are applied:
+    // it re-reads the finding, then asks the host to re-read the component AND the
+    // stored specification state, whose "needs review" summary is server-derived.
+    const documents = read(
+      "components/documentation/component-specification-intelligence-dialog.tsx",
+    );
+    expect(documents).toContain("onApplied();");
   });
 
   it("renders the list as a plain scroll region with no sibling chrome", () => {

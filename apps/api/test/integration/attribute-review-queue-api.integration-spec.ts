@@ -982,6 +982,47 @@ describe('Attribute Intelligence review queue — API', () => {
       expect(oversize.status).toBe(400);
     });
 
+    it('returns the whole filtered list when no page size is requested', async () => {
+      if (!hasDbUrl) return;
+      const attribute = await createAttribute('unbounded');
+      for (let index = 0; index < 3; index += 1) {
+        await persistFinding({
+          attributeDefinitionId: attribute.id,
+          currentValue: {
+            bindingCount: index,
+            usageBand: 'VALUES_WITH_BINDINGS',
+          },
+          title: `Unbounded finding ${index} ${runId}`,
+        });
+      }
+
+      // Exactly the request the review dialog makes: filters, sort, and no
+      // pagination. Every match comes back, and `pageSize` describes the response
+      // rather than a page nobody applied.
+      const response = await http()
+        .get(
+          `${QUEUE_ROUTE}?attributeDefinitionId=${attribute.id}&sortBy=createdAt&sortDirection=desc`,
+        )
+        .set('Authorization', `Bearer ${readerToken}`);
+      expect(response.status).toBe(200);
+      const page = body<QueuePageBody>(response);
+      expect(page.items).toHaveLength(3);
+      expect(page.items).toHaveLength(page.total);
+      expect(page.pageSize).toBe(3);
+      expect(page.totalPages).toBe(1);
+
+      // An empty result must not divide by zero when it reports its own size.
+      const none = await http()
+        .get(
+          `${QUEUE_ROUTE}?attributeDefinitionId=${attribute.id}&status=STALE`,
+        )
+        .set('Authorization', `Bearer ${readerToken}`);
+      const empty = body<QueuePageBody>(none);
+      expect(empty.items).toHaveLength(0);
+      expect(empty.total).toBe(0);
+      expect(empty.totalPages).toBe(1);
+    });
+
     it('reports counts from persisted rows, ignoring the status filter', async () => {
       if (!hasDbUrl) return;
       const attribute = await createAttribute('counts');

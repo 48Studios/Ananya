@@ -404,16 +404,26 @@ export class ComponentReviewQueueService {
   }
 
   /**
-   * Filtered, paginated queue read.
+   * Filtered queue read.
+   *
+   * `page`/`pageSize` are OPTIONAL. Omitting `pageSize` returns EVERY match: the
+   * review surfaces work the whole filtered list, and a page boundary would
+   * truncate it silently while the tab counts (which are read from the summary)
+   * kept reporting the larger number. Supplying `pageSize` keeps the paged
+   * behaviour for a caller that only wants the counts — the catalog header chip
+   * reads the summary from a single row.
    *
    * `summary` counts ignore the status filter so queue tabs always show true
-   * totals, while `total`/`items` honour every filter for pagination.
+   * totals, while `total`/`items` honour every filter.
    */
   async listFindings(
     query: ListComponentFindingsQuery = {},
   ): Promise<ComponentReviewQueuePage> {
+    const unbounded = query.pageSize === undefined;
     const page = Math.max(1, query.page ?? 1);
-    const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 20));
+    const pageSize = unbounded
+      ? undefined
+      : Math.min(100, Math.max(1, query.pageSize ?? 20));
     const statuses = this.normalizeStatuses(query.status);
 
     const baseConditions = await this.buildBaseConditions(query);
@@ -426,6 +436,12 @@ export class ComponentReviewQueueService {
     const where = statusCondition
       ? and(...baseConditions, statusCondition)
       : baseWhere;
+
+    const rowsQuery = db
+      .select()
+      .from(componentIntelligenceFindings)
+      .where(where)
+      .orderBy(this.resolveOrderBy(query));
 
     const [statusRows, categoryRows, totalRows, rows] = await Promise.all([
       db
@@ -448,13 +464,9 @@ export class ComponentReviewQueueService {
         .select({ value: count() })
         .from(componentIntelligenceFindings)
         .where(where),
-      db
-        .select()
-        .from(componentIntelligenceFindings)
-        .where(where)
-        .orderBy(this.resolveOrderBy(query))
-        .limit(pageSize)
-        .offset((page - 1) * pageSize),
+      pageSize === undefined
+        ? rowsQuery
+        : rowsQuery.limit(pageSize).offset((page - 1) * pageSize),
     ]);
 
     const summary: ComponentReviewQueueSummary = {
@@ -488,7 +500,9 @@ export class ComponentReviewQueueService {
       items: rows.map((row) => toFindingDto(row, componentSummaries)),
       total: Number(totalRows[0]?.value ?? 0),
       page,
-      pageSize,
+      // An unbounded read reports the number of rows it returned, so the field
+      // still describes the response rather than a page size nobody applied.
+      pageSize: pageSize ?? rows.length,
     };
   }
 

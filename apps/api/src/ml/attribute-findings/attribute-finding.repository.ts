@@ -267,32 +267,42 @@ export class AttributeFindingRepository {
   }
 
   /**
-   * Filtered, paginated queue read.
+   * Filtered queue read.
    *
    * Returns the rows and the filtered total together, so a caller cannot
    * paginate over a different predicate than it counted.
+   *
+   * Omitting `pageSize` returns EVERY match. The review surfaces read the whole
+   * filtered list — a page boundary would truncate it silently while the counts
+   * (read from separate grouped queries) kept reporting the larger number — so
+   * the bound is only applied when a caller asks for one.
    */
   async list(
     query: AttributeFindingListQuery,
     client: DbExecutor = this.client,
   ): Promise<{ rows: AttributeIntelligenceFinding[]; total: number }> {
+    const unbounded = query.pageSize === undefined;
     const page = Math.max(1, query.page ?? 1);
-    const pageSize = Math.min(
-      MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
-      Math.max(1, query.pageSize ?? DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE),
-    );
+    const pageSize = unbounded
+      ? undefined
+      : Math.min(
+          MAX_ATTRIBUTE_QUEUE_PAGE_SIZE,
+          Math.max(1, query.pageSize ?? DEFAULT_ATTRIBUTE_QUEUE_PAGE_SIZE),
+        );
 
     const conditions = this.buildConditions(query);
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
+    const rowsQuery = client
+      .select()
+      .from(attributeIntelligenceFindings)
+      .where(where)
+      .orderBy(resolveOrderBy(query));
+
     const [rows, totals] = await Promise.all([
-      client
-        .select()
-        .from(attributeIntelligenceFindings)
-        .where(where)
-        .orderBy(resolveOrderBy(query))
-        .limit(pageSize)
-        .offset((page - 1) * pageSize),
+      pageSize === undefined
+        ? rowsQuery
+        : rowsQuery.limit(pageSize).offset((page - 1) * pageSize),
       client
         .select({ value: count() })
         .from(attributeIntelligenceFindings)

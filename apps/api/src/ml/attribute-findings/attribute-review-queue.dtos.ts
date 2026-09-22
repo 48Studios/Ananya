@@ -101,6 +101,14 @@ export class ListAttributeFindingsQueryDto {
   @Min(1)
   page?: number;
 
+  /**
+   * Rows to read, at most 100.
+   *
+   * OPTIONAL, and omitting it is what the review queue does: without a page size
+   * the listing returns every matching finding, so a long review list is never
+   * truncated at a page boundary while the counts keep reporting the true total.
+   * Supplying it keeps the paged behaviour for callers that only want the counts.
+   */
   @IsOptional()
   @Type(() => Number)
   @IsInt()

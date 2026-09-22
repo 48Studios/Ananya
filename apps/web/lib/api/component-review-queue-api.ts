@@ -555,7 +555,17 @@ export interface ListComponentFindingsParams {
   componentId?: string;
   confidenceLevel?: ConfidenceLevel;
   search?: string;
+  /**
+   * Page to read. Omit it (with `pageSize`) to receive every match.
+   *
+   * Kept optional for callers that need a single row; the review queue does not
+   * page, because a reviewer works the whole filtered list.
+   */
   page?: number;
+  /**
+   * Rows to read. Omitted by the review surfaces, which is what makes the
+   * backend return the complete list rather than a silently truncated page.
+   */
   pageSize?: number;
   sortBy?: ComponentReviewSortField;
   sortDirection?: "asc" | "desc";
@@ -630,10 +640,15 @@ export interface RunComponentAuditPayload {
   includeInactive?: boolean;
 }
 
-/** Backend page-size ceiling (`MAX_COMPONENT_AUDIT_LIMIT` equivalent). */
+/**
+ * Ceiling applied to an explicitly requested page size.
+ *
+ * The review surfaces no longer page: omitting `pageSize` returns every matching
+ * finding in one response, which is what a review list needs. The ceiling still
+ * bounds a caller that asks for an explicit page — the catalog header chip reads
+ * only the summary and asks for a single row.
+ */
 export const MAX_QUEUE_PAGE_SIZE = 100;
-
-export const DEFAULT_QUEUE_PAGE_SIZE = 20;
 
 /**
  * Builds the decision request body from a finding.
@@ -689,13 +704,24 @@ function buildQueryString(
 const BASE_PATH = "/ml/components/review-queue";
 
 export const componentReviewQueueApi = {
+  /**
+   * Reads the findings matching the given filters.
+   *
+   * `page`/`pageSize` are OPTIONAL and omitted by the review surfaces: without
+   * them the backend returns every match, which is what a long review list needs.
+   * They are still accepted for callers that want one row (the header counter
+   * chip) or an explicit page.
+   */
   listFindings: (
     params: ListComponentFindingsParams = {},
   ): Promise<ComponentReviewQueuePageDto> => {
-    const pageSize = Math.min(
-      Math.max(1, params.pageSize ?? DEFAULT_QUEUE_PAGE_SIZE),
-      MAX_QUEUE_PAGE_SIZE,
-    );
+    const pageSize =
+      params.pageSize === undefined
+        ? undefined
+        : Math.min(
+            Math.max(1, params.pageSize),
+            MAX_QUEUE_PAGE_SIZE,
+          );
     return apiClient.get<ComponentReviewQueuePageDto>(
       `${BASE_PATH}${buildQueryString({
         status: params.status,
@@ -704,7 +730,7 @@ export const componentReviewQueueApi = {
         componentId: params.componentId,
         confidenceLevel: params.confidenceLevel,
         search: params.search,
-        page: params.page ?? 1,
+        page: params.page,
         pageSize,
         sortBy: params.sortBy,
         sortDirection: params.sortDirection,
