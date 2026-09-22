@@ -1,9 +1,9 @@
 {
   "pipeline": "Ananya Independent Authoritative ML Training",
   "rfc": "RFC-0058",
-  "timestamp": "2026-09-18T18:06:27.850999+00:00",
+  "timestamp": "2026-09-22T13:22:37.533215+00:00",
   "modelVersion": "1.4.0",
-  "datasetVersion": "components-2026-09-18-v1.4.0",
+  "datasetVersion": "components-2026-09-22-v1.4.0",
   "datasetStatistics": {
     "totalRawRecords": 25,
     "validatedRecords": 25,
@@ -22,9 +22,9 @@
     "duplicatePrecision": 1.0,
     "duplicateRecall": 1.0,
     "criticalFalseMerges": 0,
-    "p95LatencyMs": 0.255,
+    "p95LatencyMs": 0.248,
     "artifactSizeBytes": 226628,
-    "peakRamMb": 136.75,
+    "peakRamMb": 137.52,
     "unverifiedRecords": 0
   },
   "qualityGates": {

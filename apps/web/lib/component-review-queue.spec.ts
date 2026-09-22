@@ -15,8 +15,14 @@ import {
   APPLY_REVIEW_ONLY_COPY,
   APPLY_WARNING,
   APPLY_COPY,
+  ASSIGN_COPY,
+  ASSIGN_WARNING,
   actionConsequenceNote,
   actionableFindingCount,
+  applyActionCopy,
+  applyAssignableEntity,
+  applyAssignmentFieldLabel,
+  applyAssignmentHint,
   applyConflictMessage,
   applySuccessMessage,
   applyUnavailableReason,
@@ -58,6 +64,7 @@ import {
   queueCardActions,
   staleExplanation,
   STATUS_FILTER_OPTIONS,
+  suggestedEntityAssignment,
   summarizeAuditResult,
 } from "./component-review-queue";
 
@@ -910,7 +917,11 @@ describe("Component Review Queue apply (writing suggestions)", () => {
       const byLabel = Object.fromEntries(rows.map((row) => [row.label, row]));
       expect(byLabel["Field"]!.value).toBe("Manufacturer");
       expect(byLabel["Current"]!.value).toBe("Murata");
-      expect(byLabel["New"]!.value).toBe("Yageo");
+      // A reassignable finding states the model's proposal as a suggestion, so
+      // it is not the row describing what will be written.
+      expect(byLabel["Suggested"]!.value).toBe("Yageo");
+      expect(byLabel["Suggested"]!.emphasis).toBe(false);
+      expect(byLabel["New"]).toBeUndefined();
     });
 
     it("resolves category names and shows 'Not set' for unresolved fields", () => {
@@ -929,7 +940,33 @@ describe("Component Review Queue apply (writing suggestions)", () => {
       const byLabel = Object.fromEntries(rows.map((row) => [row.label, row]));
       expect(byLabel["Field"]!.value).toBe("Category");
       expect(byLabel["Current"]!.value).toBe("Not set");
-      expect(byLabel["New"]!.value).toBe("Resistors");
+      expect(byLabel["Suggested"]!.value).toBe("Resistors");
+    });
+
+    it("adds the assignment as the written row when the reviewer edited it", () => {
+      const rows = buildApplyConfirmationRows(
+        buildFinding({
+          issueType: "MANUFACTURER_CONFLICT",
+          suggestedValue: { manufacturerId: "mfg-yageo" },
+        }),
+        refs,
+        { assignedLabel: "Vishay" },
+      );
+      const byLabel = Object.fromEntries(rows.map((row) => [row.label, row]));
+
+      expect(byLabel["Suggested"]!.value).toBe("Yageo");
+      expect(byLabel["Suggested"]!.emphasis).toBe(false);
+      expect(byLabel["Assigning"]!.value).toBe("Vishay");
+      expect(byLabel["Assigning"]!.emphasis).toBe(true);
+      expect(byLabel["Assigning"]!.kind).toBe("assigned");
+    });
+
+    it("keeps the suggested row emphasised for findings that cannot be reassigned", () => {
+      const rows = buildApplyConfirmationRows(buildFinding(), refs);
+      const byLabel = Object.fromEntries(rows.map((row) => [row.label, row]));
+
+      expect(byLabel["New"]!.emphasis).toBe(true);
+      expect(byLabel["New"]!.kind).toBe("suggested");
     });
 
     it("warns that the component will be updated", () => {
@@ -977,6 +1014,158 @@ describe("Component Review Queue apply (writing suggestions)", () => {
         expect(serialized).not.toContain(forbidden);
       }
     });
+
+    it("sends the assigned row when the reviewer corrected the suggestion", () => {
+      const payload = buildApplyPayload(buildFinding(), "Yageo is the MPN owner", "mfg-vishay");
+
+      expect(Object.keys(payload).sort()).toEqual([
+        "decisionNotes",
+        "expectedFingerprint",
+        "targetEntityId",
+      ]);
+      expect(payload.targetEntityId).toBe("mfg-vishay");
+    });
+
+    it("omits a blank assignment", () => {
+      expect(Object.keys(buildApplyPayload(buildFinding(), undefined, "  "))).toEqual([
+        "expectedFingerprint",
+      ]);
+      expect(
+        Object.keys(buildApplyPayload(buildFinding(), undefined, null)),
+      ).toEqual(["expectedFingerprint"]);
+    });
+  });
+
+  describe("manufacturer and category assignment", () => {
+    it("offers reassignment only for the two entity families", () => {
+      expect(applyAssignableEntity({ issueType: "MANUFACTURER_UNRESOLVED" })).toBe(
+        "manufacturer",
+      );
+      expect(applyAssignableEntity({ issueType: "MANUFACTURER_CONFLICT" })).toBe(
+        "manufacturer",
+      );
+      expect(applyAssignableEntity({ issueType: "CATEGORY_UNRESOLVED" })).toBe(
+        "category",
+      );
+      expect(applyAssignableEntity({ issueType: "CATEGORY_CONFLICT" })).toBe(
+        "category",
+      );
+      for (const issueType of [
+        "MPN_MISSING",
+        "MPN_CONFLICT",
+        "ATTRIBUTE_VALUE_SUGGESTION",
+        "EXACT_DUPLICATE",
+        "POTENTIAL_DUPLICATE",
+      ]) {
+        expect(applyAssignableEntity({ issueType })).toBeNull();
+      }
+    });
+
+    it("reads the suggestion from the finding snapshot, without a lookup", () => {
+      const suggestion = suggestedEntityAssignment(
+        buildFinding({
+          issueType: "MANUFACTURER_CONFLICT",
+          suggestedValue: {
+            manufacturerId: "mfg-yageo",
+            manufacturerName: "Yageo",
+            resolution: "EXISTING",
+          },
+        }),
+      );
+
+      expect(suggestion).toEqual({
+        id: "mfg-yageo",
+        label: "Yageo",
+        resolution: "EXISTING",
+      });
+    });
+
+    it("reports a suggested name the ERP does not hold yet", () => {
+      const finding = buildFinding({
+        issueType: "MANUFACTURER_UNRESOLVED",
+        suggestedValue: { manufacturerId: null, manufacturerName: "Yageo", resolution: "NEW_CANDIDATE" },
+      });
+      const suggestion = suggestedEntityAssignment(finding);
+
+      expect(suggestion).toEqual({
+        id: null,
+        label: "Yageo",
+        resolution: "NEW_CANDIDATE",
+      });
+      expect(applyAssignmentHint(finding)).toMatch(/not in the ERP yet/i);
+      expect(applyAssignmentHint(finding)).toMatch(/create it/i);
+    });
+
+    it("has no hint when the suggestion can be applied as it stands", () => {
+      const finding = buildFinding({
+        issueType: "CATEGORY_CONFLICT",
+        suggestedValue: { categoryId: "cat-resistors", categoryName: "Resistors" },
+      });
+
+      expect(applyAssignmentHint(finding)).toBeNull();
+      expect(suggestedEntityAssignment(finding)?.resolution).toBe("UNKNOWN");
+    });
+
+    it("has nothing to assign for a finding that carries its own value", () => {
+      expect(suggestedEntityAssignment(buildFinding())).toBeNull();
+      expect(applyAssignmentHint(buildFinding())).toBeNull();
+    });
+
+    it("labels the control with the entity being assigned", () => {
+      expect(
+        applyAssignmentFieldLabel({ issueType: "CATEGORY_UNRESOLVED" }),
+      ).toBe("Assign Category");
+      expect(
+        applyAssignmentFieldLabel({ issueType: "MANUFACTURER_UNRESOLVED" }),
+      ).toBe("Assign Manufacturer");
+    });
+
+    it("switches the action label only when the assignment is an edit", () => {
+      const finding = { issueType: "MANUFACTURER_CONFLICT" };
+
+      expect(applyActionCopy(finding, false)).toEqual(APPLY_COPY);
+      expect(applyActionCopy(finding, true)).toEqual(ASSIGN_COPY);
+      expect(ASSIGN_COPY.label).toBe("Assign & Apply");
+      // A non-entity finding can never claim the assignment wording.
+      expect(applyActionCopy({ issueType: "MPN_CONFLICT" }, true)).toEqual(
+        APPLY_COPY,
+      );
+    });
+
+    it("warns that the assignment, not the suggestion, is written", () => {
+      expect(ASSIGN_WARNING).toMatch(/not the suggested one/i);
+      expect(ASSIGN_WARNING).toMatch(/recorded as an edit/i);
+      expect(ASSIGN_WARNING).not.toBe(APPLY_WARNING);
+    });
+  });
+
+  describe("assignment dialog wiring", () => {
+    const webRoot = path.resolve(
+      fileURLToPath(new URL(".", import.meta.url)),
+      "..",
+    );
+    const applyDialog = fs.readFileSync(
+      path.join(webRoot, "components/components/component-review-apply-dialog.tsx"),
+      "utf8",
+    );
+
+    it("reuses the component form's entity dropdown for the assignment", () => {
+      expect(applyDialog).toContain("EntitySelector");
+      expect(applyDialog).toContain("entity={assignable}");
+      expect(applyDialog).toContain("creatable");
+      expect(applyDialog).toContain("canCreate={canCreate}");
+    });
+
+    it("sends the assignment only when it replaced the suggestion", () => {
+      expect(applyDialog).toContain(
+        "assignmentEdited && effectiveId ? effectiveId : undefined",
+      );
+    });
+
+    it("keeps the suggestion visible while it is being edited", () => {
+      expect(applyDialog).toContain("suggestedEntityAssignment(finding, refs)");
+      expect(applyDialog).toContain("assignedLabel: assignmentEdited");
+    });
   });
 
   describe("apply outcome messaging", () => {
@@ -986,6 +1175,8 @@ describe("Component Review Queue apply (writing suggestions)", () => {
         appliedValue: "RC0805FR-0727RL",
         appliedValueLabel: null,
         staledFindingCount: 0,
+        assignmentEdited: false,
+        suggestedTarget: null,
       });
       expect(message).toContain("RC0805FR-0727RL");
       expect(message).toContain("accepted");
@@ -997,9 +1188,40 @@ describe("Component Review Queue apply (writing suggestions)", () => {
         appliedValue: "cat-1",
         appliedValueLabel: "Resistors",
         staledFindingCount: 2,
+        assignmentEdited: false,
+        suggestedTarget: null,
       });
       expect(message).toContain("Resistors");
       expect(message).toContain("2 other findings");
+    });
+
+    it("says an assignment replaced the suggestion and was recorded as an edit", () => {
+      const message = applySuccessMessage({
+        fieldLabel: "Manufacturer",
+        appliedValue: "mfg-vishay",
+        appliedValueLabel: "Vishay",
+        staledFindingCount: 0,
+        assignmentEdited: true,
+        suggestedTarget: { id: "mfg-yageo", name: "Yageo" },
+      });
+
+      expect(message).toContain("Vishay");
+      expect(message).toContain('instead of the suggested "Yageo"');
+      expect(message).toMatch(/recorded as an edit/i);
+      expect(message).not.toMatch(/suggested value\. The finding is now accepted/);
+    });
+
+    it("still names the edit when the finding had no suggestion to quote", () => {
+      const message = applySuccessMessage({
+        fieldLabel: "Manufacturer",
+        appliedValue: "mfg-vishay",
+        appliedValueLabel: "Vishay",
+        staledFindingCount: 0,
+        assignmentEdited: true,
+        suggestedTarget: { id: null, name: null },
+      });
+
+      expect(message).toContain("instead of the suggestion");
     });
 
     it.each([
@@ -1859,8 +2081,8 @@ describe("Component intelligence finding dialog footer", () => {
 
     // Rendered in the body, gated on the finding still being decidable — the
     // read-only and terminal cases are already explained there.
-    expect(source).toContain("actionConsequenceNote(applicable)");
-    expect(source.indexOf("actionConsequenceNote(applicable)")).toBeLessThan(
+    expect(source).toContain("actionConsequenceNote(");
+    expect(source.indexOf("actionConsequenceNote(")).toBeLessThan(
       source.indexOf("<DialogShellFooter"),
     );
   });

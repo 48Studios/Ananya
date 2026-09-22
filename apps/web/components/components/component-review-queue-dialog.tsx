@@ -38,6 +38,7 @@ import {
 import { useAuth } from "@/lib/auth/auth-context";
 import {
   componentReviewQueueApi,
+  buildApplyPayload,
   type ComponentReviewFindingDto,
   type ComponentReviewIssueCategory,
   type ComponentReviewIssueType,
@@ -58,6 +59,7 @@ import {
   STATUS_FILTER_OPTIONS,
   applyConsolidationToFinding,
   applyFindingStatusToQueuePage,
+  applySuccessMessage,
   auditUnavailableReason,
   buildFindingValueSummary,
   buildQueueTabCounts,
@@ -336,18 +338,26 @@ export function ComponentReviewQueueDialog({
     }
   };
 
-  const applyFinding = async (finding: ComponentReviewFindingDto) => {
+  /**
+   * Applies a finding from a queue card.
+   *
+   * `targetEntityId` carries the manufacturer/category the reviewer assigned in
+   * the confirmation, when they corrected the suggestion; everything else about
+   * the request is decided by the backend.
+   */
+  const applyFinding = async (
+    finding: ComponentReviewFindingDto,
+    targetEntityId?: string,
+  ) => {
     setSubmitting(true);
     setStatusMessage(null);
     try {
-      const { appliedValue, appliedValueLabel, fieldLabel } =
-        await componentReviewQueueApi.applyFinding(finding.id, {
-          expectedFingerprint: finding.fingerprint,
-        });
-      setApplyTarget(null);
-      setStatusMessage(
-        `${fieldLabel} updated to "${appliedValueLabel ?? appliedValue ?? "—"}". The finding is now accepted.`,
+      const result = await componentReviewQueueApi.applyFinding(
+        finding.id,
+        buildApplyPayload(finding, undefined, targetEntityId),
       );
+      setApplyTarget(null);
+      setStatusMessage(applySuccessMessage(result));
       await loadQueue();
       onActionComplete?.();
     } catch (err) {
@@ -957,8 +967,9 @@ export function ComponentReviewQueueDialog({
         finding={applyTarget}
         refs={refs}
         submitting={submitting}
-        onConfirm={() => {
-          if (applyTarget) void applyFinding(applyTarget);
+        canCreate={permissions.canApply}
+        onConfirm={(notes, targetEntityId) => {
+          if (applyTarget) void applyFinding(applyTarget, targetEntityId);
         }}
         onCancel={() => setApplyTarget(null)}
       />

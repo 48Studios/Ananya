@@ -620,10 +620,12 @@ describe("Pass 5C — duplicate actions", () => {
 describe("Pass 5C — safety, navigation and layout", () => {
   it("18. preserves stale/fingerprint protection", () => {
     const dialog = read(dialogPath);
-    // The stale banner and the fingerprint-carrying payload are untouched.
+    // The stale banner is untouched, and both writes still travel through the
+    // shared payload builders, which are the only place the revision proof is
+    // assembled — so an assignment cannot bypass the backend's concurrency check.
     expect(dialog).toContain("staleExplanation(finding)");
     expect(dialog).toContain("buildDecisionPayload(finding, decision, decisionNotes)");
-    expect(dialog).toContain("expectedFingerprint");
+    expect(dialog).toContain("buildApplyPayload(");
 
     // Duplicate detail adds no bypass of the backend concurrency check. The
     // assertion targets the actual bypass vectors rather than the bare word

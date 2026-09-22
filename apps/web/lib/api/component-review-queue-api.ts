@@ -581,13 +581,17 @@ export interface RecordComponentDecisionPayload {
 /**
  * Request body for applying a finding.
  *
- * It carries the revision proof and notes ONLY. The component field and its
- * new value are decided by the backend from the finding type, so the queue
+ * It carries the revision proof and notes ONLY, plus — for manufacturer and
+ * category findings — an optional `targetEntityId` naming the existing ERP row
+ * the reviewer assigned in place of the suggestion. The component field and its
+ * new value are still decided by the backend from the finding type, and a
+ * free-form value or a creation can never be expressed here, so the queue
  * cannot be used as a generic write API.
  */
 export interface ApplyComponentFindingPayload {
   expectedFingerprint: string;
   decisionNotes?: string;
+  targetEntityId?: string;
 }
 
 /** Machine-readable refusal reasons returned with HTTP 409. */
@@ -630,6 +634,14 @@ export interface ApplyComponentFindingResultDto {
     updatedAt: string;
   };
   staledFindingCount: number;
+  /**
+   * True when a reviewer-assigned manufacturer/category was written instead of
+   * the suggested one. The backend records such an application as EDITED in the
+   * feedback ledger.
+   */
+  assignmentEdited: boolean;
+  /** The suggestion the assignment replaced, when one was recorded. */
+  suggestedTarget: { id: string | null; name: string | null } | null;
 }
 
 export interface RunComponentAuditPayload {
@@ -674,19 +686,26 @@ export function buildDecisionPayload(
 /**
  * Builds the apply request from a finding.
  *
- * Only the fingerprint (revision proof) and optional notes are sent. The field
- * and its new value are decided by the backend, so this function deliberately
- * has no way to express a field or value mutation.
+ * Only the fingerprint (revision proof) and optional notes are sent — the field
+ * and its new value are decided by the backend. The one addition is an
+ * assignment: when the reviewer replaced the suggestion with another existing
+ * manufacturer/category, that row's id is sent so the backend writes the
+ * reviewer's choice and records the decision as an edit. It is never sent when
+ * it matches the suggestion, so an unedited acceptance still carries nothing
+ * but the revision proof.
  */
 export function buildApplyPayload(
   finding: Pick<ComponentReviewFindingDto, "fingerprint">,
   decisionNotes?: string,
+  targetEntityId?: string | null,
 ): ApplyComponentFindingPayload {
   const payload: ApplyComponentFindingPayload = {
     expectedFingerprint: finding.fingerprint,
   };
   const notes = decisionNotes?.trim();
   if (notes) payload.decisionNotes = notes;
+  const assigned = targetEntityId?.trim();
+  if (assigned) payload.targetEntityId = assigned;
   return payload;
 }
 

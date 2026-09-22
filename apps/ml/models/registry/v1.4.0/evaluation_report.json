@@ -1,24 +1,24 @@
 {
   "candidateVersion": "1.4.0",
-  "evaluatedAt": "2026-09-18T18:06:27Z",
+  "evaluatedAt": "2026-09-22T13:22:37Z",
   "validationSamplesCount": 7,
-  "validationSource": "apps/ml/data/datasets/components-2026-09-18-v1.4.0/val.json",
+  "validationSource": "apps/ml/data/datasets/components-2026-09-22-v1.4.0/val.json",
   "metrics": {
     "candidateTop1Accuracy": 0.7143,
     "candidateTop3Accuracy": 0.7143,
     "activeModelTop1Accuracy": 0.7143,
     "activeModelTop3Accuracy": 0.7143,
-    "manufacturerAccuracy": 1.0,
+    "manufacturerAccuracy": 0.625,
     "duplicatePrecision": 1.0,
     "duplicateRecall": 1.0,
     "criticalFalsePositives": 0,
     "latencyMs": {
-      "p50": 0.221,
-      "p95": 0.255,
-      "p99": 0.262
+      "p50": 0.216,
+      "p95": 0.248,
+      "p99": 0.254
     },
     "modelSizeBytes": 226628,
-    "peakMemoryMb": 136.75,
+    "peakMemoryMb": 137.52,
     "unverifiedProvenanceCount": 0
   },
   "qualityGates": {

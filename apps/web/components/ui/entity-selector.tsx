@@ -36,6 +36,17 @@ export interface EntitySelectorProps {
   placeholder?: string;
   disabled?: boolean;
   creatable?: boolean;
+  /**
+   * Explicit capability for the create affordance.
+   *
+   * When provided it replaces this component's own per-entity permission
+   * mapping. Callers that already derive their own capability from the real
+   * permission vocabulary (`Inventory.Update`, for example) must be able to say
+   * so: the strings mapped above predate that vocabulary, so a reviewer who
+   * legitimately holds write access would otherwise be denied the create button.
+   * Omitting it leaves the previous behaviour untouched.
+   */
+  canCreate?: boolean;
   clearable?: boolean;
   className?: string;
   id?: string;
@@ -65,6 +76,7 @@ export function EntitySelector({
   placeholder,
   disabled = false,
   creatable = true,
+  canCreate,
   clearable = true,
   className = "",
   id,
@@ -109,12 +121,13 @@ export function EntitySelector({
     }
   }, [entity]);
 
-  const canCreate = React.useMemo(() => {
+  const canCreateOption = React.useMemo(() => {
     if (!creatable) return false;
+    if (canCreate !== undefined) return canCreate;
     if (!auth || !auth.hasPermission) return true;
     if (!requiredPermission) return true;
     return auth.hasPermission(requiredPermission);
-  }, [creatable, auth, requiredPermission]);
+  }, [creatable, canCreate, auth, requiredPermission]);
 
   const loadOptions = React.useCallback(async () => {
     setLoading(true);
@@ -467,7 +480,7 @@ export function EntitySelector({
           </div>
         )}
 
-        {canCreate && search.trim() && !exactMatch && (
+        {canCreateOption && search.trim() && !exactMatch && (
           <div className="pt-2 border-t border-border">
             <Button
               type="button"

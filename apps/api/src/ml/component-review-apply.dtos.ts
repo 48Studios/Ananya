@@ -1,4 +1,10 @@
-import { IsOptional, IsString, IsNotEmpty, MaxLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsNotEmpty,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 
 /**
  * Component Intelligence Review — application contract (Pass 4).
@@ -7,6 +13,13 @@ import { IsOptional, IsString, IsNotEmpty, MaxLength } from 'class-validator';
  * client never sends a field path or an arbitrary value: it only identifies the
  * finding (by id) and proves it reviewed the current revision (by fingerprint).
  * This keeps the review queue from becoming a generic write API.
+ *
+ * The one exception is a reviewer's *assignment*: a manufacturer/category
+ * finding may name a different **existing** ERP row than the one the model
+ * suggested (`targetEntityId`). It is a choice between rows the ERP already
+ * holds, never a free-form value and never a creation — master data is created
+ * through the manufacturer/category endpoints, exactly as the component form
+ * does — and the assignment is recorded as an edit of the suggestion.
  */
 
 /**
@@ -160,6 +173,21 @@ export class ApplyComponentFindingDto {
   @MaxLength(128)
   expectedFingerprint!: string;
 
+  /**
+   * The manufacturer/category the reviewer assigned, replacing the suggestion.
+   *
+   * Only meaningful for entity findings (`kind: 'entity'`); any other finding
+   * type refuses it rather than ignoring it. The value names an EXISTING ERP
+   * row — the review queue never creates master data, so an id that is not in
+   * the ERP is refused (`SUGGESTED_ENTITY_NOT_FOUND`) and a free-form name can
+   * never be expressed here. When it is absent the finding's own suggestion is
+   * applied, unchanged from the original contract.
+   */
+  @IsOptional()
+  @IsString()
+  @IsUUID()
+  targetEntityId?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(1000)
@@ -195,4 +223,15 @@ export interface ApplyComponentFindingResult {
   component: AppliedComponentSummary;
   /** Findings of the same component moved to STALE because it changed. */
   staledFindingCount: number;
+  /**
+   * True when the reviewer assigned a different row than the finding suggested,
+   * so the reviewer's choice — not the model's — was written to the component.
+   * Such an application is recorded in the feedback ledger as EDITED.
+   */
+  assignmentEdited: boolean;
+  /**
+   * The suggestion the reviewer replaced, when {@link assignmentEdited} is true.
+   * `id` is null when the finding proposed a name the ERP did not hold yet.
+   */
+  suggestedTarget: { id: string | null; name: string | null } | null;
 }

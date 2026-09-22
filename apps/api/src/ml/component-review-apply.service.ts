@@ -67,6 +67,7 @@ import {
   type ApplyConflictReason,
   type ComponentApplyRule,
 } from './component-review-apply.dtos';
+import { mapDecisionToFeedbackAction } from './intelligence-findings/finding-lifecycle';
 
 export interface ApplyReviewerContext {
   id?: string;
@@ -76,6 +77,14 @@ export interface ApplyReviewerContext {
 export interface ApplyComponentFindingInput {
   expectedFingerprint: string;
   decisionNotes?: string;
+  /**
+   * The manufacturer/category the reviewer assigned, replacing the suggestion.
+   *
+   * Only meaningful for entity findings; the service refuses it rather than
+   * ignoring it everywhere else, so a caller can never believe a value was
+   * written when it was not.
+   */
+  targetEntityId?: string;
 }
 
 /** Transaction handle type, inferred from the Drizzle client itself. */
@@ -658,13 +667,16 @@ export class ComponentReviewApplyService {
         });
       }
 
-      // 8. The suggested target must be valid and authoritative.
+      // 8. The suggested target must be valid and authoritative. A reviewer may
+      //    have assigned a different existing manufacturer/category instead
+      //    (`targetEntityId`), which is honoured here and recorded as an edit.
       const resolved = await this.resolveTargetValue(
         tx,
         finding,
         componentRow,
         rule,
         packagePatterns,
+        input.targetEntityId,
       );
 
       // 8. Transition the finding first, guarded on PENDING. If a concurrent
@@ -677,6 +689,10 @@ export class ComponentReviewApplyService {
         appliedField: rule.field,
         previousValue: resolved.previousValue,
         appliedValue: resolved.value,
+        appliedValueLabel: resolved.valueLabel,
+        // True only when the reviewer replaced the suggestion with another row.
+        assignmentEdited: resolved.assignmentEdited,
+        suggestedTarget: resolved.suggestedTarget,
         decisionNotes: input.decisionNotes ?? null,
         fingerprint: finding.fingerprint,
         applicationResult: 'APPLIED',
@@ -733,10 +749,17 @@ export class ComponentReviewApplyService {
         confidenceLevel: finding.confidenceLevel ?? 'MEDIUM',
         evidence: finding.evidence ?? [],
         modelVersion: finding.modelVersion ?? '1.0.0',
-        // The feedback ledger only models ACCEPTED | REJECTED | EDITED, so an
-        // application is recorded as ACCEPTED with the mutation facts carried
-        // in metadata rather than widening the global action vocabulary.
-        userAction: 'ACCEPTED',
+        // An assignment that replaces the suggestion is recorded as EDITED — the
+        // value the model proposed is not the value that was kept. An accepted
+        // suggestion keeps ACCEPTED. Both come from the shared lifecycle
+        // mapping, so the ledger's vocabulary is never widened here.
+        //
+        // Dismissal is not possible on this route, so the only two reachable
+        // outcomes are ACCEPTED and EDITED.
+        userAction: mapDecisionToFeedbackAction(
+          'ACCEPTED',
+          resolved.assignmentEdited,
+        ),
         finalValue: { [rule.field]: resolved.value },
         reviewerId: reviewer?.id ?? null,
         reviewerEmail: reviewer?.email ?? null,
@@ -751,6 +774,8 @@ export class ComponentReviewApplyService {
           previousValue: resolved.previousValue,
           appliedValue: resolved.value,
           appliedValueLabel: resolved.valueLabel,
+          assignmentEdited: resolved.assignmentEdited,
+          suggestedTarget: resolved.suggestedTarget,
           fingerprint: finding.fingerprint,
           intelligenceVersion: finding.intelligenceVersion ?? null,
           decisionNotes: input.decisionNotes ?? null,
@@ -772,6 +797,8 @@ export class ComponentReviewApplyService {
           appliedAt: reviewedAt.toISOString(),
           reviewerId: reviewer?.id ?? null,
           reviewerEmail: reviewer?.email ?? null,
+          assignmentEdited: resolved.assignmentEdited,
+          suggestedTarget: resolved.suggestedTarget,
           component: {
             id: updatedComponent.id,
             sku: updatedComponent.sku,
@@ -877,6 +904,12 @@ export class ComponentReviewApplyService {
    * Resolves and validates the value to write. Manufacturer/category targets
    * must be existing, active ERP rows: nothing is created during review, and a
    * free-form name is never accepted.
+   *
+   * A reviewer may replace the finding's suggestion with another existing row
+   * (`assignedEntityId`). That is a choice between two rows the ERP already
+   * holds, so it is validated exactly like a suggestion — same lookups, same
+   * refusals — and reported back as an edit of the suggestion rather than as an
+   * acceptance of it, which is what drives the EDITED feedback action.
    */
   private async resolveTargetValue(
     tx: TransactionClient,
@@ -884,15 +917,30 @@ export class ComponentReviewApplyService {
     componentRow: ComponentRow,
     rule: ComponentApplyRule,
     packagePatterns: readonly string[],
+    assignedEntityId?: string,
   ): Promise<{
     value: string;
     valueLabel: string;
     previousValue: string | null;
+    /** True when the reviewer's assignment replaced the finding's suggestion. */
+    assignmentEdited: boolean;
+    /** The replaced suggestion, present only when {@link assignmentEdited}. */
+    suggestedTarget: { id: string | null; name: string | null } | null;
   }> {
     const suggested = finding.suggestedValue ?? {};
     const previousValue = normalizeComparableValue(
       componentRow[rule.field as ComponentField],
     );
+    const assignment = assignedEntityId?.trim() || null;
+
+    // An assignment is only meaningful where a target row exists. Refused
+    // rather than ignored, so a client can never believe a value was written.
+    if (rule.kind !== 'entity' && assignment) {
+      throw new FindingApplyConflictError(
+        'INVALID_SUGGESTED_VALUE',
+        `A ${rule.label.toLowerCase()} finding applies the value it carries; assigning a manufacturer or category is not part of applying it.`,
+      );
+    }
 
     if (rule.kind === 'mpn') {
       const validation = validateSuggestedMpn({
@@ -910,38 +958,84 @@ export class ComponentReviewApplyService {
         value: validation.value,
         valueLabel: validation.value,
         previousValue,
+        assignmentEdited: false,
+        suggestedTarget: null,
       };
     }
 
-    const entityId = suggested[rule.field as ComponentField];
-    if (typeof entityId !== 'string' || entityId.trim().length === 0) {
+    const suggestedEntityId = suggested[rule.field as ComponentField];
+    const offered =
+      typeof suggestedEntityId === 'string' && suggestedEntityId.trim().length
+        ? suggestedEntityId.trim()
+        : null;
+    const entityId = assignment ?? offered;
+
+    if (!entityId) {
       throw new FindingApplyConflictError(
         'INVALID_SUGGESTED_VALUE',
-        `This finding does not carry an existing ERP ${rule.label.toLowerCase()} identifier, so it cannot be applied.`,
+        `This finding does not carry an existing ERP ${rule.label.toLowerCase()} identifier, so it cannot be applied. Assign an existing ${rule.label.toLowerCase()} and apply it again.`,
       );
     }
 
     const entity = await this.findEntity(tx, rule, entityId);
+    // The refusal names what the reviewer acted on: a stale selection and a
+    // stale suggestion are different problems for the person fixing them.
+    const subject = assignment ? 'selected' : 'suggested';
 
     if (!entity) {
       throw new FindingApplyConflictError(
         'SUGGESTED_ENTITY_NOT_FOUND',
-        `The suggested ${rule.label.toLowerCase()} no longer exists in the ERP. The suggestion was not applied.`,
+        `The ${subject} ${rule.label.toLowerCase()} no longer exists in the ERP. Nothing was applied.`,
       );
     }
 
     if (!entity.isActive) {
       throw new FindingApplyConflictError(
         'SUGGESTED_ENTITY_INACTIVE',
-        `The suggested ${rule.label.toLowerCase()} "${entity.name}" is inactive and cannot be assigned.`,
+        `The ${subject} ${rule.label.toLowerCase()} "${entity.name}" is inactive and cannot be assigned.`,
       );
     }
+
+    // Selecting the suggested row is an acceptance, not an edit; selecting any
+    // other row — including the first row chosen for a suggestion that carried
+    // only a name — is an edit the feedback ledger must record.
+    const assignmentEdited = assignment !== null && entity.id !== offered;
 
     return {
       value: entity.id,
       valueLabel: entity.name,
       previousValue,
+      assignmentEdited,
+      suggestedTarget: assignmentEdited
+        ? {
+            id: offered,
+            name: this.readSuggestedTargetName(suggested),
+          }
+        : null,
     };
+  }
+
+  /**
+   * The name the finding proposed, for the record of what was replaced.
+   *
+   * Read from the suggestion's own fields rather than the ERP: after an edit the
+   * suggestion may name a manufacturer or category that does not exist, which is
+   * precisely the case worth recording.
+   */
+  private readSuggestedTargetName(
+    suggested: Record<string, unknown>,
+  ): string | null {
+    for (const key of [
+      'manufacturerName',
+      'categoryName',
+      'categoryPath',
+    ] as const) {
+      const value = suggested[key];
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value.trim();
+      }
+    }
+    return null;
   }
 
   /** Read-only lookup of the authoritative manufacturer/category row. */
@@ -1238,6 +1332,10 @@ export class ComponentReviewApplyService {
         appliedAt: appliedAt.toISOString(),
         reviewerId: reviewer?.id ?? null,
         reviewerEmail: reviewer?.email ?? null,
+        // An attribute suggestion carries its own value; there is no entity to
+        // assign, so the application is never an edit of a target row.
+        assignmentEdited: false,
+        suggestedTarget: null,
         component: {
           id: componentRow.id,
           sku: componentRow.sku,
@@ -1324,6 +1422,10 @@ export class ComponentReviewApplyService {
           previousValue: outcome.previousValue,
           appliedValue: outcome.appliedValue,
           appliedValueLabel: outcome.appliedValueLabel,
+          // Records whether the reviewer kept the model's suggestion or
+          // assigned another existing row in its place.
+          assignmentEdited: outcome.assignmentEdited,
+          suggestedTarget: outcome.suggestedTarget,
           fingerprint: outcome.fingerprint,
         },
       });

@@ -40,8 +40,10 @@ describe('Component Review Apply (finding application)', () => {
 
   let activeManufacturerId = '';
   let inactiveManufacturerId = '';
+  let assignedManufacturerId = '';
   let activeCategoryId = '';
   let inactiveCategoryId = '';
+  let assignedCategoryId = '';
 
   beforeAll(async () => {
     if (!hasDbUrl) return;
@@ -61,11 +63,17 @@ describe('Component Review Apply (finding application)', () => {
           name: `Apply Inactive ${runId}`,
           isActive: false,
         },
+        { code: `APPLYASSIGN${runId}`, name: `Apply Assigned ${runId}` },
       ])
       .returning({ id: manufacturers.id, isActive: manufacturers.isActive });
     activeManufacturerId = manufacturerRows[0]!.id;
     inactiveManufacturerId = manufacturerRows[1]!.id;
-    createdManufacturerIds.push(activeManufacturerId, inactiveManufacturerId);
+    assignedManufacturerId = manufacturerRows[2]!.id;
+    createdManufacturerIds.push(
+      activeManufacturerId,
+      inactiveManufacturerId,
+      assignedManufacturerId,
+    );
 
     const categoryRows = await db
       .insert(categories)
@@ -76,11 +84,20 @@ describe('Component Review Apply (finding application)', () => {
           name: `Apply Category Inactive ${runId}`,
           isActive: false,
         },
+        {
+          code: `APPLYCATASSIGN${runId}`,
+          name: `Apply Category Assigned ${runId}`,
+        },
       ])
       .returning({ id: categories.id, isActive: categories.isActive });
     activeCategoryId = categoryRows[0]!.id;
     inactiveCategoryId = categoryRows[1]!.id;
-    createdCategoryIds.push(activeCategoryId, inactiveCategoryId);
+    assignedCategoryId = categoryRows[2]!.id;
+    createdCategoryIds.push(
+      activeCategoryId,
+      inactiveCategoryId,
+      assignedCategoryId,
+    );
   });
 
   afterAll(async () => {
@@ -402,6 +419,292 @@ describe('Component Review Apply (finding application)', () => {
     expect(result.field).toBe('categoryId');
     expect(result.previousValue).toBe(activeCategoryId);
     expect(result.appliedValue).toBe(activeCategoryId);
+  });
+
+  // -------------------------------------------------------------------------
+  // Reviewer assignment (correcting a manufacturer/category suggestion)
+  // -------------------------------------------------------------------------
+
+  it('writes the assigned manufacturer and records an EDITED feedback row', async () => {
+    if (!hasDbUrl) return;
+
+    const component = await createComponent({
+      manufacturerId: activeManufacturerId,
+    });
+    const finding = await createFinding({
+      componentId: component.id,
+      issueType: 'MANUFACTURER_CONFLICT',
+      issueCategory: 'IDENTITY',
+      field: 'manufacturer',
+      currentValue: { manufacturerId: activeManufacturerId },
+      suggestedValue: {
+        manufacturerId: activeManufacturerId,
+        manufacturerName: `Suggested Manufacturer ${runId}`,
+      },
+      componentUpdatedAt: component.updatedAt,
+    });
+
+    const result = await applyService.applyFinding(
+      finding.id,
+      {
+        expectedFingerprint: finding.fingerprint,
+        targetEntityId: assignedManufacturerId,
+        decisionNotes: 'The part number belongs to the assigned manufacturer',
+      },
+      reviewer,
+    );
+
+    // The reviewer's choice was written, not the suggestion.
+    expect(result.appliedValue).toBe(assignedManufacturerId);
+    expect(result.appliedValueLabel).toContain(`Apply Assigned ${runId}`);
+    expect(result.assignmentEdited).toBe(true);
+    expect(result.suggestedTarget).toEqual({
+      id: activeManufacturerId,
+      name: `Suggested Manufacturer ${runId}`,
+    });
+
+    const reloaded = await componentsService.getComponent(component.id);
+    expect(reloaded.manufacturerId).toBe(assignedManufacturerId);
+
+    const stored = await reviewQueue.getFinding(finding.id);
+    expect(stored.status).toBe('ACCEPTED');
+    expect(stored.metadata.assignmentEdited).toBe(true);
+    expect(String(stored.metadata.appliedValue)).toBe(assignedManufacturerId);
+
+    const feedback = await db
+      .select()
+      .from(aiSuggestionFeedback)
+      .where(
+        and(
+          eq(aiSuggestionFeedback.componentId, component.id),
+          eq(aiSuggestionFeedback.suggestionType, 'MANUFACTURER_CONFLICT'),
+        ),
+      );
+
+    expect(feedback.length).toBe(1);
+    // The model proposed one row and the reviewer kept another: the ledger
+    // action is EDITED, with the prediction still recorded verbatim.
+    expect(feedback[0]!.userAction).toBe('EDITED');
+    expect(feedback[0]!.field).toBe('manufacturerId');
+    expect(feedback[0]!.predictedValue).toEqual({
+      manufacturerId: activeManufacturerId,
+      manufacturerName: `Suggested Manufacturer ${runId}`,
+    });
+    expect(feedback[0]!.finalValue).toEqual({
+      manufacturerId: assignedManufacturerId,
+    });
+    expect(feedback[0]!.metadata?.assignmentEdited).toBe(true);
+    expect(feedback[0]!.metadata?.suggestedTarget).toEqual({
+      id: activeManufacturerId,
+      name: `Suggested Manufacturer ${runId}`,
+    });
+    expect(feedback[0]!.metadata?.appliedValueLabel).toContain(
+      `Apply Assigned ${runId}`,
+    );
+  });
+
+  it('treats the suggested row as an acceptance, not an edit', async () => {
+    if (!hasDbUrl) return;
+
+    const component = await createComponent();
+    const finding = await createFinding({
+      componentId: component.id,
+      issueType: 'MANUFACTURER_UNRESOLVED',
+      issueCategory: 'IDENTITY',
+      field: 'manufacturer',
+      currentValue: { manufacturerId: null },
+      suggestedValue: { manufacturerId: activeManufacturerId },
+      componentUpdatedAt: component.updatedAt,
+    });
+
+    const result = await applyService.applyFinding(
+      finding.id,
+      {
+        expectedFingerprint: finding.fingerprint,
+        // Explicitly naming the suggested row is not a correction.
+        targetEntityId: activeManufacturerId,
+      },
+      reviewer,
+    );
+
+    expect(result.assignmentEdited).toBe(false);
+    expect(result.suggestedTarget).toBeNull();
+
+    const feedback = await db
+      .select()
+      .from(aiSuggestionFeedback)
+      .where(
+        and(
+          eq(aiSuggestionFeedback.componentId, component.id),
+          eq(aiSuggestionFeedback.suggestionType, 'MANUFACTURER_UNRESOLVED'),
+        ),
+      );
+    expect(feedback.length).toBe(1);
+    expect(feedback[0]!.userAction).toBe('ACCEPTED');
+    expect(feedback[0]!.metadata?.assignmentEdited).toBe(false);
+  });
+
+  it('assigns an existing category for a suggestion the ERP does not hold yet', async () => {
+    if (!hasDbUrl) return;
+
+    const component = await createComponent();
+    const finding = await createFinding({
+      componentId: component.id,
+      issueType: 'CATEGORY_UNRESOLVED',
+      issueCategory: 'CLASSIFICATION',
+      field: 'category',
+      currentValue: { categoryId: null },
+      // A name-only proposal: there is no row to apply, which is exactly the
+      // case the assignment exists for.
+      suggestedValue: {
+        categoryId: null,
+        categoryName: `Suggested Category ${runId}`,
+        resolution: 'NEW_CANDIDATE',
+      },
+      componentUpdatedAt: component.updatedAt,
+    });
+
+    // Unchanged behaviour: without an assignment there is nothing to write.
+    let unassignedReason: string | undefined;
+    try {
+      await applyService.applyFinding(
+        finding.id,
+        { expectedFingerprint: finding.fingerprint },
+        reviewer,
+      );
+    } catch (error) {
+      unassignedReason = reasonOf(error);
+      expect((error as Error).message).toContain('Assign an existing');
+    }
+    expect(unassignedReason).toBe('INVALID_SUGGESTED_VALUE');
+    expect(
+      await db
+        .select()
+        .from(aiSuggestionFeedback)
+        .where(eq(aiSuggestionFeedback.componentId, component.id)),
+    ).toHaveLength(0);
+
+    const result = await applyService.applyFinding(
+      finding.id,
+      {
+        expectedFingerprint: finding.fingerprint,
+        targetEntityId: assignedCategoryId,
+      },
+      reviewer,
+    );
+
+    expect(result.appliedValue).toBe(assignedCategoryId);
+    expect(result.assignmentEdited).toBe(true);
+    expect(result.suggestedTarget).toEqual({
+      id: null,
+      name: `Suggested Category ${runId}`,
+    });
+    expect(
+      (await componentsService.getComponent(component.id)).categoryId,
+    ).toBe(assignedCategoryId);
+
+    const feedback = await db
+      .select()
+      .from(aiSuggestionFeedback)
+      .where(eq(aiSuggestionFeedback.componentId, component.id));
+    expect(feedback).toHaveLength(1);
+    expect(feedback[0]!.userAction).toBe('EDITED');
+    expect(feedback[0]!.field).toBe('categoryId');
+    expect(feedback[0]!.finalValue).toEqual({ categoryId: assignedCategoryId });
+  });
+
+  it('refuses an assignment that is unknown or inactive and writes nothing', async () => {
+    if (!hasDbUrl) return;
+
+    const component = await createComponent();
+    const finding = await createFinding({
+      componentId: component.id,
+      issueType: 'MANUFACTURER_UNRESOLVED',
+      issueCategory: 'IDENTITY',
+      field: 'manufacturer',
+      currentValue: { manufacturerId: null },
+      suggestedValue: { manufacturerId: activeManufacturerId },
+      componentUpdatedAt: component.updatedAt,
+    });
+
+    let unknownReason: string | undefined;
+    try {
+      await applyService.applyFinding(
+        finding.id,
+        {
+          expectedFingerprint: finding.fingerprint,
+          targetEntityId: '00000000-0000-4000-8000-000000000000',
+        },
+        reviewer,
+      );
+    } catch (error) {
+      unknownReason = reasonOf(error);
+      expect((error as Error).message).toContain('selected');
+    }
+    expect(unknownReason).toBe('SUGGESTED_ENTITY_NOT_FOUND');
+
+    let inactiveReason: string | undefined;
+    try {
+      await applyService.applyFinding(
+        finding.id,
+        {
+          expectedFingerprint: finding.fingerprint,
+          targetEntityId: inactiveManufacturerId,
+        },
+        reviewer,
+      );
+    } catch (error) {
+      inactiveReason = reasonOf(error);
+    }
+    expect(inactiveReason).toBe('SUGGESTED_ENTITY_INACTIVE');
+
+    // Nothing was written, and the finding is still applicable.
+    expect(
+      (await componentsService.getComponent(component.id)).manufacturerId,
+    ).toBeNull();
+    expect((await reviewQueue.getFinding(finding.id)).status).toBe('PENDING');
+    expect(
+      await db
+        .select()
+        .from(aiSuggestionFeedback)
+        .where(eq(aiSuggestionFeedback.componentId, component.id)),
+    ).toHaveLength(0);
+  });
+
+  it('refuses an assignment on a finding that carries its own value', async () => {
+    if (!hasDbUrl) return;
+
+    const component = await createComponent();
+    const finding = await createFinding({
+      componentId: component.id,
+      issueType: 'MPN_MISSING',
+      issueCategory: 'IDENTITY',
+      field: 'manufacturerPartNumber',
+      currentValue: { manufacturerPartNumber: null },
+      suggestedValue: { manufacturerPartNumber: 'RC0805FR-0727RL' },
+      componentUpdatedAt: component.updatedAt,
+    });
+
+    let reason: string | undefined;
+    try {
+      await applyService.applyFinding(
+        finding.id,
+        {
+          expectedFingerprint: finding.fingerprint,
+          targetEntityId: activeManufacturerId,
+        },
+        reviewer,
+      );
+    } catch (error) {
+      reason = reasonOf(error);
+    }
+
+    expect(reason).toBe('INVALID_SUGGESTED_VALUE');
+    expect(
+      (await componentsService.getComponent(component.id))
+        .manufacturerPartNumber,
+    ).toBeNull();
+    expect((await reviewQueue.getFinding(finding.id)).status).toBe('PENDING');
   });
 
   // -------------------------------------------------------------------------

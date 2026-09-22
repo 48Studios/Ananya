@@ -350,6 +350,47 @@ describe('Component Review Queue — write authorization', () => {
     expect(applied.reviewerEmail).toBe(writerEmail);
   });
 
+  it('accepts only the assignment the apply DTO declares', async () => {
+    if (!hasDbUrl) return;
+    const { component, finding } = await createPendingFinding(
+      'MANUFACTURER_UNRESOLVED',
+      { manufacturerId: null, manufacturerName: `Auth Suggested ${runId}` },
+    );
+
+    // The assignment is an ERP row id, not a value: a name is refused by the
+    // DTO so a caller cannot smuggle a free-form manufacturer into the queue.
+    const named = await http()
+      .post(APPLY_ROUTE(finding.id))
+      .set('Authorization', `Bearer ${writerToken}`)
+      .send({
+        expectedFingerprint: finding.fingerprint,
+        targetEntityId: 'Yageo',
+      });
+    expect(named.status).toBe(400);
+
+    // Nothing else may carry the assignment either — the field is not part of
+    // the DTO, so whitelist validation rejects it.
+    const smuggled = await http()
+      .post(APPLY_ROUTE(finding.id))
+      .set('Authorization', `Bearer ${writerToken}`)
+      .send({
+        expectedFingerprint: finding.fingerprint,
+        manufacturerName: 'Yageo',
+      });
+    expect(smuggled.status).toBe(400);
+
+    // Neither request reached the write path.
+    expect((await reviewQueue.getFinding(finding.id)).status).toBe('PENDING');
+    expect(
+      (await componentsService.getComponent(component.id)).manufacturerId,
+    ).toBeNull();
+    const feedback = await db
+      .select()
+      .from(aiSuggestionFeedback)
+      .where(eq(aiSuggestionFeedback.componentId, component.id));
+    expect(feedback.length).toBe(0);
+  });
+
   it('leaves the read endpoints open, matching the rest of the API', async () => {
     if (!hasDbUrl) return;
 

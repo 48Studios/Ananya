@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import {
   componentReviewQueueApi,
+  buildApplyPayload,
   buildDecisionPayload,
   type ComponentReviewDecision,
   type ComponentReviewFindingDto,
@@ -41,6 +42,7 @@ import {
   COMPONENT_WRITE_PERMISSION,
   applyConflictMessage,
   applyConsolidationToFinding,
+  applyAssignableEntity,
   applySuccessMessage,
   applyUnavailableReason,
   actionConsequenceNote,
@@ -165,15 +167,19 @@ export function ComponentReviewFindingDialog({
   const [applyDialogOpen, setApplyDialogOpen] = React.useState(false);
   const [applying, setApplying] = React.useState(false);
 
-  const submitApply = async (decisionNotes: string) => {
+  const submitApply = async (decisionNotes: string, targetEntityId?: string) => {
     if (!finding) return;
     setApplying(true);
     setStatusMessage(null);
     try {
-      const result = await componentReviewQueueApi.applyFinding(finding.id, {
-        expectedFingerprint: finding.fingerprint,
-        decisionNotes: decisionNotes.trim() || undefined,
-      });
+      const result = await componentReviewQueueApi.applyFinding(
+        finding.id,
+        buildApplyPayload(
+          finding,
+          decisionNotes.trim() || undefined,
+          targetEntityId,
+        ),
+      );
       setApplyDialogOpen(false);
       setStatusMessage(applySuccessMessage(result));
       // Re-read so the dialog shows the accepted state and applied value.
@@ -343,7 +349,7 @@ export function ComponentReviewFindingDialog({
           if (!open && !submitting) onClose();
         }}
         title="Component Intelligence Finding"
-        description="Review the detected issue, its evidence, and the suggested value. Decisions record the review outcome only; component data is never modified from this queue."
+        description="Review the detected issue, its evidence, and the suggested value. Accepting records a review outcome; Accept & Apply writes the value to the component."
         size="lg"
         closeDisabled={Boolean(submitting)}
       >
@@ -662,7 +668,12 @@ export function ComponentReviewFindingDialog({
               {!terminal && (
                 <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
                   <Info className="mt-0.5 size-3 shrink-0" />
-                  {actionConsequenceNote(applicable)}
+                  {actionConsequenceNote(
+                    applicable,
+                    // A manufacturer/category suggestion can be corrected in the
+                    // confirmation, so the consequence names that possibility.
+                    finding ? applyAssignableEntity(finding) !== null : false,
+                  )}
                 </p>
               )}
 
@@ -754,7 +765,10 @@ export function ComponentReviewFindingDialog({
         finding={finding}
         refs={refs}
         submitting={applying}
-        onConfirm={(notes) => void submitApply(notes)}
+        canCreate={permissions.canApply}
+        onConfirm={(notes, targetEntityId) =>
+          void submitApply(notes, targetEntityId)
+        }
         onCancel={() => setApplyDialogOpen(false)}
       />
 

@@ -2150,6 +2150,159 @@ export function applyUnavailableReason(
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Assignment (correcting a manufacturer/category suggestion)
+// ---------------------------------------------------------------------------
+
+/** The ERP entities a reviewer may assign in place of a suggestion. */
+export type ApplyAssignableEntity = "manufacturer" | "category";
+
+/**
+ * Which entity a finding's suggestion can be corrected to, or null.
+ *
+ * Only the two identity/classification families name an ERP row: a part number
+ * and an attribute value carry their own value, so there is nothing to assign.
+ * The backend derives the same mapping from its own apply rules and refuses a
+ * `targetEntityId` on any other finding type, so this is an affordance rather
+ * than the authority.
+ */
+export function applyAssignableEntity(
+  finding: Pick<ComponentReviewFindingDto, "issueType">,
+): ApplyAssignableEntity | null {
+  if (
+    finding.issueType === "MANUFACTURER_UNRESOLVED" ||
+    finding.issueType === "MANUFACTURER_CONFLICT"
+  ) {
+    return "manufacturer";
+  }
+  if (
+    finding.issueType === "CATEGORY_UNRESOLVED" ||
+    finding.issueType === "CATEGORY_CONFLICT"
+  ) {
+    return "category";
+  }
+  return null;
+}
+
+/** What the finding proposes, as an assignable value. */
+export interface SuggestedEntityAssignment {
+  /** The ERP row id, or null when the suggestion named only a name. */
+  id: string | null;
+  /** Display label for the suggestion, never empty. */
+  label: string;
+  /**
+   * `NEW_CANDIDATE` means the model proposed an entity the ERP does not hold
+   * yet, so it cannot be applied until a reviewer picks or creates one.
+   */
+  resolution: "EXISTING" | "NEW_CANDIDATE" | "UNKNOWN";
+}
+
+/**
+ * The suggestion a reviewer may keep, replace, or ignore.
+ *
+ * Reads the finding's own snapshot only: it must render for a suggestion that
+ * points at a row which no longer exists, so no live lookup is involved. A name
+ * is preferred over the reference map because it is what the model actually
+ * proposed, which is what the reviewer is judging.
+ */
+export function suggestedEntityAssignment(
+  finding: ComponentReviewFindingDto,
+  refs: ReviewReferenceMaps = {},
+): SuggestedEntityAssignment | null {
+  const entity = applyAssignableEntity(finding);
+  if (!entity) return null;
+
+  const suggested = finding.suggestedValue ?? {};
+  const rawId = entity === "manufacturer" ? suggested.manufacturerId : suggested.categoryId;
+  const id = typeof rawId === "string" && rawId.trim().length > 0 ? rawId : null;
+  const name =
+    entity === "manufacturer"
+      ? readText(suggested.manufacturerName)
+      : (readText(suggested.categoryPath) ?? readText(suggested.categoryName));
+  const resolution =
+    suggested.resolution === "EXISTING" || suggested.resolution === "NEW_CANDIDATE"
+      ? suggested.resolution
+      : "UNKNOWN";
+
+  return {
+    id,
+    label:
+      name ??
+      refs[
+        entity === "manufacturer" ? "manufacturerNames" : "categoryNames"
+      ]?.get(id ?? "") ??
+      (id ? "Existing record" : "No suggestion"),
+    resolution,
+  };
+}
+
+/** Text of a suggestion field, or null when it is absent or blank. */
+function readText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+// ---------------------------------------------------------------------------
+// Apply (writing a finding's suggestion to the component)
+// ---------------------------------------------------------------------------
+
+/** Copy for an application whose value is the suggestion itself. */
+export const APPLY_COPY = {
+  label: "Accept & Apply",
+  description:
+    "Writes the suggested value to the component and marks the finding accepted.",
+};
+
+/**
+ * Copy for an application whose value is the reviewer's assignment.
+ *
+ * Deliberately not a variant of "Accept & Apply": nothing about the suggestion
+ * is being accepted, and the reviewer should see that before confirming. The
+ * application is recorded as EDITED in the feedback ledger either way.
+ */
+export const ASSIGN_COPY = {
+  label: "Assign & Apply",
+  description:
+    "Writes the manufacturer or category you assigned — not the suggested one — to the component and marks the finding accepted.",
+};
+
+/** Headline of the confirmation, per finding and assignment. */
+export function applyActionCopy(
+  finding: Pick<ComponentReviewFindingDto, "issueType">,
+  assignmentEdited: boolean,
+): { label: string; description: string } {
+  if (!assignmentEdited) return APPLY_COPY;
+  return applyAssignableEntity(finding) ? ASSIGN_COPY : APPLY_COPY;
+}
+
+/** Label for the control that picks a manufacturer/category. */
+export function applyAssignmentFieldLabel(
+  finding: Pick<ComponentReviewFindingDto, "issueType">,
+): string {
+  return applyAssignableEntity(finding) === "category"
+    ? "Assign Category"
+    : "Assign Manufacturer";
+}
+
+/**
+ * Why a suggested entity cannot simply be applied.
+ *
+ * Returned only for the case the reviewer must resolve by hand: the model named
+ * an entity the ERP does not hold, so the assignment control is the only way to
+ * apply this finding. Null when the suggestion is applicable as it stands.
+ */
+export function applyAssignmentHint(
+  finding: ComponentReviewFindingDto,
+): string | null {
+  const entity = applyAssignableEntity(finding);
+  const suggestion = suggestedEntityAssignment(finding);
+  if (!entity || !suggestion) return null;
+  if (suggestion.id) return null;
+
+  return `The suggestion "${suggestion.label}" is not in the ERP yet, so there is nothing to assign. Search for the correct ${entity}, or create it, then apply.`;
+}
+
 export interface ReviewPermissions {
   /** May record ACCEPTED / REJECTED / DISMISSED decisions. */
   canDecide: boolean;
@@ -2222,20 +2375,40 @@ export interface ApplyConfirmationRow {
   mono: boolean;
   /** True for the row describing the value about to be written. */
   emphasis: boolean;
+  /**
+   * Which fact the row states.
+   *
+   * The label alone is not enough for a caller that has to rearrange the
+   * confirmation: for a manufacturer/category finding the suggested row is no
+   * longer the value being written — the reviewer's assignment is — so the row
+   * is labelled and emphasised differently. Matching on `kind` keeps that
+   * distinction out of label string comparison.
+   */
+  kind: "component" | "sku" | "field" | "current" | "suggested" | "assigned";
 }
 
 /**
  * Confirmation content for an application: component identity, the field being
  * written, and the current versus new value. Built only from the finding and
  * the component summary — nothing is inferred.
+ *
+ * When the reviewer assigned a different manufacturer/category, the suggestion
+ * is relabelled "Suggested" and the assigned row is added as the emphasised
+ * row, so the confirmation states what will actually be written.
  */
 export function buildApplyConfirmationRows(
   finding: ComponentReviewFindingDto,
   refs: ReviewReferenceMaps = {},
+  options: { assignedLabel?: string | null } = {},
 ): ApplyConfirmationRow[] {
   const fieldLabel = applyFieldLabel(finding);
   const current = applyCurrentDisplay(finding, refs);
   const next = applySuggestedDisplay(finding, refs);
+  const reassignable = applyAssignableEntity(finding) !== null;
+  const assigned =
+    reassignable && options.assignedLabel?.trim()
+      ? options.assignedLabel.trim()
+      : null;
 
   const rows: ApplyConfirmationRow[] = [
     {
@@ -2243,17 +2416,54 @@ export function buildApplyConfirmationRows(
       value: finding.component?.name ?? "Unknown component",
       mono: false,
       emphasis: false,
+      kind: "component",
     },
     {
       label: "Internal SKU",
       value: finding.component?.sku ?? "—",
       mono: true,
       emphasis: false,
+      kind: "sku",
     },
-    { label: "Field", value: fieldLabel, mono: false, emphasis: false },
-    { label: "Current", value: current, mono: true, emphasis: false },
-    { label: "New", value: next, mono: true, emphasis: true },
+    {
+      label: "Field",
+      value: fieldLabel,
+      mono: false,
+      emphasis: false,
+      kind: "field",
+    },
+    {
+      label: "Current",
+      value: current,
+      mono: true,
+      emphasis: false,
+      kind: "current",
+    },
+    {
+      // A reassignable finding states the model's proposal as a suggestion,
+      // because it is no longer the value being written.
+      label: reassignable ? "Suggested" : "New",
+      value: next,
+      mono: true,
+      emphasis: false,
+      kind: "suggested",
+    },
   ];
+
+  if (assigned) {
+    rows.push({
+      label: "Assigning",
+      value: assigned,
+      mono: false,
+      emphasis: true,
+      kind: "assigned",
+    });
+  } else if (!reassignable) {
+    // Without an assignment control the suggested value IS the written value,
+    // so it keeps the emphasis it has always had.
+    const suggestedRow = rows[rows.length - 1] as ApplyConfirmationRow;
+    suggestedRow.emphasis = true;
+  }
 
   return rows;
 }
@@ -2379,6 +2589,16 @@ function applySuggestedDisplay(
 export const APPLY_WARNING =
   "This will update the component. The suggested value is written to the component record and the finding is marked accepted.";
 
+/**
+ * Warning for an application that writes the reviewer's assignment.
+ *
+ * Separate from {@link APPLY_WARNING} because that sentence would be false here:
+ * the suggested value is precisely what is *not* written. It also states the
+ * feedback consequence, because that is the record the model is evaluated on.
+ */
+export const ASSIGN_WARNING =
+  "This will update the component with the manufacturer or category you assigned — not the suggested one. The finding is marked accepted and the change is recorded as an edit of the suggestion.";
+
 export const APPLY_DUPLICATE_NOTE =
   "Duplicate findings are review-only. Resolve duplication through the normal component workflow — this queue does not merge or delete components.";
 
@@ -2386,12 +2606,6 @@ export const APPLY_REVIEW_ONLY_COPY = {
   label: "Accept",
   description:
     "Records that the finding is valid. The component is not modified.",
-};
-
-export const APPLY_COPY = {
-  label: "Accept & Apply",
-  description:
-    "Writes the suggested value to the component and marks the finding accepted.",
 };
 
 /**
@@ -2403,28 +2617,50 @@ export const APPLY_COPY = {
  * is composed from the action label so it cannot drift from the button it
  * describes; the review-only wording is its own sentence because it names no
  * button ("Accept" is not what writes, and not what a duplicate gets offered).
+ *
+ * `reassignable` adds the one thing a manufacturer/category finding offers that
+ * the others do not: the value being written can be corrected before it is.
  */
-export function actionConsequenceNote(applicable: boolean): string {
-  return applicable
-    ? `${APPLY_COPY.label} writes the suggested value to the component.`
-    : "Accepting this finding does not modify the component.";
+export function actionConsequenceNote(
+  applicable: boolean,
+  reassignable = false,
+): string {
+  if (!applicable) return "Accepting this finding does not modify the component.";
+  return reassignable
+    ? `${APPLY_COPY.label} writes the suggested value to the component; you can assign a different manufacturer or category first.`
+    : `${APPLY_COPY.label} writes the suggested value to the component.`;
 }
 
 /** Success message for a completed application. */
 export function applySuccessMessage(
   result: Pick<
     ApplyComponentFindingResultDto,
-    "fieldLabel" | "appliedValueLabel" | "appliedValue" | "staledFindingCount"
+    | "fieldLabel"
+    | "appliedValueLabel"
+    | "appliedValue"
+    | "staledFindingCount"
+    | "assignmentEdited"
+    | "suggestedTarget"
   >,
 ): string {
   const value = result.appliedValueLabel ?? result.appliedValue ?? "—";
   const base = `${result.fieldLabel} updated to "${value}". The finding is now accepted.`;
-  if (result.staledFindingCount > 0) {
-    return `${base} ${result.staledFindingCount} other finding${
-      result.staledFindingCount === 1 ? "" : "s"
-    } for this component became stale.`;
-  }
-  return base;
+  const replaced = result.suggestedTarget?.name;
+  // An assignment is stated as what it is: the reviewer's value was kept and
+  // the model's suggestion was not, which is also how feedback recorded it.
+  const assignment = result.assignmentEdited
+    ? ` You assigned this value${
+        replaced ? ` instead of the suggested "${replaced}"` : " instead of the suggestion"
+      }; the feedback was recorded as an edit.`
+    : "";
+  const staled =
+    result.staledFindingCount > 0
+      ? ` ${result.staledFindingCount} other finding${
+          result.staledFindingCount === 1 ? "" : "s"
+        } for this component became stale.`
+      : "";
+
+  return `${base}${assignment}${staled}`;
 }
 
 /**

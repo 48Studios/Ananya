@@ -1,0 +1,107 @@
+[
+  {
+    "text": "C0805C105K8RACTU CAP CER 1UF 10V X7R 0805 10% Kemet Electronics",
+    "category": "Capacitors",
+    "mpn": "C0805C105K8RACTU",
+    "manufacturer": "Kemet Electronics",
+    "base_family": "C0805C",
+    "provenance": {
+      "sourceType": "distributor_catalog",
+      "sourceIdentifier": "MOUSER-80-C0805C105K8R",
+      "sourceUrl": "https://www.mouser.com/ProductDetail/KEMET/C0805C105K8RACTU",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "catalog_cross_check"
+    }
+  },
+  {
+    "text": "CRCW0603100KFKEA RES SMD 100K OHM 1% 1/10W 0603 Vishay Dale",
+    "category": "Resistors",
+    "mpn": "CRCW0603100KFKEA",
+    "manufacturer": "Vishay Dale",
+    "base_family": "CRCW0603",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "VISHAY-D-CRCW0603-E3",
+      "sourceUrl": "https://www.vishay.com/docs/20035/dcrcwe3.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "1N4148WS7F DIODE GEN PURP 75V 150MA SOD323 Diodes Incorporated",
+    "category": "Diodes",
+    "mpn": "1N4148WS-7-F",
+    "manufacturer": "Diodes Incorporated",
+    "base_family": "1N4148",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "DIODES-INC-1N4148WS",
+      "sourceUrl": "https://www.diodes.com/assets/Datasheets/ds30097.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "1N4148WS-7-F DIODE GEN PURP 75V 150MA SOD323 Diodes Incorporated",
+    "category": "Diodes",
+    "mpn": "1N4148WS-7-F",
+    "manufacturer": "Diodes Incorporated",
+    "base_family": "1N4148",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "DIODES-INC-1N4148WS",
+      "sourceUrl": "https://www.diodes.com/assets/Datasheets/ds30097.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "NE5532DR IC OPAMP AUDIO 2 CIRCUIT 8SOIC Texas Instruments",
+    "category": "ICs & Semiconductors",
+    "mpn": "NE5532DR",
+    "manufacturer": "Texas Instruments",
+    "base_family": "NE5532",
+    "provenance": {
+      "sourceType": "manufacturer_datasheet",
+      "sourceIdentifier": "TI-NE5532-SLOS075L",
+      "sourceUrl": "https://www.ti.com/lit/ds/symlink/ne5532.pdf",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "datasheet_checksum"
+    }
+  },
+  {
+    "text": "SAC3050.8500G LEAD-FREE SOLDER WIRE SAC305 0.8MM FLUX CORE 500G Kester",
+    "category": "Consumables",
+    "mpn": "SAC305-0.8-500G",
+    "manufacturer": "Kester",
+    "base_family": "SAC305",
+    "provenance": {
+      "sourceType": "confirmed_inventory",
+      "sourceIdentifier": "INV-REC-CONS-001",
+      "sourceUrl": "ananya://inventory/components/inv-rec-cons-001",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "inventory_confirmation"
+    }
+  },
+  {
+    "text": "SAC305-0.8-500G LEAD-FREE SOLDER WIRE SAC305 0.8MM FLUX CORE 500G Kester",
+    "category": "Consumables",
+    "mpn": "SAC305-0.8-500G",
+    "manufacturer": "Kester",
+    "base_family": "SAC305",
+    "provenance": {
+      "sourceType": "confirmed_inventory",
+      "sourceIdentifier": "INV-REC-CONS-001",
+      "sourceUrl": "ananya://inventory/components/inv-rec-cons-001",
+      "retrievalTimestamp": "2026-09-18T00:00:00Z",
+      "verificationStatus": "VERIFIED",
+      "verificationMethod": "inventory_confirmation"
+    }
+  }
+]
