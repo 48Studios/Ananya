@@ -73,6 +73,7 @@ Every module import follows the identical workflow executed via `ImportWizard` (
 - **Canonical Importer Registry**: `apps/api/src/import-export/importer-registry.ts` serves as the single source of truth for import contracts, field metadata (`ImportFieldDefinition`), display labels, data types, required flags, relationships, aliases, and sample rows across all 25 supported Data Import entity types.
 - **Dynamic Template Generation**: Downloadable CSV and XLSX sample templates (`GET /api/import-export/template/:entityType/csv` and `/xlsx`) derive directly from `importer-registry.ts`.
 - **System-Wide Auto-Matching & Preview Consistency**: Header auto-matching in `previewImport` matches spreadsheet column names against `f.aliases` and `f.name` defined in the registry. Automated tests (`importer-registry.spec.ts`) verify that every registered entity template parses cleanly without drift.
+- **Purchase Order Component Binding**: `PurchaseOrder` is the one importer that carries no component master-data columns (`componentSku`, `componentCategory`, `componentManufacturer` are not part of its contract). Each line is bound to a component by, in order: vendor part number matched against the component part number, then component name matched against the component name (both normalized — case and separators ignored). An unknown part is created with a system-generated `CMP-######` SKU, the vendor part number stored as its part number, and no category or manufacturer; existing components are never rewritten. Lines carrying neither a vendor part number nor a component name are rejected during preview.
 
 ### 4. Multipart Request & Data Integrity Standards
 
@@ -175,6 +176,7 @@ Every entity in Ananya ERP maintains a single canonical schema across Database, 
 
 - **UI Forms**: All relationship fields must use the searchable, creatable `<EntitySelector>` component. Text inputs and native HTML selects for foreign key fields are strictly forbidden.
 - **Import Templates**: Import templates include business key columns (`parentCode`, `categoryCode`, `manufacturerCode`, `warehouseCode`) for all entity relationships.
+- **Documented Exception**: The `PurchaseOrder` importer is intentionally component-master-data-free — it identifies ordered parts by vendor part number / component name and never creates or edits categories or manufacturers (see §3, *Purchase Order Component Binding*).
 - **Business Key Resolution**: Import pipelines resolve business keys (`code`, `sku`, `number`) to database primary keys (`id`). Internal UUIDs are never required in import files.
 
 ### 2. Multi-Pass Hierarchy Resolution

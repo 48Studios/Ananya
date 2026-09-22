@@ -46,7 +46,7 @@ import {
   warehouseTransfers,
   attributeDefinitions,
 } from '@ananya/database/schema';
-import { eq, inArray, desc } from '@ananya/database/query';
+import { eq, inArray, desc, asc } from '@ananya/database/query';
 import { resolveCurrency } from '../common/utils/currency-resolver';
 import {
   ExportRequestDto,
@@ -62,6 +62,19 @@ import {
   getSystemFieldsWithAliases,
 } from './importer-registry';
 import { ComponentSkuService } from '../components/component-sku.service';
+
+/**
+ * Normalizes a vendor part number or component name for component matching.
+ *
+ * Mirrors the DB expression behind the partial index
+ * `components_mpn_normalized_idx` (`upper(regexp_replace(mpn, '[^A-Za-z0-9]', '', 'g'))`),
+ * so separators (dashes, spaces, dots) never prevent an import from matching an
+ * existing component. Matching is exact after normalization — fuzzy matching is
+ * the review queue's job, not the importer's.
+ */
+function normalizeComponentMatchKey(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
 
 function cleanHeader(str: string): string {
   if (str.startsWith('\uFEFF')) {
@@ -274,6 +287,9 @@ export class ImportExportService {
     }
 
     const seenIdentityKeys = new Set<string>();
+    // Purchase Order lines without a vendor part number are identified by
+    // component name instead, so they need their own duplicate de-duplication.
+    const seenPoLineNameKeys = new Set<string>();
 
     rows.forEach((data, index) => {
       const rowIndex = index + 2;
@@ -409,6 +425,46 @@ export class ImportExportService {
             message: `Unit price must be non-negative.`,
           });
           isRowValid = false;
+        }
+
+        // A line must be able to resolve a component: vendor part number is the
+        // primary identity, component name the fallback.
+        const vpnVal = this.getRowFieldValue(
+          data,
+          'vendorPartNumber',
+          columnMapping,
+        );
+        const nameVal = this.getRowFieldValue(
+          data,
+          'componentName',
+          columnMapping,
+        );
+        if (!vpnVal && !nameVal) {
+          validationErrors.push({
+            row: rowIndex,
+            column: 'vendorPartNumber',
+            value: '',
+            message:
+              'Missing component reference: either Vendor Part Number or Component Name is required.',
+          });
+          isRowValid = false;
+        } else if (!vpnVal) {
+          const lineNameKey = `${this.getRowFieldValue(
+            data,
+            'orderNumber',
+            columnMapping,
+          ).toLowerCase()}::${normalizeComponentMatchKey(nameVal)}`;
+          if (seenPoLineNameKeys.has(lineNameKey)) {
+            validationErrors.push({
+              row: rowIndex,
+              column: 'componentName',
+              value: nameVal,
+              message: `Duplicate Purchase Order line identity "${nameVal}" found in import file.`,
+            });
+            isRowValid = false;
+          } else {
+            seenPoLineNameKeys.add(lineNameKey);
+          }
         }
       }
 
@@ -567,10 +623,32 @@ export class ImportExportService {
     );
 
     const existingComponents = await db
-      .select({ id: components.id, sku: components.sku })
-      .from(components);
+      .select({
+        id: components.id,
+        sku: components.sku,
+        name: components.name,
+        manufacturerPartNumber: components.manufacturerPartNumber,
+      })
+      .from(components)
+      // Oldest record wins when the catalog contains duplicate part numbers or
+      // names, mirroring the canonical-record convention used elsewhere.
+      .orderBy(asc(components.createdAt));
     const compMap = new Map<string, string>();
-    existingComponents.forEach((c) => compMap.set(c.sku.toUpperCase(), c.id));
+    const compMpnMap = new Map<string, string>();
+    const compNameMap = new Map<string, string>();
+    existingComponents.forEach((c) => {
+      compMap.set(c.sku.toUpperCase(), c.id);
+      if (c.manufacturerPartNumber) {
+        const mpnKey = normalizeComponentMatchKey(c.manufacturerPartNumber);
+        if (mpnKey && !compMpnMap.has(mpnKey)) {
+          compMpnMap.set(mpnKey, c.id);
+        }
+      }
+      const nameKey = normalizeComponentMatchKey(c.name);
+      if (nameKey && !compNameMap.has(nameKey)) {
+        compNameMap.set(nameKey, c.id);
+      }
+    });
 
     const existingProjects = await db
       .select({ id: projects.id, projectNumber: projects.projectNumber })
@@ -1424,159 +1502,65 @@ export class ImportExportService {
               'vendorPartNumber',
               columnMapping,
             );
-            const compCatVal = this.getRowFieldValue(
-              row,
-              'componentCategory',
-              columnMapping,
-            )?.trim();
-            const compMfgVal = this.getRowFieldValue(
-              row,
-              'componentManufacturer',
-              columnMapping,
-            )?.trim();
+            const vpnKey = vpnVal ? normalizeComponentMatchKey(vpnVal) : '';
+            const nameKey = compNameVal
+              ? normalizeComponentMatchKey(compNameVal)
+              : '';
 
-            let categoryId: string | undefined = undefined;
-            if (compCatVal) {
-              categoryId =
-                catMap.get(compCatVal.toUpperCase()) ||
-                catMap.get(compCatVal.toLowerCase());
-              if (!categoryId) {
-                const cleanCatCode =
-                  compCatVal
-                    .toUpperCase()
-                    .replace(/\s+/g, '-')
-                    .replace(/[^A-Z0-9_-]/g, '')
-                    .slice(0, 50) || `CAT-${Date.now()}`;
-                const [newCat] = await db
-                  .insert(categories)
+            // Component binding: vendor part number first, then component name.
+            // Unknown parts are created with a system-generated SKU (the same
+            // allocation used by the Component importer and the components add
+            // form); the import never assigns category or manufacturer master
+            // data, and never rewrites an existing component.
+            let compId =
+              (vpnKey ? compMpnMap.get(vpnKey) : undefined) ||
+              (nameKey ? compNameMap.get(nameKey) : undefined);
+
+            if (!compId) {
+              const componentDisplayName = compNameVal || vpnVal;
+              let insertedComp: { id: string; sku: string } | undefined;
+              for (let attempt = 0; attempt < 10 && !insertedComp; attempt++) {
+                const generatedSku = await this.componentSkuService.generate();
+                [insertedComp] = await db
+                  .insert(components)
                   .values({
-                    code: cleanCatCode,
-                    name: compCatVal,
+                    sku: generatedSku,
+                    name: componentDisplayName,
+                    manufacturerPartNumber: vpnVal || null,
+                    unit: 'pcs',
+                    description: 'Auto-created from Purchase Order import',
                     isActive: true,
                   })
-                  .onConflictDoUpdate({
-                    target: categories.code,
-                    set: { updatedAt: new Date() },
-                  })
-                  .returning({
-                    id: categories.id,
-                    code: categories.code,
-                    name: categories.name,
-                  });
-                if (newCat) {
-                  categoryId = newCat.id;
-                  catMap.set(newCat.code.toUpperCase(), categoryId);
-                  catMap.set(newCat.name.toLowerCase(), categoryId);
-                  createdEntities.push({
-                    entityType: 'Category',
-                    id: newCat.id,
-                    isSideEffect: true,
-                  });
-                }
+                  .onConflictDoNothing({ target: components.sku })
+                  .returning({ id: components.id, sku: components.sku });
               }
-            }
-
-            let manufacturerId: string | undefined = undefined;
-            if (compMfgVal) {
-              manufacturerId =
-                mfgMap.get(compMfgVal.toUpperCase()) ||
-                mfgMap.get(compMfgVal.toLowerCase());
-              if (!manufacturerId) {
-                const cleanMfgCode =
-                  compMfgVal
-                    .toUpperCase()
-                    .replace(/\s+/g, '-')
-                    .replace(/[^A-Z0-9_-]/g, '')
-                    .slice(0, 50) || `MFG-${Date.now()}`;
-                const [newMfg] = await db
-                  .insert(manufacturers)
-                  .values({
-                    code: cleanMfgCode,
-                    name: compMfgVal,
-                    isActive: true,
-                  })
-                  .onConflictDoUpdate({
-                    target: manufacturers.code,
-                    set: { updatedAt: new Date() },
-                  })
-                  .returning({
-                    id: manufacturers.id,
-                    code: manufacturers.code,
-                    name: manufacturers.name,
-                  });
-                if (newMfg) {
-                  manufacturerId = newMfg.id;
-                  mfgMap.set(newMfg.code.toUpperCase(), manufacturerId);
-                  mfgMap.set(newMfg.name.toLowerCase(), manufacturerId);
-                  createdEntities.push({
-                    entityType: 'Manufacturer',
-                    id: newMfg.id,
-                    isSideEffect: true,
-                  });
-                }
-              }
-            }
-
-            const compSku = this.getRowFieldValue(
-              row,
-              'componentSku',
-              columnMapping,
-            ).toUpperCase();
-            let compId = compMap.get(compSku);
-            if (!compId && compSku) {
-              const normalizedSku = compSku.toUpperCase();
-              const componentName =
-                compNameVal || (vpnVal ? `${compSku} (${vpnVal})` : compSku);
-              const [insertedComp] = await db
-                .insert(components)
-                .values({
-                  sku: normalizedSku,
-                  name: componentName,
-                  unit: 'pcs',
-                  description: vpnVal
-                    ? `Auto-created from PO import. Vendor part: ${vpnVal}`
-                    : 'Auto-created from Purchase Order import',
-                  categoryId: categoryId || null,
-                  manufacturerId: manufacturerId || null,
-                  isActive: true,
-                })
-                .onConflictDoUpdate({
-                  target: components.sku,
-                  set: {
-                    ...(categoryId ? { categoryId } : {}),
-                    ...(manufacturerId ? { manufacturerId } : {}),
-                    updatedAt: new Date(),
-                  },
-                })
-                .returning({ id: components.id, sku: components.sku });
 
               if (insertedComp) {
                 compId = insertedComp.id;
-                compMap.set(compSku, compId);
                 compMap.set(insertedComp.sku.toUpperCase(), compId);
+                if (vpnKey && !compMpnMap.has(vpnKey)) {
+                  compMpnMap.set(vpnKey, compId);
+                }
+                if (nameKey && !compNameMap.has(nameKey)) {
+                  compNameMap.set(nameKey, compId);
+                }
                 createdEntities.push({
                   entityType: 'Component',
-                  id: insertedComp.id,
+                  id: compId,
                   isSideEffect: true,
                 });
               }
-            } else if (compId && (categoryId || manufacturerId)) {
-              await db
-                .update(components)
-                .set({
-                  ...(categoryId ? { categoryId } : {}),
-                  ...(manufacturerId ? { manufacturerId } : {}),
-                  updatedAt: new Date(),
-                })
-                .where(eq(components.id, compId));
             }
 
             if (!compId) {
               errors.push({
                 row: i + 1,
-                column: 'componentSku',
-                value: compSku,
-                message: `Failed to resolve or create component with SKU "${compSku}".`,
+                column: 'vendorPartNumber',
+                value: vpnVal,
+                message:
+                  vpnKey || nameKey
+                    ? `Could not allocate a component SKU for "${compNameVal || vpnVal}".`
+                    : 'Either Vendor Part Number or Component Name is required to resolve the ordered component.',
               });
               continue;
             }

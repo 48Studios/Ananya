@@ -179,7 +179,7 @@ test.describe("Import / Export Framework & Read Model Data Integrity", () => {
 
     // 3. Upload Purchase Order CSV and verify mapping step
     const mockPoCsv =
-      "PO Number,Supplier Code,Component SKU,Quantity Ordered,Unit Purchase Price,Status\nPO-E2E-900,SUP-001,RES-10K-001,500,0.05,DRAFT";
+      "PO Number,Supplier Code,Vendor Part Number,Component Name,Quantity Ordered,Unit Purchase Price,Status\nPO-E2E-900,SUP-001,YAG-RES-10K,Precision 10k Resistor,500,0.05,DRAFT";
 
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles({

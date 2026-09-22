@@ -205,8 +205,11 @@ describe('Importer Registry & Template Generation (System-Wide)', () => {
     it('should generate valid PurchaseOrder multi-line template CSV and parse cleanly in previewImport', () => {
       const csv = generateTemplateCsv('PurchaseOrder');
       expect(csv).toContain('PO-2026-001');
-      expect(csv).toContain('RES-10K-001');
-      expect(csv).toContain('CAP-10UF-002');
+      expect(csv).toContain('YAG-RES-10K');
+      expect(csv).toContain('MUR-CAP-10UF');
+      expect(csv).not.toContain('componentSku');
+      expect(csv).not.toContain('componentCategory');
+      expect(csv).not.toContain('componentManufacturer');
 
       const mockFile: UploadedFileObj = {
         originalname: 'purchase_order_template.csv',
@@ -248,30 +251,43 @@ describe('Importer Registry & Template Generation (System-Wide)', () => {
       });
     });
 
-    it('should auto-map header variants "Components", "Component", "SKU", "Part Number" to componentSku for PurchaseOrder', () => {
+    it('should auto-map vendor part number and component name header variants for PurchaseOrder', () => {
       const poAliases = getSystemFieldsWithAliases('PurchaseOrder');
-      const compSkuItem = poAliases.find(
-        (a) => a.canonicalField === 'componentSku',
+      const vpnItem = poAliases.find(
+        (a) => a.canonicalField === 'vendorPartNumber',
       );
-      expect(compSkuItem).toBeDefined();
-      expect(compSkuItem?.aliases).toContain('components');
-      expect(compSkuItem?.aliases).toContain('component');
-      expect(compSkuItem?.aliases).toContain('componentsku');
-      expect(compSkuItem?.aliases).toContain('sku');
+      expect(vpnItem).toBeDefined();
+      expect(vpnItem?.aliases).toContain('vendorpartnumber');
+      expect(vpnItem?.aliases).toContain('mpn');
+      expect(vpnItem?.aliases).toContain('manufacturerpartnumber');
 
-      const compCatItem = poAliases.find(
-        (a) => a.canonicalField === 'componentCategory',
+      const compNameItem = poAliases.find(
+        (a) => a.canonicalField === 'componentName',
       );
-      expect(compCatItem).toBeDefined();
-      expect(compCatItem?.aliases).toContain('componentcategory');
-      expect(compCatItem?.aliases).toContain('category');
+      expect(compNameItem).toBeDefined();
+      expect(compNameItem?.aliases).toContain('componentname');
+      expect(compNameItem?.aliases).toContain('partname');
+      expect(compNameItem?.aliases).toContain('name');
 
-      const compMfgItem = poAliases.find(
-        (a) => a.canonicalField === 'componentManufacturer',
+      // Removed component master-data columns must never auto-map again.
+      expect(poAliases.some((a) => a.canonicalField === 'componentSku')).toBe(
+        false,
       );
-      expect(compMfgItem).toBeDefined();
-      expect(compMfgItem?.aliases).toContain('componentmanufacturer');
-      expect(compMfgItem?.aliases).toContain('manufacturer');
+      expect(
+        poAliases.some((a) => a.canonicalField === 'componentCategory'),
+      ).toBe(false);
+      expect(
+        poAliases.some((a) => a.canonicalField === 'componentManufacturer'),
+      ).toBe(false);
+      expect(
+        poAliases.find((a) => a.aliases.includes('componentsku')),
+      ).toBeUndefined();
+      expect(
+        poAliases.find((a) => a.aliases.includes('category')),
+      ).toBeUndefined();
+      expect(
+        poAliases.find((a) => a.aliases.includes('manufacturer')),
+      ).toBeUndefined();
     });
 
     it('should perform complete round-trip preview mapping verification for all 25 registered entities', () => {
@@ -302,15 +318,16 @@ describe('Importer Registry & Template Generation (System-Wide)', () => {
       });
     });
 
-    it('should parse Purchase Order sample CSV when using alias header "Components" instead of "componentSku"', () => {
-      const csvContent = generateTemplateCsv('PurchaseOrder');
-      const modifiedCsv = csvContent.replace('componentSku', 'Components');
+    it('should parse Purchase Order sample CSV when using alias headers "MPN" and "Part Name"', () => {
+      const csvContent = generateTemplateCsv('PurchaseOrder')
+        .replace('vendorPartNumber', 'MPN')
+        .replace('componentName', 'Part Name');
 
       const mockFile: UploadedFileObj = {
         originalname: 'po_alias_sample.csv',
         mimetype: 'text/csv',
-        buffer: Buffer.from(modifiedCsv),
-        size: Buffer.from(modifiedCsv).length,
+        buffer: Buffer.from(csvContent),
+        size: Buffer.from(csvContent).length,
       };
 
       const preview = service.previewImport(mockFile, 'PurchaseOrder');
@@ -318,7 +335,8 @@ describe('Importer Registry & Template Generation (System-Wide)', () => {
       expect(preview.validRowsCount).toBe(2);
       expect(preview.invalidRowsCount).toBe(0);
       expect(preview.errors).toEqual([]);
-      expect(preview.columnMapping['Components']).toBe('componentSku');
+      expect(preview.columnMapping['MPN']).toBe('vendorPartNumber');
+      expect(preview.columnMapping['Part Name']).toBe('componentName');
     });
 
     describe('Purchase Order vs Component Contract Isolation & Round-Trip', () => {
@@ -352,15 +370,21 @@ describe('Importer Registry & Template Generation (System-Wide)', () => {
         const headers = firstLine.split(',');
         expect(headers).toContain('orderNumber');
         expect(headers).toContain('supplierCode');
-        expect(headers).toContain('componentSku');
-        expect(headers).toContain('componentCategory');
-        expect(headers).toContain('componentManufacturer');
+        expect(headers).toContain('componentName');
+        expect(headers).toContain('vendorPartNumber');
         expect(headers).toContain('quantity');
         expect(headers).toContain('unitPrice');
 
-        // 7. Assert sample does NOT contain Component-only fields
+        // 7. Assert neither Component master-data columns nor dead columns are
+        // part of the Purchase Order contract anymore
+        expect(headers).not.toContain('componentSku');
+        expect(headers).not.toContain('componentCategory');
+        expect(headers).not.toContain('componentManufacturer');
         expect(headers).not.toContain('categoryCode');
         expect(headers).not.toContain('manufacturerCode');
+        expect(headers).not.toContain('poDate');
+        expect(headers).not.toContain('expectedDeliveryDate');
+        expect(headers).not.toContain('unitOfMeasure');
 
         // 8 & 9. Feed sample into the Purchase Order importer & verify parsing succeeds
         const mockFile: UploadedFileObj = {

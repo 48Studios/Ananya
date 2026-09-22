@@ -1056,7 +1056,13 @@ export const IMPORT_ENTITY_REGISTRY: Record<string, ImportEntityDefinition> = {
     label: 'Purchase Order',
     description:
       'Procurement purchase order header and line-item import specification',
-    identityKeys: ['orderNumber', 'componentSku'],
+    /**
+     * Line identity: one line per vendor part per purchase order. Component
+     * SKU, category and manufacturer are intentionally NOT part of the import
+     * contract — components are matched by vendor part number, then by name,
+     * and are created with a system-generated SKU when unknown.
+     */
+    identityKeys: ['orderNumber', 'vendorPartNumber'],
     writeMode: 'UPSERT',
     fields: [
       {
@@ -1081,26 +1087,6 @@ export const IMPORT_ENTITY_REGISTRY: Record<string, ImportEntityDefinition> = {
         sampleValue2: 'SUP-001',
       },
       {
-        name: 'poDate',
-        label: 'PO Date',
-        type: 'date',
-        required: false,
-        description: 'Purchase order issue date (YYYY-MM-DD)',
-        aliases: ['podate', 'issuedat', 'date', 'orderdate'],
-        sampleValue: '2026-08-15',
-        sampleValue2: '2026-08-15',
-      },
-      {
-        name: 'expectedDeliveryDate',
-        label: 'Expected Delivery Date',
-        type: 'date',
-        required: false,
-        description: 'Target delivery date (YYYY-MM-DD)',
-        aliases: ['expecteddeliverydate', 'deliverydate', 'duedate'],
-        sampleValue: '2026-09-01',
-        sampleValue2: '2026-09-01',
-      },
-      {
         name: 'currency',
         label: 'Currency',
         type: 'string',
@@ -1122,31 +1108,12 @@ export const IMPORT_ENTITY_REGISTRY: Record<string, ImportEntityDefinition> = {
         sampleValue2: 'DRAFT',
       },
       {
-        name: 'componentSku',
-        label: 'Component SKU',
-        type: 'string',
-        required: true,
-        relationship: { entity: 'Component', referenceField: 'sku' },
-        description: 'Ordered component part SKU reference',
-        aliases: [
-          'componentsku',
-          'component',
-          'components',
-          'sku',
-          'partnumber',
-          'item_code',
-          'item',
-          'items',
-        ],
-        sampleValue: 'RES-10K-001',
-        sampleValue2: 'CAP-10UF-002',
-      },
-      {
         name: 'componentName',
         label: 'Component Name',
         type: 'string',
         required: false,
-        description: 'Component title or description for new parts',
+        description:
+          'Component name used to match an existing part and to name a newly created one (required when Vendor Part Number is blank)',
         aliases: [
           'componentname',
           'component_name',
@@ -1160,53 +1127,19 @@ export const IMPORT_ENTITY_REGISTRY: Record<string, ImportEntityDefinition> = {
         sampleValue2: '10uF Ceramic Capacitor',
       },
       {
-        name: 'componentCategory',
-        label: 'Component Category',
-        type: 'string',
-        required: false,
-        relationship: { entity: 'Category', referenceField: 'code' },
-        description:
-          'Component category code or name (auto-created if not found)',
-        aliases: [
-          'componentcategory',
-          'component_category',
-          'category',
-          'category_code',
-          'categorycode',
-          'categoryname',
-          'cat',
-        ],
-        sampleValue: 'Resistors',
-        sampleValue2: 'Capacitors',
-      },
-      {
-        name: 'componentManufacturer',
-        label: 'Component Manufacturer',
-        type: 'string',
-        required: false,
-        relationship: { entity: 'Manufacturer', referenceField: 'code' },
-        description:
-          'Component manufacturer code or name (auto-created if not found)',
-        aliases: [
-          'componentmanufacturer',
-          'component_manufacturer',
-          'manufacturer',
-          'manufacturer_code',
-          'manufacturercode',
-          'manufacturername',
-          'mfg',
-          'mfr',
-        ],
-        sampleValue: 'Yageo',
-        sampleValue2: 'Murata',
-      },
-      {
         name: 'vendorPartNumber',
         label: 'Vendor Part Number',
         type: 'string',
         required: false,
-        description: 'Supplier/vendor part catalog number',
-        aliases: ['vendorpartnumber', 'vendorpartno', 'mfgpartno'],
+        description:
+          'Supplier/vendor part catalog number; matched against the component part number, and recorded on the order line',
+        aliases: [
+          'vendorpartnumber',
+          'vendorpartno',
+          'mfgpartno',
+          'mpn',
+          'manufacturerpartnumber',
+        ],
         sampleValue: 'YAG-RES-10K',
         sampleValue2: 'MUR-CAP-10UF',
       },
@@ -1239,16 +1172,6 @@ export const IMPORT_ENTITY_REGISTRY: Record<string, ImportEntityDefinition> = {
         aliases: ['taxrate', 'tax', 'vat'],
         sampleValue: '5.00',
         sampleValue2: '5.00',
-      },
-      {
-        name: 'unitOfMeasure',
-        label: 'Unit of Measure',
-        type: 'string',
-        required: false,
-        description: 'Unit of measure (pcs, m, kg)',
-        aliases: ['unitofmeasure', 'uom', 'unit'],
-        sampleValue: 'pcs',
-        sampleValue2: 'pcs',
       },
       {
         name: 'notes',
