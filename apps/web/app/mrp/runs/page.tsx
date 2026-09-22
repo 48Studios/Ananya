@@ -138,18 +138,6 @@ export default function MrpRunsPage() {
 
   return (
     <div className="space-y-6">
-      {banner && (
-        <div
-          className={`p-3 text-xs border rounded-md ${
-            banner.type === "error"
-              ? "bg-destructive/10 border-destructive/20 text-destructive"
-              : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-          }`}
-        >
-          {banner.message}
-        </div>
-      )}
-
       <PageHeader
         title="MRP Execution History & Logs"
         description="Review historical material requirements planning calculation runs, log traces, and planned order outputs."
@@ -180,6 +168,19 @@ export default function MrpRunsPage() {
       </div>
 
       <EntityDataTable
+        notice={
+          banner && (
+            <div
+              className={`p-3 text-xs border rounded-md ${
+                banner.type === "error"
+                  ? "bg-destructive/10 border-destructive/20 text-destructive"
+                  : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+              }`}
+            >
+              {banner.message}
+            </div>
+          )
+        }
         data={runs}
         columns={columns}
         searchPlaceholder="Search MRP runs..."

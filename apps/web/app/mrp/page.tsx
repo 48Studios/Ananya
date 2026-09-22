@@ -128,18 +128,6 @@ export default function MrpPage() {
 
   return (
     <div className="space-y-6">
-      {banner && (
-        <div
-          className={`p-3 text-xs border rounded-md ${
-            banner.type === "error"
-              ? "bg-destructive/10 border-destructive/20 text-destructive"
-              : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-          }`}
-        >
-          {banner.message}
-        </div>
-      )}
-
       <PageHeader
         title="Material Requirements Planning (MRP) Hub"
         description="Calculate gross material demand, net stock shortages, capacity bottlenecks, and automated procurement suggestions."
@@ -174,6 +162,19 @@ export default function MrpPage() {
       </div>
 
       <EntityDataTable
+        notice={
+          banner && (
+            <div
+              className={`p-3 text-xs border rounded-md ${
+                banner.type === "error"
+                  ? "bg-destructive/10 border-destructive/20 text-destructive"
+                  : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+              }`}
+            >
+              {banner.message}
+            </div>
+          )
+        }
         data={items}
         columns={columns}
         searchPlaceholder="Search gross requirements by SKU or component..."

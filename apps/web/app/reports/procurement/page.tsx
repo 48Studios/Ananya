@@ -288,6 +288,7 @@ export default function ProcurementReportsPage() {
         <EntityDataTable
           columns={columns}
           data={filteredOrders}
+          resetPageKey={JSON.stringify(filters)}
           searchKey="poNumber"
           searchPlaceholder="Search order # or supplier..."
           loading={loading}

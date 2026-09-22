@@ -56,14 +56,6 @@ export default function AttributesPage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
-  const noticeRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (statusAlert || error) {
-      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [statusAlert, error]);
-
   // Dialog states
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingAttribute, setEditingAttribute] =
@@ -142,7 +134,9 @@ export default function AttributesPage() {
   // Stats calculation
   const stats = React.useMemo(() => {
     const total = attributes.length;
-    const quantities = attributes.filter((a) => a.dataType === "QUANTITY").length;
+    const quantities = attributes.filter(
+      (a) => a.dataType === "QUANTITY",
+    ).length;
     const selects = attributes.filter(
       (a) => a.dataType === "SELECT" || a.dataType === "MULTI_SELECT",
     ).length;
@@ -237,12 +231,13 @@ export default function AttributesPage() {
 
           return (
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium border ${isQty
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium border ${
+                isQty
                   ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
                   : isSel
                     ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
                     : "bg-muted text-muted-foreground border-border"
-                }`}
+              }`}
             >
               {dt}
             </span>
@@ -337,10 +332,11 @@ export default function AttributesPage() {
         header: "Filterable",
         cell: ({ row }) => (
           <span
-            className={`inline-flex items-center gap-1 text-xs font-medium ${row.original.isFilterable
+            className={`inline-flex items-center gap-1 text-xs font-medium ${
+              row.original.isFilterable
                 ? "text-emerald-600 dark:text-emerald-400"
                 : "text-muted-foreground"
-              }`}
+            }`}
           >
             {row.original.isFilterable ? (
               <>
@@ -360,14 +356,16 @@ export default function AttributesPage() {
         header: "Status",
         cell: ({ row }) => (
           <span
-            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border ${row.original.isActive
+            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+              row.original.isActive
                 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                 : "bg-muted text-muted-foreground border-border"
-              }`}
+            }`}
           >
             <span
-              className={`w-1.5 h-1.5 rounded-full ${row.original.isActive ? "bg-emerald-500" : "bg-muted-foreground"
-                }`}
+              className={`w-1.5 h-1.5 rounded-full ${
+                row.original.isActive ? "bg-emerald-500" : "bg-muted-foreground"
+              }`}
             />
             {row.original.isActive ? "Active" : "Inactive"}
           </span>
@@ -529,45 +527,45 @@ export default function AttributesPage() {
           icon={Hash}
         />
       </div>
-
-      {/* Notifications */}
-      <div ref={noticeRef} className="space-y-3">
-        {statusAlert && (
-          <div
-            className={`p-4 rounded-xl border flex items-center justify-between gap-3 text-sm font-medium ${statusAlert.type === "success"
-                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                : "bg-destructive/10 border-destructive/20 text-destructive"
-              }`}
-          >
-            <div className="flex items-center gap-2.5">
-              {statusAlert.type === "success" ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-              ) : (
-                <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
-              )}
-              <span>{statusAlert.text}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => setStatusAlert(null)}
-              className="text-xs"
-            >
-              Dismiss
-            </Button>
-          </div>
-        )}
-
-        {error && (
-          <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-      </div>
-
       {/* Attributes Table */}
       <EntityDataTable
+        notice={
+          <>
+            {statusAlert && (
+              <div
+                className={`p-4 rounded-xl border flex items-center justify-between gap-3 text-sm font-medium ${
+                  statusAlert.type === "success"
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                    : "bg-destructive/10 border-destructive/20 text-destructive"
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  {statusAlert.type === "success" ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
+                  )}
+                  <span>{statusAlert.text}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setStatusAlert(null)}
+                  className="text-xs"
+                >
+                  Dismiss
+                </Button>
+              </div>
+            )}
+
+            {error && (
+              <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+          </>
+        }
         columns={columns}
         data={attributes}
         searchKey="name"

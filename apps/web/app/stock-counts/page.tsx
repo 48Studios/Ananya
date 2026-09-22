@@ -35,14 +35,6 @@ export default function StockCountsPage() {
     message: string;
     type: "success" | "error";
   } | null>(null);
-  const noticeRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (banner) {
-      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [banner]);
-
   const fetchCounts = React.useCallback(async () => {
     setLoading(true);
     try {
@@ -228,20 +220,6 @@ export default function StockCountsPage() {
 
   return (
     <div className="space-y-6">
-      <div ref={noticeRef}>
-        {banner && (
-          <div
-            className={`p-3 text-xs border rounded-md ${
-              banner.type === "error"
-                ? "bg-destructive/10 border-destructive/20 text-destructive"
-                : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-            }`}
-          >
-            {banner.message}
-          </div>
-        )}
-      </div>
-
       <PageHeader
         title="Stock Audits & Cycle Counting"
         description="Schedule physical stock counts, log inventory variances, and execute balance reconciliations."
@@ -272,6 +250,21 @@ export default function StockCountsPage() {
       </div>
 
       <EntityDataTable
+        notice={
+          <>
+            {banner && (
+              <div
+                className={`p-3 text-xs border rounded-md ${
+                  banner.type === "error"
+                    ? "bg-destructive/10 border-destructive/20 text-destructive"
+                    : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                }`}
+              >
+                {banner.message}
+              </div>
+            )}
+          </>
+        }
         data={counts}
         columns={columns}
         searchPlaceholder="Search stock audits by ID, counter, or status..."
@@ -286,7 +279,7 @@ export default function StockCountsPage() {
         onOpenChange={setIsFormOpen}
         title="Initiate Physical Stock Audit"
         description="Schedule physical inventory counts, assign counter staff, and initiate stock audit runs."
-        size="lg"
+        size="md"
       >
         <CycleCountForm
           onSuccess={handleFormSuccess}

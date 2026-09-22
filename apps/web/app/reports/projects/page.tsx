@@ -281,6 +281,7 @@ export default function ProjectReportsPage() {
         <EntityDataTable
           columns={columns}
           data={filteredProjects}
+          resetPageKey={JSON.stringify(filters)}
           searchKey="projectNumber"
           searchPlaceholder="Search project # or name..."
           loading={loading}

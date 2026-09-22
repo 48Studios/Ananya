@@ -284,6 +284,7 @@ export default function InventoryReportsPage() {
         <EntityDataTable
           columns={columns}
           data={filteredComponents}
+          resetPageKey={JSON.stringify(filters)}
           searchKey="sku"
           searchPlaceholder="Search component by SKU or name..."
           loading={loading}

@@ -31,32 +31,26 @@ import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 const kindBadgeColors: Record<string, string> = {
   warehouse:
     "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
-  room:
-    "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20",
+  room: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20",
   aisle:
     "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20",
-  rack:
-    "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
+  rack: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
   shelf:
     "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20",
   cabinet:
     "bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20",
   dry_cabinet:
     "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20",
-  bin:
-    "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-  drawer:
-    "bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20",
+  bin: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+  drawer: "bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20",
   compartment:
     "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
   reel_rack:
     "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20",
   reel_slot:
     "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  tray:
-    "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20",
-  tube:
-    "bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-500/20",
+  tray: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20",
+  tube: "bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-500/20",
 };
 
 const kindLabels: Record<string, string> = {
@@ -90,14 +84,6 @@ export default function LocationsPage() {
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [apiAlert, setApiAlert] = React.useState<string | null>(null);
-  const noticeRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (toastMessage || apiAlert || error) {
-      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [toastMessage, apiAlert, error]);
-
   const fetchLocations = React.useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -404,36 +390,6 @@ export default function LocationsPage() {
           icon={Layers}
         />
       </div>
-
-      {/* Notifications */}
-      <div ref={noticeRef} className="space-y-3">
-        {toastMessage && (
-          <div className="flex items-center gap-2 p-3 text-sm text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <span>{toastMessage}</span>
-          </div>
-        )}
-
-        {apiAlert && (
-          <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{apiAlert}</span>
-          </div>
-        )}
-
-        {error && (
-          <div className="flex items-center justify-between p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-            <Button variant="ghost" size="xs" onClick={fetchLocations}>
-              Retry
-            </Button>
-          </div>
-        )}
-      </div>
-
       {/* Modal / Slide-over for Creating or Editing Location */}
       <DialogShell
         open={isFormOpen}
@@ -476,6 +432,35 @@ export default function LocationsPage() {
 
       {/* Data Table */}
       <EntityDataTable
+        notice={
+          <>
+            {toastMessage && (
+              <div className="flex items-center gap-2 p-3 text-sm text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>{toastMessage}</span>
+              </div>
+            )}
+
+            {apiAlert && (
+              <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{apiAlert}</span>
+              </div>
+            )}
+
+            {error && (
+              <div className="flex items-center justify-between p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+                <Button variant="ghost" size="xs" onClick={fetchLocations}>
+                  Retry
+                </Button>
+              </div>
+            )}
+          </>
+        }
         columns={columns}
         data={locations}
         entityType="Location"

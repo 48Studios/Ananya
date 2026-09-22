@@ -65,7 +65,6 @@ export default function ComponentsPage() {
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [apiAlert, setApiAlert] = React.useState<string | null>(null);
-  const noticeRef = React.useRef<HTMLDivElement>(null);
 
   // Component Intelligence Review opens as a modal, mirroring the Attribute
   // Library's Intelligence Queue — the catalog list is never navigated away from.
@@ -85,15 +84,9 @@ export default function ComponentsPage() {
       // The badge is informational; a failure must not disturb the catalog.
     }
   }, []);
-
-  React.useEffect(() => {
-    if (toastMessage || apiAlert || error) {
-      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [toastMessage, apiAlert, error]);
-
   // Dynamic Specifications & Category Filter State
-  const [selectedCategoryId, setSelectedCategoryId] = React.useState<string>("");
+  const [selectedCategoryId, setSelectedCategoryId] =
+    React.useState<string>("");
   const [attributeFilters, setAttributeFilters] = React.useState<
     Record<string, AttributeFilterCriteria>
   >({});
@@ -124,9 +117,7 @@ export default function ComponentsPage() {
           )
         ) {
           computedStock[tx.componentId] = current + qty;
-        } else if (
-          ["Issue", "Consumption"].includes(tx.transactionType)
-        ) {
+        } else if (["Issue", "Consumption"].includes(tx.transactionType)) {
           computedStock[tx.componentId] = current - qty;
         } else if (tx.transactionType === "Adjustment") {
           computedStock[tx.componentId] = current + qty;
@@ -242,7 +233,7 @@ export default function ComponentsPage() {
           if (!compAttr) return false;
           const valNum =
             compAttr.normalizedValue !== null &&
-              compAttr.normalizedValue !== undefined
+            compAttr.normalizedValue !== undefined
               ? compAttr.normalizedValue
               : typeof compAttr.value === "number"
                 ? compAttr.value
@@ -277,14 +268,22 @@ export default function ComponentsPage() {
         if (criteria.textSearch && criteria.textSearch.trim() !== "") {
           if (!compAttr) return false;
           const q = criteria.textSearch.toLowerCase().trim();
-          const combined = `${compAttr.displayValue} ${compAttr.value} ${compAttr.optionLabel}`.toLowerCase();
+          const combined =
+            `${compAttr.displayValue} ${compAttr.value} ${compAttr.optionLabel}`.toLowerCase();
           if (!combined.includes(q)) return false;
         }
       }
 
       return true;
     });
-  }, [components, inStockOnly, activeOnly, stockMap, selectedCategoryId, attributeFilters]);
+  }, [
+    components,
+    inStockOnly,
+    activeOnly,
+    stockMap,
+    selectedCategoryId,
+    attributeFilters,
+  ]);
 
   const handleClearAllFilters = () => {
     setSelectedCategoryId("");
@@ -312,9 +311,7 @@ export default function ComponentsPage() {
       setComponents((prev) =>
         prev.filter((c) => c.id !== deletingComponent.id),
       );
-      setToastMessage(
-        `Component "${targetSku}" deleted successfully.`,
-      );
+      setToastMessage(`Component "${targetSku}" deleted successfully.`);
       setTimeout(() => setToastMessage(null), 4000);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -350,16 +347,14 @@ export default function ComponentsPage() {
       },
       {
         accessorKey: "name",
-        header: () => (
-          <span className="whitespace-nowrap">Component</span>
-        ),
+        header: () => <span className="whitespace-nowrap">Component</span>,
         meta: { width: "18%" },
         cell: ({ row }) => {
           const attrs = row.original.attributes;
           const specBadges = attrs
             ? Object.values(attrs)
-              .filter((a) => Boolean(a.displayValue))
-              .slice(0, 3)
+                .filter((a) => Boolean(a.displayValue))
+                .slice(0, 3)
             : [];
 
           return (
@@ -409,9 +404,7 @@ export default function ComponentsPage() {
       },
       {
         accessorKey: "description",
-        header: () => (
-          <span className="whitespace-nowrap">Description</span>
-        ),
+        header: () => <span className="whitespace-nowrap">Description</span>,
         meta: { width: "15%" },
         cell: ({ row }) => (
           <span
@@ -444,10 +437,11 @@ export default function ComponentsPage() {
           const qty = stockMap[row.original.id] || 0;
           return (
             <span
-              className={`font-mono text-xs font-semibold px-2 py-0.5 rounded whitespace-nowrap inline-block ${qty > 0
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                : "text-muted-foreground"
-                }`}
+              className={`font-mono text-xs font-semibold px-2 py-0.5 rounded whitespace-nowrap inline-block ${
+                qty > 0
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  : "text-muted-foreground"
+              }`}
             >
               {qty} {row.original.unit}
             </span>
@@ -488,10 +482,11 @@ export default function ComponentsPage() {
         meta: { width: "9%" },
         cell: ({ row }) => (
           <span
-            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${row.original.isActive
-              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-              : "bg-muted text-muted-foreground"
-              }`}
+            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${
+              row.original.isActive
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "bg-muted text-muted-foreground"
+            }`}
           >
             {row.original.isActive ? "Active" : "Inactive"}
           </span>
@@ -656,37 +651,6 @@ export default function ComponentsPage() {
           icon={Package}
         />
       </div>
-
-      {/* Notifications */}
-      <div ref={noticeRef} className="space-y-3">
-        {toastMessage && (
-          <div className="flex items-center gap-2 p-3 text-sm text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <span>{toastMessage}</span>
-          </div>
-        )}
-
-        {apiAlert && (
-          <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{apiAlert}</span>
-          </div>
-        )}
-
-        {error && (
-          <div className="flex items-center justify-between p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-            <Button variant="ghost" size="xs" onClick={fetchData}>
-              <RefreshCw className="w-3.5 h-3.5 mr-1" />
-              Retry
-            </Button>
-          </div>
-        )}
-      </div>
-
       {/* Form Modal */}
       <DialogShell
         open={isFormOpen}
@@ -744,8 +708,39 @@ export default function ComponentsPage() {
 
       {/* Data Table */}
       <EntityDataTable
+        notice={
+          <>
+            {toastMessage && (
+              <div className="flex items-center gap-2 p-3 text-sm text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>{toastMessage}</span>
+              </div>
+            )}
+
+            {apiAlert && (
+              <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{apiAlert}</span>
+              </div>
+            )}
+
+            {error && (
+              <div className="flex items-center justify-between p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+                <Button variant="ghost" size="xs" onClick={fetchData}>
+                  <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                  Retry
+                </Button>
+              </div>
+            )}
+          </>
+        }
         columns={columns}
         data={filteredComponents}
+        resetPageKey={`${selectedCategoryId}|${JSON.stringify(attributeFilters)}|${inStockOnly}|${activeOnly}`}
         entityType="Component"
         searchKey="name"
         searchPlaceholder="Search components by name..."

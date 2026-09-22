@@ -278,6 +278,7 @@ export default function ManufacturingReportsPage() {
         <EntityDataTable
           columns={columns}
           data={filteredOrders}
+          resetPageKey={JSON.stringify(filters)}
           searchKey="productionNumber"
           searchPlaceholder="Search work order #..."
           loading={loading}

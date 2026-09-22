@@ -295,6 +295,7 @@ export default function TransactionReportsPage() {
         <EntityDataTable
           columns={columns}
           data={filteredTransactions}
+          resetPageKey={JSON.stringify(filters)}
           searchKey="reference"
           searchPlaceholder="Search reference doc or component..."
           loading={loading}

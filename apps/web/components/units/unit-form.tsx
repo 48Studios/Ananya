@@ -16,6 +16,11 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
+import {
   unitsApi,
   type UnitDto,
   type CreateUnitPayload,
@@ -126,135 +131,133 @@ export function UnitForm({ initialData, onSuccess, onCancel }: UnitFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {serverError && (
-        <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
-          {serverError}
-        </div>
-      )}
-
-      {/* Unit Name */}
-      <Field>
-        <FieldLabel htmlFor="unit-name">
-          Unit Name / Symbol <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="unit-name"
-          type="text"
-          placeholder="e.g. pcs, kg, m, box, roll"
-          {...register("name")}
-        />
-        {errors.name?.message && <FieldError>{errors.name.message}</FieldError>}
-      </Field>
-
-      {/* Category */}
-      <Field>
-        <FieldLabel htmlFor="unit-category">
-          Measurement Category <span className="text-destructive">*</span>
-        </FieldLabel>
-        <Controller
-          name="category"
-          control={control}
-          render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger id="unit-category">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORY_OPTIONS.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-        {errors.category?.message && (
-          <FieldError>{errors.category.message}</FieldError>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <DialogShellBody className="space-y-4">
+        {serverError && (
+          <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+            {serverError}
+          </div>
         )}
-      </Field>
 
-      {/* Is Base Unit */}
-      <Field>
-        <FieldLabel htmlFor="unit-type">Unit Classification</FieldLabel>
-        <Controller
-          name="isBaseUnit"
-          control={control}
-          render={({ field }) => (
-            <Select
-              value={field.value ? "base" : "derived"}
-              onValueChange={(val) => field.onChange(val === "base")}
-            >
-              <SelectTrigger id="unit-type">
-                <SelectValue placeholder="Select classification" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="base">
-                  Primary Base Unit (Standard)
-                </SelectItem>
-                <SelectItem value="derived">Derived Secondary Unit</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-        />
-      </Field>
-
-      {/* Conversion Factor (if Derived) */}
-      {!isBaseUnit && (
+        {/* Unit Name */}
         <Field>
-          <FieldLabel htmlFor="unit-conversion">
-            Conversion Factor <span className="text-destructive">*</span>
+          <FieldLabel htmlFor="unit-name">
+            Unit Name / Symbol <span className="text-destructive">*</span>
           </FieldLabel>
           <Input
-            id="unit-conversion"
-            type="number"
-            step="0.0001"
-            placeholder="e.g. 1000 for 1 kg = 1000 g"
-            {...register("conversionFactor", { valueAsNumber: true })}
+            id="unit-name"
+            type="text"
+            placeholder="e.g. pcs, kg, m, box, roll"
+            {...register("name")}
           />
-          {errors.conversionFactor?.message && (
-            <FieldError>{errors.conversionFactor.message}</FieldError>
+          {errors.name?.message && (
+            <FieldError>{errors.name.message}</FieldError>
           )}
         </Field>
-      )}
 
-      {/* Decimal Precision */}
-      <Field>
-        <FieldLabel htmlFor="unit-precision">
-          Decimal Precision (Digits)
-        </FieldLabel>
-        <Input
-          id="unit-precision"
-          type="number"
-          min="0"
-          max="6"
-          placeholder="0"
-          {...register("precision", { valueAsNumber: true })}
-        />
-        {errors.precision?.message && (
-          <FieldError>{errors.precision.message}</FieldError>
-        )}
-      </Field>
-
-      {/* Form Action Buttons */}
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          disabled={isSubmitting}
-        >
-          Cancel
-        </Button>
-        <Button type="submit" size="sm" disabled={isSubmitting}>
-          {isSubmitting && (
-            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+        {/* Category */}
+        <Field>
+          <FieldLabel htmlFor="unit-category">
+            Measurement Category <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Controller
+            name="category"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="unit-category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.category?.message && (
+            <FieldError>{errors.category.message}</FieldError>
           )}
+        </Field>
+
+        {/* Is Base Unit */}
+        <Field>
+          <FieldLabel htmlFor="unit-type">Unit Classification</FieldLabel>
+          <Controller
+            name="isBaseUnit"
+            control={control}
+            render={({ field }) => (
+              <Select
+                value={field.value ? "base" : "derived"}
+                onValueChange={(val) => field.onChange(val === "base")}
+              >
+                <SelectTrigger id="unit-type">
+                  <SelectValue placeholder="Select classification" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="base">
+                    Primary Base Unit (Standard)
+                  </SelectItem>
+                  <SelectItem value="derived">
+                    Derived Secondary Unit
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
+
+        {/* Conversion Factor (if Derived) */}
+        {!isBaseUnit && (
+          <Field>
+            <FieldLabel htmlFor="unit-conversion">
+              Conversion Factor <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="unit-conversion"
+              type="number"
+              step="0.0001"
+              placeholder="e.g. 1000 for 1 kg = 1000 g"
+              {...register("conversionFactor", { valueAsNumber: true })}
+            />
+            {errors.conversionFactor?.message && (
+              <FieldError>{errors.conversionFactor.message}</FieldError>
+            )}
+          </Field>
+        )}
+
+        {/* Decimal Precision */}
+        <Field>
+          <FieldLabel htmlFor="unit-precision">
+            Decimal Precision (Digits)
+          </FieldLabel>
+          <Input
+            id="unit-precision"
+            type="number"
+            min="0"
+            max="6"
+            placeholder="0"
+            {...register("precision", { valueAsNumber: true })}
+          />
+          {errors.precision?.message && (
+            <FieldError>{errors.precision.message}</FieldError>
+          )}
+        </Field>
+      </DialogShellBody>
+
+      <DialogShellFooter>
+        <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />
+        <Button type="submit" size="sm" disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
           {isEditing ? "Save Changes" : "Create Unit"}
         </Button>
-      </div>
+      </DialogShellFooter>
     </form>
   );
 }
