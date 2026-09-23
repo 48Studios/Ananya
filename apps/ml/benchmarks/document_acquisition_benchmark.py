@@ -293,6 +293,7 @@ def run_pass(
     profiler: StageProfiler,
     resume: bool,
     per_doc: Optional[List[float]] = None,
+    max_concurrent: int = 1,
     max_retries: int = 2,
 ) -> Dict[str, object]:
     source_yaml = workdir / f"sources-{label}.yaml"
@@ -313,7 +314,7 @@ def run_pass(
         f"    rate_limit:\n"
         f"      requests_per_second: {1.0 / rate_delay if rate_delay else 1000.0}\n"
         f"      delay_seconds: {rate_delay}\n"
-        "      max_concurrent: 1\n"
+        "      max_concurrent: " + str(max_concurrent) + "\n"
         "    max_depth: 0\n"
         "    max_pages: 0\n"
         f"    max_files: {docs}\n"
@@ -376,6 +377,7 @@ def main() -> None:
     parser.add_argument("--net-latency", type=float, default=0.15, help="Simulated origin latency (s)")
     parser.add_argument("--bandwidth-mbps", type=float, default=0.0, help="Simulated per-connection bandwidth ceiling")
     parser.add_argument("--document-workers", type=int, default=1, help="Download/parse worker count")
+    parser.add_argument("--max-concurrent", type=int, default=1, help="Explicit source request concurrency (>1 caps in-flight requests)")
     parser.add_argument("--pages", type=int, default=8, help="Pages per generated PDF (when no --pdf-dir)")
     parser.add_argument("--pdf-dir", type=str, default="", help="Directory of real PDFs to serve instead of generated ones")
     parser.add_argument("--resume-run", action="store_true", help="Run a second resume pass after the first")
@@ -431,6 +433,7 @@ def main() -> None:
             profiler,
             resume=True,
             per_doc=per_doc,
+            max_concurrent=args.max_concurrent,
         )
         results = [before]
         if args.resume_run:
@@ -450,6 +453,7 @@ def main() -> None:
                 profiler,
                 resume=True,
                 per_doc=per_doc,
+                max_concurrent=args.max_concurrent,
             )
             results.append(second)
     finally:

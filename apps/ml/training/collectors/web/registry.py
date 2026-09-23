@@ -5,7 +5,7 @@ Manages sources, allowed domain boundaries, quality tiers, rate limits, and disc
 """
 
 from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import yaml
 from urllib.parse import urlparse
@@ -39,6 +39,22 @@ class DiscoveryType(str, Enum):
 
 
 class RateLimitConfig(BaseModel):
+    """
+    Per-domain request policy.
+
+    - ``requests_per_second`` / ``delay_seconds`` are the authoritative network
+      constraint: the minimum interval between request *starts* to a domain.
+    - ``max_concurrent`` is **request concurrency**: the maximum number of HTTP
+      requests allowed to be in flight to a domain at once. It is distinct from
+      document processing concurrency (the ``--document-workers`` parse/extract
+      worker count).
+
+    ``max_concurrent <= 1`` is treated as the legacy, previously-unenforced
+    default: the configured request *rate* is then the only network constraint
+    and ``--document-workers`` governs transfer overlap. Set ``max_concurrent``
+    to a value > 1 to explicitly cap in-flight requests per domain.
+    """
+
     requests_per_second: float = 1.0
     delay_seconds: float = 1.0
     max_concurrent: int = 1
@@ -49,6 +65,30 @@ class RateLimitConfig(BaseModel):
             if self.requests_per_second != 1.0:
                 self.delay_seconds = 1.0 / self.requests_per_second
         return self
+
+
+def resolve_document_worker_counts(
+    document_workers: int, rate_limit: RateLimitConfig
+) -> Tuple[int, int]:
+    """
+    Resolves ``(download_workers, parse_workers)`` from the CLI worker count and
+    the source's request-concurrency policy.
+
+    - ``download_workers`` is bounded by both ``--document-workers`` and the
+      source's request concurrency (``max_concurrent``), so an explicit policy is
+      always respected.
+    - ``max_concurrent <= 1`` reflects the legacy default and does **not** cap
+      concurrency, otherwise ``--document-workers 4`` would be silently inert for
+      every existing source. The per-domain request *rate* remains enforced by
+      the policy manager regardless.
+    - ``parse_workers`` is CPU concurrency and is not bounded by the network
+      request-concurrency setting.
+    """
+    workers = max(1, int(document_workers or 1))
+    max_concurrent = int(rate_limit.max_concurrent or 0)
+    if max_concurrent <= 1:
+        return workers, workers
+    return max(1, min(workers, max_concurrent)), workers
 
 
 class SourceConfig(BaseModel):

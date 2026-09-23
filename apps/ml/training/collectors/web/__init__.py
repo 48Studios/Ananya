@@ -5,6 +5,7 @@ from .registry import (
     RateLimitConfig,
     SourceConfig,
     SourceRegistry,
+    resolve_document_worker_counts,
 )
 from .policy import CrawlPolicyManager
 from .downloader import DownloadResult, ResilientDownloader
@@ -19,6 +20,7 @@ __all__ = [
     "RateLimitConfig",
     "SourceConfig",
     "SourceRegistry",
+    "resolve_document_worker_counts",
     "CrawlPolicyManager",
     "DownloadResult",
     "ResilientDownloader",

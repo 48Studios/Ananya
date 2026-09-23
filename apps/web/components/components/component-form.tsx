@@ -502,17 +502,44 @@ export function ComponentForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategoryId]);
 
-  const handleAttrChange = (code: string, field: string, val: unknown) => {
+  /**
+   * Writes one field of an attribute the reviewer is editing by hand.
+   *
+   * The definition is recorded with the value, exactly as a value loaded from
+   * the server or accepted from a suggestion already does. The editor renders a
+   * row for every attribute bound to the category, including ones this component
+   * does not record yet, while the Save payload carries only entries that name
+   * their definition — so a value chosen in such a row used to look identical to
+   * a provisional one and was silently left out of the request.
+   */
+  const handleAttrChange = (
+    code: string,
+    field: string,
+    val: unknown,
+    attributeDefinitionId: string,
+  ) => {
     setAttrValues((prev) => ({
       ...prev,
       [code]: {
         ...prev[code],
+        attributeDefinitionId,
         [field]: val,
       },
     }));
   };
 
-  const toggleMultiSelectOption = (code: string, optCode: string) => {
+  /**
+   * The multi-select counterpart of {@link handleAttrChange}.
+   *
+   * Toggling an option is a write into the same row, so it carries the same
+   * definition identity: a selection made here has to be savable for the same
+   * reason a single-select one is.
+   */
+  const toggleMultiSelectOption = (
+    code: string,
+    optCode: string,
+    attributeDefinitionId: string,
+  ) => {
     setAttrValues((prev) => {
       const currentList = prev[code]?.selectedOptionCodes ?? [];
       const exists = currentList.includes(optCode);
@@ -523,6 +550,7 @@ export function ComponentForm({
         ...prev,
         [code]: {
           ...prev[code],
+          attributeDefinitionId,
           value: nextList,
           selectedOptionCodes: nextList,
         },
@@ -1417,7 +1445,7 @@ export function ComponentForm({
                         id={inputId}
                         value={current.optionCode ?? ""}
                         onValueChange={(val) =>
-                          handleAttrChange(code, "optionCode", val)
+                          handleAttrChange(code, "optionCode", val, def.id)
                         }
                         placeholder={`Select ${def.name.toLowerCase()}...`}
                         searchPlaceholder={`Search ${def.name.toLowerCase()}...`}
@@ -1462,7 +1490,7 @@ export function ComponentForm({
                                 key={opt.id}
                                 type="button"
                                 onClick={() =>
-                                  toggleMultiSelectOption(code, opt.code)
+                                  toggleMultiSelectOption(code, opt.code, def.id)
                                 }
                                 className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border transition-all cursor-pointer ${isChecked
                                     ? "bg-primary text-primary-foreground border-primary font-medium shadow-xs"
@@ -1512,7 +1540,7 @@ export function ComponentForm({
                         id={inputId}
                         checked={Boolean(current.value)}
                         onCheckedChange={(checked) =>
-                          handleAttrChange(code, "value", checked)
+                          handleAttrChange(code, "value", checked, def.id)
                         }
                       />
                     </Field>
@@ -1540,7 +1568,12 @@ export function ComponentForm({
                           placeholder="e.g. 10"
                           value={(current.value as string | number) ?? ""}
                           onChange={(e) =>
-                            handleAttrChange(code, "value", e.target.value)
+                            handleAttrChange(
+                              code,
+                              "value",
+                              e.target.value,
+                              def.id,
+                            )
                           }
                           className="flex-1 min-w-0 font-mono"
                         />
@@ -1548,7 +1581,7 @@ export function ComponentForm({
                           <Select
                             value={current.unit || def.defaultUnit || unitOptions[0] || ""}
                             onValueChange={(val) =>
-                              handleAttrChange(code, "unit", val)
+                              handleAttrChange(code, "unit", val, def.id)
                             }
                           >
                             <SelectTrigger className="h-9 w-full">
@@ -1587,7 +1620,12 @@ export function ComponentForm({
                         placeholder="e.g. 64"
                         value={(current.value as string | number) ?? ""}
                         onChange={(e) =>
-                          handleAttrChange(code, "value", e.target.value)
+                          handleAttrChange(
+                            code,
+                            "value",
+                            e.target.value,
+                            def.id,
+                          )
                         }
                         className="font-mono"
                       />
@@ -1612,7 +1650,12 @@ export function ComponentForm({
                         type="date"
                         value={(current.value as string | number) ?? ""}
                         onChange={(e) =>
-                          handleAttrChange(code, "value", e.target.value)
+                          handleAttrChange(
+                            code,
+                            "value",
+                            e.target.value,
+                            def.id,
+                          )
                         }
                       />
                       {def.description && (
@@ -1637,7 +1680,12 @@ export function ComponentForm({
                       placeholder={`Enter ${def.name.toLowerCase()}...`}
                       value={(current.value as string | number) ?? ""}
                       onChange={(e) =>
-                        handleAttrChange(code, "value", e.target.value)
+                        handleAttrChange(
+                          code,
+                          "value",
+                          e.target.value,
+                          def.id,
+                        )
                       }
                     />
                     {def.description && (

@@ -84,7 +84,12 @@ def _sitemap(docs: int) -> str:
     )
 
 
-def _write_source_yaml(tmp_path: Path, name: str = "sources.yaml") -> Path:
+def _write_source_yaml(
+    tmp_path: Path,
+    name: str = "sources.yaml",
+    delay: float = 0.0,
+    max_concurrent: int = 1,
+) -> Path:
     cfg = tmp_path / name
     cfg.write_text(
         "sources:\n"
@@ -101,9 +106,9 @@ def _write_source_yaml(tmp_path: Path, name: str = "sources.yaml") -> Path:
         "      - sitemap\n"
         "      - documents\n"
         "    rate_limit:\n"
-        "      requests_per_second: 1000\n"
-        "      delay_seconds: 0.0\n"
-        "      max_concurrent: 1\n"
+        f"      requests_per_second: {1.0 / delay if delay else 1000}\n"
+        f"      delay_seconds: {delay}\n"
+        f"      max_concurrent: {max_concurrent}\n"
         "    max_depth: 0\n"
         "    max_pages: 0\n"
         "    max_files: 100\n"
@@ -244,6 +249,92 @@ def test_rate_limiter_spaces_concurrent_request_starts():
     # Starts must remain spaced by the configured delay despite concurrency.
     assert min(gaps) >= 0.10
     assert elapsed >= 0.15 * 4 * 0.8
+
+
+def _concurrency_probe(
+    tmp_path: Path,
+    docs: int,
+    document_workers: int,
+    max_concurrent: int,
+    rate_delay: float,
+    handler_sleep: float = 0.05,
+) -> Tuple[List, int, List[float]]:
+    """Runs a document crawl while observing peak in-flight requests and start times."""
+    lock = threading.Lock()
+    state = {"active": 0, "peak": 0}
+    starts: List[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.startswith("/docs/") and path.endswith(".pdf"):
+            with lock:
+                starts.append(time.perf_counter())
+                state["active"] += 1
+                state["peak"] = max(state["peak"], state["active"])
+            try:
+                time.sleep(handler_sleep)
+                idx = int(path.split("doc-")[1].split(".pdf")[0])
+                body = _minimal_pdf([f"Part Number: DOC-{idx}-A1", "Voltage: 240V AC"])
+                return httpx.Response(200, content=body, headers={"content-type": "application/pdf"})
+            finally:
+                with lock:
+                    state["active"] -= 1
+        if path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nAllow: /\n")
+        if path == "/sitemap.xml":
+            return httpx.Response(200, text=_sitemap(docs), headers={"content-type": "text/xml"})
+        return httpx.Response(404)
+
+    cfg = _write_source_yaml(tmp_path, delay=rate_delay, max_concurrent=max_concurrent)
+    records, _ = _run_collector(cfg, tmp_path / "raw", handler, workers=document_workers)
+    return records, state["peak"], starts
+
+
+def test_resolve_document_worker_counts():
+    from apps.ml.training.collectors.web.registry import (
+        RateLimitConfig,
+        resolve_document_worker_counts,
+    )
+
+    # Legacy default (1) must not neuter the CLI worker count.
+    assert resolve_document_worker_counts(4, RateLimitConfig(max_concurrent=1)) == (4, 4)
+    # Explicit request concurrency caps downloads but not CPU parse workers.
+    assert resolve_document_worker_counts(8, RateLimitConfig(max_concurrent=2)) == (2, 8)
+    # Never exceed the CLI worker count.
+    assert resolve_document_worker_counts(4, RateLimitConfig(max_concurrent=8)) == (4, 4)
+    # Degenerate inputs fall back to a single worker.
+    assert resolve_document_worker_counts(0, RateLimitConfig(max_concurrent=1)) == (1, 1)
+    assert resolve_document_worker_counts(None, RateLimitConfig(max_concurrent=3)) == (1, 1)
+
+
+def test_explicit_request_concurrency_caps_inflight_requests(tmp_path: Path):
+    records, peak, _ = _concurrency_probe(
+        tmp_path, docs=6, document_workers=8, max_concurrent=2, rate_delay=0.0
+    )
+    assert len(records) == 6
+    # An explicit source policy (>1) must be respected as a hard request cap.
+    assert peak <= 2
+
+
+def test_legacy_max_concurrent_does_not_neuter_workers(tmp_path: Path):
+    records, peak, _ = _concurrency_probe(
+        tmp_path, docs=6, document_workers=4, max_concurrent=1, rate_delay=0.0
+    )
+    assert len(records) == 6
+    # max_concurrent=1 is the never-enforced default, so transfers may overlap.
+    assert 2 <= peak <= 4
+
+
+def test_request_rate_not_violated_under_concurrency(tmp_path: Path):
+    delay = 0.08
+    records, _, starts = _concurrency_probe(
+        tmp_path, docs=6, document_workers=4, max_concurrent=1, rate_delay=delay
+    )
+    assert len(records) == 6
+    starts.sort()
+    gaps = [starts[i + 1] - starts[i] for i in range(len(starts) - 1)]
+    # Even with overlapping transfers, request *starts* stay spaced by the rate.
+    assert min(gaps) >= delay * 0.8
 
 
 # =====================================================================

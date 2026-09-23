@@ -19,7 +19,7 @@ from .base import BaseCollector
 from ..schemas.product import ProductRecord
 from ..schemas.manifest import DatasetManifest
 from ..config import settings
-from .web.registry import SourceRegistry, SourceConfig
+from .web.registry import SourceRegistry, SourceConfig, resolve_document_worker_counts
 from .web.policy import CrawlPolicyManager
 from .web.downloader import ResilientDownloader, DownloadResult
 from .web.acquisition import AcquisitionStore, DocumentTextCache
@@ -288,12 +288,16 @@ class AutonomousWebCollector(BaseCollector):
         if total == 0:
             return []
 
-        workers = max(1, int(document_workers or 1))
+        # download_workers = network/request concurrency (bounded by the source's
+        # request-concurrency policy); parse_workers = CPU concurrency.
+        download_workers, parse_workers = resolve_document_worker_counts(
+            document_workers, source.rate_limit
+        )
         records_by_index: Dict[int, ProductRecord] = {}
         result_lock = threading.Lock()
         counter_lock = threading.Lock()
         counters = {"downloaded": 0, "parsed": 0, "extracted": 0, "failed": 0, "bytes": 0}
-        work_queue: "queue.Queue" = queue.Queue(maxsize=max(2, workers * 2))
+        work_queue: "queue.Queue" = queue.Queue(maxsize=max(2, parse_workers * 2))
 
         def download_task(idx: int, canonical: str) -> None:
             dl: Optional[DownloadResult] = None
@@ -371,12 +375,12 @@ class AutonomousWebCollector(BaseCollector):
                 finally:
                     work_queue.task_done()
 
-        parse_threads = [threading.Thread(target=parse_worker, daemon=True) for _ in range(workers)]
+        parse_threads = [threading.Thread(target=parse_worker, daemon=True) for _ in range(parse_workers)]
         for t in parse_threads:
             t.start()
 
         start_time = time.time()
-        download_pool = ThreadPoolExecutor(max_workers=workers)
+        download_pool = ThreadPoolExecutor(max_workers=download_workers)
         futures = []
         try:
             for idx, canonical in enumerate(docs):
@@ -400,7 +404,8 @@ class AutonomousWebCollector(BaseCollector):
                         "downloaded": snap["downloaded"],
                         "extracted": snap["extracted"],
                         "failed": snap["failed"],
-                        "workers": workers,
+                        "workers": download_workers,
+                        "parseWorkers": parse_workers,
                         "docs/min": round(rate * 60, 1),
                         "avgPDF MB": round(avg_mb, 2),
                         "ETA": format_duration(eta),
