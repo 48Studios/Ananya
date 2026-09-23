@@ -317,6 +317,7 @@ describe('Specification Intelligence (component level)', () => {
       isDuplicate: false,
       duplicateWarnings: [],
       attributes: {},
+      attributeSuggestions: [],
       confidenceLevel: 'HIGH',
       isMlActive: true,
       executionTimeMs: 8,

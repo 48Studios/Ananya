@@ -291,7 +291,146 @@ def test_paged_extraction_numbers_real_pages_only():
 
 def test_extractor_version_reflects_the_new_contract(client):
     res = client.post("/v1/extract/datasheet", json={"text": "10k Ohm 0805"})
-    assert res.json()["extractor_version"] == "datasheet-extract-v2"
+    # v3 added the physical/mechanical rules (mounting, termination, plating,
+    # gender, orientation, pin count, pitch), so the contract changed.
+    assert res.json()["extractor_version"] == "datasheet-extract-v3"
+
+
+# ---------------------------------------------------------------------------
+# Physical / mechanical attributes (v3)
+# ---------------------------------------------------------------------------
+
+
+def test_mounting_type_is_classified_from_the_stated_technology(client):
+    res = client.post(
+        "/v1/extract/datasheet",
+        json={"text": "Mounting Type: Surface Mount\nPackage: 0805"},
+    )
+    mounting = res.json()["attributes"]["mounting_type"]
+    assert mounting["value"] == "SMD"
+    assert mounting["formatted"] == "SMD"
+    assert mounting["confidence_level"] == "MEDIUM"
+
+    through = client.post(
+        "/v1/extract/datasheet", json={"text": "Through-hole mounting, axial leads"}
+    ).json()["attributes"]["mounting_type"]
+    assert through["value"] == "Through Hole"
+
+    panel = client.post(
+        "/v1/extract/datasheet", json={"text": "Panel mount potentiometer"}
+    ).json()["attributes"]["mounting_type"]
+    assert panel["value"] == "Panel Mount"
+
+
+def test_mounting_type_is_not_inferred_from_a_footprint_code(client):
+    # A package code is a footprint, not a mounting technology: deriving one from
+    # the other is the caller's job, which owns the package vocabulary.
+    attrs = client.post(
+        "/v1/extract/datasheet", json={"text": "0805 10k Ohm"}
+    ).json()["attributes"]
+    assert "mounting_type" not in attrs
+
+
+def test_termination_style_prefers_the_specific_lead_form(client):
+    axial = client.post(
+        "/v1/extract/datasheet", json={"text": "Axial leaded resistor 10k"}
+    ).json()["attributes"]["termination"]
+    assert axial["value"] == "Through Hole (Axial)"
+
+    radial = client.post(
+        "/v1/extract/datasheet", json={"text": "Radial capacitor 10uF"}
+    ).json()["attributes"]["termination"]
+    assert radial["value"] == "Through Hole (Radial)"
+
+    screw = client.post(
+        "/v1/extract/datasheet", json={"text": "Screw terminal block 6 position"}
+    ).json()["attributes"]["termination"]
+    assert screw["value"] == "Screw Terminal"
+
+
+def test_contact_plating_normalises_the_stated_finish(client):
+    gold = client.post(
+        "/v1/extract/datasheet", json={"text": "Contacts: gold plated"}
+    ).json()["attributes"]["contact_plating"]
+    assert gold["value"] == "Gold"
+
+    selective = client.post(
+        "/v1/extract/datasheet", json={"text": "Selective gold contact finish"}
+    ).json()["attributes"]["contact_plating"]
+    assert selective["value"] == "Selective Gold"
+
+
+def test_gender_reads_sexed_terms_and_plug_socket_nouns(client):
+    male = client.post(
+        "/v1/extract/datasheet", json={"text": "Male header 6 pin"}
+    ).json()["attributes"]["gender"]
+    assert male["value"] == "Male"
+
+    female = client.post(
+        "/v1/extract/datasheet", json={"text": "Female socket housing"}
+    ).json()["attributes"]["gender"]
+    assert female["value"] == "Female"
+
+    # `header` alone is a layout word in datasheets and is never used on its own.
+    assert (
+        "gender"
+        not in client.post(
+            "/v1/extract/datasheet", json={"text": "Table header row 3"}
+        ).json()["attributes"]
+    )
+
+
+def test_orientation_reads_the_body_orientation(client):
+    right = client.post(
+        "/v1/extract/datasheet", json={"text": "Right angle connector"}
+    ).json()["attributes"]["orientation"]
+    assert right["value"] == "Right Angle"
+
+    vertical = client.post(
+        "/v1/extract/datasheet", json={"text": "Vertical mount terminal"}
+    ).json()["attributes"]["orientation"]
+    assert vertical["value"] == "Vertical"
+
+
+def test_pin_count_and_pitch_are_read_with_their_units(client):
+    attrs = client.post(
+        "/v1/extract/datasheet",
+        json={"text": "6 position connector, 2.50mm pitch, 3A rated"},
+    ).json()["attributes"]
+    assert attrs["pin_count"]["value"] == 6
+    assert attrs["pin_count"]["formatted"] == "6-pin"
+    assert attrs["pitch"]["value"] == 2.5
+    assert attrs["pitch"]["unit"] == "mm"
+
+
+def test_pitch_requires_a_unit(client):
+    # A bare number after `pitch` is not a pitch and must not become one.
+    attrs = client.post(
+        "/v1/extract/datasheet", json={"text": "Pitch: 3 rows of contacts"}
+    ).json()["attributes"]
+    assert "pitch" not in attrs
+
+
+def test_pin_count_outside_a_plausible_range_is_ignored(client):
+    attrs = client.post(
+        "/v1/extract/datasheet", json={"text": "2019 position statement"}
+    ).json()["attributes"]
+    assert "pin_count" not in attrs
+
+
+def test_new_attributes_do_not_disturb_the_existing_rules(client):
+    """Regression guard: the v2 vocabulary keeps extracting unchanged."""
+    attrs = client.post(
+        "/v1/extract/datasheet",
+        json={"text": "0805 SMD Resistor, 10k Ohm 1% 1/4W 50V"},
+    ).json()["attributes"]
+
+    assert attrs["resistance"]["value"] == 10000.0
+    assert attrs["tolerance"]["value"] == 1.0
+    assert attrs["package"]["value"] == "0805"
+    assert attrs["voltage"]["value"] == 50.0
+    assert attrs["power"]["unit"] == "W"
+
 
 
 def test_leading_pages_are_always_analysed(client):

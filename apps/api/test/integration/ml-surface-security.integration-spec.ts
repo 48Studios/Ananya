@@ -239,6 +239,7 @@ describe('Legacy ML surface — authorization', () => {
         isDuplicate: false,
         duplicateWarnings: [],
         attributes: {},
+        attributeSuggestions: [],
         alternativeCategories: [],
         confidenceLevel: 'MEDIUM' as const,
         isMlActive: false,

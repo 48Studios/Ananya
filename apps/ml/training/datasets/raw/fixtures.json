@@ -1,0 +1,271 @@
+[
+  {
+    "sku": "RES-0805-10K",
+    "mpn": "RC0805FR-0710KL",
+    "base_mpn": "RC0805FR",
+    "name": "10k ohm 0805 SMD Resistor 1%",
+    "description": "Chip resistor thick film 0.125W 100V 1% 0805",
+    "manufacturer": "Yageo",
+    "series_family": "RC0805",
+    "category": "Resistors",
+    "domain": "ELECTRONICS",
+    "unit": "pcs",
+    "attributes": {
+      "resistance": {
+        "code": "resistance",
+        "value": 10.0,
+        "raw_value": "10k ohm",
+        "normalized_si": 10000.0,
+        "unit": "Ω"
+      },
+      "package": {
+        "code": "package",
+        "value": "0805",
+        "raw_value": "0805"
+      },
+      "tolerance": {
+        "code": "tolerance",
+        "value": 1.0,
+        "raw_value": "1%",
+        "unit": "%"
+      }
+    },
+    "provenance": {
+      "source": "yageo_datasheet",
+      "source_type": "manufacturer_datasheet",
+      "source_url": "https://www.yageo.com/en/Product/Download/Product/datasheet/r-chip/PYu-RC_Group_51_RoHS_L_12.pdf",
+      "collected_at": "2026-09-23T00:00:00Z",
+      "verification_status": "VERIFIED",
+      "verification_method": "datasheet_checksum"
+    }
+  },
+  {
+    "sku": "CAP-0603-100N",
+    "mpn": "GRM188R71C104KA01D",
+    "base_mpn": "GRM188R71C104K",
+    "name": "0.1uF 16V X7R 0603 Ceramic Capacitor",
+    "description": "Capacitor ceramic multilayer 100nF 16V 10% 0603",
+    "manufacturer": "Murata Manufacturing",
+    "series_family": "GRM188",
+    "category": "Capacitors",
+    "domain": "ELECTRONICS",
+    "unit": "pcs",
+    "attributes": {
+      "capacitance": {
+        "code": "capacitance",
+        "value": 0.1,
+        "raw_value": "0.1uF",
+        "normalized_si": 1e-07,
+        "unit": "µF"
+      },
+      "voltage": {
+        "code": "voltage",
+        "value": 16.0,
+        "raw_value": "16V",
+        "normalized_si": 16.0,
+        "unit": "V"
+      },
+      "dielectric": {
+        "code": "dielectric",
+        "value": "X7R",
+        "raw_value": "X7R"
+      }
+    },
+    "provenance": {
+      "source": "murata_catalog",
+      "source_type": "manufacturer_catalog",
+      "collected_at": "2026-09-23T00:00:00Z",
+      "verification_status": "VERIFIED",
+      "verification_method": "catalog_cross_check"
+    }
+  },
+  {
+    "sku": "FAST-M3-8-SHCS",
+    "mpn": "91292A111",
+    "base_mpn": "91292A",
+    "name": "M3 x 8mm Socket Head Cap Screw Stainless Steel",
+    "description": "Metric class A2 stainless steel hex drive socket head cap screw 0.5mm pitch",
+    "manufacturer": "McMaster-Carr",
+    "series_family": "SHCS-M3",
+    "category": "Fasteners",
+    "domain": "FASTENERS",
+    "unit": "pcs",
+    "attributes": {
+      "thread_size": {
+        "code": "thread_size",
+        "value": "M3",
+        "raw_value": "M3"
+      },
+      "length": {
+        "code": "length",
+        "value": 8.0,
+        "raw_value": "8mm",
+        "normalized_si": 0.008,
+        "unit": "mm"
+      },
+      "material": {
+        "code": "material",
+        "value": "316 Stainless Steel",
+        "raw_value": "316 Stainless Steel"
+      }
+    },
+    "provenance": {
+      "source": "mcmaster_carr_catalog",
+      "source_type": "distributor_catalog",
+      "source_url": "https://www.mcmaster.com/91292A111",
+      "collected_at": "2026-09-23T00:00:00Z",
+      "verification_status": "VERIFIED",
+      "verification_method": "catalog_import"
+    }
+  },
+  {
+    "sku": "MAT-FIL-PLA-BLK",
+    "mpn": "PLA-175-BLK-1KG",
+    "base_mpn": "PLA-175",
+    "name": "1.75mm Black PLA 3D Printer Filament 1kg",
+    "description": "Polylactic acid 3D printing filament 1.75mm +/- 0.02mm spool 1kg",
+    "manufacturer": "Generic",
+    "series_family": "PLA-175",
+    "category": "3D Printing Materials",
+    "domain": "3D_PRINTING_MATERIALS",
+    "unit": "roll",
+    "attributes": {
+      "filament_diameter": {
+        "code": "filament_diameter",
+        "value": 1.75,
+        "raw_value": "1.75mm",
+        "normalized_si": 0.00175,
+        "unit": "mm"
+      },
+      "weight": {
+        "code": "weight",
+        "value": 1.0,
+        "raw_value": "1kg",
+        "normalized_si": 1.0,
+        "unit": "kg"
+      },
+      "color": {
+        "code": "color",
+        "value": "Black",
+        "raw_value": "Black"
+      }
+    },
+    "provenance": {
+      "source": "ananya_inventory",
+      "source_type": "ananya_db_snapshot",
+      "collected_at": "2026-09-23T00:00:00Z",
+      "verification_status": "VERIFIED",
+      "verification_method": "inventory_record"
+    }
+  },
+  {
+    "sku": "CON-FLUX-PEN-10ML",
+    "mpn": "CW8100",
+    "base_mpn": "CW8100",
+    "name": "CircuitWorks No-Clean Flux Dispensing Pen 9g",
+    "description": "Precision dispensing pen applying no-clean rosin flux for electronics rework",
+    "manufacturer": "Chemtronics",
+    "series_family": "CW8100",
+    "category": "Consumables",
+    "domain": "CONSUMABLES",
+    "unit": "pcs",
+    "attributes": {
+      "volume": {
+        "code": "volume",
+        "value": 9.0,
+        "raw_value": "9g / 10ml",
+        "unit": "ml"
+      }
+    },
+    "provenance": {
+      "source": "chemtronics_datasheet",
+      "source_type": "manufacturer_datasheet",
+      "collected_at": "2026-09-23T00:00:00Z",
+      "verification_status": "VERIFIED",
+      "verification_method": "datasheet_checksum"
+    }
+  },
+  {
+    "sku": "TOOL-DMM-RMS",
+    "mpn": "FLUKE-117",
+    "base_mpn": "FLUKE-117",
+    "name": "Fluke 117 Electrician's True RMS Multimeter",
+    "description": "Compact True-RMS digital multimeter with non-contact voltage detection",
+    "manufacturer": "Fluke",
+    "series_family": "FLUKE-110",
+    "category": "Tools",
+    "domain": "TOOLS",
+    "unit": "pcs",
+    "attributes": {},
+    "provenance": {
+      "source": "fluke_catalog",
+      "source_type": "manufacturer_catalog",
+      "collected_at": "2026-09-23T00:00:00Z",
+      "verification_status": "VERIFIED",
+      "verification_method": "catalog_import"
+    }
+  },
+  {
+    "sku": "ELEC-RELAY-12V-10A",
+    "mpn": "G5LE-1-DC12",
+    "base_mpn": "G5LE-1",
+    "name": "SPDT 12VDC PCB Power Relay 10A 250VAC",
+    "description": "Subminiature sugar-cube power relay coil voltage 12VDC contact rating 10A",
+    "manufacturer": "Omron",
+    "series_family": "G5LE",
+    "category": "Switches",
+    "domain": "ELECTRICAL",
+    "unit": "pcs",
+    "attributes": {
+      "voltage": {
+        "code": "voltage",
+        "value": 12.0,
+        "raw_value": "12V",
+        "normalized_si": 12.0,
+        "unit": "V"
+      }
+    },
+    "provenance": {
+      "source": "omron_datasheet",
+      "source_type": "manufacturer_datasheet",
+      "collected_at": "2026-09-23T00:00:00Z",
+      "verification_status": "VERIFIED",
+      "verification_method": "datasheet_checksum"
+    }
+  },
+  {
+    "sku": "MECH-BEAR-608ZZ",
+    "mpn": "608-2Z",
+    "base_mpn": "608",
+    "name": "Deep Groove Ball Bearing 8x22x7mm Double Shielded",
+    "description": "Miniature radial ball bearing 8mm bore 22mm OD 7mm width chrome steel",
+    "manufacturer": "SKF",
+    "series_family": "608",
+    "category": "Mechanical Parts",
+    "domain": "MECHANICAL",
+    "unit": "pcs",
+    "attributes": {
+      "diameter": {
+        "code": "diameter",
+        "value": 22.0,
+        "raw_value": "22mm",
+        "normalized_si": 0.022,
+        "unit": "mm"
+      },
+      "width": {
+        "code": "width",
+        "value": 7.0,
+        "raw_value": "7mm",
+        "normalized_si": 0.007,
+        "unit": "mm"
+      }
+    },
+    "provenance": {
+      "source": "skf_catalog",
+      "source_type": "manufacturer_catalog",
+      "collected_at": "2026-09-23T00:00:00Z",
+      "verification_status": "VERIFIED",
+      "verification_method": "catalog_import"
+    }
+  }
+]

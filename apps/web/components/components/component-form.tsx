@@ -6,6 +6,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Check, Loader2, Sliders, Sparkles, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { mlApi, type ComponentSuggestionResponseDto } from "@/lib/api/ml-api";
+import type { AttributeSuggestionDto } from "@/lib/api/ml-api";
+import {
+  attributeValuePatch,
+} from "@/lib/attribute-suggestions";
+import { AttributeSuggestionsPanel } from "./attribute-suggestions-panel";
 import { AiSuggestionReviewCard } from "./ai-suggestion-review-card";
 import { Button } from "@/components/ui/button";
 import {
@@ -95,8 +100,16 @@ interface UnresolvedSuggestedAttribute {
   unit?: string | null;
 }
 
-const COMPATIBLE_UNITS: Record<string, string[]> = {
-  Resistance: ["ohm", "kohm", "Mohm"],
+/**
+ * How long a category change waits before re-running the intelligence.
+ *
+ * Long enough that stepping through a category list produces one analysis
+ * rather than one per intermediate choice, short enough that the reviewer does
+ * not wonder whether the click registered.
+ */
+const CATEGORY_INTELLIGENCE_DEBOUNCE_MS = 400;
+
+const COMPATIBLE_UNITS: Record<string, string[]> = {  Resistance: ["ohm", "kohm", "Mohm"],
   Capacitance: ["uF", "nF", "pF", "F"],
   Voltage: ["V", "mV", "kV"],
   Power: ["W", "mW", "kW"],
@@ -171,6 +184,34 @@ export function ComponentForm({
   >([]);
   const [unresolvedSuggestedAttributes, setUnresolvedSuggestedAttributes] =
     React.useState<Record<string, UnresolvedSuggestedAttribute>>({});
+  /**
+   * The attribute suggestions the last intelligence call returned.
+   *
+   * Held separately from the whole suggestion so re-conditioning on a category
+   * change can refresh them without discarding the reviewer's identity and
+   * classification work, which a category change has no bearing on.
+   */
+  const [attributeSuggestions, setAttributeSuggestions] = React.useState<
+    AttributeSuggestionDto[]
+  >([]);
+  const [loadingAttributeSuggestions, setLoadingAttributeSuggestions] =
+    React.useState(false);
+  const [attributeIntelligenceUnavailable, setAttributeIntelligenceUnavailable] =
+    React.useState(false);
+  const [appliedSuggestionIds, setAppliedSuggestionIds] = React.useState<
+    ReadonlySet<string>
+  >(new Set());
+  /**
+   * Which intelligence request is the current one.
+   *
+   * A category change re-runs the analysis, and two requests in flight can
+   * settle out of order: the older one must not overwrite the newer one's
+   * suggestions. Each request takes the next generation number and only the
+   * newest may write state.
+   */
+  const intelligenceRequestRef = React.useRef(0);
+  /** The category the current suggestions were conditioned on. */
+  const suggestionsCategoryRef = React.useRef<string | null>(null);
 
   const {
     register,
@@ -195,6 +236,18 @@ export function ComponentForm({
   });
 
   const selectedCategoryId = useWatch({ control, name: "categoryId" });
+  /**
+   * The definition ids the form can render.
+   *
+   * Passed to the panel so an accepted suggestion always resolves to an
+   * attribute definition that still exists: one deleted between the analysis
+   * and the click is reported instead of being written into a row the editor
+   * cannot draw.
+   */
+  const definitionIds = React.useMemo(
+    () => new Set(attributeDefinitions.map((definition) => definition.id)),
+    [attributeDefinitions],
+  );
   const visibleAttributes = React.useMemo<VisibleAttribute[]>(() => {
     const byIdentity = new Map<string, VisibleAttribute>();
 
@@ -415,6 +468,32 @@ export function ComponentForm({
     };
   }, [selectedCategoryId]);
 
+  /**
+   * Re-conditions the attribute intelligence on a changed category.
+   *
+   * The category decides which attributes matter, so selecting a different one
+   * has to re-run the analysis — deliberately opposite to deleting anything: the
+   * component's own attribute values are never touched here, and an attribute
+   * that is no longer relevant simply stops being suggested.
+   *
+   * Debounced, because a reviewer clicking through the category list should not
+   * fire one analysis per intermediate choice, and skipped when the suggestions
+   * are already conditioned on this category (a re-render is not a change).
+   */
+  React.useEffect(() => {
+    if (!suggestion) return;
+    if (selectedCategoryId === suggestionsCategoryRef.current) return;
+
+    const timer = setTimeout(() => {
+      void handleFetchAiSuggestions();
+    }, CATEGORY_INTELLIGENCE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+    // `handleFetchAiSuggestions` is intentionally not a dependency: it closes
+    // over the current form values, and depending on it would re-run this effect
+    // on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategoryId]);
+
   const handleAttrChange = (code: string, field: string, val: unknown) => {
     setAttrValues((prev) => ({
       ...prev,
@@ -536,7 +615,11 @@ export function ComponentForm({
     const q = overrideQuery || datasheetInput || watch("manufacturerPartNumber") || watch("name");
     if (!q || q.trim().length === 0) return;
 
+    const generation = intelligenceRequestRef.current + 1;
+    intelligenceRequestRef.current = generation;
     setLoadingAi(true);
+    setLoadingAttributeSuggestions(true);
+    setAttributeIntelligenceUnavailable(false);
     setServerError(null);
     try {
       const res = await mlApi.suggest({
@@ -547,8 +630,20 @@ export function ComponentForm({
         // Editing an existing record: the component must not be compared with
         // itself, or it is reported as its own duplicate.
         componentId: initialData?.id,
+        // The category the reviewer is looking at conditions the attribute
+        // relevance, so a hand-picked category drives the suggestions even
+        // before the record is saved with it.
+        categoryId: selectedCategoryId ?? undefined,
       });
+      // A newer request has already been made: this answer describes an earlier
+      // category and must not overwrite the state the reviewer is looking at.
+      if (intelligenceRequestRef.current !== generation) return;
+
+      suggestionsCategoryRef.current = selectedCategoryId ?? null;
       setSuggestion(res);
+      setAttributeSuggestions(res.attributeSuggestions ?? []);
+      // The applied markers belong to the analysis that produced them.
+      setAppliedSuggestionIds(new Set());
       setUnresolvedSuggestedAttributes(
         Object.fromEntries(
           Object.entries(res.attributes)
@@ -570,8 +665,132 @@ export function ComponentForm({
       applyEntitySuggestions(res);
     } catch (err: unknown) {
       console.warn("AI suggestion fetch failed:", err);
+      if (intelligenceRequestRef.current === generation) {
+        // The form stays fully usable: only the attribute section reports that
+        // the intelligence is unavailable.
+        setAttributeIntelligenceUnavailable(true);
+        setAttributeSuggestions([]);
+      }
     } finally {
-      setLoadingAi(false);
+      if (intelligenceRequestRef.current === generation) {
+        setLoadingAi(false);
+        setLoadingAttributeSuggestions(false);
+      }
+    }
+  };
+
+  /**
+   * Writes an accepted attribute suggestion into the dynamic attribute state.
+   *
+   * This is the same state the manual editor writes, so an accepted value is
+   * indistinguishable from a typed one from here on and the normal Save flow
+   * persists both. Nothing is written for a suggestion with no canonical value,
+   * and an existing recorded value is never replaced unless the reviewer chose
+   * to apply it.
+   */
+  const applyAttributeSuggestion = (suggestion: AttributeSuggestionDto) => {
+    const patch = attributeValuePatch(suggestion);
+    if (!patch) return;
+    setAttrValues((prev) => ({
+      ...prev,
+      [suggestion.code]: { ...prev[suggestion.code], ...patch },
+    }));
+    setAppliedSuggestionIds((prev) => {
+      const next = new Set(prev);
+      next.add(suggestion.attributeDefinitionId);
+      return next;
+    });
+    void recordAttributeSuggestionFeedback(suggestion, "ACCEPTED", patch.value);
+  };
+
+  const applyAttributeSuggestions = (
+    suggestions: AttributeSuggestionDto[],
+  ) => {
+    for (const suggestion of suggestions) {
+      applyAttributeSuggestion(suggestion);
+    }
+  };
+
+  /**
+   * Opens a suggestion in the existing attribute editor.
+   *
+   * "Edit" means the reviewer wants the attribute in front of them, so the row
+   * is written into the attribute state (making it render in the editor below)
+   * and the field is focused there. No second editor is introduced.
+   */
+  const editAttributeSuggestion = (suggestion: AttributeSuggestionDto) => {
+    const patch = attributeValuePatch(suggestion);
+    if (patch) {
+      setAttrValues((prev) => ({
+        ...prev,
+        [suggestion.code]: { ...prev[suggestion.code], ...patch },
+      }));
+    }
+    // The editor row for an attribute the component does not record yet is
+    // rendered as a *result* of the state write above, so the field is looked up
+    // on the next frame: focusing synchronously would find nothing for exactly
+    // the suggestions the reviewer most needs to see (attributes discovered from
+    // evidence rather than bound to the category).
+    const focusEditorField = () => {
+      const field = document.getElementById(`attr-${suggestion.code}`);
+      if (field instanceof HTMLElement) {
+        field.scrollIntoView({ block: "center", behavior: "smooth" });
+        field.focus({ preventScroll: true });
+      }
+    };
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(focusEditorField);
+    } else {
+      focusEditorField();
+    }
+  };
+
+  /**
+   * Rejects a suggestion for this session only.
+   *
+   * Nothing outside the form is touched: no attribute definition, no category
+   * binding and no component attribute is changed by a rejection.
+   */
+  const rejectAttributeSuggestion = (suggestion: AttributeSuggestionDto) => {
+    void recordAttributeSuggestionFeedback(suggestion, "REJECTED", null);
+  };
+
+  /**
+   * Records the reviewer's decision as attribute telemetry.
+   *
+   * Reuses the existing feedback endpoint and the `ATTRIBUTE` vocabulary; a
+   * failure is swallowed because telemetry must never block the form.
+   *
+   * `Edit` deliberately records nothing: it hands the value to the attribute
+   * editor, where the reviewer's own input becomes the component's data through
+   * the normal Save. Recording an edit here would be claiming a correction that
+   * may not have happened.
+   */
+  const recordAttributeSuggestionFeedback = async (
+    suggestion: AttributeSuggestionDto,
+    userAction: "ACCEPTED" | "REJECTED",
+    finalValue: unknown,
+  ) => {
+    const confidence = suggestion.confidence;
+    if (confidence === null) return;
+    try {
+      await mlApi.recordFeedback({
+        componentId: initialData?.id,
+        items: [
+          {
+            suggestionType: "ATTRIBUTE",
+            field: `attribute_suggestions.${suggestion.code}`,
+            predictedValue: suggestion.suggestedValue?.value ?? null,
+            confidence,
+            confidenceLevel: suggestion.confidenceLevel ?? undefined,
+            evidence: [...suggestion.relevance, ...suggestion.valueEvidence],
+            userAction,
+            finalValue,
+          },
+        ],
+      });
+    } catch {
+      // Telemetry is best-effort by design.
     }
   };
 
@@ -963,9 +1182,32 @@ export function ComponentForm({
           />
         )}
 
+        {/*
+          AI Attribute Suggestions sit with the intelligence card rather than in
+          a surface of their own: they are the same analysis, reported one level
+          deeper, and a reviewer should read "here is the part, and here is what
+          matters about it" as one story.
+        */}
+        {(suggestion ||
+          attributeSuggestions.length > 0 ||
+          loadingAttributeSuggestions ||
+          attributeIntelligenceUnavailable) && (
+          <AttributeSuggestionsPanel
+            suggestions={attributeSuggestions}
+            loading={loadingAttributeSuggestions}
+            unavailable={attributeIntelligenceUnavailable}
+            hasCategory={Boolean(selectedCategoryId)}
+            definitionIds={definitionIds}
+            appliedDefinitionIds={appliedSuggestionIds}
+            onApply={applyAttributeSuggestion}
+            onEdit={editAttributeSuggestion}
+            onReject={rejectAttributeSuggestion}
+            onAcceptAll={applyAttributeSuggestions}
+          />
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
-          {/* SKU */}
-          <Field>
+          {/* SKU */}          <Field>
             <FieldLabel htmlFor="component-sku">
               Internal SKU
             </FieldLabel>

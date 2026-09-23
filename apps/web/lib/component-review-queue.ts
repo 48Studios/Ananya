@@ -142,6 +142,19 @@ const EVIDENCE_TYPE_LABELS: Record<string, string> = {
   category_text: "Category text",
   category_knowledge: "Category knowledge",
   human_confirmation: "Human confirmation",
+  // Attribute relevance sources. Named here rather than at each call site so the
+  // suggestion panel and the review queue describe one source identically.
+  "category:binding": "Category binding",
+  "category:inherited-binding": "Inherited category binding",
+  "datapack:expected_attributes": "Data Pack expectation",
+  "text:mention": "Mention in the supplied text",
+  "text:option_mention": "Option named in the supplied text",
+  "extractor:component-attribute": "Datasheet extraction",
+  "package:mounting_classification": "Package pattern",
+  "component:attribute_value": "Value already recorded",
+  "ml:disagreement": "Conflicting model reading",
+  "domain:electronics_standard": "Engineering domain knowledge",
+  "canonical:option_mapping": "Canonical option mapping",
 };
 
 const ACRONYMS = new Set(["MPN", "SKU", "ID", "URL", "ERP", "JSON", "UOM"]);
@@ -153,10 +166,12 @@ export function evidenceTypeLabel(type: string | undefined | null): string {
   return humanizeKey(type);
 }
 
-/** `manufacturerPartNumber` → `Manufacturer Part Number`. */
+/** `manufacturerPartNumber` → `Manufacturer Part Number`; `new:source` → `New Source`. */
 export function humanizeKey(key: string): string {
   const spaced = key
-    .replace(/[_-]+/g, " ")
+    // A namespaced key (`category:binding`, `ml:disagreement`) is two words, so
+    // an unknown source degrades to something readable rather than one token.
+    .replace(/[:_-]+/g, " ")
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/\s+/g, " ")
     .trim();

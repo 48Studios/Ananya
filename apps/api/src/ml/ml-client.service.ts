@@ -53,6 +53,22 @@ export interface MlExtractedAttribute {
   evidence?: MlEvidenceItem[];
 }
 
+/** One suggestion as emitted by the ML service's component-attribute endpoint. */
+export interface MlComponentAttributeSuggestion {
+  attributeDefinitionId?: string | null;
+  code: string;
+  name: string;
+  dataType?: string | null;
+  relevance: MlEvidenceItem[];
+  /** An option code of the definition, or null when the library cannot name it. */
+  suggestedValue?: string | null;
+  unit?: string | null;
+  formatted?: string | null;
+  confidence?: number | null;
+  confidenceLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  valueEvidence: MlEvidenceItem[];
+}
+
 /** Versioned payload returned by `POST /v1/extract/datasheet`. */
 export interface MlDatasheetExtractionResponse {
   attributes: Record<string, MlExtractedAttribute>;
@@ -318,6 +334,14 @@ export class MlClientService {
     part_number?: string;
     description?: string;
     datasheet_text?: string;
+    /**
+     * The datasheet as PDF bytes, base64-encoded.
+     *
+     * The ML service reads it and uses the text it extracts for classification,
+     * manufacturer resolution and attribute extraction alike, so a caller that
+     * only has the file does not have to extract it first.
+     */
+    datasheet_pdf_base64?: string;
     existing_components?: Array<{
       id: string;
       sku: string;
@@ -469,6 +493,68 @@ export class MlClientService {
     } catch (err: unknown) {
       const errMsg = formatFetchError(err);
       this.logger.warn(`Suggest attribute bindings failed: ${errMsg}`);
+      return null;
+    }
+  }
+
+  /**
+   * Relevant specifications of one component, in the library's own vocabulary.
+   *
+   * Returns `null` when the service is disabled or the call fails: attribute
+   * relevance is an addition to the suggestion, never a blocker for it.
+   */
+  async suggestComponentAttributes(payload: {
+    query: string;
+    partNumber?: string;
+    description?: string;
+    datasheetText?: string;
+    categories: Array<{
+      categoryId: string;
+      categoryCode?: string | null;
+      categoryName: string;
+      confidence: number;
+    }>;
+    attributes: Array<{
+      id: string;
+      code: string;
+      name: string;
+      dataType: string;
+      unitCategory?: string | null;
+      defaultUnit?: string | null;
+      groupName?: string | null;
+      aliases: string[];
+      options: Array<{ code: string; label: string }>;
+    }>;
+    boundAttributeIds?: string[];
+    boundAttributeCodes?: string[];
+    existingValues?: Record<string, string>;
+    extractedAttributes?: Record<string, unknown>;
+    datapack_hints?: unknown[];
+  }): Promise<MlComponentAttributeSuggestion[] | null> {
+    if (!this.isEnabled) return null;
+    try {
+      const res = await fetch(
+        `${this.baseUrl}/v1/attributes/suggest-component-attributes`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(this.timeoutMs),
+        },
+      );
+      if (!res.ok) {
+        this.logger.warn(
+          `Suggest component attributes returned HTTP status ${res.status}`,
+        );
+        return null;
+      }
+      const data = (await res.json()) as {
+        suggestions?: MlComponentAttributeSuggestion[];
+      };
+      return data.suggestions ?? null;
+    } catch (err: unknown) {
+      const errMsg = formatFetchError(err);
+      this.logger.warn(`Suggest component attributes failed: ${errMsg}`);
       return null;
     }
   }

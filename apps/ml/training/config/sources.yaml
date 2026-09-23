@@ -1,0 +1,903 @@
+# ==============================================================================
+# Ananya ML — Declarative Source Registry (`sources.yaml`)
+#
+# Production-isolated, policy-compliant source registry for automated public
+# data collection across generalized ERP product intelligence domains.
+#
+# Groups:
+# 1. General product catalogs
+# 2. Manufacturers
+# 3. Distributors
+# 4. Tools
+# 5. Mechanical
+# 6. Electrical
+# 7. Electronics
+# 8. 3D printing
+# 9. Industrial
+# 10. Raw materials
+# 11. Packaging
+#
+# Constraints & Guidelines:
+# - All sources MUST have strict domain boundaries (no uncontrolled crawling).
+# - Strict robots.txt compliance and per-domain rate limiting are enforced.
+# - Do not bypass CAPTCHAs, paywalls, or authentication barriers.
+# ==============================================================================
+
+sources:
+
+  # ----------------------------------------------------------------------------
+  # 1. GENERAL PRODUCT CATALOGS
+  # ----------------------------------------------------------------------------
+  - id: openbuilds-catalog
+    name: OpenBuilds Modular Systems & Hardware
+    group: general_product_catalogs
+    type: catalog
+    source_quality: distributor
+    enabled: true
+    domains:
+      - openbuilds.com
+      - openbuildspartstore.com
+    start_urls:
+      - https://openbuildspartstore.com/sitemap.xml
+      - https://openbuildspartstore.com/linear-rails/
+    discovery:
+      - sitemap
+      - product_pages
+    rate_limit:
+      requests_per_second: 1.0
+      delay_seconds: 1.0
+      max_concurrent: 1
+    max_file_size_mb: 15.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+      - application/json
+    max_depth: 3
+    max_pages: 300
+    max_files: 100
+    default_domain: mechanical
+
+  - id: oshwa-hardware-registry
+    name: Open Source Hardware Association Registry
+    group: general_product_catalogs
+    type: public_dataset
+    source_quality: public_dataset
+    enabled: true
+    domains:
+      - certification.oshwa.org
+    start_urls:
+      - https://certification.oshwa.org/api/projects.json
+      - https://certification.oshwa.org/list.html
+    discovery:
+      - catalog
+      - product_pages
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 20.0
+    allowed_content_types:
+      - text/html
+      - application/json
+    max_depth: 2
+    max_pages: 200
+    max_files: 50
+    default_domain: electronics
+
+  # ----------------------------------------------------------------------------
+  # 2. MANUFACTURERS
+  # ----------------------------------------------------------------------------
+  - id: wuerth-elektronik
+    name: Würth Elektronik Component Catalog
+    group: manufacturers
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - we-online.com
+      - www.we-online.com
+    start_urls:
+      - https://www.we-online.com/sitemap.xml
+      - https://www.we-online.com/en/components/products
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 25.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 500
+    max_files: 250
+    default_domain: electronics
+
+  - id: phoenix-contact
+    name: Phoenix Contact Industrial Connectivity
+    group: manufacturers
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - phoenixcontact.com
+      - www.phoenixcontact.com
+    start_urls:
+      - https://www.phoenixcontact.com/sitemap.xml
+      - https://www.phoenixcontact.com/en-us/products
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 20.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 400
+    max_files: 200
+    default_domain: electrical
+
+  - id: bosch-rexroth
+    name: Bosch Rexroth Linear Motion & Automation
+    group: manufacturers
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: false
+    domains:
+      - boschrexroth.com
+      - www.boschrexroth.com
+    start_urls:
+      - https://www.boschrexroth.com/en/us/products/product-groups/linear-motion-technology/
+    discovery:
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 25.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 2
+    max_pages: 200
+    max_files: 100
+    default_domain: mechanical
+
+  # ----------------------------------------------------------------------------
+  # 3. DISTRIBUTORS
+  # ----------------------------------------------------------------------------
+  - id: adafruit-industries
+    name: Adafruit Industries Electronics & Components
+    group: distributors
+    type: distributor
+    source_quality: distributor
+    enabled: true
+    domains:
+      - adafruit.com
+      - www.adafruit.com
+    start_urls:
+      - https://www.adafruit.com/sitemap.xml
+      - https://www.adafruit.com/category/168
+    discovery:
+      - sitemap
+      - product_pages
+    rate_limit:
+      requests_per_second: 1.0
+      delay_seconds: 1.0
+      max_concurrent: 1
+    max_file_size_mb: 10.0
+    allowed_content_types:
+      - text/html
+      - application/json
+    max_depth: 3
+    max_pages: 500
+    max_files: 100
+    default_domain: electronics
+
+  - id: sparkfun-electronics
+    name: SparkFun Electronics Open Source Hardware
+    group: distributors
+    type: distributor
+    source_quality: distributor
+    enabled: true
+    domains:
+      - sparkfun.com
+      - www.sparkfun.com
+    start_urls:
+      - https://www.sparkfun.com/sitemap.xml
+      - https://www.sparkfun.com/categories/all
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 1.0
+      delay_seconds: 1.0
+      max_concurrent: 1
+    max_file_size_mb: 15.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 500
+    max_files: 150
+    default_domain: electronics
+
+  - id: pololu-robotics
+    name: Pololu Robotics & Motion Components
+    group: distributors
+    type: distributor
+    source_quality: distributor
+    enabled: true
+    domains:
+      - pololu.com
+      - www.pololu.com
+    start_urls:
+      - https://www.pololu.com/sitemap.xml
+      - https://www.pololu.com/category/9/motion-control-hardware
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 1.0
+      delay_seconds: 1.0
+      max_concurrent: 1
+    max_file_size_mb: 15.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 400
+    max_files: 100
+    default_domain: mechanical
+
+  # ----------------------------------------------------------------------------
+  # 4. TOOLS
+  # ----------------------------------------------------------------------------
+  - id: knipex-tools
+    name: KNIPEX Industrial Pliers & Hand Tools
+    group: tools
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - knipex.com
+      - www.knipex.com
+    start_urls:
+      - https://www.knipex.com/sitemap.xml
+      - https://www.knipex.com/en-us/products
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 15.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 400
+    max_files: 100
+    default_domain: tools
+
+  - id: wiha-tools
+    name: Wiha Quality Tools & Precision Drivers
+    group: tools
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - wihatools.com
+      - www.wihatools.com
+    start_urls:
+      - https://www.wihatools.com/sitemap.xml
+      - https://www.wihatools.com/collections/screwdrivers
+    discovery:
+      - sitemap
+      - product_pages
+    rate_limit:
+      requests_per_second: 1.0
+      delay_seconds: 1.0
+      max_concurrent: 1
+    max_file_size_mb: 10.0
+    allowed_content_types:
+      - text/html
+    max_depth: 3
+    max_pages: 350
+    max_files: 50
+    default_domain: tools
+
+  - id: wera-tools
+    name: Wera Screwdriving & Torque Tools
+    group: tools
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: false
+    domains:
+      - products.wera.de
+      - wera.de
+    start_urls:
+      - https://products.wera.de/en/
+    discovery:
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 15.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 2
+    max_pages: 200
+    max_files: 50
+    default_domain: tools
+
+  # ----------------------------------------------------------------------------
+  # 5. MECHANICAL & FASTENERS
+  # ----------------------------------------------------------------------------
+  - id: misumi-mechanical
+    name: Misumi Factory Automation & Mechanical Standards
+    group: mechanical
+    type: distributor
+    source_quality: distributor
+    enabled: true
+    domains:
+      - misumi-ec.com
+      - us.misumi-ec.com
+    start_urls:
+      - https://us.misumi-ec.com/vona2/mech/
+    discovery:
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 20.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 400
+    max_files: 150
+    default_domain: mechanical
+
+  - id: skf-bearing-engineering
+    name: SKF Rolling Bearings & Power Transmission
+    group: mechanical
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - skf.com
+      - www.skf.com
+    start_urls:
+      - https://www.skf.com/sitemap.xml
+      - https://www.skf.com/us/products/rolling-bearings
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 25.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 350
+    max_files: 150
+    default_domain: mechanical
+
+  - id: sdp-si-precision-motion
+    name: Stock Drive Products / Sterling Instrument Precision Motion
+    group: mechanical
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - sdp-si.com
+      - www.sdp-si.com
+    start_urls:
+      - https://www.sdp-si.com/sitemap.xml
+      - https://www.sdp-si.com/products/gears.php
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 20.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 300
+    max_files: 100
+    default_domain: mechanical
+
+  - id: bolt-depot-fasteners
+    name: Bolt Depot Standard Fasteners & Sizing Charts
+    group: mechanical
+    type: distributor
+    source_quality: distributor
+    enabled: true
+    domains:
+      - boltdepot.com
+      - www.boltdepot.com
+    start_urls:
+      - https://www.boltdepot.com/sitemap.xml
+      - https://www.boltdepot.com/Machine_screws.aspx
+    discovery:
+      - sitemap
+      - product_pages
+    rate_limit:
+      requests_per_second: 1.0
+      delay_seconds: 1.0
+      max_concurrent: 1
+    max_file_size_mb: 10.0
+    allowed_content_types:
+      - text/html
+    max_depth: 3
+    max_pages: 500
+    max_files: 100
+    default_domain: fasteners
+
+  # ----------------------------------------------------------------------------
+  # 6. ELECTRICAL
+  # ----------------------------------------------------------------------------
+  - id: wago-connection
+    name: WAGO Electrical Connection & Automation
+    group: electrical
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - wago.com
+      - www.wago.com
+    start_urls:
+      - https://www.wago.com/sitemap.xml
+      - https://www.wago.com/us/rail-mount-terminal-blocks
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 20.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 400
+    max_files: 150
+    default_domain: electrical
+
+  - id: weidmueller-connectivity
+    name: Weidmüller Industrial Electrical Connectivity
+    group: electrical
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - weidmueller.com
+      - www.weidmueller.com
+    start_urls:
+      - https://www.weidmueller.com/sitemap.xml
+      - https://www.weidmueller.com/en/products/
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 20.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 350
+    max_files: 100
+    default_domain: electrical
+
+  - id: schneider-electric-public
+    name: Schneider Electric Public Electrical Products
+    group: electrical
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: false
+    domains:
+      - se.com
+      - www.se.com
+    start_urls:
+      - https://www.se.com/us/en/product-subcategory/1500-circuit-breakers/
+    discovery:
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 25.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 2
+    max_pages: 200
+    max_files: 80
+    default_domain: electrical
+
+  # ----------------------------------------------------------------------------
+  # 7. ELECTRONICS
+  # ----------------------------------------------------------------------------
+  - id: microchip-embedded
+    name: Microchip Technology Microcontrollers & Analog
+    group: electronics
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - microchip.com
+      - www.microchip.com
+    start_urls:
+      - https://www.microchip.com/sitemap.xml
+      - https://www.microchip.com/en-us/products/microcontrollers-and-microprocessors
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 25.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 500
+    max_files: 200
+    default_domain: electronics
+
+  - id: stmicroelectronics-public
+    name: STMicroelectronics Semiconductors & Sensors
+    group: electronics
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - st.com
+      - www.st.com
+    start_urls:
+      - https://www.st.com/sitemap.xml
+      - https://www.st.com/en/microcontrollers-microprocessors.html
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 25.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 500
+    max_files: 200
+    default_domain: electronics
+
+  - id: espressif-systems
+    name: Espressif Wireless Microcontrollers & Modules
+    group: electronics
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - espressif.com
+      - www.espressif.com
+    start_urls:
+      - https://www.espressif.com/sitemap.xml
+      - https://www.espressif.com/en/products/socs
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 20.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 350
+    max_files: 100
+    default_domain: electronics
+
+  # ----------------------------------------------------------------------------
+  # 8. 3D PRINTING MATERIALS & HARDWARE
+  # ----------------------------------------------------------------------------
+  - id: prusa-materials-table
+    name: Prusa Research Materials & Filaments Database
+    group: 3d_printing
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - prusa3d.com
+      - www.prusa3d.com
+    start_urls:
+      - https://www.prusa3d.com/sitemap.xml
+      - https://www.prusa3d.com/category/filament/
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 1.0
+      delay_seconds: 1.0
+      max_concurrent: 1
+    max_file_size_mb: 15.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 300
+    max_files: 100
+    default_domain: 3d_printing_materials
+
+  - id: polymaker-filaments
+    name: Polymaker Engineering 3D Printing Polymers
+    group: 3d_printing
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - polymaker.com
+      - us.polymaker.com
+    start_urls:
+      - https://us.polymaker.com/sitemap.xml
+      - https://us.polymaker.com/collections/all-filaments
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 1.0
+      delay_seconds: 1.0
+      max_concurrent: 1
+    max_file_size_mb: 15.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 300
+    max_files: 80
+    default_domain: 3d_printing_materials
+
+  - id: e3d-online-hardware
+    name: E3D-Online Open Extrusion & Motion Hardware
+    group: 3d_printing
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - e3d-online.com
+    start_urls:
+      - https://e3d-online.com/sitemap.xml
+      - https://e3d-online.com/collections/hotends
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 1.0
+      delay_seconds: 1.0
+      max_concurrent: 1
+    max_file_size_mb: 15.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 300
+    max_files: 80
+    default_domain: 3d_printing_materials
+
+  # ----------------------------------------------------------------------------
+  # 9. INDUSTRIAL & AUTOMATION
+  # ----------------------------------------------------------------------------
+  - id: smc-pneumatics
+    name: SMC Corporation Pneumatic & Fluid Automation
+    group: industrial
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - smcusa.com
+      - www.smcusa.com
+    start_urls:
+      - https://www.smcusa.com/products/
+    discovery:
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 25.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 300
+    max_files: 100
+    default_domain: industrial
+
+  - id: festo-automation
+    name: Festo Didactic & Pneumatic Actuators
+    group: industrial
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: false
+    domains:
+      - festo.com
+      - www.festo.com
+    start_urls:
+      - https://www.festo.com/us/en/c/products/
+    discovery:
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 25.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 2
+    max_pages: 200
+    max_files: 80
+    default_domain: industrial
+
+  # ----------------------------------------------------------------------------
+  # 10. RAW MATERIALS
+  # ----------------------------------------------------------------------------
+  - id: onlinemetals-engineering
+    name: OnlineMetals Raw Stock & Engineering Alloys
+    group: raw_materials
+    type: distributor
+    source_quality: distributor
+    enabled: true
+    domains:
+      - onlinemetals.com
+      - www.onlinemetals.com
+    start_urls:
+      - https://www.onlinemetals.com/sitemap.xml
+      - https://www.onlinemetals.com/en/buy/aluminum
+    discovery:
+      - sitemap
+      - product_pages
+    rate_limit:
+      requests_per_second: 1.0
+      delay_seconds: 1.0
+      max_concurrent: 1
+    max_file_size_mb: 15.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 400
+    max_files: 50
+    default_domain: raw_materials
+
+  - id: matweb-materials-index
+    name: MatWeb Engineering Materials & Polymer Specifications
+    group: raw_materials
+    type: catalog
+    source_quality: public_dataset
+    enabled: true
+    domains:
+      - matweb.com
+      - www.matweb.com
+    start_urls:
+      - https://www.matweb.com/reference/defspecs.aspx
+    discovery:
+      - catalog
+      - product_pages
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 10.0
+    allowed_content_types:
+      - text/html
+    max_depth: 2
+    max_pages: 200
+    max_files: 20
+    default_domain: raw_materials
+
+  # ----------------------------------------------------------------------------
+  # 11. PACKAGING & CONSUMABLES
+  # ----------------------------------------------------------------------------
+  - id: desco-esd-packaging
+    name: Desco ESD Static Shielding & Packaging
+    group: packaging
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - desco.descoindustries.com
+      - desco.com
+    start_urls:
+      - https://desco.descoindustries.com/DescoCatalog/Bags/
+    discovery:
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 15.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 250
+    max_files: 80
+    default_domain: packaging
+
+  - id: mg-chemicals-consumables
+    name: MG Chemicals Soldering, Conformal Coatings & Chemicals
+    group: packaging
+    type: manufacturer
+    source_quality: authoritative_manufacturer
+    enabled: true
+    domains:
+      - mgchemicals.com
+      - www.mgchemicals.com
+    start_urls:
+      - https://mgchemicals.com/sitemap.xml
+      - https://mgchemicals.com/category/solder-and-accessories/
+    discovery:
+      - sitemap
+      - product_pages
+      - documents
+    rate_limit:
+      requests_per_second: 0.5
+      delay_seconds: 2.0
+      max_concurrent: 1
+    max_file_size_mb: 15.0
+    allowed_content_types:
+      - text/html
+      - application/pdf
+    max_depth: 3
+    max_pages: 250
+    max_files: 80
+    default_domain: consumables

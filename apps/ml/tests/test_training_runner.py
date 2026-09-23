@@ -130,7 +130,11 @@ def production_checksum():
 
 def test_run_reaches_passed_and_never_deploys(runner, stub_pipeline, production_checksum):
     run = runner.start_run("run-passed", "operator@ananya.local")
-    assert run["status"] == training_runner.STATUS_RUNNING
+    # The run is driven on a background thread, so asserting one exact status
+    # here is a race: by the time the assertion is evaluated the thread may
+    # legitimately have advanced to a later active phase (EVALUATING). What the
+    # test is entitled to state is that the run started and has not finished.
+    assert run["status"] in training_runner.ACTIVE_STATUSES
 
     finished = wait_for_terminal(runner, "run-passed")
     assert finished["status"] == training_runner.STATUS_PASSED

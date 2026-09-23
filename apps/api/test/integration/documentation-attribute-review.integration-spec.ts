@@ -308,6 +308,7 @@ describe('Attribute Value Review and Apply', () => {
       isDuplicate: false,
       duplicateWarnings: [],
       attributes: {},
+      attributeSuggestions: [],
       confidenceLevel: 'HIGH',
       isMlActive: true,
       executionTimeMs: 8,

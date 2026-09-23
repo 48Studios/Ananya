@@ -252,6 +252,7 @@ describe('Datasheet Documentation Intelligence', () => {
       isDuplicate: false,
       duplicateWarnings: [],
       attributes: {},
+      attributeSuggestions: [],
       confidenceLevel: 'HIGH',
       isMlActive: true,
       executionTimeMs: 8,

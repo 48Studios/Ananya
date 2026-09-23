@@ -417,3 +417,86 @@ def test_internal_sku_does_not_drive_text_similarity(client):
     scores = {m["sku"]: m["similarity"] for m in res.json()["matches"]}
     # Identical descriptions score identically whatever their SKUs are.
     assert scores["CMP-000001"] == scores["ZZZ-999999"]
+
+
+# ---------------------------------------------------------------------------
+# Datasheet input to the composite suggestion
+#
+# A caller may hold a pasted specification block, a PDF, or both. Whichever it
+# has must reach the extractor — otherwise a pasted datasheet produces no
+# attributes, which is exactly what used to happen.
+# ---------------------------------------------------------------------------
+
+
+def test_pasted_datasheet_text_is_read_for_attributes(client):
+    res = client.post("/v1/suggest", json={
+        "query": "JST XH connector",
+        "part_number": "B06B-XH-A",
+        "datasheet_text": "Mounting Type: Through-hole\n6 position\nPitch: 2.50mm",
+    })
+
+    assert res.status_code == 200
+    attrs = res.json()["extracted_attributes"]
+    assert attrs["mounting_type"]["value"] == "Through Hole"
+    assert attrs["pin_count"]["value"] == 6
+    assert attrs["pitch"]["value"] == 2.5
+
+
+def test_datasheet_pdf_base64_is_read_for_attributes(client, monkeypatch):
+    # The wiring, not the PDF reader: `extract_pages_from_pdf_base64` is the
+    # extractor's own entry point and is covered by its own tests.
+    from apps.ml.app.services.datasheet_extractor import datasheet_extractor
+
+    calls = []
+
+    def fake_extract_text(pdf_base64):
+        calls.append(pdf_base64)
+        return "Gender: Male\nRated voltage: 250 V"
+
+    monkeypatch.setattr(
+        datasheet_extractor, "extract_text_from_pdf_base64", fake_extract_text
+    )
+
+    res = client.post("/v1/suggest", json={
+        "query": "B06B-XH-A",
+        "datasheet_pdf_base64": "ZmFrZQ==",
+    })
+
+    assert res.status_code == 200
+    assert calls == ["ZmFrZQ=="]
+    attrs = res.json()["extracted_attributes"]
+    assert attrs["gender"]["value"] == "Male"
+    assert attrs["voltage"]["value"] == 250.0
+
+
+def test_pasted_text_and_pdf_are_both_considered(client, monkeypatch):
+    from apps.ml.app.services.datasheet_extractor import datasheet_extractor
+
+    monkeypatch.setattr(
+        datasheet_extractor,
+        "extract_text_from_pdf_base64",
+        lambda _pdf: "Contact Plating: gold plated",
+    )
+
+    res = client.post("/v1/suggest", json={
+        "query": "connector",
+        "datasheet_text": "Mounting Type: SMD",
+        "datasheet_pdf_base64": "ZmFrZQ==",
+    })
+
+    attrs = res.json()["extracted_attributes"]
+    assert attrs["mounting_type"]["value"] == "SMD"
+    assert attrs["contact_plating"]["value"] == "Gold"
+
+
+def test_the_document_text_also_reaches_classification(client):
+    # The datasheet block is evidence for the category too, not only for
+    # attributes: a caller supplying a PDF used to get attributes extracted from
+    # it while classification still saw only the query.
+    res = client.post("/v1/suggest", json={
+        "query": "B06B-XH-A",
+        "datasheet_text": "JST XH series wire-to-board connector, 2.50mm pitch",
+    })
+
+    assert res.status_code == 200
+    assert res.json()["category_predictions"]

@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import {
   MlService,
   composeComponentDescription,
@@ -15,11 +16,15 @@ import { DataPacksService } from '../data-packs/data-packs.service';
 // `jest.mock` factory reference it.
 import { categories as mockCategoriesTable } from '@ananya/database/schema';
 import { components as mockComponentsTable } from '@ananya/database/schema';
+import { attributeDefinitions as mockAttributeDefinitionsTable } from '@ananya/database/schema';
+import { attributeOptions as mockAttributeOptionsTable } from '@ananya/database/schema';
+import { categoryAttributes as mockCategoryAttributesTable } from '@ananya/database/schema';
+import { componentAttributeValues as mockComponentAttributeValuesTable } from '@ananya/database/schema';
 
 /**
  * Category rows the mocked `categories` select returns.
  *
- * Empty by default, so the existing cases keep exercising the "the ERP holds
+ * Empty by default, so the existing cases keep exercising "the ERP holds
  * nothing that matches" path; a test that needs a taxonomy populates it with
  * {@link withCategories}.
  */
@@ -30,6 +35,12 @@ let categoryRows: Array<Record<string, unknown>> = [];
  * candidates. Empty by default; {@link withComponents} populates it.
  */
 let componentRows: Array<Record<string, unknown>> = [];
+
+/** The attribute catalog, the option catalog, the bindings and recorded values. */
+let attributeDefinitionRows: Array<Record<string, unknown>> = [];
+let attributeOptionRows: Array<Record<string, unknown>> = [];
+let categoryAttributeRows: Array<Record<string, unknown>> = [];
+let componentAttributeValueRows: Array<Record<string, unknown>> = [];
 
 jest.mock('@ananya/database', () => {
   interface QueryMock {
@@ -59,17 +70,29 @@ jest.mock('@ananya/database', () => {
   return {
     db: {
       select: jest.fn().mockImplementation(() => ({
-        from: jest
-          .fn()
-          .mockImplementation((table: unknown) =>
-            makeQueryMock(
-              table === mockCategoriesTable
-                ? () => categoryRows
-                : table === mockComponentsTable
-                  ? () => componentRows
-                  : undefined,
-            ),
-          ),
+        from: jest.fn().mockImplementation((table: unknown) => {
+          // Rows by table, never by query shape: the service's selects project a
+          // subset of columns, and the mocked rows carry them all.
+          if (table === mockCategoriesTable) {
+            return makeQueryMock(() => categoryRows);
+          }
+          if (table === mockComponentsTable) {
+            return makeQueryMock(() => componentRows);
+          }
+          if (table === mockAttributeDefinitionsTable) {
+            return makeQueryMock(() => attributeDefinitionRows);
+          }
+          if (table === mockAttributeOptionsTable) {
+            return makeQueryMock(() => attributeOptionRows);
+          }
+          if (table === mockCategoryAttributesTable) {
+            return makeQueryMock(() => categoryAttributeRows);
+          }
+          if (table === mockComponentAttributeValuesTable) {
+            return makeQueryMock(() => componentAttributeValueRows);
+          }
+          return makeQueryMock();
+        }),
       })),
       insert: jest.fn().mockImplementation(() => ({
         values: jest.fn().mockResolvedValue({ rowCount: 1 }),
@@ -133,8 +156,30 @@ function withComponents(rows: Array<Record<string, unknown>>): void {
   componentRows = rows;
 }
 
+/** The attribute catalog and the two catalogs the suggestion reads beside it. */
+function withAttributeDefinitions(rows: Array<Record<string, unknown>>): void {
+  attributeDefinitionRows = rows;
+}
+
+function withAttributeOptions(rows: Array<Record<string, unknown>>): void {
+  attributeOptionRows = rows;
+}
+
+function withCategoryBindings(rows: Array<Record<string, unknown>>): void {
+  categoryAttributeRows = rows;
+}
+
+/** The values a component already records, as the storage rows read back. */
+function withComponentAttributeValues(
+  rows: Array<Record<string, unknown>>,
+): void {
+  componentAttributeValueRows = rows;
+}
+
 /** The outbound model payload, as the service actually built it. */
 function lastSuggestPayload(client: jest.Mocked<Partial<MlClientService>>): {
+  datasheet_text?: string;
+  datasheet_pdf_base64?: string;
   existing_components: Array<{
     id: string;
     sku?: string;
@@ -144,12 +189,25 @@ function lastSuggestPayload(client: jest.Mocked<Partial<MlClientService>>): {
   const calls = (client.suggest as jest.Mock).mock.calls as Array<[unknown]>;
   const last = calls[calls.length - 1];
   return (last?.[0] ?? {}) as {
+    datasheet_text?: string;
+    datasheet_pdf_base64?: string;
     existing_components: Array<{
       id: string;
       sku?: string;
       manufacturer_part_number?: string;
     }>;
   };
+}
+
+/** The payload the component-attribute call was made with, if it was made. */
+function lastAttributePayload(
+  client: jest.Mocked<Partial<MlClientService>>,
+): Record<string, unknown> | null {
+  const calls = (client.suggestComponentAttributes as jest.Mock).mock
+    .calls as Array<[unknown]>;
+  return calls.length > 0
+    ? (calls[calls.length - 1]![0] as Record<string, unknown>)
+    : null;
 }
 
 describe('MlService', () => {
@@ -160,12 +218,17 @@ describe('MlService', () => {
   beforeEach(async () => {
     withCategories([]);
     withComponents([]);
+    withAttributeDefinitions([]);
+    withAttributeOptions([]);
+    withCategoryBindings([]);
+    withComponentAttributeValues([]);
     clientMock = {
       enabled: true,
       suggest: jest.fn(),
       health: jest.fn().mockResolvedValue(true),
       suggestAttributeBindings: jest.fn().mockResolvedValue(null),
       suggestCategoryAttributes: jest.fn().mockResolvedValue(null),
+      suggestComponentAttributes: jest.fn().mockResolvedValue(null),
       suggestAttributeConfig: jest.fn().mockResolvedValue(null),
       detectAttributeDuplicates: jest.fn().mockResolvedValue(null),
       suggestEnumValues: jest.fn().mockResolvedValue(null),
@@ -707,5 +770,680 @@ describe('MlService', () => {
 
     expect(result.success).toBe(true);
     expect(result.recordedCount).toBe(2);
+  });
+
+  /**
+   * Attribute relevance and value inference.
+   *
+   * The behaviour under test is the wiring: which category conditions the
+   * relevance, that the category's own bindings reach the response, that a value
+   * is only produced from real evidence, and that a recorded value is never
+   * silently overwritten. The rule matrix itself is covered exhaustively by
+   * `component-attribute-relevance.spec.ts`.
+   */
+  describe('attribute suggestions', () => {
+    const CONN_ROW = {
+      id: 'cat-conn',
+      code: 'CONN',
+      name: 'Connectors',
+      description: null,
+      parentId: null,
+      isActive: true,
+    };
+    const TERM_ROW = {
+      id: 'cat-term',
+      code: 'TERM',
+      name: 'Terminal Blocks',
+      description: null,
+      parentId: null,
+      isActive: true,
+    };
+    const PACKAGE_DEF = {
+      id: 'def-package',
+      code: 'package',
+      name: 'Package / Case',
+      dataType: 'SELECT',
+      unitCategory: null,
+      defaultUnit: null,
+      aliases: [],
+      isActive: true,
+      validationRules: null,
+    };
+    const MOUNTING_DEF = {
+      id: 'def-mounting',
+      code: 'mounting_type',
+      name: 'Mounting Type',
+      dataType: 'SELECT',
+      unitCategory: null,
+      defaultUnit: null,
+      aliases: [],
+      isActive: true,
+      validationRules: null,
+    };
+    const OPTION_ROWS = [
+      {
+        id: 'opt-0805',
+        definitionId: 'def-package',
+        code: '0805',
+        label: '0805 (2012 Metric)',
+      },
+      {
+        id: 'opt-smd',
+        definitionId: 'def-mounting',
+        code: 'SMD',
+        label: 'Surface Mount (SMD/SMT)',
+      },
+      {
+        id: 'opt-th',
+        definitionId: 'def-mounting',
+        code: 'Through Hole',
+        label: 'Through Hole (THT)',
+      },
+    ];
+    const CONNECTOR_BINDINGS = [
+      {
+        attributeDefinitionId: 'def-package',
+        categoryId: CONN_ROW.id,
+        isRequired: false,
+        sortOrder: 1,
+      },
+      {
+        attributeDefinitionId: 'def-mounting',
+        categoryId: CONN_ROW.id,
+        isRequired: false,
+        sortOrder: 2,
+      },
+    ];
+
+    /** The model classifying a part as a connector and reading a 0805 package. */
+    function stubConnectorSuggestion(): void {
+      (clientMock.suggest as jest.Mock).mockResolvedValueOnce({
+        category_predictions: [
+          {
+            category: CONN_ROW.name,
+            resolution: 'EXISTING',
+            category_id: CONN_ROW.id,
+            category_code: CONN_ROW.code,
+            category_path: [CONN_ROW.name],
+            confidence: 0.98,
+            confidence_level: 'HIGH',
+          },
+        ],
+        manufacturer: {
+          manufacturer: null,
+          resolution: 'UNKNOWN',
+          confidence: 0,
+          match_type: 'unresolved',
+        },
+        duplicates: { is_duplicate: false, matches: [] },
+        extracted_attributes: {
+          package: {
+            code: 'package',
+            value: '0805',
+            unit: null,
+            formatted: '0805',
+            confidence: 0.95,
+          },
+        },
+        execution_time_ms: 2,
+      });
+    }
+
+    it('surfaces the category\u2019s bound attributes with no model involved', async () => {
+      // The ML container being down must not cost the reviewer the category
+      // intelligence: bindings and the catalog are ERP data.
+      (clientMock.suggest as jest.Mock).mockResolvedValueOnce(null);
+      withCategories([CONN_ROW]);
+      withAttributeDefinitions([PACKAGE_DEF, MOUNTING_DEF]);
+      withAttributeOptions(OPTION_ROWS);
+      withCategoryBindings(CONNECTOR_BINDINGS);
+
+      const result = await service.suggest({
+        query: 'JST XH connector 6 pin',
+        categoryId: CONN_ROW.id,
+      });
+
+      expect(result.isMlActive).toBe(false);
+      expect(
+        result.attributeSuggestions.map((suggestion) => suggestion.code),
+      ).toEqual(['package', 'mounting_type']);
+      const mounting = result.attributeSuggestions[1]!;
+      expect(mounting.suggestedValue).toBeNull();
+      expect(mounting.confidence).toBeNull();
+      expect(mounting.relevance[0]).toMatchObject({
+        type: 'category_binding',
+        categoryId: CONN_ROW.id,
+      });
+    });
+
+    it('produces a canonical value for the package and infers the mounting type', async () => {
+      withCategories([CONN_ROW]);
+      withAttributeDefinitions([PACKAGE_DEF, MOUNTING_DEF]);
+      withAttributeOptions(OPTION_ROWS);
+      withCategoryBindings(CONNECTOR_BINDINGS);
+      stubConnectorSuggestion();
+
+      const result = await service.suggest({
+        query: 'B06B-XH-A(LF)(SN) JST connector',
+      });
+
+      const pkg = result.attributeSuggestions.find(
+        (suggestion) => suggestion.code === 'package',
+      )!;
+      expect(pkg.suggestedValue).toMatchObject({
+        optionCode: '0805',
+        optionLabel: '0805 (2012 Metric)',
+        formatted: '0805',
+      });
+      expect(pkg.confidence).toBe(0.95);
+      expect(pkg.confidenceLevel).toBe('HIGH');
+
+      const mounting = result.attributeSuggestions.find(
+        (suggestion) => suggestion.code === 'mounting_type',
+      )!;
+      expect(mounting.suggestedValue).toMatchObject({ optionCode: 'SMD' });
+      expect(mounting.relevance.map((entry) => entry.type)).toContain(
+        'package_pattern',
+      );
+    });
+
+    it('flags a conflict with the recorded value instead of replacing it', async () => {
+      withCategories([CONN_ROW]);
+      withAttributeDefinitions([PACKAGE_DEF, MOUNTING_DEF]);
+      withAttributeOptions(OPTION_ROWS);
+      withCategoryBindings(CONNECTOR_BINDINGS);
+      withComponentAttributeValues([
+        {
+          componentId: 'comp-1',
+          attributeDefinitionId: 'def-mounting',
+          optionId: 'opt-th',
+          selectedOptionIds: null,
+          booleanValue: null,
+          numberValue: null,
+          dateValue: null,
+          textValue: null,
+          unit: null,
+        },
+      ]);
+      stubConnectorSuggestion();
+
+      const result = await service.suggest({
+        query: 'B06B-XH-A(LF)(SN) JST connector',
+        componentId: 'comp-1',
+      });
+
+      const mounting = result.attributeSuggestions.find(
+        (suggestion) => suggestion.code === 'mounting_type',
+      )!;
+      expect(mounting.existingDisplay).toBe('Through Hole');
+      expect(mounting.conflict).toEqual({
+        existingDisplay: 'Through Hole',
+        suggestedDisplay: 'SMD',
+      });
+    });
+
+    it('conditions relevance on a selected category rather than the prediction', async () => {
+      withCategories([CONN_ROW, TERM_ROW]);
+      withAttributeDefinitions([PACKAGE_DEF, MOUNTING_DEF]);
+      withAttributeOptions(OPTION_ROWS);
+      withCategoryBindings([
+        {
+          attributeDefinitionId: 'def-package',
+          categoryId: CONN_ROW.id,
+          isRequired: false,
+          sortOrder: 1,
+        },
+        {
+          attributeDefinitionId: 'def-mounting',
+          categoryId: TERM_ROW.id,
+          isRequired: false,
+          sortOrder: 1,
+        },
+      ]);
+      stubConnectorSuggestion();
+
+      const result = await service.suggest({
+        query: 'B06B-XH-A(LF)(SN) JST connector',
+        categoryId: TERM_ROW.id,
+      });
+
+      // The selected category's binding comes first and is attributed to it.
+      const mounting = result.attributeSuggestions[0]!;
+      expect(mounting.code).toBe('mounting_type');
+      expect(mounting.categoryIds).toEqual([TERM_ROW.id]);
+      // The package stays relevant from the extraction alone, and is reported as
+      // established by no binding at all — relevance is not limited to what the
+      // selected category happens to bind.
+      const pkg = result.attributeSuggestions[1]!;
+      expect(pkg.code).toBe('package');
+      expect(pkg.categoryIds).toEqual([]);
+      expect(pkg.relevance.map((entry) => entry.type)).toEqual([
+        'extracted_attribute',
+      ]);
+      // The selection conditions the relevance only; the prediction stands.
+      expect(result.category?.categoryName).toBe('Connectors');
+    });
+
+    it('rejects a selected category that does not exist', async () => {
+      withCategories([CONN_ROW]);
+
+      await expect(
+        service.suggest({ query: 'anything', categoryId: 'cat-missing' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns no suggestions when nothing resolves a category', async () => {
+      withCategories([]);
+      (clientMock.suggest as jest.Mock).mockResolvedValueOnce({
+        category_predictions: [],
+        manufacturer: {
+          manufacturer: null,
+          resolution: 'UNKNOWN',
+          confidence: 0,
+          match_type: 'unresolved',
+        },
+        duplicates: { is_duplicate: false, matches: [] },
+        extracted_attributes: {},
+        execution_time_ms: 1,
+      });
+
+      const result = await service.suggest({ query: 'mystery part' });
+
+      expect(result.attributeSuggestions).toEqual([]);
+    });
+
+    it('reports a binding inherited from a parent category as inherited', async () => {
+      const child = { ...CONN_ROW, parentId: ELEC_ROW.id };
+      withCategories([ELEC_ROW, child]);
+      withAttributeDefinitions([PACKAGE_DEF]);
+      withAttributeOptions(OPTION_ROWS);
+      withCategoryBindings([
+        {
+          attributeDefinitionId: 'def-package',
+          categoryId: ELEC_ROW.id,
+          isRequired: false,
+          sortOrder: 1,
+        },
+      ]);
+
+      const result = await service.suggest({
+        query: 'JST XH connector',
+        categoryId: child.id,
+      });
+
+      expect(result.attributeSuggestions[0]!.relevance[0]).toMatchObject({
+        type: 'category_binding_inherited',
+      });
+    });
+
+    it('never suggests an attribute that is not active', async () => {
+      withCategories([CONN_ROW]);
+      withAttributeDefinitions([
+        { ...PACKAGE_DEF, isActive: false },
+        MOUNTING_DEF,
+      ]);
+      withAttributeOptions(OPTION_ROWS);
+      withCategoryBindings(CONNECTOR_BINDINGS);
+
+      (clientMock.suggest as jest.Mock).mockResolvedValueOnce(null);
+      const result = await service.suggest({
+        query: 'JST XH connector',
+        categoryId: CONN_ROW.id,
+      });
+
+      expect(
+        result.attributeSuggestions.map((suggestion) => suggestion.code),
+      ).toEqual(['mounting_type']);
+    });
+
+    it('bridges a Data Pack expectation onto the definition it names', async () => {
+      const VOLTAGE_DEF = {
+        id: 'def-voltage',
+        code: 'voltage_rating',
+        name: 'Voltage Rating',
+        dataType: 'QUANTITY',
+        unitCategory: 'Voltage',
+        defaultUnit: 'V',
+        aliases: [],
+        isActive: true,
+        validationRules: null,
+      };
+      withCategories([CAP_ROW, ELEC_ROW]);
+      withAttributeDefinitions([VOLTAGE_DEF]);
+      packsMock.getActiveIntelligenceHints.mockResolvedValue([
+        {
+          categoryName: 'Capacitors',
+          categoryCode: 'CAP',
+          expectedAttributes: ['voltage'],
+          attributeAliases: { voltage: ['volt', 'vdc'] },
+        },
+      ]);
+
+      (clientMock.suggest as jest.Mock).mockResolvedValueOnce(null);
+      const result = await service.suggest({
+        query: '10uF 25V X7R capacitor',
+        categoryId: CAP_ROW.id,
+      });
+
+      const voltage = result.attributeSuggestions.find(
+        (suggestion) => suggestion.code === 'voltage_rating',
+      )!;
+      expect(voltage.relevance[0]).toMatchObject({
+        type: 'data_pack_expectation',
+        source: 'datapack:expected_attributes',
+      });
+      expect(voltage.relevance[0]!.description).toContain('Voltage Rating');
+    });
+
+    it('leaves the existing attribute record untouched', async () => {
+      withCategories([CONN_ROW]);
+      withAttributeDefinitions([PACKAGE_DEF, MOUNTING_DEF]);
+      withAttributeOptions(OPTION_ROWS);
+      withCategoryBindings(CONNECTOR_BINDINGS);
+      stubConnectorSuggestion();
+
+      const result = await service.suggest({
+        query: 'B06B-XH-A(LF)(SN) JST connector',
+      });
+
+      // `attributes` keeps its meaning (what the extractor read, by code), and
+      // the whole response is still assembled as before.
+      expect(result.attributes['package']).toMatchObject({
+        attributeDefinitionId: 'def-package',
+        resolution: 'RESOLVED',
+      });
+      expect(result.isMlActive).toBe(true);
+    });
+
+    /**
+     * The model service's judgement, merged as a corroborating source.
+     *
+     * It is asked once for the whole component (never once per attribute) and it
+     * cannot introduce an attribute the catalog does not hold. When it is
+     * unavailable nothing about the local result changes.
+     */
+    describe('the model service\u2019s judgement', () => {
+      it('asks once, with the catalog, the bindings and the extraction', async () => {
+        withCategories([CONN_ROW]);
+        withAttributeDefinitions([PACKAGE_DEF, MOUNTING_DEF]);
+        withAttributeOptions(OPTION_ROWS);
+        withCategoryBindings(CONNECTOR_BINDINGS);
+        stubConnectorSuggestion();
+
+        await service.suggest({
+          query: 'B06B-XH-A(LF)(SN) JST connector',
+          datasheetText: 'Mounting Type: Through-hole',
+        });
+
+        expect(clientMock.suggestComponentAttributes).toHaveBeenCalledTimes(1);
+        const payload = lastAttributePayload(clientMock)!;
+        expect(payload.categories).toEqual([
+          expect.objectContaining({
+            categoryId: CONN_ROW.id,
+            categoryName: 'Connectors',
+          }),
+        ]);
+        // The whole active catalog, with the option catalogs a value must
+        // resolve to.
+        expect(payload.attributes).toEqual([
+          expect.objectContaining({
+            id: 'def-package',
+            code: 'package',
+            options: [{ code: '0805', label: '0805 (2012 Metric)' }],
+          }),
+          expect.objectContaining({
+            id: 'def-mounting',
+            options: [
+              { code: 'SMD', label: 'Surface Mount (SMD/SMT)' },
+              { code: 'Through Hole', label: 'Through Hole (THT)' },
+            ],
+          }),
+        ]);
+        // The bindings condition relevance there too.
+        expect(payload.boundAttributeIds).toEqual([
+          'def-package',
+          'def-mounting',
+        ]);
+        expect(payload.datasheetText).toBe('Mounting Type: Through-hole');
+        // Never re-extracted: the service judges what the extractor already read.
+        expect(payload.extractedAttributes).toMatchObject({
+          package: { code: 'package', value: '0805', formatted: '0805' },
+        });
+      });
+
+      it('adds an attribute the local rules did not establish', async () => {
+        withCategories([CONN_ROW]);
+        withAttributeDefinitions([PACKAGE_DEF, MOUNTING_DEF]);
+        withAttributeOptions(OPTION_ROWS);
+        // Only the package is bound, so Mounting Type can only arrive from the
+        // model's own judgement — which is the point of asking it.
+        withCategoryBindings([CONNECTOR_BINDINGS[0]!]);
+        stubConnectorSuggestion();
+        (
+          clientMock.suggestComponentAttributes as jest.Mock
+        ).mockResolvedValueOnce([
+          {
+            attributeDefinitionId: 'def-mounting',
+            code: 'mounting_type',
+            name: 'Mounting Type',
+            dataType: 'SELECT',
+            relevance: [
+              {
+                type: 'domain_knowledge',
+                description:
+                  'Standard engineering specification for Connectors',
+                weight: 0.8,
+                source: 'domain:electronics_standard',
+              },
+            ],
+            suggestedValue: null,
+            confidence: null,
+            confidenceLevel: null,
+            valueEvidence: [],
+          },
+        ]);
+
+        const result = await service.suggest({
+          query: 'JST XH connector',
+        });
+
+        const mounting = result.attributeSuggestions.find(
+          (suggestion) => suggestion.code === 'mounting_type',
+        )!;
+        expect(mounting).toBeDefined();
+        // Established by no binding at all — relevance is not limited to what the
+        // category happens to bind.
+        expect(mounting.categoryIds).toEqual([]);
+        expect(mounting.relevance).toEqual(
+          expect.arrayContaining([
+            // Reported in the shared vocabulary, never the model's own wording.
+            expect.objectContaining({
+              type: 'ml_attribute_knowledge',
+              source: 'domain:electronics_standard',
+              description: 'Standard engineering specification for Connectors',
+            }),
+            // Meanwhile the local package classification still ran and produced
+            // its own value, which the model's value-less judgement cannot undo.
+            expect.objectContaining({ type: 'package_pattern' }),
+          ]),
+        );
+        expect(mounting.suggestedValue).toMatchObject({ optionCode: 'SMD' });
+      });
+
+      it('takes a canonical value the model named', async () => {
+        withCategories([CONN_ROW]);
+        withAttributeDefinitions([PACKAGE_DEF, MOUNTING_DEF]);
+        withAttributeOptions(OPTION_ROWS);
+        withCategoryBindings(CONNECTOR_BINDINGS);
+        (clientMock.suggest as jest.Mock).mockResolvedValueOnce(null);
+        (
+          clientMock.suggestComponentAttributes as jest.Mock
+        ).mockResolvedValueOnce([
+          {
+            attributeDefinitionId: 'def-mounting',
+            code: 'mounting_type',
+            name: 'Mounting Type',
+            relevance: [],
+            suggestedValue: 'Through Hole',
+            confidence: 0.88,
+            confidenceLevel: 'HIGH',
+            valueEvidence: [
+              {
+                type: 'ml_inference',
+                description: "'through-hole' is the Mounting Type option",
+                weight: 0.88,
+                source: 'canonical:option_mapping',
+              },
+            ],
+          },
+        ]);
+
+        const result = await service.suggest({
+          query: 'JST XH connector',
+          categoryId: CONN_ROW.id,
+        });
+
+        const mounting = result.attributeSuggestions.find(
+          (suggestion) => suggestion.code === 'mounting_type',
+        )!;
+        expect(mounting.suggestedValue).toMatchObject({
+          optionCode: 'Through Hole',
+        });
+        expect(mounting.confidence).toBe(0.88);
+        expect(mounting.confidenceLevel).toBe('HIGH');
+      });
+
+      it('drops a value naming an option the definition does not have', async () => {
+        withCategories([CONN_ROW]);
+        withAttributeDefinitions([PACKAGE_DEF, MOUNTING_DEF]);
+        withAttributeOptions(OPTION_ROWS);
+        withCategoryBindings(CONNECTOR_BINDINGS);
+        (clientMock.suggest as jest.Mock).mockResolvedValueOnce(null);
+        (
+          clientMock.suggestComponentAttributes as jest.Mock
+        ).mockResolvedValueOnce([
+          {
+            attributeDefinitionId: 'def-mounting',
+            code: 'mounting_type',
+            name: 'Mounting Type',
+            relevance: [],
+            suggestedValue: 'Soldered',
+            confidence: 0.9,
+            confidenceLevel: 'HIGH',
+            valueEvidence: [],
+          },
+        ]);
+
+        const result = await service.suggest({
+          query: 'JST XH connector',
+          categoryId: CONN_ROW.id,
+        });
+
+        expect(
+          result.attributeSuggestions.find(
+            (suggestion) => suggestion.code === 'mounting_type',
+          )!.suggestedValue,
+        ).toBeNull();
+      });
+
+      it('drops an attribute outside the catalog', async () => {
+        withCategories([CONN_ROW]);
+        withAttributeDefinitions([PACKAGE_DEF]);
+        withAttributeOptions(OPTION_ROWS);
+        withCategoryBindings(CONNECTOR_BINDINGS);
+        (clientMock.suggest as jest.Mock).mockResolvedValueOnce(null);
+        (
+          clientMock.suggestComponentAttributes as jest.Mock
+        ).mockResolvedValueOnce([
+          {
+            attributeDefinitionId: 'def-not-in-catalog',
+            code: 'invented',
+            name: 'Invented',
+            relevance: [],
+            suggestedValue: null,
+            valueEvidence: [],
+          },
+        ]);
+
+        const result = await service.suggest({
+          query: 'JST XH connector',
+          categoryId: CONN_ROW.id,
+        });
+
+        expect(
+          result.attributeSuggestions.map((suggestion) => suggestion.code),
+        ).toEqual(['package']);
+      });
+
+      it('changes nothing when the call fails', async () => {
+        withCategories([CONN_ROW]);
+        withAttributeDefinitions([PACKAGE_DEF, MOUNTING_DEF]);
+        withAttributeOptions(OPTION_ROWS);
+        withCategoryBindings(CONNECTOR_BINDINGS);
+        (clientMock.suggest as jest.Mock).mockResolvedValueOnce(null);
+        (
+          clientMock.suggestComponentAttributes as jest.Mock
+        ).mockResolvedValueOnce(null);
+
+        const result = await service.suggest({
+          query: 'JST XH connector',
+          categoryId: CONN_ROW.id,
+        });
+
+        expect(
+          result.attributeSuggestions.map((suggestion) => suggestion.code),
+        ).toEqual(['package', 'mounting_type']);
+      });
+
+      it('is not asked when no category could be established', async () => {
+        withCategories([]);
+        (clientMock.suggest as jest.Mock).mockResolvedValueOnce({
+          category_predictions: [],
+          manufacturer: {
+            manufacturer: null,
+            resolution: 'UNKNOWN',
+            confidence: 0,
+            match_type: 'unresolved',
+          },
+          duplicates: { is_duplicate: false, matches: [] },
+          extracted_attributes: {},
+          execution_time_ms: 1,
+        });
+
+        await service.suggest({ query: 'mystery part' });
+
+        expect(clientMock.suggestComponentAttributes).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('datasheet input', () => {
+      it('forwards the pasted text', async () => {
+        stubConnectorSuggestion();
+
+        await service.suggest({
+          query: 'B06B-XH-A',
+          datasheetText: 'Mounting Type: Through-hole',
+        });
+
+        expect(lastSuggestPayload(clientMock).datasheet_text).toBe(
+          'Mounting Type: Through-hole',
+        );
+      });
+
+      it('forwards the PDF bytes rather than dropping them', async () => {
+        stubConnectorSuggestion();
+
+        await service.suggest({
+          query: 'B06B-XH-A',
+          datasheetPdfBase64: 'ZmFrZQ==',
+        });
+
+        // The model service reads the file itself; the API never extracted it,
+        // so a caller holding only the PDF still gets its contents used.
+        expect(lastSuggestPayload(clientMock).datasheet_pdf_base64).toBe(
+          'ZmFrZQ==',
+        );
+      });
+    });
   });
 });

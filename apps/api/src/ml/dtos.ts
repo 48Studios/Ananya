@@ -54,6 +54,19 @@ export class SuggestComponentDto {
   @IsOptional()
   @IsUUID()
   componentId?: string;
+
+  /**
+   * The category the reviewer selected by hand.
+   *
+   * Attribute relevance is conditioned on it instead of on the predicted
+   * category, which is what lets the form show the selected category's
+   * specifications the moment it is chosen — without a second endpoint and
+   * without one request per attribute. It never changes the category the model
+   * suggests; it only decides which bindings the attribute intelligence reads.
+   */
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
 }
 
 export class CategorySuggestionDto {
@@ -127,6 +140,80 @@ export class ExtractedAttributeDto {
   resolution: 'RESOLVED' | 'UNRESOLVED' = 'RESOLVED';
 }
 
+/**
+ * Why an attribute is considered relevant, or why a value is suggested.
+ *
+ * Structured rather than prose: the reviewer filters and reads by source, and the
+ * same vocabulary is what the review queue stores as evidence.
+ */
+export class AttributeRelevanceEvidenceDto {
+  type!: string;
+  description!: string;
+  source?: string;
+  weight!: number;
+  categoryId?: string | null;
+  categoryName?: string | null;
+}
+
+/** A suggested value in the shape the manual attribute editor writes. */
+export class AttributeSuggestedValueDto {
+  /** A MULTI_SELECT value is the list of chosen option codes. */
+  value!: string | number | boolean | string[] | null;
+  unit?: string | null;
+  optionCode?: string;
+  optionLabel?: string;
+  selectedOptionCodes?: string[];
+  formatted!: string;
+}
+
+/**
+ * A recorded value that genuinely disagrees with the suggestion.
+ *
+ * Reported, never applied: the reviewer keeps the current value, or decides to
+ * replace it. An inconclusive comparison is deliberately not a conflict.
+ */
+export class AttributeSuggestionConflictDto {
+  existingDisplay!: string;
+  suggestedDisplay!: string;
+}
+
+/**
+ * One attribute the Component Intelligence considers relevant for this part.
+ *
+ * Relevance and value are separate fields because they are separate facts: an
+ * attribute can be relevant with `suggestedValue: null` (the UI's "relevant,
+ * value not determined"), which is a different statement from a predicted value
+ * and must not be rendered like one.
+ */
+export class AttributeSuggestionDto {
+  attributeDefinitionId!: string;
+  code!: string;
+  name!: string;
+  dataType!: string;
+  unitCategory?: string | null;
+  defaultUnit?: string | null;
+  isRequired!: boolean;
+  /** The considered categories that establish relevance for this attribute. */
+  categoryIds!: string[];
+  /** Every category considered, so the UI can show what did not establish it. */
+  consideredCategoryIds!: string[];
+  relevance!: AttributeRelevanceEvidenceDto[];
+  valueEvidence!: AttributeRelevanceEvidenceDto[];
+  suggestedValue!: AttributeSuggestedValueDto | null;
+  confidence!: number | null;
+  confidenceLevel!: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  existingDisplay!: string | null;
+  /**
+   * Whether the recorded value was positively established as equivalent.
+   *
+   * `null` when nothing is recorded. `false` means the comparison was
+   * inconclusive — the two values were not shown to agree, which is not the same
+   * statement as a conflict and must not be presented as one.
+   */
+  existingMatches!: boolean | null;
+  conflict!: AttributeSuggestionConflictDto | null;
+}
+
 export class ComponentSuggestionResponseDto {
   query!: string;
   manufacturerPartNumber?: string;
@@ -139,6 +226,11 @@ export class ComponentSuggestionResponseDto {
   isDuplicate!: boolean;
   duplicateWarnings!: DuplicateWarningDto[];
   attributes!: Record<string, ExtractedAttributeDto>;
+  /**
+   * Relevant attributes, bound to this part's category or discovered from other
+   * evidence, with a canonical value only where the evidence supports one.
+   */
+  attributeSuggestions!: AttributeSuggestionDto[];
   confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM';
   overallEvidence?: EvidenceItemDto[];
   isMlActive!: boolean;

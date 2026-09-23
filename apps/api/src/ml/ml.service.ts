@@ -1,10 +1,16 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { db } from '@ananya/database';
 import {
   categories,
   manufacturers,
   components,
   attributeDefinitions,
+  attributeOptions,
   categoryAttributes,
   componentAttributeValues,
   aiSuggestionFeedback,
@@ -44,8 +50,24 @@ import {
   EnumOptionSuggestionDto,
   AttributeAuditIssueDto,
   AttributeConfigSuggestionDto,
+  AttributeSuggestionDto,
 } from './dtos';
 import { resolveCategorySuggestion } from './category-suggestion-resolution';
+import {
+  buildAttributeSuggestions,
+  type MlAttributeSuggestion,
+  type RelevanceBinding,
+  type RelevanceDefinition,
+  type RelevanceExtractedAttribute,
+  type RelevancePackExpectation,
+  type AttributeRelevanceEvidence,
+} from './component-attribute-relevance';
+import type { MlEvidenceItem } from './ml-client.service';
+import {
+  loadComponentAttributeDisplays,
+  loadUnitCatalog,
+} from './current-attribute-value';
+import { normalizedTerm } from './attribute-resolution';
 
 interface RawExtractedAttribute {
   code?: string;
@@ -67,6 +89,8 @@ interface SimpleAttributeDef {
   defaultUnit?: string | null;
   aliases?: string[] | null;
   groupName?: string | null;
+  isActive?: boolean;
+  validationRules?: unknown;
 }
 
 interface SimpleCategory {
@@ -87,6 +111,7 @@ interface DataPackHint {
   categoryName?: string;
   expectedAttributes?: string[];
   packagePatterns?: string[];
+  attributeAliases?: Record<string, string[] | undefined>;
 }
 
 function buildCategoryPath(
@@ -129,6 +154,23 @@ export function extractManufacturerPartNumber(
     .toUpperCase();
 }
 
+/**
+ * The relevance vocabulary the ML service's evidence is reported in.
+ *
+ * The service describes *how* it knows something in its own words; this maps
+ * that onto the closed set of source types the suggestion layer and the review
+ * queue store, so one finding's evidence never has two shapes depending on which
+ * producer contributed it.
+ */
+function toRelevanceEvidence(item: MlEvidenceItem): AttributeRelevanceEvidence {
+  return {
+    type: 'ml_attribute_knowledge',
+    description: item.description,
+    source: item.source ?? undefined,
+    weight: typeof item.weight === 'number' ? item.weight : 0.5,
+  };
+}
+
 export function normalizeExtractedUnit(
   code: string,
   unit?: string | null,
@@ -156,6 +198,18 @@ export function normalizeExtractedUnit(
  * known ceiling rather than an accident of row order.
  */
 const DUPLICATE_CANDIDATE_LIMIT = 2000;
+
+/**
+ * How confident a category candidate must be before its bindings condition
+ * attribute relevance.
+ *
+ * A category the model is undecided about must not silently import its whole
+ * specification profile into the suggestion list: an attribute bound to a
+ * barely-considered alternative is a *possible* requirement, not a statement
+ * about this part. The primary category is always considered because it is the
+ * one the reviewer is shown.
+ */
+const CATEGORY_RELEVANCE_CONFIDENCE_THRESHOLD = 0.6;
 
 const ATTRIBUTE_CODE_ALIASES: Record<string, string> = {
   power: 'power_rating',
@@ -331,6 +385,10 @@ export class MlService {
         part_number: partNumber,
         description,
         datasheet_text: dto.datasheetText,
+        // Forwarded as supplied: the model service reads the PDF itself, so a
+        // caller that only holds the file still gets extraction, classification
+        // and manufacturer resolution from its contents.
+        datasheet_pdf_base64: dto.datasheetPdfBase64,
         existing_components: existingComps.map((c) => ({
           id: c.id,
           sku: c.sku,
@@ -821,6 +879,20 @@ export class MlService {
       };
     }
 
+    // 6b. Attribute relevance: the bindings of the resolved (or explicitly
+    // selected) category, the Data Pack's expectations, the text the extractor
+    // read, and what the component already records — with a value only where
+    // the evidence supports one.
+    const attributeSuggestions = await this.buildComponentAttributeSuggestions({
+      dto,
+      primaryCategory,
+      alternativeCategories,
+      allCategories,
+      allAttributes,
+      datapackHints,
+      resolvedAttributes,
+    });
+
     // 7. Aggregate Overall Evidence and Combined Confidence Level
     const overallEvidence: EvidenceItemDto[] = [];
     if (primaryCategory?.evidence) {
@@ -872,11 +944,474 @@ export class MlService {
       isDuplicate: duplicateWarnings.length > 0,
       duplicateWarnings,
       attributes: resolvedAttributes,
+      attributeSuggestions,
       confidenceLevel: overallConfLevel,
       overallEvidence,
       isMlActive,
       executionTimeMs: Math.round(elapsed * 100) / 100,
     };
+  }
+
+  /**
+   * Relevant attributes for the part, with a value only where evidence exists.
+   *
+   * The category's bindings are the strong prior — an explicit configuration
+   * decision — but they are not the ceiling: an attribute can also be
+   * established by a Data Pack expectation, by the query/description/datasheet
+   * text naming it, by the extractor producing a value for it, or by the
+   * component already recording one. Every candidate resolves to an existing
+   * active attribute definition, and every suggested value is one the manual
+   * editor could have picked — the relevance layer never invents either.
+   *
+   * A category the reviewer selected by hand conditions the relevance on its
+   * own, because that is the list they asked to see; otherwise the predicted
+   * category is used, together with any alternative still plausible enough to be
+   * a real possibility.
+   */
+  private async buildComponentAttributeSuggestions(input: {
+    dto: SuggestComponentDto;
+    primaryCategory: CategorySuggestionDto | null;
+    alternativeCategories: CategorySuggestionDto[];
+    allCategories: Array<{
+      id: string;
+      code: string;
+      name: string;
+      parentId: string | null;
+    }>;
+    allAttributes: SimpleAttributeDef[];
+    datapackHints: DataPackHint[];
+    resolvedAttributes: Record<string, ExtractedAttributeDto>;
+  }): Promise<AttributeSuggestionDto[]> {
+    const categoryMap = new Map(
+      input.allCategories.map((category) => [category.id, category]),
+    );
+
+    // 1. Which categories condition the relevance.
+    const conditioning: Array<{
+      category: {
+        id: string;
+        code: string;
+        name: string;
+        parentId: string | null;
+      };
+      confidence: number;
+      confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+      isPrimary: boolean;
+    }> = [];
+
+    if (input.dto.categoryId) {
+      const selected = categoryMap.get(input.dto.categoryId);
+      if (!selected) {
+        throw new NotFoundException(
+          `Category #${input.dto.categoryId} not found`,
+        );
+      }
+      conditioning.push({
+        category: selected,
+        confidence: 1,
+        confidenceLevel: 'HIGH',
+        isPrimary: true,
+      });
+    } else {
+      const considered = [
+        input.primaryCategory,
+        ...input.alternativeCategories,
+      ].filter((category): category is CategorySuggestionDto =>
+        Boolean(category?.categoryId),
+      );
+      for (const [index, suggestion] of considered.entries()) {
+        if (
+          index > 0 &&
+          suggestion.confidence < CATEGORY_RELEVANCE_CONFIDENCE_THRESHOLD
+        ) {
+          continue;
+        }
+        const category = categoryMap.get(suggestion.categoryId!);
+        if (!category) continue;
+        conditioning.push({
+          category,
+          confidence: suggestion.confidence,
+          confidenceLevel: suggestion.confidenceLevel,
+          isPrimary: index === 0,
+        });
+      }
+    }
+
+    if (conditioning.length === 0) return [];
+
+    // 2. Bindings (with parent inheritance), the option catalog and — when the
+    // reviewer is editing — the values the component already records. Three
+    // bounded reads for the whole suggestion, never one per attribute.
+    const [bindings, optionRows, existingValues] = await Promise.all([
+      Promise.all(
+        conditioning.map(async (entry) => ({
+          ...entry,
+          bindings: await this.loadResolvedCategoryBindings(
+            entry.category.id,
+            categoryMap,
+          ),
+        })),
+      ),
+      db
+        .select({
+          definitionId: attributeOptions.attributeDefinitionId,
+          code: attributeOptions.code,
+          label: attributeOptions.label,
+        })
+        .from(attributeOptions)
+        .where(eq(attributeOptions.isActive, true)),
+      input.dto.componentId
+        ? loadComponentAttributeDisplays(input.dto.componentId)
+        : Promise.resolve(new Map<string, string>()),
+    ]);
+
+    const optionsByDefinition = new Map<
+      string,
+      Array<{ code: string; label: string }>
+    >();
+    for (const option of optionRows) {
+      const list = optionsByDefinition.get(option.definitionId) ?? [];
+      list.push({ code: option.code, label: option.label });
+      optionsByDefinition.set(option.definitionId, list);
+    }
+
+    const definitions: RelevanceDefinition[] = input.allAttributes.map(
+      (definition) => ({
+        id: definition.id,
+        code: definition.code,
+        name: definition.name,
+        dataType: definition.dataType ?? 'TEXT',
+        unitCategory: definition.unitCategory ?? null,
+        defaultUnit: definition.defaultUnit ?? null,
+        aliases: definition.aliases ?? [],
+        validationRules:
+          definition.validationRules &&
+          typeof definition.validationRules === 'object' &&
+          !Array.isArray(definition.validationRules)
+            ? (definition.validationRules as Record<string, unknown>)
+            : null,
+        isActive: definition.isActive ?? true,
+        options: optionsByDefinition.get(definition.id) ?? [],
+      }),
+    );
+
+    // 3. Data Pack expectations for the considered categories. The pack's own
+    // codes (`voltage`, `current`, `power`) go through the existing alias map so
+    // they land on the definitions they name (`voltage_rating`, ...).
+    const packExpectations: RelevancePackExpectation[] = [];
+    for (const entry of bindings) {
+      for (const hint of input.datapackHints) {
+        if (!this.hintMatchesCategory(hint, entry.category)) continue;
+        for (const code of hint.expectedAttributes ?? []) {
+          const definition = resolveAttributeDefinition(
+            code,
+            input.allAttributes,
+          );
+          if (!definition) continue;
+          packExpectations.push({
+            definitionId: definition.id,
+            categoryId: entry.category.id,
+            categoryName: entry.category.name,
+            aliases: hint.attributeAliases?.[code] ?? [],
+            reason: `Data Pack expects ${definition.name} for ${entry.category.name}`,
+          });
+        }
+      }
+    }
+
+    // 4. What the extractor already produced, in definition terms. Attributes it
+    // could not resolve to a definition stay in `attributes` (the reviewer still
+    // sees the extracted value and the unresolved badge) rather than being
+    // guessed onto one.
+    const extracted: RelevanceExtractedAttribute[] = [];
+    for (const attribute of Object.values(input.resolvedAttributes)) {
+      if (!attribute.attributeDefinitionId) continue;
+      extracted.push({
+        definitionId: attribute.attributeDefinitionId,
+        value: attribute.value,
+        unit: attribute.unit ?? null,
+        formatted: attribute.formatted,
+        confidence: attribute.confidence,
+        confidenceLevel: attribute.confidenceLevel,
+        evidence: attribute.evidence,
+      });
+    }
+
+    const packageDefinition = resolveAttributeDefinition(
+      'package',
+      input.allAttributes,
+    );
+    const mountingTypeDefinition = resolveAttributeDefinition(
+      'mounting_type',
+      input.allAttributes,
+    );
+
+    // 5. The model service's own judgement, as a corroborating source.
+    //
+    // Failure is not propagated: when the service is disabled or times out the
+    // local evidence still produces the full list, which is what keeps Component
+    // Intelligence working with the ML container down.
+    const mlSuggestions = await this.loadMlAttributeSuggestions({
+      dto: input.dto,
+      conditioning,
+      definitions,
+      extracted,
+      existingValues,
+    });
+
+    const suggestions = buildAttributeSuggestions({
+      definitions,
+      categories: bindings.map((entry) => ({
+        categoryId: entry.category.id,
+        categoryName: entry.category.name,
+        confidence: entry.confidence,
+        confidenceLevel: entry.confidenceLevel,
+        isPrimary: entry.isPrimary,
+        bindings: entry.bindings,
+      })),
+      packExpectations,
+      extracted,
+      text: [
+        input.dto.query,
+        input.dto.partNumber ?? '',
+        input.dto.description ?? '',
+        input.dto.datasheetText ?? '',
+      ],
+      existingValues,
+      units: existingValues.size > 0 ? await loadUnitCatalog() : [],
+      packageDefinitionId: packageDefinition?.id ?? null,
+      mountingTypeDefinitionId: mountingTypeDefinition?.id ?? null,
+      mlSuggestions,
+    });
+
+    return suggestions.map((suggestion) => ({
+      attributeDefinitionId: suggestion.attributeDefinitionId,
+      code: suggestion.code,
+      name: suggestion.name,
+      dataType: suggestion.dataType,
+      unitCategory: suggestion.unitCategory,
+      defaultUnit: suggestion.defaultUnit,
+      isRequired: suggestion.isRequired,
+      categoryIds: suggestion.categoryIds,
+      consideredCategoryIds: suggestion.consideredCategoryIds,
+      relevance: suggestion.relevance,
+      valueEvidence: suggestion.valueEvidence,
+      suggestedValue: suggestion.suggestedValue,
+      confidence: suggestion.confidence,
+      confidenceLevel: suggestion.confidenceLevel,
+      existingDisplay: suggestion.existingDisplay,
+      existingMatches: suggestion.existingMatches,
+      conflict: suggestion.conflict,
+    }));
+  }
+
+  /**
+   * Asks the model service what it judges about this component's specifications.
+   *
+   * One batched call, never one per attribute. The catalog, the bindings and the
+   * extraction are sent along so the service adds judgement rather than repeating
+   * reads the API has already done — and a reply naming an attribute the catalog
+   * does not hold is dropped, because a value must resolve to a real definition.
+   *
+   * Best-effort by design: `null` (the service being disabled, slow or
+   * unreachable) leaves the locally derived suggestions exactly as they were.
+   */
+  private async loadMlAttributeSuggestions(input: {
+    dto: SuggestComponentDto;
+    conditioning: ReadonlyArray<{
+      category: { id: string; code: string; name: string };
+      confidence: number;
+    }>;
+    definitions: RelevanceDefinition[];
+    extracted: RelevanceExtractedAttribute[];
+    existingValues: ReadonlyMap<string, string>;
+  }): Promise<MlAttributeSuggestion[]> {
+    if (!this.mlClient.enabled || input.conditioning.length === 0) return [];
+
+    const boundIds = await this.loadBindingIds(
+      input.conditioning.map((entry) => entry.category.id),
+    );
+
+    const response = await this.mlClient.suggestComponentAttributes({
+      query: input.dto.query,
+      partNumber: input.dto.partNumber,
+      description: input.dto.description,
+      datasheetText: input.dto.datasheetText,
+      categories: input.conditioning.map((entry) => ({
+        categoryId: entry.category.id,
+        categoryCode: entry.category.code,
+        categoryName: entry.category.name,
+        confidence: entry.confidence,
+      })),
+      attributes: input.definitions.map((definition) => ({
+        id: definition.id,
+        code: definition.code,
+        name: definition.name,
+        dataType: definition.dataType,
+        unitCategory: definition.unitCategory ?? null,
+        defaultUnit: definition.defaultUnit ?? null,
+        aliases: [...(definition.aliases ?? [])],
+        options: [...(definition.options ?? [])],
+      })),
+      boundAttributeIds: boundIds,
+      existingValues: Object.fromEntries(
+        input.definitions.flatMap((definition) => {
+          const display = input.existingValues.get(definition.id);
+          // Only recorded values are sent: an empty display is the absence of a
+          // value, and sending it would claim the component specifies nothing.
+          return display && display.length > 0
+            ? [[definition.code, display] as const]
+            : [];
+        }),
+      ),
+      extractedAttributes: Object.fromEntries(
+        input.extracted.map((attribute) => {
+          const definition = input.definitions.find(
+            (candidate) => candidate.id === attribute.definitionId,
+          );
+          return [
+            definition?.code ?? attribute.definitionId,
+            // The extractor's evidence is deliberately NOT sent: this service
+            // already carries it on the same attribute, and passing it back so it
+            // can be returned would list every source twice.
+            {
+              code: definition?.code ?? attribute.definitionId,
+              value: attribute.value,
+              unit: attribute.unit ?? null,
+              formatted: attribute.formatted,
+              confidence: attribute.confidence,
+              confidence_level: attribute.confidenceLevel,
+            },
+          ];
+        }),
+      ),
+    });
+
+    if (!response) return [];
+
+    // Only suggestions that name a definition this catalog actually holds, and
+    // only definitions that are active: a reply cannot introduce an attribute.
+    const known = new Set(
+      input.definitions
+        .filter((definition) => definition.isActive)
+        .map((definition) => definition.id),
+    );
+    return response.flatMap((suggestion) =>
+      suggestion.attributeDefinitionId &&
+      known.has(suggestion.attributeDefinitionId)
+        ? [
+            {
+              attributeDefinitionId: suggestion.attributeDefinitionId,
+              code: suggestion.code,
+              suggestedValue: suggestion.suggestedValue ?? null,
+              formatted: suggestion.formatted ?? null,
+              confidence: suggestion.confidence ?? null,
+              confidenceLevel: suggestion.confidenceLevel ?? null,
+              relevance: (suggestion.relevance ?? []).map((item) =>
+                toRelevanceEvidence(item),
+              ),
+              valueEvidence: (suggestion.valueEvidence ?? []).map((item) =>
+                toRelevanceEvidence(item),
+              ),
+            },
+          ]
+        : [],
+    );
+  }
+
+  /**
+   * The attribute definition ids bound to any of the conditioning categories.
+   *
+   * One query for all of them: the bindings condition relevance, and asking per
+   * category would be the N+1 the intelligence pipeline is meant to avoid.
+   */
+  private async loadBindingIds(categoryIds: string[]): Promise<string[]> {
+    const rows = await db
+      .select({
+        attributeDefinitionId: categoryAttributes.attributeDefinitionId,
+      })
+      .from(categoryAttributes)
+      .where(inArray(categoryAttributes.categoryId, categoryIds));
+    return [...new Set(rows.map((row) => row.attributeDefinitionId))];
+  }
+
+  /**
+   * The bindings that apply to a category, inherited ones included.
+   *   * Mirrors `GetCategoryAttributes`'s resolution — walk to the root, merge
+   * root-to-leaf, let the nearest binding win — because the component form and
+   * the Manage Attributes dialog both render the resolved list from that use
+   * case, and a suggestion must never disagree with the editor about which
+   * specifications a category has.
+   */
+  private async loadResolvedCategoryBindings(
+    categoryId: string,
+    categoryMap: Map<string, { id: string; parentId: string | null }>,
+  ): Promise<RelevanceBinding[]> {
+    const ancestryIds: string[] = [];
+    const visited = new Set<string>();
+    let currentId: string | null = categoryId;
+    while (currentId && !visited.has(currentId)) {
+      visited.add(currentId);
+      ancestryIds.push(currentId);
+      currentId = categoryMap.get(currentId)?.parentId ?? null;
+    }
+
+    const rows = await db
+      .select({
+        attributeDefinitionId: categoryAttributes.attributeDefinitionId,
+        categoryId: categoryAttributes.categoryId,
+        isRequired: categoryAttributes.isRequired,
+        sortOrder: categoryAttributes.sortOrder,
+      })
+      .from(categoryAttributes)
+      .where(inArray(categoryAttributes.categoryId, ancestryIds));
+
+    const merged = new Map<string, RelevanceBinding>();
+    for (const ancestorId of [...ancestryIds].reverse()) {
+      for (const row of rows) {
+        if (row.categoryId !== ancestorId) continue;
+        const existing = merged.get(row.attributeDefinitionId);
+        merged.set(row.attributeDefinitionId, {
+          attributeDefinitionId: row.attributeDefinitionId,
+          isRequired: row.isRequired,
+          sortOrder: row.sortOrder,
+          // The category itself owns the binding; only an ancestor is reported
+          // as the source of an inherited one.
+          inheritedFromCategoryId:
+            ancestorId === categoryId
+              ? null
+              : (existing?.inheritedFromCategoryId ?? ancestorId),
+        });
+      }
+    }
+    return [...merged.values()];
+  }
+
+  /**
+   * Whether a Data Pack hint describes this category.
+   *
+   * Codes must match exactly (normalized); names may match by containment, which
+   * is the rule the attribute-library suggestions already apply and is what lets
+   * a pack's "Capacitors" reach a category named "Capacitors (MLCC)".
+   */
+  private hintMatchesCategory(
+    hint: DataPackHint,
+    category: { code: string; name: string },
+  ): boolean {
+    if (
+      hint.categoryCode &&
+      normalizedTerm(hint.categoryCode) === normalizedTerm(category.code)
+    ) {
+      return true;
+    }
+    const categoryName = normalizedTerm(category.name);
+    if (!hint.categoryName || categoryName.length === 0) return false;
+    const hintName = normalizedTerm(hint.categoryName);
+    return (
+      hintName === categoryName ||
+      categoryName.includes(hintName) ||
+      hintName.includes(categoryName)
+    );
   }
 
   async recordFeedback(

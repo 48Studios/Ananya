@@ -144,6 +144,7 @@ describe('Component catalog — authorization', () => {
         isDuplicate: false,
         duplicateWarnings: [],
         attributes: {},
+        attributeSuggestions: [],
         alternativeCategories: [],
         confidenceLevel: 'MEDIUM' as const,
         isMlActive: false,

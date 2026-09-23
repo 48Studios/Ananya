@@ -490,3 +490,84 @@ class AuditAttributeLibraryRequest(BaseModel):
 class AuditAttributeLibraryResponse(BaseModel):
     summary: Dict[str, int]
     issues: List[AttributeAuditIssue]
+
+# ---------------------------------------------------------
+# Component Attribute Intelligence Schemas
+#
+# Component-level, not library-level: these describe what the specifications of
+# one *part* are, given the category it belongs to. The library endpoints above
+# answer "what should this category be configured with"; these answer "what does
+# this component probably have, and why".
+# ---------------------------------------------------------
+
+class AttributeOptionItem(BaseModel):
+    code: str
+    label: str
+
+class ComponentAttributeDefinition(ExistingAttribute):
+    """
+    An ERP attribute definition with the option catalog a value must resolve to.
+
+    Extends `ExistingAttribute` rather than widening it, so the library endpoints
+    keep their exact contract. The options are what makes a suggested value
+    canonical: a concept read from text is only reported once it names an option
+    this definition actually has.
+    """
+    description: Optional[str] = None
+    options: List[AttributeOptionItem] = Field(default_factory=list)
+
+class SuggestComponentAttributesCategory(BaseModel):
+    """A category the relevance is conditioned on, primary first."""
+    categoryId: str
+    categoryCode: Optional[str] = None
+    categoryName: str
+    confidence: float = 1.0
+
+class SuggestComponentAttributesRequest(BaseModel):
+    """
+    Everything the service needs to judge one component's specifications.
+
+    The caller supplies the catalog, the bindings and the already-extracted
+    attributes: this endpoint adds *judgement* (what matters, and which existing
+    option a stated value names), not a second extraction or a second catalog
+    read. Nothing here is inferred from the shape of the request — an attribute
+    that is not in `attributes` cannot be suggested.
+    """
+    query: str
+    partNumber: Optional[str] = None
+    description: Optional[str] = None
+    datasheetText: Optional[str] = None
+    categories: List[SuggestComponentAttributesCategory] = Field(default_factory=list)
+    attributes: List[ComponentAttributeDefinition] = Field(default_factory=list)
+    boundAttributeIds: List[str] = Field(default_factory=list)
+    boundAttributeCodes: List[str] = Field(default_factory=list)
+    # Attribute code -> the display form of what the component already records.
+    existingValues: Dict[str, str] = Field(default_factory=dict)
+    # What the extractor read, keyed by its own code. Never re-extracted here.
+    extractedAttributes: Dict[str, ExtractedAttribute] = Field(default_factory=dict)
+    datapack_hints: Optional[List[DataPackIntelligenceHint]] = None
+
+class ComponentAttributeSuggestion(BaseModel):
+    """
+    One attribute the intelligence considers relevant for this component.
+
+    Relevance and value are separate fields because they are separate facts: an
+    attribute can be relevant with `suggestedValue = None`, which is a different
+    statement from a predicted value and must be reported as such.
+    """
+    attributeDefinitionId: Optional[str] = None
+    code: str
+    name: str
+    dataType: Optional[str] = None
+    relevance: List[EvidenceItem] = Field(default_factory=list)
+    suggestedValue: Optional[str] = None
+    unit: Optional[str] = None
+    formatted: Optional[str] = None
+    confidence: Optional[float] = None
+    confidenceLevel: Optional[str] = None
+    valueEvidence: List[EvidenceItem] = Field(default_factory=list)
+
+class SuggestComponentAttributesResponse(BaseModel):
+    suggestions: List[ComponentAttributeSuggestion]
+    modelVersion: str = "1.0.0"
+

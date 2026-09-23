@@ -65,6 +65,67 @@ export interface ExtractedAttributeDto {
   resolution?: "RESOLVED" | "UNRESOLVED";
 }
 
+/** Why an attribute is considered relevant, or why a value is suggested. */
+export interface AttributeRelevanceEvidenceDto {
+  type: string;
+  description: string;
+  source?: string;
+  weight: number;
+  categoryId?: string | null;
+  categoryName?: string | null;
+}
+
+/** A suggested value in the shape the manual attribute editor writes. */
+export interface AttributeSuggestedValueDto {
+  /** A MULTI_SELECT value is the list of chosen option codes. */
+  value: string | number | boolean | string[] | null;
+  unit?: string | null;
+  optionCode?: string;
+  optionLabel?: string;
+  selectedOptionCodes?: string[];
+  formatted: string;
+}
+
+/** A recorded value that genuinely disagrees with the suggestion. */
+export interface AttributeSuggestionConflictDto {
+  existingDisplay: string;
+  suggestedDisplay: string;
+}
+
+/**
+ * One relevant attribute for this part.
+ *
+ * Relevance and value are separate: `suggestedValue: null` means the attribute
+ * matters but no value could be determined, which must not be rendered like a
+ * prediction.
+ */
+export interface AttributeSuggestionDto {
+  attributeDefinitionId: string;
+  code: string;
+  name: string;
+  dataType: string;
+  unitCategory?: string | null;
+  defaultUnit?: string | null;
+  isRequired: boolean;
+  /** The considered categories that establish relevance for this attribute. */
+  categoryIds: string[];
+  /** Every category considered, so what did *not* establish it stays visible. */
+  consideredCategoryIds: string[];
+  relevance: AttributeRelevanceEvidenceDto[];
+  valueEvidence: AttributeRelevanceEvidenceDto[];
+  suggestedValue: AttributeSuggestedValueDto | null;
+  confidence: number | null;
+  confidenceLevel: "HIGH" | "MEDIUM" | "LOW" | null;
+  existingDisplay: string | null;
+  /**
+   * Whether the recorded value was positively established as equivalent.
+   * `null` when nothing is recorded; `false` means the comparison was
+   * inconclusive, which is not a conflict and must not be shown as agreement.
+   */
+  existingMatches: boolean | null;
+  conflict: AttributeSuggestionConflictDto | null;
+}
+
 export interface ComponentSuggestionResponseDto {
   query: string;
   manufacturerPartNumber?: string;
@@ -77,6 +138,11 @@ export interface ComponentSuggestionResponseDto {
   isDuplicate: boolean;
   duplicateWarnings: DuplicateWarningDto[];
   attributes: Record<string, ExtractedAttributeDto>;
+  /**
+   * Relevant attributes, bound to this part's category or discovered from other
+   * evidence, with a canonical value only where the evidence supports one.
+   */
+  attributeSuggestions: AttributeSuggestionDto[];
   confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
   overallEvidence?: EvidenceItemDto[];
   isMlActive: boolean;
@@ -94,6 +160,11 @@ export interface SuggestComponentPayload {
    * Omitted when creating a new component.
    */
   componentId?: string;
+  /**
+   * A category the reviewer selected by hand. Attribute relevance is conditioned
+   * on it instead of on the predicted category.
+   */
+  categoryId?: string;
 }
 
 export interface FeedbackItemPayload {

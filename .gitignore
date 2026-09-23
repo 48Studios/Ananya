@@ -47,3 +47,21 @@ Thumbs.db
 /test-results
 /playwright-report
 /apps/api/uploads
+
+# ML Training Data, Large Artifacts & Experiments
+apps/ml/training/datasets/raw/*
+!apps/ml/training/datasets/raw/fixtures.json
+!apps/ml/training/datasets/raw/.gitkeep
+apps/ml/training/datasets/cleaned/*
+!apps/ml/training/datasets/cleaned/.gitkeep
+apps/ml/training/datasets/normalized/*
+!apps/ml/training/datasets/normalized/.gitkeep
+apps/ml/training/datasets/training/*
+!apps/ml/training/datasets/training/.gitkeep
+apps/ml/training/datasets/evaluation/*
+!apps/ml/training/datasets/evaluation/.gitkeep
+apps/ml/training/experiments/*
+!apps/ml/training/experiments/.gitkeep
+*.checkpoint.pt
+*.safetensors
+*.onnx

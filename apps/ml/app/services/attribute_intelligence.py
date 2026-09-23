@@ -6,12 +6,17 @@ from ..schemas import (
     CategoryItem,
     ExistingAttribute,
     ExistingBinding,
+    ExtractedAttribute,
     AttributeBindingSuggestion,
     CategoryAttributeSuggestion,
     AttributeConfigSuggestion,
     AttributeDuplicateMatch,
     EnumOptionSuggestion,
     AttributeAuditIssue,
+    AttributeOptionItem,
+    ComponentAttributeDefinition,
+    ComponentAttributeSuggestion,
+    SuggestComponentAttributesCategory,
 )
 
 # Canonical knowledge base of standard electronics engineering parametric dimensions
@@ -300,6 +305,195 @@ def compute_attribute_similarity(
 
     return max(char_sim, token_jaccard * 0.85, substring_sim)
 
+# ---------------------------------------------------------------------------
+# Concept -> option canonicalisation
+# ---------------------------------------------------------------------------
+
+# How a stated *concept* is expressed by the options of an ERP attribute.
+#
+# Keyed by the canonical parameter code, and consulted only after an exact code
+# or label match has failed. It exists because a datasheet says "surface mount"
+# and "gold flash" while the library stores option codes like `SMD` and `Gold`,
+# and a suggested value must be one the manual editor could have picked — never
+# a free string. The spellings are the concept's synonyms, not a list of
+# attributes: nothing here can create an attribute, and a concept with no option
+# on the definition produces no value at all.
+CONCEPT_OPTION_SPELLINGS: Dict[str, Dict[str, List[str]]] = {
+    "mounting_type": {
+        "smd": ["smd", "smt", "surfacemount", "surfacemounting", "surfacemountdevice"],
+        "throughhole": ["throughhole", "thruhole", "tht", "axial", "radial", "leaded"],
+        "panelmount": ["panelmount", "panel"],
+    },
+    "termination": {
+        "smdsmt": ["smd", "smt", "surfacemount"],
+        "throughhole": ["throughhole", "thruhole", "tht", "solder"],
+        "throughholeaxial": ["axial", "throughholeaxial"],
+        "throughholeradial": ["radial", "throughholeradial"],
+        "solderlug": ["solderlug", "soldertail", "soldercup"],
+        "screwterminal": ["screwterminal", "screwclamp"],
+    },
+    "contact_plating": {
+        "gold": ["gold", "goldplated", "goldflash", "au"],
+        "selectivegold": ["selectivegold", "hardgold"],
+        "tin": ["tin", "tinplated", "sn"],
+        "silver": ["silver", "silverplated", "ag"],
+        "nickel": ["nickel", "nickelplated", "ni"],
+    },
+    "gender": {
+        "male": ["male", "plug", "pin", "header", "maleheader"],
+        "female": ["female", "socket", "receptacle", "jack"],
+        "reversible": ["reversible"],
+        "universal": ["universal"],
+    },
+    "orientation": {
+        "vertical": ["vertical", "straight", "topentry"],
+        "rightangle": ["rightangle", "sideentry", "rightangle90"],
+        "horizontal": ["horizontal", "flat"],
+    },
+}
+
+
+def match_canonical_param(
+    code: Optional[str], name: Optional[str]
+) -> Optional[Dict[str, Any]]:
+    """
+    The canonical parameter a definition code/name — or an extractor code —
+    denotes.
+
+    Three spellings are bridged: the knowledge base's own key (`voltage`), the
+    parameter's canonical definition code (`voltage_rating`) and its canonical
+    name (`Voltage Rating`). The first is what the *extractor* emits, the second
+    is what the ERP stores, and both must reach the same parameter or a stated
+    value could never be canonicalised onto its own definition.
+
+    Deliberately not matching on aliases: several parameters list the same
+    aliases (Mounting Type names "Termination Style"), so an alias match could
+    attach one parameter's knowledge to another's definition.
+    """
+    norm_code = normalize_text(code or "")
+    norm_name = normalize_text(name or "")
+    for key, param in CANONICAL_PARAM_KNOWLEDGE.items():
+        if norm_code and norm_code in (
+            normalize_text(key),
+            normalize_text(param["code"]),
+        ):
+            return param
+        if norm_name and norm_name == normalize_text(param["canonical_name"]):
+            return param
+    return None
+
+
+def canonicalize_option_value(
+    value_text: Optional[str],
+    definition_code: Optional[str],
+    definition_name: Optional[str],
+    options: List[AttributeOptionItem],
+) -> Optional[AttributeOptionItem]:
+    """
+    The option of a definition that expresses a stated value, or None.
+
+    Three passes, strongest first: the value already is an option code or label;
+    the value is a known synonym of an option; the value is a single-token prefix
+    of an option label (`Male` for `Male (Pin)`). A value that resolves to
+    nothing produces no suggestion, which is what keeps a free-form string out of
+    the component's specifications.
+    """
+    normalized = normalize_text(value_text or "")
+    if not normalized or not options:
+        return None
+
+    # 1. The value already names an option.
+    for option in options:
+        if normalized in (normalize_text(option.code), normalize_text(option.label)):
+            return option
+
+    # 2. The value names a concept the options express.
+    param = match_canonical_param(definition_code, definition_name)
+    concept_map = CONCEPT_OPTION_SPELLINGS.get(param["code"], {}) if param else {}
+    for concept, spellings in concept_map.items():
+        if normalized != concept and normalized not in spellings:
+            continue
+        for option in options:
+            option_keys = (normalize_text(option.code), normalize_text(option.label))
+            if concept in option_keys:
+                return option
+            if any(spelling in option_keys for spelling in spellings):
+                return option
+
+    # 3. A stated value that is a leading part of precisely one option label.
+    if len(normalized) >= 3:
+        prefixed = [
+            option
+            for option in options
+            if normalize_text(option.label).startswith(normalized)
+        ]
+        if len(prefixed) == 1:
+            return prefixed[0]
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Terminology matching
+# ---------------------------------------------------------------------------
+
+def term_words(term: str) -> List[str]:
+    """Word tokens of a term, so matching is word-based rather than substring."""
+    return re.findall(r"[a-z0-9]+", (term or "").lower())
+
+
+def contains_word_sequence(haystack: List[str], needle: List[str]) -> bool:
+    """Whether `needle` appears contiguously in `haystack`."""
+    if not needle or len(needle) > len(haystack):
+        return False
+    for start in range(len(haystack) - len(needle) + 1):
+        if haystack[start : start + len(needle)] == needle:
+            return True
+    return False
+
+
+def is_usable_term(term: str) -> bool:
+    """
+    Whether a term is specific enough to be evidence on its own.
+
+    Single short words (`cap`, `res`, `tin`) occur in ordinary prose and inside
+    longer words, so they are never matched; multi-word terms are unaffected.
+    """
+    words = term_words(term)
+    if not words:
+        return False
+    if len(words) == 1 and len(words[0]) < 4:
+        return False
+    return True
+
+
+def category_hint_matches(
+    hint_category_name: Optional[str],
+    hint_category_code: Optional[str],
+    category_name: str,
+    category_code: Optional[str],
+) -> bool:
+    """
+    Whether a Data Pack hint describes a category.
+
+    Mirrors the rule the library suggestions already apply: codes must match
+    exactly (normalized), names may match by containment, which lets a pack's
+    "Capacitors" reach a category named "Capacitors (MLCC)".
+    """
+    norm_category_name = normalize_text(category_name)
+    norm_category_code = normalize_text(category_code or "")
+    if hint_category_code and normalize_text(hint_category_code) == norm_category_code:
+        return True
+    if not hint_category_name:
+        return False
+    norm_hint_name = normalize_text(hint_category_name)
+    return (
+        norm_hint_name == norm_category_name
+        or norm_hint_name in norm_category_name
+        or norm_category_name in norm_hint_name
+    )
+
+
 class AttributeIntelligenceService:
     def __init__(self):
         pass
@@ -529,6 +723,305 @@ class AttributeIntelligenceService:
 
         suggestions.sort(key=lambda x: (not x.isAlreadyBound, x.confidence), reverse=True)
         return suggestions
+
+    def suggest_component_attributes(
+        self,
+        query: str,
+        part_number: Optional[str],
+        description: Optional[str],
+        datasheet_text: Optional[str],
+        categories: List[SuggestComponentAttributesCategory],
+        attributes: List[ComponentAttributeDefinition],
+        bound_attribute_ids: List[str],
+        bound_attribute_codes: List[str],
+        existing_values: Dict[str, str],
+        extracted_attributes: Dict[str, ExtractedAttribute],
+        datapack_hints: Optional[List[DataPackIntelligenceHint]] = None,
+    ) -> List[ComponentAttributeSuggestion]:
+        """
+        The relevant attributes of ONE component, with a value only where one can
+        be named in the library's own terms.
+
+        Two questions, answered separately because they fail independently:
+
+        * **What matters?** The category's bindings (an explicit configuration
+          decision), what the active Data Packs expect for that category, what the
+          domain knowledge says a part of that kind has, what the text names, what
+          the extractor read, and what the component already records. A category
+          binding is the strongest of these but not the only one, and an attribute
+          it does not bind can still be reported.
+        * **What is it probably set to?** Only values the extractor already read
+          *and* this service could express as an option of the definition. This is
+          deliberately narrow: a concept stated in prose ("gold flash") becomes an
+          option of the ERP definition or nothing at all. Quantities and numbers
+          carry no value here — the caller assembles those from the same
+          extraction, and doing it twice is how two answers start to disagree.
+
+        Only attributes that resolve to a definition in `attributes` are
+        returned. A domain expectation with no matching definition is what the
+        Attribute Library's audit reports (MISSING_EXPECTED_ATTRIBUTE) so it can
+        be created deliberately; inventing it here would create an attribute from
+        a mention, which is exactly what this must not do.
+        """
+        considered: List[SuggestComponentAttributesCategory] = [
+            category for category in categories if category.categoryName
+        ]
+        if not considered or not attributes:
+            return []
+
+        definitions_by_id = {attribute.id: attribute for attribute in attributes}
+        definitions_by_code = {
+            normalize_text(attribute.code): attribute for attribute in attributes
+        }
+        considering_category_ids = {category.categoryId for category in considered}
+        considering_category_names = [
+            category.categoryName for category in considered
+        ]
+
+        text_words = term_words(
+            " ".join(
+                part
+                for part in [query, part_number or "", description or "", datasheet_text or ""]
+                if part
+            )
+        )
+
+        relevance: Dict[str, List[EvidenceItem]] = {}
+        values: Dict[str, Tuple[AttributeOptionItem, float, List[EvidenceItem]]] = {}
+        # Terms a Data Pack declares for a definition, used only as extra
+        # vocabulary for the mention pass. Kept beside the models rather than on
+        # them, so a request object is never written to.
+        pack_aliases: Dict[str, List[str]] = {}
+
+        def mark(definition: ComponentAttributeDefinition, item: EvidenceItem) -> None:
+            relevance.setdefault(definition.id, []).append(item)
+
+        def find_definition(code: Optional[str], name: Optional[str]) -> Optional[ComponentAttributeDefinition]:
+            """The definition a Data Pack code or package alias denotes."""
+            if not code and not name:
+                return None
+            for candidate in (code, name):
+                if candidate and normalize_text(candidate) in definitions_by_code:
+                    return definitions_by_code[normalize_text(candidate)]
+            # The parameter vocabulary bridges pack codes (`voltage`) and
+            # definition codes (`voltage_rating`) through the same knowledge the
+            # library suggestions use.
+            param = match_canonical_param(code, name)
+            if param:
+                direct = definitions_by_code.get(normalize_text(param["code"]))
+                if direct:
+                    return direct
+                for attribute in attributes:
+                    if normalize_text(attribute.name) == normalize_text(param["canonical_name"]):
+                        return attribute
+                    if any(
+                        normalize_text(alias) == normalize_text(param["code"])
+                        for alias in attribute.aliases
+                    ):
+                        return attribute
+            return None
+
+        # 1. Category bindings: the explicit configuration decision.
+        bound_ids = set(bound_attribute_ids)
+        bound_codes = {normalize_text(code) for code in bound_attribute_codes}
+        for definition in attributes:
+            if definition.id in bound_ids or normalize_text(definition.code) in bound_codes:
+                mark(
+                    definition,
+                    EvidenceItem(
+                        type="category_binding",
+                        description=f"{definition.name} is bound to this component's category",
+                        weight=0.9,
+                        source="category:binding",
+                    ),
+                )
+
+        # 2. Data Pack expectations for the considered categories.
+        for hint in datapack_hints or []:
+            matching = [
+                category
+                for category in considered
+                if category_hint_matches(
+                    hint.categoryName, hint.categoryCode, category.categoryName, category.categoryCode
+                )
+            ]
+            if not matching:
+                continue
+            for code in hint.expectedAttributes or []:
+                definition = find_definition(code, None)
+                if not definition:
+                    continue
+                aliases = (hint.attributeAliases or {}).get(code) or []
+                mark(
+                    definition,
+                    EvidenceItem(
+                        type="data_pack_expectation",
+                        description=f"Data Pack expects {definition.name} for {matching[0].categoryName}",
+                        weight=0.85,
+                        source="datapack:expected_attributes",
+                    ),
+                )
+                if aliases:
+                    pack_aliases[definition.id] = list(
+                        dict.fromkeys([*pack_aliases.get(definition.id, []), *aliases])
+                    )
+
+        # 3. Canonical domain knowledge for the considered categories.
+        for category in considered:
+            for _key, param in CANONICAL_PARAM_KNOWLEDGE.items():
+                if not any(
+                    normalize_text(target) in normalize_text(category.categoryName)
+                    or normalize_text(category.categoryName) in normalize_text(target)
+                    for target in param.get("categories", [])
+                ):
+                    continue
+                definition = find_definition(param["code"], param["canonical_name"])
+                if not definition:
+                    continue
+                mark(
+                    definition,
+                    EvidenceItem(
+                        type="domain_knowledge",
+                        description=f"Standard engineering specification for {category.categoryName}",
+                        weight=0.8,
+                        source="domain:electronics_standard",
+                    ),
+                )
+
+        # 4. What the extractor already read, canonicalised onto an option.
+        for extracted in extracted_attributes.values():
+            definition = find_definition(extracted.code, None)
+            if not definition:
+                continue
+            mark(
+                definition,
+                EvidenceItem(
+                    type="extracted_attribute",
+                    description=f"Extracted {extracted.formatted} from the supplied text",
+                    weight=0.8,
+                    source="extractor:component-attribute",
+                ),
+            )
+            data_type = (definition.dataType or "").upper()
+            if data_type not in ("SELECT", "MULTI_SELECT"):
+                # Quantities, numbers and text are assembled by the caller from
+                # the same extraction; naming them twice invites two answers.
+                continue
+            option = canonicalize_option_value(
+                str(extracted.value) if extracted.value is not None else extracted.formatted,
+                definition.code,
+                definition.name,
+                definition.options,
+            )
+            if not option:
+                continue
+            confidence = min(0.95, extracted.confidence)
+            values[definition.id] = (
+                option,
+                confidence,
+                [
+                    EvidenceItem(
+                        type="ml_inference",
+                        description=(
+                            f"'{extracted.formatted}' is the {definition.name} option "
+                            f"'{option.code}'"
+                        ),
+                        weight=confidence,
+                        source="canonical:option_mapping",
+                    ),
+                    *(extracted.evidence or []),
+                ],
+            )
+
+        # 5. What the component already records. Its presence is evidence that the
+        # attribute is meaningful for this part, independently of the category.
+        for attribute in attributes:
+            display = existing_values.get(attribute.code)
+            if not display:
+                continue
+            mark(
+                attribute,
+                EvidenceItem(
+                    type="existing_value",
+                    description=f"{attribute.name} is already recorded on this component",
+                    weight=0.9,
+                    source="component:attribute_value",
+                ),
+            )
+
+        # 6. Text mentions: the definition's own terms, its declared aliases, and
+        # the canonical parameter's vocabulary.
+        if text_words:
+            for attribute in attributes:
+                param = match_canonical_param(attribute.code, attribute.name)
+                terms = [
+                    attribute.name,
+                    attribute.code,
+                    *attribute.aliases,
+                    *pack_aliases.get(attribute.id, []),
+                    *(
+                        [param["canonical_name"], param["code"], *param.get("aliases", [])]
+                        if param
+                        else []
+                    ),
+                ]
+                matched = next(
+                    (
+                        term
+                        for term in terms
+                        if is_usable_term(term)
+                        and contains_word_sequence(text_words, term_words(term))
+                    ),
+                    None,
+                )
+                if not matched:
+                    continue
+                mark(
+                    attribute,
+                    EvidenceItem(
+                        type="attribute_mention",
+                        description=f"The supplied text names \"{matched}\"",
+                        weight=0.6,
+                        source="text:mention",
+                    ),
+                )
+
+        results: List[ComponentAttributeSuggestion] = []
+        for attribute in attributes:
+            evidence = relevance.get(attribute.id)
+            if not evidence:
+                continue
+            value = values.get(attribute.id)
+            confidence = round(value[1], 4) if value else None
+            results.append(
+                ComponentAttributeSuggestion(
+                    attributeDefinitionId=attribute.id,
+                    code=attribute.code,
+                    name=attribute.name,
+                    dataType=attribute.dataType,
+                    relevance=evidence,
+                    suggestedValue=value[0].code if value else None,
+                    unit=None,
+                    formatted=value[0].code if value else None,
+                    confidence=confidence,
+                    confidenceLevel=(
+                        ("HIGH" if confidence >= 0.85 else "MEDIUM")
+                        if confidence is not None
+                        else None
+                    ),
+                    valueEvidence=value[2] if value else [],
+                )
+            )
+
+        # Bound attributes first (the category's own priorities), then by the
+        # strength of the strongest relevance evidence, then by name.
+        def sort_key(suggestion: ComponentAttributeSuggestion) -> Tuple[int, float, str]:
+            is_bound = any(item.type == "category_binding" for item in suggestion.relevance)
+            strongest = max((item.weight for item in suggestion.relevance), default=0.0)
+            return (0 if is_bound else 1, -strongest, suggestion.name)
+
+        results.sort(key=sort_key)
+        return results
 
     def suggest_attribute_config(
         self,

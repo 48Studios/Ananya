@@ -32,6 +32,8 @@ from .schemas import (
     SuggestEnumValuesResponse,
     AuditAttributeLibraryRequest,
     AuditAttributeLibraryResponse,
+    SuggestComponentAttributesRequest,
+    SuggestComponentAttributesResponse,
     TrainingRunRequest,
     TrainingRunResponse,
     TrainingRunListResponse,
@@ -158,6 +160,27 @@ def suggest_component(req: SuggestComponentRequest):
     full_text = f"{pn} {desc}".strip()
     hints = req.datapack_hints
 
+    # 0. Datasheet input, in whichever form the caller has it.
+    #
+    # A pasted block of specification text is searchable as-is. A PDF has to be
+    # read first, and reading it here rather than only inside the extraction
+    # endpoint is what lets the *same* document text serve the category and
+    # manufacturer resolvers too — otherwise a caller supplying a PDF would get
+    # attribute extraction from it while classification still saw only the query.
+    #
+    # Both paths are bounded by the extractor (page and character caps), so a
+    # large document changes how much is read, never how much is returned.
+    document_text = req.datasheet_text or ""
+    if req.datasheet_pdf_base64:
+        pdf_text = datasheet_extractor.extract_text_from_pdf_base64(
+            req.datasheet_pdf_base64
+        )
+        document_text = "\n".join(part for part in [document_text, pdf_text] if part)
+
+    extraction_text = "\n".join(
+        part for part in [pn, desc, document_text] if part
+    ).strip()
+
     # 1. Category Classification
     cat_preds = category_classifier.predict(
         full_text,
@@ -165,14 +188,14 @@ def suggest_component(req: SuggestComponentRequest):
         datapack_hints=hints,
         erp_categories=req.erp_categories,
         erp_manufacturers=req.erp_manufacturers,
-        datasheet_text=req.datasheet_text or "",
+        datasheet_text=document_text,
     )
 
     # 2. Manufacturer Resolution
     mfg_res = manufacturer_resolver.resolve(
         pn,
         desc,
-        datasheet_text=req.datasheet_text or "",
+        datasheet_text=document_text,
         erp_manufacturers=req.erp_manufacturers,
         datapack_hints=hints,
     )
@@ -186,7 +209,13 @@ def suggest_component(req: SuggestComponentRequest):
     )
 
     # 4. Attribute Extraction
-    datasheet_res = datasheet_extractor.process(text=full_text, datapack_hints=hints)
+    #
+    # The document text is part of what is read: a specification stated only in
+    # the pasted datasheet block is a specification of this part, and leaving it
+    # out is why a pasted datasheet produced no attributes.
+    datasheet_res = datasheet_extractor.process(
+        text=extraction_text, datapack_hints=hints
+    )
 
     # 5. Composite Confidence Calibration & Evidence Aggregation
     overall_evidence = []
@@ -256,6 +285,32 @@ def suggest_category_attributes(req: SuggestCategoryAttributesRequest):
         category_component_count=req.categoryComponentCount,
     )
     return SuggestCategoryAttributesResponse(suggestions=suggestions)
+
+@app.post("/v1/attributes/suggest-component-attributes", response_model=SuggestComponentAttributesResponse)
+def suggest_component_attributes(req: SuggestComponentAttributesRequest):
+    """
+    The relevant specifications of one component, and why each one matters.
+
+    Component-level counterpart of `/v1/attributes/suggest-category-attributes`:
+    that endpoint asks what a *category* should be configured with, this one asks
+    what a *part* probably has. The caller supplies its catalog, the category's
+    bindings and the extraction it already ran, so this route adds judgement
+    rather than a second read of the same data.
+    """
+    suggestions = attribute_intelligence_service.suggest_component_attributes(
+        query=req.query,
+        part_number=req.partNumber,
+        description=req.description,
+        datasheet_text=req.datasheetText,
+        categories=req.categories,
+        attributes=req.attributes,
+        bound_attribute_ids=req.boundAttributeIds,
+        bound_attribute_codes=req.boundAttributeCodes,
+        existing_values=req.existingValues,
+        extracted_attributes=req.extractedAttributes,
+        datapack_hints=req.datapack_hints,
+    )
+    return SuggestComponentAttributesResponse(suggestions=suggestions)
 
 @app.post("/v1/attributes/suggest-config", response_model=SuggestAttributeConfigResponse)
 def suggest_attribute_config(req: SuggestAttributeConfigRequest):

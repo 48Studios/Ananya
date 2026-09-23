@@ -103,6 +103,7 @@ function buildSuggestion(
     isDuplicate: false,
     duplicateWarnings: [],
     attributes: {},
+    attributeSuggestions: [],
     alternativeCategories: [],
     isMlActive: true,
     executionTimeMs: 3,

@@ -12,7 +12,7 @@ from ..schemas import ExtractedAttribute, ExtractDatasheetResponse, EvidenceItem
 # extractions can be identified and recomputed deliberately rather than silently
 # re-interpreted. It is echoed in the response and recorded by the API alongside
 # every analysis.
-EXTRACTOR_VERSION = "datasheet-extract-v2"
+EXTRACTOR_VERSION = "datasheet-extract-v3"
 
 #
 # Page selection.
@@ -599,7 +599,256 @@ class DatasheetExtractorService:
                 )
             )
 
-        # 10. Check Data Pack expected attributes to boost evidence if present
+        # 10. Mounting Type (surface mount vs through hole vs panel mount)
+        #
+        # The classification is of the *spelled-out technology*, never of a
+        # footprint code: a package code is a different statement, and deriving a
+        # mounting type from one is the caller's job (it owns the package
+        # vocabulary and the definition's own options).
+        locations = self._locate_all(
+            pages,
+            r"\b(surface[\s-]?mount(?:ing)?|smd|smt|through[\s-]?hole|thru[\s-]?hole|tht|panel[\s-]?mount)\b",
+        )
+        if locations:
+            _, cleaned, mount_m = locations[0]
+            token = re.sub(r"[\s-]+", " ", mount_m.group(1).strip().lower())
+            if token in ("smd", "smt") or token.startswith("surface"):
+                mounting = "SMD"
+            elif token.startswith("panel"):
+                mounting = "Panel Mount"
+            else:
+                mounting = "Through Hole"
+            record(
+                ExtractedAttribute(
+                    code="mounting_type",
+                    value=mounting,
+                    formatted=mounting,
+                    confidence=0.85,
+                    confidence_level="MEDIUM",
+                    evidence=self._evidence_list(
+                        "datasheet_param",
+                        f"Stated mounting technology '{mount_m.group(1).strip()}' indicates {mounting}",
+                        0.85,
+                        "extractor:ee_mounting",
+                        locations,
+                        sections,
+                    ),
+                )
+            )
+
+        # 11. Termination Style
+        #
+        # Lead/termination form, which is what the value names: an axial or
+        # radial part is a through-hole part, and the style is the more specific
+        # statement. `solder tail`/`solder lug`/`screw terminal` are their own
+        # styles and are matched before the generic through-hole alternatives so
+        # the more specific wording wins.
+        locations = self._locate_all(
+            pages,
+            r"\b(solder[\s-]?lug|solder[\s-]?tail|solder[\s-]?cup|screw[\s-]?(?:terminal|clamp)|axial|radial|through[\s-]?hole|thru[\s-]?hole|tht|smd|smt)\b",
+        )
+        if locations:
+            _, cleaned, term_m = locations[0]
+            token = re.sub(r"[\s-]+", " ", term_m.group(1).strip().lower())
+            termination = {
+                "axial": "Through Hole (Axial)",
+                "radial": "Through Hole (Radial)",
+                "solder lug": "Solder Lug",
+                "solder tail": "Solder Lug",
+                "solder cup": "Solder Lug",
+                "screw terminal": "Screw Terminal",
+                "screw clamp": "Screw Terminal",
+            }.get(
+                token,
+                "SMD / SMT"
+                if token in ("smd", "smt")
+                else "Through Hole",
+            )
+            record(
+                ExtractedAttribute(
+                    code="termination",
+                    value=termination,
+                    formatted=termination,
+                    confidence=0.8,
+                    confidence_level="MEDIUM",
+                    evidence=self._evidence_list(
+                        "datasheet_param",
+                        f"Stated termination '{term_m.group(1).strip()}' indicates {termination}",
+                        0.8,
+                        "extractor:ee_termination",
+                        locations,
+                        sections,
+                    ),
+                )
+            )
+
+        # 12. Contact Plating
+        #
+        # Longest spelling first, so `gold plated` is reported as such rather
+        # than truncated to `gold` by the alternation.
+        locations = self._locate_all(
+            pages,
+            r"\b(selective gold|hard gold|gold[\s-]?flash|gold[\s-]?plated|gold|tin[\s-]?plated|tin|silver[\s-]?plated|silver|nickel[\s-]?plated|nickel)\b",
+        )
+        if locations:
+            _, cleaned, plate_m = locations[0]
+            raw_token = re.sub(r"[\s-]+", " ", plate_m.group(1).strip().lower())
+            metal = raw_token.replace(" plated", "").replace(" flash", "")
+            if metal.startswith("selective") or metal.startswith("hard"):
+                plating = "Selective Gold"
+            else:
+                plating = metal.capitalize()
+            record(
+                ExtractedAttribute(
+                    code="contact_plating",
+                    value=plating,
+                    formatted=plating,
+                    confidence=0.8,
+                    confidence_level="MEDIUM",
+                    evidence=self._evidence_list(
+                        "datasheet_param",
+                        f"Stated contact finish '{plate_m.group(1).strip()}' indicates {plating}",
+                        0.8,
+                        "extractor:ee_plating",
+                        locations,
+                        sections,
+                    ),
+                )
+            )
+
+        # 13. Gender
+        #
+        # Only unambiguous sexed terms and plug/socket nouns are read. `header`
+        # is deliberately absent: it is a layout word in datasheets and would
+        # match a table rather than a connector.
+        locations = self._locate_all(pages, r"\b(male|female)\b")
+        if not locations:
+            locations = self._locate_all(
+                pages, r"\b(plug|socket|receptacle|jack)\b"
+            )
+        if locations:
+            _, cleaned, gender_m = locations[0]
+            token = gender_m.group(1).strip().lower()
+            gender = "Female" if token in ("female", "socket", "receptacle", "jack") else "Male"
+            record(
+                ExtractedAttribute(
+                    code="gender",
+                    value=gender,
+                    formatted=gender,
+                    confidence=0.8,
+                    confidence_level="MEDIUM",
+                    evidence=self._evidence_list(
+                        "datasheet_param",
+                        f"Stated connector form '{gender_m.group(1).strip()}' indicates {gender}",
+                        0.8,
+                        "extractor:ee_gender",
+                        locations,
+                        sections,
+                    ),
+                )
+            )
+
+        # 14. Orientation
+        locations = self._locate_all(
+            pages,
+            r"\b(right[\s-]?angle|side[\s-]?entry|90[\s-]?degree|vertical|straight|horizontal|top[\s-]?entry)\b",
+        )
+        if locations:
+            _, cleaned, orient_m = locations[0]
+            token = re.sub(r"[\s-]+", " ", orient_m.group(1).strip().lower())
+            if token in ("vertical", "straight") or token.startswith("top"):
+                orientation = "Vertical"
+            elif token.startswith("right") or token.startswith("side") or token.startswith("90"):
+                orientation = "Right Angle"
+            else:
+                orientation = "Horizontal"
+            record(
+                ExtractedAttribute(
+                    code="orientation",
+                    value=orientation,
+                    formatted=orientation,
+                    confidence=0.78,
+                    confidence_level="MEDIUM",
+                    evidence=self._evidence_list(
+                        "datasheet_param",
+                        f"Stated orientation '{orient_m.group(1).strip()}' indicates {orientation}",
+                        0.78,
+                        "extractor:ee_orientation",
+                        locations,
+                        sections,
+                    ),
+                )
+            )
+
+        # 15. Pin / Conductor Count
+        locations = self._locate_all(
+            pages,
+            r"\b(\d{1,3})[\s-]?(?:pin|position|way|circuit|contact|pole)s?\b",
+        )
+        # A count outside a plausible connector range is not a pin count: it is
+        # a year, a temperature or a quantity of something else in the text.
+        locations = [
+            location
+            for location in locations
+            if 1 <= int(location[2].group(1)) <= 500
+        ]
+        if locations:
+            _, cleaned, count_m = locations[0]
+            count = int(count_m.group(1))
+            record(
+                ExtractedAttribute(
+                    code="pin_count",
+                    value=count,
+                    formatted=f"{count}-pin",
+                    confidence=0.85,
+                    confidence_level="MEDIUM",
+                    evidence=self._evidence_list(
+                        "datasheet_param",
+                        f"Stated contact count '{count_m.group(0).strip()}'",
+                        0.85,
+                        "extractor:ee_pin_count",
+                        locations,
+                        sections,
+                    ),
+                )
+            )
+
+        # 16. Contact Pitch
+        #
+        # Two word orders, because datasheets write both `2.50mm pitch` and
+        # `pitch: 2.50 mm`. The unit is required: a bare number is not a pitch.
+        locations = self._locate_all(
+            pages,
+            r"\b(\d+(?:\.\d+)?)\s*(?:mm|millimet(?:re|er)s?)\s*(?:pitch|spacing)\b",
+        )
+        if not locations:
+            locations = self._locate_all(
+                pages,
+                r"\bpitch[\s:]*(\d+(?:\.\d+)?)\s*(?:mm|millimet(?:re|er)s?)\b",
+            )
+        if locations:
+            _, cleaned, pitch_m = locations[0]
+            pitch = float(pitch_m.group(1))
+            record(
+                ExtractedAttribute(
+                    code="pitch",
+                    value=pitch,
+                    unit="mm",
+                    formatted=f"{pitch_m.group(1)} mm",
+                    confidence=0.88,
+                    confidence_level="MEDIUM",
+                    evidence=self._evidence_list(
+                        "datasheet_param",
+                        f"Stated contact pitch {pitch_m.group(1)} mm",
+                        0.88,
+                        "extractor:ee_pitch",
+                        locations,
+                        sections,
+                    ),
+                )
+            )
+
+        # 17. Check Data Pack expected attributes to boost evidence if present
         if datapack_hints:
             for hint in datapack_hints:
                 if hint.expectedAttributes:
