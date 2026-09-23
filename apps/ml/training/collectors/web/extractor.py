@@ -9,6 +9,8 @@ Extracts structured product records across broad ERP domains:
 import io
 import re
 import json
+from pathlib import Path
+from urllib.parse import urlparse
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timezone
 import pypdf
@@ -144,13 +146,27 @@ class ContentExtractor:
 
         # Breadcrumbs
         breadcrumbs = re.findall(r'<li[^>]*?itemprop=["\']itemListElement["\'][^>]*?>.*?<span[^>]*?itemprop=["\']name["\'][^>]*?>(.*?)</span>', html_content, re.IGNORECASE | re.DOTALL)
-        category = breadcrumbs[-1].strip() if breadcrumbs else "General"
         if not breadcrumbs:
-            # Fallback to URL path segment
+            breadcrumbs = re.findall(r'<nav[^>]*?breadcrumb[^>]*?>.*?<a[^>]*?>(.*?)</a>', html_content, re.IGNORECASE | re.DOTALL)
+
+        category = breadcrumbs[-1].strip() if breadcrumbs else ""
+        if not category or category.lower() in ("home", "start", "index", "en", "de"):
+            # Fallback to URL path segment, filtering language codes and navigation noise
             from urllib.parse import urlparse
-            path_parts = [p for p in urlparse(url).path.split("/") if p and not p.endswith((".html", ".htm"))]
-            if path_parts:
-                category = path_parts[0].replace("-", " ").title()
+            raw_parts = [p for p in urlparse(url).path.split("/") if p and not p.endswith((".html", ".htm"))]
+            lang_codes = {"en", "de", "fr", "es", "it", "zh", "ja", "nl", "pl", "pt", "ru", "ko"}
+            clean_parts = [p for p in raw_parts if p.lower() not in lang_codes]
+            noise_tokens = {"components", "products", "produkte", "bauelemente", "katalog", "catalog", "info", "overview", "uebersicht", "portfolio", "item", "detail", "index", "shop"}
+            meaningful_parts = [p for p in clean_parts if p.lower() not in noise_tokens]
+            if meaningful_parts:
+                if len(meaningful_parts) >= 2:
+                    category = f"{meaningful_parts[-2].replace('-', ' ').title()} {meaningful_parts[-1].replace('-', ' ').title()}"
+                else:
+                    category = meaningful_parts[-1].replace("-", " ").title()
+            elif clean_parts:
+                category = clean_parts[-1].replace("-", " ").title()
+            else:
+                category = "General"
 
         # Part number heuristic from text/title
         mpn_m = re.search(r"\b(?:part\s*(?:number|no|#)|mpn|sku)[\s:]*([A-Z0-9_\-\.\/]{4,30})\b", html_content, re.IGNORECASE)
@@ -193,21 +209,57 @@ class ContentExtractor:
         ]
 
     def extract_from_pdf(
-        self, pdf_bytes: bytes, url: str, content_hash: str
+        self,
+        pdf_source: Any,
+        url: str,
+        content_hash: str,
     ) -> Optional[ProductRecord]:
-        """Extracts text, metadata, and parameters from a PDF document."""
+        """
+        Extracts text, metadata, and parameters from a PDF document.
+
+        ``pdf_source`` may be raw bytes, a filesystem path, or a binary stream.
+        Passing the downloaded path avoids a second full in-memory copy of large
+        PDFs while preserving identical extraction semantics.
+        """
         try:
-            reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
-            meta = reader.metadata or {}
-            title = meta.get("/Title") or meta.get("title")
+            combined_text, title = self.read_pdf_text(pdf_source)
+        except Exception:
+            return None
+        return self.build_pdf_record(combined_text, title, url, content_hash)
 
-            full_text = []
-            for page in reader.pages[:10]:  # Limit to first 10 pages for speed
-                text = page.extract_text()
-                if text:
-                    full_text.append(text)
+    def read_pdf_text(self, pdf_source: Any) -> Tuple[str, Optional[str]]:
+        """Parses a PDF and returns its combined page text and document title."""
+        if isinstance(pdf_source, (bytes, bytearray)):
+            reader = pypdf.PdfReader(io.BytesIO(pdf_source))
+        elif isinstance(pdf_source, (str, Path)):
+            with open(pdf_source, "rb") as f:
+                reader = pypdf.PdfReader(f)
+                return self._read_text_from_reader(reader)
+        else:
+            reader = pypdf.PdfReader(pdf_source)
+        return self._read_text_from_reader(reader)
 
-            combined_text = "\n".join(full_text)
+    def _read_text_from_reader(self, reader: pypdf.PdfReader) -> Tuple[str, Optional[str]]:
+        meta = reader.metadata or {}
+        title = meta.get("/Title") or meta.get("title")
+
+        full_text = []
+        for page in reader.pages[:10]:  # Limit to first 10 pages for speed
+            text = page.extract_text()
+            if text:
+                full_text.append(text)
+
+        return "\n".join(full_text), title
+
+    def build_pdf_record(
+        self,
+        combined_text: str,
+        title: Optional[str],
+        url: str,
+        content_hash: str,
+    ) -> Optional[ProductRecord]:
+        """Builds a ProductRecord from already-extracted PDF text and title."""
+        try:
             if not combined_text and not title:
                 return None
 
@@ -217,10 +269,32 @@ class ContentExtractor:
 
             # Detect category/domain keywords
             category = "Technical Documentation"
-            for kw in ("fastener", "screw", "bearing", "resistor", "capacitor", "valve", "sensor", "filament"):
-                if kw in combined_text.lower():
+            for kw in ("fastener", "screw", "bearing", "resistor", "capacitor", "inductor", "choke", "ferrite", "connector", "transformer", "valve", "sensor", "filament", "switch", "relay"):
+                if kw in combined_text.lower() or kw in url.lower():
                     category = kw.title()
                     break
+
+            # If title is missing or generic, derive readable name from filename stem
+            from urllib.parse import urlparse
+            fn_stem = Path(urlparse(url).path).stem.replace("-", " ").replace("_", " ").title()
+            clean_title = title.strip() if title and title.strip() and not title.lower().startswith("untitled") else fn_stem
+
+            # Extract electronic & physical attributes using datasheet_extractor service
+            attrs: Dict[str, AttributeValueRecord] = {}
+            try:
+                from apps.ml.app.services.datasheet_extractor import datasheet_extractor
+                res = datasheet_extractor.process(text=combined_text)
+                if res and res.attributes:
+                    for code, attr in res.attributes.items():
+                        attrs[code] = AttributeValueRecord(
+                            code=code,
+                            value=str(attr.value),
+                            unit=attr.unit,
+                            raw_value=attr.formatted or str(attr.value),
+                            confidence=attr.confidence,
+                        )
+            except Exception:
+                pass
 
             provenance = ProvenanceRecord(
                 source=self.source_config.id,
@@ -236,7 +310,7 @@ class ContentExtractor:
             )
 
             doc_ref = DocumentRefRecord(
-                title=title or f"Document {mpn}",
+                title=clean_title or f"Document {mpn}",
                 document_type="DATASHEET",
                 source_type="EXTERNAL_URL",
                 external_url=url,
@@ -250,11 +324,12 @@ class ContentExtractor:
                 sku=mpn,
                 mpn=mpn,
                 base_mpn=mpn.split("-")[0] if "-" in mpn else mpn,
-                name=title or f"Product {mpn}",
+                name=clean_title or f"Product {mpn}",
                 description=combined_text[:500] if combined_text else None,
                 manufacturer=self.source_config.name,
                 category=category,
                 domain=pdf_domain,
+                attributes=attrs,
                 documents=[doc_ref],
                 provenance=provenance,
             )

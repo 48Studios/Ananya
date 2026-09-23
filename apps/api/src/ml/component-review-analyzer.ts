@@ -5,7 +5,12 @@ import {
   Optional,
 } from '@nestjs/common';
 import { db } from '@ananya/database';
-import { categories, components, manufacturers } from '@ananya/database/schema';
+import {
+  categories,
+  componentIntelligenceFindings,
+  components,
+  manufacturers,
+} from '@ananya/database/schema';
 import {
   and,
   asc,
@@ -13,6 +18,7 @@ import {
   eq,
   gte,
   inArray,
+  notInArray,
   or,
   sql,
 } from '@ananya/database/query';
@@ -62,6 +68,11 @@ import {
   type SemanticTokenVocabulary,
 } from './component-semantic-similarity';
 import { loadIdentityAttributeValues } from './component-attribute-values.loader';
+import {
+  ATTRIBUTE_SUGGESTION_SOURCE,
+  buildAttributeSuggestionFindings,
+  MAX_ATTRIBUTE_FINDINGS_PER_COMPONENT,
+} from './component-attribute-suggestion-findings';
 import { DataPacksService } from '../data-packs/data-packs.service';
 import type { ComponentSuggestionResponseDto, EvidenceItemDto } from './dtos';
 
@@ -109,6 +120,7 @@ export const COMPONENT_ANALYZER_SOURCES: readonly string[] = [
   'analyzer:manufacturer',
   'analyzer:category',
   'analyzer:duplicate',
+  ATTRIBUTE_SUGGESTION_SOURCE,
 ];
 
 export const DEFAULT_COMPONENT_AUDIT_RECENT_DAYS = 30;
@@ -190,6 +202,10 @@ export interface ComponentAuditResult {
     pairs: number;
   };
   findingsByCategory: Record<string, number>;
+  /** Attribute-value findings this producer created (values + relevance-only). */
+  attributeFindingsCount: number;
+  /** True when a component's attribute findings hit the per-component cap. */
+  attributeFindingsTruncated: boolean;
   pendingTotal: number;
   /**
    * True when the batch reached its limit: additional components may not have
@@ -695,8 +711,21 @@ export class ComponentReviewAnalyzer {
     const findings: PersistComponentFindingInput[] = [...duplicateFindings];
     const duplicateFindingsCount = duplicateFindings.length;
 
+    /**
+     * Attributes another producer has already spoken about, per component.
+     *
+     * Documentation Intelligence quotes the datasheet page a value came from, so
+     * its finding is the better-evidenced one for that attribute. Read once for
+     * the batch and consulted per component, so the attribute producer fills the
+     * gaps rather than competing with it.
+     */
+    const coveredAttributeIds =
+      await this.loadCoveredAttributeFindings(scopeComponentIds);
+
     let failedCount = 0;
     let mlActiveCount = 0;
+    let attributeFindingsCount = 0;
+    let attributeFindingsTruncated = false;
     const incompleteComponentIds = new Set<string>();
 
     for (const component of targets) {
@@ -714,6 +743,11 @@ export class ComponentReviewAnalyzer {
             manufacturerPartNumber || component.name.trim() || component.sku,
           partNumber: manufacturerPartNumber,
           description: description || undefined,
+          // The component's own identity, so it is never offered as a duplicate
+          // of itself, and its stored category, so attribute relevance is
+          // conditioned on what the record actually is.
+          componentId: component.id,
+          categoryId: component.categoryId ?? undefined,
         });
         if (suggestion.isMlActive) mlActiveCount += 1;
       } catch (error) {
@@ -736,6 +770,34 @@ export class ComponentReviewAnalyzer {
           packagePatterns,
           intelligenceVersion: COMPONENT_REVIEW_INTELLIGENCE_VERSION,
         }),
+      );
+
+      // Attribute suggestions are only evaluated from a completed analysis: a
+      // failed lookup would otherwise look like "no suggestions" and stale the
+      // findings a previous run correctly produced.
+      if (suggestion) {
+        const built = buildAttributeSuggestionFindings({
+          component: {
+            id: component.id,
+            sku: component.sku,
+            name: component.name,
+            updatedAt: component.updatedAt,
+          },
+          suggestions: suggestion.attributeSuggestions ?? [],
+          coveredDefinitionIds:
+            coveredAttributeIds.get(component.id) ?? new Set<string>(),
+          intelligenceVersion: COMPONENT_REVIEW_INTELLIGENCE_VERSION,
+        });
+        findings.push(...built.findings);
+        attributeFindingsCount += built.findings.length;
+        attributeFindingsTruncated =
+          attributeFindingsTruncated || built.truncated;
+      }
+    }
+
+    if (attributeFindingsTruncated) {
+      this.logger.warn(
+        `Attribute suggestions exceeded ${MAX_ATTRIBUTE_FINDINGS_PER_COMPONENT} findings for at least one component; the least actionable were dropped. Re-running the audit is idempotent.`,
       );
     }
 
@@ -806,6 +868,8 @@ export class ComponentReviewAnalyzer {
         pairs: blockingStats.pairs,
       },
       findingsByCategory,
+      attributeFindingsCount,
+      attributeFindingsTruncated,
       pendingTotal: queue.summary.pending,
       batchLimitReached: targets.length === limit,
       durationMs: Math.round(Date.now() - startedAt),
@@ -821,10 +885,59 @@ export class ComponentReviewAnalyzer {
   }
 
   /**
+   * The attributes each component already has a PENDING attribute finding for
+   * from ANOTHER producer.
+   *
+   * One query for the whole batch. Only PENDING rows count: a rejected or
+   * dismissed finding means a reviewer has already decided about that attribute,
+   * and the attribute producer is allowed to raise it again when the evidence
+   * changes — that is how a dismissal stays revisable rather than permanent.
+   *
+   * This producer's own findings are excluded, and that exclusion is what makes
+   * an audit idempotent. Counting them would make the producer defer to itself:
+   * run 1 persists the finding, run 2 sees it as "covered" and skips it, and the
+   * reconciliation that follows then stales the row it just skipped — so the
+   * same condition would oscillate between pending and stale on every audit.
+   */
+  private async loadCoveredAttributeFindings(
+    componentIds: ReadonlySet<string>,
+  ): Promise<Map<string, Set<string>>> {
+    if (componentIds.size === 0) return new Map();
+
+    const rows = await db
+      .select({
+        componentId: componentIntelligenceFindings.componentId,
+        metadata: componentIntelligenceFindings.metadata,
+      })
+      .from(componentIntelligenceFindings)
+      .where(
+        and(
+          inArray(componentIntelligenceFindings.componentId, [...componentIds]),
+          eq(componentIntelligenceFindings.status, 'PENDING'),
+          eq(componentIntelligenceFindings.issueCategory, 'ATTRIBUTE_VALUE'),
+          notInArray(componentIntelligenceFindings.source, [
+            ATTRIBUTE_SUGGESTION_SOURCE,
+          ]),
+        ),
+      );
+
+    const covered = new Map<string, Set<string>>();
+    for (const row of rows) {
+      const definitionId = row.metadata?.attributeDefinitionId;
+      if (typeof definitionId !== 'string' || definitionId.length === 0) {
+        continue;
+      }
+      const list = covered.get(row.componentId) ?? new Set<string>();
+      list.add(definitionId);
+      covered.set(row.componentId, list);
+    }
+    return covered;
+  }
+
+  /**
    * Counts requested ids that do not exist. Ids that exist but were cut by the
    * batch limit are not reported as missing.
-   */
-  private async countMissingComponents(
+   */ private async countMissingComponents(
     requestedIds: string[],
     targets: AnalyzableComponent[],
   ): Promise<number> {

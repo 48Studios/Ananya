@@ -250,6 +250,15 @@ export interface ProvenanceEvidenceItem {
 
 export interface BuildProvenanceInput {
   findingId: string;
+  /**
+   * Where the value came from.
+   *
+   * Defaults to the datasheet pipeline, which is what this builder was written
+   * for. The attribute-relevance producer passes its own source, because a value
+   * derived from a category binding or a package classification did not come
+   * from a document and must not say that it did.
+   */
+  source?: string;
   document: {
     documentId: string;
     documentVersion: number;
@@ -313,15 +322,24 @@ export function buildAttributeValueProvenance(
       page: document.page ?? null,
     }));
 
+  // A value with no document behind it records no document fields at all.
+  // Empty strings would read as "a document exists and its id is empty", which
+  // is a claim the evidence cannot support.
+  const hasDocument = input.document.documentId.trim().length > 0;
+
   return {
-    source: DOCUMENT_ATTRIBUTE_SOURCE,
-    documentId: input.document.documentId,
-    documentVersion: input.document.documentVersion,
-    contentHash: input.document.contentHash,
-    page: source?.page ?? null,
-    evidenceExcerpt:
-      (source?.text ?? '').trim().length > 0 ? source!.text! : null,
-    extractionMethod: source?.extractionMethod,
+    source: input.source ?? DOCUMENT_ATTRIBUTE_SOURCE,
+    ...(hasDocument
+      ? {
+          documentId: input.document.documentId,
+          documentVersion: input.document.documentVersion,
+          contentHash: input.document.contentHash,
+          page: source?.page ?? null,
+          evidenceExcerpt:
+            (source?.text ?? '').trim().length > 0 ? source!.text! : null,
+          extractionMethod: source?.extractionMethod,
+        }
+      : {}),
     intelligenceVersion: DATASHEET_INTELLIGENCE_VERSION,
     findingId: input.findingId,
     reviewerId: input.reviewer?.id ?? null,

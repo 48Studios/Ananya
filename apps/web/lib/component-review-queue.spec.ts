@@ -29,6 +29,7 @@ import {
   auditUnavailableReason,
   buildApplyConfirmationRows,
   buildDuplicateComparisonRows,
+  buildAttributeQueueBreakdown,
   buildFindingValueSummary,
   buildIdentityRows,
   buildQueueTabCounts,
@@ -139,6 +140,12 @@ describe("Component Review Queue labels", () => {
     expect(issueTypeLabel("CATEGORY_CONFLICT")).toBe("Category Conflict");
     expect(issueTypeLabel("EXACT_DUPLICATE")).toBe("Exact Duplicate");
     expect(issueTypeLabel("POTENTIAL_DUPLICATE")).toBe("Potential Duplicate");
+    // Both review-only attribute findings are named, so the queue never shows a
+    // raw enum to a reviewer.
+    expect(issueTypeLabel("ATTRIBUTE_VALUE_UNKNOWN")).toBe(
+      "Specification Not Determined",
+    );
+    expect(issueTypeLabel("DOCUMENT_CONFLICT")).toBe("Documents Disagree");
   });
 
   it("falls back to a humanized label for unknown types without inventing one", () => {
@@ -267,6 +274,8 @@ describe("Component Review Queue filters", () => {
       "EXACT_DUPLICATE",
       "POTENTIAL_DUPLICATE",
       "ATTRIBUTE_VALUE_SUGGESTION",
+      "ATTRIBUTE_VALUE_UNKNOWN",
+      "DOCUMENT_CONFLICT",
     ]);
     expect(CONFIDENCE_FILTER_OPTIONS.map((option) => option.value)).toEqual([
       "HIGH",
@@ -763,7 +772,11 @@ describe("Component Review Queue apply (writing suggestions)", () => {
         ? "CLASSIFICATION"
         : "IDENTITY";
       expect(
-        canApplyFinding({ status: "PENDING", issueCategory: category }),
+        canApplyFinding({
+          status: "PENDING",
+          issueCategory: category,
+          issueType,
+        }),
       ).toBe(true);
     });
 
@@ -773,6 +786,7 @@ describe("Component Review Queue apply (writing suggestions)", () => {
         canApplyFinding({
           status: "PENDING",
           issueCategory: "DUPLICATE",
+          issueType: "EXACT_DUPLICATE",
         }),
       ).toBe(false);
     });
@@ -784,9 +798,13 @@ describe("Component Review Queue apply (writing suggestions)", () => {
         "DISMISSED",
         "STALE",
       ] as const) {
-        expect(canApplyFinding({ status, issueCategory: "IDENTITY" })).toBe(
-          false,
-        );
+        expect(
+          canApplyFinding({
+            status,
+            issueCategory: "IDENTITY",
+            issueType: "MPN_MISSING",
+          }),
+        ).toBe(false);
       }
     });
   });
@@ -795,6 +813,7 @@ describe("Component Review Queue apply (writing suggestions)", () => {
     const applicableFinding = {
       status: "PENDING" as const,
       issueCategory: "IDENTITY",
+      issueType: "MPN_MISSING",
     };
 
     it("reuses the existing component-write permission", () => {
@@ -820,7 +839,10 @@ describe("Component Review Queue apply (writing suggestions)", () => {
         "STALE",
       ] as const) {
         expect(
-          canApplyFindingAsUser({ status, issueCategory: "IDENTITY" }, true),
+          canApplyFindingAsUser(
+            { status, issueCategory: "IDENTITY", issueType: "MPN_MISSING" },
+            true,
+          ),
         ).toBe(false);
       }
     });
@@ -838,6 +860,51 @@ describe("Component Review Queue apply (writing suggestions)", () => {
 
     it("reports no reason when the action is available", () => {
       expect(applyUnavailableReason(applicableFinding, true)).toBeNull();
+    });
+
+    /**
+     * Review-only attribute findings.
+     *
+     * Both are absent from the backend's applicable set, so offering Apply on
+     * one produced a guaranteed 409 — a control that cannot work. The reason
+     * states why, because "no button" without an explanation reads as a bug.
+     */
+    it("does not offer Apply for a specification with no determined value", () => {
+      const unknownValue = {
+        status: "PENDING" as const,
+        issueCategory: "ATTRIBUTE_VALUE",
+        issueType: "ATTRIBUTE_VALUE_UNKNOWN",
+      };
+
+      expect(canApplyFinding(unknownValue)).toBe(false);
+      expect(canApplyFindingAsUser(unknownValue, true)).toBe(false);
+      expect(applyUnavailableReason(unknownValue, true)).toMatch(
+        /nothing to apply/i,
+      );
+    });
+
+    it("does not offer Apply for a document conflict", () => {
+      const conflict = {
+        status: "PENDING" as const,
+        issueCategory: "ATTRIBUTE_VALUE",
+        issueType: "DOCUMENT_CONFLICT",
+      };
+
+      expect(canApplyFinding(conflict)).toBe(false);
+      expect(applyUnavailableReason(conflict, true)).toMatch(
+        /will not pick one/i,
+      );
+    });
+
+    it("still offers Apply for a specification that carries a value", () => {
+      const suggestion = {
+        status: "PENDING" as const,
+        issueCategory: "ATTRIBUTE_VALUE",
+        issueType: "ATTRIBUTE_VALUE_SUGGESTION",
+      };
+
+      expect(canApplyFinding(suggestion)).toBe(true);
+      expect(applyUnavailableReason(suggestion, true)).toBeNull();
     });
   });
 
@@ -878,7 +945,11 @@ describe("Component Review Queue apply (writing suggestions)", () => {
         reviewReadOnlyNotice(),
         auditUnavailableReason(false),
         applyUnavailableReason(
-          { status: "PENDING", issueCategory: "IDENTITY" },
+          {
+            status: "PENDING",
+            issueCategory: "IDENTITY",
+            issueType: "MPN_MISSING",
+          },
           false,
         ),
       ]) {
@@ -1016,7 +1087,11 @@ describe("Component Review Queue apply (writing suggestions)", () => {
     });
 
     it("sends the assigned row when the reviewer corrected the suggestion", () => {
-      const payload = buildApplyPayload(buildFinding(), "Yageo is the MPN owner", "mfg-vishay");
+      const payload = buildApplyPayload(
+        buildFinding(),
+        "Yageo is the MPN owner",
+        "mfg-vishay",
+      );
 
       expect(Object.keys(payload).sort()).toEqual([
         "decisionNotes",
@@ -1027,9 +1102,9 @@ describe("Component Review Queue apply (writing suggestions)", () => {
     });
 
     it("omits a blank assignment", () => {
-      expect(Object.keys(buildApplyPayload(buildFinding(), undefined, "  "))).toEqual([
-        "expectedFingerprint",
-      ]);
+      expect(
+        Object.keys(buildApplyPayload(buildFinding(), undefined, "  ")),
+      ).toEqual(["expectedFingerprint"]);
       expect(
         Object.keys(buildApplyPayload(buildFinding(), undefined, null)),
       ).toEqual(["expectedFingerprint"]);
@@ -1038,12 +1113,12 @@ describe("Component Review Queue apply (writing suggestions)", () => {
 
   describe("manufacturer and category assignment", () => {
     it("offers reassignment only for the two entity families", () => {
-      expect(applyAssignableEntity({ issueType: "MANUFACTURER_UNRESOLVED" })).toBe(
-        "manufacturer",
-      );
-      expect(applyAssignableEntity({ issueType: "MANUFACTURER_CONFLICT" })).toBe(
-        "manufacturer",
-      );
+      expect(
+        applyAssignableEntity({ issueType: "MANUFACTURER_UNRESOLVED" }),
+      ).toBe("manufacturer");
+      expect(
+        applyAssignableEntity({ issueType: "MANUFACTURER_CONFLICT" }),
+      ).toBe("manufacturer");
       expect(applyAssignableEntity({ issueType: "CATEGORY_UNRESOLVED" })).toBe(
         "category",
       );
@@ -1083,7 +1158,11 @@ describe("Component Review Queue apply (writing suggestions)", () => {
     it("reports a suggested name the ERP does not hold yet", () => {
       const finding = buildFinding({
         issueType: "MANUFACTURER_UNRESOLVED",
-        suggestedValue: { manufacturerId: null, manufacturerName: "Yageo", resolution: "NEW_CANDIDATE" },
+        suggestedValue: {
+          manufacturerId: null,
+          manufacturerName: "Yageo",
+          resolution: "NEW_CANDIDATE",
+        },
       });
       const suggestion = suggestedEntityAssignment(finding);
 
@@ -1099,7 +1178,10 @@ describe("Component Review Queue apply (writing suggestions)", () => {
     it("has no hint when the suggestion can be applied as it stands", () => {
       const finding = buildFinding({
         issueType: "CATEGORY_CONFLICT",
-        suggestedValue: { categoryId: "cat-resistors", categoryName: "Resistors" },
+        suggestedValue: {
+          categoryId: "cat-resistors",
+          categoryName: "Resistors",
+        },
       });
 
       expect(applyAssignmentHint(finding)).toBeNull();
@@ -1145,7 +1227,10 @@ describe("Component Review Queue apply (writing suggestions)", () => {
       "..",
     );
     const applyDialog = fs.readFileSync(
-      path.join(webRoot, "components/components/component-review-apply-dialog.tsx"),
+      path.join(
+        webRoot,
+        "components/components/component-review-apply-dialog.tsx",
+      ),
       "utf8",
     );
 
@@ -1208,7 +1293,9 @@ describe("Component Review Queue apply (writing suggestions)", () => {
       expect(message).toContain("Vishay");
       expect(message).toContain('instead of the suggested "Yageo"');
       expect(message).toMatch(/recorded as an edit/i);
-      expect(message).not.toMatch(/suggested value\. The finding is now accepted/);
+      expect(message).not.toMatch(
+        /suggested value\. The finding is now accepted/,
+      );
     });
 
     it("still names the edit when the finding had no suggestion to quote", () => {
@@ -1316,9 +1403,7 @@ describe("Component Review Queue header counter", () => {
 
   it("reports the live queue shape as an actionable backlog", () => {
     // Mirrors the queue after an audit whose findings have partly been resolved.
-    expect(
-      actionableFindingCount({ pending: 0, stale: 1 }),
-    ).toBe(1);
+    expect(actionableFindingCount({ pending: 0, stale: 1 })).toBe(1);
     expect(
       actionableFindingCount({
         pending: summary.pending,
@@ -1538,7 +1623,10 @@ describe("Component Review Queue card actions", () => {
   });
 
   it("lets writers close a stale finding but never apply it", () => {
-    const actions = queueCardActions(buildFinding({ status: "STALE" }), reviewer);
+    const actions = queueCardActions(
+      buildFinding({ status: "STALE" }),
+      reviewer,
+    );
 
     expect(actions).toEqual([...inspectionOnly, "REJECT", "ACCEPT"]);
     expect(actions).not.toContain("APPLY");
@@ -1580,9 +1668,9 @@ describe("Component Review Queue modal consolidation", () => {
     fs.readFileSync(path.join(webRoot, relativePath), "utf8");
 
   it("no longer ships the standalone review queue route", () => {
-    expect(fs.existsSync(path.join(webRoot, "app/components/review-queue"))).toBe(
-      false,
-    );
+    expect(
+      fs.existsSync(path.join(webRoot, "app/components/review-queue")),
+    ).toBe(false);
   });
 
   it("opens the queue as a modal from the Components page", () => {
@@ -1699,9 +1787,7 @@ describe("Intelligence queue dialog header", () => {
     // Comments may name the rejected utility to explain the choice, so only
     // the live code is inspected.
     const codeOnly = (source: string) =>
-      source
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/\/\/[^\n]*/g, "");
+      source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 
     // Button nudges itself on press by writing `--tw-translate-y`. Centring the
     // close button with `-translate-y-1/2` would overwrite that same variable
@@ -1743,7 +1829,8 @@ describe("Intelligence queue filter section", () => {
   ];
 
   /** The shared two-row container class, byte-identical in both dialogs. */
-  const FILTER_CONTAINER = "space-y-2 rounded-xl border border-border bg-card p-3";
+  const FILTER_CONTAINER =
+    "space-y-2 rounded-xl border border-border bg-card p-3";
 
   it("stacks the filter section into two rows in both queues", () => {
     for (const dialog of queueDialogs) {
@@ -1772,14 +1859,16 @@ describe("Intelligence queue filter section", () => {
     for (const dialog of queueDialogs) {
       const source = read(dialog);
       const container = source.indexOf(FILTER_CONTAINER);
-      const controls = source.indexOf("flex flex-wrap items-center gap-2", container);
+      const controls = source.indexOf(
+        "flex flex-wrap items-center gap-2",
+        container,
+      );
 
       expect(controls, dialog).toBeGreaterThan(container);
       // The icon carries horizontal spacing so it does not crowd the selects.
-      expect(
-        source.slice(controls, controls + 140),
-        dialog,
-      ).toContain('className="mx-1.5 size-3.5 text-muted-foreground"');
+      expect(source.slice(controls, controls + 140), dialog).toContain(
+        'className="mx-1.5 size-3.5 text-muted-foreground"',
+      );
     }
   });
 
@@ -1829,7 +1918,9 @@ describe("Intelligence queue filter section", () => {
     expect(attribute).not.toContain("pageSize:");
     expect(component).not.toContain("pageSize:");
     // No client-side filtering remains in the Attribute queue.
-    expect(attribute).not.toContain("item.confidenceLevel !== confidenceFilter");
+    expect(attribute).not.toContain(
+      "item.confidenceLevel !== confidenceFilter",
+    );
   });
 
   it("offers a clear action that resets every filter", () => {
@@ -1874,7 +1965,7 @@ describe("Intelligence queue scroll ownership", () => {
 
       expect(source, dialog).toContain("<DialogShellBody scrollable={false}>");
       // A leftover `space-y-*` on the body would fight the flex gap.
-      expect(source, dialog).not.toContain('<DialogShellBody className=');
+      expect(source, dialog).not.toContain("<DialogShellBody className=");
     }
   });
 
@@ -1921,8 +2012,10 @@ describe("Intelligence queue list parity", () => {
   const read = (relativePath: string) =>
     fs.readFileSync(path.join(webRoot, relativePath), "utf8");
 
-  const componentDialog = "components/components/component-review-queue-dialog.tsx";
-  const attributeDialog = "components/attributes/attribute-review-queue-dialog.tsx";
+  const componentDialog =
+    "components/components/component-review-queue-dialog.tsx";
+  const attributeDialog =
+    "components/attributes/attribute-review-queue-dialog.tsx";
 
   /** The shared scroll container class, byte-identical in both queues. */
   const LIST_CONTAINER =
@@ -1938,9 +2031,7 @@ describe("Intelligence queue list parity", () => {
 
   it("uses the same item wrapper spacing as the Attribute queue", () => {
     const itemClasses = (source: string) => {
-      const match = source.match(
-        /className="([^"]*hover:bg-muted\/15[^"]*)"/,
-      );
+      const match = source.match(/className="([^"]*hover:bg-muted\/15[^"]*)"/);
       expect(match).not.toBeNull();
       // Class order is not significant; the set of classes is.
       return [...match![1]!.split(/\s+/)]
@@ -2034,7 +2125,9 @@ describe("Intelligence queue list parity", () => {
     const after = component.slice(listStart);
 
     expect(after).toContain(") : (");
-    expect(after).not.toContain("shrink-0 flex-col items-center justify-between");
+    expect(after).not.toContain(
+      "shrink-0 flex-col items-center justify-between",
+    );
   });
 });
 
@@ -2050,7 +2143,8 @@ describe("Component intelligence finding dialog footer", () => {
   const read = (relativePath: string) =>
     fs.readFileSync(path.join(webRoot, relativePath), "utf8");
 
-  const dialog = "components/components/component-review-queue-finding-dialog.tsx";
+  const dialog =
+    "components/components/component-review-queue-finding-dialog.tsx";
 
   it("orders the footer with the primary action last", () => {
     const source = read(dialog);
@@ -2102,5 +2196,87 @@ describe("Component intelligence action consequence copy", () => {
     expect(reviewOnly).toMatch(/does not modify the component/i);
     // No apply label may leak into the review-only case.
     expect(reviewOnly).not.toContain(APPLY_COPY.label);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Specifications tab — work split
+// ---------------------------------------------------------------------------
+
+describe("attribute queue breakdown", () => {
+  const attributeFinding = (
+    overrides: Record<string, unknown> = {},
+  ): ComponentReviewFindingDto =>
+    buildFinding({
+      issueType: "ATTRIBUTE_VALUE_SUGGESTION",
+      issueCategory: "ATTRIBUTE_VALUE",
+      ...overrides,
+    } as never);
+
+  /** A finding from another family, to prove the split is attribute-only. */
+  const otherFinding = (): ComponentReviewFindingDto =>
+    buildFinding({
+      issueType: "EXACT_DUPLICATE",
+      issueCategory: "DUPLICATE",
+    });
+
+  it("splits the tab's work by what a reviewer can do with it", () => {
+    const breakdown = buildAttributeQueueBreakdown([
+      attributeFinding({ confidenceLevel: "HIGH" }),
+      attributeFinding({ confidenceLevel: "HIGH" }),
+      attributeFinding({ confidenceLevel: "MEDIUM" }),
+      attributeFinding({ metadata: { conflict: true } }),
+      attributeFinding({
+        issueType: "ATTRIBUTE_VALUE_UNKNOWN",
+        confidenceLevel: null,
+        metadata: { actionable: false },
+      }),
+    ]);
+
+    expect(breakdown).toMatchObject({
+      total: 5,
+      highConfidence: 2,
+      needsReview: 1,
+      conflicts: 1,
+      notDetermined: 1,
+    });
+    expect(breakdown.summary).toBe(
+      "5 attribute suggestions · 2 high confidence · 1 need review · 1 conflicting · 1 value not determined",
+    );
+  });
+
+  it("does not count a conflict as high confidence", () => {
+    const breakdown = buildAttributeQueueBreakdown([
+      attributeFinding({
+        confidenceLevel: "HIGH",
+        metadata: { conflict: true },
+      }),
+    ]);
+
+    expect(breakdown.highConfidence).toBe(0);
+    expect(breakdown.conflicts).toBe(1);
+  });
+
+  it("omits the categories that have nothing in them", () => {
+    const breakdown = buildAttributeQueueBreakdown([
+      attributeFinding({ confidenceLevel: "HIGH" }),
+    ]);
+
+    expect(breakdown.summary).toBe("1 attribute suggestion · 1 high confidence");
+  });
+
+  it("counts only attribute findings, never the whole queue", () => {
+    const breakdown = buildAttributeQueueBreakdown([
+      otherFinding(),
+      attributeFinding({ confidenceLevel: "HIGH" }),
+    ]);
+
+    expect(breakdown.total).toBe(1);
+  });
+
+  it("reports nothing to summarise for an empty tab", () => {
+    const breakdown = buildAttributeQueueBreakdown([otherFinding()]);
+
+    expect(breakdown).toMatchObject({ total: 0, summary: null });
   });
 });

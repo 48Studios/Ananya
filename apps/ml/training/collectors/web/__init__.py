@@ -8,7 +8,7 @@ from .registry import (
 )
 from .policy import CrawlPolicyManager
 from .downloader import DownloadResult, ResilientDownloader
-from .acquisition import AcquisitionRecord, AcquisitionStore
+from .acquisition import AcquisitionRecord, AcquisitionStore, DocumentTextCache
 from .discovery import DiscoveryEngine, canonicalize_url
 from .extractor import ContentExtractor
 
@@ -24,6 +24,7 @@ __all__ = [
     "ResilientDownloader",
     "AcquisitionRecord",
     "AcquisitionStore",
+    "DocumentTextCache",
     "DiscoveryEngine",
     "canonicalize_url",
     "ContentExtractor",

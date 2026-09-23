@@ -41,10 +41,26 @@ MANUFACTURER_ALIASES: Dict[str, str] = {
     "misumi group": "Misumi",
     "3m company": "3M",
     "loctite": "Henkel / Loctite",
+    "würth elektronik": "Würth Elektronik",
+    "wuerth elektronik": "Würth Elektronik",
+    "würth elektronik component catalog": "Würth Elektronik",
+    "wuerth elektronik component catalog": "Würth Elektronik",
+    "we-online": "Würth Elektronik",
+    "wurth": "Würth Elektronik",
+    "wuerth": "Würth Elektronik",
 }
 
 # Cross-Domain Supplier Taxonomy Mapping
 GLOBAL_TAXONOMY_MAP: Dict[str, str] = {
+    # Electronics - Würth & General
+    "connectors coax": "Connectors",
+    "coaxial connectors": "Connectors",
+    "passive components": "Passive Components",
+    "electromechanical components": "Electromechanical",
+    "power magnetics": "Inductors",
+    "ferrites": "Inductors",
+    "choke": "Inductors",
+    "transformer": "Transformers",
     # Electronics - Resistors
     "chip resistor - surface mount": "Resistors",
     "through hole resistors": "Resistors",

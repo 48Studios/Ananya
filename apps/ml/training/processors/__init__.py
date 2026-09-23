@@ -9,6 +9,7 @@ from .normalization import (
     strip_packaging_suffix,
 )
 from .deduplication import DeduplicationProcessor, values_differ_critically
+from .cross_source import CrossSourceAnalyzer
 
 __all__ = [
     "BaseProcessor",
@@ -24,4 +25,5 @@ __all__ = [
     "strip_packaging_suffix",
     "DeduplicationProcessor",
     "values_differ_critically",
+    "CrossSourceAnalyzer",
 ]

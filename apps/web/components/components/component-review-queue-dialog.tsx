@@ -61,6 +61,7 @@ import {
   applyFindingStatusToQueuePage,
   applySuccessMessage,
   auditUnavailableReason,
+  buildAttributeQueueBreakdown,
   buildFindingValueSummary,
   buildQueueTabCounts,
   componentHref,
@@ -230,6 +231,17 @@ export function ComponentReviewQueueDialog({
   const visibleItems = React.useMemo(
     () => items.filter((item) => matchesQueueTab(item, tab)),
     [items, tab],
+  );
+  /**
+   * The Specifications tab's work split, shown only while that tab is active.
+   *
+   * Applyable, needs-a-closer-look, conflicting and not-determined are four
+   * different kinds of work; a reviewer deciding where to start needs the split
+   * rather than the single tab number above it.
+   */
+  const attributeBreakdown = React.useMemo(
+    () => buildAttributeQueueBreakdown(items),
+    [items],
   );
 
   const filtered = Boolean(
@@ -459,6 +471,15 @@ export function ComponentReviewQueueDialog({
               </button>
             ))}
           </div>
+
+          {tab === "ATTRIBUTES" && attributeBreakdown.summary && (
+            <p
+              className="shrink-0 text-[11px] text-muted-foreground"
+              aria-live="polite"
+            >
+              {attributeBreakdown.summary}
+            </p>
+          )}
 
           {/* Server-side filters: search on its own row, controls beneath. */}
           <div className="shrink-0 space-y-2 rounded-xl border border-border bg-card p-3">

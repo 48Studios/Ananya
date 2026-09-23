@@ -74,6 +74,7 @@ export type ComponentReviewIssueType =
   | 'EXACT_DUPLICATE'
   | 'POTENTIAL_DUPLICATE'
   | 'ATTRIBUTE_VALUE_SUGGESTION'
+  | 'ATTRIBUTE_VALUE_UNKNOWN'
   | 'DOCUMENT_CONFLICT';
 
 export const COMPONENT_REVIEW_ISSUE_TYPES: Record<
@@ -90,19 +91,28 @@ export const COMPONENT_REVIEW_ISSUE_TYPES: Record<
   DUPLICATE: ['EXACT_DUPLICATE', 'POTENTIAL_DUPLICATE'],
   DATA_QUALITY: [],
   /**
-   * Documentation Intelligence (Pass 3): a specification extracted from a
-   * datasheet that an existing attribute definition can represent, and that a
-   * component does not already record identically. Applying one writes through
-   * the existing component-attribute use case; it is never applied by analysis.
+   * ATTRIBUTE_VALUE (Pass 3 Documentation Intelligence, extended by the
+   * attribute-relevance producer).
    *
-   * DOCUMENT_CONFLICT (Pass 4) shares the category because its subject is also an
-   * attribute value, and it needs its own *type* because the queue must
-   * distinguish "here is a value to apply" from "the component's documents
-   * disagree, a human must adjudicate". A conflict is deliberately absent from
-   * `COMPONENT_APPLY_RULES`, so it can never be applied through the review
-   * queue: the system never picks a winner between sources.
+   * - `ATTRIBUTE_VALUE_SUGGESTION`: a specification the intelligence can name a
+   *   value for, which the component does not already record identically.
+   *   Applying one writes through the existing component-attribute use case; it
+   *   is never applied by analysis.
+   * - `ATTRIBUTE_VALUE_UNKNOWN`: the attribute is established as relevant for
+   *   this component (a category binding, a Data Pack expectation) but no value
+   *   could be determined from the evidence. Review-only — there is nothing to
+   *   write — and it exists so a reviewer can see that a specification is
+   *   outstanding rather than discovering the gap by accident. A *known* value is
+   *   never invented to fill it.
+   * - `DOCUMENT_CONFLICT` (Pass 4): the component's documents disagree with each
+   *   other. Absent from `COMPONENT_APPLY_RULES`, so the system never picks a
+   *   winner between sources.
    */
-  ATTRIBUTE_VALUE: ['ATTRIBUTE_VALUE_SUGGESTION', 'DOCUMENT_CONFLICT'],
+  ATTRIBUTE_VALUE: [
+    'ATTRIBUTE_VALUE_SUGGESTION',
+    'ATTRIBUTE_VALUE_UNKNOWN',
+    'DOCUMENT_CONFLICT',
+  ],
 };
 
 /** Flat, ordered view of {@link COMPONENT_REVIEW_ISSUE_TYPES}. */

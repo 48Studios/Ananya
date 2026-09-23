@@ -116,6 +116,17 @@ export interface MarkFindingsStaleInput {
    * value and the document revision instead.
    */
   excludeSources?: string[];
+  /**
+   * Finding categories to leave untouched.
+   *
+   * The stronger form of {@link excludeSources}, for a rule that is about the
+   * *kind* of state a finding depends on rather than about who produced it:
+   * every attribute-value finding is validated against the attribute value, so a
+   * component-row change must never stale one — whichever producer raised it.
+   * Expressed by producer instead, a second attribute producer would be
+   * forgotten, and a valid suggestion would be retired by an unrelated edit.
+   */
+  excludeIssueCategories?: ComponentReviewIssueCategory[];
 }
 
 export interface ReconcileFindingsInput {
@@ -676,6 +687,9 @@ export class ComponentReviewQueueService {
     const excluded = (input.excludeSources ?? []).filter((source) =>
       Boolean(source),
     );
+    const excludedCategories = (input.excludeIssueCategories ?? []).filter(
+      (category) => Boolean(category),
+    );
     const conditions = [
       ids.length > 0
         ? inArray(componentIntelligenceFindings.id, ids)
@@ -685,6 +699,12 @@ export class ComponentReviewQueueService {
         : undefined,
       excluded.length > 0
         ? notInArray(componentIntelligenceFindings.source, excluded)
+        : undefined,
+      excludedCategories.length > 0
+        ? notInArray(
+            componentIntelligenceFindings.issueCategory,
+            excludedCategories,
+          )
         : undefined,
       eq(componentIntelligenceFindings.status, 'PENDING'),
     ].filter((condition): condition is NonNullable<typeof condition> =>

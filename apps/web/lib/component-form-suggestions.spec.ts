@@ -89,7 +89,7 @@ describe("AI suggestion card — edited values reach the caller", () => {
       "onApplyIdentity",
       "onApplyClassification",
       "onApplyNameDescription",
-      "onApplyAttributes",
+      "onApplySpecifications",
       "onApplyAll",
     ]) {
       expect(cardSource, `${callback} wired to onClick`).not.toContain(
@@ -105,7 +105,7 @@ describe("AI suggestion card — edited values reach the caller", () => {
     expect(cardSource).toContain("onApplyIdentity?.();");
     expect(cardSource).toContain("onApplyClassification?.();");
     expect(cardSource).toContain("onApplyNameDescription?.();");
-    expect(cardSource).toContain("onApplyAttributes?.(suggestion.attributes);");
+    expect(cardSource).toContain("onApplySpecifications?.();");
     expect(cardSource).toContain("onApplyAll();");
   });
 
@@ -290,13 +290,17 @@ describe("AI suggestion card — every apply action reports what it applied", ()
     expect(body).toContain("onApplyNameDescription?.();");
   });
 
-  it("reports the specifications action through the per-specification path", () => {
+  it("delegates the specifications action to the one applier", () => {
     const body = handlerBody(cardSource, "handleApplySpecifications");
 
-    // The bulk action is the per-specification action applied to every value,
-    // so it cannot report a different state from the chips themselves.
-    expect(body).toContain("handleAcceptSingleAttribute(code, attr)");
-    expect(body).toContain("onApplyAttributes?.(suggestion.attributes);");
+    // The card writes no attribute values itself: it reports the group as
+    // applied and hands the work to the caller, which applies the eligible
+    // suggestions through the same state an individual Accept uses. A second
+    // writer here is exactly the duplication this consolidation removed.
+    expect(body).toContain("onApplySpecifications?.();");
+    expect(body).toContain('markApplied(["specifications"])');
+    expect(body).not.toContain("onApplyAttributes");
+    expect(body).not.toContain("setAttrValues");
   });
 
   it("reports every field when everything is applied", () => {
@@ -311,7 +315,7 @@ describe("AI suggestion card — every apply action reports what it applied", ()
     expect(cardSource).toContain("acceptedFields.mpn ? (");
     expect(cardSource).toContain("acceptedFields.category ? (");
     expect(cardSource).toContain("acceptedFields.manufacturer ? (");
-    expect(cardSource).toContain("allAttributesApplied ? (");
+    expect(cardSource).toContain("allSpecificationsApplied ? (");
     expect(cardSource).toContain("allSuggestionsApplied ? (");
     expect(cardSource).toContain(
       "acceptedFields.name && acceptedFields.description ? (",
@@ -319,12 +323,15 @@ describe("AI suggestion card — every apply action reports what it applied", ()
   });
 
   it("counts a group as applied only when every member is", () => {
+    // The specifications group is applied when the panel says so; the other
+    // fields are applied when their own row says so.
     expect(cardSource).toContain(
-      "attrEntries.every(([code]) => acceptedFields[`attr_${code}`])",
+      "acceptedFields[field] || specificationsApplied",
     );
-    expect(cardSource).toContain(
-      "appliedFieldKeys.every(\n    (field) => acceptedFields[field],\n  )",
-    );
+    // Matched without whitespace so the assertion survives a reformat of the
+    // predicate: what matters is that the group is the conjunction of its
+    // members, not where the arrow breaks.
+    expect(cardSource).toMatch(/appliedFieldKeys\.every\(\s*\(field\) =>/);
   });
 
   it("starts a new suggestion with nothing applied", () => {

@@ -37,8 +37,12 @@ class ModelEvaluator:
         candidate_version: str = "1.0.0",
         duplicate_test_pairs: Optional[List[Dict[str, Any]]] = None,
         output_dir: Optional[str] = None,
+        progress: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """Runs full evaluation suite on held-out validation samples."""
+        if progress:
+            progress.start_stage(f"Evaluating candidate model v{candidate_version}", total=len(val_samples))
+
         X_val = [d["text"].lower() for d in val_samples]
         y_val = [d["category"] for d in val_samples]
 
@@ -139,6 +143,10 @@ class ModelEvaluator:
             md_path = out_p / "evaluation_summary.md"
             with open(md_path, "w", encoding="utf-8") as f:
                 f.write(self.render_markdown(report))
+
+        if progress:
+            status_text = "PASSED" if all_passed else "FAILED"
+            progress.finish_stage(f"Evaluated {len(val_samples):,} examples | Top-1 Acc: {cand_acc*100:.1f}% | Gates: {status_text}")
 
         return report
 

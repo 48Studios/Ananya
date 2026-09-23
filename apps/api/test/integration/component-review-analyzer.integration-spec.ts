@@ -93,8 +93,14 @@ describe('Component Review Analyzer (finding generation)', () => {
       CLASSIFICATION: ['CATEGORY_UNRESOLVED', 'CATEGORY_CONFLICT'],
       // Pass 3: datasheet specifications become reviewable on the same queue.
       // Pass 4 adds DOCUMENT_CONFLICT: the queue must distinguish "here is a value
-      // to apply" from "the component's documents disagree".
-      ATTRIBUTE_VALUE: ['ATTRIBUTE_VALUE_SUGGESTION', 'DOCUMENT_CONFLICT'],
+      // to apply" from "the component's documents disagree". The
+      // attribute-relevance producer adds ATTRIBUTE_VALUE_UNKNOWN for a
+      // specification that is relevant but has no determinable value.
+      ATTRIBUTE_VALUE: [
+        'ATTRIBUTE_VALUE_SUGGESTION',
+        'ATTRIBUTE_VALUE_UNKNOWN',
+        'DOCUMENT_CONFLICT',
+      ],
       DUPLICATE: ['EXACT_DUPLICATE', 'POTENTIAL_DUPLICATE'],
       DATA_QUALITY: [],
     });
@@ -221,12 +227,28 @@ describe('Component Review Analyzer (finding generation)', () => {
     );
     expect(identityFindings).toHaveLength(0);
 
-    // Guard against any measurement sneaking in via a non-MPN issue type.
+    // Guard against any measurement sneaking in as a part number. The check is
+    // on the field that would carry one: an attribute suggestion legitimately
+    // proposes the power rating as an attribute *value* ("Power Rating: 125mW"),
+    // which is the extraction working, not an MPN being invented from it.
     for (const finding of allFindings.items) {
       const suggested = JSON.stringify(finding.suggestedValue ?? {});
-      expect(suggested).not.toContain('125MW');
-      expect(suggested).not.toContain('125mW');
+      if (finding.issueType.startsWith('MPN')) {
+        expect(suggested).not.toContain('125MW');
+        expect(suggested).not.toContain('125mW');
+      }
+      expect(finding.suggestedValue?.manufacturerPartNumber ?? null).toBeNull();
     }
+
+    // The power rating is extracted as an attribute value, which is what the
+    // attribute pipeline is for.
+    const powerSuggestion = allFindings.items.find(
+      (finding) =>
+        finding.issueType === 'ATTRIBUTE_VALUE_SUGGESTION' &&
+        finding.metadata?.attributeCode === 'power_rating',
+    );
+    expect(powerSuggestion).toBeDefined();
+    expect(powerSuggestion?.metadata?.actionable).toBe(true);
 
     // The audit must still not mutate the component.
     const reloaded = await componentsService.getComponent(component.id);

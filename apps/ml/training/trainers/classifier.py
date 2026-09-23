@@ -85,6 +85,7 @@ class CategoryClassifierTrainer(BaseTrainer):
         val_samples: Optional[List[Dict[str, Any]]] = None,
         version: str = "1.0.0",
         output_dir: Optional[str] = None,
+        progress: Optional[Any] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         X_train = [d["text"].lower() for d in train_samples]
@@ -94,12 +95,19 @@ class CategoryClassifierTrainer(BaseTrainer):
         X_val = [d["text"].lower() for d in val_data]
         y_val = [d["category"] for d in val_data]
 
+        if progress:
+            progress.log(f"Dataset: {len(X_train):,} train, {len(X_val):,} validation examples")
+
         candidates = self.build_candidates()
         best_acc = -1.0
         best_name = ""
         best_pipe = None
 
-        for name, pipe in candidates.items():
+        total_cand = len(candidates)
+        for idx, (name, pipe) in enumerate(candidates.items(), 1):
+            if progress:
+                progress.start_stage(f"Training candidate {idx}/{total_cand}: {name}", total=None)
+
             t0 = time.perf_counter()
             pipe.fit(X_train, y_train)
             fit_time_ms = (time.perf_counter() - t0) * 1000
@@ -123,10 +131,18 @@ class CategoryClassifierTrainer(BaseTrainer):
                 "training_time_ms": round(fit_time_ms, 2),
             }
 
+            if progress:
+                progress.finish_stage(
+                    f"Candidate {idx}/{total_cand} ({name}) | val_accuracy: {val_acc*100:.1f}% | fit_time: {fit_time_ms:.1f}ms"
+                )
+
             if val_acc > best_acc:
                 best_acc = val_acc
                 best_name = name
                 best_pipe = pipe
+
+        if progress:
+            progress.log(f"Champion selected: {best_name} ({best_acc*100:.1f}%)")
 
         self.champion_pipeline = best_pipe
         self.champion_name = best_name

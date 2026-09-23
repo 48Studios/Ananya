@@ -649,8 +649,9 @@ export default function ViewComponentPage() {
                 <dt className="text-xs font-medium text-muted-foreground">
                   {attr.name || code}
                 </dt>
-                <dd className="mt-1">
+                <dd className="mt-1 space-y-1">
                   <AttributeValue attr={attr} />
+                  <AttributeProvenanceChip provenance={attr.provenance} />
                 </dd>
               </div>
             ))}
@@ -1042,6 +1043,61 @@ function AttributeText({ text }: { text: string }) {
   return (
     <span className="font-mono text-sm font-semibold break-words text-foreground">
       {text}
+    </span>
+  );
+}
+
+/**
+ * Where a non-human attribute value came from.
+ *
+ * The value itself is the important thing and stays plain text; this is one
+ * quiet line under it, and only for values the intelligence wrote. It answers
+ * the question a reviewer actually asks — "did somebody type this?" — with the
+ * source, the finding it came from, and the quoted evidence when there is any,
+ * without turning the specification list into an audit log.
+ *
+ * A hand-entered value has no provenance at all, so nothing is rendered for it:
+ * the absence of the marker is the statement that a human entered the value.
+ */
+function AttributeProvenanceChip({
+  provenance,
+}: {
+  provenance?: Record<string, unknown> | null;
+}) {
+  if (!provenance || typeof provenance !== "object") return null;
+
+  const source = typeof provenance.source === "string" ? provenance.source : "";
+  if (!source) return null;
+
+  const excerpt =
+    typeof provenance.evidenceExcerpt === "string"
+      ? provenance.evidenceExcerpt.trim()
+      : "";
+  const page = typeof provenance.page === "number" ? provenance.page : null;
+  const label = source.startsWith("document:")
+    ? "AI · Datasheet"
+    : source.startsWith("analyzer:")
+      ? "AI · Suggested"
+      : "AI";
+
+  const detail = [
+    `Source: ${source}`,
+    page !== null ? `Page ${page}` : null,
+    excerpt ? `"${excerpt}"` : null,
+    typeof provenance.reviewerEmail === "string"
+      ? `Applied by ${provenance.reviewerEmail}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground"
+      title={detail}
+    >
+      <Sparkles className="size-2.5 text-primary" aria-hidden />
+      {label}
     </span>
   );
 }

@@ -510,6 +510,10 @@ export class DrizzleComponentAttributeRepository implements ComponentAttributeRe
         optionId: row.optionId,
         selectedOptionIds: row.selectedOptionIds as string[] | null,
         jsonValue: row.jsonValue as Record<string, unknown> | null,
+        // The record of where a non-human value came from is part of the value,
+        // not of the write: dropping it here is what made an applied
+        // suggestion indistinguishable from a typed one on read.
+        provenance: row.provenance,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       }),
@@ -639,6 +643,7 @@ export class DrizzleComponentAttributeRepository implements ComponentAttributeRe
             optionId: row.optionId,
             selectedOptionIds: row.selectedOptionIds as string[] | null,
             jsonValue: row.jsonValue as Record<string, unknown> | null,
+            provenance: row.provenance,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
           }),

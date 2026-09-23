@@ -116,7 +116,10 @@ describe("Product Specifications attribute presentation", () => {
     expect(section).toContain(
       '<dt className="text-xs font-medium text-muted-foreground">',
     );
-    expect(section).toContain('<dd className="mt-1">');
+    // The value cell may carry additional utilities (the AI provenance line sits
+    // inside it); what this test pins is that the value is the dd of a dt/dd
+    // pair and not a sibling of the label.
+    expect(section).toMatch(/<dd className="mt-1[ "]/);
     expect(pageSource).toContain(
       'className="font-mono text-sm font-semibold break-words text-foreground"',
     );

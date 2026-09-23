@@ -64,6 +64,16 @@ export interface AttributeSuggestionsPanelProps {
   definitionIds?: ReadonlySet<string>;
   /** Attributes the reviewer has already applied, by definition id. */
   appliedDefinitionIds?: ReadonlySet<string>;
+  /**
+   * Render as a section of a parent card rather than as a card of its own.
+   *
+   * This panel is part of Component Intelligence, not a second intelligence
+   * surface: inside the intelligence card it contributes a heading, the
+   * statistics and the rows, while the card keeps its own frame. The two
+   * variants differ in chrome only — never in behaviour, which is why the
+   * rules stay in `lib/attribute-suggestions.ts` rather than here.
+   */
+  embedded?: boolean;
   onApply: (suggestion: AttributeSuggestionDto) => void;
   onEdit: (suggestion: AttributeSuggestionDto) => void;
   onReject: (suggestion: AttributeSuggestionDto) => void;
@@ -80,6 +90,7 @@ export function AttributeSuggestionsPanel({
   hasCategory = false,
   definitionIds,
   appliedDefinitionIds = new Set<string>(),
+  embedded = false,
   onApply,
   onEdit,
   onReject,
@@ -370,14 +381,23 @@ export function AttributeSuggestionsPanel({
 
   return (
     <section
-      className="space-y-2.5 rounded-xl border border-primary/20 bg-primary/5 p-3.5 shadow-2xs"
+      className={cn(
+        "space-y-2.5",
+        embedded
+          ? // A section of the intelligence card: a rule separates it, and the
+            // card keeps its own frame, padding and background.
+            "border-t border-primary/15 pt-3"
+          : "rounded-xl border border-primary/20 bg-primary/5 p-3.5 shadow-2xs",
+      )}
       aria-label="AI attribute suggestions"
     >
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="flex items-start gap-2.5">
-          <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
-            <Sparkles className="size-3.5" aria-hidden />
-          </div>
+        <div className={embedded ? "min-w-0" : "flex items-start gap-2.5"}>
+          {!embedded && (
+            <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
+              <Sparkles className="size-3.5" aria-hidden />
+            </div>
+          )}
           <div>
             <p className="text-xs font-semibold text-foreground">
               AI Attribute Suggestions
@@ -410,13 +430,33 @@ export function AttributeSuggestionsPanel({
       </div>
 
       {loading && (
-        <p
-          className="flex items-center gap-2 text-[11px] text-muted-foreground"
-          role="status"
-        >
-          <Loader2 className="size-3.5 animate-spin text-primary" aria-hidden />
-          Analyzing component specifications…
-        </p>
+        <div className="space-y-2" role="status">
+          <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin text-primary" aria-hidden />
+            Analyzing component specifications…
+          </p>
+          {/*
+            Placeholder rows rather than a bare spinner: the section keeps its
+            shape while the analysis runs, so the form does not jump when the
+            results arrive, and the reviewer can see what is coming.
+          */}
+          <ul className="space-y-1.5" aria-hidden>
+            {[0, 1].map((index) => (
+              <li
+                key={index}
+                className="rounded-lg border border-border/60 bg-card/60 px-3 py-2.5"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="h-3 w-32 rounded bg-muted" />
+                    <div className="h-3 w-20 rounded bg-muted/70" />
+                  </div>
+                  <div className="h-6 w-24 rounded bg-muted/60" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {unavailable && (

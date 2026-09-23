@@ -56,7 +56,33 @@ class DuplicateMatchingDatasetGenerator:
                     )
                 )
 
-        # 2. Negative Pairs: Different products (within same category if multiple exist, or across products)
+        # 2. Cross-Source Pairs: Identical MPNs across distinct sources/distributors
+        by_norm_mpn: Dict[str, List[ProductRecord]] = {}
+        for r in records:
+            if r.mpn:
+                norm = re.sub(r"[\s\-_/]", "", r.mpn.upper())
+                by_norm_mpn.setdefault(norm, []).append(r)
+
+        for norm, grp in by_norm_mpn.items():
+            if len(grp) >= 2:
+                for i in range(len(grp)):
+                    for j in range(i + 1, min(i + 3, len(grp))):
+                        rA, rB = grp[i], grp[j]
+                        sA = rA.provenance.source_id if rA.provenance else "src_a"
+                        sB = rB.provenance.source_id if rB.provenance else "src_b"
+                        if sA != sB:
+                            pairs.append(
+                                DuplicatePairExample(
+                                    component_a={"sku": rA.sku, "mpn": rA.mpn, "name": rA.name, "manufacturer": rA.manufacturer, "source": sA},
+                                    component_b={"sku": rB.sku, "mpn": rB.mpn, "name": rB.name, "manufacturer": rB.manufacturer, "source": sB},
+                                    label=DuplicateLabel.SAME,
+                                    reason=f"Cross-source verified component match ({sA} vs {sB})",
+                                    is_duplicate=True,
+                                    guard_passed=True,
+                                )
+                            )
+
+        # 3. Negative Pairs: Different products (within same category if multiple exist, or across products)
         by_category: Dict[str, List[ProductRecord]] = {}
         for r in records:
             by_category.setdefault(r.category, []).append(r)

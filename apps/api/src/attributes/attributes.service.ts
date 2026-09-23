@@ -53,6 +53,13 @@ export interface PopulatedComponentAttribute {
   optionCode: string | null;
   optionLabel: string | null;
   displayValue: string;
+  /**
+   * Where a non-human value came from, when there is such a record.
+   *
+   * Present for a value written by the intelligence and absent for one a human
+   * typed, so a client can tell the two apart without a second request.
+   */
+  provenance: Record<string, unknown> | null;
 }
 
 @Injectable()
@@ -512,6 +519,12 @@ export class AttributesService {
         optionCode,
         optionLabel,
         displayValue,
+        // Same record as the single-component read: a value written by the
+        // intelligence carries where it came from, a typed one carries nothing.
+        provenance:
+          val.provenance && typeof val.provenance === 'object'
+            ? val.provenance
+            : null,
       };
     }
 
@@ -616,6 +629,18 @@ export class AttributesService {
           optionCode,
           optionLabel,
           displayValue,
+          /**
+           * Where a non-human value came from, when there is such a record.
+           *
+           * Exposed so the component can answer "why is this value here?" for a
+           * value written by the intelligence rather than typed: the source, the
+           * finding it came from, and the document excerpt when one exists. A
+           * hand-entered value has no provenance and the field is absent.
+           */
+          provenance:
+            val.provenance && typeof val.provenance === 'object'
+              ? val.provenance
+              : null,
         };
       }
     }

@@ -49,10 +49,7 @@ import {
   toComparableValue,
   type UnitRef,
 } from './attribute-value-semantics';
-import {
-  buildAttributeValueProvenance,
-  DOCUMENT_ATTRIBUTE_SOURCE,
-} from './document-attribute-value-review';
+import { buildAttributeValueProvenance } from './document-attribute-value-review';
 import {
   isEngineeringMeasurement,
   isPackageCode,
@@ -863,7 +860,12 @@ export class ComponentReviewApplyService {
       const reconciled = await this.reviewQueue.markFindingsStale({
         componentId: outcome.componentId,
         reason: `Component updated by applying finding ${outcome.findingId}`,
-        excludeSources: [DOCUMENT_ATTRIBUTE_SOURCE],
+        // The whole ATTRIBUTE_VALUE category is excluded, not just the
+        // document-sourced producer: an attribute suggestion's validity is
+        // defined by the attribute value it was generated against, so a change
+        // to a *different* component field does not invalidate it. Each one is
+        // still checked individually when a reviewer decides or applies it.
+        excludeIssueCategories: ['ATTRIBUTE_VALUE'],
       });
       return reconciled.staledCount;
     } catch (error) {
@@ -1251,6 +1253,11 @@ export class ComponentReviewApplyService {
     // the whole application back.
     const provenance = buildAttributeValueProvenance({
       findingId: finding.id,
+      // Where the value actually came from. A datasheet-sourced finding records
+      // its document; an attribute suggestion derived from the category, a
+      // package classification or the component's own text records its own
+      // source and no document, rather than claiming a file that never existed.
+      source: finding.source,
       document: readDocumentRef(finding),
       evidence: readEvidence(finding),
       reviewer: { id: reviewer?.id ?? null, email: reviewer?.email ?? null },

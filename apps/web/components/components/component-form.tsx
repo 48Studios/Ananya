@@ -4,11 +4,20 @@ import * as React from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Check, Loader2, Sliders, Sparkles, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Check,
+  Loader2,
+  Sliders,
+  Sparkles,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { mlApi, type ComponentSuggestionResponseDto } from "@/lib/api/ml-api";
 import type { AttributeSuggestionDto } from "@/lib/api/ml-api";
 import {
   attributeValuePatch,
+  canAcceptSuggestion,
 } from "@/lib/attribute-suggestions";
 import { AttributeSuggestionsPanel } from "./attribute-suggestions-panel";
 import { AiSuggestionReviewCard } from "./ai-suggestion-review-card";
@@ -20,7 +29,12 @@ import {
 } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
+import {
+  Field,
+  FieldLabel,
+  FieldError,
+  FieldDescription,
+} from "@/components/ui/field";
 import { EntitySelector } from "@/components/ui/entity-selector";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -196,8 +210,10 @@ export function ComponentForm({
   >([]);
   const [loadingAttributeSuggestions, setLoadingAttributeSuggestions] =
     React.useState(false);
-  const [attributeIntelligenceUnavailable, setAttributeIntelligenceUnavailable] =
-    React.useState(false);
+  const [
+    attributeIntelligenceUnavailable,
+    setAttributeIntelligenceUnavailable,
+  ] = React.useState(false);
   const [appliedSuggestionIds, setAppliedSuggestionIds] = React.useState<
     ReadonlySet<string>
   >(new Set());
@@ -304,14 +320,6 @@ export function ComponentForm({
 
     return Array.from(byIdentity.values());
   }, [attributeDefinitions, attrValues, categoryAttributes]);
-  const attributeConflicts = React.useMemo(() => {
-    if (!initialData?.attributes || !suggestion) return [];
-    return Object.entries(suggestion.attributes).flatMap(([code, extracted]) => {
-      const existing = initialData.attributes?.[code];
-      if (!existing || String(existing.displayValue) === extracted.formatted) return [];
-      return [{ code, existing: existing.displayValue, extracted: extracted.formatted }];
-    });
-  }, [initialData, suggestion]);
 
   // Initialize form and attribute state from initialData
   React.useEffect(() => {
@@ -703,9 +711,7 @@ export function ComponentForm({
     void recordAttributeSuggestionFeedback(suggestion, "ACCEPTED", patch.value);
   };
 
-  const applyAttributeSuggestions = (
-    suggestions: AttributeSuggestionDto[],
-  ) => {
+  const applyAttributeSuggestions = (suggestions: AttributeSuggestionDto[]) => {
     for (const suggestion of suggestions) {
       applyAttributeSuggestion(suggestion);
     }
@@ -817,21 +823,10 @@ export function ComponentForm({
       setValue("unit", suggestion.suggestedUnit, { shouldValidate: true });
     }
 
-    if (suggestion.attributes && Object.keys(suggestion.attributes).length > 0) {
-      setAttrValues((prev) => {
-        const next = { ...prev };
-        for (const [code, attr] of Object.entries(suggestion.attributes)) {
-          if (attr.resolution === "UNRESOLVED" || !attr.attributeDefinitionId) continue;
-          next[code] = {
-            attributeDefinitionId: attr.attributeDefinitionId,
-            value: attr.value,
-            unit: attr.unit || next[code]?.unit,
-            optionCode: typeof attr.value === "string" ? attr.value : undefined,
-          };
-        }
-        return next;
-      });
-    }
+    // The specifications go through the same applier the panel's rows and the
+    // Apply Specifications action use, so "apply everything" cannot write a
+    // different set of values than applying them one by one would.
+    applyEligibleSpecifications();
   };
 
   /**
@@ -910,56 +905,56 @@ export function ComponentForm({
     );
   };
 
-  const handleApplyAttributes = (attrs: Record<string, unknown>) => {
-    setAttrValues((prev) => {
-      const next = { ...prev };
-      for (const [code, attrRaw] of Object.entries(attrs)) {
-        const attr = attrRaw as {
-          value?: unknown;
-          unit?: string | null;
-          attributeDefinitionId?: string | null;
-          resolution?: "RESOLVED" | "UNRESOLVED";
-        };
-        if (attr.resolution === "UNRESOLVED" || !attr.attributeDefinitionId) {
-          continue;
-        }
-        next[code] = {
-          attributeDefinitionId: attr.attributeDefinitionId,
-          value: attr.value,
-          unit: attr.unit || next[code]?.unit,
-          optionCode: typeof attr.value === "string" ? attr.value : undefined,
-        };
-      }
-      return next;
-    });
-    setUnresolvedSuggestedAttributes((prev) => ({
-      ...prev,
-      ...Object.fromEntries(
-        Object.entries(attrs)
-          .filter(([, attrRaw]) => {
-            const attr = attrRaw as {
-              attributeDefinitionId?: string | null;
-              resolution?: "RESOLVED" | "UNRESOLVED";
-            };
-            return attr.resolution === "UNRESOLVED" || !attr.attributeDefinitionId;
-          })
-          .map(([code, attrRaw]) => {
-            const attr = attrRaw as {
-              formatted?: string;
-              unit?: string | null;
-            };
-            return [
-              code,
-              {
-                code,
-                formatted: attr.formatted ?? String(attrRaw),
-                unit: attr.unit,
-              },
-            ];
-          }),
+  /**
+   * Applies every attribute suggestion the reviewer can apply in one action.
+   *
+   * This is the single definition of "apply the specifications": the same set of
+   * rows, written through the same state, as accepting them one at a time. It
+   * used to read the raw extraction record and write its own shape into the
+   * attribute state, which is how one value ended up with two writers.
+   *
+   * The eligible set excludes a conflict (the reviewer must decide) and a value
+   * the component already records, and it is computed from the same rule the
+   * rows use — never a second, looser filter.
+   */
+  const applyEligibleSpecifications = () => {
+    applyAttributeSuggestions(
+      attributeSuggestions.filter(
+        (suggestion) =>
+          canAcceptSuggestion(suggestion) &&
+          !appliedSuggestionIds.has(suggestion.attributeDefinitionId),
       ),
-    }));
+    );
   };
+
+  /**
+   * The suggestions the specifications action can still apply.
+   *
+   * Counted once, from the same eligibility rule the applier uses, so the button
+   * cannot promise a different number from what it writes. Suggestions already
+   * applied are excluded, which is what makes the count fall to zero and the
+   * action collapse into its applied state.
+   */
+  const appliableSuggestions = React.useMemo(
+    () =>
+      attributeSuggestions.filter(
+        (suggestion) =>
+          canAcceptSuggestion(suggestion) &&
+          !appliedSuggestionIds.has(suggestion.attributeDefinitionId),
+      ),
+    [attributeSuggestions, appliedSuggestionIds],
+  );
+  const appliableSuggestionCount = appliableSuggestions.length;
+  /**
+   * True once nothing appliable is left *and* something was appliable before.
+   *
+   * An empty eligible set means "nothing to apply" — which the action states as
+   * a disabled button — while a set that has been emptied by applying is the
+   * applied state the reviewer needs to see. Distinguishing the two is what
+   * keeps "Applied" from appearing on a component that had nothing to apply.
+   */
+  const allEligibleSuggestionsApplied =
+    appliableSuggestionCount === 0 && appliedSuggestionIds.size > 0;
 
   const onSubmit = async (values: ComponentFormValues) => {
     setServerError(null);
@@ -1137,7 +1132,20 @@ export function ComponentForm({
           </div>
         )}
 
-        {/* ── AI Suggestion Review Card ────────────────────────────────────── */}
+        {/*
+          ONE intelligence card.
+
+          The attribute suggestions used to be a second top-level card beside
+          this one, and the extracted values were listed a third time as chips
+          inside it — so a specification appeared twice in the same intelligence
+          experience. They are now one card: the analysis, its identity and
+          classification results, and the attribute suggestions that follow from
+          them, with a single apply path into the attribute editor below.
+
+          The unresolved extractions are NOT lost: an extracted value with no
+          attribute definition is kept as a provisional entry in the Component
+          Attributes section, which is where the reviewer can act on it.
+        */}
         {suggestion && (
           <AiSuggestionReviewCard
             suggestion={suggestion}
@@ -1168,10 +1176,26 @@ export function ComponentForm({
                 });
               }
             }}
-            attributeConflicts={attributeConflicts}
             onApplyCategory={handleApplyCategory}
             onApplyManufacturer={handleApplyManufacturer}
-            onApplyAttributes={handleApplyAttributes}
+            onApplySpecifications={applyEligibleSpecifications}
+            specificationsAppliableCount={appliableSuggestionCount}
+            specificationsApplied={allEligibleSuggestionsApplied}
+            attributeSuggestionsSlot={
+              <AttributeSuggestionsPanel
+                embedded
+                suggestions={attributeSuggestions}
+                loading={loadingAttributeSuggestions}
+                unavailable={attributeIntelligenceUnavailable}
+                hasCategory={Boolean(selectedCategoryId)}
+                definitionIds={definitionIds}
+                appliedDefinitionIds={appliedSuggestionIds}
+                onApply={applyAttributeSuggestion}
+                onEdit={editAttributeSuggestion}
+                onReject={rejectAttributeSuggestion}
+                onAcceptAll={applyAttributeSuggestions}
+              />
+            }
             onDismiss={() => {
               // Dismissing discards the suggestion entirely, so the reviewer's
               // per-field choices for it are cleared with it.
@@ -1183,28 +1207,11 @@ export function ComponentForm({
         )}
 
         {/*
-          AI Attribute Suggestions sit with the intelligence card rather than in
-          a surface of their own: they are the same analysis, reported one level
-          deeper, and a reviewer should read "here is the part, and here is what
-          matters about it" as one story.
+          The intelligence card is the only place attribute suggestions appear.
+          It is skipped while the analysis is still running (there is nothing to
+          show yet) but the panel reports its own loading and unavailable states
+          once the card exists, so a failure is never silent.
         */}
-        {(suggestion ||
-          attributeSuggestions.length > 0 ||
-          loadingAttributeSuggestions ||
-          attributeIntelligenceUnavailable) && (
-          <AttributeSuggestionsPanel
-            suggestions={attributeSuggestions}
-            loading={loadingAttributeSuggestions}
-            unavailable={attributeIntelligenceUnavailable}
-            hasCategory={Boolean(selectedCategoryId)}
-            definitionIds={definitionIds}
-            appliedDefinitionIds={appliedSuggestionIds}
-            onApply={applyAttributeSuggestion}
-            onEdit={editAttributeSuggestion}
-            onReject={rejectAttributeSuggestion}
-            onAcceptAll={applyAttributeSuggestions}
-          />
-        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
           {/* SKU */}          <Field>

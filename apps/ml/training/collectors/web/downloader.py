@@ -4,6 +4,7 @@ Resilient HTTP Downloader with Caching, Deduplication, and Provenance Hashing.
 
 import os
 import time
+import uuid
 import hashlib
 from typing import Optional, Dict, Any, Tuple, List
 from pathlib import Path
@@ -24,6 +25,19 @@ class DownloadResult(BaseModel):
     saved_path: Optional[str] = None
     is_cached: bool = False
     error: Optional[str] = None
+
+
+class _BufferedResponseContext:
+    """Adapts a buffered response (mock/duck-typed clients) to the stream context API."""
+
+    def __init__(self, response: Any):
+        self._response = response
+
+    def __enter__(self) -> Any:
+        return self._response
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
+        return False
 
 
 class ResilientDownloader:
@@ -58,6 +72,25 @@ class ResilientDownloader:
             return "catalogs"
         return "web"
 
+    def _open_response(self, client: httpx.Client, url: str, headers: Dict[str, str]) -> Any:
+        """
+        Opens an HTTP response context.
+
+        Real ``httpx.Client`` instances stream the body so large PDFs never need a
+        full in-memory copy. Mock/duck-typed clients (tests) only expose buffered
+        ``get`` and are adapted transparently.
+        """
+        if isinstance(client, httpx.Client):
+            return client.stream("GET", url, headers=headers)
+        return _BufferedResponseContext(client.get(url, headers=headers))
+
+    @staticmethod
+    def _iter_body(response: Any):
+        """Yields response body chunks, streaming for real httpx responses."""
+        if isinstance(response, httpx.Response):
+            return response.iter_bytes()
+        return [response.content]
+
     def download(
         self,
         url: str,
@@ -72,6 +105,10 @@ class ResilientDownloader:
     ) -> DownloadResult:
         """
         Downloads a resource over HTTP, checking robots.txt, rate limits, and caching.
+
+        The body is streamed to a temporary file while hashing incrementally, then
+        atomically moved into place. SHA-256, content length, ETag/Last-Modified,
+        conditional-request caching, and provenance all remain unchanged.
         """
         # 1. Robots.txt Compliance Check
         if not self.policy_manager.can_fetch(url, client=client):
@@ -102,107 +139,128 @@ class ResilientDownloader:
 
             while attempt < self.max_retries:
                 attempt += 1
+                temp_path: Optional[Path] = None
                 try:
-                    response = client.get(url, headers=headers)
+                    with self._open_response(client, url, headers) as response:
+                        # Handle 429 Rate Limit
+                        if response.status_code == 429:
+                            self.policy_manager.record_retry_after(url, response.headers.get("Retry-After"))
+                            time.sleep(backoff)
+                            backoff *= 2.0
+                            continue
 
-                    # Handle 429 Rate Limit
-                    if response.status_code == 429:
-                        self.policy_manager.record_retry_after(url, response.headers.get("Retry-After"))
-                        time.sleep(backoff)
-                        backoff *= 2.0
-                        continue
+                        # Handle 304 Not Modified
+                        if response.status_code == 304:
+                            resp_etag = response.headers.get("ETag") or response.headers.get("etag") or cached_etag
+                            return DownloadResult(
+                                url=url,
+                                status_code=304,
+                                content_hash=cached_hash or "",
+                                etag=resp_etag,
+                                last_modified=cached_last_modified,
+                                is_cached=True,
+                            )
 
-                    # Handle 304 Not Modified
-                    if response.status_code == 304:
-                        resp_etag = response.headers.get("ETag") or response.headers.get("etag") or cached_etag
-                        return DownloadResult(
-                            url=url,
-                            status_code=304,
-                            content_hash=cached_hash or "",
-                            etag=resp_etag,
-                            last_modified=cached_last_modified,
-                            is_cached=True,
-                        )
+                        # Transient server errors
+                        if response.status_code in (502, 503, 504):
+                            time.sleep(backoff)
+                            backoff *= 2.0
+                            continue
 
-                    # Transient server errors
-                    if response.status_code in (502, 503, 504):
-                        time.sleep(backoff)
-                        backoff *= 2.0
-                        continue
-
-                    if response.status_code != 200:
-                        return DownloadResult(
-                            url=url,
-                            status_code=response.status_code,
-                            error=f"HTTP_{response.status_code}",
-                        )
-
-                    # Success: check file size limit
-                    content = response.content
-                    limit = max_file_size_bytes if max_file_size_bytes is not None else self.max_file_size_bytes
-                    if len(content) > limit:
-                        return DownloadResult(
-                            url=url,
-                            status_code=response.status_code,
-                            error=f"FILE_SIZE_LIMIT_EXCEEDED: Size {len(content)} exceeds {limit}",
-                        )
-
-                    content_hash = hashlib.sha256(content).hexdigest()
-                    raw_ct = response.headers.get("Content-Type") or response.headers.get("content-type") or "application/octet-stream"
-                    content_type = raw_ct.split(";")[0].strip()
-
-                    # Check allowed content types if specified
-                    if allowed_content_types:
-                        ct_lower = content_type.lower()
-                        if not any(act.lower() in ct_lower for act in allowed_content_types):
+                        if response.status_code != 200:
                             return DownloadResult(
                                 url=url,
                                 status_code=response.status_code,
-                                error=f"DISALLOWED_CONTENT_TYPE: '{content_type}' not in allowed list",
+                                error=f"HTTP_{response.status_code}",
                             )
 
-                    etag = response.headers.get("ETag") or response.headers.get("etag")
-                    last_mod = response.headers.get("Last-Modified") or response.headers.get("last-modified")
+                        raw_ct = response.headers.get("Content-Type") or response.headers.get("content-type") or "application/octet-stream"
+                        content_type = raw_ct.split(";")[0].strip()
 
-                    # Check if unchanged by content hash
-                    if cached_hash and cached_hash == content_hash:
+                        # Check allowed content types before consuming the body
+                        if allowed_content_types:
+                            ct_lower = content_type.lower()
+                            if not any(act.lower() in ct_lower for act in allowed_content_types):
+                                return DownloadResult(
+                                    url=url,
+                                    status_code=response.status_code,
+                                    error=f"DISALLOWED_CONTENT_TYPE: '{content_type}' not in allowed list",
+                                )
+
+                        etag = response.headers.get("ETag") or response.headers.get("etag")
+                        last_mod = response.headers.get("Last-Modified") or response.headers.get("last-modified")
+
+                        limit = max_file_size_bytes if max_file_size_bytes is not None else self.max_file_size_bytes
+                        subdir = self.determine_storage_subdir(content_type, url)
+                        ext = ".pdf" if "pdf" in content_type else (".json" if "json" in content_type else ".html")
+                        temp_path = self.raw_storage_base / subdir / f".{source_id}_{uuid.uuid4().hex}.part"
+
+                        hasher = hashlib.sha256()
+                        total = 0
+                        with open(temp_path, "wb") as f:
+                            for chunk in self._iter_body(response):
+                                if not chunk:
+                                    continue
+                                total += len(chunk)
+                                if total > limit:
+                                    return DownloadResult(
+                                        url=url,
+                                        status_code=response.status_code,
+                                        error=f"FILE_SIZE_LIMIT_EXCEEDED: Size {total} exceeds {limit}",
+                                    )
+                                hasher.update(chunk)
+                                f.write(chunk)
+
+                        content_hash = hasher.hexdigest()
+
+                        # Check if unchanged by content hash
+                        if cached_hash and cached_hash == content_hash:
+                            return DownloadResult(
+                                url=url,
+                                status_code=200,
+                                content_type=content_type,
+                                content_hash=content_hash,
+                                content_length=total,
+                                etag=etag,
+                                last_modified=last_mod,
+                                is_cached=True,
+                            )
+
+                        # Persist raw bytes atomically
+                        file_name = f"{source_id}_{content_hash[:16]}{ext}"
+                        save_path = self.raw_storage_base / subdir / file_name
+                        os.replace(temp_path, save_path)
+                        temp_path = None
+
                         return DownloadResult(
                             url=url,
                             status_code=200,
                             content_type=content_type,
                             content_hash=content_hash,
-                            content_length=len(content),
+                            content_length=total,
                             etag=etag,
                             last_modified=last_mod,
-                            is_cached=True,
+                            saved_path=str(save_path),
+                            is_cached=False,
                         )
 
-                    # Persist raw bytes
-                    subdir = self.determine_storage_subdir(content_type, url)
-                    ext = ".pdf" if "pdf" in content_type else (".json" if "json" in content_type else ".html")
-                    file_name = f"{source_id}_{content_hash[:16]}{ext}"
-                    save_path = self.raw_storage_base / subdir / file_name
-
-                    with open(save_path, "wb") as f:
-                        f.write(content)
-
-                    return DownloadResult(
-                        url=url,
-                        status_code=200,
-                        content_type=content_type,
-                        content_hash=content_hash,
-                        content_length=len(content),
-                        etag=etag,
-                        last_modified=last_mod,
-                        saved_path=str(save_path),
-                        is_cached=False,
-                    )
-
-                except (httpx.TimeoutException, httpx.NetworkError) as e:
+                except (httpx.TimeoutException, httpx.RequestError, httpx.HTTPError) as e:
                     if attempt >= self.max_retries:
-                        return DownloadResult(url=url, status_code=599, error=f"NETWORK_TIMEOUT: {str(e)}")
+                        return DownloadResult(url=url, status_code=599, error=f"NETWORK_ERROR: {type(e).__name__}: {str(e)}")
                     time.sleep(backoff)
                     backoff *= 2.0
+                except Exception as e:
+                    if attempt >= self.max_retries:
+                        return DownloadResult(url=url, status_code=599, error=f"DOWNLOAD_ERROR: {type(e).__name__}: {str(e)}")
+                    time.sleep(backoff)
+                    backoff *= 2.0
+                finally:
+                    # Never leave partial downloads behind (failed/oversized/unchanged)
+                    if temp_path is not None:
+                        try:
+                            os.unlink(temp_path)
+                        except OSError:
+                            pass
 
             return DownloadResult(url=url, status_code=500, error="MAX_RETRIES_EXCEEDED")
 

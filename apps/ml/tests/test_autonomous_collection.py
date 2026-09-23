@@ -168,6 +168,11 @@ def test_rate_limiting_and_retry_after():
     # Other domains remain unaffected
     assert policy.can_crawl_now("https://other-site.com/item")
 
+    # Custom rate limit overrides configured default delay
+    custom_policy = CrawlPolicyManager(custom_rate_limit=10.0)  # 0.1s delay
+    assert custom_policy.has_custom_rate_limit
+    assert abs(custom_policy.default_delay - 0.1) < 1e-5
+
 
 # =====================================================================
 # 5. Downloader Caching & Conditional Requests (ETag / 304)
@@ -535,6 +540,27 @@ sources:
     # Collection did NOT crash and successfully acquired good-page
 
 
+def test_downloader_remote_protocol_error_resilience(tmp_path: Path):
+    storage_dir = tmp_path / "raw"
+    downloader = ResilientDownloader(raw_storage_base=str(storage_dir), max_retries=2)
+
+    mock_client = MagicMock()
+    # Simulate peer closing connection mid-transfer
+    mock_client.get.side_effect = httpx.RemoteProtocolError("peer closed connection without sending complete message body")
+
+    res = downloader.download(
+        "https://example.com/huge-broken.pdf",
+        source_id="test-src",
+        client=mock_client,
+        rate_limit_delay=0.01,
+    )
+
+    assert res is not None
+    assert res.status_code == 599
+    assert "NETWORK_ERROR" in res.error or "RemoteProtocolError" in res.error
+    assert res.saved_path is None
+
+
 # =====================================================================
 # 13. End-to-End Autonomous Pipeline & Incremental Dataset Versioning
 # =====================================================================
@@ -624,3 +650,313 @@ def test_cli_collect_dry_run_and_subparser():
     assert args2.all is True
     assert args2.resume is True
     assert args2.workers == 2
+
+
+# =====================================================================
+# 15. Discovery Pipeline & Sitemap Index Recursion Regression Tests
+# =====================================================================
+
+def test_sitemap_index_recursion_and_pdf_discovery():
+    """Verifies that sitemap index files are recursively followed and PDFs discovered."""
+    src = SourceConfig(
+        id="test-recursive",
+        name="Recursive Mfg",
+        type="manufacturer",
+        quality="distributor",
+        domains=["recursive-mfg.com"],
+        start_urls=["https://recursive-mfg.com/sitemap-index.xml"],
+    )
+    discovery = DiscoveryEngine(src)
+
+    index_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <sitemap>
+        <loc>https://recursive-mfg.com/sitemap-products.xml</loc>
+      </sitemap>
+      <sitemap>
+        <loc>https://recursive-mfg.com/sitemap-pdf.xml</loc>
+      </sitemap>
+    </sitemapindex>
+    """
+    products_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <url><loc>https://recursive-mfg.com/products/widget-1</loc></url>
+      <url><loc>https://recursive-mfg.com/products/widget-2</loc></url>
+    </urlset>
+    """
+    pdf_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <url><loc>https://recursive-mfg.com/datasheets/widget-1.pdf</loc></url>
+      <url><loc>https://recursive-mfg.com/datasheets/widget-2.pdf</loc></url>
+    </urlset>
+    """
+
+    mock_client = MagicMock()
+    def mock_get(url, **kwargs):
+        resp = MagicMock()
+        resp.status_code = 200
+        if "sitemap-index.xml" in url:
+            resp.text = index_xml
+            resp.content = index_xml.encode("utf-8")
+        elif "sitemap-products.xml" in url:
+            resp.text = products_xml
+            resp.content = products_xml.encode("utf-8")
+        elif "sitemap-pdf.xml" in url:
+            resp.text = pdf_xml
+            resp.content = pdf_xml.encode("utf-8")
+        else:
+            resp.status_code = 404
+        return resp
+    mock_client.get.side_effect = mock_get
+
+    res = discovery.discover(client=mock_client)
+    assert res.report.sitemaps_found == 3  # index + 2 child sitemaps
+    assert res.report.sitemaps_parsed == 3
+    assert res.report.urls_in_sitemaps == 4
+    assert res.report.product_urls == 2
+    assert res.report.document_urls == 2
+    assert len(res.page_queue) == 2
+    assert len(res.doc_queue) == 2
+    assert "https://recursive-mfg.com/datasheets/widget-1.pdf" in res.doc_queue
+
+
+def test_large_sitemap_parsing_with_multiple_namespaces():
+    """Verifies parsing of sitemaps with complex namespaces and schema locations."""
+    src = SourceConfig(
+        id="ns-test",
+        name="Namespace Test",
+        type="manufacturer",
+        quality="distributor",
+        domains=["we-online.com"],
+        start_urls=[],
+    )
+    discovery = DiscoveryEngine(src)
+
+    complex_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xmlns:xhtml="http://www.w3.org/1999/xhtml"
+            xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+            xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+      <url>
+        <loc>https://we-online.com/en/components/products/74404052100</loc>
+      </url>
+      <url>
+        <loc>https://we-online.com/katalog_download/pdf/74404052100.pdf</loc>
+      </url>
+      <url>
+        <loc>https://outside-domain.com/unallowed.pdf</loc>
+      </url>
+    </urlset>
+    """
+    discovered, nested = discovery.parse_sitemap(complex_xml, "https://we-online.com/sitemap.xml")
+    assert len(discovered) == 2  # outside domain filtered out
+    assert "https://we-online.com/en/components/products/74404052100" in discovered
+    assert "https://we-online.com/katalog_download/pdf/74404052100.pdf" in discovered
+
+
+def test_discovery_vs_processing_limits_separation(tmp_path: Path):
+    """
+    Verifies that --max-pages and --max-files limit processing only,
+    without truncating the discovery space, and that PDFs are not starved by HTML pages.
+    """
+    cfg_content = """
+sources:
+  - id: sep-test
+    name: Separation Test
+    type: manufacturer
+    quality: distributor
+    enabled: true
+    domains:
+      - sep-test.com
+    start_urls:
+      - https://sep-test.com/sitemap.xml
+    max_pages: 5
+    max_files: 2
+    default_domain: mechanical
+"""
+    cfg_file = tmp_path / "sources.yaml"
+    cfg_file.write_text(cfg_content, encoding="utf-8")
+
+    collector = AutonomousWebCollector(
+        registry_path=str(cfg_file),
+        raw_storage_base=str(tmp_path / "raw"),
+    )
+
+    # 10 product pages + 10 PDF pages
+    urls_xml = "".join(f"<url><loc>https://sep-test.com/products/item-{i}</loc></url>" for i in range(10))
+    urls_xml += "".join(f"<url><loc>https://sep-test.com/datasheets/doc-{i}.pdf</loc></url>" for i in range(10))
+    sitemap_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      {urls_xml}
+    </urlset>
+    """
+
+    mock_client = MagicMock()
+    def mock_get(url, **kwargs):
+        resp = MagicMock()
+        resp.status_code = 200
+        if "sitemap.xml" in url:
+            resp.text = sitemap_xml
+            resp.content = sitemap_xml.encode("utf-8")
+        elif url.endswith(".pdf"):
+            resp.text = ""
+            resp.content = b"%PDF-1.4 minimal content"
+            resp.headers = {"content-type": "application/pdf"}
+        else:
+            resp.text = "<html><body><h1>Sample Product</h1></body></html>"
+            resp.content = resp.text.encode("utf-8")
+            resp.headers = {"content-type": "text/html"}
+        return resp
+    mock_client.get.side_effect = mock_get
+
+    # Run with max_pages=3, max_files=2
+    collector.collect(
+        source_id="sep-test",
+        max_pages=3,
+        max_files=2,
+        client=mock_client,
+        auto_process=False,
+    )
+
+    stats = collector.last_stats
+    # Total discovery saw all 20 URLs
+    assert stats["urls_discovered"] == 20
+    # Processed exactly 3 HTML pages and 2 PDF files
+    assert stats["downloaded"] == 5
+    assert stats["pdfs"] == 2
+
+
+def test_discovery_report_structured_counters():
+    """Verifies that DiscoveryReport populates and formats all requested counters."""
+    from apps.ml.training.collectors.web.discovery import DiscoveryReport
+
+    rep = DiscoveryReport(
+        source_id="wuerth-elektronik",
+        sitemaps_found=3,
+        sitemaps_parsed=3,
+        urls_in_sitemaps=12481,
+        product_urls=8932,
+        document_urls=2104,
+        other_urls=1445,
+        rejected_outside_domain=23,
+        rejected_robots=17,
+        rejected_duplicate=1102,
+        rejected_invalid=4,
+        skipped_cached=200,
+        final_crawl_queue=9690,
+    )
+    formatted = rep.format_report()
+    assert "DISCOVERY REPORT" in formatted
+    assert "Source: wuerth-elektronik" in formatted
+    assert "Found:             3" in formatted
+    assert "URLs in sitemaps:  12,481" in formatted
+    assert "Product URLs:       8,932" in formatted
+    assert "Document URLs:      2,104" in formatted
+    assert "Outside domain:     23" in formatted
+    assert "Robots:             17" in formatted
+    assert "Final crawl queue:   9,690" in formatted
+
+
+def test_robots_txt_sitemap_auto_discovery():
+    """Verifies that sitemaps declared in robots.txt are extracted and discovered."""
+    policy = CrawlPolicyManager()
+    robots_body = """
+    User-agent: *
+    Disallow: /admin/
+    Sitemap: https://test-domain.com/declared-sitemap.xml
+    """
+    policy.set_robots_txt("test-domain.com", robots_body)
+    sitemaps = policy.get_sitemaps("test-domain.com")
+    assert sitemaps == ["https://test-domain.com/declared-sitemap.xml"]
+
+
+def test_robots_txt_fetch_timeout_handling(monkeypatch):
+    """Regression test: robots.txt network timeouts must not hang the crawler."""
+    policy = CrawlPolicyManager()
+
+    def mock_httpx_get(*args, **kwargs):
+        raise httpx.ReadTimeout("Simulated read timeout on tarpit host")
+
+    with monkeypatch.context() as m:
+        m.setattr(httpx.Client, "get", mock_httpx_get)
+        policy.fetch_robots_txt("slow-hanging-domain.com", client=None)
+
+    # Should not raise exception and should fallback safely
+    assert policy.is_allowed("https://slow-hanging-domain.com/item1") is True
+
+
+
+def test_cross_source_analyzer():
+    """Verifies that CrossSourceAnalyzer accurately identifies cross-source matches and variants."""
+    from apps.ml.training.processors.cross_source import CrossSourceAnalyzer
+    from apps.ml.training.schemas.product import ProductRecord, ProvenanceRecord, AttributeValueRecord
+
+    r1 = ProductRecord(
+        sku="DIST1-74404052100",
+        name="Würth 10uH SMD Inductor",
+        manufacturer="Wuerth Elektronik",
+        mpn="74404052100-TR",
+        category="Inductors",
+        attributes={"inductance": AttributeValueRecord(code="inductance", value="10uH", raw_value="10uH", normalized_si=1e-5, unit="H")},
+        provenance=ProvenanceRecord(source="dist1", source_type="distributor_feed", source_id="distributor-1", source_url="https://dist1.com/p1"),
+    )
+    r2 = ProductRecord(
+        sku="DIST2-WE-74404052100",
+        name="WE SMD Power Choke",
+        manufacturer="Würth Elektronik",
+        mpn="74404052100",
+        category="Power Inductors",
+        attributes={"inductance": AttributeValueRecord(code="inductance", value="0.01mH", raw_value="0.01mH", normalized_si=1e-5, unit="H")},
+        provenance=ProvenanceRecord(source="dist2", source_type="distributor_feed", source_id="distributor-2", source_url="https://dist2.com/p2"),
+    )
+
+    analyzer = CrossSourceAnalyzer([r1, r2])
+    report = analyzer.analyze()
+
+    assert report["sources_analyzed"] == 2
+    assert report["total_records"] == 2
+    assert report["packaging_suffix_variants_count"] >= 1
+    assert report["manufacturer_aliases_count"] >= 1
+    assert report["product_family_variants_count"] >= 1
+
+
+def test_source_health_tracking(tmp_path: Path):
+    """Verifies that AutonomousWebCollector tracks source health statuses."""
+    from apps.ml.training.collectors.web_collector import AutonomousWebCollector
+
+    yaml_content = """
+    sources:
+      - id: src-enabled
+        name: Enabled Source
+        domains:
+          - enabled.com
+        start_urls:
+          - https://enabled.com/items
+        enabled: true
+      - id: src-disabled
+        name: Disabled Source
+        domains:
+          - disabled.com
+        start_urls:
+          - https://disabled.com/items
+        enabled: false
+    """
+    cfg_file = tmp_path / "sources.yaml"
+    cfg_file.write_text(yaml_content, encoding="utf-8")
+
+    collector = AutonomousWebCollector(registry_path=str(cfg_file), raw_storage_base=str(tmp_path / "raw"))
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = "<html><body></body></html>"
+    mock_resp.content = b"<html><body></body></html>"
+    mock_resp.headers = {"content-type": "text/html"}
+    mock_client.get.return_value = mock_resp
+
+    collector.collect(dry_run=True, client=mock_client)
+
+    assert "src-disabled" in collector.source_health
+    assert collector.source_health["src-disabled"]["status"] == "SKIPPED"
+    assert "src-enabled" in collector.source_health
+

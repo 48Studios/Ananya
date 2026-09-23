@@ -10,6 +10,7 @@ Tracks the lifecycle of every discovered, downloaded, and extracted resource:
 
 import os
 import json
+import uuid
 import threading
 from typing import Dict, Any, Optional, List
 from pathlib import Path
@@ -71,6 +72,19 @@ class AcquisitionStore:
     def get_record(self, canonical_url: str) -> Optional[AcquisitionRecord]:
         with self._lock:
             return self._records.get(canonical_url)
+
+    def get_records_for_source(self, source_id: str) -> List[AcquisitionRecord]:
+        with self._lock:
+            return [r for r in self._records.values() if r.source_id == source_id]
+
+    def is_cached(self, canonical_url: str) -> bool:
+        with self._lock:
+            rec = self._records.get(canonical_url)
+            if not rec:
+                return False
+            if rec.local_path and Path(rec.local_path).exists() and rec.processing_status in ("DOWNLOADED", "PROCESSED", "SKIPPED"):
+                return True
+            return False
 
     def record_discovered(self, canonical_url: str, raw_url: str, source_id: str) -> AcquisitionRecord:
         with self._lock:
@@ -141,6 +155,14 @@ class AcquisitionStore:
                 rec.processing_status = "PROCESSED"
                 rec.parser = parser_name
 
+    def record_parse_failure(self, canonical_url: str, error: str) -> None:
+        """Records a parse/extraction failure so the document can be retried later."""
+        with self._lock:
+            rec = self._records.get(canonical_url)
+            if rec:
+                rec.processing_status = "FAILED"
+                rec.error = error
+
     def get_summary(self) -> Dict[str, int]:
         with self._lock:
             summary = {
@@ -156,3 +178,49 @@ class AcquisitionStore:
                 if st in summary:
                     summary[st] += 1
             return summary
+
+
+class DocumentTextCache:
+    """
+    Sidecar cache of extracted PDF text/title keyed by content hash.
+
+    Prevents re-parsing unchanged PDFs on resume while keeping the acquisition
+    state file lean. Hashing and provenance remain authoritative in the
+    AcquisitionStore; this cache only short-circuits the CPU-bound pypdf pass.
+    """
+
+    def __init__(self, cache_dir: str):
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def _path(self, content_hash: str) -> Path:
+        return self.cache_dir / f"{content_hash}.json"
+
+    def get(self, content_hash: Optional[str]) -> Optional[Dict[str, Any]]:
+        if not content_hash:
+            return None
+        path = self._path(content_hash)
+        if not path.exists():
+            return None
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
+
+    def put(self, content_hash: Optional[str], payload: Dict[str, Any]) -> None:
+        if not content_hash:
+            return
+        path = self._path(content_hash)
+        # Unique temp name avoids races when two workers parse identical content.
+        temp_path = path.parent / f".{path.name}.{uuid.uuid4().hex}.tmp"
+        try:
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f)
+            os.replace(temp_path, path)
+        except Exception:
+            try:
+                if temp_path.exists():
+                    temp_path.unlink()
+            except OSError:
+                pass

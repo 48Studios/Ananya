@@ -34,6 +34,7 @@ from .generators.classification import ClassificationDatasetGenerator
 from .datasets.splitter import DeterministicDatasetSplitter
 from .trainers.classifier import CategoryClassifierTrainer
 from .evaluation.evaluator import ModelEvaluator
+from .utils.progress import LiveProgress
 
 
 def cmd_data_inspect(args: argparse.Namespace) -> None:
@@ -101,7 +102,13 @@ def cmd_data_validate(args: argparse.Namespace) -> None:
     # Filter to only ProductRecord instances
     prod_records = [r for r in records if isinstance(r, ProductRecord)]
 
+    quiet = getattr(args, "quiet", False)
+    verbose = getattr(args, "verbose", False)
+    progress = LiveProgress(quiet=quiet, verbose=verbose)
+    progress.start_stage("Validating", total=len(prod_records))
+
     passed, flagged = DataValidationProcessor.detect_cross_source_conflicts(prod_records)
+    progress.finish_stage(f"Validating       {len(passed):,}/{len(prod_records):,}")
 
     out_valid = args.output_valid or str(settings.cleaned_data_dir / "validated_records.json")
     out_quar = args.output_quarantine or str(settings.cleaned_data_dir / "quarantine.json")
@@ -118,7 +125,8 @@ def cmd_data_validate(args: argparse.Namespace) -> None:
             default=str,
         )
 
-    print(f"Validation complete: {len(passed)} passed, {len(flagged)} quarantined.")
+    if not quiet:
+        print(f"Validation complete: {len(passed):,} passed, {len(flagged):,} quarantined.")
 
 
 def cmd_data_normalize(args: argparse.Namespace) -> None:
@@ -127,15 +135,22 @@ def cmd_data_normalize(args: argparse.Namespace) -> None:
         raw = json.load(f)
 
     records = [ProductRecord(**r) for r in raw if isinstance(r, dict) and "sku" in r]
+    quiet = getattr(args, "quiet", False)
+    verbose = getattr(args, "verbose", False)
+    progress = LiveProgress(quiet=quiet, verbose=verbose)
+    progress.start_stage("Normalizing", total=len(records))
+
     processor = NormalizationProcessor()
     normalized, _ = processor.process_batch(records)
+    progress.finish_stage(f"Normalizing      {len(normalized):,}/{len(records):,}")
 
     out_path = args.output or str(settings.normalized_data_dir / "normalized_records.json")
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump([r.model_dump() for r in normalized], f, indent=2, default=str)
 
-    print(f"Normalized {len(normalized)} records saved to {out_path}")
+    if not quiet:
+        print(f"Normalized {len(normalized):,} records saved to {out_path}")
 
 
 def cmd_data_dedupe(args: argparse.Namespace) -> None:
@@ -144,15 +159,22 @@ def cmd_data_dedupe(args: argparse.Namespace) -> None:
         raw = json.load(f)
 
     records = [ProductRecord(**r) for r in raw if isinstance(r, dict) and "sku" in r]
+    quiet = getattr(args, "quiet", False)
+    verbose = getattr(args, "verbose", False)
+    progress = LiveProgress(quiet=quiet, verbose=verbose)
+    progress.start_stage("Deduplicating", total=len(records))
+
     deduper = DeduplicationProcessor()
     unique, conflicts = deduper.deduplicate(records)
+    progress.finish_stage(f"Deduplicating    {len(unique):,}/{len(records):,}")
 
     out_path = args.output or str(settings.cleaned_data_dir / "deduped_records.json")
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump([r.model_dump() for r in unique], f, indent=2, default=str)
 
-    print(f"Deduplication complete: {len(unique)} unique records, {len(conflicts)} value guard conflicts preserved.")
+    if not quiet:
+        print(f"Deduplication complete: {len(unique):,} unique records, {len(conflicts):,} value guard conflicts preserved.")
 
 
 def cmd_dataset_build(args: argparse.Namespace) -> None:
@@ -161,21 +183,33 @@ def cmd_dataset_build(args: argparse.Namespace) -> None:
         raw = json.load(f)
 
     records = [ProductRecord(**r) for r in raw if isinstance(r, dict) and "sku" in r]
+    quiet = getattr(args, "quiet", False)
+    verbose = getattr(args, "verbose", False)
+    progress = LiveProgress(quiet=quiet, verbose=verbose)
+    progress.start_stage("Generating tasks", total=len(records))
+
     generator = ClassificationDatasetGenerator()
     examples = generator.generate(records)
+    progress.finish_stage(f"Generating tasks  {len(examples):,} examples")
 
     out_path = args.output or str(settings.training_data_dir / "classification_dataset.json")
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump([e.model_dump() for e in examples], f, indent=2, default=str)
 
-    print(f"Built task dataset with {len(examples)} examples at {out_path}")
+    if not quiet:
+        print(f"Built task dataset with {len(examples):,} examples at {out_path}")
 
 
 def cmd_dataset_split(args: argparse.Namespace) -> None:
     """Splits a dataset deterministically into train/val/test with zero group leakage."""
     with open(args.input, "r", encoding="utf-8") as f:
         data = json.load(f)
+
+    quiet = getattr(args, "quiet", False)
+    verbose = getattr(args, "verbose", False)
+    progress = LiveProgress(quiet=quiet, verbose=verbose)
+    progress.start_stage("Splitting", total=None)
 
     splitter = DeterministicDatasetSplitter(
         train_ratio=args.train_ratio,
@@ -190,11 +224,14 @@ def cmd_dataset_split(args: argparse.Namespace) -> None:
         dataset_name=args.name or "training_snapshot",
         version=args.version,
     )
-    print(f"Dataset split complete into {out_dir}:")
-    print(f"  Train: {manifest.split_counts.train}")
-    print(f"  Val:   {manifest.split_counts.validation}")
-    print(f"  Test:  {manifest.split_counts.test}")
-    print(f"  Zero Leakage Verified: {manifest.zero_leakage_verified}")
+    progress.finish_stage(f"Splitting        train {int(args.train_ratio*100)}% | val {int(args.val_ratio*100)}% | test {int(args.test_ratio*100)}%")
+
+    if not quiet:
+        print(f"Dataset split complete into {out_dir}:")
+        print(f"  Train: {manifest.split_counts.train:,}")
+        print(f"  Val:   {manifest.split_counts.validation:,}")
+        print(f"  Test:  {manifest.split_counts.test:,}")
+        print(f"  Zero Leakage Verified: {manifest.zero_leakage_verified}")
 
 
 def cmd_train(args: argparse.Namespace) -> None:
@@ -212,13 +249,18 @@ def cmd_train(args: argparse.Namespace) -> None:
         with open(args.val_path, "r", encoding="utf-8") as f:
             val_samples = json.load(f)
 
+    quiet = getattr(args, "quiet", False)
+    verbose = getattr(args, "verbose", False)
+    progress = LiveProgress(quiet=quiet, verbose=verbose)
+
     trainer = CategoryClassifierTrainer(random_seed=args.seed)
     out_dir = args.output_dir or f"{settings.registry_dir}/v{args.version}"
-    meta = trainer.train(train_samples, val_samples=val_samples, version=args.version, output_dir=out_dir)
+    meta = trainer.train(train_samples, val_samples=val_samples, version=args.version, output_dir=out_dir, progress=progress)
 
-    print(f"Champion model trained: {meta['champion_model']}")
-    print(f"Validation Accuracy: {meta['metrics']['val_accuracy']*100:.1f}%")
-    print(f"Artifacts saved to {out_dir}")
+    if not quiet:
+        print(f"Champion model trained: {meta['champion_model']}")
+        print(f"Validation Accuracy: {meta['metrics']['val_accuracy']*100:.1f}%")
+        print(f"Artifacts saved to {out_dir}")
 
 
 def cmd_evaluate(args: argparse.Namespace) -> None:
@@ -235,11 +277,16 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     with open(args.val_path, "r", encoding="utf-8") as f:
         val_samples = json.load(f)
 
+    quiet = getattr(args, "quiet", False)
+    verbose = getattr(args, "verbose", False)
+    progress = LiveProgress(quiet=quiet, verbose=verbose)
+
     evaluator = ModelEvaluator(active_model_path=args.active_model)
     out_dir = args.output_dir or f"{settings.registry_dir}/v{args.version}"
-    report = evaluator.evaluate(model, val_samples, candidate_version=args.version, output_dir=out_dir)
+    report = evaluator.evaluate(model, val_samples, candidate_version=args.version, output_dir=out_dir, progress=progress)
 
-    print(evaluator.render_markdown(report))
+    if not quiet:
+        print(evaluator.render_markdown(report))
 
 
 def cmd_experiment(args: argparse.Namespace) -> None:
@@ -284,6 +331,7 @@ def cmd_collect(args: argparse.Namespace) -> None:
     )
 
     resume_flag = getattr(args, "resume", True)
+    document_workers = args.document_workers if args.document_workers is not None else args.workers
 
     def run_once():
         records = collector.collect(
@@ -293,6 +341,9 @@ def cmd_collect(args: argparse.Namespace) -> None:
             max_files=args.max_files,
             dry_run=args.dry_run,
             resume=resume_flag,
+            quiet=getattr(args, "quiet", False),
+            verbose=getattr(args, "verbose", False),
+            document_workers=document_workers,
         )
         return records
 
@@ -317,7 +368,13 @@ def build_parser() -> argparse.ArgumentParser:
         prog="ananya-ml",
         description="Ananya ERP ML Training & Data Workspace CLI",
     )
+    parser.add_argument("-q", "--quiet", action="store_true", default=False, help="Suppress live progress output")
+    parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose output mode")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    def add_common_flags(p: argparse.ArgumentParser) -> None:
+        p.add_argument("-q", "--quiet", action="store_true", default=argparse.SUPPRESS, help="Suppress live progress output")
+        p.add_argument("-v", "--verbose", action="store_true", default=argparse.SUPPRESS, help="Verbose output mode")
 
     # collect
     def setup_collect_args(p: argparse.ArgumentParser) -> None:
@@ -330,10 +387,17 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--max-pages", type=int, help="Maximum HTML pages to crawl per source")
         p.add_argument("--max-files", type=int, help="Maximum total files/documents to download per source")
         p.add_argument("--workers", type=int, default=1, help="Number of worker threads (default: 1 conservative)")
+        p.add_argument(
+            "--document-workers",
+            type=int,
+            default=None,
+            help="Concurrent document download/parse workers (default: falls back to --workers; per-domain rate limits are always enforced)",
+        )
         p.add_argument("--rate-limit", type=float, help="Override requests per second rate limit")
         p.add_argument("--continuous", action="store_true", help="Run continuous periodic collection loop")
         p.add_argument("--interval", type=int, default=3600, help="Continuous collection cycle interval in seconds (default: 3600)")
         p.add_argument("--config", help="Path to custom sources.yaml configuration")
+        add_common_flags(p)
         p.set_defaults(func=cmd_collect)
 
     p_collect = subparsers.add_parser("collect", help="Autonomous data collection from approved public sources")
@@ -345,6 +409,7 @@ def build_parser() -> argparse.ArgumentParser:
     # data inspect
     p_inspect = subparsers.add_parser("data-inspect", help="Inspect dataset files or directories")
     p_inspect.add_argument("path", help="Path to JSON dataset file or directory")
+    add_common_flags(p_inspect)
     p_inspect.set_defaults(func=cmd_data_inspect)
 
     # data export
@@ -353,6 +418,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_export.add_argument("--feedback-file", help="Path to human feedback export JSON")
     p_export.add_argument("--database-url", help="Database connection URL")
     p_export.add_argument("--output", help="Output raw dataset path")
+    add_common_flags(p_export)
     p_export.set_defaults(func=cmd_data_export)
 
     # data validate
@@ -360,24 +426,28 @@ def build_parser() -> argparse.ArgumentParser:
     p_val.add_argument("--input", required=True, help="Input JSON records file")
     p_val.add_argument("--output-valid", help="Output validated records path")
     p_val.add_argument("--output-quarantine", help="Output quarantine records path")
+    add_common_flags(p_val)
     p_val.set_defaults(func=cmd_data_validate)
 
     # data normalize
     p_norm = subparsers.add_parser("data-normalize", help="Normalize categories, manufacturers, text, units")
     p_norm.add_argument("--input", required=True, help="Input JSON records file")
     p_norm.add_argument("--output", help="Output normalized dataset path")
+    add_common_flags(p_norm)
     p_norm.set_defaults(func=cmd_data_normalize)
 
     # data dedupe
     p_dedupe = subparsers.add_parser("data-dedupe", help="Deduplicate records with value guards")
     p_dedupe.add_argument("--input", required=True, help="Input JSON records file")
     p_dedupe.add_argument("--output", help="Output deduped dataset path")
+    add_common_flags(p_dedupe)
     p_dedupe.set_defaults(func=cmd_data_dedupe)
 
     # dataset build
     p_build = subparsers.add_parser("dataset-build", help="Build task dataset (e.g. classification)")
     p_build.add_argument("--input", required=True, help="Input normalized records file")
     p_build.add_argument("--output", help="Output task dataset path")
+    add_common_flags(p_build)
     p_build.set_defaults(func=cmd_dataset_build)
 
     # dataset split
@@ -390,6 +460,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_split.add_argument("--val-ratio", type=float, default=0.1, help="Val ratio (default 0.1)")
     p_split.add_argument("--test-ratio", type=float, default=0.1, help="Test ratio (default 0.1)")
     p_split.add_argument("--seed", type=int, default=42, help="Random seed")
+    add_common_flags(p_split)
     p_split.set_defaults(func=cmd_dataset_split)
 
     # train
@@ -401,6 +472,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_train.add_argument("--seed", type=int, default=42, help="Random seed")
     p_train.add_argument("--legacy", action="store_true", help="Run existing RFC-0058 training pipeline")
     p_train.add_argument("--no-deploy", action="store_true", help="Skip deployment (legacy mode)")
+    add_common_flags(p_train)
     p_train.set_defaults(func=cmd_train)
 
     # evaluate
@@ -410,10 +482,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_eval.add_argument("--val-path", required=True, help="Path to validation dataset JSON")
     p_eval.add_argument("--active-model", default="apps/ml/models/category_classifier.pkl", help="Active model path")
     p_eval.add_argument("--output-dir", help="Output report directory")
+    add_common_flags(p_eval)
     p_eval.set_defaults(func=cmd_evaluate)
 
     # experiment
     p_exp = subparsers.add_parser("experiment", help="List registered versions and experiments")
+    add_common_flags(p_exp)
     p_exp.set_defaults(func=cmd_experiment)
 
     return parser

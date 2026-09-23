@@ -97,7 +97,7 @@ sources:
       - we-online.com
       - www.we-online.com
     start_urls:
-      - https://www.we-online.com/sitemap.xml
+      - https://www.we-online.com/en/sitemap-index.xml
       - https://www.we-online.com/en/components/products
     discovery:
       - sitemap
@@ -112,8 +112,8 @@ sources:
       - text/html
       - application/pdf
     max_depth: 3
-    max_pages: 500
-    max_files: 250
+    max_pages: 1000
+    max_files: 500
     default_domain: electronics
 
   - id: phoenix-contact

@@ -398,7 +398,15 @@ describe('Component Review Queue issue taxonomy', () => {
       // an attribute value, but the queue has to distinguish "here is a value to
       // apply" from "the component's documents disagree". A conflict is absent
       // from COMPONENT_APPLY_RULES, so it can never be applied.
-      ATTRIBUTE_VALUE: ['ATTRIBUTE_VALUE_SUGGESTION', 'DOCUMENT_CONFLICT'],
+      //
+      // The attribute-relevance producer adds ATTRIBUTE_VALUE_UNKNOWN: relevance
+      // was established but no value could be determined. Also review-only, and
+      // also absent from COMPONENT_APPLY_RULES — there is nothing to write.
+      ATTRIBUTE_VALUE: [
+        'ATTRIBUTE_VALUE_SUGGESTION',
+        'ATTRIBUTE_VALUE_UNKNOWN',
+        'DOCUMENT_CONFLICT',
+      ],
     });
   });
 
@@ -413,6 +421,7 @@ describe('Component Review Queue issue taxonomy', () => {
       'EXACT_DUPLICATE',
       'POTENTIAL_DUPLICATE',
       'ATTRIBUTE_VALUE_SUGGESTION',
+      'ATTRIBUTE_VALUE_UNKNOWN',
       'DOCUMENT_CONFLICT',
     ]);
   });

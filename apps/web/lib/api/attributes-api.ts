@@ -89,6 +89,14 @@ export interface PopulatedComponentAttributeDto {
   optionCode: string | null;
   optionLabel: string | null;
   displayValue: string;
+  /**
+   * Where a non-human value came from, when there is such a record.
+   *
+   * Present for a value written by the intelligence (a datasheet extraction or a
+   * component-intelligence finding) and absent for one a human typed, which is
+   * what lets the component answer "why is this value here?".
+   */
+  provenance?: Record<string, unknown> | null;
 }
 
 export interface SetComponentAttributeItem {
@@ -528,7 +536,6 @@ export const attributesApi = {
       "/ml/attributes/suggest-enum-values",
       payload,
     ),
-
 
   /**
    * NOTE: the review queue is no longer served from this module.

@@ -62,6 +62,8 @@ export const ISSUE_TYPE_LABELS: Record<ComponentReviewIssueType, string> = {
   EXACT_DUPLICATE: "Exact Duplicate",
   POTENTIAL_DUPLICATE: "Potential Duplicate",
   ATTRIBUTE_VALUE_SUGGESTION: "Specification from Datasheet",
+  ATTRIBUTE_VALUE_UNKNOWN: "Specification Not Determined",
+  DOCUMENT_CONFLICT: "Documents Disagree",
 };
 
 /** Compact labels for dense table cells. */
@@ -76,6 +78,8 @@ export const ISSUE_TYPE_SHORT_LABELS: Record<ComponentReviewIssueType, string> =
     EXACT_DUPLICATE: "Exact Duplicate",
     POTENTIAL_DUPLICATE: "Potential Duplicate",
     ATTRIBUTE_VALUE_SUGGESTION: "Specification",
+    ATTRIBUTE_VALUE_UNKNOWN: "Not Determined",
+    DOCUMENT_CONFLICT: "Documents Disagree",
   };
 
 export const ISSUE_CATEGORY_LABELS: Record<
@@ -477,12 +481,7 @@ export function hasActiveFilters(input: {
 // ---------------------------------------------------------------------------
 
 export type QueueTabId =
-  | "ALL"
-  | "IDENTITY"
-  | "CLASSIFICATION"
-  | "ATTRIBUTES"
-  | "DUPLICATES"
-  | "STALE";
+  "ALL" | "IDENTITY" | "CLASSIFICATION" | "ATTRIBUTES" | "DUPLICATES" | "STALE";
 
 /** Tab definitions, in the same order and style as the Attribute queue. */
 export const QUEUE_TABS: readonly { id: QueueTabId; label: string }[] = [
@@ -558,6 +557,86 @@ export function buildQueueTabCounts(
     if (matchesQueueTab(item, "STALE")) counts.STALE += 1;
   }
   return counts;
+}
+
+/**
+ * What the Specifications tab is holding, broken down by what a reviewer can do
+ * with it.
+ *
+ * The tab count says how much work there is; this says how much of it is
+ * applyable, how much needs a closer look, and how much is only an outstanding
+ * gap. Those are three different kinds of work, and a reviewer deciding where to
+ * start needs the split rather than a single number.
+ *
+ * Every figure is derived from the loaded rows (the list is unbounded, so the
+ * counts are complete), and a category with no rows is omitted rather than
+ * printed as a zero.
+ */
+export interface AttributeQueueBreakdown {
+  total: number;
+  /** Appliable values at HIGH confidence. */
+  highConfidence: number;
+  /** Appliable values at MEDIUM or LOW confidence, or with no level recorded. */
+  needsReview: number;
+  /** Values that disagree with what the component records. */
+  conflicts: number;
+  /** Relevant specifications with no determined value (review-only). */
+  notDetermined: number;
+  /** A single line for the tab, or null when there is nothing to summarise. */
+  summary: string | null;
+}
+
+export function buildAttributeQueueBreakdown(
+  items: ComponentReviewFindingDto[],
+): AttributeQueueBreakdown {
+  const attributeItems = items.filter((item) =>
+    matchesQueueTab(item, "ATTRIBUTES"),
+  );
+
+  const notDetermined = attributeItems.filter(
+    (item) => item.issueType === "ATTRIBUTE_VALUE_UNKNOWN",
+  ).length;
+
+  const valued = attributeItems.filter(
+    (item) => item.issueType !== "ATTRIBUTE_VALUE_UNKNOWN",
+  );
+  const conflicts = valued.filter((item) =>
+    Boolean(item.metadata?.conflict),
+  ).length;
+  const highConfidence = valued.filter(
+    (item) => item.confidenceLevel === "HIGH" && !item.metadata?.conflict,
+  ).length;
+  const needsReview = valued.length - highConfidence - conflicts;
+
+  const parts: string[] = [];
+  if (attributeItems.length === 0) {
+    return {
+      total: 0,
+      highConfidence: 0,
+      needsReview: 0,
+      conflicts: 0,
+      notDetermined: 0,
+      summary: null,
+    };
+  }
+  parts.push(
+    `${attributeItems.length} attribute suggestion${
+      attributeItems.length === 1 ? "" : "s"
+    }`,
+  );
+  if (highConfidence > 0) parts.push(`${highConfidence} high confidence`);
+  if (needsReview > 0) parts.push(`${needsReview} need review`);
+  if (conflicts > 0) parts.push(`${conflicts} conflicting`);
+  if (notDetermined > 0) parts.push(`${notDetermined} value not determined`);
+
+  return {
+    total: attributeItems.length,
+    highConfidence,
+    needsReview,
+    conflicts,
+    notDetermined,
+    summary: parts.join(" · "),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -700,7 +779,10 @@ export type QueueCardAction =
  * all of this independently.
  */
 export function queueCardActions(
-  finding: Pick<ComponentReviewFindingDto, "status" | "issueCategory">,
+  finding: Pick<
+    ComponentReviewFindingDto,
+    "status" | "issueCategory" | "issueType"
+  >,
   permissions: ReviewPermissions,
 ): QueueCardAction[] {
   const inspection: QueueCardAction[] = [
@@ -2126,17 +2208,47 @@ export const COMPONENT_WRITE_PERMISSION = "Inventory.Update";
 /**
  * Whether the UI should offer "Accept & Apply".
  *
- * Duplicate findings are review-only: there is no merge or delete capability,
- * so they are excluded by category. The backend independently enforces the
- * exact applicable set and refuses anything else with 409
- * `UNSUPPORTED_FINDING_TYPE`, so this is an affordance rather than the
- * authority.
+ * Two exclusions, for two different reasons:
+ *
+ * - `DUPLICATE` findings are review-only: there is no merge or delete
+ *   capability, so nothing could be written.
+ * - Findings whose type the backend cannot apply are review-only too — a
+ *   `DOCUMENT_CONFLICT` (the system never picks a winner between documents) and
+ *   an `ATTRIBUTE_VALUE_UNKNOWN` (there is no value to write). Offering Apply on
+ *   one of those produced a guaranteed 409, which reads as a broken control.
+ *
+ * The backend independently enforces the exact applicable set and refuses
+ * anything else with 409 `UNSUPPORTED_FINDING_TYPE`, so this is an affordance
+ * rather than the authority.
  */
 export function canApplyFinding(
-  finding: Pick<ComponentReviewFindingDto, "status" | "issueCategory">,
+  finding: Pick<
+    ComponentReviewFindingDto,
+    "status" | "issueCategory" | "issueType"
+  >,
 ): boolean {
-  return finding.status === "PENDING" && finding.issueCategory !== "DUPLICATE";
+  if (finding.status !== "PENDING") return false;
+  if (finding.issueCategory === "DUPLICATE") return false;
+  // The DTO types `issueType` as a plain string (the taxonomy lives on the
+  // backend), so membership is a comparison against the typed list rather than
+  // an `includes` on it.
+  return !REVIEW_ONLY_ISSUE_TYPES.some(
+    (reviewOnly) => reviewOnly === finding.issueType,
+  );
 }
+
+/**
+ * Finding types the backend deliberately cannot apply.
+ *
+ * Mirrors the API's applicable set by exclusion rather than inclusion: the API
+ * lists what it can write (`COMPONENT_APPLY_RULES`), and naming the exceptions
+ * here means a type added later is offered rather than silently hidden until
+ * somebody remembers to add it.
+ */
+export const REVIEW_ONLY_ISSUE_TYPES: readonly ComponentReviewIssueType[] = [
+  "ATTRIBUTE_VALUE_UNKNOWN",
+  "DOCUMENT_CONFLICT",
+];
 
 /**
  * Whether the caller may apply this finding.
@@ -2146,7 +2258,10 @@ export function canApplyFinding(
  * rather than assumed.
  */
 export function canApplyFindingAsUser(
-  finding: Pick<ComponentReviewFindingDto, "status" | "issueCategory">,
+  finding: Pick<
+    ComponentReviewFindingDto,
+    "status" | "issueCategory" | "issueType"
+  >,
   canWriteComponents: boolean,
 ): boolean {
   return canApplyFinding(finding) && canWriteComponents;
@@ -2154,10 +2269,19 @@ export function canApplyFindingAsUser(
 
 /** Explains why Apply is unavailable, so the UI never shows a dead control. */
 export function applyUnavailableReason(
-  finding: Pick<ComponentReviewFindingDto, "status" | "issueCategory">,
+  finding: Pick<
+    ComponentReviewFindingDto,
+    "status" | "issueCategory" | "issueType"
+  >,
   canWriteComponents: boolean,
 ): string | null {
   if (finding.issueCategory === "DUPLICATE") return APPLY_DUPLICATE_NOTE;
+  if (finding.issueType === "ATTRIBUTE_VALUE_UNKNOWN") {
+    return APPLY_UNKNOWN_VALUE_NOTE;
+  }
+  if (finding.issueType === "DOCUMENT_CONFLICT") {
+    return APPLY_DOCUMENT_CONFLICT_NOTE;
+  }
   if (finding.status !== "PENDING") return null;
   if (!canWriteComponents) {
     return `Applying a finding modifies the component, which requires the ${COMPONENT_WRITE_PERMISSION} permission. You can still accept or reject this finding as a review decision.`;
@@ -2228,14 +2352,17 @@ export function suggestedEntityAssignment(
   if (!entity) return null;
 
   const suggested = finding.suggestedValue ?? {};
-  const rawId = entity === "manufacturer" ? suggested.manufacturerId : suggested.categoryId;
-  const id = typeof rawId === "string" && rawId.trim().length > 0 ? rawId : null;
+  const rawId =
+    entity === "manufacturer" ? suggested.manufacturerId : suggested.categoryId;
+  const id =
+    typeof rawId === "string" && rawId.trim().length > 0 ? rawId : null;
   const name =
     entity === "manufacturer"
       ? readText(suggested.manufacturerName)
       : (readText(suggested.categoryPath) ?? readText(suggested.categoryName));
   const resolution =
-    suggested.resolution === "EXISTING" || suggested.resolution === "NEW_CANDIDATE"
+    suggested.resolution === "EXISTING" ||
+    suggested.resolution === "NEW_CANDIDATE"
       ? suggested.resolution
       : "UNKNOWN";
 
@@ -2617,6 +2744,27 @@ export const ASSIGN_WARNING =
 export const APPLY_DUPLICATE_NOTE =
   "Duplicate findings are review-only. Resolve duplication through the normal component workflow — this queue does not merge or delete components.";
 
+/**
+ * Why a relevance-only attribute finding cannot be applied.
+ *
+ * Stated plainly, because the honest answer is the point of the finding: no
+ * value was determined, and the queue will not invent one to make an Apply
+ * button meaningful. The reviewer records a decision here and enters the value
+ * on the component itself.
+ */
+export const APPLY_UNKNOWN_VALUE_NOTE =
+  "No value was determined for this specification, so there is nothing to apply. Enter it on the component, or record a decision here.";
+
+/**
+ * Why a document conflict cannot be applied.
+ *
+ * The component's documents disagree with each other; choosing between them is
+ * a human judgement about which source is authoritative, which is not something
+ * the queue may decide by writing one of them.
+ */
+export const APPLY_DOCUMENT_CONFLICT_NOTE =
+  "This specification's sources disagree with each other, so the queue will not pick one. Decide which source is authoritative and record the value on the component.";
+
 export const APPLY_REVIEW_ONLY_COPY = {
   label: "Accept",
   description:
@@ -2640,7 +2788,8 @@ export function actionConsequenceNote(
   applicable: boolean,
   reassignable = false,
 ): string {
-  if (!applicable) return "Accepting this finding does not modify the component.";
+  if (!applicable)
+    return "Accepting this finding does not modify the component.";
   return reassignable
     ? `${APPLY_COPY.label} writes the suggested value to the component; you can assign a different manufacturer or category first.`
     : `${APPLY_COPY.label} writes the suggested value to the component.`;
@@ -2665,7 +2814,9 @@ export function applySuccessMessage(
   // the model's suggestion was not, which is also how feedback recorded it.
   const assignment = result.assignmentEdited
     ? ` You assigned this value${
-        replaced ? ` instead of the suggested "${replaced}"` : " instead of the suggestion"
+        replaced
+          ? ` instead of the suggested "${replaced}"`
+          : " instead of the suggestion"
       }; the feedback was recorded as an edit.`
     : "";
   const staled =

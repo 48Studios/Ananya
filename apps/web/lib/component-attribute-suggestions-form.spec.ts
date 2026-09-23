@@ -15,7 +15,10 @@ import { describe, it, expect } from "vitest";
  * change must never delete an attribute the reviewer entered.
  */
 
-const webRoot = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
+const webRoot = path.resolve(
+  fileURLToPath(new URL(".", import.meta.url)),
+  "..",
+);
 const read = (relative: string) =>
   fs.readFileSync(path.join(webRoot, relative), "utf8");
 
@@ -34,6 +37,94 @@ describe("the panel is part of the Component Intelligence surface", () => {
   it("is rendered by the Add/Edit form", () => {
     expect(form).toContain("AttributeSuggestionsPanel");
     expect(form).toContain("suggestions={attributeSuggestions}");
+  });
+
+  /**
+   * The consolidation: one intelligence card, one attribute-suggestions section.
+   *
+   * The panel used to be a second top-level card beside the intelligence card,
+   * and the extracted values were listed a third time as chips inside it, so the
+   * same specification appeared twice in one experience. These assertions pin
+   * the composition, not just the presence of a component: a second mount, a
+   * second `setAttrValues` writer, or a returning extracted-specifications list
+   * would each reintroduce the duplication.
+   */
+  /** The card's own JSX in the form: from its opening tag to its closing `/>`. */
+  function cardUsage(): string {
+    const start = form.indexOf("<AiSuggestionReviewCard");
+    expect(start, "the card is mounted by the form").toBeGreaterThan(-1);
+    // The card closes at its own indentation, which distinguishes it from the
+    // self-closing elements inside its props (the panel among them).
+    const end = form.indexOf("\n          />\n", start);
+    expect(end, "the card's closing tag is found").toBeGreaterThan(start);
+    return form.slice(start, end);
+  }
+
+  it("mounts the panel exactly once, inside the intelligence card", () => {
+    const mounts = form.match(/<AttributeSuggestionsPanel/g) ?? [];
+    expect(mounts).toHaveLength(1);
+    // Passed to the card as its slot rather than rendered as a sibling.
+    expect(form).toContain("attributeSuggestionsSlot={");
+    expect(form).toContain("embedded");
+  });
+
+  it("renders the panel through the card's slot, not beside it", () => {
+    // The panel element must be inside the card's props, and the card must be
+    // the only place it appears: the slot is what makes it a child.
+    const card = cardUsage();
+    expect(card).toContain("<AttributeSuggestionsPanel");
+    expect(card).toContain("attributeSuggestionsSlot={");
+  });
+
+  it("no longer lists the extracted specifications separately", () => {
+    // The chip list and its per-chip actions are gone from the card; the values
+    // reach the reviewer through the suggestion rows instead.
+    const card = cardUsage();
+    expect(card).not.toContain("Extracted Specifications ({");
+    expect(card).not.toContain("attrEntries");
+    expect(card).not.toContain("handleAcceptSingleAttribute");
+    expect(card).not.toContain("handleRejectSingleAttribute");
+    expect(card).not.toContain("Apply specifications only");
+  });
+
+  it("does not summarise specification conflicts a second time", () => {
+    // Conflicts render once, in the panel's "Needs review" group, where each one
+    // carries its recorded value and the decision controls.
+    const card = cardUsage();
+    expect(card).not.toContain("attributeConflicts");
+    expect(card).not.toContain("Specification conflicts need review");
+  });
+
+  it("applies specifications through the same state as an individual accept", () => {
+    // One writer: the eligible-suggestions applier, which delegates to the same
+    // function the panel's rows call.
+    const applier = handlerBody(form, "applyEligibleSpecifications");
+    expect(applier).toContain("applyAttributeSuggestions(");
+    expect(applier).toContain("canAcceptSuggestion(suggestion)");
+
+    const single = handlerBody(form, "applyAttributeSuggestion");
+    expect(single).toContain("setAttrValues((prev)");
+
+    // Apply All uses the same applier, so the two bulk actions cannot diverge.
+    const applyAll = handlerBody(form, "handleApplyAllSuggestions");
+    expect(applyAll).toContain("applyEligibleSpecifications()");
+  });
+
+  it("counts the specifications action once, from the same eligibility rule", () => {
+    expect(form).toContain("appliableSuggestionCount");
+    expect(form).toContain("appliableSuggestions = React.useMemo(");
+    expect(form).toContain(
+      "specificationsAppliableCount={appliableSuggestionCount}",
+    );
+  });
+
+  it("keeps the normal component attribute editor as its own section", () => {
+    // The editor is the component's data; the intelligence card is a reading of
+    // it. They stay separate, and the unresolved extractions keep their place in
+    // the editor rather than being invented as attributes.
+    expect(form).toContain("Component Attributes");
+    expect(form).toContain("unresolvedSuggestedAttributes");
+    expect(form).toContain("Definition unresolved; this value is provisional.");
   });
 
   it("appears for both adding and editing, from one form", () => {
@@ -205,7 +296,10 @@ describe("loading, error and empty states", () => {
     expect(body).toContain("setAttributeIntelligenceUnavailable(true)");
     // The failure path reports the section only: it neither rethrows nor sets
     // the form-level error that would block Save.
-    const failurePath = body.slice(body.indexOf("catch (err: unknown)"), body.indexOf("finally"));
+    const failurePath = body.slice(
+      body.indexOf("catch (err: unknown)"),
+      body.indexOf("finally"),
+    );
     expect(failurePath).not.toContain("setServerError");
     expect(failurePath).not.toContain("throw");
   });
@@ -251,21 +345,21 @@ describe("confidence and conflicts are shown as words", () => {
   });
 
   it("groups conflicts before the applicable values", () => {
-    // One ordered array drives the groups, so the order cannot drift apart.
-    const order = panel.slice(panel.indexOf("[") + 1);
-    const arrayStart = panel.indexOf('(["conflicts"');
+    // One ordered array drives the groups, so the order cannot drift apart. The
+    // slice is found by the array's first element rather than by its exact
+    // formatting, so a reformat cannot break the assertion.
+    const arrayStart = panel.indexOf('["conflicts"');
     expect(arrayStart, "the group order is declared once").toBeGreaterThan(-1);
-    const declaration = panel.slice(
-      arrayStart,
-      panel.indexOf("]", arrayStart),
-    );
+    const declaration = panel.slice(arrayStart, panel.indexOf("]", arrayStart));
     expect(declaration.indexOf('"conflicts"')).toBeLessThan(
       declaration.indexOf('"suggested"'),
     );
     expect(declaration.indexOf('"suggested"')).toBeLessThan(
       declaration.indexOf('"relevant"'),
     );
-    expect(order.length).toBeGreaterThan(0);
+    // Nothing is hidden: every state the backend can report is rendered.
+    expect(declaration).toContain('"unverified"');
+    expect(declaration).toContain('"matches"');
   });
 });
 
@@ -276,7 +370,9 @@ describe("the panel renders whatever the library holds", () => {
     expect(panel).toContain("suggestion.name");
     expect(panel).toContain("suggestion.code");
     expect(panel).toContain("suggestedValueText(suggestion)");
-    expect(panel).toContain("attributeNameLabel(suggestion.name, suggestion.code)");
+    expect(panel).toContain(
+      "attributeNameLabel(suggestion.name, suggestion.code)",
+    );
   });
 
   it("does not branch on an attribute or a data type", () => {

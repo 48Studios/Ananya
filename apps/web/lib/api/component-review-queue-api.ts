@@ -32,7 +32,9 @@ export type ComponentReviewIssueType =
   | "CATEGORY_CONFLICT"
   | "EXACT_DUPLICATE"
   | "POTENTIAL_DUPLICATE"
-  | "ATTRIBUTE_VALUE_SUGGESTION";
+  | "ATTRIBUTE_VALUE_SUGGESTION"
+  | "ATTRIBUTE_VALUE_UNKNOWN"
+  | "DOCUMENT_CONFLICT";
 
 export type ComponentReviewStatus =
   | "PENDING"

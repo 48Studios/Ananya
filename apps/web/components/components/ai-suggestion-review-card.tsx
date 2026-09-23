@@ -10,7 +10,6 @@ import {
   Boxes,
   Building2,
   Tag,
-  Layers,
   HelpCircle,
   Pencil,
 } from "lucide-react";
@@ -31,11 +30,6 @@ interface AiSuggestionReviewCardProps {
   onApplyIdentity?: () => void;
   onApplyClassification?: () => void;
   onApplyNameDescription?: () => void;
-  attributeConflicts?: Array<{
-    code: string;
-    existing: string;
-    extracted: string;
-  }>;
   /**
    * Applies the suggested category, or — when the reviewer edited the row —
    * exactly the name they typed.
@@ -48,9 +42,30 @@ interface AiSuggestionReviewCardProps {
   onRejectCategory?: () => void;
   onApplyManufacturer?: (customName?: string) => void;
   onRejectManufacturer?: () => void;
-  onApplyAttributes?: (attributes: Record<string, unknown>) => void;
-  onApplySingleAttribute?: (code: string, attr: unknown) => void;
-  onRejectAttribute?: (code: string) => void;
+  /**
+   * The attribute-suggestions surface, rendered inside this card.
+   *
+   * It is a node rather than a set of props because the panel owns its own
+   * state and eligibility rules; the card only decides where it sits — which is
+   * what keeps one implementation of attribute suggestions in the product
+   * instead of two that drift.
+   */
+  attributeSuggestionsSlot?: React.ReactNode;
+  /**
+   * Applies every eligible attribute suggestion through the form's attribute
+   * state — the same path an individual Accept uses.
+   */
+  onApplySpecifications?: () => void;
+  /**
+   * How many attribute suggestions the bulk action can apply.
+   *
+   * Reported so the action states its own scope: it writes the suggestions that
+   * have a value and nothing recorded, and says so rather than silently
+   * skipping the rest.
+   */
+  specificationsAppliableCount?: number;
+  /** True once every eligible suggestion has been applied. */
+  specificationsApplied?: boolean;
   onDismiss: () => void;
 }
 
@@ -82,14 +97,14 @@ export function AiSuggestionReviewCard({
   onApplyIdentity,
   onApplyClassification,
   onApplyNameDescription,
-  attributeConflicts = [],
   onApplyCategory,
   onRejectCategory,
   onApplyManufacturer,
   onRejectManufacturer,
-  onApplyAttributes,
-  onApplySingleAttribute,
-  onRejectAttribute,
+  attributeSuggestionsSlot,
+  onApplySpecifications,
+  specificationsAppliableCount = 0,
+  specificationsApplied = false,
   onDismiss,
 }: AiSuggestionReviewCardProps) {
   // Local states for "Why?" evidence inspection
@@ -151,8 +166,6 @@ export function AiSuggestionReviewCard({
     suggestion.category?.categoryName ||
     null;
 
-  const attrEntries = Object.entries(suggestion.attributes || {});
-
   /**
    * Records which fields have been written into the form.
    *
@@ -170,21 +183,27 @@ export function AiSuggestionReviewCard({
     });
   };
 
-  /** Every field the card can write into the form. */
+  /**
+   * Every field the card can write into the form.
+   *
+   * The specifications are one field here rather than one per attribute: they
+   * are applied by the attribute-suggestions panel, which reports its own state
+   * per row, so the card tracks whether the group as a whole has been applied.
+   */
   const appliedFieldKeys = [
     "mpn",
     "name",
     "description",
     "category",
     "manufacturer",
-    ...attrEntries.map(([code]) => `attr_${code}`),
+    "specifications",
   ];
-  const allSuggestionsApplied = appliedFieldKeys.every(
-    (field) => acceptedFields[field],
+  const allSuggestionsApplied = appliedFieldKeys.every((field) =>
+    field === "specifications"
+      ? acceptedFields[field] || specificationsApplied
+      : acceptedFields[field],
   );
-  const allAttributesApplied =
-    attrEntries.length > 0 &&
-    attrEntries.every(([code]) => acceptedFields[`attr_${code}`]);
+  const allSpecificationsApplied = specificationsApplied;
 
   const toggleWhy = (fieldKey: string) => {
     setExpandedWhy((prev) => ({ ...prev, [fieldKey]: !prev[fieldKey] }));
@@ -330,42 +349,6 @@ export function AiSuggestionReviewCard({
     onApplyManufacturer?.(typed || undefined);
   };
 
-  const handleAcceptSingleAttribute = (
-    code: string,
-    attr: { value: unknown; formatted: string; evidence?: EvidenceItemDto[] },
-  ) => {
-    setAcceptedFields((prev) => ({ ...prev, [`attr_${code}`]: true }));
-    recordFeedbackEvent(
-      "ATTRIBUTE",
-      `attributes.${code}`,
-      "ACCEPTED",
-      attr.formatted,
-      attr.formatted,
-      1.0,
-      "HIGH",
-      attr.evidence,
-    );
-    onApplySingleAttribute?.(code, attr.value ?? attr.formatted);
-  };
-
-  const handleRejectSingleAttribute = (
-    code: string,
-    attr: { value: unknown; formatted: string; evidence?: EvidenceItemDto[] },
-  ) => {
-    setRejectedFields((prev) => ({ ...prev, [`attr_${code}`]: true }));
-    recordFeedbackEvent(
-      "ATTRIBUTE",
-      `attributes.${code}`,
-      "REJECTED",
-      attr.formatted,
-      null,
-      1.0,
-      "HIGH",
-      attr.evidence,
-    );
-    onRejectAttribute?.(code);
-  };
-
   const handleAcceptAll = () => {
     // Everything the card offers lands in the form, so every row confirms it.
     markApplied(appliedFieldKeys);
@@ -433,20 +416,6 @@ export function AiSuggestionReviewCard({
         suggestion.manufacturer.evidence,
       );
     }
-    for (const [code, attr] of Object.entries(suggestion.attributes || {})) {
-      if (!rejectedFields[`attr_${code}`] && !acceptedFields[`attr_${code}`]) {
-        recordFeedbackEvent(
-          "ATTRIBUTE",
-          code,
-          "ACCEPTED",
-          attr.value,
-          attr.value,
-          attr.confidence,
-          attr.confidenceLevel,
-          attr.evidence,
-        );
-      }
-    }
     onApplyAll();
   };
 
@@ -512,12 +481,12 @@ export function AiSuggestionReviewCard({
   };
 
   const handleApplySpecifications = () => {
-    // One definition of "accept this specification": the bulk action is the
-    // per-specification action applied to every extracted value.
-    for (const [code, attr] of attrEntries) {
-      handleAcceptSingleAttribute(code, attr);
-    }
-    onApplyAttributes?.(suggestion.attributes);
+    // The specifications are applied by the attribute-suggestions panel through
+    // the form's attribute state — the same path an individual Accept uses.
+    // There is no second writer here, and the card records no per-attribute
+    // feedback of its own: the panel does that for the rows it applied.
+    markApplied(["specifications"]);
+    onApplySpecifications?.();
   };
 
   const catConfidencePct = Math.round(
@@ -668,14 +637,22 @@ export function AiSuggestionReviewCard({
                 Apply Classification
               </Button>
             ))}
-          {onApplyAttributes &&
-            (allAttributesApplied ? (
+          {onApplySpecifications &&
+            (allSpecificationsApplied ? (
               <AppliedIndicator />
             ) : (
               <Button
                 type="button"
                 variant="outline"
                 size="xs"
+                disabled={specificationsAppliableCount === 0}
+                title={
+                  specificationsAppliableCount === 0
+                    ? "No suggestion has a value to apply yet — review the rows below."
+                    : `Applies ${specificationsAppliableCount} specification suggestion${
+                        specificationsAppliableCount === 1 ? "" : "s"
+                      } into the attributes below`
+                }
                 onClick={() => handleApplySpecifications()}
               >
                 Apply Specifications
@@ -697,23 +674,16 @@ export function AiSuggestionReviewCard({
         </div>
       </div>
 
-      {attributeConflicts.length > 0 && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
-          <p className="font-semibold">Specification conflicts need review</p>
-          <div className="mt-1 space-y-1">
-            {attributeConflicts.map((conflict) => (
-              <p key={conflict.code}>
-                <span className="font-mono">{conflict.code}</span>: existing{" "}
-                {conflict.existing}, extracted {conflict.extracted}
-              </p>
-            ))}
-          </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Keep Existing leaves the current value unchanged. Use Extracted is
-            available per specification below.
-          </p>
-        </div>
-      )}
+      {/*
+        Specification conflicts are NOT summarised here.
+
+        They are rendered by the attribute-suggestions panel as its "Needs
+        review" group, where each one carries its own recorded value, confidence
+        and the decision controls (Review suggestion / Keep current / Edit).
+        A second summary listing the same conflicts in the card was the
+        duplication this consolidation removes — and it could only name the
+        codes, not act on them.
+      */}
 
       {/* ── Suggestions Grid ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
@@ -1025,90 +995,20 @@ export function AiSuggestionReviewCard({
         )}
       </div>
 
-      {/* ── Extracted Attributes & Specifications ─────────────────────────── */}
-      {attrEntries.length > 0 && (
-        <div className="space-y-2 pt-3 border-t border-border/40">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-              <Layers className="size-3.5 text-primary" />
-              Extracted Specifications ({attrEntries.length})
-            </span>
-            {onApplyAttributes &&
-              (allAttributesApplied ? (
-                <AppliedIndicator />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleApplySpecifications()}
-                  className="text-[11px] font-medium text-primary hover:underline"
-                >
-                  Apply specifications only
-                </button>
-              ))}
-          </div>
+      {/*
+        AI Attribute Suggestions render here, inside the intelligence card.
 
-          <div className="flex flex-wrap gap-2">
-            {attrEntries
-              .filter(([code]) => !rejectedFields[`attr_${code}`])
-              .map(([code, attr]) => {
-                const isAccepted = !!acceptedFields[`attr_${code}`];
-                return (
-                  <span
-                    key={code}
-                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1 text-xs font-mono shadow-2xs ${
-                      isAccepted
-                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                        : "border-border bg-background/90 text-foreground"
-                    }`}
-                    title={
-                      attr.evidence?.[0]?.description || `Extracted ${code}`
-                    }
-                  >
-                    <span className="text-muted-foreground uppercase text-[10px] tracking-wide">
-                      {code}:
-                    </span>
-                    <span className="font-semibold">{attr.formatted}</span>
-                    {attr.resolution === "UNRESOLVED" && (
-                      <span className="text-[10px] text-amber-600">
-                        Unresolved
-                      </span>
-                    )}
-                    {isAccepted ? (
-                      <Check className="size-3 text-emerald-400" />
-                    ) : (
-                      <div className="flex items-center gap-1 ml-1 border-l border-border/60 pl-1.5">
-                        {onApplySingleAttribute && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleAcceptSingleAttribute(code, attr)
-                            }
-                            className="hover:text-emerald-400 p-0.5 text-muted-foreground transition-colors"
-                            title={`Accept ${code}`}
-                          >
-                            <Check className="size-3" />
-                          </button>
-                        )}
-                        {onRejectAttribute && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleRejectSingleAttribute(code, attr)
-                            }
-                            className="hover:text-rose-400 p-0.5 text-muted-foreground transition-colors"
-                            title={`Reject ${code}`}
-                          >
-                            <X className="size-3" />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </span>
-                );
-              })}
-          </div>
-        </div>
-      )}
+        They used to be a second top-level card beside this one, which showed the
+        same values twice: an extracted specification appeared once as a chip
+        under "Extracted Specifications" and again as a suggestion row. There is
+        now one attribute-suggestion surface (the Phase 3 panel) and it lives
+        inside the card whose analysis produced it, so a value is shown once and
+        applied through one path.
+
+        The slot is a node rather than a set of props because the panel owns its
+        own state and rules; the card only decides where it sits.
+      */}
+      {attributeSuggestionsSlot}
 
       {/* ── Footer Actions ──────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-primary/15">
