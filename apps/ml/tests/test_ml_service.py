@@ -230,3 +230,190 @@ def test_equivalent_mpn_matching(client):
     data = res.json()
     assert data["is_duplicate"] is True
     assert data["matches"][0]["sku"] == "RC0805FR-0710KL"
+
+
+# ---------------------------------------------------------------------------
+# Duplicate detection against a real ERP catalog.
+#
+# The fixtures below mirror the live data: `sku` is the ERP's own key
+# (`CMP-000305`) and the manufacturer part number lives in its own column. The
+# tests above pass without that column because they use the part number AS the
+# SKU, which is not how the ERP stores anything.
+# ---------------------------------------------------------------------------
+
+CATALOG = [
+    {
+        "id": "comp-murata-a",
+        "sku": "CMP-000304",
+        "name": "AI-TEST-DUP-SEMANTIC-MURATA-100NF-50V-X7R-0603-A",
+        "description": "Murata GRM series multilayer ceramic capacitor, 100 nF, 50 V, X7R, 0603 (1608 metric) SMD, +/-5% tolerance grade.",
+        "manufacturer_part_number": "GRM188R71H104JA93D",
+    },
+    {
+        "id": "comp-murata-b",
+        "sku": "CMP-000305",
+        "name": "AI-TEST-DUP-SEMANTIC-MURATA-100NF-50V-X7R-0603-B",
+        "description": "Murata GRM series multilayer ceramic capacitor, 100 nF, 50 V, X7R, 0603 (1608 metric) SMD, +/-20% tolerance grade.",
+        "manufacturer_part_number": "GRM188R71H104MA93D",
+    },
+    {
+        "id": "comp-tdk",
+        "sku": "CMP-000298",
+        "name": "AI-TEST-MPN-NOISY-GAMMA",
+        "description": "TDK C series multilayer ceramic capacitor, 100 nF, 50 V, X7R, 0603 (1608 metric) SMD. Manufacturer part number stated in the attached datasheet only.",
+    },
+]
+
+
+def test_exact_mpn_match_finds_the_stored_record(client):
+    """A part number the ERP already holds is an authoritative duplicate.
+
+    Regression: the candidate list carried no manufacturer part number, so the
+    detector compared the searched part number against each component's *SKU*
+    (`CMP-000305`). Nothing ever matched, which silently made every authoritative
+    tier unreachable and left duplicate decisions to fuzzy text overlap.
+    """
+    res = client.post("/v1/detect/duplicates", json={
+        "part_number": "GRM188R71H104MA93D",
+        "existing_components": CATALOG,
+    })
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["is_duplicate"] is True
+    assert data["matches"][0]["sku"] == "CMP-000305"
+    assert data["matches"][0]["match_type"] == "exact_mpn"
+    assert data["matches"][0]["similarity"] == 1.0
+
+
+def test_exact_mpn_match_is_not_hidden_by_attribute_drift(client):
+    """Two records carrying one part number are the same part, full stop.
+
+    The physical guard exists to stop *fuzzy* matches from being reported. For an
+    identical part number a disagreement is drifted data the reviewer needs to
+    see, not a reason to stay silent.
+    """
+    existing = [{
+        "id": "comp-1",
+        "sku": "CMP-000001",
+        "name": "10k 0805 resistor",
+        "description": "10k ohm 0805 resistor",
+        "manufacturer_part_number": "RC0805FR-0710KL",
+    }]
+
+    res = client.post("/v1/detect/duplicates", json={
+        # Same part number, contradicting resistance.
+        "part_number": "RC0805FR-0710KL",
+        "description": "100k ohm 0805 resistor",
+        "existing_components": existing,
+    })
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["is_duplicate"] is True
+    assert data["matches"][0]["match_type"] == "exact_mpn"
+    assert "needs review" in data["matches"][0]["reason"]
+
+
+def test_mpn_packaging_variant_matches_against_the_mpn_column(client):
+    """The packaging-variant rule reads the stored MPN, not only the SKU.
+
+    The name and description deliberately share no wording with the query, so the
+    semantic tier cannot produce this result: only the stored part number can.
+    """
+    existing = [{
+        "id": "comp-1",
+        "sku": "CMP-000001",
+        "name": "Precision thin film chip",
+        "description": "Tape and reel packaging, 1% tolerance.",
+        "manufacturer_part_number": "RC0805FR-0710KL",
+    }]
+
+    res = client.post("/v1/detect/duplicates", json={
+        "part_number": "RC0805FR-0710KLTR",
+        "existing_components": existing,
+    })
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["is_duplicate"] is True
+    assert data["matches"][0]["sku"] == "CMP-000001"
+    assert data["matches"][0]["match_type"] == "exact_mpn"
+
+
+def test_generic_specs_alone_are_not_a_duplicate(client):
+    """Shared generic values must not be reported as an invented 85% match.
+
+    Regression: three or more matching attributes forced the score to 0.85, which
+    reported a number the text did not support and flagged any two parts sharing
+    capacitance/voltage/package/dielectric as duplicates however differently they
+    were described.
+
+    The query names a part number the ERP does not hold, so no authoritative tier
+    can short-circuit the decision and the semantic tier is what is being tested.
+    """
+    res = client.post("/v1/detect/duplicates", json={
+        "part_number": "GRM188R71H104KA93D",
+        "description": "AI-TEST-DUP-SEMANTIC-MURATA-100NF-50V-X7R-0603-A",
+        "existing_components": CATALOG,
+    })
+
+    assert res.status_code == 200
+    data = res.json()
+    # The TDK part shares capacitance, voltage, package and dielectric with the
+    # query and is still a different part, so it must not be reported.
+    assert all(m["sku"] != "CMP-000298" for m in data["matches"])
+    # Every reported similarity is a score the evidence actually supports.
+    assert all(
+        m["similarity"] < 0.85 or m["match_type"] == "exact_mpn"
+        for m in data["matches"]
+    )
+
+
+def test_description_only_query_still_finds_a_similar_part(client):
+    """The semantic tier keeps working when there is no part number to match.
+
+    The query names a part number the ERP does not hold, so no authoritative tier
+    can answer and the decision falls to textual similarity.
+    """
+    res = client.post("/v1/detect/duplicates", json={
+        "part_number": "GRM188R71H104KA93D",
+        "description": "Murata GRM series multilayer ceramic capacitor, 100 nF, 50 V, X7R, 0603 (1608 metric) SMD",
+        "existing_components": CATALOG,
+    })
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["is_duplicate"] is True
+    similar = [m for m in data["matches"] if m["match_type"] == "semantic"]
+    assert any(m["sku"] == "CMP-000305" for m in similar)
+    # The unrelated manufacturer's part stays out of it.
+    assert all(m["sku"] != "CMP-000298" for m in similar)
+
+
+def test_internal_sku_does_not_drive_text_similarity(client):
+    """The ERP's own key is not descriptive text.
+
+    Including `CMP-000305` in the compared text made similarity depend on the
+    ERP's numbering rather than on the parts being described.
+    """
+    base = {
+        "name": "10k 0805 resistor",
+        "description": "10k ohm 0805 resistor",
+        "manufacturer_part_number": "RC0805FR-0710KL",
+    }
+    existing = [
+        {"id": "comp-1", "sku": "CMP-000001", **base},
+        {"id": "comp-2", "sku": "ZZZ-999999", **base},
+    ]
+
+    res = client.post("/v1/detect/duplicates", json={
+        "part_number": "RC0805FR-0710KL",
+        "description": "10k ohm 0805 resistor",
+        "existing_components": existing,
+    })
+
+    assert res.status_code == 200
+    scores = {m["sku"]: m["similarity"] for m in res.json()["matches"]}
+    # Identical descriptions score identically whatever their SKUs are.
+    assert scores["CMP-000001"] == scores["ZZZ-999999"]

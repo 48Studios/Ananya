@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
@@ -40,6 +41,19 @@ export class SuggestComponentDto {
   @IsOptional()
   @IsString()
   datasheetPdfBase64?: string;
+
+  /**
+   * The component the reviewer is editing.
+   *
+   * Duplicate detection compares the request against every stored component, so
+   * without this the record being edited is offered as a duplicate of itself:
+   * its own name and specifications are the closest text to the query, which
+   * made the semantic tier flag it at high similarity. Excluded from the
+   * candidate set, never used to look anything up.
+   */
+  @IsOptional()
+  @IsUUID()
+  componentId?: string;
 }
 
 export class CategorySuggestionDto {

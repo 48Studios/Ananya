@@ -9,7 +9,7 @@ import {
   componentAttributeValues,
   aiSuggestionFeedback,
 } from '@ananya/database/schema';
-import { and, eq, desc, gte, lte, inArray } from '@ananya/database/query';
+import { and, asc, eq, desc, gte, lte, inArray } from '@ananya/database/query';
 import { MlClientService } from './ml-client.service';
 import { DataPacksService } from '../data-packs/data-packs.service';
 import * as fs from 'fs';
@@ -145,6 +145,18 @@ export function normalizeExtractedUnit(
   return normalized;
 }
 
+/**
+ * How many stored components are offered to duplicate detection.
+ *
+ * The bound exists so one suggestion request cannot ship an unbounded payload to
+ * the model service, but it was an unexplained `limit(100)` ordered by nothing in
+ * particular: past 100 components the oldest records — the ones the ERP treats as
+ * canonical — could silently drop out of duplicate detection altogether. The
+ * query is now ordered oldest-first and the bound is named, so truncation is a
+ * known ceiling rather than an accident of row order.
+ */
+const DUPLICATE_CANDIDATE_LIMIT = 2000;
+
 const ATTRIBUTE_CODE_ALIASES: Record<string, string> = {
   power: 'power_rating',
   power_rating: 'power_rating',
@@ -242,7 +254,7 @@ export class MlService {
       allCategories,
       allManufacturers,
       allAttributes,
-      existingComps,
+      candidateComps,
       datapackHints,
     ] = await Promise.all([
       db.select().from(categories),
@@ -254,13 +266,28 @@ export class MlService {
           sku: components.sku,
           name: components.name,
           description: components.description,
+          manufacturerPartNumber: components.manufacturerPartNumber,
         })
         .from(components)
-        .limit(100),
+        // Oldest first, so the records the ERP treats as canonical are always
+        // inside the bound and the candidate set does not depend on row order.
+        .orderBy(asc(components.createdAt), asc(components.id))
+        .limit(DUPLICATE_CANDIDATE_LIMIT),
       this.dataPacksService
         ? this.dataPacksService.getActiveIntelligenceHints().catch(() => [])
         : Promise.resolve([]),
     ]);
+
+    /**
+     * The stored components a duplicate can be found in.
+     *
+     * The component being edited is removed here, before either duplicate path
+     * reads the list, so it can never be reported as a duplicate of itself. Both
+     * the ERP-side SKU comparison and the outbound model call share this list.
+     */
+    const existingComps = candidateComps.filter(
+      (candidate) => candidate.id !== dto.componentId,
+    );
 
     const categoryMap = new Map(
       allCategories.map((category) => [category.id, category]),
@@ -309,6 +336,10 @@ export class MlService {
           sku: c.sku,
           name: c.name,
           description: c.description || undefined,
+          // The part's real identity. Without it the detector can only compare
+          // a searched part number against the ERP's own SKU, which never
+          // matches, leaving every duplicate decision to fuzzy text overlap.
+          manufacturer_part_number: c.manufacturerPartNumber || undefined,
         })),
         erp_manufacturers: allManufacturers.map((manufacturer) => ({
           id: manufacturer.id,

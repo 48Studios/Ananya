@@ -20,7 +20,10 @@ import { describe, it, expect } from "vitest";
  * testing library, so the wiring is asserted where it is written.
  */
 
-const webRoot = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
+const webRoot = path.resolve(
+  fileURLToPath(new URL(".", import.meta.url)),
+  "..",
+);
 const read = (absolutePath: string) => fs.readFileSync(absolutePath, "utf8");
 
 const cardSource = read(
@@ -79,17 +82,37 @@ describe("AI suggestion card — edited values reach the caller", () => {
 
   it("invokes every header action with no arguments", () => {
     // `onClick={onApplyClassification}` handed the click event to a handler that
-    // accepts an optional value, which then threw on `customName.trim`.
-    expect(cardSource).not.toContain("onClick={onApplyClassification}");
-    expect(cardSource).not.toContain("onClick={onApplyIdentity}");
-    expect(cardSource).not.toContain("onClick={onApplyNameDescription}");
-    expect(cardSource).toContain("onClick={() => onApplyClassification()}");
-    expect(cardSource).toContain("onClick={() => onApplyIdentity()}");
-    expect(cardSource).toContain("onClick={() => onApplyNameDescription()}");
+    // accepts an optional value, which then threw on `customName.trim`. The
+    // grouped actions now route through their own handlers (which also report
+    // the applied state), so no callback may be wired straight to `onClick`.
+    for (const callback of [
+      "onApplyIdentity",
+      "onApplyClassification",
+      "onApplyNameDescription",
+      "onApplyAttributes",
+      "onApplyAll",
+    ]) {
+      expect(cardSource, `${callback} wired to onClick`).not.toContain(
+        `onClick={${callback}}`,
+      );
+      expect(cardSource, `${callback} called from onClick`).not.toContain(
+        `onClick={() => ${callback}(`,
+      );
+    }
+
+    // Each grouped action reaches its callback from inside a handler, with no
+    // arguments — the event must never travel with the call.
+    expect(cardSource).toContain("onApplyIdentity?.();");
+    expect(cardSource).toContain("onApplyClassification?.();");
+    expect(cardSource).toContain("onApplyNameDescription?.();");
+    expect(cardSource).toContain("onApplyAttributes?.(suggestion.attributes);");
+    expect(cardSource).toContain("onApplyAll();");
   });
 
   it("declares both apply callbacks as accepting the custom name", () => {
-    expect(cardSource).toContain("onApplyCategory?: (customName?: string) => void;");
+    expect(cardSource).toContain(
+      "onApplyCategory?: (customName?: string) => void;",
+    );
     expect(cardSource).toContain(
       "onApplyManufacturer?: (customName?: string) => void;",
     );
@@ -111,7 +134,7 @@ describe("Component form — a typed value resolves against the ERP", () => {
     // pending entity, so the field showed "NEW" beside an existing record.
     expect(body).toContain("findAssignableEntity({");
     expect(body).toContain("entities: assignableCategories");
-    expect(body).toContain("setValue(\"categoryId\", existing?.id ?? null");
+    expect(body).toContain('setValue("categoryId", existing?.id ?? null');
     expect(body).toContain(
       "existing ? null : { name: typed, parentId: suggestedParentId }",
     );
@@ -122,8 +145,10 @@ describe("Component form — a typed value resolves against the ERP", () => {
 
     expect(body).toContain("findAssignableEntity({");
     expect(body).toContain("entities: assignableManufacturers");
-    expect(body).toContain("setValue(\"manufacturerId\", existing?.id ?? null");
-    expect(body).toContain("setPendingManufacturer(existing ? null : { name: typed })");
+    expect(body).toContain('setValue("manufacturerId", existing?.id ?? null');
+    expect(body).toContain(
+      "setPendingManufacturer(existing ? null : { name: typed })",
+    );
   });
 
   it("loads the records a typed name is matched against", () => {
@@ -186,35 +211,143 @@ describe("Component form — an explicit choice survives a bulk apply", () => {
     const body = handlerBody(formSource, "handleApplyAllSuggestions");
     // `includeReviewerChoices` stays false, so the bulk apply completes the
     // card without reverting a correction the reviewer already made.
-    expect(body).toContain("applyEntitySuggestions(suggestion, { overwrite: true })");
+    expect(body).toContain(
+      "applyEntitySuggestions(suggestion, { overwrite: true })",
+    );
     expect(body).not.toContain("includeReviewerChoices: true");
   });
 
   it("conducts the decision in applyEntitySuggestions", () => {
     const body = handlerBody(formSource, "applyEntitySuggestions");
-    expect(body).toContain("includeReviewerChoices || !manufacturerChosenByReviewer");
-    expect(body).toContain("includeReviewerChoices || !categoryChosenByReviewer");
+    expect(body).toContain(
+      "includeReviewerChoices || !manufacturerChosenByReviewer",
+    );
+    expect(body).toContain(
+      "includeReviewerChoices || !categoryChosenByReviewer",
+    );
   });
 
   it("treats a direct dropdown pick as the reviewer's choice", () => {
-    expect(formSource).toContain("setCategoryChosenByReviewer(true);\n                    field.onChange(val);");
-    expect(formSource).toContain("setManufacturerChosenByReviewer(true);\n                    field.onChange(val);");
+    expect(formSource).toContain(
+      "setCategoryChosenByReviewer(true);\n                    field.onChange(val);",
+    );
+    expect(formSource).toContain(
+      "setManufacturerChosenByReviewer(true);\n                    field.onChange(val);",
+    );
   });
 
   it("clears the choices when the suggestion is dismissed", () => {
     const dismissStart = formSource.indexOf("onDismiss={() => {");
     expect(dismissStart).toBeGreaterThan(-1);
-    const body = formSource.slice(dismissStart, formSource.indexOf("}}", dismissStart));
+    const body = formSource.slice(
+      dismissStart,
+      formSource.indexOf("}}", dismissStart),
+    );
     expect(body).toContain("setSuggestion(null)");
     expect(body).toContain("setCategoryChosenByReviewer(false)");
     expect(body).toContain("setManufacturerChosenByReviewer(false)");
   });
 });
 
+describe("AI suggestion card — every apply action reports what it applied", () => {
+  it("renders one shared applied indicator", () => {
+    // One definition keeps the applied state identical on the category row, the
+    // manufacturer row, the identity block and the specification chips.
+    expect(cardSource).toContain("function AppliedIndicator(");
+    expect(cardSource).toContain('<Check className="size-3" /> Applied');
+    expect(cardSource).toContain("<AppliedIndicator");
+  });
+
+  it("records the applied state for a group of fields", () => {
+    const body = handlerBody(cardSource, "markApplied");
+
+    expect(body).toContain("setAcceptedFields((prev) => {");
+    expect(body).toContain("next[field] = true;");
+  });
+
+  it("reports the identity action", () => {
+    const body = handlerBody(cardSource, "handleApplyIdentity");
+
+    expect(body).toContain('markApplied(["mpn"])');
+    expect(body).toContain("onApplyIdentity?.();");
+    // The MPN acceptance is the same event the bulk apply logs.
+    expect(body).toContain('"manufacturerPartNumber"');
+  });
+
+  it("reports the classification action on the category field", () => {
+    const body = handlerBody(cardSource, "handleApplyClassification");
+
+    // Applying the classification IS applying the category suggestion.
+    expect(body).toContain('markApplied(["category"])');
+    expect(body).toContain("setEditedCategory(null)");
+    expect(body).toContain("onApplyClassification?.();");
+  });
+
+  it("reports the name and description action on both fields", () => {
+    const body = handlerBody(cardSource, "handleApplyNameDescription");
+
+    expect(body).toContain('markApplied(["name", "description"])');
+    expect(body).toContain("onApplyNameDescription?.();");
+  });
+
+  it("reports the specifications action through the per-specification path", () => {
+    const body = handlerBody(cardSource, "handleApplySpecifications");
+
+    // The bulk action is the per-specification action applied to every value,
+    // so it cannot report a different state from the chips themselves.
+    expect(body).toContain("handleAcceptSingleAttribute(code, attr)");
+    expect(body).toContain("onApplyAttributes?.(suggestion.attributes);");
+  });
+
+  it("reports every field when everything is applied", () => {
+    const body = handlerBody(cardSource, "handleAcceptAll");
+
+    expect(body).toContain("markApplied(appliedFieldKeys)");
+  });
+
+  it("replaces an action with its applied state once it has run", () => {
+    // The confirmation takes the place of the button that was pressed, exactly
+    // like the Category and Manufacturer rows already did.
+    expect(cardSource).toContain("acceptedFields.mpn ? (");
+    expect(cardSource).toContain("acceptedFields.category ? (");
+    expect(cardSource).toContain("acceptedFields.manufacturer ? (");
+    expect(cardSource).toContain("allAttributesApplied ? (");
+    expect(cardSource).toContain("allSuggestionsApplied ? (");
+    expect(cardSource).toContain(
+      "acceptedFields.name && acceptedFields.description ? (",
+    );
+  });
+
+  it("counts a group as applied only when every member is", () => {
+    expect(cardSource).toContain(
+      "attrEntries.every(([code]) => acceptedFields[`attr_${code}`])",
+    );
+    expect(cardSource).toContain(
+      "appliedFieldKeys.every(\n    (field) => acceptedFields[field],\n  )",
+    );
+  });
+
+  it("starts a new suggestion with nothing applied", () => {
+    // The applied state belongs to the suggestion it was recorded for.
+    const effect = cardSource.slice(
+      cardSource.indexOf("React.useEffect(() => {\n    setCategoryInput("),
+    );
+    expect(effect.slice(0, 600)).toContain("setAcceptedFields({});");
+  });
+
+  it("shows the applied state on the identity columns", () => {
+    expect(cardSource).toContain("{acceptedFields.mpn && (");
+    expect(cardSource).toContain("{acceptedFields.name && (");
+    expect(cardSource).toContain("{acceptedFields.description && (");
+  });
+});
+
 describe("Component form — suggestion wiring", () => {
   it("wires the card's callbacks to these handlers", () => {
     expect(formSource).toContain("onApplyCategory={handleApplyCategory}");
-    expect(formSource).toContain("onApplyManufacturer={handleApplyManufacturer}");
+    expect(formSource).toContain(
+      "onApplyManufacturer={handleApplyManufacturer}",
+    );
   });
 
   it("shows the pending value through the same field the form edits", () => {
@@ -222,8 +355,33 @@ describe("Component form — suggestion wiring", () => {
     // makes the field show a value that does not exist in the ERP yet.
     expect(formSource).toContain("pendingOption={pendingCategory ? {");
     expect(formSource).toContain("pendingOption={pendingManufacturer ? {");
-    const selector = read(path.join(webRoot, "components/ui/entity-selector.tsx"));
+    const selector = read(
+      path.join(webRoot, "components/ui/entity-selector.tsx"),
+    );
     expect(selector).toContain("pendingOption ? (");
     expect(selector).toContain("{pendingOption.label}");
+  });
+});
+
+describe("Component form — a component is never its own duplicate", () => {
+  const mlApiSource = read(path.join(webRoot, "lib/api/ml-api.ts"));
+
+  it("carries the edited component's identity on the request", () => {
+    // Regression: the request named no component, so editing compared the
+    // record against the whole catalog — itself included — and the card
+    // reported "Potential Duplicate Component Detected" for its own SKU.
+    const body = handlerBody(formSource, "handleFetchAiSuggestions");
+    expect(body).toContain("componentId: initialData?.id,");
+  });
+
+  it("sends no identity when creating a new component", () => {
+    // `initialData` is null on create, so the field is simply absent and every
+    // stored component stays a candidate.
+    expect(formSource).toContain("componentId: initialData?.id,");
+    expect(formSource).not.toContain('componentId: initialData?.id ?? ""');
+  });
+
+  it("declares the field on the request contract", () => {
+    expect(mlApiSource).toContain("componentId?: string;");
   });
 });

@@ -135,6 +135,11 @@ class ExistingComponent(BaseModel):
     name: Optional[str] = ""
     description: Optional[str] = ""
     manufacturer: Optional[str] = ""
+    # The manufacturer part number. This is the part's real identity: `sku` is
+    # the ERP's own key (`CMP-000305`), so comparing a searched part number
+    # against it never matches anything. Authoritative duplicate detection reads
+    # this field.
+    manufacturer_part_number: Optional[str] = ""
 
 class DuplicateCandidate(BaseModel):
     id: str

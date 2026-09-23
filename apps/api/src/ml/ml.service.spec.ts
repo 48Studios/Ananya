@@ -14,6 +14,7 @@ import { DataPacksService } from '../data-packs/data-packs.service';
 // object rather than a stand-in. The `mock` prefix is what lets the hoisted
 // `jest.mock` factory reference it.
 import { categories as mockCategoriesTable } from '@ananya/database/schema';
+import { components as mockComponentsTable } from '@ananya/database/schema';
 
 /**
  * Category rows the mocked `categories` select returns.
@@ -23,6 +24,12 @@ import { categories as mockCategoriesTable } from '@ananya/database/schema';
  * {@link withCategories}.
  */
 let categoryRows: Array<Record<string, unknown>> = [];
+
+/**
+ * Stored components the mocked `components` select returns — the duplicate
+ * candidates. Empty by default; {@link withComponents} populates it.
+ */
+let componentRows: Array<Record<string, unknown>> = [];
 
 jest.mock('@ananya/database', () => {
   interface QueryMock {
@@ -56,7 +63,11 @@ jest.mock('@ananya/database', () => {
           .fn()
           .mockImplementation((table: unknown) =>
             makeQueryMock(
-              table === mockCategoriesTable ? () => categoryRows : undefined,
+              table === mockCategoriesTable
+                ? () => categoryRows
+                : table === mockComponentsTable
+                  ? () => componentRows
+                  : undefined,
             ),
           ),
       })),
@@ -111,6 +122,36 @@ function withCategories(rows: Array<Record<string, unknown>>): void {
   categoryRows = rows;
 }
 
+/**
+ * The stored components duplicate detection compares against.
+ *
+ * `manufacturer_part_number` is deliberately not part of the row shape the
+ * service selects, which is exactly why the detector cannot identify a
+ * component by its MPN — see the exclusion tests below.
+ */
+function withComponents(rows: Array<Record<string, unknown>>): void {
+  componentRows = rows;
+}
+
+/** The outbound model payload, as the service actually built it. */
+function lastSuggestPayload(client: jest.Mocked<Partial<MlClientService>>): {
+  existing_components: Array<{
+    id: string;
+    sku?: string;
+    manufacturer_part_number?: string;
+  }>;
+} {
+  const calls = (client.suggest as jest.Mock).mock.calls as Array<[unknown]>;
+  const last = calls[calls.length - 1];
+  return (last?.[0] ?? {}) as {
+    existing_components: Array<{
+      id: string;
+      sku?: string;
+      manufacturer_part_number?: string;
+    }>;
+  };
+}
+
 describe('MlService', () => {
   let service: MlService;
   let clientMock: jest.Mocked<Partial<MlClientService>>;
@@ -118,6 +159,7 @@ describe('MlService', () => {
 
   beforeEach(async () => {
     withCategories([]);
+    withComponents([]);
     clientMock = {
       enabled: true,
       suggest: jest.fn(),
@@ -274,6 +316,161 @@ describe('MlService', () => {
     expect(result.attributes['voltage']?.value).toBe(50);
     expect(result.confidenceLevel).toBeDefined();
     expect(result.overallEvidence?.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * A component is never a duplicate of itself.
+   *
+   * Regression: the request carried no component identity, so editing a
+   * component compared it against the whole catalog — including itself. Its own
+   * name and specifications are the closest text to the query, so the reviewer
+   * was shown "Potential Duplicate Component Detected" naming the very record
+   * they had open.
+   */
+  describe('editing a component', () => {
+    /** A row whose SKU is also the searched part number, so the ERP loop matches. */
+    const SELF = {
+      id: 'comp-self',
+      sku: 'RC0805FR-0710KL',
+      name: '10kΩ 0805 SMD Resistor',
+      description: 'SMD thick film resistor',
+    };
+    /** A genuinely different record that happens to share the same SKU value. */
+    const TWIN = {
+      id: 'comp-twin',
+      sku: 'RC0805FR-0710KL',
+      name: 'Twin of the edited resistor',
+      description: 'SMD thick film resistor',
+    };
+
+    beforeEach(() => {
+      (clientMock.suggest as jest.Mock).mockResolvedValue({
+        category_predictions: [],
+        manufacturer: {
+          manufacturer: null,
+          resolution: 'UNKNOWN',
+          confidence: 0,
+          match_type: 'unresolved',
+        },
+        duplicates: { is_duplicate: false, matches: [] },
+        extracted_attributes: {},
+        execution_time_ms: 1,
+      });
+    });
+
+    it('does not offer the edited component as its own duplicate', async () => {
+      withComponents([SELF]);
+
+      const result = await service.suggest({
+        query: 'RC0805FR-0710KL 10k resistor',
+        partNumber: 'RC0805FR-0710KL',
+        componentId: SELF.id,
+      });
+
+      expect(result.duplicateWarnings).toEqual([]);
+      expect(result.isDuplicate).toBe(false);
+    });
+
+    it('withholds the edited component from the model as well', async () => {
+      withComponents([SELF]);
+
+      await service.suggest({
+        query: 'RC0805FR-0710KL 10k resistor',
+        partNumber: 'RC0805FR-0710KL',
+        componentId: SELF.id,
+      });
+
+      // The outbound call must not see it either: the model runs its own
+      // semantic comparison over whatever candidate list it is handed.
+      expect(lastSuggestPayload(clientMock).existing_components).toEqual([]);
+    });
+
+    it('still reports a different record that genuinely collides', async () => {
+      withComponents([SELF, TWIN]);
+
+      const result = await service.suggest({
+        query: 'RC0805FR-0710KL 10k resistor',
+        partNumber: 'RC0805FR-0710KL',
+        componentId: SELF.id,
+      });
+
+      // Only the twin is excluded from being reported, never the whole search.
+      expect(result.isDuplicate).toBe(true);
+      expect(result.duplicateWarnings.map((w) => w.sku)).toEqual([TWIN.sku]);
+      expect(result.duplicateWarnings[0]?.matchType).toBe('exact_sku');
+    });
+
+    it('keeps every component as a candidate when creating a new one', async () => {
+      withComponents([SELF, TWIN]);
+
+      const result = await service.suggest({
+        query: 'RC0805FR-0710KL 10k resistor',
+        partNumber: 'RC0805FR-0710KL',
+      });
+
+      // No `componentId`: nothing is the reviewer's own record yet.
+      expect(result.duplicateWarnings).toHaveLength(2);
+      expect(lastSuggestPayload(clientMock).existing_components).toHaveLength(
+        2,
+      );
+    });
+  });
+
+  /**
+   * The candidate payload carries the part's real identity.
+   *
+   * Regression: `existing_components` was sent as `{id, sku, name, description}`.
+   * `sku` is the ERP's own key (`CMP-000305`), so the detector compared every
+   * searched part number against an internal identifier and never matched — which
+   * made the authoritative tiers unreachable and left duplicate decisions to
+   * fuzzy text overlap.
+   */
+  describe('duplicate candidates', () => {
+    const STORED = {
+      id: 'comp-1',
+      sku: 'CMP-000305',
+      name: 'Murata GRM21BR61C106KE15K Multilayer Ceramic Capacitor',
+      description: '10uF 16V X7R 0805',
+      manufacturerPartNumber: 'GRM21BR61C106KE15K',
+    };
+
+    beforeEach(() => {
+      (clientMock.suggest as jest.Mock).mockResolvedValue({
+        category_predictions: [],
+        manufacturer: {
+          manufacturer: null,
+          resolution: 'UNKNOWN',
+          confidence: 0,
+          match_type: 'unresolved',
+        },
+        duplicates: { is_duplicate: false, matches: [] },
+        extracted_attributes: {},
+        execution_time_ms: 1,
+      });
+    });
+
+    it('sends the manufacturer part number', async () => {
+      withComponents([STORED]);
+
+      await service.suggest({ query: 'GRM21BR61C106KE15K' });
+
+      const [candidate] =
+        lastSuggestPayload(clientMock).existing_components ?? [];
+      expect(candidate?.manufacturer_part_number).toBe('GRM21BR61C106KE15K');
+      // The ERP's own key still travels, but as the record's address rather than
+      // as the thing a part number is matched against.
+      expect(candidate?.sku).toBe('CMP-000305');
+    });
+
+    it('omits the field for a record that has no part number', async () => {
+      withComponents([{ ...STORED, manufacturerPartNumber: null }]);
+
+      await service.suggest({ query: 'anything' });
+
+      const [candidate] =
+        lastSuggestPayload(clientMock).existing_components ?? [];
+      expect(candidate?.manufacturer_part_number).toBeUndefined();
+    });
   });
 
   /**

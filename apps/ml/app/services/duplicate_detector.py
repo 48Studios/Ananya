@@ -15,6 +15,23 @@ def strip_packaging_suffix(mpn: str) -> str:
             return norm[:-len(s)]
     return norm
 
+#: Shortest normalized part number treated as an identifier. Below this a value
+#: is too generic (a bare "0603") for a match to mean the same part.
+MIN_IDENTIFIER_LENGTH = 6
+
+#: Text similarity a candidate must already have before attribute agreement is
+#: allowed to corroborate it. Corroboration may strengthen a real resemblance; it
+#: must never manufacture one, or every pair of parts sharing generic values
+#: (100 nF / 50 V / X7R / 0603) reads as a duplicate.
+CORROBORATION_TEXT_FLOOR = 0.30
+
+#: How much attribute agreement may add, by number of matching attributes.
+CORROBORATION_BOOST = {2: 0.10, 3: 0.20}
+
+#: Ceiling for a corroborated score. Agreement is evidence, not proof, so a
+#: candidate never reaches certainty on attribute overlap alone.
+CORROBORATION_CEILING = 0.95
+
 class DuplicateDetectorService:
     def detect(
         self,
@@ -57,10 +74,13 @@ class DuplicateDetectorService:
                         return True
             return False
 
-        # TIER 1: Exact normalized MPN / SKU / Vendor part match (Authoritative)
+        # TIER 1: Exact MPN / SKU / Vendor part match (Authoritative)
         for comp in existing_components:
             sku_norm = normalize_part_number(comp.sku)
             sku_base = strip_packaging_suffix(comp.sku)
+            mpn = comp.manufacturer_part_number or ""
+            mpn_norm = normalize_part_number(mpn)
+            mpn_base = strip_packaging_suffix(mpn) if mpn else ""
             desc_text = comp.description or ""
             comp_text = f"{comp.sku} {comp.name or ''} {desc_text}"
             c_attrs = datasheet_extractor.extract_attributes(comp_text, datapack_hints)
@@ -70,7 +90,37 @@ class DuplicateDetectorService:
             vendor_pn = normalize_part_number(m.group(1)) if m else ""
             vendor_base = strip_packaging_suffix(m.group(1)) if m else ""
 
-            # 1. Check exact SKU match (highest priority, only if no explicit parameter conflict)
+            # 1. Exact manufacturer part number. This is the part's identity, so
+            # it is checked before anything else and is NOT suppressed by an
+            # attribute conflict: two records carrying the same MPN are the same
+            # part, and a disagreement between them is drifted data the reviewer
+            # needs to see rather than a reason to stay silent.
+            if pn_norm and mpn_norm and pn_norm == mpn_norm:
+                conflict_note = (
+                    " Stored specifications disagree with the query, so one of "
+                    "the two records needs review."
+                    if has_physical_conflict(c_attrs)
+                    else ""
+                )
+                matches.append(DuplicateCandidate(
+                    id=comp.id,
+                    sku=comp.sku,
+                    similarity=1.0,
+                    confidence_level="HIGH",
+                    match_type="exact_mpn",
+                    reason=f"Exact manufacturer part-number match: '{mpn}'.{conflict_note}",
+                    evidence=[
+                        EvidenceItem(
+                            type="mpn_pattern",
+                            description=f"Normalized part number is identical to '{mpn}'",
+                            weight=1.0,
+                            source="exact:mpn",
+                        )
+                    ],
+                ))
+                continue
+
+            # 2. Check exact SKU match (highest priority, only if no explicit parameter conflict)
             if pn_norm and pn_norm == sku_norm:
                 if not has_physical_conflict(c_attrs):
                     matches.append(DuplicateCandidate(
@@ -91,7 +141,7 @@ class DuplicateDetectorService:
                     ))
                     continue
 
-            # 2. Check exact vendor part match
+            # 3. Check exact vendor part match
             if vendor_pn and (pn_norm == vendor_pn or vendor_pn in desc_norm):
                 if not has_physical_conflict(c_attrs):
                     matches.append(DuplicateCandidate(
@@ -112,8 +162,15 @@ class DuplicateDetectorService:
                     ))
                     continue
 
-            # 3. Check base MPN match (ignoring reel/packaging suffixes)
-            if pn_base and len(pn_base) >= 6 and (pn_base == sku_base or (vendor_base and pn_base == vendor_base)):
+            # 4. Check base MPN match (ignoring reel/packaging suffixes). The
+            # stored MPN is the identity; the SKU and the description's vendor
+            # part are kept as legacy fallbacks for records that predate it.
+            candidate_bases = [b for b in (mpn_base, sku_base, vendor_base) if b]
+            if (
+                pn_base
+                and len(pn_base) >= MIN_IDENTIFIER_LENGTH
+                and any(pn_base == b for b in candidate_bases)
+            ):
                 if not has_physical_conflict(c_attrs):
                     matches.append(DuplicateCandidate(
                         id=comp.id,
@@ -121,7 +178,10 @@ class DuplicateDetectorService:
                         similarity=0.98,
                         confidence_level="HIGH",
                         match_type="exact_mpn",
-                        reason=f"Equivalent manufacturer part number (packaging suffix variant of '{comp.sku}')",
+                        reason=(
+                            "Equivalent manufacturer part number "
+                            f"(packaging suffix variant of '{mpn or comp.sku}')"
+                        ),
                         evidence=[
                             EvidenceItem(
                                 type="mpn_pattern",
@@ -133,8 +193,12 @@ class DuplicateDetectorService:
                     ))
                     continue
 
-            # 4. Substring match if part number is substantial (>5 chars)
-            if len(pn_norm) >= 6 and (pn_norm in sku_norm or sku_norm in pn_norm):
+            # 5. Substring match if part number is substantial (>5 chars)
+            if len(pn_norm) >= MIN_IDENTIFIER_LENGTH and (
+                pn_norm in sku_norm
+                or sku_norm in pn_norm
+                or (mpn_norm and (pn_norm in mpn_norm or mpn_norm in pn_norm))
+            ):
                 if not has_physical_conflict(c_attrs):
                     matches.append(DuplicateCandidate(
                         id=comp.id,
@@ -142,11 +206,14 @@ class DuplicateDetectorService:
                         similarity=0.92,
                         confidence_level="HIGH",
                         match_type="exact_mpn",
-                        reason=f"Significant normalized part number overlap with SKU '{comp.sku}'",
+                        reason=(
+                            "Significant normalized part number overlap with "
+                            f"'{mpn or comp.sku}'"
+                        ),
                         evidence=[
                             EvidenceItem(
                                 type="mpn_pattern",
-                                description=f"Normalized part number string contains high overlap with '{comp.sku}'",
+                                description="Normalized part number string contains high overlap",
                                 weight=0.92,
                                 source="substr:mpn",
                             )
@@ -166,8 +233,14 @@ class DuplicateDetectorService:
         query_ngrams = get_char_ngrams(q_text)
 
         for comp in existing_components:
-            comp_text = f"{comp.sku} {comp.name or ''} {comp.description or ''}"
-            c_attrs = datasheet_extractor.extract_attributes(comp_text, datapack_hints)
+            # Descriptive text only. The SKU is the ERP's internal key
+            # (`CMP-000305`) and carries no information about the part, so
+            # including it made textual similarity depend on the ERP's numbering
+            # and diluted the very overlap this tier measures. Attributes are
+            # still read from the SKU-bearing text, where identifiers can matter.
+            full_text = f"{comp.sku} {comp.name or ''} {comp.description or ''}"
+            comp_text = f"{comp.name or ''} {comp.description or ''}".strip()
+            c_attrs = datasheet_extractor.extract_attributes(full_text, datapack_hints)
 
             # Strict guard: physical conflict rejects duplicate outright
             if has_physical_conflict(c_attrs):
@@ -176,21 +249,27 @@ class DuplicateDetectorService:
             comp_ngrams = get_char_ngrams(comp_text)
             intersection = len(query_ngrams & comp_ngrams)
             union = len(query_ngrams | comp_ngrams)
-            sim = intersection / union if union > 0 else 0.0
+            text_similarity = intersection / union if union > 0 else 0.0
+            sim = text_similarity
 
-            # Boost similarity if physical parameters match
+            # Attribute agreement corroborates a resemblance the text already
+            # shows. It used to force the score to 0.85 outright, which reported
+            # an invented number and flagged any two parts sharing generic values
+            # (100 nF / 50 V / X7R / 0603) as duplicates however differently they
+            # were described. It now only adds, and only above the floor.
             matching_param_count = sum(1 for k in guarded_attributes if k in q_attrs and k in c_attrs)
-            if matching_param_count >= 3:
-                sim = max(sim, 0.85)
-            elif matching_param_count >= 2:
-                sim = min(0.95, sim + 0.20)
+            corroborated = text_similarity >= CORROBORATION_TEXT_FLOOR
+            if corroborated and matching_param_count >= 3:
+                sim = min(CORROBORATION_CEILING, text_similarity + CORROBORATION_BOOST[3])
+            elif corroborated and matching_param_count >= 2:
+                sim = min(CORROBORATION_CEILING, text_similarity + CORROBORATION_BOOST[2])
 
             if sim >= similarity_threshold:
                 ev_items = [
                     EvidenceItem(
                         type="keyword",
-                        description=f"High textual specification overlap ({int(sim * 100)}%) with component '{comp.sku}'",
-                        weight=round(sim, 3),
+                        description=f"High textual specification overlap ({int(text_similarity * 100)}%) with component '{comp.sku}'",
+                        weight=round(text_similarity, 3),
                         source="similarity:ngram",
                     )
                 ]
@@ -211,7 +290,15 @@ class DuplicateDetectorService:
                     similarity=round(sim, 3),
                     confidence_level="HIGH" if sim >= 0.85 else "MEDIUM",
                     match_type="semantic",
-                    reason=f"High textual similarity ({int(sim * 100)}%) with component '{comp.sku}'",
+                    reason=(
+                        f"Similar description ({int(text_similarity * 100)}% text overlap"
+                        + (
+                            f", {matching_param_count} matching specifications"
+                            if matching_param_count > 0
+                            else ""
+                        )
+                        + f") with component '{comp.sku}'"
+                    ),
                     evidence=ev_items,
                 ))
 

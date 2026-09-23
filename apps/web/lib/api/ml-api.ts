@@ -89,6 +89,11 @@ export interface SuggestComponentPayload {
   description?: string;
   datasheetText?: string;
   datasheetPdfBase64?: string;
+  /**
+   * The component being edited, so it is never offered as its own duplicate.
+   * Omitted when creating a new component.
+   */
+  componentId?: string;
 }
 
 export interface FeedbackItemPayload {

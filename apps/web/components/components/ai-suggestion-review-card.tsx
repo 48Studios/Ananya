@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { cn } from "@/lib/utils";
 import {
   mlApi,
   type ComponentSuggestionResponseDto,
@@ -30,7 +31,11 @@ interface AiSuggestionReviewCardProps {
   onApplyIdentity?: () => void;
   onApplyClassification?: () => void;
   onApplyNameDescription?: () => void;
-  attributeConflicts?: Array<{ code: string; existing: string; extracted: string }>;
+  attributeConflicts?: Array<{
+    code: string;
+    existing: string;
+    extracted: string;
+  }>;
   /**
    * Applies the suggested category, or — when the reviewer edited the row —
    * exactly the name they typed.
@@ -47,6 +52,27 @@ interface AiSuggestionReviewCardProps {
   onApplySingleAttribute?: (code: string, attr: unknown) => void;
   onRejectAttribute?: (code: string) => void;
   onDismiss: () => void;
+}
+
+/**
+ * Confirmation that a suggestion has been written into the form.
+ *
+ * Every apply action ends in this same indicator, so the card reads identically
+ * whether the reviewer applied one field or all of them. It replaces the button
+ * that was pressed — the applied state is what the reviewer needs to see, and
+ * the value itself is already visible in the row above it.
+ */
+function AppliedIndicator({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20",
+        className,
+      )}
+    >
+      <Check className="size-3" /> Applied
+    </span>
+  );
 }
 
 export function AiSuggestionReviewCard({
@@ -67,32 +93,45 @@ export function AiSuggestionReviewCard({
   onDismiss,
 }: AiSuggestionReviewCardProps) {
   // Local states for "Why?" evidence inspection
-  const [expandedWhy, setExpandedWhy] = React.useState<Record<string, boolean>>({});
+  const [expandedWhy, setExpandedWhy] = React.useState<Record<string, boolean>>(
+    {},
+  );
 
   // Local states for inline editing
   const [editingCategory, setEditingCategory] = React.useState(false);
   const [categoryInput, setCategoryInput] = React.useState(
-    suggestion.category?.subcategoryName || suggestion.category?.categoryName || ""
+    suggestion.category?.subcategoryName ||
+      suggestion.category?.categoryName ||
+      "",
   );
 
   const [editingManufacturer, setEditingManufacturer] = React.useState(false);
   const [manufacturerInput, setManufacturerInput] = React.useState(
-    suggestion.manufacturer?.manufacturerName || ""
+    suggestion.manufacturer?.manufacturerName || "",
   );
 
   React.useEffect(() => {
     setCategoryInput(
-      suggestion.category?.subcategoryName || suggestion.category?.categoryName || ""
+      suggestion.category?.subcategoryName ||
+        suggestion.category?.categoryName ||
+        "",
     );
     setManufacturerInput(suggestion.manufacturer?.manufacturerName || "");
     // A different suggestion starts from its own values, not the previous edit.
     setEditedCategory(null);
     setEditedManufacturer(null);
+    // The applied state belongs to the suggestion it was recorded for: a new
+    // analysis must not keep claiming fields the reviewer has not applied yet.
+    setAcceptedFields({});
   }, [suggestion]);
 
   // Field dismissed / rejected state
-  const [rejectedFields, setRejectedFields] = React.useState<Record<string, boolean>>({});
-  const [acceptedFields, setAcceptedFields] = React.useState<Record<string, boolean>>({});
+  const [rejectedFields, setRejectedFields] = React.useState<
+    Record<string, boolean>
+  >({});
+  const [acceptedFields, setAcceptedFields] = React.useState<
+    Record<string, boolean>
+  >({});
   /**
    * What the reviewer applied instead of the suggestion, per field.
    *
@@ -100,11 +139,52 @@ export function AiSuggestionReviewCard({
    * looked identical to an untouched one and appeared to have been reverted. The
    * stored label is the value that was actually handed to the form.
    */
-  const [editedCategory, setEditedCategory] = React.useState<string | null>(null);
-  const [editedManufacturer, setEditedManufacturer] = React.useState<string | null>(null);
+  const [editedCategory, setEditedCategory] = React.useState<string | null>(
+    null,
+  );
+  const [editedManufacturer, setEditedManufacturer] = React.useState<
+    string | null
+  >(null);
   /** The suggestion this edit replaced, when the model named one. */
   const replacedCategoryName =
-    suggestion.category?.subcategoryName || suggestion.category?.categoryName || null;
+    suggestion.category?.subcategoryName ||
+    suggestion.category?.categoryName ||
+    null;
+
+  const attrEntries = Object.entries(suggestion.attributes || {});
+
+  /**
+   * Records which fields have been written into the form.
+   *
+   * Applying a suggestion only mutated the form fields below the card, so a
+   * click looked like it had done nothing at all. Every apply action now reports
+   * the fields it applied and the matching row renders that state.
+   */
+  const markApplied = (fields: string[]) => {
+    setAcceptedFields((prev) => {
+      const next = { ...prev };
+      for (const field of fields) {
+        next[field] = true;
+      }
+      return next;
+    });
+  };
+
+  /** Every field the card can write into the form. */
+  const appliedFieldKeys = [
+    "mpn",
+    "name",
+    "description",
+    "category",
+    "manufacturer",
+    ...attrEntries.map(([code]) => `attr_${code}`),
+  ];
+  const allSuggestionsApplied = appliedFieldKeys.every(
+    (field) => acceptedFields[field],
+  );
+  const allAttributesApplied =
+    attrEntries.length > 0 &&
+    attrEntries.every(([code]) => acceptedFields[`attr_${code}`]);
 
   const toggleWhy = (fieldKey: string) => {
     setExpandedWhy((prev) => ({ ...prev, [fieldKey]: !prev[fieldKey] }));
@@ -125,7 +205,7 @@ export function AiSuggestionReviewCard({
     finalVal: unknown,
     confidence?: number,
     confLevel?: "HIGH" | "MEDIUM" | "LOW",
-    evidence?: EvidenceItemDto[]
+    evidence?: EvidenceItemDto[],
   ) => {
     try {
       await mlApi.recordFeedback({
@@ -160,7 +240,7 @@ export function AiSuggestionReviewCard({
       suggestion.category?.subcategoryName || suggestion.category?.categoryName,
       suggestion.category?.confidence,
       suggestion.category?.confidenceLevel,
-      suggestion.category?.evidence
+      suggestion.category?.evidence,
     );
     onApplyCategory?.();
   };
@@ -175,7 +255,7 @@ export function AiSuggestionReviewCard({
       null,
       suggestion.category?.confidence,
       suggestion.category?.confidenceLevel,
-      suggestion.category?.evidence
+      suggestion.category?.evidence,
     );
     onRejectCategory?.();
   };
@@ -191,7 +271,7 @@ export function AiSuggestionReviewCard({
       categoryInput,
       suggestion.category?.confidence,
       suggestion.category?.confidenceLevel,
-      suggestion.category?.evidence
+      suggestion.category?.evidence,
     );
     // The typed value travels with the apply: recording it as feedback alone
     // left the form holding the model's suggestion instead of the reviewer's.
@@ -211,7 +291,7 @@ export function AiSuggestionReviewCard({
       suggestion.manufacturer?.manufacturerName,
       suggestion.manufacturer?.confidence,
       suggestion.manufacturer?.confidenceLevel,
-      suggestion.manufacturer?.evidence
+      suggestion.manufacturer?.evidence,
     );
     onApplyManufacturer?.();
   };
@@ -226,7 +306,7 @@ export function AiSuggestionReviewCard({
       null,
       suggestion.manufacturer?.confidence,
       suggestion.manufacturer?.confidenceLevel,
-      suggestion.manufacturer?.evidence
+      suggestion.manufacturer?.evidence,
     );
     onRejectManufacturer?.();
   };
@@ -242,7 +322,7 @@ export function AiSuggestionReviewCard({
       manufacturerInput,
       suggestion.manufacturer?.confidence,
       suggestion.manufacturer?.confidenceLevel,
-      suggestion.manufacturer?.evidence
+      suggestion.manufacturer?.evidence,
     );
     // Same contract as the category row: the typed name is applied, not just logged.
     const typed = manufacturerInput.trim();
@@ -252,7 +332,7 @@ export function AiSuggestionReviewCard({
 
   const handleAcceptSingleAttribute = (
     code: string,
-    attr: { value: unknown; formatted: string; evidence?: EvidenceItemDto[] }
+    attr: { value: unknown; formatted: string; evidence?: EvidenceItemDto[] },
   ) => {
     setAcceptedFields((prev) => ({ ...prev, [`attr_${code}`]: true }));
     recordFeedbackEvent(
@@ -263,14 +343,14 @@ export function AiSuggestionReviewCard({
       attr.formatted,
       1.0,
       "HIGH",
-      attr.evidence
+      attr.evidence,
     );
     onApplySingleAttribute?.(code, attr.value ?? attr.formatted);
   };
 
   const handleRejectSingleAttribute = (
     code: string,
-    attr: { value: unknown; formatted: string; evidence?: EvidenceItemDto[] }
+    attr: { value: unknown; formatted: string; evidence?: EvidenceItemDto[] },
   ) => {
     setRejectedFields((prev) => ({ ...prev, [`attr_${code}`]: true }));
     recordFeedbackEvent(
@@ -281,12 +361,15 @@ export function AiSuggestionReviewCard({
       null,
       1.0,
       "HIGH",
-      attr.evidence
+      attr.evidence,
     );
     onRejectAttribute?.(code);
   };
 
   const handleAcceptAll = () => {
+    // Everything the card offers lands in the form, so every row confirms it.
+    markApplied(appliedFieldKeys);
+
     // Record feedback for all items
     if (suggestion.manufacturerPartNumber) {
       recordFeedbackEvent(
@@ -301,7 +384,13 @@ export function AiSuggestionReviewCard({
       );
     }
     if (suggestion.suggestedName) {
-      recordFeedbackEvent("NAME", "name", "ACCEPTED", suggestion.suggestedName, suggestion.suggestedName);
+      recordFeedbackEvent(
+        "NAME",
+        "name",
+        "ACCEPTED",
+        suggestion.suggestedName,
+        suggestion.suggestedName,
+      );
     }
     if (suggestion.suggestedDescription) {
       recordFeedbackEvent(
@@ -312,7 +401,11 @@ export function AiSuggestionReviewCard({
         suggestion.suggestedDescription,
       );
     }
-    if (suggestion.category && !rejectedFields.category && !acceptedFields.category) {
+    if (
+      suggestion.category &&
+      !rejectedFields.category &&
+      !acceptedFields.category
+    ) {
       recordFeedbackEvent(
         "CATEGORY",
         "category",
@@ -321,10 +414,14 @@ export function AiSuggestionReviewCard({
         suggestion.category.subcategoryName || suggestion.category.categoryName,
         suggestion.category.confidence,
         suggestion.category.confidenceLevel,
-        suggestion.category.evidence
+        suggestion.category.evidence,
       );
     }
-    if (suggestion.manufacturer && !rejectedFields.manufacturer && !acceptedFields.manufacturer) {
+    if (
+      suggestion.manufacturer &&
+      !rejectedFields.manufacturer &&
+      !acceptedFields.manufacturer
+    ) {
       recordFeedbackEvent(
         "MANUFACTURER",
         "manufacturer",
@@ -333,7 +430,7 @@ export function AiSuggestionReviewCard({
         suggestion.manufacturer.manufacturerName,
         suggestion.manufacturer.confidence,
         suggestion.manufacturer.confidenceLevel,
-        suggestion.manufacturer.evidence
+        suggestion.manufacturer.evidence,
       );
     }
     for (const [code, attr] of Object.entries(suggestion.attributes || {})) {
@@ -346,16 +443,89 @@ export function AiSuggestionReviewCard({
           attr.value,
           attr.confidence,
           attr.confidenceLevel,
-          attr.evidence
+          attr.evidence,
         );
       }
     }
     onApplyAll();
   };
 
-  const attrEntries = Object.entries(suggestion.attributes || {});
-  const catConfidencePct = Math.round((suggestion.category?.confidence || 0) * 100);
-  const mfgConfidencePct = Math.round((suggestion.manufacturer?.confidence || 0) * 100);
+  /**
+   * The identity block's grouped actions.
+   *
+   * Each writes a set of fields into the form and reports it, so the block
+   * confirms what was applied exactly like the Category and Manufacturer rows
+   * do. The feedback each one records is the same event the Apply All action
+   * logs, which is what keeps the two paths equivalent for the model.
+   */
+  const handleApplyIdentity = () => {
+    markApplied(["mpn"]);
+    recordFeedbackEvent(
+      "MPN",
+      "manufacturerPartNumber",
+      "ACCEPTED",
+      suggestion.manufacturerPartNumber,
+      suggestion.manufacturerPartNumber,
+    );
+    onApplyIdentity?.();
+  };
+
+  const handleApplyClassification = () => {
+    // The classification IS the category suggestion: it lands in the same field
+    // and shows the same applied state as the Category row's own Apply.
+    markApplied(["category"]);
+    setEditedCategory(null);
+    recordFeedbackEvent(
+      "CATEGORY",
+      "category",
+      "ACCEPTED",
+      suggestion.category?.subcategoryName || suggestion.category?.categoryName,
+      suggestion.category?.subcategoryName || suggestion.category?.categoryName,
+      suggestion.category?.confidence,
+      suggestion.category?.confidenceLevel,
+      suggestion.category?.evidence,
+    );
+    onApplyClassification?.();
+  };
+
+  const handleApplyNameDescription = () => {
+    markApplied(["name", "description"]);
+    if (suggestion.suggestedName) {
+      recordFeedbackEvent(
+        "NAME",
+        "name",
+        "ACCEPTED",
+        suggestion.suggestedName,
+        suggestion.suggestedName,
+      );
+    }
+    if (suggestion.suggestedDescription) {
+      recordFeedbackEvent(
+        "DESCRIPTION",
+        "description",
+        "ACCEPTED",
+        suggestion.suggestedDescription,
+        suggestion.suggestedDescription,
+      );
+    }
+    onApplyNameDescription?.();
+  };
+
+  const handleApplySpecifications = () => {
+    // One definition of "accept this specification": the bulk action is the
+    // per-specification action applied to every extracted value.
+    for (const [code, attr] of attrEntries) {
+      handleAcceptSingleAttribute(code, attr);
+    }
+    onApplyAttributes?.(suggestion.attributes);
+  };
+
+  const catConfidencePct = Math.round(
+    (suggestion.category?.confidence || 0) * 100,
+  );
+  const mfgConfidencePct = Math.round(
+    (suggestion.manufacturer?.confidence || 0) * 100,
+  );
 
   const getStatusBadgeType = (level?: "HIGH" | "MEDIUM" | "LOW") => {
     switch (level) {
@@ -405,7 +575,8 @@ export function AiSuggestionReviewCard({
             <span>Potential Duplicate Component Detected</span>
           </div>
           <p className="text-[11px] text-muted-foreground leading-relaxed pl-6">
-            Authoritative inventory items share identical normalized part numbers or specifications:
+            Authoritative inventory items share identical normalized part
+            numbers or specifications:
           </p>
           <div className="flex flex-wrap gap-2 pl-6 pt-1">
             {suggestion.duplicateWarnings.map((dup) => (
@@ -415,8 +586,12 @@ export function AiSuggestionReviewCard({
               >
                 <Boxes className="size-3 text-amber-600 dark:text-amber-400" />
                 <span className="font-semibold text-foreground">{dup.sku}</span>
-                <span className="text-[10px] text-muted-foreground">({Math.round(dup.similarity * 100)}%)</span>
-                <span className="text-[10px] text-amber-600 dark:text-amber-400">{dup.matchType}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  ({Math.round(dup.similarity * 100)}%)
+                </span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                  {dup.matchType}
+                </span>
               </div>
             ))}
           </div>
@@ -426,28 +601,99 @@ export function AiSuggestionReviewCard({
       <div className="space-y-3 rounded-lg border border-border/80 bg-background/70 p-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Manufacturer Part Number</p>
-            <p className="mt-1 font-mono text-xs font-semibold">{suggestion.manufacturerPartNumber || "Not identified"}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Manufacturer Part Number
+            </p>
+            <p className="mt-1 font-mono text-xs font-semibold">
+              {suggestion.manufacturerPartNumber || "Not identified"}
+            </p>
+            {acceptedFields.mpn && (
+              <AppliedIndicator className="mt-1.5 w-fit" />
+            )}
           </div>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Component Name</p>
-            <p className="mt-1 text-xs font-semibold">{suggestion.suggestedName || "Not generated"}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Component Name
+            </p>
+            <p className="mt-1 text-xs font-semibold">
+              {suggestion.suggestedName || "Not generated"}
+            </p>
+            {acceptedFields.name && (
+              <AppliedIndicator className="mt-1.5 w-fit" />
+            )}
           </div>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Description</p>
-            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{suggestion.suggestedDescription || "Not generated"}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Description
+            </p>
+            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+              {suggestion.suggestedDescription || "Not generated"}
+            </p>
+            {acceptedFields.description && (
+              <AppliedIndicator className="mt-1.5 w-fit" />
+            )}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 border-t border-border/60 pt-2">
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
           {/*
             Each handler is invoked with no arguments. Wiring one straight to
             `onClick` would hand it the click event instead, which an apply
             handler that accepts an optional value would mistake for one.
+            An action that has run is replaced by its own applied state, so the
+            block reports what reached the form just like the rows below do.
           */}
-          {onApplyIdentity && <Button type="button" variant="outline" size="xs" onClick={() => onApplyIdentity()}>Apply Identity</Button>}
-          {onApplyClassification && <Button type="button" variant="outline" size="xs" onClick={() => onApplyClassification()}>Apply Classification</Button>}
-          {onApplyAttributes && <Button type="button" variant="outline" size="xs" onClick={() => onApplyAttributes(suggestion.attributes)}>Apply Specifications</Button>}
-          {onApplyNameDescription && <Button type="button" variant="outline" size="xs" onClick={() => onApplyNameDescription()}>Apply Name &amp; Description</Button>}
+          {onApplyIdentity &&
+            (acceptedFields.mpn ? (
+              <AppliedIndicator />
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => handleApplyIdentity()}
+              >
+                Apply Identity
+              </Button>
+            ))}
+          {onApplyClassification &&
+            (acceptedFields.category ? (
+              <AppliedIndicator />
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => handleApplyClassification()}
+              >
+                Apply Classification
+              </Button>
+            ))}
+          {onApplyAttributes &&
+            (allAttributesApplied ? (
+              <AppliedIndicator />
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => handleApplySpecifications()}
+              >
+                Apply Specifications
+              </Button>
+            ))}
+          {onApplyNameDescription &&
+            (acceptedFields.name && acceptedFields.description ? (
+              <AppliedIndicator />
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => handleApplyNameDescription()}
+              >
+                Apply Name &amp; Description
+              </Button>
+            ))}
         </div>
       </div>
 
@@ -457,11 +703,15 @@ export function AiSuggestionReviewCard({
           <div className="mt-1 space-y-1">
             {attributeConflicts.map((conflict) => (
               <p key={conflict.code}>
-                <span className="font-mono">{conflict.code}</span>: existing {conflict.existing}, extracted {conflict.extracted}
+                <span className="font-mono">{conflict.code}</span>: existing{" "}
+                {conflict.existing}, extracted {conflict.extracted}
               </p>
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">Keep Existing leaves the current value unchanged. Use Extracted is available per specification below.</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Keep Existing leaves the current value unchanged. Use Extracted is
+            available per specification below.
+          </p>
         </div>
       )}
 
@@ -503,7 +753,11 @@ export function AiSuggestionReviewCard({
                 <div className="space-y-0.5">
                   <p
                     className="text-xs font-semibold text-foreground truncate"
-                    title={editedCategory ?? suggestion.category.subcategoryName ?? suggestion.category.categoryName}
+                    title={
+                      editedCategory ??
+                      suggestion.category.subcategoryName ??
+                      suggestion.category.categoryName
+                    }
                   >
                     {editedCategory ??
                       suggestion.category.subcategoryName ??
@@ -521,7 +775,9 @@ export function AiSuggestionReviewCard({
                         <span>{suggestion.category.categoryName}</span>
                         <span>•</span>
                         <StatusBadge
-                          status={getStatusBadgeType(suggestion.category.confidenceLevel)}
+                          status={getStatusBadgeType(
+                            suggestion.category.confidenceLevel,
+                          )}
                           label={`${catConfidencePct}%`}
                         />
                       </>
@@ -536,11 +792,14 @@ export function AiSuggestionReviewCard({
                   <span className="font-semibold text-foreground text-[10px] uppercase tracking-wide">
                     Reasoning Evidence:
                   </span>
-                  {suggestion.category.evidence && suggestion.category.evidence.length > 0 ? (
+                  {suggestion.category.evidence &&
+                  suggestion.category.evidence.length > 0 ? (
                     <ul className="space-y-1 list-disc list-inside text-muted-foreground">
                       {suggestion.category.evidence.map((ev, i) => (
                         <li key={i} className="leading-tight">
-                          <span className="font-medium text-foreground">{ev.description}</span>
+                          <span className="font-medium text-foreground">
+                            {ev.description}
+                          </span>
                           {ev.source && (
                             <span className="ml-1 text-[9px] font-mono text-muted-foreground">
                               [{ev.source}]
@@ -550,7 +809,9 @@ export function AiSuggestionReviewCard({
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-muted-foreground italic">Statistical n-gram text match</p>
+                    <p className="text-muted-foreground italic">
+                      Statistical n-gram text match
+                    </p>
                   )}
                 </div>
               )}
@@ -593,9 +854,7 @@ export function AiSuggestionReviewCard({
 
               <div>
                 {acceptedFields.category ? (
-                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                    <Check className="size-3" /> Applied
-                  </span>
+                  <AppliedIndicator />
                 ) : (
                   <Button
                     type="button"
@@ -648,9 +907,14 @@ export function AiSuggestionReviewCard({
                 <div className="space-y-0.5">
                   <p
                     className="text-xs font-semibold text-foreground truncate"
-                    title={editedManufacturer ?? suggestion.manufacturer.manufacturerName ?? undefined}
+                    title={
+                      editedManufacturer ??
+                      suggestion.manufacturer.manufacturerName ??
+                      undefined
+                    }
                   >
-                    {editedManufacturer ?? suggestion.manufacturer.manufacturerName}
+                    {editedManufacturer ??
+                      suggestion.manufacturer.manufacturerName}
                   </p>
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     {editedManufacturer ? (
@@ -664,7 +928,9 @@ export function AiSuggestionReviewCard({
                         <span>Match: {suggestion.manufacturer.matchType}</span>
                         <span>•</span>
                         <StatusBadge
-                          status={getStatusBadgeType(suggestion.manufacturer.confidenceLevel)}
+                          status={getStatusBadgeType(
+                            suggestion.manufacturer.confidenceLevel,
+                          )}
                           label={`${mfgConfidencePct}%`}
                         />
                       </>
@@ -679,11 +945,14 @@ export function AiSuggestionReviewCard({
                   <span className="font-semibold text-foreground text-[10px] uppercase tracking-wide">
                     Reasoning Evidence:
                   </span>
-                  {suggestion.manufacturer.evidence && suggestion.manufacturer.evidence.length > 0 ? (
+                  {suggestion.manufacturer.evidence &&
+                  suggestion.manufacturer.evidence.length > 0 ? (
                     <ul className="space-y-1 list-disc list-inside text-muted-foreground">
                       {suggestion.manufacturer.evidence.map((ev, i) => (
                         <li key={i} className="leading-tight">
-                          <span className="font-medium text-foreground">{ev.description}</span>
+                          <span className="font-medium text-foreground">
+                            {ev.description}
+                          </span>
                           {ev.source && (
                             <span className="ml-1 text-[9px] font-mono text-muted-foreground">
                               [{ev.source}]
@@ -693,7 +962,9 @@ export function AiSuggestionReviewCard({
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-muted-foreground italic">Manufacturer catalog lookup</p>
+                    <p className="text-muted-foreground italic">
+                      Manufacturer catalog lookup
+                    </p>
                   )}
                 </div>
               )}
@@ -736,9 +1007,7 @@ export function AiSuggestionReviewCard({
 
               <div>
                 {acceptedFields.manufacturer ? (
-                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                    <Check className="size-3" /> Applied
-                  </span>
+                  <AppliedIndicator />
                 ) : (
                   <Button
                     type="button"
@@ -764,15 +1033,18 @@ export function AiSuggestionReviewCard({
               <Layers className="size-3.5 text-primary" />
               Extracted Specifications ({attrEntries.length})
             </span>
-            {onApplyAttributes && (
-              <button
-                type="button"
-                onClick={() => onApplyAttributes(suggestion.attributes)}
-                className="text-[11px] font-medium text-primary hover:underline"
-              >
-                Apply specifications only
-              </button>
-            )}
+            {onApplyAttributes &&
+              (allAttributesApplied ? (
+                <AppliedIndicator />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleApplySpecifications()}
+                  className="text-[11px] font-medium text-primary hover:underline"
+                >
+                  Apply specifications only
+                </button>
+              ))}
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -783,17 +1055,24 @@ export function AiSuggestionReviewCard({
                 return (
                   <span
                     key={code}
-                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1 text-xs font-mono shadow-2xs ${isAccepted
-                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                      : "border-border bg-background/90 text-foreground"
-                      }`}
-                    title={attr.evidence?.[0]?.description || `Extracted ${code}`}
+                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1 text-xs font-mono shadow-2xs ${
+                      isAccepted
+                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                        : "border-border bg-background/90 text-foreground"
+                    }`}
+                    title={
+                      attr.evidence?.[0]?.description || `Extracted ${code}`
+                    }
                   >
-                    <span className="text-muted-foreground uppercase text-[10px] tracking-wide">{code}:</span>
+                    <span className="text-muted-foreground uppercase text-[10px] tracking-wide">
+                      {code}:
+                    </span>
                     <span className="font-semibold">{attr.formatted}</span>
-                      {attr.resolution === "UNRESOLVED" && (
-                        <span className="text-[10px] text-amber-600">Unresolved</span>
-                      )}
+                    {attr.resolution === "UNRESOLVED" && (
+                      <span className="text-[10px] text-amber-600">
+                        Unresolved
+                      </span>
+                    )}
                     {isAccepted ? (
                       <Check className="size-3 text-emerald-400" />
                     ) : (
@@ -801,7 +1080,9 @@ export function AiSuggestionReviewCard({
                         {onApplySingleAttribute && (
                           <button
                             type="button"
-                            onClick={() => handleAcceptSingleAttribute(code, attr)}
+                            onClick={() =>
+                              handleAcceptSingleAttribute(code, attr)
+                            }
                             className="hover:text-emerald-400 p-0.5 text-muted-foreground transition-colors"
                             title={`Accept ${code}`}
                           >
@@ -811,7 +1092,9 @@ export function AiSuggestionReviewCard({
                         {onRejectAttribute && (
                           <button
                             type="button"
-                            onClick={() => handleRejectSingleAttribute(code, attr)}
+                            onClick={() =>
+                              handleRejectSingleAttribute(code, attr)
+                            }
                             className="hover:text-rose-400 p-0.5 text-muted-foreground transition-colors"
                             title={`Reject ${code}`}
                           >
@@ -831,18 +1114,23 @@ export function AiSuggestionReviewCard({
       <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-primary/15">
         <span className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-background/80 px-2.5 text-[11px] font-mono text-muted-foreground border border-border">
           <Cpu className="size-3 text-primary" />
-          {suggestion.isMlActive ? "Ananya ML" : "Deterministic Engine"} • {suggestion.executionTimeMs}ms
+          {suggestion.isMlActive ? "Ananya ML" : "Deterministic Engine"} •{" "}
+          {suggestion.executionTimeMs}ms
         </span>
 
-        <Button
-          type="button"
-          size="sm"
-          onClick={handleAcceptAll}
-          className="h-7 text-xs font-medium px-3 gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
-        >
-          <Check className="size-3.5" />
-          Apply All Suggestions
-        </Button>
+        {allSuggestionsApplied ? (
+          <AppliedIndicator />
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleAcceptAll}
+            className="h-7 text-xs font-medium px-3 gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            <Check className="size-3.5" />
+            Apply All Suggestions
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -544,6 +544,9 @@ export function ComponentForm({
         partNumber: watch("manufacturerPartNumber") || undefined,
         description: watch("name") || datasheetInput || undefined,
         datasheetText: datasheetInput || undefined,
+        // Editing an existing record: the component must not be compared with
+        // itself, or it is reported as its own duplicate.
+        componentId: initialData?.id,
       });
       setSuggestion(res);
       setUnresolvedSuggestedAttributes(
