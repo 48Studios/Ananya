@@ -241,6 +241,12 @@ def cmd_train(args: argparse.Namespace) -> None:
         run_independent_training_pipeline(version=args.version, auto_deploy=not args.no_deploy)
         return
 
+    try:
+        from .tui import emit_event, JobStartedEvent
+        emit_event(JobStartedEvent(job_type="TRAINING", model_name=f"category-v{args.version}"))
+    except Exception:
+        pass
+
     with open(args.train_path, "r", encoding="utf-8") as f:
         train_samples = json.load(f)
 
@@ -270,6 +276,12 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     if not os.path.exists(model_path):
         print(f"Error: Candidate model not found at {model_path}")
         sys.exit(1)
+
+    try:
+        from .tui import emit_event, JobStartedEvent
+        emit_event(JobStartedEvent(job_type="EVALUATION", model_name=f"category-v{args.version}"))
+    except Exception:
+        pass
 
     with open(model_path, "rb") as f:
         model = pickle.load(f)
@@ -350,12 +362,41 @@ def cmd_collect(args: argparse.Namespace) -> None:
     if getattr(args, "continuous", False):
         interval = getattr(args, "interval", 3600)
         print(f"Starting continuous collection mode (polling every {interval}s). Press Ctrl+C to stop.")
+        cycle_num = 1
         try:
             while True:
                 ts = datetime.now(timezone.utc).isoformat()
                 print(f"\n[Cycle Started: {ts}]")
+                try:
+                    from .tui import emit_event, ContinuousCycleEvent
+                    emit_event(
+                        ContinuousCycleEvent(
+                            cycle_number=cycle_num,
+                            interval_seconds=interval,
+                            next_run_ts=time.time() + interval,
+                            last_run_status="running",
+                        )
+                    )
+                except Exception:
+                    pass
+
                 run_once()
+
+                try:
+                    from .tui import emit_event, ContinuousCycleEvent
+                    emit_event(
+                        ContinuousCycleEvent(
+                            cycle_number=cycle_num,
+                            interval_seconds=interval,
+                            next_run_ts=time.time() + interval,
+                            last_run_status="completed",
+                        )
+                    )
+                except Exception:
+                    pass
+
                 print(f"Cycle finished. Sleeping for {interval}s...")
+                cycle_num += 1
                 time.sleep(interval)
         except KeyboardInterrupt:
             print("\nContinuous collection stopped by user.")
@@ -370,11 +411,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("-q", "--quiet", action="store_true", default=False, help="Suppress live progress output")
     parser.add_argument("-v", "--verbose", action="store_true", default=False, help="Verbose output mode")
+    parser.add_argument("--tui", dest="tui", action="store_true", default=None, help="Enable Rich live TUI dashboard")
+    parser.add_argument("--no-tui", dest="tui", action="store_false", help="Disable Rich TUI dashboard (use standard logging)")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     def add_common_flags(p: argparse.ArgumentParser) -> None:
         p.add_argument("-q", "--quiet", action="store_true", default=argparse.SUPPRESS, help="Suppress live progress output")
         p.add_argument("-v", "--verbose", action="store_true", default=argparse.SUPPRESS, help="Verbose output mode")
+        p.add_argument("--tui", dest="tui", action="store_true", default=argparse.SUPPRESS, help="Enable Rich live TUI dashboard")
+        p.add_argument("--no-tui", dest="tui", action="store_false", default=argparse.SUPPRESS, help="Disable Rich TUI dashboard")
 
     # collect
     def setup_collect_args(p: argparse.ArgumentParser) -> None:
@@ -493,6 +538,18 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def should_use_tui(args: argparse.Namespace) -> bool:
+    """Determines whether to present the Rich Live TUI based on flags and terminal state."""
+    explicit_tui = getattr(args, "tui", None)
+    if explicit_tui is False:
+        return False
+    if explicit_tui is True:
+        return True
+    quiet = getattr(args, "quiet", False)
+    verbose = getattr(args, "verbose", False)
+    return sys.stdout.isatty() and not quiet and not verbose
+
+
 def main() -> None:
     # Handle composite commands like "data inspect" -> "data-inspect"
     args_list = sys.argv[1:]
@@ -506,7 +563,23 @@ def main() -> None:
 
     parsed = parser.parse_args(args_list)
     if hasattr(parsed, "func"):
-        parsed.func(parsed)
+        tui_eligible_commands = (
+            "collect",
+            "data-collect",
+            "train",
+            "evaluate",
+            "data-validate",
+            "data-normalize",
+            "data-dedupe",
+            "dataset-build",
+            "dataset-split",
+        )
+        if getattr(parsed, "command", "") in tui_eligible_commands and should_use_tui(parsed):
+            from .tui import TrainerTUI
+            tui = TrainerTUI()
+            tui.run_job(parsed.func, parsed)
+        else:
+            parsed.func(parsed)
     else:
         parser.print_help()
 

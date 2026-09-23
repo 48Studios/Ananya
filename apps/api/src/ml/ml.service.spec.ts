@@ -581,6 +581,45 @@ describe('MlService', () => {
     ]);
   });
 
+  /**
+   * An uncertain prediction still reports the row it resolved.
+   *
+   * The model answers UNKNOWN for a low-confidence or ambiguous match, naming
+   * the family it considered — and that family is a real ERP row, resolved here
+   * against the same list the model was sent. The id is what the Add/Edit form
+   * selects the category by, so it is reported whatever the label says: a form
+   * that read the label instead is what made an AI category apply silently
+   * select nothing for a category the ERP already held.
+   */
+  it('keeps the resolved row for an uncertain prediction', async () => {
+    withCategories([ELEC_ROW, CAP_ROW]);
+    (clientMock.suggest as jest.Mock).mockResolvedValueOnce({
+      category_predictions: [
+        {
+          category: 'Capacitors',
+          subcategory: 'Capacitors',
+          resolution: 'UNKNOWN',
+          category_id: null,
+          category_code: null,
+          category_path: [],
+          confidence: 0.0,
+          confidence_level: 'LOW',
+        },
+      ],
+      manufacturer: { manufacturer: null, confidence: 0, match_type: 'none' },
+      duplicates: { is_duplicate: false, matches: [] },
+      extracted_attributes: {},
+      execution_time_ms: 1,
+    });
+
+    const result = await service.suggest({ query: '100nF 50V ceramic' });
+
+    expect(result.category?.resolution).toBe('UNKNOWN');
+    expect(result.category?.categoryId).toBe(CAP_ROW.id);
+    expect(result.category?.categoryCode).toBe('CAP');
+    expect(result.category?.parentCategoryId).toBe(ELEC_ROW.id);
+  });
+
   it('prefers the Data Pack category when two categories share a name', async () => {
     // The live library holds two "Resistors" rows: the pack's family category
     // under Electronic Components, and an empty root duplicate the ML happened

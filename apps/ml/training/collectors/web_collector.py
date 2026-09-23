@@ -131,6 +131,23 @@ class AutonomousWebCollector(BaseCollector):
             "products_extracted": 0,
         }
 
+        try:
+            from ..tui import emit_event, JobStartedEvent, ResumeHydratedEvent
+            emit_event(JobStartedEvent(job_type="COLLECTION", total_sources=len(sources)))
+            if resume and self.acquisition_store:
+                records_map = getattr(self.acquisition_store, "_records", {})
+                cached_cnt = sum(1 for r in records_map.values() if getattr(r, "is_cached", False) or getattr(r, "processing_status", "") in ("DOWNLOADED", "PROCESSED"))
+                emit_event(
+                    ResumeHydratedEvent(
+                        cached_records=cached_cnt,
+                        previously_fetched=len(records_map),
+                        completed_sources=0,
+                        pending_sources=len(sources),
+                    )
+                )
+        except Exception:
+            pass
+
         total_sources = len(sources)
         for idx, source in enumerate(sources, 1):
             try:
@@ -223,6 +240,20 @@ class AutonomousWebCollector(BaseCollector):
         if download_res.error:
             with self._stats_lock:
                 stats["failed"] += 1
+            try:
+                from ..tui import emit_event, FailureEvent
+                ftype = download_res.error.split(":")[0] if ":" in download_res.error else "DOWNLOAD_ERROR"
+                emit_event(
+                    FailureEvent(
+                        source_id=source.id,
+                        failure_type=ftype,
+                        url=canonical,
+                        error=download_res.error,
+                        status_code=download_res.status_code,
+                    )
+                )
+            except Exception:
+                pass
             return None
 
         if download_res.is_cached:
@@ -446,6 +477,19 @@ class AutonomousWebCollector(BaseCollector):
         if not quiet:
             print(f"\nSource {source_idx}/{total_sources}: {source.id}")
 
+        try:
+            from ..tui import emit_event, SourceStartedEvent
+            emit_event(
+                SourceStartedEvent(
+                    source_id=source.id,
+                    source_name=source.name,
+                    source_index=source_idx,
+                    total_sources=total_sources,
+                )
+            )
+        except Exception:
+            pass
+
         start_failures = stats.get("failed", 0)
         start_pdfs = stats.get("pdfs", 0)
 
@@ -628,6 +672,21 @@ class AutonomousWebCollector(BaseCollector):
             "failures": failures_count,
             "reason": reason,
         }
+
+        try:
+            from ..tui import emit_event, SourceCompletedEvent
+            emit_event(
+                SourceCompletedEvent(
+                    source_id=source.id,
+                    status=status,
+                    products=products_count,
+                    documents=docs_count,
+                    failures=failures_count,
+                    reason=reason,
+                )
+            )
+        except Exception:
+            pass
 
         return extracted
 

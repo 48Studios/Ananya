@@ -212,6 +212,31 @@ export function EntitySelector({
     loadOptions();
   }, [loadOptions]);
 
+  /**
+   * The value the list has already been re-read for.
+   *
+   * Options are loaded once, but a value can arrive from outside the picker: an
+   * accepted AI suggestion, a component opened in an edit dialog, or a record
+   * created since the form was opened. Without the matching option the trigger
+   * could not render a label for the id it holds, so the list is read again —
+   * once per unseen value, which is what keeps this from becoming a loop when
+   * the record genuinely does not exist.
+   */
+  const hydratedValueRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!value) {
+      hydratedValueRef.current = null;
+      return;
+    }
+    // A read is already in flight: its result decides, not this render.
+    if (loading) return;
+    if (options.some((option) => option.value === value)) return;
+    if (hydratedValueRef.current === value) return;
+    hydratedValueRef.current = value;
+    void loadOptions();
+  }, [value, options, loading, loadOptions]);
+
   const filteredOptions = React.useMemo(() => {
     if (!search.trim()) return options;
     const q = search.toLowerCase().trim();
@@ -317,8 +342,18 @@ export function EntitySelector({
   };
 
   const selectedOption = options.find((opt) => opt.value === value);
+  /**
+   * The suggestion's own label for the value the form holds.
+   *
+   * Matched on the VALUE rather than on the resolution label, because the label
+   * the backend gives a suggestion describes how confident it is, not whether
+   * the id it resolved is real — an id that matches the selected value IS that
+   * record, so showing its name can never be wrong. This is also the fallback
+   * that keeps a selected category readable while the option list is still
+   * being read.
+   */
   const aiSelectedOption =
-    value && aiSuggestion?.resolution === "EXISTING" && aiSuggestion.value === value
+    value && aiSuggestion && aiSuggestion.value === value
       ? { label: aiSuggestion.label, sublabel: "" }
       : null;
   const displayedOption = selectedOption ?? aiSelectedOption;

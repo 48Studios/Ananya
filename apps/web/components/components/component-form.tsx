@@ -16,9 +16,11 @@ import {
 import { mlApi, type ComponentSuggestionResponseDto } from "@/lib/api/ml-api";
 import type { AttributeSuggestionDto } from "@/lib/api/ml-api";
 import {
+  appliedSuggestionDefinitionIds,
   attributeValuePatch,
-  canAcceptSuggestion,
+  canApplySuggestionInBulk,
 } from "@/lib/attribute-suggestions";
+import type { FormAttributeValue } from "@/lib/attribute-value-equivalence";
 import { AttributeSuggestionsPanel } from "./attribute-suggestions-panel";
 import { AiSuggestionReviewCard } from "./ai-suggestion-review-card";
 import { Button } from "@/components/ui/button";
@@ -216,9 +218,6 @@ export function ComponentForm({
     attributeIntelligenceUnavailable,
     setAttributeIntelligenceUnavailable,
   ] = React.useState(false);
-  const [appliedSuggestionIds, setAppliedSuggestionIds] = React.useState<
-    ReadonlySet<string>
-  >(new Set());
   /**
    * Which intelligence request is the current one.
    *
@@ -322,6 +321,107 @@ export function ComponentForm({
 
     return Array.from(byIdentity.values());
   }, [attributeDefinitions, attrValues, categoryAttributes]);
+
+  /**
+   * The form's attribute values by definition id.
+   *
+   * The form is the authoritative side of every applied/conflict verdict, and
+   * the definition id is the identity a suggestion is keyed by, so the values
+   * are indexed by it rather than by the code the editor happens to hold them
+   * under.
+   */
+  const formAttributeValues = React.useMemo(() => {
+    const byDefinitionId = new Map<string, FormAttributeValue>();
+    for (const entry of Object.values(attrValues)) {
+      if (!entry.attributeDefinitionId) continue;
+      byDefinitionId.set(entry.attributeDefinitionId, entry);
+    }
+    return byDefinitionId;
+  }, [attrValues]);
+
+  /**
+   * The attribute suggestions the form already holds the value of.
+   *
+   * Derived on every render, never remembered. This is what makes "Applied"
+   * survive an intelligence refresh, a category re-conditioning, an edit in the
+   * attribute editor and a reopened component: in all four cases the form still
+   * holds the value, so the verdict is recomputed rather than reset. A flag set
+   * at click time could only ever describe the analysis it was set against —
+   * which is why applying a category used to make applied rows look unapplied
+   * again.
+   */
+  const appliedSuggestionIds = React.useMemo(
+    () =>
+      appliedSuggestionDefinitionIds(
+        attributeSuggestions,
+        formAttributeValues,
+        unitCatalog,
+      ),
+    [attributeSuggestions, formAttributeValues, unitCatalog],
+  );
+
+  /**
+   * The intelligence card's applied state, derived from the form.
+   *
+   * The same rule the attribute rows use: a field is applied when the form
+   * currently holds the value the suggestion proposed. Derived rather than
+   * recorded at click time, so a category change — which re-runs the analysis
+   * and hands the card a new suggestion object — cannot make an applied field
+   * look unapplied again.
+   *
+   * A field the reviewer typed over simply stops counting, which is the honest
+   * answer: the form no longer holds what was proposed. An entity applied by
+   * name counts as applied too, because that is how a category or manufacturer
+   * the ERP does not hold yet is carried until save.
+   *
+   * Deliberately not memoized: it reads the live field values, and a memo keyed
+   * on anything narrower would go stale as the reviewer types.
+   */
+  const proposedCategoryName =
+    suggestion?.category?.subcategoryName ||
+    suggestion?.category?.categoryName ||
+    "";
+  const proposedManufacturerName =
+    suggestion?.manufacturer?.manufacturerName ?? "";
+  const normalizeEntityName = (value: string) => value.trim().toLowerCase();
+  const heldCategoryName =
+    pendingCategory?.name ??
+    assignableCategories.find(
+      (category) => category.id === watch("categoryId"),
+    )?.name ??
+    "";
+  const heldManufacturerName =
+    pendingManufacturer?.name ??
+    assignableManufacturers.find(
+      (manufacturer) => manufacturer.id === watch("manufacturerId"),
+    )?.name ??
+    "";
+  const appliedSuggestionFields: Record<string, boolean> = suggestion
+    ? {
+        mpn:
+          Boolean(suggestion.manufacturerPartNumber) &&
+          watch("manufacturerPartNumber") === suggestion.manufacturerPartNumber,
+        name:
+          Boolean(suggestion.suggestedName) &&
+          watch("name") === suggestion.suggestedName,
+        description:
+          Boolean(suggestion.suggestedDescription) &&
+          watch("description") === suggestion.suggestedDescription,
+        category:
+          (Boolean(suggestion.category?.categoryId) &&
+            watch("categoryId") === suggestion.category?.categoryId) ||
+          (Boolean(proposedCategoryName) &&
+            normalizeEntityName(heldCategoryName) ===
+              normalizeEntityName(proposedCategoryName)),
+        manufacturer:
+          (Boolean(suggestion.manufacturer?.manufacturerId) &&
+            watch("manufacturerId") ===
+              suggestion.manufacturer?.manufacturerId) ||
+          (Boolean(proposedManufacturerName) &&
+            normalizeEntityName(heldManufacturerName) ===
+              normalizeEntityName(proposedManufacturerName)),
+      }
+    : {};
 
   // Initialize form and attribute state from initialData
   React.useEffect(() => {
@@ -579,21 +679,27 @@ export function ComponentForm({
       (includeReviewerChoices || !manufacturerChosenByReviewer) &&
       (overwrite || (!currentManufacturerId && !pendingManufacturer))
     ) {
-      if (
-        nextSuggestion.manufacturer.resolution === "EXISTING" &&
-        nextSuggestion.manufacturer.manufacturerId
-      ) {
-        setValue("manufacturerId", nextSuggestion.manufacturer.manufacturerId, {
+      const { manufacturerId, manufacturerName } = nextSuggestion.manufacturer;
+      if (manufacturerId) {
+        // The row the backend resolved, selected by its own id.
+        //
+        // Deliberately independent of the resolution label: the backend
+        // resolves a prediction against the ERP list it was sent, so an id it
+        // reports is a record that exists, whether the model called the match
+        // confident (EXISTING), uncertain (UNKNOWN) or new (NEW_CANDIDATE).
+        // Branching on the label instead is what made an apply silently do
+        // nothing for a category the ERP already holds.
+        setValue("manufacturerId", manufacturerId, {
           shouldDirty: true,
           shouldValidate: true,
         });
         setPendingManufacturer(null);
-      } else if (nextSuggestion.manufacturer.resolution === "NEW_CANDIDATE") {
+      } else if (manufacturerName) {
         // The model proposed a name; the ERP may already hold it. Resolving it
         // here is what keeps the field from claiming "NEW" beside a record that
         // exists and will be bound on save.
         const existing = findAssignableEntity({
-          typedName: nextSuggestion.manufacturer.manufacturerName ?? "",
+          typedName: manufacturerName,
           entities: assignableManufacturers,
         });
         setValue("manufacturerId", existing?.id ?? null, {
@@ -604,11 +710,13 @@ export function ComponentForm({
           existing
             ? null
             : {
-                name: nextSuggestion.manufacturer.manufacturerName,
+                name: manufacturerName,
                 code: nextSuggestion.manufacturer.manufacturerCode,
               },
         );
       }
+      // Neither an id nor a name: nothing was proposed, so the field is left as
+      // the reviewer has it rather than being cleared.
     }
 
     if (
@@ -616,19 +724,19 @@ export function ComponentForm({
       (includeReviewerChoices || !categoryChosenByReviewer) &&
       (overwrite || (!currentCategoryId && !pendingCategory))
     ) {
-      if (
-        nextSuggestion.category.resolution === "EXISTING" &&
-        nextSuggestion.category.categoryId
-      ) {
+      const proposedName =
+        nextSuggestion.category.subcategoryName ||
+        nextSuggestion.category.categoryName;
+      if (nextSuggestion.category.categoryId) {
+        // Same rule as the manufacturer above: a resolved id is the stable
+        // identity of a real row and is selected as it stands, so AI Apply,
+        // Edit → Save and a manual pick all end in the same form state.
         setValue("categoryId", nextSuggestion.category.categoryId, {
           shouldDirty: true,
           shouldValidate: true,
         });
         setPendingCategory(null);
-      } else if (nextSuggestion.category.resolution === "NEW_CANDIDATE") {
-        const proposedName =
-          nextSuggestion.category.subcategoryName ||
-          nextSuggestion.category.categoryName;
+      } else if (proposedName) {
         const existing = findAssignableEntity({
           typedName: proposedName,
           entities: assignableCategories,
@@ -652,6 +760,7 @@ export function ComponentForm({
               },
         );
       }
+      // No id and no name: the model named nothing this field can hold.
     }
   };
 
@@ -686,8 +795,9 @@ export function ComponentForm({
       suggestionsCategoryRef.current = selectedCategoryId ?? null;
       setSuggestion(res);
       setAttributeSuggestions(res.attributeSuggestions ?? []);
-      // The applied markers belong to the analysis that produced them.
-      setAppliedSuggestionIds(new Set());
+      // Nothing about the applied rows is reset here: whether a suggestion has
+      // been applied is derived from the values the form holds, so a fresh
+      // analysis re-states the same answer instead of erasing it.
       setUnresolvedSuggestedAttributes(
         Object.fromEntries(
           Object.entries(res.attributes)
@@ -739,11 +849,11 @@ export function ComponentForm({
       ...prev,
       [suggestion.code]: { ...prev[suggestion.code], ...patch },
     }));
-    setAppliedSuggestionIds((prev) => {
-      const next = new Set(prev);
-      next.add(suggestion.attributeDefinitionId);
-      return next;
-    });
+    // No applied marker is written: the value just written into the form IS the
+    // record that the suggestion has been applied, and the row's state is read
+    // back out of it. That is what keeps the state correct after the value is
+    // edited by hand, replaced by another suggestion, or reloaded with the
+    // component.
     void recordAttributeSuggestionFeedback(suggestion, "ACCEPTED", patch.value);
   };
 
@@ -949,16 +1059,19 @@ export function ComponentForm({
    * used to read the raw extraction record and write its own shape into the
    * attribute state, which is how one value ended up with two writers.
    *
-   * The eligible set excludes a conflict (the reviewer must decide) and a value
-   * the component already records, and it is computed from the same rule the
-   * rows use — never a second, looser filter.
+   * The eligible set excludes a conflict (the reviewer must decide), a value the
+   * component already records, and a value the reviewer has already entered —
+   * applying is never permission to overwrite a correction. It is computed from
+   * the same rule the rows use, never a second, looser filter.
    */
   const applyEligibleSpecifications = () => {
     applyAttributeSuggestions(
-      attributeSuggestions.filter(
-        (suggestion) =>
-          canAcceptSuggestion(suggestion) &&
-          !appliedSuggestionIds.has(suggestion.attributeDefinitionId),
+      attributeSuggestions.filter((suggestion) =>
+        canApplySuggestionInBulk(
+          suggestion,
+          formAttributeValues.get(suggestion.attributeDefinitionId),
+          unitCatalog,
+        ),
       ),
     );
   };
@@ -973,12 +1086,14 @@ export function ComponentForm({
    */
   const appliableSuggestions = React.useMemo(
     () =>
-      attributeSuggestions.filter(
-        (suggestion) =>
-          canAcceptSuggestion(suggestion) &&
-          !appliedSuggestionIds.has(suggestion.attributeDefinitionId),
+      attributeSuggestions.filter((suggestion) =>
+        canApplySuggestionInBulk(
+          suggestion,
+          formAttributeValues.get(suggestion.attributeDefinitionId),
+          unitCatalog,
+        ),
       ),
-    [attributeSuggestions, appliedSuggestionIds],
+    [attributeSuggestions, formAttributeValues, unitCatalog],
   );
   const appliableSuggestionCount = appliableSuggestions.length;
   /**
@@ -1083,7 +1198,6 @@ export function ComponentForm({
       }
     }
   };
-  console.log("attrValues", suggestion);
 
   return (
     <form
@@ -1217,6 +1331,7 @@ export function ComponentForm({
             onApplySpecifications={applyEligibleSpecifications}
             specificationsAppliableCount={appliableSuggestionCount}
             specificationsApplied={allEligibleSuggestionsApplied}
+            appliedFields={appliedSuggestionFields}
             attributeSuggestionsSlot={
               <AttributeSuggestionsPanel
                 embedded
@@ -1225,7 +1340,8 @@ export function ComponentForm({
                 unavailable={attributeIntelligenceUnavailable}
                 hasCategory={Boolean(selectedCategoryId)}
                 definitionIds={definitionIds}
-                appliedDefinitionIds={appliedSuggestionIds}
+                currentValues={formAttributeValues}
+                units={unitCatalog}
                 onApply={applyAttributeSuggestion}
                 onEdit={editAttributeSuggestion}
                 onReject={rejectAttributeSuggestion}

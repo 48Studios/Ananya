@@ -130,6 +130,19 @@ class ModelEvaluator:
             "promotion_eligible": all_passed,
         }
 
+        try:
+            from ..tui import emit_event, EvaluationUpdateEvent
+            emit_event(
+                EvaluationUpdateEvent(
+                    candidate_version=candidate_version,
+                    metrics=dict(report["metrics"]),
+                    quality_gates=dict(report["quality_gates"]),
+                    promotion_eligible=bool(report["promotion_eligible"]),
+                )
+            )
+        except Exception:
+            pass
+
         if output_dir:
             out_p = Path(output_dir)
             out_p.mkdir(parents=True, exist_ok=True)

@@ -66,6 +66,16 @@ interface AiSuggestionReviewCardProps {
   specificationsAppliableCount?: number;
   /** True once every eligible suggestion has been applied. */
   specificationsApplied?: boolean;
+  /**
+   * Which fields the form currently holds the suggestion's value for.
+   *
+   * Derived by the form from the values it holds, never recorded here at click
+   * time: a category change re-runs the analysis, and a field that has been
+   * applied has to stay applied — the form still holds the value, so the
+   * verdict is recomputed instead of being reset. A remembered marker could
+   * only ever describe the analysis it was set against.
+   */
+  appliedFields?: Record<string, boolean>;
   onDismiss: () => void;
 }
 
@@ -105,6 +115,7 @@ export function AiSuggestionReviewCard({
   onApplySpecifications,
   specificationsAppliableCount = 0,
   specificationsApplied = false,
+  appliedFields = {},
   onDismiss,
 }: AiSuggestionReviewCardProps) {
   // Local states for "Why?" evidence inspection
@@ -135,16 +146,10 @@ export function AiSuggestionReviewCard({
     // A different suggestion starts from its own values, not the previous edit.
     setEditedCategory(null);
     setEditedManufacturer(null);
-    // The applied state belongs to the suggestion it was recorded for: a new
-    // analysis must not keep claiming fields the reviewer has not applied yet.
-    setAcceptedFields({});
   }, [suggestion]);
 
   // Field dismissed / rejected state
   const [rejectedFields, setRejectedFields] = React.useState<
-    Record<string, boolean>
-  >({});
-  const [acceptedFields, setAcceptedFields] = React.useState<
     Record<string, boolean>
   >({});
   /**
@@ -167,42 +172,62 @@ export function AiSuggestionReviewCard({
     null;
 
   /**
-   * Records which fields have been written into the form.
+   * Whether a field has the suggestion's value in the form.
    *
-   * Applying a suggestion only mutated the form fields below the card, so a
-   * click looked like it had done nothing at all. Every apply action now reports
-   * the fields it applied and the matching row renders that state.
+   * Read from what the form holds (`appliedFields`) rather than remembered from
+   * the click, so an intelligence refresh — which re-runs the analysis and hands
+   * this card a new suggestion object — cannot make an applied field look
+   * unapplied. A field the reviewer corrected is applied too: the form carries
+   * their value, and the row says so beside the model's.
    */
-  const markApplied = (fields: string[]) => {
-    setAcceptedFields((prev) => {
-      const next = { ...prev };
-      for (const field of fields) {
-        next[field] = true;
-      }
-      return next;
-    });
+  const isFieldApplied = (field: string) => {
+    if (field === "specifications") return specificationsApplied;
+    if (field === "category") {
+      return Boolean(appliedFields.category) || editedCategory !== null;
+    }
+    if (field === "manufacturer") {
+      return Boolean(appliedFields.manufacturer) || editedManufacturer !== null;
+    }
+    return Boolean(appliedFields[field]);
   };
 
   /**
-   * Every field the card can write into the form.
+   * The fields the suggestion actually proposes.
    *
-   * The specifications are one field here rather than one per attribute: they
-   * are applied by the attribute-suggestions panel, which reports its own state
-   * per row, so the card tracks whether the group as a whole has been applied.
+   * A field the analysis determined nothing for has nothing to apply, so it
+   * never shows an applied state and never keeps the card from reporting that
+   * everything it did propose has reached the form.
    */
-  const appliedFieldKeys = [
+  const proposedFieldKeys = [
     "mpn",
     "name",
     "description",
     "category",
     "manufacturer",
-    "specifications",
-  ];
-  const allSuggestionsApplied = appliedFieldKeys.every((field) =>
-    field === "specifications"
-      ? acceptedFields[field] || specificationsApplied
-      : acceptedFields[field],
+  ].filter((field) =>
+    field === "mpn"
+      ? Boolean(suggestion.manufacturerPartNumber)
+      : field === "name"
+        ? Boolean(suggestion.suggestedName)
+        : field === "description"
+          ? Boolean(suggestion.suggestedDescription)
+          : field === "category"
+            ? Boolean(suggestion.category)
+            : Boolean(suggestion.manufacturer),
   );
+  const specificationsProposed =
+    specificationsAppliableCount > 0 || specificationsApplied;
+  /**
+   * True once everything the card proposed is in the form.
+   *
+   * The specifications are one field here rather than one per attribute: they
+   * are applied by the attribute-suggestions panel, which reports its own state
+   * per row, so the card tracks whether the group as a whole has been applied.
+   */
+  const allSuggestionsApplied =
+    (proposedFieldKeys.length > 0 || specificationsProposed) &&
+    proposedFieldKeys.every((field) => isFieldApplied(field)) &&
+    (!specificationsProposed || specificationsApplied);
   const allSpecificationsApplied = specificationsApplied;
 
   const toggleWhy = (fieldKey: string) => {
@@ -248,7 +273,6 @@ export function AiSuggestionReviewCard({
   };
 
   const handleAcceptCategory = () => {
-    setAcceptedFields((prev) => ({ ...prev, category: true }));
     // Accepting the suggestion replaces any earlier correction for this field.
     setEditedCategory(null);
     recordFeedbackEvent(
@@ -281,7 +305,6 @@ export function AiSuggestionReviewCard({
 
   const handleSaveEditCategory = () => {
     setEditingCategory(false);
-    setAcceptedFields((prev) => ({ ...prev, category: true }));
     recordFeedbackEvent(
       "CATEGORY",
       "category",
@@ -300,7 +323,6 @@ export function AiSuggestionReviewCard({
   };
 
   const handleAcceptManufacturer = () => {
-    setAcceptedFields((prev) => ({ ...prev, manufacturer: true }));
     setEditedManufacturer(null);
     recordFeedbackEvent(
       "MANUFACTURER",
@@ -332,7 +354,6 @@ export function AiSuggestionReviewCard({
 
   const handleSaveEditManufacturer = () => {
     setEditingManufacturer(false);
-    setAcceptedFields((prev) => ({ ...prev, manufacturer: true }));
     recordFeedbackEvent(
       "MANUFACTURER",
       "manufacturer",
@@ -350,9 +371,6 @@ export function AiSuggestionReviewCard({
   };
 
   const handleAcceptAll = () => {
-    // Everything the card offers lands in the form, so every row confirms it.
-    markApplied(appliedFieldKeys);
-
     // Record feedback for all items
     if (suggestion.manufacturerPartNumber) {
       recordFeedbackEvent(
@@ -387,7 +405,7 @@ export function AiSuggestionReviewCard({
     if (
       suggestion.category &&
       !rejectedFields.category &&
-      !acceptedFields.category
+      !isFieldApplied("category")
     ) {
       recordFeedbackEvent(
         "CATEGORY",
@@ -403,7 +421,7 @@ export function AiSuggestionReviewCard({
     if (
       suggestion.manufacturer &&
       !rejectedFields.manufacturer &&
-      !acceptedFields.manufacturer
+      !isFieldApplied("manufacturer")
     ) {
       recordFeedbackEvent(
         "MANUFACTURER",
@@ -428,7 +446,6 @@ export function AiSuggestionReviewCard({
    * logs, which is what keeps the two paths equivalent for the model.
    */
   const handleApplyIdentity = () => {
-    markApplied(["mpn"]);
     recordFeedbackEvent(
       "MPN",
       "manufacturerPartNumber",
@@ -442,7 +459,6 @@ export function AiSuggestionReviewCard({
   const handleApplyClassification = () => {
     // The classification IS the category suggestion: it lands in the same field
     // and shows the same applied state as the Category row's own Apply.
-    markApplied(["category"]);
     setEditedCategory(null);
     recordFeedbackEvent(
       "CATEGORY",
@@ -458,7 +474,6 @@ export function AiSuggestionReviewCard({
   };
 
   const handleApplyNameDescription = () => {
-    markApplied(["name", "description"]);
     if (suggestion.suggestedName) {
       recordFeedbackEvent(
         "NAME",
@@ -485,7 +500,6 @@ export function AiSuggestionReviewCard({
     // the form's attribute state — the same path an individual Accept uses.
     // There is no second writer here, and the card records no per-attribute
     // feedback of its own: the panel does that for the rows it applied.
-    markApplied(["specifications"]);
     onApplySpecifications?.();
   };
 
@@ -576,7 +590,7 @@ export function AiSuggestionReviewCard({
             <p className="mt-1 font-mono text-xs font-semibold">
               {suggestion.manufacturerPartNumber || "Not identified"}
             </p>
-            {acceptedFields.mpn && (
+            {isFieldApplied("mpn") && (
               <AppliedIndicator className="mt-1.5 w-fit" />
             )}
           </div>
@@ -587,7 +601,7 @@ export function AiSuggestionReviewCard({
             <p className="mt-1 text-xs font-semibold">
               {suggestion.suggestedName || "Not generated"}
             </p>
-            {acceptedFields.name && (
+            {isFieldApplied("name") && (
               <AppliedIndicator className="mt-1.5 w-fit" />
             )}
           </div>
@@ -598,7 +612,7 @@ export function AiSuggestionReviewCard({
             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
               {suggestion.suggestedDescription || "Not generated"}
             </p>
-            {acceptedFields.description && (
+            {isFieldApplied("description") && (
               <AppliedIndicator className="mt-1.5 w-fit" />
             )}
           </div>
@@ -612,7 +626,7 @@ export function AiSuggestionReviewCard({
             block reports what reached the form just like the rows below do.
           */}
           {onApplyIdentity &&
-            (acceptedFields.mpn ? (
+            (isFieldApplied("mpn") ? (
               <AppliedIndicator />
             ) : (
               <Button
@@ -625,7 +639,7 @@ export function AiSuggestionReviewCard({
               </Button>
             ))}
           {onApplyClassification &&
-            (acceptedFields.category ? (
+            (isFieldApplied("category") ? (
               <AppliedIndicator />
             ) : (
               <Button
@@ -659,7 +673,7 @@ export function AiSuggestionReviewCard({
               </Button>
             ))}
           {onApplyNameDescription &&
-            (acceptedFields.name && acceptedFields.description ? (
+            (isFieldApplied("name") && isFieldApplied("description") ? (
               <AppliedIndicator />
             ) : (
               <Button
@@ -823,7 +837,7 @@ export function AiSuggestionReviewCard({
               </div>
 
               <div>
-                {acceptedFields.category ? (
+                {isFieldApplied("category") ? (
                   <AppliedIndicator />
                 ) : (
                   <Button
@@ -976,7 +990,7 @@ export function AiSuggestionReviewCard({
               </div>
 
               <div>
-                {acceptedFields.manufacturer ? (
+                {isFieldApplied("manufacturer") ? (
                   <AppliedIndicator />
                 ) : (
                   <Button

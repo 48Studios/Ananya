@@ -100,7 +100,13 @@ describe("the panel is part of the Component Intelligence surface", () => {
     // function the panel's rows call.
     const applier = handlerBody(form, "applyEligibleSpecifications");
     expect(applier).toContain("applyAttributeSuggestions(");
-    expect(applier).toContain("canAcceptSuggestion(suggestion)");
+    // The bulk rule now also refuses a row the reviewer has already filled in
+    // by hand: one click must not overwrite a correction. It is the same rule
+    // the panel's own bulk action reads.
+    expect(applier).toContain("canApplySuggestionInBulk(");
+    expect(applier).toContain(
+      "formAttributeValues.get(suggestion.attributeDefinitionId)",
+    );
 
     const single = handlerBody(form, "applyAttributeSuggestion");
     expect(single).toContain("setAttrValues((prev)");
@@ -180,10 +186,32 @@ describe("accepting writes through the existing attribute state", () => {
     }
   });
 
-  it("tracks applied rows by definition id so a row cannot be applied twice", () => {
-    const body = handlerBody(form, "applyAttributeSuggestion");
-    expect(body).toContain("setAppliedSuggestionIds");
-    expect(body).toContain("next.add(suggestion.attributeDefinitionId)");
+  it("derives the applied rows from the form state, so a row cannot be applied twice", () => {
+    // The applied state is not a flag remembered at click time. It is computed
+    // from the value the form holds — which is what makes it survive an
+    // intelligence refresh, a category re-conditioning and a reopened
+    // component: a remembered marker could only ever describe the analysis it
+    // was set against, so applying a category (which re-runs the analysis) used
+    // to make an applied row look unapplied again.
+    const single = handlerBody(form, "applyAttributeSuggestion");
+    expect(single).not.toContain("setAppliedSuggestionIds");
+
+    const derived = form.slice(
+      form.indexOf("const appliedSuggestionIds = React.useMemo("),
+    );
+    expect(derived.slice(0, 700)).toContain("appliedSuggestionDefinitionIds(");
+    expect(derived.slice(0, 700)).toContain("formAttributeValues");
+    // Keyed by definition id, the identity a suggestion carries.
+    expect(form).toContain("byDefinitionId.set(entry.attributeDefinitionId");
+  });
+
+  it("does not reset the applied rows when a new analysis arrives", () => {
+    // The reported bug: applying a category reloaded the intelligence and every
+    // applied row went back to offering Apply while the value was still in the
+    // form. Nothing about the applied state may be cleared by a response.
+    const body = handlerBody(form, "handleFetchAiSuggestions");
+    expect(body).not.toContain("setAppliedSuggestionIds");
+    expect(body).toContain("setAttributeSuggestions(res.attributeSuggestions ?? [])");
   });
 });
 

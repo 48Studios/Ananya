@@ -45,6 +45,7 @@ class LiveProgress:
         non_tty_interval: float = 5.0,
         stage: Optional[str] = None,
         total: Optional[int] = None,
+        event_sink: Optional[Any] = None,
     ):
         self.quiet = quiet
         self.verbose = verbose
@@ -52,6 +53,14 @@ class LiveProgress:
         self.is_tty = is_tty if is_tty is not None else getattr(self.stream, "isatty", lambda: False)()
         self.update_interval = update_interval
         self.non_tty_interval = non_tty_interval
+
+        self.event_sink = event_sink
+        if self.event_sink is None:
+            try:
+                from ..tui import get_event_sink
+                self.event_sink = get_event_sink()
+            except (ImportError, ValueError):
+                self.event_sink = None
 
         # Stage state
         self.stage_title: str = ""
@@ -88,7 +97,14 @@ class LiveProgress:
         self.is_active = True
         self._rendered_in_tty = False
 
-        if not self.quiet:
+        if self.event_sink is not None:
+            try:
+                from ..tui import StageStartedEvent
+                self.event_sink.emit(StageStartedEvent(stage_name=title, total=total, unit=unit))
+            except Exception:
+                pass
+
+        if not self.quiet and self.event_sink is None:
             if not self.is_tty:
                 # In non-TTY, log that stage started
                 self.stream.write(f"--> {title}\n")
@@ -119,6 +135,22 @@ class LiveProgress:
             self.metrics.update(metrics)
         if message:
             self.metrics["status"] = message
+
+        if self.event_sink is not None:
+            try:
+                from ..tui import StageProgressEvent
+                self.event_sink.emit(
+                    StageProgressEvent(
+                        stage_name=self.stage_title,
+                        current=self.current,
+                        total=self.total,
+                        metrics=dict(self.metrics),
+                        message=message,
+                    )
+                )
+            except Exception:
+                pass
+            return
 
         now = time.time()
         if self.is_tty:
@@ -200,6 +232,15 @@ class LiveProgress:
         if not self.is_active:
             return
 
+        if self.event_sink is not None:
+            try:
+                from ..tui import StageCompletedEvent
+                self.event_sink.emit(StageCompletedEvent(stage_name=self.stage_title, summary=summary))
+            except Exception:
+                pass
+            self.is_active = False
+            return
+
         if not self.quiet:
             elapsed = time.time() - self.start_time
             time_str = format_time(elapsed)
@@ -227,6 +268,14 @@ class LiveProgress:
 
     def log(self, message: str, level: str = "info") -> None:
         """Prints a log message without disturbing the active progress bar."""
+        if self.event_sink is not None:
+            try:
+                from ..tui import LogEvent
+                self.event_sink.emit(LogEvent(level=level.upper(), logger_name="ananya.ml.progress", message=message))
+            except Exception:
+                pass
+            return
+
         if self.quiet and level != "error":
             return
         if self.is_tty and self._rendered_in_tty:
@@ -262,7 +311,7 @@ class LiveProgress:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         if exc_type is not None:
             # Preserve exception while finishing stage cleanly
-            if not self.quiet and self.is_tty and self._rendered_in_tty:
+            if not self.quiet and self.is_tty and self._rendered_in_tty and self.event_sink is None:
                 self.stream.write("\n")
                 self.stream.flush()
         else:

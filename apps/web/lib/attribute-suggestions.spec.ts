@@ -5,12 +5,14 @@ import { fileURLToPath } from "node:url";
 import {
   ATTRIBUTE_SUGGESTION_STATES,
   acceptUnavailableReason,
+  appliedSuggestionDefinitionIds,
   attributeSuggestionState,
   applyActionLabel,
   attributeValuePatch,
   bulkAcceptUnavailableReason,
   canAcceptSuggestion,
   canApplyIndividually,
+  canApplySuggestionInBulk,
   dismissActionLabel,
   confidenceText,
   describeEvidence,
@@ -19,6 +21,7 @@ import {
   groupHeading,
   matchesExistingValue,
   primaryRelevanceReason,
+  reconcileAttributeSuggestion,
   suggestedValueText,
   suggestionEvidence,
   suggestionResolvesToDefinition,
@@ -401,6 +404,51 @@ describe("bulk accept", () => {
       "value to apply yet",
     );
   });
+
+  it("never sweeps a value the reviewer has already entered", () => {
+    // A bulk action must not overwrite a correction: a value the form holds is
+    // the reviewer's intent, and one click is not permission to replace it.
+    const typed = new Map([["a", { optionCode: "Through Hole" }]]);
+
+    expect(suggestionsForBulkAccept([high], new Set(), typed)).toEqual([]);
+    expect(bulkAcceptUnavailableReason([high], new Set(), typed)).toContain(
+      "already in the form",
+    );
+    // …and the same row is eligible while the form holds nothing for it.
+    expect(suggestionsForBulkAccept([high], new Set(), new Map())).toHaveLength(
+      1,
+    );
+  });
+
+  it("never sweeps a row the form already holds the suggested value of", () => {
+    const applied = new Map([["a", { optionCode: "SMD" }]]);
+
+    expect(suggestionsForBulkAccept([high], new Set(), applied)).toEqual([]);
+  });
+});
+
+describe("the bulk write rule", () => {
+  it("refuses a conflict, a recorded value and a value of the reviewer's own", () => {
+    expect(canApplySuggestionInBulk(suggestion(), undefined)).toBe(true);
+    expect(canApplySuggestionInBulk(conflicting(), undefined)).toBe(false);
+    expect(canApplySuggestionInBulk(matching(), undefined)).toBe(false);
+    expect(canApplySuggestionInBulk(relevantOnly(), undefined)).toBe(false);
+    expect(
+      canApplySuggestionInBulk(suggestion(), { optionCode: "Through Hole" }),
+    ).toBe(false);
+    // Already in the form is already applied, so there is nothing to write.
+    expect(
+      canApplySuggestionInBulk(suggestion(), { optionCode: "SMD" }),
+    ).toBe(false);
+  });
+
+  it("still allows a row the category effect only seeded a unit for", () => {
+    // A QUANTITY row starts with its unit and no amount: that is not a value
+    // the reviewer entered, so it does not block the sweep.
+    expect(canApplySuggestionInBulk(quantity(100, "kΩ"), { unit: "kΩ" }, [KOHM])).toBe(
+      true,
+    );
+  });
 });
 
 describe("applying a suggestion", () => {
@@ -499,6 +547,180 @@ describe("copy", () => {
     expect(groupHeading("suggested", 3)).toBe("Suggested values (3)");
     expect(groupHeading("relevant", 2)).toBe("Relevant specifications (2)");
     expect(groupHeading("conflicts", 1)).toBe("Needs review (1)");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reconciling a suggestion against the form's current state
+// ---------------------------------------------------------------------------
+
+const KOHM = {
+  id: "unit-kohm",
+  name: "kΩ",
+  category: "Resistance",
+  isBaseUnit: false,
+  conversionFactor: 1000,
+  conversionOffset: null,
+  precision: 2,
+  isActive: true,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+};
+
+const quantity = (value: number, unitName: string) =>
+  suggestion({
+    dataType: "QUANTITY",
+    code: "resistance",
+    name: "Resistance",
+    unitCategory: "Resistance",
+    defaultUnit: "Ω",
+    suggestedValue: { value, unit: unitName, formatted: `${value} ${unitName}` },
+  });
+
+describe("the form state decides whether a suggestion is applied", () => {
+  it("is applied when the form holds the suggested value", () => {
+    // The reported bug: an applied row went back to offering Apply as soon as
+    // the intelligence re-ran, because the applied state was a flag belonging
+    // to the analysis rather than a reading of the form.
+    const row = reconcileAttributeSuggestion(suggestion(), {
+      optionCode: "SMD",
+    });
+
+    expect(row.state).toBe("APPLIED");
+    expect(row.applied).toBe(true);
+    expect(row.applyLabel).toBeNull();
+    expect(row.needsDecision).toBe(false);
+  });
+
+  it("is applied when the form holds an equivalent quantity", () => {
+    const row = reconcileAttributeSuggestion(
+      quantity(100, "kΩ"),
+      { value: 100, unit: "kΩ" },
+      [KOHM],
+    );
+
+    expect(row.state).toBe("APPLIED");
+    expect(row.applied).toBe(true);
+  });
+
+  it("goes back to offering the value once the reviewer edits it away", () => {
+    // The derivation is live, not a latch: a value the reviewer replaces is no
+    // longer applied, and the row offers the suggestion again.
+    const row = reconcileAttributeSuggestion(suggestion(), {
+      optionCode: "Through Hole",
+    });
+
+    expect(row.state).toBe("CONFLICT");
+    expect(row.applied).toBe(false);
+    expect(row.needsDecision).toBe(true);
+    expect(row.applyLabel).toBe("Review suggestion");
+    expect(row.dismissLabel).toBe("Keep current");
+    expect(row.currentDisplay).toBe("Through Hole");
+  });
+
+  it("never calls the recorded value a match once the form disagrees", () => {
+    // The backend compared against the *saved* value. A reviewer who has just
+    // typed a different one is looking at a conflict, not at agreement.
+    const row = reconcileAttributeSuggestion(matching(), {
+      optionCode: "Through Hole",
+    });
+
+    expect(row.state).toBe("CONFLICT");
+    expect(row.currentDisplay).toBe("Through Hole");
+    expect(row.applied).toBe(false);
+  });
+
+  it("keeps the record's own match when the form agrees or is empty", () => {
+    expect(reconcileAttributeSuggestion(matching(), { optionCode: "SMD" }).state).toBe(
+      "MATCHES_EXISTING",
+    );
+    expect(reconcileAttributeSuggestion(matching(), undefined).state).toBe(
+      "MATCHES_EXISTING",
+    );
+  });
+
+  it("prefers the form value over a stale recorded conflict", () => {
+    // The reviewer has already put the suggested value in the form, so there is
+    // nothing left to decide even though the saved record still disagrees.
+    const row = reconcileAttributeSuggestion(conflicting(), {
+      optionCode: "SMD",
+    });
+
+    expect(row.state).toBe("APPLIED");
+    expect(row.applied).toBe(true);
+  });
+
+  it("leaves the backend's verdict alone when the form holds nothing", () => {
+    expect(reconcileAttributeSuggestion(suggestion(), undefined).state).toBe(
+      "SUGGESTED",
+    );
+    expect(reconcileAttributeSuggestion(conflicting(), undefined).state).toBe(
+      "CONFLICT",
+    );
+    expect(reconcileAttributeSuggestion(inconclusive(), undefined).state).toBe(
+      "UNVERIFIED_EXISTING",
+    );
+  });
+
+  it("never treats a value-less suggestion as applied or in conflict", () => {
+    const row = reconcileAttributeSuggestion(relevantOnly(), {
+      optionCode: "SMD",
+    });
+
+    expect(row.state).toBe("RELEVANT_ONLY");
+    expect(row.applied).toBe(false);
+    expect(row.needsDecision).toBe(false);
+    expect(row.applyLabel).toBeNull();
+  });
+
+  it("does not read a starting unit as a value", () => {
+    // The category effect seeds a QUANTITY row's unit; that is not a value and
+    // must not turn the row into a conflict.
+    const row = reconcileAttributeSuggestion(quantity(100, "kΩ"), {
+      unit: "kΩ",
+    });
+
+    expect(row.state).toBe("SUGGESTED");
+    expect(row.needsDecision).toBe(false);
+  });
+
+  it("collects the applied rows by definition id", () => {
+    const other = suggestion({
+      attributeDefinitionId: "def-2",
+      code: "package",
+      name: "Package",
+      suggestedValue: { value: "0805", optionCode: "0805", formatted: "0805" },
+    });
+    const values = new Map([
+      ["def-1", { optionCode: "SMD" }],
+      ["def-2", { optionCode: "0603" }],
+    ]);
+
+    const applied = appliedSuggestionDefinitionIds(
+      [suggestion(), other],
+      values,
+    );
+
+    expect([...applied]).toEqual(["def-1"]);
+  });
+
+  it("is empty when nothing the form holds matches", () => {
+    expect(
+      appliedSuggestionDefinitionIds(
+        [suggestion(), quantity(100, "kΩ")],
+        new Map(),
+      ).size,
+    ).toBe(0);
+  });
+
+  it("states a form conflict against the value the reviewer sees", () => {
+    // `Current:` is the form's own value; the recorded one is only shown while
+    // the form holds nothing, because it describes what was saved.
+    const row = reconcileAttributeSuggestion(conflicting(), {
+      optionCode: "Panel Mount",
+    });
+
+    expect(row.currentDisplay).toBe("Panel Mount");
   });
 });
 

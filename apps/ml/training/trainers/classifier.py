@@ -131,6 +131,19 @@ class CategoryClassifierTrainer(BaseTrainer):
                 "training_time_ms": round(fit_time_ms, 2),
             }
 
+            try:
+                from ..tui import emit_event, TrainingUpdateEvent
+                emit_event(
+                    TrainingUpdateEvent(
+                        candidate_name=name,
+                        accuracy=float(train_acc),
+                        val_accuracy=float(val_acc),
+                        metrics=dict(self.candidate_results[name]),
+                    )
+                )
+            except Exception:
+                pass
+
             if progress:
                 progress.finish_stage(
                     f"Candidate {idx}/{total_cand} ({name}) | val_accuracy: {val_acc*100:.1f}% | fit_time: {fit_time_ms:.1f}ms"
@@ -143,6 +156,18 @@ class CategoryClassifierTrainer(BaseTrainer):
 
         if progress:
             progress.log(f"Champion selected: {best_name} ({best_acc*100:.1f}%)")
+
+        try:
+            from ..tui import emit_event, TrainingUpdateEvent
+            emit_event(
+                TrainingUpdateEvent(
+                    candidate_name=best_name,
+                    val_accuracy=float(best_acc),
+                    is_champion=True,
+                )
+            )
+        except Exception:
+            pass
 
         self.champion_pipeline = best_pipe
         self.champion_name = best_name

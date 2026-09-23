@@ -258,94 +258,117 @@ describe("AI suggestion card — every apply action reports what it applied", ()
     expect(cardSource).toContain("<AppliedIndicator");
   });
 
-  it("records the applied state for a group of fields", () => {
-    const body = handlerBody(cardSource, "markApplied");
-
-    expect(body).toContain("setAcceptedFields((prev) => {");
-    expect(body).toContain("next[field] = true;");
+  it("derives the applied state from the form instead of remembering a click", () => {
+    // The reported defect: applying a category re-runs the analysis, and the
+    // card's applied markers were cleared with the suggestion — so a field whose
+    // value was still in the form went back to offering Apply. The state is now
+    // read from what the form holds, through the form's own derivation.
+    expect(cardSource).toContain("appliedFields?: Record<string, boolean>;");
+    expect(cardSource).toContain("const isFieldApplied = (field: string) => {");
+    expect(cardSource).not.toContain("setAcceptedFields");
+    expect(cardSource).not.toContain("markApplied");
+    expect(formSource).toContain("appliedFields={appliedSuggestionFields}");
   });
 
-  it("reports the identity action", () => {
-    const body = handlerBody(cardSource, "handleApplyIdentity");
+  it("derives the state from the form's live field values", () => {
+    const derived = formSource.slice(
+      formSource.indexOf("const proposedCategoryName ="),
+    );
+    const block = derived.slice(0, 2400);
 
-    expect(body).toContain('markApplied(["mpn"])');
-    expect(body).toContain("onApplyIdentity?.();");
-    // The MPN acceptance is the same event the bulk apply logs.
-    expect(body).toContain('"manufacturerPartNumber"');
+    expect(block).toContain(
+      'watch("manufacturerPartNumber") === suggestion.manufacturerPartNumber',
+    );
+    expect(block).toContain('watch("name") === suggestion.suggestedName');
+    expect(block).toContain(
+      'watch("description") === suggestion.suggestedDescription',
+    );
+    expect(block).toContain(
+      'watch("categoryId") === suggestion.category?.categoryId',
+    );
+    expect(block).toContain('watch("manufacturerId") ===');
+    // A category or manufacturer carried as a to-be-created entity counts as
+    // applied too: that is where the form holds it until save.
+    expect(block).toContain("pendingCategory?.name");
+    expect(block).toContain("pendingManufacturer?.name");
   });
 
-  it("reports the classification action on the category field", () => {
-    const body = handlerBody(cardSource, "handleApplyClassification");
-
-    // Applying the classification IS applying the category suggestion.
-    expect(body).toContain('markApplied(["category"])');
-    expect(body).toContain("setEditedCategory(null)");
-    expect(body).toContain("onApplyClassification?.();");
+  it("treats a field the analysis did not propose as nothing to apply", () => {
+    // A field with no proposal never shows an applied state and never keeps the
+    // card from reporting that everything it *did* propose has landed.
+    expect(cardSource).toContain("const proposedFieldKeys = [");
+    expect(cardSource).toContain(
+      "proposedFieldKeys.every((field) => isFieldApplied(field))",
+    );
   });
 
-  it("reports the name and description action on both fields", () => {
-    const body = handlerBody(cardSource, "handleApplyNameDescription");
+  it("still records the same feedback for each action", () => {
+    const identity = handlerBody(cardSource, "handleApplyIdentity");
+    expect(identity).toContain('"manufacturerPartNumber"');
+    expect(identity).toContain("onApplyIdentity?.();");
 
-    expect(body).toContain('markApplied(["name", "description"])');
-    expect(body).toContain("onApplyNameDescription?.();");
+    const classification = handlerBody(cardSource, "handleApplyClassification");
+    expect(classification).toContain("setEditedCategory(null)");
+    expect(classification).toContain("onApplyClassification?.();");
+
+    const nameDescription = handlerBody(
+      cardSource,
+      "handleApplyNameDescription",
+    );
+    expect(nameDescription).toContain("onApplyNameDescription?.();");
+
+    const all = handlerBody(cardSource, "handleAcceptAll");
+    expect(all).toContain("onApplyAll();");
   });
 
   it("delegates the specifications action to the one applier", () => {
     const body = handlerBody(cardSource, "handleApplySpecifications");
 
-    // The card writes no attribute values itself: it reports the group as
-    // applied and hands the work to the caller, which applies the eligible
-    // suggestions through the same state an individual Accept uses. A second
-    // writer here is exactly the duplication this consolidation removed.
+    // The card writes no attribute values itself: it hands the work to the
+    // caller, which applies the eligible suggestions through the same state an
+    // individual Accept uses. A second writer here is exactly the duplication
+    // this consolidation removed.
     expect(body).toContain("onApplySpecifications?.();");
-    expect(body).toContain('markApplied(["specifications"])');
     expect(body).not.toContain("onApplyAttributes");
     expect(body).not.toContain("setAttrValues");
-  });
-
-  it("reports every field when everything is applied", () => {
-    const body = handlerBody(cardSource, "handleAcceptAll");
-
-    expect(body).toContain("markApplied(appliedFieldKeys)");
   });
 
   it("replaces an action with its applied state once it has run", () => {
     // The confirmation takes the place of the button that was pressed, exactly
     // like the Category and Manufacturer rows already did.
-    expect(cardSource).toContain("acceptedFields.mpn ? (");
-    expect(cardSource).toContain("acceptedFields.category ? (");
-    expect(cardSource).toContain("acceptedFields.manufacturer ? (");
+    expect(cardSource).toContain('isFieldApplied("mpn") ? (');
+    expect(cardSource).toContain('isFieldApplied("category") ? (');
+    expect(cardSource).toContain('isFieldApplied("manufacturer") ? (');
     expect(cardSource).toContain("allSpecificationsApplied ? (");
     expect(cardSource).toContain("allSuggestionsApplied ? (");
     expect(cardSource).toContain(
-      "acceptedFields.name && acceptedFields.description ? (",
+      'isFieldApplied("name") && isFieldApplied("description") ? (',
     );
-  });
-
-  it("counts a group as applied only when every member is", () => {
-    // The specifications group is applied when the panel says so; the other
-    // fields are applied when their own row says so.
-    expect(cardSource).toContain(
-      "acceptedFields[field] || specificationsApplied",
-    );
-    // Matched without whitespace so the assertion survives a reformat of the
-    // predicate: what matters is that the group is the conjunction of its
-    // members, not where the arrow breaks.
-    expect(cardSource).toMatch(/appliedFieldKeys\.every\(\s*\(field\) =>/);
-  });
-
-  it("starts a new suggestion with nothing applied", () => {
-    // The applied state belongs to the suggestion it was recorded for.
-    const effect = cardSource.slice(
-      cardSource.indexOf("React.useEffect(() => {\n    setCategoryInput("),
-    );
-    expect(effect.slice(0, 600)).toContain("setAcceptedFields({});");
   });
 
   it("shows the applied state on the identity columns", () => {
-    expect(cardSource).toContain("{acceptedFields.mpn && (");
-    expect(cardSource).toContain("{acceptedFields.name && (");
-    expect(cardSource).toContain("{acceptedFields.description && (");
+    expect(cardSource).toContain('{isFieldApplied("mpn") && (');
+    expect(cardSource).toContain('{isFieldApplied("name") && (');
+    expect(cardSource).toContain('{isFieldApplied("description") && (');
+  });
+
+  it("counts an edited value as applied, because the form holds it", () => {
+    // The reviewer's own value is what the form carries after an edit, so the
+    // field is settled even though it is no longer the model's suggestion.
+    expect(cardSource).toContain("editedCategory !== null");
+    expect(cardSource).toContain("editedManufacturer !== null");
+  });
+
+  it("does not report a value-less suggestion as applied", () => {
+    // The feedback handlers run before the value is known to have landed, so no
+    // handler may claim the field itself.
+    for (const name of [
+      "handleApplyIdentity",
+      "handleApplyClassification",
+      "handleApplyNameDescription",
+    ]) {
+      expect(handlerBody(cardSource, name)).not.toContain("isFieldApplied");
+    }
   });
 });
 

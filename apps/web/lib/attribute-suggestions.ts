@@ -2,6 +2,13 @@ import type {
   AttributeRelevanceEvidenceDto,
   AttributeSuggestionDto,
 } from "./api/ml-api";
+import type { UnitDto } from "./api/units-api";
+import {
+  formValueDisplay,
+  formValueMatchesSuggestion,
+  hasFormAttributeValue,
+  type FormAttributeValue,
+} from "./attribute-value-equivalence";
 import { evidenceTypeLabel } from "./component-review-queue";
 import { humanizeKey } from "./component-review-queue";
 
@@ -340,23 +347,58 @@ export function matchesExistingValue(
 }
 
 /**
+ * Whether a bulk action may write this row, given what the form already holds.
+ *
+ * The rule is deliberately narrow, and it is the ONE definition both bulk
+ * actions read: a value present, no conflict, nothing recorded, and nothing the
+ * reviewer has entered for the attribute already. That last clause is what keeps
+ * one click from overwriting a correction — a value typed by hand is the
+ * reviewer's intent, and a sweep is not permission to replace it.
+ *
+ * Named for the bulk actions that read it rather than for the row, so it cannot
+ * be confused with `specification-intelligence.ts`'s per-finding rule.
+ */
+export function canApplySuggestionInBulk(
+  suggestion: AttributeSuggestionDto,
+  current: FormAttributeValue | null | undefined,
+  units: readonly UnitDto[] = [],
+): boolean {
+  return (
+    canAcceptSuggestion(suggestion) &&
+    !formValueMatchesSuggestion(current, suggestion, units) &&
+    !hasFormAttributeValue(current, suggestion.dataType)
+  );
+}
+
+/**
  * The suggestions the bulk action may apply.
  *
- * Deliberately narrow — HIGH confidence only, a value present, no conflict, and
- * nothing already recorded. Medium and low confidence are the rows most worth a
- * human glance, and "relevant, value not determined" has no value to write at
+ * Deliberately narrow — HIGH confidence only, a value present, no conflict,
+ * nothing already recorded, and (when the form's own values are supplied) no
+ * value of the reviewer's own. Medium and low confidence are the rows most worth
+ * a human glance, and "relevant, value not determined" has no value to write at
  * all; none of them may be swept in by a single click. A row the reviewer
  * already applied is not offered again.
+ *
+ * The form's values are optional so the rule can be read against the backend's
+ * verdicts alone, which is what the surface did before the form's state was
+ * handed to it.
  */
 export function suggestionsForBulkAccept(
   suggestions: readonly AttributeSuggestionDto[],
   appliedDefinitionIds: ReadonlySet<string>,
+  currentValues?: ReadonlyMap<string, FormAttributeValue>,
+  units: readonly UnitDto[] = [],
 ): AttributeSuggestionDto[] {
   return suggestions.filter(
     (suggestion) =>
       suggestion.confidenceLevel === "HIGH" &&
-      canAcceptSuggestion(suggestion) &&
-      !appliedDefinitionIds.has(suggestion.attributeDefinitionId),
+      !appliedDefinitionIds.has(suggestion.attributeDefinitionId) &&
+      canApplySuggestionInBulk(
+        suggestion,
+        currentValues?.get(suggestion.attributeDefinitionId),
+        units,
+      ),
   );
 }
 
@@ -369,12 +411,31 @@ export function suggestionsForBulkAccept(
 export function bulkAcceptUnavailableReason(
   suggestions: readonly AttributeSuggestionDto[],
   appliedDefinitionIds: ReadonlySet<string>,
+  currentValues?: ReadonlyMap<string, FormAttributeValue>,
+  units: readonly UnitDto[] = [],
 ): string | null {
-  if (suggestionsForBulkAccept(suggestions, appliedDefinitionIds).length > 0) {
+  if (
+    suggestionsForBulkAccept(suggestions, appliedDefinitionIds, currentValues, units)
+      .length > 0
+  ) {
     return null;
   }
   if (suggestions.some((suggestion) => suggestion.conflict !== null)) {
     return "Nothing left to apply automatically — the remaining suggestions need a decision.";
+  }
+  // A value the reviewer has already entered — applied from this analysis or
+  // typed by hand — is in the form, not waiting to be applied.
+  if (
+    suggestions.some(
+      (suggestion) =>
+        suggestion.suggestedValue !== null &&
+        hasFormAttributeValue(
+          currentValues?.get(suggestion.attributeDefinitionId),
+          suggestion.dataType,
+        ),
+    )
+  ) {
+    return "Nothing left to apply automatically — the remaining suggestions are already in the form.";
   }
   if (
     suggestions.some(
@@ -384,6 +445,150 @@ export function bulkAcceptUnavailableReason(
     return "Only high-confidence suggestions can be applied together. Review the rest individually.";
   }
   return "None of these suggestions has a value to apply yet.";
+}
+
+// ---------------------------------------------------------------------------
+// Reconciling a suggestion against the form's current state
+// ---------------------------------------------------------------------------
+
+/**
+ * Every state a row can be in.
+ *
+ * The five the backend can report, plus the one only the form can establish:
+ * `APPLIED` — the form already holds the suggested value, so there is nothing
+ * left to apply.
+ */
+export const ATTRIBUTE_ROW_STATES = [
+  "APPLIED",
+  ...ATTRIBUTE_SUGGESTION_STATES,
+] as const;
+
+export type AttributeRowState =
+  | "APPLIED"
+  | AttributeSuggestionState;
+
+/** One row's presentation, decided from the suggestion *and* the form value. */
+export interface ReconciledAttributeSuggestion {
+  state: AttributeRowState;
+  /** The form already holds this value: the row offers no apply action. */
+  applied: boolean;
+  /** The row needs the reviewer's decision (the values disagree). */
+  needsDecision: boolean;
+  /** The form's own value, when the row's state is about it. */
+  currentDisplay: string | null;
+  /** The apply action's label, or null when the row offers no action. */
+  applyLabel: string | null;
+  /** Why the apply action is withheld, when it is shown disabled. */
+  cannotApplyReason: string | null;
+  dismissLabel: string;
+}
+
+/**
+ * Decides a row from the current form value and the current suggestion.
+ *
+ * The form is authoritative, and this is where that is enforced: the recorded
+ * value the backend compared against is the *saved* one, which stops describing
+ * what the reviewer is looking at the moment they edit the field. So a form
+ * value that agrees with the suggestion is applied (whatever the record says),
+ * and a form value that disagrees is a conflict even when the record agrees with
+ * the model — a row must never say "Matches existing" about a value the reviewer
+ * has already replaced.
+ *
+ * Only when the form holds nothing for the attribute does the backend's own
+ * verdict decide the row, which is what keeps a genuinely recorded value
+ * visible as "Already recorded" and an inconclusive comparison as a question.
+ */
+export function reconcileAttributeSuggestion(
+  suggestion: AttributeSuggestionDto,
+  current: FormAttributeValue | null | undefined,
+  units: readonly UnitDto[] = [],
+): ReconciledAttributeSuggestion {
+  const serverState = attributeSuggestionState(suggestion);
+  const value = suggestedValueText(suggestion);
+
+  // Relevant, but no value was determined: nothing to apply, and nothing the
+  // form could be in conflict with.
+  if (value === null) {
+    return {
+      state: "RELEVANT_ONLY",
+      applied: false,
+      needsDecision: false,
+      currentDisplay: null,
+      applyLabel: null,
+      cannotApplyReason: acceptUnavailableReason(suggestion),
+      dismissLabel: dismissActionLabel(suggestion),
+    };
+  }
+
+  if (formValueMatchesSuggestion(current, suggestion, units)) {
+    // The record's own "matches" verdict is kept where it applies, so a value
+    // that was already there before this session is not reported as newly
+    // applied; a value the form holds that the record does not is this
+    // session's apply.
+    return {
+      state: serverState === "MATCHES_EXISTING" ? "MATCHES_EXISTING" : "APPLIED",
+      applied: true,
+      needsDecision: false,
+      currentDisplay: formValueDisplay(current, suggestion),
+      applyLabel: null,
+      cannotApplyReason: null,
+      dismissLabel: dismissActionLabel(suggestion),
+    };
+  }
+
+  if (hasFormAttributeValue(current, suggestion.dataType)) {
+    return {
+      state: "CONFLICT",
+      applied: false,
+      needsDecision: true,
+      currentDisplay: formValueDisplay(current, suggestion),
+      applyLabel: "Review suggestion",
+      cannotApplyReason: null,
+      dismissLabel: "Keep current",
+    };
+  }
+
+  const applyLabel = applyActionLabel(suggestion);
+  return {
+    state: serverState,
+    applied: false,
+    needsDecision: serverState === "CONFLICT",
+    currentDisplay: null,
+    applyLabel,
+    cannotApplyReason: applyLabel
+      ? null
+      : acceptUnavailableReason(suggestion),
+    dismissLabel: dismissActionLabel(suggestion),
+  };
+}
+
+/**
+ * The suggestions the form already holds the value of, by definition id.
+ *
+ * This is the applied state, and it is derived every time rather than
+ * remembered: the same value survives an intelligence refresh, a category
+ * re-conditioning, an edit in the attribute editor, and a reopened component,
+ * because in all four cases the form still holds it. A remembered flag could
+ * only ever describe the analysis it was set against.
+ */
+export function appliedSuggestionDefinitionIds(
+  suggestions: readonly AttributeSuggestionDto[],
+  currentValues: ReadonlyMap<string, FormAttributeValue>,
+  units: readonly UnitDto[] = [],
+): ReadonlySet<string> {
+  const applied = new Set<string>();
+  for (const suggestion of suggestions) {
+    if (
+      formValueMatchesSuggestion(
+        currentValues.get(suggestion.attributeDefinitionId),
+        suggestion,
+        units,
+      )
+    ) {
+      applied.add(suggestion.attributeDefinitionId);
+    }
+  }
+  return applied;
 }
 
 /**

@@ -17,24 +17,29 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import type { AttributeSuggestionDto } from "@/lib/api/ml-api";
+import type { UnitDto } from "@/lib/api/units-api";
+import type { FormAttributeValue } from "@/lib/attribute-value-equivalence";
 import {
   ATTRIBUTE_INTELLIGENCE_UNAVAILABLE,
-  acceptUnavailableReason,
-  applyActionLabel,
+  appliedSuggestionDefinitionIds,
   attributeNameLabel,
   bulkAcceptUnavailableReason,
   confidenceText,
   describeEvidence,
-  dismissActionLabel,
   emptySuggestionsMessage,
   groupAttributeSuggestions,
   groupHeading,
   primaryRelevanceReason,
+  reconcileAttributeSuggestion,
   suggestedValueText,
   suggestionEvidence,
   suggestionKey,
   suggestionsForBulkAccept,
 } from "@/lib/attribute-suggestions";
+
+/** Stable identities for the optional props, so a default cannot churn a memo. */
+const NO_CURRENT_VALUES: ReadonlyMap<string, FormAttributeValue> = new Map();
+const NO_UNITS: readonly UnitDto[] = [];
 
 /**
  * AI Attribute Suggestions.
@@ -62,8 +67,22 @@ export interface AttributeSuggestionsPanelProps {
    * disappeared between the analysis and the click is not applied blindly.
    */
   definitionIds?: ReadonlySet<string>;
-  /** Attributes the reviewer has already applied, by definition id. */
-  appliedDefinitionIds?: ReadonlySet<string>;
+  /**
+   * The form's current attribute values, by definition id.
+   *
+   * This is what decides whether a row has already been applied, and whether a
+   * value the reviewer typed disagrees with the suggestion. It is handed over
+   * rather than summarised into a flag so the verdict is recomputed from the
+   * form every time — a remembered "applied" could only ever describe the
+   * analysis it was set against, and would be wrong after a refresh, a category
+   * change or an edit.
+   */
+  currentValues?: ReadonlyMap<string, FormAttributeValue>;
+  /**
+   * The authoritative unit catalog, so a quantity is compared as a quantity
+   * (`100 kΩ` is `100000 Ω`) instead of as two strings.
+   */
+  units?: readonly UnitDto[];
   /**
    * Render as a section of a parent card rather than as a card of its own.
    *
@@ -89,7 +108,8 @@ export function AttributeSuggestionsPanel({
   unavailable = false,
   hasCategory = false,
   definitionIds,
-  appliedDefinitionIds = new Set<string>(),
+  currentValues = NO_CURRENT_VALUES,
+  units = NO_UNITS,
   embedded = false,
   onApply,
   onEdit,
@@ -113,8 +133,28 @@ export function AttributeSuggestionsPanel({
     (suggestion) => !rejected[suggestionKey(suggestion)],
   );
   const groups = groupAttributeSuggestions(visible);
-  const bulkEligible = suggestionsForBulkAccept(visible, appliedDefinitionIds);
-  const bulkReason = bulkAcceptUnavailableReason(visible, appliedDefinitionIds);
+  /**
+   * The rows the form already holds the value of.
+   *
+   * Derived from the form state on every render, never remembered: this is the
+   * same set the form itself computes for its own actions, from the same rule.
+   */
+  const appliedDefinitionIds = React.useMemo(
+    () => appliedSuggestionDefinitionIds(suggestions, currentValues, units),
+    [suggestions, currentValues, units],
+  );
+  const bulkEligible = suggestionsForBulkAccept(
+    visible,
+    appliedDefinitionIds,
+    currentValues,
+    units,
+  );
+  const bulkReason = bulkAcceptUnavailableReason(
+    visible,
+    appliedDefinitionIds,
+    currentValues,
+    units,
+  );
 
   const toggleEvidence = (key: string) =>
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -126,21 +166,35 @@ export function AttributeSuggestionsPanel({
 
   const renderRow = (suggestion: AttributeSuggestionDto) => {
     const key = suggestionKey(suggestion);
+    /**
+     * The row's verdict, from the suggestion and the form's current value.
+     *
+     * The form outranks the backend's recorded-value verdict here, because the
+     * record is the *saved* value: once the reviewer edits the field, a
+     * "matches existing" reading describes a value that is no longer on screen.
+     */
+    const reconciled = reconcileAttributeSuggestion(
+      suggestion,
+      currentValues.get(key),
+      units,
+    );
     const state = {
-      isApplied: appliedDefinitionIds.has(key),
+      isApplied: reconciled.applied,
       isMissingDefinition:
         definitionIds !== undefined && !definitionIds.has(key),
       value: suggestedValueText(suggestion),
       confidence: confidenceText(suggestion),
       reason: primaryRelevanceReason(suggestion),
       evidence: suggestionEvidence(suggestion),
-      cannotApply: acceptUnavailableReason(suggestion),
-      applyLabel: applyActionLabel(suggestion),
-      dismissLabel: dismissActionLabel(suggestion),
+      cannotApply: reconciled.cannotApplyReason,
+      applyLabel: reconciled.applyLabel,
+      dismissLabel: reconciled.dismissLabel,
       isOpen: Boolean(expanded[key]),
-      isConflict: suggestion.conflict !== null,
+      isConflict: reconciled.needsDecision,
       isRelevantOnly: suggestion.suggestedValue === null,
-      matchesExisting: suggestion.existingMatches === true,
+      matchesExisting: reconciled.state === "MATCHES_EXISTING",
+      currentDisplay: reconciled.currentDisplay,
+      reconciledState: reconciled.state,
     };
 
     return (
@@ -148,17 +202,7 @@ export function AttributeSuggestionsPanel({
         key={key}
         className="rounded-lg border border-border bg-card px-3 py-2.5 shadow-2xs"
         data-attribute-code={suggestion.code}
-        data-suggestion-state={
-          state.isConflict
-            ? "CONFLICT"
-            : state.isRelevantOnly
-              ? "RELEVANT_ONLY"
-              : state.matchesExisting
-                ? "MATCHES_EXISTING"
-                : suggestion.existingDisplay
-                  ? "UNVERIFIED_EXISTING"
-                  : "SUGGESTED"
-        }
+        data-suggestion-state={state.reconciledState}
       >
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div className="min-w-0 flex-1 space-y-1">
@@ -234,13 +278,32 @@ export function AttributeSuggestionsPanel({
                     {state.confidence}
                   </span>
                 )}
-                {suggestion.existingDisplay && (
+                {/*
+                  A conflict is stated against the value the reviewer is
+                  actually looking at. The backend's recorded value describes
+                  what was saved, so it is only shown while the form holds
+                  nothing for this attribute — once the field has a value of its
+                  own, that value is the current one and the saved one is a
+                  stale reading that must not be presented as the state of the
+                  component.
+                */}
+                {state.isConflict && state.currentDisplay ? (
                   <span className="text-[11px] text-muted-foreground">
-                    Recorded:{" "}
+                    Current:{" "}
                     <span className="font-mono text-foreground">
-                      {suggestion.existingDisplay}
+                      {state.currentDisplay}
                     </span>
                   </span>
+                ) : (
+                  !state.currentDisplay &&
+                  suggestion.existingDisplay && (
+                    <span className="text-[11px] text-muted-foreground">
+                      Recorded:{" "}
+                      <span className="font-mono text-foreground">
+                        {suggestion.existingDisplay}
+                      </span>
+                    </span>
+                  )
                 )}
               </div>
             )}
