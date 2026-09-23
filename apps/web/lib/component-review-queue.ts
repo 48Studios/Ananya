@@ -2272,12 +2272,18 @@ export function applyUnavailableReason(
   finding: Pick<
     ComponentReviewFindingDto,
     "status" | "issueCategory" | "issueType"
-  >,
+  > & { metadata?: Record<string, unknown> | null },
   canWriteComponents: boolean,
 ): string | null {
   if (finding.issueCategory === "DUPLICATE") return APPLY_DUPLICATE_NOTE;
   if (finding.issueType === "ATTRIBUTE_VALUE_UNKNOWN") {
-    return APPLY_UNKNOWN_VALUE_NOTE;
+    const withheld = readWithheldValueReason(finding.metadata);
+    // A value the intelligence read but cannot record faithfully (an unknown
+    // unit, or one of another dimension) is not the same statement as one it
+    // never determined: claiming "no value was determined" there would be false.
+    return withheld
+      ? `${withheld} Nothing is applied from this queue; enter the value on the component if it is known.`
+      : APPLY_UNKNOWN_VALUE_NOTE;
   }
   if (finding.issueType === "DOCUMENT_CONFLICT") {
     return APPLY_DOCUMENT_CONFLICT_NOTE;
@@ -2287,6 +2293,14 @@ export function applyUnavailableReason(
     return `Applying a finding modifies the component, which requires the ${COMPONENT_WRITE_PERMISSION} permission. You can still accept or reject this finding as a review decision.`;
   }
   return null;
+}
+
+/** The reason a determined value was withheld, as the producer recorded it. */
+function readWithheldValueReason(
+  metadata: Record<string, unknown> | null | undefined,
+): string | null {
+  const value = metadata?.valueWithheldReason;
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
 }
 
 // ---------------------------------------------------------------------------

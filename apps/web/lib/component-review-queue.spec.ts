@@ -883,6 +883,39 @@ describe("Component Review Queue apply (writing suggestions)", () => {
       );
     });
 
+    it("states the real reason when a determined value was withheld", () => {
+      // The producer records why a value it read cannot be recorded (an unknown
+      // unit, or one of another dimension). "No value was determined" would be
+      // false there, so the recorded reason is what the note carries.
+      const withheld = {
+        status: "PENDING" as const,
+        issueCategory: "ATTRIBUTE_VALUE",
+        issueType: "ATTRIBUTE_VALUE_UNKNOWN",
+        metadata: {
+          valueWithheldReason:
+            "mV measures Voltage, but this attribute is a Resistance attribute.",
+        },
+      };
+
+      const reason = applyUnavailableReason(withheld, true);
+
+      expect(reason).toContain("mV");
+      expect(reason).not.toContain("No value was determined");
+    });
+
+    it("falls back to the generic note when no reason was recorded", () => {
+      const unknownValue = {
+        status: "PENDING" as const,
+        issueCategory: "ATTRIBUTE_VALUE",
+        issueType: "ATTRIBUTE_VALUE_UNKNOWN",
+        metadata: { valueWithheldReason: "   " },
+      };
+
+      expect(applyUnavailableReason(unknownValue, true)).toMatch(
+        /No value was determined/i,
+      );
+    });
+
     it("does not offer Apply for a document conflict", () => {
       const conflict = {
         status: "PENDING" as const,

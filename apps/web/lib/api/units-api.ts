@@ -5,6 +5,11 @@ export interface UnitDto {
   name: string;
   category: string;
   conversionFactor: number | string | null;
+  /**
+   * Zero-point shift for an affine unit (`°F` is −32 against `°C`), applied
+   * before the factor. Null for every multiplicative unit.
+   */
+  conversionOffset?: number | string | null;
   precision: number | string;
   isBaseUnit: boolean;
   isActive: boolean;
@@ -17,6 +22,7 @@ export interface CreateUnitPayload {
   category?: string;
   isBaseUnit?: boolean;
   conversionFactor?: number | string | null;
+  conversionOffset?: number | string | null;
   precision?: number | string;
 }
 
@@ -25,6 +31,7 @@ export interface UpdateUnitPayload {
   category?: string;
   isBaseUnit?: boolean;
   conversionFactor?: number | null;
+  conversionOffset?: number | null;
   precision?: number;
   isActive?: boolean;
 }
