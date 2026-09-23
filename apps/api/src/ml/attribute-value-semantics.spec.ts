@@ -5,9 +5,12 @@ import {
   canonicalUnitKey,
   compareAttributeValues,
   findUnit,
+  fromBaseUnit,
   parseAmountAndUnit,
   readAbsoluteTolerance,
+  readAllowedUnits,
   readRelativeTolerance,
+  resolveQuantityForDefinition,
   toBaseUnit,
   type UnitRef,
 } from './attribute-value-semantics';
@@ -163,6 +166,21 @@ describe('unit model access', () => {
     expect(findUnit(UNITS, '%')?.name).toBe('%');
   });
 
+  it('resolves the spelled-out forms of the same unit', () => {
+    // A reviewer or an extraction may write the unit in words; the fold is a
+    // spelling normaliser, not a second unit table, so `milliohm` deliberately
+    // does NOT become `mohm` (which this catalog reads as megaohm).
+    expect(findUnit(ALL_UNITS, 'kΩ')?.name).toBe('kohm');
+    expect(findUnit(ALL_UNITS, 'KΩ')?.name).toBe('kohm');
+    expect(findUnit(ALL_UNITS, 'kOhm')?.name).toBe('kohm');
+    expect(findUnit(ALL_UNITS, 'kiloohm')?.name).toBe('kohm');
+    expect(findUnit(ALL_UNITS, 'megaohm')?.name).toBe('Mohm');
+    expect(findUnit(ALL_UNITS, 'Celsius')?.name).toBe('°C');
+    expect(findUnit(ALL_UNITS, 'degC')?.name).toBe('°C');
+    expect(findUnit(ALL_UNITS, 'fahrenheit')?.name).toBe('°F');
+    expect(findUnit(ALL_UNITS, 'milliohm')).toBeNull();
+  });
+
   it('reports no row for a unit the model does not define', () => {
     expect(findUnit(UNITS, 'C/W')).toBeNull();
     expect(findUnit(UNITS, 'bananas')).toBeNull();
@@ -180,6 +198,331 @@ describe('unit model access', () => {
   it('refuses a non-finite amount instead of producing a number', () => {
     const result = toBaseUnit(OHM, Number.POSITIVE_INFINITY);
     expect(result.ok).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Affine units
+// ---------------------------------------------------------------------------
+
+/**
+ * The temperature rows the electronics Data Pack installs.
+ *
+ * `°F` is affine: its zero sits 32 of its own degrees below `°C`'s, and the
+ * conversion is `(value − 32) × 5/9`. The factor carries the precision the
+ * schema gives it (18 decimals), which is what makes `50 °F` land on exactly
+ * `10 °C` rather than on `10.000000000008`.
+ */
+const DEGREE_CELSIUS: UnitRef = {
+  name: '°C',
+  category: 'Temperature',
+  isBaseUnit: true,
+  conversionFactor: 1,
+  precision: 1,
+};
+const DEGREE_FAHRENHEIT: UnitRef = {
+  name: '°F',
+  category: 'Temperature',
+  isBaseUnit: false,
+  conversionFactor: Number('0.555555555555555556'),
+  conversionOffset: -32,
+  precision: 1,
+};
+const TEMPERATURE_UNITS: UnitRef[] = [DEGREE_CELSIUS, DEGREE_FAHRENHEIT];
+const ALL_UNITS: UnitRef[] = [...UNITS, ...TEMPERATURE_UNITS];
+
+describe('affine unit conversion', () => {
+  it('converts Fahrenheit to Celsius through the aggregate, offset included', () => {
+    expect(toBaseUnit(DEGREE_FAHRENHEIT, 50)).toEqual({ ok: true, value: 10 });
+    expect(toBaseUnit(DEGREE_FAHRENHEIT, 32)).toEqual({ ok: true, value: 0 });
+    expect(toBaseUnit(DEGREE_FAHRENHEIT, 212)).toEqual({
+      ok: true,
+      value: 100,
+    });
+    expect(toBaseUnit(DEGREE_FAHRENHEIT, -40)).toEqual({
+      ok: true,
+      value: -40,
+    });
+  });
+
+  it('converts Celsius to Fahrenheit exactly, the inverse of the same rule', () => {
+    expect(fromBaseUnit(DEGREE_FAHRENHEIT, 10)).toEqual({
+      ok: true,
+      value: 50,
+    });
+    expect(fromBaseUnit(DEGREE_FAHRENHEIT, 0)).toEqual({ ok: true, value: 32 });
+    expect(fromBaseUnit(DEGREE_FAHRENHEIT, 100)).toEqual({
+      ok: true,
+      value: 212,
+    });
+    expect(fromBaseUnit(DEGREE_CELSIUS, 10)).toEqual({ ok: true, value: 10 });
+  });
+
+  it('compares affine quantities semantically', () => {
+    const equivalent = areValuesEquivalent({
+      dataType: 'QUANTITY',
+      unitCategory: 'Temperature',
+      units: ALL_UNITS,
+      first: { amount: 10, unit: '°C' },
+      second: { amount: 50, unit: '°F' },
+    });
+    expect(equivalent.result).toBe('UNIT_NORMALIZED_EQUAL');
+    expect(equivalent.equivalent).toBe(true);
+
+    // The same number in the other unit is a different quantity, which is the
+    // corruption this whole path exists to prevent.
+    const different = areValuesEquivalent({
+      dataType: 'QUANTITY',
+      unitCategory: 'Temperature',
+      units: ALL_UNITS,
+      first: { amount: 10, unit: '°F' },
+      second: { amount: 10, unit: '°C' },
+    });
+    expect(different.result).toBe('DIFFERENT');
+    expect(different.equivalent).toBe(false);
+  });
+
+  it('keeps a multiplicative unit unaffected by the affine path', () => {
+    const comparison = areValuesEquivalent({
+      dataType: 'QUANTITY',
+      unitCategory: 'Resistance',
+      units: ALL_UNITS,
+      first: { amount: 100, unit: 'kohm' },
+      second: { amount: 100000, unit: 'ohm' },
+    });
+    expect(comparison.equivalent).toBe(true);
+
+    const notEquivalent = areValuesEquivalent({
+      dataType: 'QUANTITY',
+      unitCategory: 'Resistance',
+      units: ALL_UNITS,
+      first: { amount: 100, unit: 'ohm' },
+      second: { amount: 100, unit: 'kohm' },
+    });
+    expect(notEquivalent.result).toBe('DIFFERENT');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Quantity resolution
+// ---------------------------------------------------------------------------
+
+/** The shape every resolution case in this file passes. */
+function resolve(input: {
+  value: unknown;
+  sourceUnit?: string | null;
+  unitCategory?: string | null;
+  defaultUnit?: string | null;
+  allowedUnits?: readonly string[] | null;
+  units?: readonly UnitRef[];
+}) {
+  return resolveQuantityForDefinition({ units: ALL_UNITS, ...input });
+}
+
+describe('quantity resolution', () => {
+  it('preserves the source unit when the attribute accepts the dimension', () => {
+    // `100 kΩ` stays `100 kohm`: the quantity is recorded in the unit it was
+    // stated in, spelled the way the catalog spells it.
+    expect(
+      resolve({
+        value: 100,
+        sourceUnit: 'kΩ',
+        unitCategory: 'Resistance',
+        defaultUnit: 'ohm',
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: 100,
+      unit: 'kohm',
+      converted: false,
+      sourceUnit: 'kΩ',
+    });
+  });
+
+  it('converts into a unit the attribute fixes', () => {
+    expect(
+      resolve({
+        value: 100,
+        sourceUnit: 'kΩ',
+        unitCategory: 'Resistance',
+        defaultUnit: 'ohm',
+        allowedUnits: ['ohm'],
+      }),
+    ).toMatchObject({ ok: true, value: 100000, unit: 'ohm', converted: true });
+
+    expect(
+      resolve({
+        value: 100,
+        sourceUnit: 'kΩ',
+        unitCategory: 'Resistance',
+        defaultUnit: 'kohm',
+        allowedUnits: ['kohm'],
+      }),
+    ).toMatchObject({ ok: true, value: 100, unit: 'kohm', converted: false });
+  });
+
+  it('converts 10 °C into 50 °F for an attribute that requires °F', () => {
+    expect(
+      resolve({
+        value: 10,
+        sourceUnit: '°C',
+        unitCategory: 'Temperature',
+        defaultUnit: '°F',
+        allowedUnits: ['°F'],
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: 50,
+      unit: '°F',
+      converted: true,
+      sourceValue: 10,
+      sourceUnit: '°C',
+    });
+  });
+
+  it('keeps 10 °C as 10 °C when the attribute accepts it', () => {
+    expect(
+      resolve({
+        value: 10,
+        sourceUnit: '°C',
+        unitCategory: 'Temperature',
+        defaultUnit: '°C',
+      }),
+    ).toMatchObject({ ok: true, value: 10, unit: '°C', converted: false });
+
+    expect(
+      resolve({
+        value: 10,
+        sourceUnit: '°C',
+        unitCategory: 'Temperature',
+        defaultUnit: '°C',
+        allowedUnits: ['°C'],
+      }),
+    ).toMatchObject({ ok: true, value: 10, unit: '°C' });
+  });
+
+  it('converts 50 °F into 10 °C', () => {
+    expect(
+      resolve({
+        value: 50,
+        sourceUnit: '°F',
+        unitCategory: 'Temperature',
+        defaultUnit: '°C',
+        allowedUnits: ['°C'],
+      }),
+    ).toMatchObject({ ok: true, value: 10, unit: '°C', converted: true });
+  });
+
+  it('refuses a unit of another dimension rather than copying the number', () => {
+    const result = resolve({
+      value: 10,
+      sourceUnit: 'mV',
+      unitCategory: 'Resistance',
+      defaultUnit: 'ohm',
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('INCOMPATIBLE_UNIT');
+    expect(result.detail).toContain('mV');
+    expect(result.detail).toMatch(/incompatible/i);
+  });
+
+  it('refuses a quantity stated with no unit instead of assuming one', () => {
+    const result = resolve({
+      value: 10,
+      sourceUnit: null,
+      unitCategory: 'Temperature',
+      defaultUnit: '°F',
+      allowedUnits: ['°F'],
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('MISSING_UNIT');
+    expect(result.detail).toMatch(/no unit/i);
+  });
+
+  it('refuses a unit the catalog does not define', () => {
+    const result = resolve({
+      value: 10,
+      sourceUnit: 'bananas',
+      unitCategory: 'Resistance',
+      defaultUnit: 'ohm',
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('UNKNOWN_UNIT');
+  });
+
+  it('keeps an unknown unit when the attribute itself declares that unit', () => {
+    // The live `mm` attributes: their dimension has no catalog rows at all, and
+    // the definition's own unit is what the value is recorded in.
+    const result = resolveQuantityForDefinition({
+      value: 2.5,
+      sourceUnit: 'mm',
+      unitCategory: 'Length',
+      defaultUnit: 'mm',
+      units: UNITS.filter((unit) => unit.name !== 'mm'),
+    });
+
+    expect(result).toMatchObject({ ok: true, value: 2.5, unit: 'mm' });
+  });
+
+  it('takes the source quantity as stated when there is no catalog to check', () => {
+    // Documented degradation: without the authoritative model nothing can be
+    // validated or converted, so the quantity is not rejected for that reason.
+    expect(
+      resolve({
+        value: 100,
+        sourceUnit: 'kΩ',
+        unitCategory: 'Resistance',
+        defaultUnit: 'ohm',
+        units: [],
+      }),
+    ).toMatchObject({ ok: true, value: 100, unit: 'kΩ' });
+  });
+
+  it('refuses an amount that is not a finite number', () => {
+    const result = resolve({
+      value: 'not a number',
+      sourceUnit: 'ohm',
+      unitCategory: 'Resistance',
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('INVALID_AMOUNT');
+  });
+
+  it('accepts a numeric string, as a form field produces', () => {
+    expect(
+      resolve({
+        value: '100',
+        sourceUnit: 'kohm',
+        unitCategory: 'Resistance',
+        defaultUnit: 'ohm',
+      }),
+    ).toMatchObject({ ok: true, value: 100, unit: 'kohm' });
+  });
+});
+
+describe('declared accepted units', () => {
+  it('reads an explicit allowed-units rule', () => {
+    expect(readAllowedUnits({ allowedUnits: ['°F'] })).toEqual(['°F']);
+    expect(readAllowedUnits({ allowedUnits: ['ohm', ' kohm '] })).toEqual([
+      'ohm',
+      'kohm',
+    ]);
+  });
+
+  it('treats an absent, empty or malformed rule as "the whole dimension"', () => {
+    expect(readAllowedUnits(null)).toBeNull();
+    expect(readAllowedUnits({})).toBeNull();
+    expect(readAllowedUnits({ allowedUnits: [] })).toBeNull();
+    expect(readAllowedUnits({ allowedUnits: 'ohm' })).toBeNull();
+    expect(readAllowedUnits({ allowedUnits: [1, 2] })).toBeNull();
   });
 });
 

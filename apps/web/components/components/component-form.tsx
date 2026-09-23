@@ -59,6 +59,11 @@ import {
 } from "@/lib/api/attributes-api";
 import { categoriesApi } from "@/lib/api/categories-api";
 import { manufacturersApi } from "@/lib/api/manufacturers-api";
+import { unitsApi, type UnitDto } from "@/lib/api/units-api";
+import {
+  defaultQuantityUnit,
+  quantityUnitOptions,
+} from "@/lib/attribute-units";
 import { findAssignableEntity } from "@/lib/component-entity-assignment";
 import type { CategoryDto } from "@/lib/api/categories-api";
 import type { ManufacturerDto } from "@/lib/api/manufacturers-api";
@@ -123,17 +128,6 @@ interface UnresolvedSuggestedAttribute {
  */
 const CATEGORY_INTELLIGENCE_DEBOUNCE_MS = 400;
 
-const COMPATIBLE_UNITS: Record<string, string[]> = {  Resistance: ["ohm", "kohm", "Mohm"],
-  Capacitance: ["uF", "nF", "pF", "F"],
-  Voltage: ["V", "mV", "kV"],
-  Power: ["W", "mW", "kW"],
-  Current: ["mA", "A", "uA"],
-  Inductance: ["uH", "mH", "H"],
-  Length: ["mm", "cm", "m"],
-  Percentage: ["%"],
-  Temperature: ["°C"],
-};
-
 export function ComponentForm({
   initialData,
   onSuccess,
@@ -178,6 +172,14 @@ export function ComponentForm({
   const [assignableCategories, setAssignableCategories] = React.useState<
     CategoryDto[]
   >([]);
+  /**
+   * The authoritative unit catalog, for the QUANTITY editor's unit list.
+   *
+   * Loaded once with the other lookups rather than per attribute, and read only
+   * by the unit select: the editor offers exactly the units the backend can
+   * convert and validate against.
+   */
+  const [unitCatalog, setUnitCatalog] = React.useState<UnitDto[]>([]);
   const [assignableManufacturers, setAssignableManufacturers] = React.useState<
     ManufacturerDto[]
   >([]);
@@ -396,10 +398,15 @@ export function ComponentForm({
     Promise.all([
       categoriesApi.getAll().catch(() => []),
       manufacturersApi.getAll().catch(() => []),
-    ]).then(([categories, manufacturers]) => {
+      // The authoritative unit model, for the QUANTITY editor's unit list. A
+      // failure is non-blocking: the definition's own unit is still offered, so
+      // a value can always be entered in the unit it is recorded in.
+      unitsApi.getAll().catch(() => []),
+    ]).then(([categories, manufacturers, units]) => {
       if (!current) return;
       setAssignableCategories(categories);
       setAssignableManufacturers(manufacturers);
+      setUnitCatalog(units.filter((unit) => unit.isActive));
     });
     return () => {
       current = false;
@@ -449,14 +456,12 @@ export function ComponentForm({
                 item.attributeDefinition.dataType === "QUANTITY" &&
                 !next[code]?.unit
               ) {
-                const defUnit =
-                  item.attributeDefinition.defaultUnit ||
-                  (item.attributeDefinition.unitCategory &&
-                    COMPATIBLE_UNITS[item.attributeDefinition.unitCategory]?.[0]) ||
-                  "";
                 next[code] = {
                   ...next[code],
-                  unit: defUnit,
+                  unit: defaultQuantityUnit(
+                    item.attributeDefinition,
+                    unitCatalog,
+                  ),
                 };
               }
             }
@@ -474,7 +479,10 @@ export function ComponentForm({
     return () => {
       isCurrent = false;
     };
-  }, [selectedCategoryId]);
+    // The unit catalog is read for a QUANTITY row's starting unit, so the
+    // defaults are recomputed once it has loaded. Re-running is harmless: a row
+    // that already holds a unit is left alone.
+  }, [selectedCategoryId, unitCatalog]);
 
   /**
    * Re-conditions the attribute intelligence on a changed category.
@@ -1548,9 +1556,11 @@ export function ComponentForm({
                 }
 
                 if (def.dataType === "QUANTITY") {
-                  const unitOptions =
-                    (def.unitCategory && COMPATIBLE_UNITS[def.unitCategory]) ||
-                    (def.defaultUnit ? [def.defaultUnit] : ["pcs"]);
+                  const unitOptions = quantityUnitOptions(
+                    def,
+                    unitCatalog,
+                    current.unit,
+                  );
 
                   return (
                     <Field key={code}>

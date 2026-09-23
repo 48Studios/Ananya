@@ -29,6 +29,8 @@ import {
 import {
   compareAttributeValues,
   findUnit,
+  readAllowedUnits,
+  resolveQuantityForDefinition,
   toComparableValue,
   type UnitRef,
 } from './attribute-value-semantics';
@@ -172,6 +174,14 @@ export interface NormalizedExtractionAttribute {
   code: string;
   value: string | number | boolean | null;
   unit: string | null;
+  /**
+   * The quantity as the document stated it, when the extractor reported one.
+   * `value`/`unit` are canonical for the attribute's unit model; this pair is
+   * what the document printed (`100` `kΩ`), and it is preferred when the value is
+   * coerced so the recorded quantity keeps its representation.
+   */
+  sourceValue: number | null;
+  sourceUnit: string | null;
   formatted: string;
   confidence: number;
   confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
@@ -280,6 +290,18 @@ export function normalizeExtraction(
           ? attribute.value
           : null,
       unit: typeof attribute.unit === 'string' ? attribute.unit : null,
+      // The document's own quantity. A missing or non-numeric pair stays null
+      // rather than being derived: the canonical `value`/`unit` is the fallback.
+      sourceValue:
+        typeof attribute.source_value === 'number' &&
+        Number.isFinite(attribute.source_value)
+          ? attribute.source_value
+          : null,
+      sourceUnit:
+        typeof attribute.source_unit === 'string' &&
+        attribute.source_unit.trim().length > 0
+          ? attribute.source_unit
+          : null,
       formatted,
       confidence:
         typeof attribute.confidence === 'number' ? attribute.confidence : 0,
@@ -430,6 +452,12 @@ export interface AttributeDefinitionRef {
   /** Existing option codes/labels, for SELECT and MULTI_SELECT coercion. */
   options: Array<{ code: string; label: string }>;
   /**
+   * Definition-level rules, including `allowedUnits` — the explicit set of units
+   * the attribute accepts, which is what makes a fixed-unit attribute possible.
+   * Absent means every unit of the declared dimension is accepted.
+   */
+  validationRules?: Record<string, unknown> | null;
+  /**
    * Deactivated definitions are not offered for application: an inactive
    * attribute is retired configuration, and writing to it would resurrect it.
    */
@@ -539,12 +567,19 @@ function numericText(raw: unknown): number | null {
  * domain re-validates on apply and remains authoritative. A value that cannot be
  * represented is reported as unresolved with the raw extraction preserved as
  * evidence, never written as free text into a typed attribute.
+ *
+ * `units` is the authoritative unit catalog. It is optional so the function stays
+ * usable without a database, but a caller that has it must pass it: without the
+ * catalog a quantity cannot be converted into the attribute's own unit, and an
+ * attribute that requires a different unit than the document used would have to
+ * refuse the value rather than record it under the wrong one.
  */
 export function coerceAttributeValue(
   definition: AttributeDefinitionRef,
   attribute: NormalizedExtractionAttribute,
+  units: readonly UnitRef[] = [],
 ): CoercionResult {
-  const unit = attribute.unit ?? definition.defaultUnit ?? null;
+  const unit = attribute.unit ?? null;
 
   switch (definition.dataType) {
     case 'TEXT': {
@@ -605,18 +640,30 @@ export function coerceAttributeValue(
           detail: `Expected a numeric quantity for this attribute, extracted "${attribute.formatted}".`,
         };
       }
-      if (!unit) {
+      // A quantity is a value *and* a unit, so it goes through the shared rule:
+      // the document's own unit is preserved when the attribute accepts it,
+      // converted when the attribute requires another, and the value is refused
+      // when it cannot be expressed faithfully. The attribute's own unit is never
+      // assumed for a number that arrived without one.
+      const resolution = resolveQuantityForDefinition({
+        value: attribute.sourceValue ?? number,
+        sourceUnit: attribute.sourceUnit ?? unit,
+        unitCategory: definition.unitCategory ?? null,
+        defaultUnit: definition.defaultUnit ?? null,
+        allowedUnits: readAllowedUnits(definition.validationRules),
+        units,
+      });
+      if (!resolution.ok) {
         return {
           ok: false,
           reason: 'UNIT_MISMATCH',
-          detail:
-            'A numeric quantity needs a unit, and neither the extraction nor the attribute definition provided one.',
+          detail: resolution.detail,
         };
       }
       return {
         ok: true,
-        value: { value: number, unit },
-        display: `${number} ${unit}`,
+        value: { value: resolution.value, unit: resolution.unit },
+        display: `${resolution.value} ${resolution.unit}`,
       };
     }
 
@@ -922,7 +969,7 @@ export function resolveAttributeCandidates(
     }
 
     const current = currentValues.get(definition.id) ?? null;
-    const coerced = coerceAttributeValue(definition, attribute);
+    const coerced = coerceAttributeValue(definition, attribute, units);
 
     // Pass 4: the extracted unit must measure the dimension the attribute
     // declares. A known-but-wrong unit (a `mV` reading on a resistance

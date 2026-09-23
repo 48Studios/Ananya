@@ -20,7 +20,30 @@ export const units = pgTable(
 
     isBaseUnit: boolean("is_base_unit").notNull().default(false),
 
-    conversionFactor: numeric("conversion_factor", { precision: 28, scale: 12 }),
+    /**
+     * Multiplicative scale between this unit and its category's base unit.
+     *
+     * 18 decimal places rather than 12: an affine unit's factor can be a
+     * repeating decimal (`°F` is 5/9 of a `°C` step), and truncating it makes an
+     * exact conversion inexact — `50 °F` would convert to `10.000000000008 °C`
+     * and stop comparing equal to `10 °C`.
+     */
+    conversionFactor: numeric("conversion_factor", { precision: 28, scale: 18 }),
+
+    /**
+     * Zero-point shift, applied **before** the factor:
+     * `base = (value + conversionOffset) × conversionFactor`.
+     *
+     * A multiplicative unit leaves this null (equivalent to 0). An affine unit
+     * — one whose zero is not the base unit's zero — needs it, and this
+     * convention keeps the stored number exact: `°F` is `(value − 32) × 5/9`,
+     * so its offset is the whole number −32 rather than the repeating
+     * −17.777… a `value × factor + offset` form would require.
+     */
+    conversionOffset: numeric("conversion_offset", {
+      precision: 28,
+      scale: 18,
+    }),
 
     precision: numeric("precision", { precision: 10, scale: 0 })
       .notNull()

@@ -1,3 +1,203 @@
+/**
+ * A unit row a Data Pack installs.
+ *
+ * Typed explicitly so the optional affine offset is part of the contract rather
+ * than an extra property on one array element: the installer reads these rows
+ * field by field, and a unit whose offset went unread would convert as if its
+ * zero matched the base unit's.
+ */
+export interface DataPackUnit {
+  name: string;
+  category: string;
+  isBaseUnit: boolean;
+  /** Scale to the category's base unit, applied after `conversionOffset`. */
+  conversionFactor: string;
+  /**
+   * Zero-point shift applied before the factor, in this unit's own scale
+   * (`°F` is −32). Absent means 0: a purely multiplicative unit.
+   */
+  conversionOffset?: string | null;
+  precision: string;
+}
+
+/**
+ * The pack's units of measure.
+ *
+ * `conversionFactor` reaches 18 decimal places where a factor is a repeating
+ * decimal (`°F` is 5/9 of a `°C` step), so that an exact conversion stays exact.
+ */
+const ELECTRONICS_SMD_UNITS: DataPackUnit[] = [
+  // Resistance
+  {
+    name: 'ohm',
+    category: 'Resistance',
+    isBaseUnit: true,
+    conversionFactor: '1.0000',
+    precision: '2',
+  },
+  {
+    name: 'kohm',
+    category: 'Resistance',
+    isBaseUnit: false,
+    conversionFactor: '1000.0000',
+    precision: '3',
+  },
+  {
+    name: 'Mohm',
+    category: 'Resistance',
+    isBaseUnit: false,
+    conversionFactor: '1000000.0000',
+    precision: '4',
+  },
+  // Capacitance
+  {
+    name: 'uF',
+    category: 'Capacitance',
+    isBaseUnit: true,
+    conversionFactor: '1.0000',
+    precision: '3',
+  },
+  {
+    name: 'nF',
+    category: 'Capacitance',
+    isBaseUnit: false,
+    conversionFactor: '0.0010',
+    precision: '4',
+  },
+  {
+    name: 'pF',
+    category: 'Capacitance',
+    isBaseUnit: false,
+    conversionFactor: '0.000001',
+    precision: '6',
+  },
+  {
+    name: 'F',
+    category: 'Capacitance',
+    isBaseUnit: false,
+    conversionFactor: '1000000.0000',
+    precision: '2',
+  },
+  // Voltage
+  {
+    name: 'V',
+    category: 'Voltage',
+    isBaseUnit: true,
+    conversionFactor: '1.0000',
+    precision: '2',
+  },
+  {
+    name: 'mV',
+    category: 'Voltage',
+    isBaseUnit: false,
+    conversionFactor: '0.0010',
+    precision: '3',
+  },
+  {
+    name: 'kV',
+    category: 'Voltage',
+    isBaseUnit: false,
+    conversionFactor: '1000.0000',
+    precision: '2',
+  },
+  // Power
+  {
+    name: 'W',
+    category: 'Power',
+    isBaseUnit: true,
+    conversionFactor: '1.0000',
+    precision: '3',
+  },
+  {
+    name: 'mW',
+    category: 'Power',
+    isBaseUnit: false,
+    conversionFactor: '0.0010',
+    precision: '4',
+  },
+  {
+    name: 'kW',
+    category: 'Power',
+    isBaseUnit: false,
+    conversionFactor: '1000.0000',
+    precision: '2',
+  },
+  // Current
+  {
+    name: 'A',
+    category: 'Current',
+    isBaseUnit: true,
+    conversionFactor: '1.0000',
+    precision: '3',
+  },
+  {
+    name: 'mA',
+    category: 'Current',
+    isBaseUnit: false,
+    conversionFactor: '0.0010',
+    precision: '3',
+  },
+  {
+    name: 'uA',
+    category: 'Current',
+    isBaseUnit: false,
+    conversionFactor: '0.000001',
+    precision: '6',
+  },
+  // Inductance
+  {
+    name: 'uH',
+    category: 'Inductance',
+    isBaseUnit: true,
+    conversionFactor: '1.0000',
+    precision: '3',
+  },
+  {
+    name: 'mH',
+    category: 'Inductance',
+    isBaseUnit: false,
+    conversionFactor: '1000.0000',
+    precision: '3',
+  },
+  {
+    name: 'H',
+    category: 'Inductance',
+    isBaseUnit: false,
+    conversionFactor: '1000000.0000',
+    precision: '3',
+  },
+  // Percentage
+  {
+    name: '%',
+    category: 'Percentage',
+    isBaseUnit: true,
+    conversionFactor: '1.0000',
+    precision: '2',
+  },
+  // Temperature
+  {
+    name: '°C',
+    category: 'Temperature',
+    isBaseUnit: true,
+    conversionFactor: '1.0000',
+    precision: '1',
+  },
+  // `°F` is affine, not multiplicative: its zero is offset from `°C`'s by 32
+  // degrees, and the conversion is `(value − 32) × 5/9`. The offset is stored
+  // in the unit's own scale (−32) because that number is exact, while the
+  // equivalent base-scale offset (−17.77…) would have to be truncated. The
+  // factor carries 18 decimal places so that 5/9 is stored exactly enough for
+  // `50 °F` to convert to exactly `10 °C` and compare equal to it.
+  {
+    name: '°F',
+    category: 'Temperature',
+    isBaseUnit: false,
+    conversionFactor: '0.555555555555555556',
+    conversionOffset: '-32.000000000000000000',
+    precision: '1',
+  },
+];
+
 export const ELECTRONICS_SMD_PACK = {
   id: 'electronics-smd',
   name: 'Electronics & SMD Dynamic Attributes Pack',
@@ -7,163 +207,7 @@ export const ELECTRONICS_SMD_PACK = {
   entityType: 'AttributeDefinition',
   recordCount: 45,
 
-  units: [
-    // Resistance
-    {
-      name: 'ohm',
-      category: 'Resistance',
-      isBaseUnit: true,
-      conversionFactor: '1.0000',
-      precision: '2',
-    },
-    {
-      name: 'kohm',
-      category: 'Resistance',
-      isBaseUnit: false,
-      conversionFactor: '1000.0000',
-      precision: '3',
-    },
-    {
-      name: 'Mohm',
-      category: 'Resistance',
-      isBaseUnit: false,
-      conversionFactor: '1000000.0000',
-      precision: '4',
-    },
-    // Capacitance
-    {
-      name: 'uF',
-      category: 'Capacitance',
-      isBaseUnit: true,
-      conversionFactor: '1.0000',
-      precision: '3',
-    },
-    {
-      name: 'nF',
-      category: 'Capacitance',
-      isBaseUnit: false,
-      conversionFactor: '0.0010',
-      precision: '4',
-    },
-    {
-      name: 'pF',
-      category: 'Capacitance',
-      isBaseUnit: false,
-      conversionFactor: '0.000001',
-      precision: '6',
-    },
-    {
-      name: 'F',
-      category: 'Capacitance',
-      isBaseUnit: false,
-      conversionFactor: '1000000.0000',
-      precision: '2',
-    },
-    // Voltage
-    {
-      name: 'V',
-      category: 'Voltage',
-      isBaseUnit: true,
-      conversionFactor: '1.0000',
-      precision: '2',
-    },
-    {
-      name: 'mV',
-      category: 'Voltage',
-      isBaseUnit: false,
-      conversionFactor: '0.0010',
-      precision: '3',
-    },
-    {
-      name: 'kV',
-      category: 'Voltage',
-      isBaseUnit: false,
-      conversionFactor: '1000.0000',
-      precision: '2',
-    },
-    // Power
-    {
-      name: 'W',
-      category: 'Power',
-      isBaseUnit: true,
-      conversionFactor: '1.0000',
-      precision: '3',
-    },
-    {
-      name: 'mW',
-      category: 'Power',
-      isBaseUnit: false,
-      conversionFactor: '0.0010',
-      precision: '4',
-    },
-    {
-      name: 'kW',
-      category: 'Power',
-      isBaseUnit: false,
-      conversionFactor: '1000.0000',
-      precision: '2',
-    },
-    // Current
-    {
-      name: 'A',
-      category: 'Current',
-      isBaseUnit: true,
-      conversionFactor: '1.0000',
-      precision: '3',
-    },
-    {
-      name: 'mA',
-      category: 'Current',
-      isBaseUnit: false,
-      conversionFactor: '0.0010',
-      precision: '3',
-    },
-    {
-      name: 'uA',
-      category: 'Current',
-      isBaseUnit: false,
-      conversionFactor: '0.000001',
-      precision: '6',
-    },
-    // Inductance
-    {
-      name: 'uH',
-      category: 'Inductance',
-      isBaseUnit: true,
-      conversionFactor: '1.0000',
-      precision: '3',
-    },
-    {
-      name: 'mH',
-      category: 'Inductance',
-      isBaseUnit: false,
-      conversionFactor: '1000.0000',
-      precision: '3',
-    },
-    {
-      name: 'H',
-      category: 'Inductance',
-      isBaseUnit: false,
-      conversionFactor: '1000000.0000',
-      precision: '3',
-    },
-    // Percentage
-    {
-      name: '%',
-      category: 'Percentage',
-      isBaseUnit: true,
-      conversionFactor: '1.0000',
-      precision: '2',
-    },
-    // Temperature
-    {
-      name: '°C',
-      category: 'Temperature',
-      isBaseUnit: true,
-      conversionFactor: '1.0000',
-      precision: '1',
-    },
-  ],
+  units: ELECTRONICS_SMD_UNITS,
 
   attributeDefinitions: [
     {

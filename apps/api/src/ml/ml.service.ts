@@ -67,12 +67,19 @@ import {
   loadComponentAttributeDisplays,
   loadUnitCatalog,
 } from './current-attribute-value';
+import { findUnit, type UnitRef } from './attribute-value-semantics';
 import { normalizedTerm } from './attribute-resolution';
 
 interface RawExtractedAttribute {
   code?: string;
   value: string | number | boolean | null;
   unit?: string | null;
+  /**
+   * The quantity as the document stated it, when the extraction reports one.
+   * `value`/`unit` stay canonical for the attribute's unit model.
+   */
+  source_value?: number | null;
+  source_unit?: string | null;
   formatted: string;
   confidence: number;
   confidence_level?: 'HIGH' | 'MEDIUM' | 'LOW';
@@ -174,9 +181,18 @@ function toRelevanceEvidence(item: MlEvidenceItem): AttributeRelevanceEvidence {
 export function normalizeExtractedUnit(
   code: string,
   unit?: string | null,
+  units: readonly UnitRef[] = [],
 ): string | null {
   if (!unit) return null;
   const normalized = unit.trim();
+  // The authoritative catalog decides the spelling whenever it knows the unit:
+  // a datasheet writes `KV`, `kΩ` or `uf`, and the catalog's own name is what
+  // the attribute domain resolves by and stores. `findUnit` folds symbols and
+  // case, so this is the same normalisation every comparison already uses.
+  const known = findUnit(units, normalized);
+  if (known) return known.name;
+  // Spellings the catalog does not hold keep their per-code folds, so a unit the
+  // library has not modelled is still normalised as far as it can be.
   if (code === 'power' || code === 'power_rating') {
     if (/^mw$/i.test(normalized)) return 'mW';
     if (/^kw$/i.test(normalized)) return 'kW';
@@ -310,6 +326,7 @@ export class MlService {
       allAttributes,
       candidateComps,
       datapackHints,
+      unitCatalog,
     ] = await Promise.all([
       db.select().from(categories),
       db.select().from(manufacturers),
@@ -330,6 +347,10 @@ export class MlService {
       this.dataPacksService
         ? this.dataPacksService.getActiveIntelligenceHints().catch(() => [])
         : Promise.resolve([]),
+      // The authoritative unit model, read once for the whole request: it is what
+      // canonicalises an extracted unit spelling and what resolves a suggested
+      // quantity into the unit the attribute accepts.
+      loadUnitCatalog(),
     ]);
 
     /**
@@ -847,7 +868,7 @@ export class MlService {
 
     for (const [key, raw] of Object.entries(rawAttrs)) {
       const dbDef = resolveAttributeDefinition(key, allAttributes);
-      const normalizedUnit = normalizeExtractedUnit(key, raw.unit);
+      const normalizedUnit = normalizeExtractedUnit(key, raw.unit, unitCatalog);
       const numericValue =
         (key === 'power' || key === 'power_rating') &&
         typeof raw.value === 'string' &&
@@ -864,6 +885,16 @@ export class MlService {
         attributeDefinitionId: dbDef?.id || null,
         value: numericValue,
         unit: normalizedUnit,
+        // The document's own quantity, when the extraction reported one. It is
+        // what a suggestion records if the attribute accepts that unit, so the
+        // representation the datasheet used is not lost to canonicalisation.
+        sourceValue:
+          typeof raw.source_value === 'number' ? raw.source_value : null,
+        sourceUnit:
+          typeof raw.source_unit === 'string' &&
+          raw.source_unit.trim().length > 0
+            ? raw.source_unit
+            : null,
         formatted,
         resolution: dbDef ? 'RESOLVED' : 'UNRESOLVED',
         confidence: raw.confidence,
@@ -891,6 +922,7 @@ export class MlService {
       allAttributes,
       datapackHints,
       resolvedAttributes,
+      units: unitCatalog,
     });
 
     // 7. Aggregate Overall Evidence and Combined Confidence Level
@@ -981,6 +1013,8 @@ export class MlService {
     allAttributes: SimpleAttributeDef[];
     datapackHints: DataPackHint[];
     resolvedAttributes: Record<string, ExtractedAttributeDto>;
+    /** The authoritative unit model, read once by the caller. */
+    units: readonly UnitRef[];
   }): Promise<AttributeSuggestionDto[]> {
     const categoryMap = new Map(
       input.allCategories.map((category) => [category.id, category]),
@@ -1130,6 +1164,8 @@ export class MlService {
         definitionId: attribute.attributeDefinitionId,
         value: attribute.value,
         unit: attribute.unit ?? null,
+        sourceValue: attribute.sourceValue ?? null,
+        sourceUnit: attribute.sourceUnit ?? null,
         formatted: attribute.formatted,
         confidence: attribute.confidence,
         confidenceLevel: attribute.confidenceLevel,
@@ -1178,7 +1214,11 @@ export class MlService {
         input.dto.datasheetText ?? '',
       ],
       existingValues,
-      units: existingValues.size > 0 ? await loadUnitCatalog() : [],
+      // The catalog is loaded unconditionally: resolving a suggested quantity
+      // needs it whether or not the component already records values, and an
+      // absent catalog is what would let a number be copied under a different
+      // unit.
+      units: input.units,
       packageDefinitionId: packageDefinition?.id ?? null,
       mountingTypeDefinitionId: mountingTypeDefinition?.id ?? null,
       mlSuggestions,
@@ -1202,6 +1242,7 @@ export class MlService {
       existingDisplay: suggestion.existingDisplay,
       existingMatches: suggestion.existingMatches,
       conflict: suggestion.conflict,
+      valueWithheldReason: suggestion.valueWithheldReason,
     }));
   }
 
@@ -1571,17 +1612,26 @@ export class MlService {
     if (resM && resM[1] && resM[2]) {
       const val = parseFloat(resM[1]);
       const u = resM[2].toLowerCase();
-      const mult =
+      // `m`/`mohm` is mega on a datasheet, not milli: the printed `M` is the only
+      // thing distinguishing 10 MΩ from 10 mΩ, and the match is case-insensitive.
+      const sourceUnit =
         u === 'k' || u === 'kohm'
-          ? 1000
+          ? 'kohm'
           : u === 'm' || u === 'mohm'
-            ? 1000000
-            : 1;
-      const formatted = `${resM[1]}${u === 'k' ? 'kΩ' : 'Ω'}`;
+            ? 'Mohm'
+            : 'ohm';
+      const mult =
+        sourceUnit === 'kohm' ? 1000 : sourceUnit === 'Mohm' ? 1000000 : 1;
+      const formatted = `${resM[1]}${sourceUnit === 'kohm' ? 'kΩ' : sourceUnit === 'Mohm' ? 'MΩ' : 'Ω'}`;
       attrs['resistance'] = {
         code: 'resistance',
+        // Canonical for the attribute's unit model (ohms), with the document's
+        // own quantity alongside it so a suggestion can record `10 kΩ` as stated
+        // rather than only its ohm equivalent.
         value: val * mult,
         unit: 'ohm',
+        source_value: val,
+        source_unit: sourceUnit,
         formatted,
         confidence: 0.95,
         confidenceLevel: 'HIGH',
@@ -1604,6 +1654,8 @@ export class MlService {
         code: 'capacitance',
         value: parseFloat(capM[1]),
         unit: capM[2].toLowerCase(),
+        source_value: parseFloat(capM[1]),
+        source_unit: capM[2].toLowerCase(),
         formatted,
         confidence: 0.95,
         confidenceLevel: 'HIGH',
@@ -1626,6 +1678,8 @@ export class MlService {
         code: 'voltage',
         value: parseFloat(voltM[1]),
         unit: voltM[2].toUpperCase(),
+        source_value: parseFloat(voltM[1]),
+        source_unit: voltM[2].toUpperCase(),
         formatted,
         confidence: 0.92,
         confidenceLevel: 'HIGH',

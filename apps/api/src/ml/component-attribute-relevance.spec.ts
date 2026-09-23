@@ -9,6 +9,7 @@ import {
   type RelevanceBinding,
   type RelevanceCategory,
   type RelevanceDefinition,
+  type RelevanceExtractedAttribute,
 } from './component-attribute-relevance';
 import type { UnitRef } from './attribute-value-semantics';
 
@@ -441,6 +442,136 @@ describe('relevance beyond the bindings', () => {
     expect(resistance.confidence).toBe(0.92);
     expect(resistance.confidenceLevel).toBe('HIGH');
     expect(resistance.valueEvidence[0]!.description).toBe('Resistance: 10 kΩ');
+  });
+});
+
+describe('quantities are resolved, not copied', () => {
+  /** A resistance extraction stated as `100 kΩ` in the document. */
+  function resistanceExtraction(
+    overrides: Record<string, unknown> = {},
+  ): RelevanceExtractedAttribute {
+    return {
+      definitionId: RESISTANCE.id,
+      value: 100000,
+      unit: 'ohm',
+      sourceValue: 100,
+      sourceUnit: 'kΩ',
+      formatted: '100kΩ',
+      confidence: 0.95,
+      confidenceLevel: 'HIGH' as const,
+      ...overrides,
+    };
+  }
+
+  it('keeps the source unit when the attribute accepts the dimension', () => {
+    const resistance = byId(
+      build({
+        units: OHM_UNITS,
+        extracted: [resistanceExtraction()],
+      }),
+      RESISTANCE.id,
+    );
+
+    // `100 kΩ` stays `100 kΩ` (spelled as the catalog spells it), while the
+    // display still quotes the document.
+    expect(resistance.suggestedValue).toMatchObject({
+      value: 100,
+      unit: 'kohm',
+      formatted: '100kΩ',
+    });
+    expect(resistance.valueWithheldReason).toBeNull();
+  });
+
+  it('converts into the unit an attribute fixes', () => {
+    const ohmsOnly = definition({
+      id: 'def-resistance-ohms',
+      code: 'resistance_ohms',
+      name: 'Resistance (ohms)',
+      dataType: 'QUANTITY',
+      unitCategory: 'Resistance',
+      defaultUnit: 'ohm',
+      validationRules: { allowedUnits: ['ohm'] },
+    });
+
+    const suggestions = buildAttributeSuggestions({
+      definitions: [ohmsOnly],
+      categories: [],
+      units: OHM_UNITS,
+      extracted: [
+        { ...resistanceExtraction(), definitionId: 'def-resistance-ohms' },
+      ],
+    });
+
+    expect(
+      byId(suggestions, 'def-resistance-ohms').suggestedValue,
+    ).toMatchObject({ value: 100000, unit: 'ohm' });
+  });
+
+  it('withholds a value whose unit measures another dimension, and says why', () => {
+    // `mV` has to be a real catalog row for the refusal to be about the
+    // dimension rather than about an unknown unit.
+    const catalog = [
+      ...OHM_UNITS,
+      {
+        name: 'mV',
+        category: 'Voltage',
+        isBaseUnit: false,
+        conversionFactor: 0.001,
+        precision: 3,
+      },
+    ];
+
+    const resistance = byId(
+      build({
+        units: catalog,
+        extracted: [
+          resistanceExtraction({
+            value: 10,
+            unit: 'mV',
+            sourceValue: 10,
+            sourceUnit: 'mV',
+            formatted: '10mV',
+          }),
+        ],
+      }),
+      RESISTANCE.id,
+    );
+
+    // The attribute stays relevant — the evidence established a value — but
+    // nothing is offered to apply, and the reason names the units.
+    expect(resistance.suggestedValue).toBeNull();
+    expect(resistance.valueWithheldReason).toContain('mV');
+    expect(resistance.valueWithheldReason).toMatch(/incompatible/i);
+  });
+
+  it('withholds a number that arrived with no unit', () => {
+    const resistance = byId(
+      build({
+        units: OHM_UNITS,
+        extracted: [
+          resistanceExtraction({
+            value: 100,
+            unit: null,
+            sourceValue: null,
+            sourceUnit: null,
+            formatted: '100',
+          }),
+        ],
+      }),
+      RESISTANCE.id,
+    );
+
+    expect(resistance.suggestedValue).toBeNull();
+    expect(resistance.valueWithheldReason).toMatch(/no unit/i);
+  });
+
+  it('reports no withheld reason when a value was resolved', () => {
+    const resistance = byId(
+      build({ units: OHM_UNITS, extracted: [resistanceExtraction()] }),
+      RESISTANCE.id,
+    );
+
+    expect(resistance.valueWithheldReason).toBeNull();
   });
 });
 

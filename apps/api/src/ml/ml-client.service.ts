@@ -47,6 +47,12 @@ export interface MlExtractedAttribute {
   code: string;
   value: string | number | boolean | null;
   unit?: string | null;
+  /**
+   * The quantity as the document stated it, for the rules that canonicalise.
+   * `value`/`unit` remain canonical; this pair is the source representation.
+   */
+  source_value?: number | null;
+  source_unit?: string | null;
   formatted: string;
   confidence: number;
   confidence_level?: 'HIGH' | 'MEDIUM' | 'LOW';
@@ -116,6 +122,8 @@ export interface MlSuggestResponse {
       code: string;
       value: string | number | boolean | null;
       unit?: string | null;
+      source_value?: number | null;
+      source_unit?: string | null;
       formatted: string;
       confidence: number;
       confidence_level?: 'HIGH' | 'MEDIUM' | 'LOW';

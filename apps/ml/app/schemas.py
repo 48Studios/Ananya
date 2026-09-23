@@ -165,6 +165,14 @@ class ExtractedAttribute(BaseModel):
     code: str
     value: Any
     unit: Optional[str] = None
+    # The quantity as the document stated it, for the rules that canonicalise.
+    # `value`/`unit` remain the canonical form the ERP already depends on (a
+    # resistance is stated in ohms); this pair is the source representation
+    # (`100` with `kΩ`), which is what a suggestion records when the attribute
+    # accepts that unit. Both are None when the rule's value is not a quantity,
+    # and the caller falls back to `value`/`unit`.
+    source_value: Optional[float] = None
+    source_unit: Optional[str] = None
     formatted: str
     confidence: float
     confidence_level: str = "HIGH"

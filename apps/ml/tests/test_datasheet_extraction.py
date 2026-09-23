@@ -231,6 +231,77 @@ def test_existing_attribute_values_unchanged(client):
     assert attrs["voltage"]["value"] == 50.0
 
 
+# ---------------------------------------------------------------------------
+# Source quantities
+#
+# A quantity is a value *and* a unit. `value`/`unit` stay canonical (a resistance
+# is stated in ohms, whatever the datasheet printed), and the document's own
+# quantity travels alongside so the ERP can record `10 kΩ` as stated instead of
+# only its ohm equivalent. Losing that representation is what turned an applied
+# `100 kΩ` suggestion into `100000 Ω`.
+# ---------------------------------------------------------------------------
+
+
+def test_resistance_reports_the_documents_own_quantity(client):
+    resistance = client.post(
+        "/v1/extract/datasheet",
+        json={"text": "0805 SMD Resistor, 10k Ohm 1%"},
+    ).json()["attributes"]["resistance"]
+
+    assert resistance["value"] == 10000.0
+    assert resistance["unit"] == "ohm"
+    assert resistance["source_value"] == 10.0
+    assert resistance["source_unit"] == "kohm"
+    assert resistance["formatted"] == "10kΩ"
+
+
+def test_resistance_mega_is_mega_not_milli(client):
+    """`10M` is 10 MΩ: the printed capital is the only thing that says so."""
+    resistance = client.post(
+        "/v1/extract/datasheet", json={"text": "resistor 10M Ohm"}
+    ).json()["attributes"]["resistance"]
+
+    assert resistance["value"] == 10000000.0
+    assert resistance["source_value"] == 10.0
+    assert resistance["source_unit"] == "Mohm"
+    assert resistance["formatted"] == "10MΩ"
+
+
+def test_resistance_without_a_prefix_is_reported_in_ohms(client):
+    resistance = client.post(
+        "/v1/extract/datasheet", json={"text": "resistance 470 Ohm"}
+    ).json()["attributes"]["resistance"]
+
+    assert resistance["value"] == 470.0
+    assert resistance["source_value"] == 470.0
+    assert resistance["source_unit"] == "ohm"
+
+
+def test_quantity_rules_that_already_state_the_document_unit_report_it(client):
+    attrs = client.post(
+        "/v1/extract/datasheet",
+        json={"text": "capacitance 100 nF, voltage 50 V, tolerance 1 %"},
+    ).json()["attributes"]
+
+    assert attrs["capacitance"]["source_value"] == 100.0
+    assert attrs["capacitance"]["source_unit"] == "nf"
+    assert attrs["voltage"]["source_value"] == 50.0
+    assert attrs["voltage"]["source_unit"] == "V"
+    assert attrs["tolerance"]["source_value"] == 1.0
+    assert attrs["tolerance"]["source_unit"] == "%"
+
+
+def test_a_non_quantity_attribute_reports_no_source_quantity(client):
+    """A footprint is not a quantity, so there is nothing to pair with a unit."""
+    package = client.post(
+        "/v1/extract/datasheet", json={"text": "0805 SMD Resistor"}
+    ).json()["attributes"]["package"]
+
+    assert package["value"] == "0805"
+    assert package["source_value"] is None
+    assert package["source_unit"] is None
+
+
 def test_datapack_hints_still_add_evidence(client):
     res = client.post(
         "/v1/extract/datasheet",

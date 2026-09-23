@@ -1,12 +1,44 @@
 import { ObjectId } from "@ananya/core";
 import { InvalidUnitNameError, InvalidUnitCategoryError } from "./unit.errors";
 
+/**
+ * The conversion offset may only be declared on a derived unit.
+ *
+ * A base unit defines its category's zero, so it cannot be shifted; and an
+ * offset that is not a finite number would silently poison every conversion.
+ */
+function validateConversionOffset(
+  isBaseUnit: boolean,
+  conversionOffset: number | null | undefined,
+): void {
+  if (conversionOffset === undefined || conversionOffset === null) return;
+  if (!Number.isFinite(conversionOffset)) {
+    throw new InvalidUnitCategoryError(
+      "Conversion offset must be a finite number",
+    );
+  }
+  if (isBaseUnit && conversionOffset !== 0) {
+    throw new InvalidUnitCategoryError(
+      "A base unit cannot have a conversion offset",
+    );
+  }
+}
+
 export interface UnitProps {
   id: string;
   name: string;
   category: string;
   isBaseUnit: boolean;
   conversionFactor?: number | null;
+  /**
+   * Zero-point shift applied before the factor:
+   * `base = (value + conversionOffset) × conversionFactor`.
+   *
+   * Absent/null means 0, which is every purely multiplicative unit. It is what
+   * makes an affine unit (whose zero differs from the base unit's zero, e.g.
+   * `°F` against `°C`) convertible without a second conversion table.
+   */
+  conversionOffset?: number | null;
   precision: number;
   isActive: boolean;
   createdAt: Date;
@@ -18,6 +50,7 @@ export interface CreateUnitInput {
   category: string;
   isBaseUnit: boolean;
   conversionFactor?: number | null;
+  conversionOffset?: number | null;
   precision: number;
 }
 
@@ -26,6 +59,7 @@ export interface UpdateUnitInput {
   category?: string;
   isBaseUnit?: boolean;
   conversionFactor?: number | null;
+  conversionOffset?: number | null;
   precision?: number;
   isActive?: boolean;
 }
@@ -36,6 +70,7 @@ export class Unit {
   public readonly category: string;
   public readonly isBaseUnit: boolean;
   public readonly conversionFactor?: number | null;
+  public readonly conversionOffset?: number | null;
   public readonly precision: number;
   public readonly isActive: boolean;
   public readonly createdAt: Date;
@@ -47,6 +82,7 @@ export class Unit {
     this.category = props.category;
     this.isBaseUnit = props.isBaseUnit;
     this.conversionFactor = props.conversionFactor;
+    this.conversionOffset = props.conversionOffset;
     this.precision = props.precision;
     this.isActive = props.isActive;
     this.createdAt = props.createdAt;
@@ -94,6 +130,8 @@ export class Unit {
       );
     }
 
+    validateConversionOffset(input.isBaseUnit, input.conversionOffset);
+
     // Generate identity and timestamps
     const id = ObjectId.generate().value;
     const createdAt = new Date();
@@ -105,6 +143,7 @@ export class Unit {
       category,
       isBaseUnit: input.isBaseUnit,
       conversionFactor: input.conversionFactor,
+      conversionOffset: input.conversionOffset ?? null,
       precision: input.precision,
       isActive: true, // Default to active
       createdAt,
@@ -134,6 +173,10 @@ export class Unit {
       input.conversionFactor !== undefined
         ? input.conversionFactor
         : this.conversionFactor;
+    const conversionOffset =
+      input.conversionOffset !== undefined
+        ? input.conversionOffset
+        : this.conversionOffset;
     const precision =
       input.precision !== undefined ? input.precision : this.precision;
     const isActive =
@@ -166,12 +209,15 @@ export class Unit {
       );
     }
 
+    validateConversionOffset(isBaseUnit, conversionOffset);
+
     return new Unit({
       id: this.id,
       name,
       category,
       isBaseUnit,
       conversionFactor,
+      conversionOffset,
       precision,
       isActive,
       createdAt: this.createdAt,
@@ -182,6 +228,10 @@ export class Unit {
   /**
    * Converts a quantity from this unit to the base unit.
    * Only applicable for non-base units with a conversion factor.
+   *
+   * Affine, not merely multiplicative: the offset is applied before the factor,
+   * so `°F` converts as `(value − 32) × 5/9`. A multiplicative unit has no
+   * offset and behaves exactly as before.
    */
   public convertToBase(quantity: number): number {
     if (this.isBaseUnit) {
@@ -194,12 +244,14 @@ export class Unit {
       );
     }
 
-    return quantity * this.conversionFactor;
+    return (quantity + (this.conversionOffset ?? 0)) * this.conversionFactor;
   }
 
   /**
    * Converts a quantity from the base unit to this unit.
    * Only applicable for non-base units with a conversion factor.
+   *
+   * The exact inverse of {@link convertToBase}.
    */
   public convertFromBase(quantity: number): number {
     if (this.isBaseUnit) {
@@ -212,6 +264,6 @@ export class Unit {
       );
     }
 
-    return quantity / this.conversionFactor;
+    return quantity / this.conversionFactor - (this.conversionOffset ?? 0);
   }
 }

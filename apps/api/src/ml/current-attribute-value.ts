@@ -260,6 +260,7 @@ export async function loadUnitCatalog(
       category: units.category,
       isBaseUnit: units.isBaseUnit,
       conversionFactor: units.conversionFactor,
+      conversionOffset: units.conversionOffset,
       precision: units.precision,
     })
     .from(units)
@@ -271,6 +272,10 @@ export async function loadUnitCatalog(
     isBaseUnit: row.isBaseUnit,
     conversionFactor:
       row.conversionFactor === null ? null : Number(row.conversionFactor),
+    // An affine unit's zero-point shift (`°F` is −32 against `°C`); null for
+    // every multiplicative unit, which the comparison layer reads as 0.
+    conversionOffset:
+      row.conversionOffset === null ? null : Number(row.conversionOffset),
     precision: Number(row.precision),
   }));
 }

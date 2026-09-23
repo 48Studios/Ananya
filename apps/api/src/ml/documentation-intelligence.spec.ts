@@ -48,6 +48,10 @@ function attribute(
     code: 'resistance',
     value: 300,
     unit: 'ohm',
+    // No source quantity unless a test states one: the canonical pair is then
+    // the only representation, which is what the extractor's own contract says.
+    sourceValue: null,
+    sourceUnit: null,
     formatted: '300Ω',
     confidence: 0.95,
     confidenceLevel: 'HIGH',
@@ -472,17 +476,22 @@ describe('attribute value coercion', () => {
     expect(result.display).toBe('300 ohm');
   });
 
-  it('falls back to the definition default unit when extraction has none', () => {
+  it('refuses a quantity the extraction stated without a unit, never assuming the definition\u2019s own', () => {
+    // Deliberate: this used to coerce `300` under the definition's `ohm`, which
+    // re-labels the number. A quantity is a value and a unit, so an extraction
+    // that states no unit cannot be recorded as if it had stated the
+    // attribute's.
     const result = coerceAttributeValue(
       definition(),
       attribute({ unit: null, value: 300 }),
     );
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value).toEqual({ value: 300, unit: 'ohm' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('UNIT_MISMATCH');
+    expect(result.detail).toMatch(/no unit/i);
   });
 
-  it('refuses a quantity with no unit rather than guessing one', () => {
+  it('refuses a quantity with no unit and no definition unit either', () => {
     const result = coerceAttributeValue(
       definition({ defaultUnit: null }),
       attribute({ unit: null }),

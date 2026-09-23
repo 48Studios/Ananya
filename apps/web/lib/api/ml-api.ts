@@ -58,6 +58,12 @@ export interface ExtractedAttributeDto {
   attributeDefinitionId?: string | null;
   value: unknown;
   unit?: string | null;
+  /**
+   * The quantity as the document stated it (`100` with `kΩ`), when the extractor
+   * reported one. `value`/`unit` are canonical for the attribute's unit model.
+   */
+  sourceValue?: number | null;
+  sourceUnit?: string | null;
   formatted: string;
   confidence: number;
   confidenceLevel: "HIGH" | "MEDIUM" | "LOW";
@@ -124,6 +130,15 @@ export interface AttributeSuggestionDto {
    */
   existingMatches: boolean | null;
   conflict: AttributeSuggestionConflictDto | null;
+  /**
+   * Why a value the evidence determined could not be recorded for this
+   * attribute, or null.
+   *
+   * A withheld value is not a missing one: a quantity was read but cannot be
+   * expressed faithfully in the attribute's own unit model. The row shows the
+   * reason and offers no apply action.
+   */
+  valueWithheldReason?: string | null;
 }
 
 export interface ComponentSuggestionResponseDto {

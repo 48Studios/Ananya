@@ -65,6 +65,7 @@ function suggestion(
     existingDisplay: null,
     existingMatches: null,
     conflict: null,
+    valueWithheldReason: null,
     ...overrides,
   };
 }

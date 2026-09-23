@@ -209,7 +209,20 @@ class DatasheetExtractorService:
             .replace("–", "-")
             .replace("—", "-")
         )
+    @staticmethod
+    def _numeric_or_none(raw: str) -> Optional[float]:
+        """
+        The amount a matched group states, or None when it is not a number.
 
+        A rule that keeps its canonical value as a string (`1/4W`) still reports
+        a source amount when the matched text is numeric; when it is not, the
+        caller falls back to the canonical pair rather than being handed a
+        fabricated number.
+        """
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return None
     def _snippet(self, text: str, start: int, end: int) -> Optional[str]:
         """
         A bounded excerpt of the matched text.
@@ -367,14 +380,20 @@ class DatasheetExtractorService:
             val_str, unit_raw = res_m.groups()
             val = float(val_str)
             u = unit_raw.lower()
+            # `m`/`mohm` is mega on a datasheet, not milli: the printed `M` is
+            # the only thing distinguishing 10 MΩ from 10 mΩ, and the match is
+            # case-insensitive.
             if u in ("k", "kohm"):
                 canonical_val = val * 1000
+                source_unit = "kohm"
                 display = f"{val_str}kΩ"
             elif u in ("m", "mohm"):
                 canonical_val = val * 1000000
+                source_unit = "Mohm"
                 display = f"{val_str}MΩ"
             else:
                 canonical_val = val
+                source_unit = "ohm"
                 display = f"{val_str}Ω"
 
             record(
@@ -382,6 +401,12 @@ class DatasheetExtractorService:
                     code="resistance",
                     value=canonical_val,
                     unit="ohm",
+                    # The document's own quantity, alongside the canonical one:
+                    # the ERP records `100 kΩ` as stated rather than only its
+                    # ohm equivalent, which is what keeps the representation of
+                    # a quantity intact through to the component attribute.
+                    source_value=val,
+                    source_unit=source_unit,
                     formatted=display,
                     confidence=0.95,
                     confidence_level="HIGH",
@@ -409,6 +434,8 @@ class DatasheetExtractorService:
                     code="capacitance",
                     value=val,
                     unit=u,
+                    source_value=val,
+                    source_unit=u,
                     formatted=display,
                     confidence=0.95,
                     confidence_level="HIGH",
@@ -436,6 +463,8 @@ class DatasheetExtractorService:
                     code="inductance",
                     value=val,
                     unit=u,
+                    source_value=val,
+                    source_unit=u,
                     formatted=display,
                     confidence=0.95,
                     confidence_level="HIGH",
@@ -461,6 +490,8 @@ class DatasheetExtractorService:
                     code="voltage",
                     value=float(val_str),
                     unit=unit_raw.upper(),
+                    source_value=float(val_str),
+                    source_unit=unit_raw.upper(),
                     formatted=display,
                     confidence=0.92,
                     confidence_level="HIGH",
@@ -486,6 +517,8 @@ class DatasheetExtractorService:
                     code="current",
                     value=float(val_str),
                     unit=unit_raw.upper(),
+                    source_value=float(val_str),
+                    source_unit=unit_raw.upper(),
                     formatted=display,
                     confidence=0.90,
                     confidence_level="HIGH",
@@ -511,6 +544,11 @@ class DatasheetExtractorService:
                     code="power",
                     value=val_str,
                     unit=unit_raw.upper(),
+                    # `value` is a string for this rule (a datasheet writes
+                    # `1/4W`), so the source amount is only reported when it is a
+                    # number; the caller then falls back to `value`/`unit`.
+                    source_value=self._numeric_or_none(val_str),
+                    source_unit=unit_raw.upper(),
                     formatted=display,
                     confidence=0.90,
                     confidence_level="HIGH",
@@ -536,6 +574,8 @@ class DatasheetExtractorService:
                     code="tolerance",
                     value=float(val_str),
                     unit="%",
+                    source_value=float(val_str),
+                    source_unit="%",
                     formatted=display,
                     confidence=0.95,
                     confidence_level="HIGH",
@@ -834,6 +874,8 @@ class DatasheetExtractorService:
                     code="pitch",
                     value=pitch,
                     unit="mm",
+                    source_value=pitch,
+                    source_unit="mm",
                     formatted=f"{pitch_m.group(1)} mm",
                     confidence=0.88,
                     confidence_level="MEDIUM",

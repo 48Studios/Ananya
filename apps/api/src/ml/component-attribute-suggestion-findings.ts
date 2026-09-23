@@ -209,14 +209,23 @@ function buildUnknownFinding(
   suggestion: AttributeSuggestionDto,
 ): PersistComponentFindingInput {
   const { component, intelligenceVersion } = input;
+  const withheld = suggestion.valueWithheldReason ?? null;
 
   return {
     componentId: component.id,
     issueType: 'ATTRIBUTE_VALUE_UNKNOWN',
     issueCategory: 'ATTRIBUTE_VALUE',
     field: findingField(suggestion),
-    title: `${suggestion.name} is expected but not recorded`,
-    description: `${suggestion.name} is a specification of this component, and no value could be determined from the available evidence. Nothing was invented to fill it — review the component and enter the value if it is known.`,
+    title: withheld
+      ? `${suggestion.name} was read but cannot be recorded`
+      : `${suggestion.name} is expected but not recorded`,
+    // A value the intelligence *did* read, but which cannot be recorded
+    // faithfully (an unknown unit, or a unit of another dimension), is a
+    // different statement from one it never found. Both leave nothing to apply,
+    // and the reason is what tells the reviewer which happened.
+    description: withheld
+      ? `${suggestion.name} could not be recorded: ${withheld} Nothing was written, and no unit was assumed.`
+      : `${suggestion.name} is a specification of this component, and no value could be determined from the available evidence. Nothing was invented to fill it — review the component and enter the value if it is known.`,
     currentValue: {
       attributeDefinitionId: suggestion.attributeDefinitionId,
       attributeCode: suggestion.code,
@@ -244,6 +253,9 @@ function buildUnknownFinding(
       // Review-only: there is no value to apply, so the queue must not offer one.
       actionable: false,
       relevance: suggestion.relevance.map((item) => item.type),
+      // Why a value the evidence established was withheld, when that is what
+      // happened; absent when no value was ever determined.
+      ...(withheld ? { valueWithheldReason: withheld } : {}),
     },
   };
 }

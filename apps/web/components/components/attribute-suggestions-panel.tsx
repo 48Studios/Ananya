@@ -248,6 +248,17 @@ export function AttributeSuggestionsPanel({
             {state.reason && (
               <p className="text-[11px] text-muted-foreground">{state.reason}</p>
             )}
+            {/*
+              A value the backend read but withheld is not the same as one it
+              never determined: the reason names the units involved (an unknown
+              unit, or one of another dimension), so it is shown rather than
+              leaving the reviewer to wonder why the row has nothing to apply.
+            */}
+            {state.isRelevantOnly && suggestion.valueWithheldReason && (
+              <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                {suggestion.valueWithheldReason}
+              </p>
+            )}
             {state.isMissingDefinition && (
               <p className="text-[11px] text-muted-foreground">
                 This specification is no longer in the attribute library, so it

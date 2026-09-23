@@ -96,6 +96,11 @@ export interface UnitRef {
   category: string;
   isBaseUnit: boolean;
   conversionFactor: number | null;
+  /**
+   * Zero-point shift applied before the factor, in this unit's own scale.
+   * Absent/null means 0 — every purely multiplicative unit.
+   */
+  conversionOffset?: number | null;
   precision: number;
 }
 
@@ -106,6 +111,18 @@ export interface UnitRef {
  * case or in a symbol (`KV`, `kV`, `Ω`, `ohm`, `µF`, `uF`). Mapping the symbol
  * to the word and folding case is what lets an extracted `KV` find the
  * authoritative `kV` row; it is not a unit table, it is a spelling normaliser.
+ *
+ * Two folds go beyond case and symbols, because the spelled-out form is the
+ * same unit and a reviewer or an extraction writes both:
+ *
+ *  - `kilo`/`mega` before `ohm` fold onto the catalog's `kohm`/`Mohm`. Only
+ *    `kilo` and `mega` are folded: `milliohm` must **not** become `mohm`, which
+ *    this catalog reads as megaohm, and a wrong prefix is a wrong quantity.
+ *  - `celsius`/`fahrenheit`/`kelvin` fold onto the `degC`/`degF`/`K` spellings,
+ *    which is what `°C`/`°F` already normalise to.
+ *
+ * It still invents no factors and no units: every key this produces is only
+ * meaningful when the authoritative catalog contains the matching row.
  */
 export function canonicalUnitKey(unit: string): string {
   return (
@@ -121,6 +138,12 @@ export function canonicalUnitKey(unit: string): string {
       .toLowerCase()
       .replace(/\s+/g, '')
       .replace(/\.$/, '')
+      .replace(/^(kilo|mega)(?=ohm$)/, (prefix) =>
+        prefix === 'kilo' ? 'k' : 'M'.toLowerCase(),
+      )
+      .replace(/^(celsius|centigrade)$/, 'degc')
+      .replace(/^fahrenheit$/, 'degf')
+      .replace(/^kelvin$/, 'k')
   );
 }
 
@@ -138,12 +161,37 @@ export function findUnit(
 /**
  * Converts an amount into its unit's base unit.
  *
- * Delegates to the `Unit` aggregate's `convertToBase`, so the arithmetic and the
- * "cannot convert without a factor" rule stay owned by the domain.
+ * Delegates to the `Unit` aggregate's `convertToBase`, so the arithmetic, the
+ * affine offset and the "cannot convert without a factor" rule all stay owned by
+ * the domain. The optional offset is forwarded as-is: a caller that omits it is
+ * stating that the unit is multiplicative, which is what every caller did before
+ * affine units existed.
  */
 export function toBaseUnit(
   unit: UnitRef,
   amount: number,
+): { ok: true; value: number } | { ok: false; detail: string } {
+  return convertThroughAggregate(unit, amount, 'toBase');
+}
+
+/**
+ * Converts an amount from a unit's base unit back into that unit.
+ *
+ * The exact inverse of {@link toBaseUnit}, and the half that makes a conversion
+ * into a *target* unit possible: `10 °C` becomes `50 °F` by going to the base and
+ * back out. Like `toBaseUnit` it owns no arithmetic of its own.
+ */
+export function fromBaseUnit(
+  unit: UnitRef,
+  amount: number,
+): { ok: true; value: number } | { ok: false; detail: string } {
+  return convertThroughAggregate(unit, amount, 'fromBase');
+}
+
+function convertThroughAggregate(
+  unit: UnitRef,
+  amount: number,
+  direction: 'toBase' | 'fromBase',
 ): { ok: true; value: number } | { ok: false; detail: string } {
   if (!Number.isFinite(amount)) {
     return { ok: false, detail: 'The amount is not a finite number.' };
@@ -155,12 +203,19 @@ export function toBaseUnit(
       category: unit.category,
       isBaseUnit: unit.isBaseUnit,
       conversionFactor: unit.conversionFactor,
+      conversionOffset: unit.conversionOffset ?? null,
       precision: unit.precision,
       isActive: true,
       createdAt: new Date(0),
       updatedAt: new Date(0),
     });
-    return { ok: true, value: entity.convertToBase(amount) };
+    return {
+      ok: true,
+      value:
+        direction === 'toBase'
+          ? entity.convertToBase(amount)
+          : entity.convertFromBase(amount),
+    };
   } catch (error) {
     return {
       ok: false,
@@ -815,4 +870,240 @@ export function toComparableValue(input: {
 
   const parsed = parseAmountAndUnit(input.display);
   return { amount: parsed.amount, unit: input.unit ?? parsed.unit };
+}
+
+// ---------------------------------------------------------------------------
+// Quantity resolution — a value and its unit, kept together
+// ---------------------------------------------------------------------------
+
+/**
+ * Why a quantity could not be expressed for an attribute definition.
+ *
+ * Machine-readable, because the caller decides what to do with it: a withheld
+ * suggestion still has relevance, and the reason is what the reviewer is told
+ * instead of a value.
+ */
+export const QUANTITY_RESOLUTION_REASONS = [
+  /** The amount is absent or not a finite number. */
+  'INVALID_AMOUNT',
+  /** A numeric value with no unit: a quantity is value *and* unit. */
+  'MISSING_UNIT',
+  /** The unit is not a row in the authoritative catalog. */
+  'UNKNOWN_UNIT',
+  /** The unit measures a different dimension than the attribute declares. */
+  'INCOMPATIBLE_UNIT',
+] as const;
+
+export type QuantityResolutionReason =
+  (typeof QUANTITY_RESOLUTION_REASONS)[number];
+
+export interface QuantityResolutionSuccess {
+  ok: true;
+  /** The amount to record, expressed in {@link unit}. */
+  value: number;
+  /** The unit to record, spelled as the authoritative catalog spells it. */
+  unit: string;
+  /** True when the amount was converted into a different unit to fit. */
+  converted: boolean;
+  /** What the source stated, so provenance can quote it unchanged. */
+  sourceValue: number;
+  sourceUnit: string | null;
+}
+
+export interface QuantityResolutionFailure {
+  ok: false;
+  reason: QuantityResolutionReason;
+  /** Reviewer-safe explanation. Never a stack trace, never a guess. */
+  detail: string;
+}
+
+export type QuantityResolution =
+  QuantityResolutionSuccess | QuantityResolutionFailure;
+
+/**
+ * The units an attribute definition accepts, when it declares them.
+ *
+ * `validationRules.allowedUnits` is the existing definition-level rule bag (the
+ * same place `tolerance` and `toleranceKind` live), and it is the only way an
+ * attribute can say "this one unit and no other" — a single-entry list is a
+ * fixed unit, a longer one is a restricted choice. Absent, the attribute accepts
+ * every unit of its declared dimension, which is exactly what the editor offers.
+ */
+export function readAllowedUnits(
+  validationRules: Record<string, unknown> | null | undefined,
+): string[] | null {
+  if (!validationRules || typeof validationRules !== 'object') return null;
+  const raw = validationRules.allowedUnits;
+  if (!Array.isArray(raw)) return null;
+  const units = raw
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  return units.length > 0 ? units : null;
+}
+
+/**
+ * Expresses a quantity for one attribute definition: the single rule that
+ * decides what a quantity suggestion may be recorded as.
+ *
+ * The physical quantity is what must survive, so the outcome is always one of:
+ *
+ *  1. **Preserved** — the source unit is one the attribute accepts, so the
+ *     amount is recorded in the unit it was stated in (`100 kΩ` stays `100 kΩ`).
+ *  2. **Converted** — the attribute requires a unit the source did not use, so
+ *     the quantity is converted through the catalog (`10 °C` becomes `50 °F`).
+ *     Never a copied number under a new unit, which is what corrupts an affine
+ *     unit: `10 °C` must never be recorded as `10 °F`.
+ *  3. **Refused** — no unit, an unknown unit, or a different dimension. Nothing
+ *     is written and the caller is told why.
+ *
+ * Conversion is never invented here: it runs through the `Unit` aggregate via
+ * {@link toBaseUnit}/{@link fromBaseUnit}, so a factor or an offset can only
+ * come from the catalog.
+ */
+export function resolveQuantityForDefinition(input: {
+  /** The amount as extracted or typed; a numeric string is accepted. */
+  value: unknown;
+  sourceUnit?: string | null;
+  /** The dimension the attribute declares, e.g. `Resistance`. */
+  unitCategory?: string | null;
+  /** The unit the attribute records in. */
+  defaultUnit?: string | null;
+  /** Explicit accepted units, when the attribute declares them. */
+  allowedUnits?: readonly string[] | null;
+  units: readonly UnitRef[];
+}): QuantityResolution {
+  const amount =
+    typeof input.value === 'number'
+      ? input.value
+      : typeof input.value === 'string' && input.value.trim() !== ''
+        ? Number(input.value)
+        : Number.NaN;
+
+  if (!Number.isFinite(amount)) {
+    return {
+      ok: false,
+      reason: 'INVALID_AMOUNT',
+      detail:
+        'The suggested value is not a finite number, so it cannot be recorded as a quantity.',
+    };
+  }
+
+  const sourceUnit = input.sourceUnit?.trim() || null;
+  if (!sourceUnit) {
+    return {
+      ok: false,
+      reason: 'MISSING_UNIT',
+      detail:
+        'The suggested value has no unit, and a quantity is a value and a unit together. The attribute\u2019s own unit was not assumed, because the value would then silently change meaning.',
+    };
+  }
+
+  const preserved = (unit: string): QuantityResolution => ({
+    ok: true,
+    value: amount,
+    unit,
+    converted: false,
+    sourceValue: amount,
+    sourceUnit,
+  });
+
+  // Without the catalog there is nothing to validate or convert against. The
+  // caller passes one whenever it has it; an empty catalog means the source
+  // quantity is taken as stated rather than rejected, which is the behaviour
+  // every caller had before conversions existed.
+  if (input.units.length === 0) {
+    return preserved(sourceUnit);
+  }
+
+  const declaredCategory = input.unitCategory?.trim() ?? '';
+  const allowedUnits = input.allowedUnits ?? null;
+  const source = findUnit(input.units, sourceUnit);
+
+  const isAccepted = (unit: UnitRef): boolean => {
+    if (allowedUnits) {
+      return allowedUnits.some(
+        (allowed) => canonicalUnitKey(allowed) === canonicalUnitKey(unit.name),
+      );
+    }
+    // No declared dimension: the catalog is the only authority, and a real
+    // catalog row is accepted as stated.
+    return !declaredCategory || unit.category === declaredCategory;
+  };
+
+  if (!source) {
+    // An unknown unit is still usable when the attribute itself declares that
+    // very unit: nothing is being assumed or converted, and refusing would
+    // reject a correctly stated value (the live `mm` attributes, whose dimension
+    // has no catalog rows at all).
+    const declaredUnit = input.defaultUnit?.trim();
+    if (
+      declaredUnit &&
+      canonicalUnitKey(declaredUnit) === canonicalUnitKey(sourceUnit)
+    ) {
+      return preserved(declaredUnit);
+    }
+    const declaredAllowed = allowedUnits?.find(
+      (allowed) => canonicalUnitKey(allowed) === canonicalUnitKey(sourceUnit),
+    );
+    if (declaredAllowed) return preserved(declaredAllowed);
+
+    return {
+      ok: false,
+      reason: 'UNKNOWN_UNIT',
+      detail: `The unit "${sourceUnit}" is not defined in the unit catalog, so the value cannot be converted or confirmed as the attribute\u2019s own unit.`,
+    };
+  }
+
+  if (declaredCategory && source.category !== declaredCategory) {
+    return {
+      ok: false,
+      reason: 'INCOMPATIBLE_UNIT',
+      detail: `${source.name} measures ${source.category}, but this attribute is a ${declaredCategory} attribute. The units are incompatible, so the value was not applied.`,
+    };
+  }
+
+  if (isAccepted(source)) {
+    // Recorded in the catalog's own spelling, so persistence can resolve the
+    // unit by name and normalise it (`kΩ` and `kohm` are the same row).
+    return preserved(source.name);
+  }
+
+  // The attribute does not accept the source unit, so the quantity has to be
+  // converted into one it does. The target is the attribute's own unit, falling
+  // back to the dimension's base unit — never a unit invented here.
+  const target =
+    (input.defaultUnit ? findUnit(input.units, input.defaultUnit) : null) ??
+    input.units.find(
+      (unit) =>
+        unit.isBaseUnit &&
+        (!declaredCategory || unit.category === declaredCategory),
+    ) ??
+    null;
+
+  if (!target || !isAccepted(target)) {
+    return {
+      ok: false,
+      reason: 'INCOMPATIBLE_UNIT',
+      detail: `${source.name} is not one of the units this attribute accepts, and it has no usable unit to convert into. The value was not applied.`,
+    };
+  }
+
+  const base = toBaseUnit(source, amount);
+  if (!base.ok) {
+    return { ok: false, reason: 'INCOMPATIBLE_UNIT', detail: base.detail };
+  }
+  const converted = fromBaseUnit(target, base.value);
+  if (!converted.ok) {
+    return { ok: false, reason: 'INCOMPATIBLE_UNIT', detail: converted.detail };
+  }
+
+  return {
+    ok: true,
+    value: converted.value,
+    unit: target.name,
+    converted: true,
+    sourceValue: amount,
+    sourceUnit,
+  };
 }

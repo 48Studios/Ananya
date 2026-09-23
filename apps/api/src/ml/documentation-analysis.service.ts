@@ -678,6 +678,14 @@ export class DocumentationAnalysisService {
       defaultUnit: definition.defaultUnit,
       aliases: definition.aliases ?? [],
       options: optionsByDefinition.get(definition.id) ?? [],
+      // Carried so the coercion can honour an attribute's own `allowedUnits`
+      // rule instead of assuming its default unit.
+      validationRules:
+        definition.validationRules &&
+        typeof definition.validationRules === 'object' &&
+        !Array.isArray(definition.validationRules)
+          ? (definition.validationRules as Record<string, unknown>)
+          : null,
       isActive: definition.isActive,
     }));
   }

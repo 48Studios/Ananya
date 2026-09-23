@@ -112,6 +112,64 @@ describe("Unit Domain Module", () => {
         }),
       ).toThrow(InvalidUnitCategoryError);
     });
+
+    it("should convert an affine unit through its offset", () => {
+      // Fahrenheit is not a multiple of Celsius: its zero sits 32 of its own
+      // degrees below Celsius' zero, so the offset is applied before the factor.
+      const fahrenheit = Unit.create({
+        name: "°F",
+        category: "Temperature",
+        isBaseUnit: false,
+        conversionFactor: 5 / 9,
+        conversionOffset: -32,
+        precision: 1,
+      });
+
+      expect(fahrenheit.convertToBase(50)).toBe(10);
+      expect(fahrenheit.convertToBase(32)).toBe(0);
+      expect(fahrenheit.convertToBase(212)).toBe(100);
+      expect(fahrenheit.convertFromBase(10)).toBe(50);
+      expect(fahrenheit.convertFromBase(0)).toBe(32);
+      expect(fahrenheit.convertFromBase(100)).toBe(212);
+    });
+
+    it("should treat a missing offset as zero, so multiplication is unchanged", () => {
+      const dozen = Unit.create({
+        name: "doz",
+        category: "Count",
+        isBaseUnit: false,
+        conversionFactor: 12,
+        conversionOffset: null,
+        precision: 0,
+      });
+
+      expect(dozen.convertToBase(2)).toBe(24);
+      expect(dozen.convertFromBase(36)).toBe(3);
+    });
+
+    it("should refuse an offset on a base unit or a non-finite one", () => {
+      // A base unit defines its category's zero, so it cannot be shifted.
+      expect(() =>
+        Unit.create({
+          name: "K",
+          category: "Temperature",
+          isBaseUnit: true,
+          conversionOffset: 273.15,
+          precision: 2,
+        }),
+      ).toThrow(InvalidUnitCategoryError);
+
+      expect(() =>
+        Unit.create({
+          name: "°F",
+          category: "Temperature",
+          isBaseUnit: false,
+          conversionFactor: 1,
+          conversionOffset: Number.POSITIVE_INFINITY,
+          precision: 1,
+        }),
+      ).toThrow(InvalidUnitCategoryError);
+    });
   });
 
   describe("CreateUnit Use Case", () => {

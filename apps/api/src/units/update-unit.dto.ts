@@ -27,6 +27,10 @@ export class UpdateUnitDto {
 
   @IsOptional()
   @IsNumber()
+  conversionOffset?: number;
+
+  @IsOptional()
+  @IsNumber()
   precision?: number;
 
   @IsOptional()

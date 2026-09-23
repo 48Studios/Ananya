@@ -3,6 +3,8 @@ import type { UnitRef } from './attribute-value-semantics';
 import {
   toComparableValue,
   areValuesEquivalent,
+  readAllowedUnits,
+  resolveQuantityForDefinition,
 } from './attribute-value-semantics';
 import { normalizedTerm, termTokens } from './attribute-resolution';
 
@@ -117,6 +119,17 @@ export interface RelevanceExtractedAttribute {
   confidence: number;
   confidenceLevel: ConfidenceLevel;
   evidence?: EvidenceItemDto[];
+  /**
+   * The quantity as the document stated it, when the extraction reported one.
+   *
+   * `value`/`unit` are the extractor's canonical form (a resistance is stated in
+   * ohms, whatever the datasheet printed); these are the source representation
+   * (`100` `kΩ`), which is what a suggestion records when the attribute accepts
+   * that unit. Absent for an extraction that reports only one form, in which case
+   * the canonical pair is used.
+   */
+  sourceValue?: number | null;
+  sourceUnit?: string | null;
 }
 
 export interface BuildAttributeRelevanceInput {
@@ -242,6 +255,16 @@ export interface AttributeSuggestion {
   existingMatches: boolean | null;
   /** Set only when the recorded value and the suggested value genuinely differ. */
   conflict: AttributeSuggestionConflict | null;
+  /**
+   * Why a value the evidence determined could not be expressed for this
+   * attribute, or null.
+   *
+   * A withheld value is not a missing one: the intelligence read a quantity, but
+   * it cannot be recorded faithfully (an unknown unit, a unit of another
+   * dimension, or a number with no unit at all). The reviewer is told which, and
+   * nothing is applied.
+   */
+  valueWithheldReason: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -584,7 +607,8 @@ function buildOptionValue(
 function buildExtractedValue(
   definition: RelevanceDefinition,
   extracted: RelevanceExtractedAttribute,
-): AttributeSuggestionValue | null {
+  units: readonly UnitRef[],
+): { value: AttributeSuggestionValue | null; withheldReason: string | null } {
   const dataType = definition.dataType.toUpperCase();
 
   if (dataType === 'SELECT' || dataType === 'MULTI_SELECT') {
@@ -592,17 +616,55 @@ function buildExtractedValue(
     // An extracted choice that is not an option of the definition cannot be
     // written by the manual editor, so it is reported without a value instead of
     // as a free string.
-    return option ? buildOptionValue(definition, option) : null;
+    return {
+      value: option ? buildOptionValue(definition, option) : null,
+      withheldReason: null,
+    };
   }
 
   if (extracted.value === null || extracted.value === undefined) {
-    return null;
+    return { value: null, withheldReason: null };
+  }
+
+  if (dataType === 'QUANTITY') {
+    // A quantity is a value *and* a unit, so it is resolved through the shared
+    // rule rather than copied: the source unit is preserved when the attribute
+    // accepts it, converted when the attribute requires another unit, and the
+    // value is withheld when neither is possible. Copying the number alone is
+    // what would turn `10 °C` into `10 °F`.
+    const resolution = resolveQuantityForDefinition({
+      value: extracted.sourceValue ?? extracted.value,
+      sourceUnit: extracted.sourceUnit ?? extracted.unit ?? null,
+      unitCategory: definition.unitCategory ?? null,
+      defaultUnit: definition.defaultUnit ?? null,
+      allowedUnits: readAllowedUnits(definition.validationRules),
+      units,
+    });
+
+    if (!resolution.ok) {
+      return { value: null, withheldReason: resolution.detail };
+    }
+
+    return {
+      value: {
+        value: resolution.value,
+        unit: resolution.unit,
+        // The display stays the extraction's own rendering of the quantity, so
+        // the reviewer reads what the document said even when the recorded unit
+        // is the attribute's own.
+        formatted: extracted.formatted,
+      },
+      withheldReason: null,
+    };
   }
 
   return {
-    value: extracted.value as string | number | boolean,
-    unit: extracted.unit ?? definition.defaultUnit ?? null,
-    formatted: extracted.formatted,
+    value: {
+      value: extracted.value as string | number | boolean,
+      unit: extracted.unit ?? null,
+      formatted: extracted.formatted,
+    },
+    withheldReason: null,
   };
 }
 
@@ -727,6 +789,8 @@ interface SuggestionDraft {
   value: AttributeSuggestionValue | null;
   valueEvidence: AttributeRelevanceEvidence[];
   valueConfidence: number | null;
+  /** Why a determined value could not be expressed, when that happened. */
+  valueWithheldReason: string | null;
 }
 
 export function buildAttributeSuggestions(
@@ -754,6 +818,7 @@ export function buildAttributeSuggestions(
         value: null,
         valueEvidence: [],
         valueConfidence: null,
+        valueWithheldReason: null,
       };
       drafts.set(definition.id, draft);
     }
@@ -874,16 +939,25 @@ export function buildAttributeSuggestions(
       source: 'extractor:component-attribute',
       weight: RELEVANCE_WEIGHTS.extracted_attribute,
     });
-    const value = buildExtractedValue(definition, extracted);
-    if (!value) continue;
+    const built = buildExtractedValue(definition, extracted, input.units ?? []);
+    if (!built.value) {
+      // The evidence established a value that cannot be recorded faithfully.
+      // The reason is kept (strongest reading wins, like the value itself) so
+      // the reviewer is told why the row has nothing to apply.
+      if (!draft.value && !draft.valueWithheldReason) {
+        draft.valueWithheldReason = built.withheldReason;
+      }
+      continue;
+    }
     if (
       draft.valueConfidence !== null &&
       draft.valueConfidence >= extracted.confidence
     ) {
       continue;
     }
-    draft.value = value;
+    draft.value = built.value;
     draft.valueConfidence = extracted.confidence;
+    draft.valueWithheldReason = null;
     draft.valueEvidence = [
       ...(extracted.evidence ?? []).map((evidence) => ({
         type: 'extracted_attribute' as const,
@@ -1079,6 +1153,7 @@ export function buildAttributeSuggestions(
       existingDisplay,
       existingMatches: comparison ? comparison.matches : null,
       conflict: comparison ? comparison.conflict : null,
+      valueWithheldReason: draft.value ? null : draft.valueWithheldReason,
     });
   }
 

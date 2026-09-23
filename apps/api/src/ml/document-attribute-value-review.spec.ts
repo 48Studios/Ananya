@@ -58,6 +58,8 @@ function attribute(
     code: 'resistance',
     value: 330,
     unit: 'ohm',
+    sourceValue: null,
+    sourceUnit: null,
     formatted: '330Ω',
     confidence: 0.95,
     confidenceLevel: 'HIGH',

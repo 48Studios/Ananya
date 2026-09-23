@@ -317,6 +317,23 @@ describe("eligibility", () => {
     expect(acceptUnavailableReason(matching())).toContain("already recorded");
   });
 
+  it("shows the backend's own reason when a determined value was withheld", () => {
+    // A quantity the backend read but could not record faithfully (an unknown
+    // unit, or one of another dimension) is a different statement from "no value
+    // was determined", and the reason names the units involved.
+    const withheld = suggestion({
+      suggestedValue: null,
+      valueWithheldReason:
+        "mV measures Voltage, but this attribute is a Resistance attribute.",
+    });
+
+    expect(canApplyIndividually(withheld)).toBe(false);
+    expect(acceptUnavailableReason(withheld)).toContain("mV");
+    expect(acceptUnavailableReason(withheld)).not.toContain(
+      "No value was determined",
+    );
+  });
+
   it("offers a per-row decision where a value exists", () => {
     // The per-row rule is broader than the bulk rule on purpose: one deliberate
     // click is a decision, and a conflict's action is labelled as a review.
@@ -397,17 +414,34 @@ describe("applying a suggestion", () => {
     });
   });
 
-  it("carries the unit for a quantity, defaulting to the definition's own", () => {
+  it("carries the unit the backend resolved for a quantity", () => {
     expect(
       attributeValuePatch(
         suggestion({
           dataType: "QUANTITY",
           unitCategory: "Length",
           defaultUnit: "mm",
-          suggestedValue: { value: 2.5, formatted: "2.50 mm" },
+          suggestedValue: { value: 2.5, unit: "mm", formatted: "2.50 mm" },
         }),
       ),
     ).toMatchObject({ value: 2.5, unit: "mm" });
+  });
+
+  it("never supplies a unit the backend did not resolve", () => {
+    // Deliberate: this used to fall back to the definition's own unit, which
+    // re-labels the number (`10` becomes `10 °F` because the attribute says °F).
+    // A quantity the backend could not resolve carries no value at all, so a
+    // patch built from one must not carry a unit either.
+    expect(
+      attributeValuePatch(
+        suggestion({
+          dataType: "QUANTITY",
+          unitCategory: "Temperature",
+          defaultUnit: "°F",
+          suggestedValue: { value: 10, formatted: "10 °C" },
+        }),
+      ),
+    ).toMatchObject({ value: 10, unit: null });
   });
 
   it("carries every chosen code for a multi-select", () => {

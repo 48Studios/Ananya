@@ -449,6 +449,9 @@ export class DataPacksService {
           category: u.category,
           isBaseUnit: u.isBaseUnit,
           conversionFactor: u.conversionFactor,
+          // An affine unit (`°F`) states its zero-point shift; a multiplicative
+          // one has none, and writing null keeps that explicit in the row.
+          conversionOffset: u.conversionOffset ?? null,
           precision: u.precision,
           isActive: true,
         })

@@ -14,6 +14,9 @@ function toDomain(row: UnitRow): Unit {
     conversionFactor: row.conversionFactor
       ? Number(row.conversionFactor)
       : null,
+    conversionOffset: row.conversionOffset
+      ? Number(row.conversionOffset)
+      : null,
     precision: Number(row.precision),
     isActive: row.isActive,
     createdAt: row.createdAt,
@@ -29,6 +32,10 @@ function toRow(unit: Unit): Omit<UnitRow, 'id' | 'createdAt' | 'updatedAt'> {
     conversionFactor: unit.conversionFactor
       ? String(unit.conversionFactor)
       : null,
+    conversionOffset:
+      unit.conversionOffset !== undefined && unit.conversionOffset !== null
+        ? String(unit.conversionOffset)
+        : null,
     precision: String(unit.precision),
     isActive: unit.isActive,
   };
@@ -94,6 +101,10 @@ export class DrizzleUnitRepository implements UnitRepository {
         conversionFactor: unit.conversionFactor
           ? String(unit.conversionFactor)
           : null,
+        conversionOffset:
+          unit.conversionOffset !== undefined && unit.conversionOffset !== null
+            ? String(unit.conversionOffset)
+            : null,
         precision: String(unit.precision),
         isActive: unit.isActive,
         updatedAt: unit.updatedAt,

@@ -315,12 +315,17 @@ export function dismissActionLabel(
  *
  * Returned as words: a suggestion the reviewer cannot apply must say why rather
  * than showing a button that does nothing or, worse, offering to overwrite a
- * value silently.
+ * value silently. When the backend withheld a value it read — an unknown unit, a
+ * unit of another dimension, or a number with no unit — its own explanation is
+ * the one shown, because it names the units involved.
  */
 export function acceptUnavailableReason(
   suggestion: AttributeSuggestionDto,
 ): string | null {
   if (canApplyIndividually(suggestion)) return null;
+  if (suggestion.valueWithheldReason) {
+    return suggestion.valueWithheldReason;
+  }
   if (suggestion.existingMatches === true) {
     return "This value is already recorded on the component.";
   }
@@ -387,6 +392,14 @@ export function bulkAcceptUnavailableReason(
  * Returns the same shape the manual editor holds, so an accepted value is
  * indistinguishable from a typed one from here on: the existing Save flow
  * persists both, and no second write path exists.
+ *
+ * The unit comes from the backend and is never filled in here. A quantity the
+ * backend resolved carries the unit it is to be recorded in — the document's own
+ * unit when the attribute accepts it, the attribute's own unit when the quantity
+ * was converted into it. Supplying a unit the backend did not resolve would be
+ * re-interpreting the number under a different unit, which is how `10 °C` becomes
+ * `10 °F`; a suggestion whose unit the backend withheld carries no value at all
+ * and is not offered for apply.
  */
 export function attributeValuePatch(suggestion: AttributeSuggestionDto): {
   attributeDefinitionId: string;
@@ -401,7 +414,7 @@ export function attributeValuePatch(suggestion: AttributeSuggestionDto): {
   return {
     attributeDefinitionId: suggestion.attributeDefinitionId,
     value: suggested.value,
-    unit: suggested.unit ?? suggestion.defaultUnit ?? null,
+    unit: suggested.unit ?? null,
     // The editor keys SELECT values by option code; the backend already
     // resolved the value to a real option of this definition.
     optionCode: suggested.optionCode,
