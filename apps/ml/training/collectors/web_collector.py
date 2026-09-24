@@ -73,6 +73,15 @@ class AutonomousWebCollector(BaseCollector):
         self.source_health: Dict[str, Dict[str, Any]] = {}
         # Guards shared stats counters when document workers run concurrently.
         self._stats_lock = threading.Lock()
+        self._hash_locks: Dict[str, threading.Lock] = {}
+
+    def _get_hash_lock(self, content_hash: Optional[str]) -> threading.Lock:
+        if not content_hash:
+            return threading.Lock()
+        with self._stats_lock:
+            if content_hash not in self._hash_locks:
+                self._hash_locks[content_hash] = threading.Lock()
+            return self._hash_locks[content_hash]
 
     def collect(
         self,
@@ -87,11 +96,19 @@ class AutonomousWebCollector(BaseCollector):
         quiet: bool = False,
         verbose: bool = False,
         document_workers: int = 1,
+        from_raw: bool = False,
         **kwargs: Any,
     ) -> List[ProductRecord]:
         """
         Executes autonomous collection across configured sources.
         """
+        if from_raw or kwargs.get("from_raw", False):
+            return self.rebuild_from_raw(
+                source_id=source_id,
+                quiet=quiet,
+                verbose=verbose,
+            )
+
         # Determine sources to run
         if source_id:
             src = self.registry.get_source(source_id)
@@ -192,6 +209,104 @@ class AutonomousWebCollector(BaseCollector):
 
         return all_extracted_records
 
+    def rebuild_from_raw(
+        self,
+        source_id: Optional[str] = None,
+        quiet: bool = False,
+        verbose: bool = False,
+    ) -> List[ProductRecord]:
+        """
+        Rebuilds the training dataset purely from already-downloaded local raw files.
+        Executes zero network calls (no crawler discovery, no robots.txt checks, no HTTP downloads).
+        Passes all extracted ProductRecords through the complete downstream pipeline:
+        Normalization -> Validation & Conflict Quarantine -> Deduplication -> Split -> Tasks & Manifest.
+        """
+        if source_id:
+            src = self.registry.get_source(source_id)
+            if not src:
+                raise ValueError(f"Source '{source_id}' not found in registry")
+            sources = [src]
+        else:
+            sources = self.registry.get_sources(enabled_only=True)
+
+        self.source_health = {}
+        all_registered = self.registry.get_sources(enabled_only=False)
+        for s in all_registered:
+            if not s.enabled:
+                self.source_health[s.id] = {
+                    "name": s.name,
+                    "status": "SKIPPED",
+                    "products": 0,
+                    "documents": 0,
+                    "failures": 0,
+                    "reason": "Disabled in sources.yaml",
+                }
+
+        all_extracted: List[ProductRecord] = []
+        progress = LiveProgress(quiet=quiet, verbose=verbose)
+        progress.start_stage("Rebuilding dataset from local raw files", total=len(sources))
+
+        stats = {
+            "sources_count": len(sources),
+            "urls_discovered": 0,
+            "downloaded": 0,
+            "cached": 0,
+            "skipped": 0,
+            "failed": 0,
+            "pdfs": 0,
+            "products_extracted": 0,
+        }
+
+        for idx, source in enumerate(sources, 1):
+            extractor = ContentExtractor(source)
+            cached_recs = self.acquisition_store.get_records_for_source(source.id)
+            source_extracted: List[ProductRecord] = []
+            source_pdfs = 0
+
+            for rec in cached_recs:
+                if not rec.local_path or not Path(rec.local_path).exists():
+                    continue
+                try:
+                    if rec.content_type == "application/pdf" or rec.local_path.endswith(".pdf"):
+                        source_pdfs += 1
+                        prod = self._reuse_cached_pdf_record(extractor, rec)
+                        if prod:
+                            source_extracted.append(prod)
+                    else:
+                        with open(rec.local_path, "r", encoding="utf-8", errors="replace") as f:
+                            html_text = f.read()
+                        prods = extractor.extract_from_html(html_text, rec.canonical_url, rec.content_hash or "")
+                        source_extracted.extend(prods)
+                except Exception as e:
+                    logger.debug(f"Error extracting {rec.canonical_url}: {e}")
+
+            all_extracted.extend(source_extracted)
+            stats["products_extracted"] += len(source_extracted)
+            stats["cached"] += len(cached_recs)
+            stats["pdfs"] += source_pdfs
+
+            status = "COMPLETE" if source_extracted else "NO_DATA"
+            self.source_health[source.id] = {
+                "name": source.name,
+                "status": status,
+                "products": len(source_extracted),
+                "documents": source_pdfs,
+                "failures": 0,
+                "reason": "Rebuilt from local raw files",
+            }
+            progress.update(current=idx, metrics={"records": len(all_extracted), "source": source.name[:25]})
+
+        progress.finish_stage(f"Raw extraction finished: {len(all_extracted):,} records extracted")
+        self.last_stats = stats
+
+        if not quiet:
+            self._print_summary(stats)
+
+        if all_extracted:
+            self._run_downstream_pipeline(all_extracted, quiet=quiet, verbose=verbose)
+
+        return all_extracted
+
     def _download_resource(
         self,
         canonical: str,
@@ -274,22 +389,21 @@ class AutonomousWebCollector(BaseCollector):
         Prefers the sidecar text cache so unchanged PDFs are never parsed twice;
         falls back to a single pypdf pass (and populates the cache) when missing.
         """
-        cached = self.text_cache.get(rec.content_hash)
-        if cached is not None:
-            return extractor.build_pdf_record(
-                cached.get("text", ""),
-                cached.get("title"),
-                rec.canonical_url,
-                rec.content_hash or "",
-            )
-        try:
-            combined_text, title = extractor.read_pdf_text(rec.local_path)
-        except Exception:
-            return None
-        prod = extractor.build_pdf_record(combined_text, title, rec.canonical_url, rec.content_hash or "")
-        if prod:
+        with self._get_hash_lock(rec.content_hash):
+            cached = self.text_cache.get(rec.content_hash)
+            if cached is not None:
+                return extractor.build_pdf_record(
+                    cached.get("text", ""),
+                    cached.get("title"),
+                    rec.canonical_url,
+                    rec.content_hash or "",
+                )
+            try:
+                combined_text, title = extractor.read_pdf_text(rec.local_path)
+            except Exception:
+                return None
             self.text_cache.put(rec.content_hash, {"text": combined_text, "title": title})
-        return prod
+            return extractor.build_pdf_record(combined_text, title, rec.canonical_url, rec.content_hash or "")
 
     def _process_document_queue(
         self,
@@ -365,19 +479,19 @@ class AutonomousWebCollector(BaseCollector):
                             prod: Optional[ProductRecord] = None
                             parse_error: Optional[str] = None
                             try:
-                                cached = self.text_cache.get(dl.content_hash)
-                                if cached is not None:
-                                    prod = extractor.build_pdf_record(
-                                        cached.get("text", ""),
-                                        cached.get("title"),
-                                        canonical,
-                                        dl.content_hash or "",
-                                    )
-                                else:
-                                    combined_text, title = extractor.read_pdf_text(dl.saved_path)
-                                    prod = extractor.build_pdf_record(combined_text, title, canonical, dl.content_hash or "")
-                                    if prod:
+                                with self._get_hash_lock(dl.content_hash):
+                                    cached = self.text_cache.get(dl.content_hash)
+                                    if cached is not None:
+                                        prod = extractor.build_pdf_record(
+                                            cached.get("text", ""),
+                                            cached.get("title"),
+                                            canonical,
+                                            dl.content_hash or "",
+                                        )
+                                    else:
+                                        combined_text, title = extractor.read_pdf_text(dl.saved_path)
                                         self.text_cache.put(dl.content_hash, {"text": combined_text, "title": title})
+                                        prod = extractor.build_pdf_record(combined_text, title, canonical, dl.content_hash or "")
                             except Exception as e:
                                 parse_error = f"PDF_PARSE_ERROR: {type(e).__name__}: {str(e)}"
                                 prod = None

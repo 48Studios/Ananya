@@ -343,9 +343,16 @@ def cmd_collect(args: argparse.Namespace) -> None:
     )
 
     resume_flag = getattr(args, "resume", True)
+    from_raw_flag = getattr(args, "from_raw", False)
     document_workers = args.document_workers if args.document_workers is not None else args.workers
 
     def run_once():
+        if from_raw_flag:
+            return collector.rebuild_from_raw(
+                source_id=args.source,
+                quiet=getattr(args, "quiet", False),
+                verbose=getattr(args, "verbose", False),
+            )
         records = collector.collect(
             source_id=args.source,
             domain=args.domain,
@@ -429,6 +436,7 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--resume", action="store_true", default=True, help="Resume previous collection state (default: True)")
         p.add_argument("--no-resume", dest="resume", action="store_false", help="Do not resume; recrawl from scratch")
         p.add_argument("--dry-run", action="store_true", help="Discover URLs without downloading or modifying state")
+        p.add_argument("--from-raw", action="store_true", default=False, help="Rebuild training dataset purely from already-downloaded local raw files without network recrawling")
         p.add_argument("--max-pages", type=int, help="Maximum HTML pages to crawl per source")
         p.add_argument("--max-files", type=int, help="Maximum total files/documents to download per source")
         p.add_argument("--workers", type=int, default=1, help="Number of worker threads (default: 1 conservative)")

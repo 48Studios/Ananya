@@ -27,16 +27,117 @@ from ..ananya_db import infer_domain
 from .registry import SourceConfig
 
 
+NON_PRODUCT_URL_PATTERNS = [
+    r"/login(?:/|\.html?|\?|$)",
+    r"/logout(?:/|\.html?|\?|$)",
+    r"/signin(?:/|\.html?|\?|$)",
+    r"/signout(?:/|\.html?|\?|$)",
+    r"/register(?:/|\.html?|\?|$)",
+    r"/signup(?:/|\.html?|\?|$)",
+    r"/user-profile(?:/|\.html?|\?|$)",
+    r"/dashboard(?:/|\.html?|\?|$)",
+    r"/my-account(?:/|\.html?|\?|$)",
+    r"/service/(?:contact|imprint|data-privacy)",
+    r"/(?:contact|contact-us)(?:/|\.html?|\?|$)",
+    r"/(?:about|about-us|company)(?:/|\.html?|\?|$)",
+    r"/(?:careers|jobs)(?:/|\.html?|\?|$)",
+    r"/(?:privacy|privacy-policy|data-privacy)(?:/|\.html?|\?|$)",
+    r"/(?:terms|terms-of-use|terms-of-service|terms-and-conditions|imprint|impressum|legal|disclaimer|copyright)(?:/|\.html?|\?|$)",
+    r"/(?:cookie|cookies|cookie-settings)(?:/|\.html?|\?|$)",
+    r"/(?:cart|checkout|basket|wishlist)(?:/|\.html?|\?|$)",
+    r"/system/search",
+    r"/news-center/(?:blog|press)",
+    r"/newscenter(?:/|\.html?|\?|$)",
+    r"/wissen(?:/|\.html?|\?|$)",
+    r"/knowledge(?:/|\.html?|\?|$)",
+    r"/pressemeldungen(?:/|\.html?|\?|$)",
+    r"/presse(?:/|\.html?|\?|$)",
+    r"/technical-articles(?:/|\.html?|\?|$)",
+    r"/r-and-d(?:/|\.html?|\?|$)",
+    r"/support(?:/|\.html?|\?|$)",
+    r"/video-center(?:/|\.html?|\?|$)",
+    r"/application-notes(?:/|\.html?|\?|$)",
+    r"/appnotes(?:/|\.html?|\?|$)",
+    r"/press(?:/|\.html?|\?|$)",
+    r"/news(?:/|\.html?|\?|$)",
+    r"/article(?:s)?/",
+    r"/media[-_]overview",
+    r"certification\.oshwa\.org/(?:requirements|mark-usage|license-agreement|process|basics|about|directory|list|privacy-policy)\.html",
+]
+
+NON_PRODUCT_TITLE_PATTERNS = [
+    r"^(?:login|log in|sign in|sign on|logout|log out)\b",
+    r"^(?:service contact|contact us|contact|contact & support)\b",
+    r"^(?:service imprint|imprint|impressum)\b",
+    r"^(?:service data privacy|data privacy|privacy policy|cookie settings|cookie policy)\b",
+    r"^(?:user profile|dashboard|my account)\b",
+    r"^(?:terms (?:and|&) conditions|terms of (?:service|use)|legal notice)\b",
+    r"^(?:shopping cart|cart|checkout)\b",
+    r"^(?:press release|press releases|news center|media overview)\b",
+    r"^(?:about us|about the company)\b",
+    r"^(?:this browser is not supported)\b",
+]
+
+NON_PRODUCT_PDF_PATTERNS = [
+    r"(?:rohs|reach|flyer|brochure|guideline|richtlinie|grundlagen|certificate|zertifikat|conformity|konformitaet|declaration|erklaerung|allgemeine[-_]geschaeftsbedingungen)",
+]
+
+
+def _flatten_json_ld(data: Any) -> List[Dict[str, Any]]:
+    """Recursively flattens JSON-LD payloads including @graph collections."""
+    items: List[Dict[str, Any]] = []
+    if isinstance(data, list):
+        for sub in data:
+            items.extend(_flatten_json_ld(sub))
+    elif isinstance(data, dict):
+        if "@graph" in data and isinstance(data["@graph"], list):
+            for sub in data["@graph"]:
+                items.extend(_flatten_json_ld(sub))
+        items.append(data)
+    return items
+
+
 class ContentExtractor:
     """Extracts structured product metadata from raw HTML and PDF payloads."""
 
     def __init__(self, source_config: SourceConfig):
         self.source_config = source_config
 
+    def _is_non_product_content(self, html_content: str, url: str) -> bool:
+        """Determines whether an HTML payload represents non-product web content."""
+        # 1. URL path check
+        parsed_url = urlparse(url)
+        clean_path = parsed_url.path.strip("/")
+        if clean_path in ("", "en", "de", "fr", "es", "it", "zh", "ja", "ko"):
+            return True
+
+        for pat in NON_PRODUCT_URL_PATTERNS:
+            if re.search(pat, url, re.IGNORECASE):
+                return True
+
+        # 2. Check title
+        title_m = re.search(r"<title>(.*?)</title>", html_content, re.IGNORECASE | re.DOTALL)
+        if title_m:
+            title = re.sub(r"\s+", " ", title_m.group(1)).strip()
+            for pat in NON_PRODUCT_TITLE_PATTERNS:
+                if re.search(pat, title, re.IGNORECASE):
+                    return True
+
+        # 3. Check for SPA or broken error pages
+        if "This browser is not supported" in html_content:
+            return True
+        if "Access Denied" in html_content and len(html_content) < 5000:
+            return True
+
+        return False
+
     def extract_from_html(
         self, html_content: str, url: str, content_hash: str
     ) -> List[ProductRecord]:
         """Extracts ProductRecords from an HTML document."""
+        if self._is_non_product_content(html_content, url):
+            return []
+
         # 1. Try structured JSON-LD first
         json_ld_products = self._extract_json_ld(html_content, url, content_hash)
         if json_ld_products:
@@ -59,16 +160,23 @@ class ContentExtractor:
         for raw_json in matches:
             try:
                 data = json.loads(raw_json.strip())
-                items = data if isinstance(data, list) else [data]
+                items = _flatten_json_ld(data)
                 for item in items:
                     if not isinstance(item, dict):
                         continue
                     item_type = str(item.get("@type", ""))
+                    if any(t in item_type for t in ("Article", "BlogPosting", "NewsArticle", "WebSite", "BreadcrumbList", "Organization", "AboutPage", "ContactPage")) and "Product" not in item_type:
+                        continue
+
                     if "Product" in item_type or item.get("sku") or item.get("mpn"):
-                        name = item.get("name") or "Unnamed Product"
-                        sku = item.get("sku") or f"WEB-{content_hash[:8]}"
-                        mpn = item.get("mpn") or sku
-                        desc = item.get("description")
+                        name_raw = item.get("name") or "Unnamed Product"
+                        name = name_raw.get("@value") or str(name_raw) if isinstance(name_raw, dict) else str(name_raw)
+                        sku_raw = item.get("sku")
+                        sku = str(sku_raw).strip() if sku_raw is not None and str(sku_raw).strip() else f"WEB-{content_hash[:8]}"
+                        mpn_raw = item.get("mpn")
+                        mpn = str(mpn_raw).strip() if mpn_raw is not None and str(mpn_raw).strip() else sku
+                        desc_raw = item.get("description")
+                        desc = desc_raw.get("@value") or str(desc_raw) if isinstance(desc_raw, dict) else (str(desc_raw) if desc_raw is not None else None)
                         brand_obj = item.get("brand") or {}
                         brand = (
                             brand_obj.get("name")
@@ -76,22 +184,26 @@ class ContentExtractor:
                             else str(brand_obj)
                         ) or self.source_config.name
 
-                        category = item.get("category") or "General"
+                        category_raw = item.get("category")
+                        category = str(category_raw).strip() if category_raw else "General"
                         domain = infer_domain(category)
                         if (domain == ProductDomain.OTHER or domain is None) and self.source_config.default_domain:
                             domain = self.source_config.default_domain
 
                         attrs: Dict[str, AttributeValueRecord] = {}
-                        for prop in item.get("additionalProperty", []):
-                            if isinstance(prop, dict) and "name" in prop:
-                                code = prop.get("name", "").strip().lower().replace(" ", "_")
-                                val = prop.get("value")
-                                attrs[code] = AttributeValueRecord(
-                                    code=code,
-                                    name=prop.get("name"),
-                                    value=val,
-                                    raw_value=str(val),
-                                )
+                        prop_list = item.get("additionalProperty", [])
+                        if isinstance(prop_list, list):
+                            for prop in prop_list:
+                                if isinstance(prop, dict) and "name" in prop:
+                                    code = str(prop.get("name", "")).strip().lower().replace(" ", "_")
+                                    val = prop.get("value")
+                                    if code and val is not None:
+                                        attrs[code] = AttributeValueRecord(
+                                            code=code,
+                                            name=str(prop.get("name")),
+                                            value=str(val),
+                                            raw_value=str(val),
+                                        )
 
                         # Also merge any specification tables found in HTML
                         table_specs = self._extract_specification_tables(html_content)
@@ -103,7 +215,7 @@ class ContentExtractor:
                             source=self.source_config.id,
                             source_type=self.source_config.type.value,
                             source_url=url,
-                            source_id=sku,
+                            source_id=str(sku),
                             collected_at=datetime.now(timezone.utc).isoformat(),
                             source_quality=self.source_config.source_quality.value,
                             content_type="text/html",
@@ -114,13 +226,13 @@ class ContentExtractor:
 
                         records.append(
                             ProductRecord(
-                                sku=sku,
-                                mpn=mpn,
-                                base_mpn=mpn.split("-")[0] if "-" in mpn else mpn,
-                                name=name,
+                                sku=str(sku),
+                                mpn=str(mpn),
+                                base_mpn=str(mpn).split("-")[0] if "-" in str(mpn) else str(mpn),
+                                name=str(name),
                                 description=desc,
-                                manufacturer=brand,
-                                category=category,
+                                manufacturer=str(brand),
+                                category=str(category),
                                 domain=domain,
                                 attributes=attrs,
                                 provenance=provenance,
@@ -135,6 +247,19 @@ class ContentExtractor:
         self, html_content: str, url: str, content_hash: str
     ) -> List[ProductRecord]:
         """Extracts product info using semantic HTML title, meta tags, and specification tables."""
+        if self._is_non_product_content(html_content, url):
+            return []
+
+        # Special handler for OSHWA certified hardware
+        if "certification.oshwa.org" in url or re.search(r"/[a-z]{2}\d{6}\.html", url, re.IGNORECASE):
+            oshwa_record = self._extract_oshwa_hardware(html_content, url, content_hash)
+            if oshwa_record:
+                return [oshwa_record]
+
+        # Clean tags/styles before searching text for MPN to avoid matching CSS selectors
+        clean_text = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", html_content, flags=re.DOTALL | re.IGNORECASE)
+        clean_text_no_tags = re.sub(r"<[^>]+>", " ", clean_text)
+
         # Title
         title_m = re.search(r"<title>(.*?)</title>", html_content, re.IGNORECASE | re.DOTALL)
         title = title_m.group(1).strip() if title_m else ""
@@ -168,13 +293,41 @@ class ContentExtractor:
             else:
                 category = "General"
 
-        # Part number heuristic from text/title
-        mpn_m = re.search(r"\b(?:part\s*(?:number|no|#)|mpn|sku)[\s:]*([A-Z0-9_\-\.\/]{4,30})\b", html_content, re.IGNORECASE)
-        mpn = mpn_m.group(1) if mpn_m else f"AUTO-{content_hash[:8]}"
-        sku = mpn
-
         # Specification table extraction
         attrs = self._extract_specification_tables(html_content)
+
+        # Part number heuristic: clean text regex
+        mpn_m = re.search(
+            r"\b(?:part\s*(?:number|no|#)|mpn|sku|catalog\s*(?:number|no|#)|cat\.?\s*no\.?|order\s*code|artikelnummer)[\s:]*([A-Z0-9][A-Z0-9_\-\.\/]{2,29})\b",
+            clean_text_no_tags,
+            re.IGNORECASE,
+        )
+        mpn: Optional[str] = mpn_m.group(1).strip() if mpn_m else None
+        if mpn and not (any(c.isdigit() for c in mpn) or "-" in mpn or "_" in mpn):
+            mpn = None
+
+        # Check H1 for alphanumeric part number / model (must contain digits or delimiters)
+        if not mpn:
+            h1_m = re.search(r"<h1[^>]*>(.*?)</h1>", html_content, re.IGNORECASE | re.DOTALL)
+            h1_text = re.sub(r"<[^>]+>", "", h1_m.group(1)).strip() if h1_m else ""
+            if h1_text:
+                if re.match(r"^[A-Z0-9][A-Z0-9_\-\.]{2,25}$", h1_text, re.IGNORECASE) and (any(c.isdigit() for c in h1_text) or "-" in h1_text or "_" in h1_text):
+                    mpn = h1_text.upper()
+                elif "–" in h1_text or " - " in h1_text:
+                    prefix = re.split(r"[\s–\-]+", h1_text)[0].strip()
+                    if re.match(r"^[A-Z0-9]{2,15}$", prefix, re.IGNORECASE) and (any(c.isdigit() for c in prefix) or "-" in prefix or "_" in prefix):
+                        mpn = prefix.upper()
+
+        # If no genuine MPN found, check whether page has solid product signals
+        # If no genuine MPN AND no specification attributes, it is an overview/category page -> reject!
+        if not mpn:
+            has_specs = len(attrs) >= 2
+            has_purchase_signals = bool(re.search(r"\b(?:add\s*to\s*cart|buy\s*now|in\s*stock|out\s*of\s*stock|availability)\b", clean_text_no_tags, re.IGNORECASE))
+            if not has_specs and not has_purchase_signals:
+                return []
+            mpn = f"AUTO-{content_hash[:8]}"
+
+        sku = mpn
 
         provenance = ProvenanceRecord(
             source=self.source_config.id,
@@ -207,6 +360,67 @@ class ContentExtractor:
                 provenance=provenance,
             )
         ]
+
+    def _extract_oshwa_hardware(
+        self, html_content: str, url: str, content_hash: str
+    ) -> Optional[ProductRecord]:
+        """Extracts certified open source hardware from OSHWA certification registry pages."""
+        uid_m = re.search(r"<h3>OSHWA UID</h3>\s*<span class=\"id\">([A-Z0-9]+)</span>", html_content)
+        if not uid_m:
+            uid_m = re.search(r"/([a-z]{2}\d{6})\.html", url, re.IGNORECASE)
+        if not uid_m:
+            return None
+        uid = uid_m.group(1).upper()
+
+        h1_m = re.search(r"<div class=\"heading-container\">\s*<h1>(.*?)</h1>", html_content, re.IGNORECASE | re.DOTALL)
+        if not h1_m:
+            h1_m = re.search(r"<h1[^>]*>(.*?)</h1>", html_content, re.IGNORECASE | re.DOTALL)
+        name = re.sub(r"<[^>]+>", "", h1_m.group(1)).strip() if h1_m else f"OSHWA Hardware {uid}"
+
+        h2_m = re.search(r"<h2>(.*?)(?:<a|\s*</h2>)", html_content, re.IGNORECASE | re.DOTALL)
+        mfg = re.sub(r"<[^>]+>", "", h2_m.group(1)).strip() if h2_m else self.source_config.name
+
+        cat_m = re.search(r"<div[^>]*class=\"project__type\">([^<]+)</div>", html_content, re.IGNORECASE)
+        cat = cat_m.group(1).strip() if cat_m else "Open Source Hardware"
+
+        attrs: Dict[str, AttributeValueRecord] = {}
+        ver_m = re.search(r"<h3>Version</h3>\s*<span class=\"version\">([^<]+)</span>", html_content, re.IGNORECASE)
+        if ver_m:
+            attrs["version"] = AttributeValueRecord(code="version", name="Version", value=ver_m.group(1).strip(), raw_value=ver_m.group(1).strip())
+
+        country_m = re.search(r"<h3 class=\"info-title\">Country</h3>\s*<p class=\"info-data\">([^<]+)</p>", html_content, re.IGNORECASE)
+        if country_m:
+            attrs["country"] = AttributeValueRecord(code="country", name="Country", value=country_m.group(1).strip(), raw_value=country_m.group(1).strip())
+
+        provenance = ProvenanceRecord(
+            source=self.source_config.id,
+            source_type=self.source_config.type.value,
+            source_url=url,
+            source_id=uid,
+            collected_at=datetime.now(timezone.utc).isoformat(),
+            source_quality=self.source_config.source_quality.value,
+            content_type="text/html",
+            content_hash=content_hash,
+            verification_status=VerificationStatus.VERIFIED,
+            verification_method="oshwa_cert_parser",
+        )
+
+        dom = infer_domain(cat)
+        if (dom == ProductDomain.OTHER or dom is None) and self.source_config.default_domain:
+            dom = self.source_config.default_domain
+
+        return ProductRecord(
+            sku=uid,
+            mpn=uid,
+            base_mpn=uid,
+            name=name,
+            description=None,
+            manufacturer=mfg,
+            category=cat,
+            domain=dom,
+            attributes=attrs,
+            provenance=provenance,
+        )
 
     def extract_from_pdf(
         self,
@@ -263,9 +477,17 @@ class ContentExtractor:
             if not combined_text and not title:
                 return None
 
+            # Detect compliance, flyer, brochure, or whitepaper documents
+            url_and_title = f"{url} {title or ''}".lower()
+            is_compliance_or_flyer = any(re.search(pat, url_and_title, re.IGNORECASE) for pat in NON_PRODUCT_PDF_PATTERNS)
+
             # Detect MPN in document text
             mpn_m = re.search(r"\b(?:part\s*(?:number|no|#)|model|series)[\s:]*([A-Z0-9_\-\.\/]{4,30})\b", combined_text, re.IGNORECASE)
             mpn = mpn_m.group(1) if mpn_m else f"PDF-{content_hash[:8]}"
+
+            # If document is compliance/flyer/whitepaper and has no genuine MPN, reject
+            if is_compliance_or_flyer and mpn.startswith("PDF-"):
+                return None
 
             # Detect category/domain keywords
             category = "Technical Documentation"
@@ -295,6 +517,14 @@ class ContentExtractor:
                         )
             except Exception:
                 pass
+
+            # If document has synthetic MPN AND 0 technical attributes extracted, it is not a product datasheet -> reject!
+            if mpn.startswith("PDF-") and not attrs:
+                return None
+
+            # If compliance/flyer was flagged and attributes are minimal, reject
+            if is_compliance_or_flyer and len(attrs) < 2:
+                return None
 
             provenance = ProvenanceRecord(
                 source=self.source_config.id,

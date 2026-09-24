@@ -960,3 +960,202 @@ def test_source_health_tracking(tmp_path: Path):
     assert collector.source_health["src-disabled"]["status"] == "SKIPPED"
     assert "src-enabled" in collector.source_health
 
+
+# =====================================================================
+# 18. Non-Product Filtering & Entity Extraction Integrity Tests
+# =====================================================================
+
+def test_non_product_urls_and_pages_filtered():
+    source = SourceConfig(
+        id="test-src",
+        name="Test Manufacturer",
+        domains=["example.com"],
+        start_urls=["https://example.com"],
+    )
+    extractor = ContentExtractor(source)
+
+    # 1. Non-product URLs (login, imprint, privacy, press)
+    non_prod_urls = [
+        "https://example.com/components/login",
+        "https://example.com/service/contact",
+        "https://example.com/service/imprint",
+        "https://example.com/service/data-privacy",
+        "https://example.com/user-profile",
+        "https://example.com/dashboard",
+        "https://example.com/press/press-releases",
+        "https://example.com/news/article/123",
+        "https://example.com/cart",
+    ]
+    for url in non_prod_urls:
+        html = f"<html><head><title>Page</title></head><body><h1>Content</h1></body></html>"
+        records = extractor.extract_from_html(html, url, "hash123")
+        assert len(records) == 0, f"Expected 0 records for non-product URL {url}, got {len(records)}"
+
+    # 2. Browser unsupported SPA fallback
+    spa_html = "<html><head><title>Brand</title></head><body><h1>This browser is not supported</h1></body></html>"
+    records = extractor.extract_from_html(spa_html, "https://example.com/products/item-1", "hash456")
+    assert len(records) == 0
+
+    # 3. Category overview page without MPN or attributes
+    cat_html = """
+    <html>
+      <head><title>Connectors - Components</title></head>
+      <body>
+        <h1>Connectors</h1>
+        <p>Browse our extensive selection of connectors for all applications.</p>
+      </body>
+    </html>
+    """
+    records = extractor.extract_from_html(cat_html, "https://example.com/components/connectors.html", "hash789")
+    assert len(records) == 0
+
+
+def test_legitimate_product_with_general_category_preserved():
+    source = SourceConfig(
+        id="sparkfun",
+        name="SparkFun Electronics",
+        domains=["sparkfun.com"],
+        start_urls=["https://sparkfun.com"],
+    )
+    extractor = ContentExtractor(source)
+
+    # Legitimate product with category="General" (SparkFun Passive PoE Cable Set)
+    poe_html = """
+    <html>
+      <head>
+        <title>Passive PoE Cable Set - SparkFun Electronics</title>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": "Passive PoE Cable Set",
+          "sku": "CAB-10759",
+          "mpn": "CAB-10759",
+          "category": "General",
+          "offers": [{"@type": "Offer", "price": 5.95, "priceCurrency": "USD"}]
+        }
+        </script>
+      </head>
+      <body><h1>Passive PoE Cable Set</h1></body>
+    </html>
+    """
+    records = extractor.extract_from_html(poe_html, "https://sparkfun.com/passive-poe-cable-set.html", "poehash")
+    assert len(records) == 1
+    prod = records[0]
+    assert prod.mpn == "CAB-10759"
+    assert prod.sku == "CAB-10759"
+    assert prod.name == "Passive PoE Cable Set"
+    assert prod.category == "General"
+
+    # Verify DataValidationProcessor accepts legitimate products with "General" category
+    from apps.ml.training.processors.validation import DataValidationProcessor, ProcessingDisposition
+    val_proc = DataValidationProcessor()
+    _, audit = val_proc.process(prod)
+    assert audit.disposition == ProcessingDisposition.ACCEPTED, f"Legitimate product was not accepted: {audit.reasons}"
+
+
+def test_adafruit_json_ld_integer_sku_extraction():
+    source = SourceConfig(
+        id="adafruit",
+        name="Adafruit Industries",
+        domains=["adafruit.com"],
+        start_urls=["https://adafruit.com"],
+    )
+    extractor = ContentExtractor(source)
+
+    # Adafruit provides SKU as integer: "sku": 240
+    ada_html = """
+    <html>
+      <head>
+        <title>Bulbdial Clock kit : Adafruit Industries</title>
+        <script type="application/ld+json">
+        {
+          "@context": "http://schema.org",
+          "@type": "Product",
+          "name": "Bulbdial Clock kit",
+          "sku": 240,
+          "description": "Unique indoor sundial clock kit"
+        }
+        </script>
+      </head>
+      <body><h1>Bulbdial Clock kit</h1></body>
+    </html>
+    """
+    records = extractor.extract_from_html(ada_html, "https://adafruit.com/product/240", "adahash")
+    assert len(records) == 1
+    prod = records[0]
+    assert prod.sku == "240"
+    assert prod.mpn == "240"
+    assert prod.name == "Bulbdial Clock kit"
+    assert prod.provenance.source_id == "240"
+    assert prod.provenance.verification_method == "json_ld_schema"
+
+
+def test_oshwa_hardware_extraction():
+    source = SourceConfig(
+        id="oshwa",
+        name="OSHWA Hardware Registry",
+        domains=["certification.oshwa.org"],
+        start_urls=["https://certification.oshwa.org"],
+    )
+    extractor = ContentExtractor(source)
+
+    oshwa_html = """
+    <!DOCTYPE html><html><head><title>US000399</title></head><body>
+      <div class="heading-container"><h1>DS2413 1-Wire Two GPIO Controller Breakout</h1></div>
+      <div><h2>Adafruit Industries, LLC <a href="mailto:oshw@adafruit.com">mail</a></h2></div>
+      <h3>OSHWA UID</h3><span class="id">US000399</span>
+      <div type-tag="electronics" class="project__type">Electronics</div>
+      <h3>Version</h3><span class="version">Rev A</span>
+      <h3 class="info-title">Country</h3><p class="info-data">United States of America</p>
+    </body></html>
+    """
+    records = extractor.extract_from_html(oshwa_html, "https://certification.oshwa.org/us000399.html", "oshwahash")
+    assert len(records) == 1
+    prod = records[0]
+    assert prod.sku == "US000399"
+    assert prod.mpn == "US000399"
+    assert prod.name == "DS2413 1-Wire Two GPIO Controller Breakout"
+    assert prod.manufacturer == "Adafruit Industries, LLC"
+    assert prod.category == "Electronics"
+    assert prod.domain == ProductDomain.ELECTRONICS
+    assert prod.provenance.verification_method == "oshwa_cert_parser"
+    assert prod.attributes["version"].value == "Rev A"
+    assert prod.attributes["country"].value == "United States of America"
+
+
+def test_non_product_pdf_discarded():
+    source = SourceConfig(
+        id="mfg-pdf",
+        name="Mfg PDF Docs",
+        domains=["mfg.com"],
+        start_urls=["https://mfg.com"],
+    )
+    extractor = ContentExtractor(source)
+
+    # Compliance statement (RoHS declaration) with no genuine MPN
+    record = extractor.build_pdf_record(
+        combined_text="EU RoHS Conformity Declaration. Requirements max 0.1% lead.",
+        title="Statement RoHS EU-Guideline",
+        url="https://mfg.com/downloads/rohs-conformity.pdf",
+        content_hash="rohshash",
+    )
+    assert record is None, "RoHS conformity statement should be discarded"
+
+    # General marketing flyer with no genuine MPN and no attributes
+    flyer_record = extractor.build_pdf_record(
+        combined_text="Explore our complete component portfolio across all applications.",
+        title="Solutions Antenna Matching Flyer",
+        url="https://mfg.com/files/flyer-antenna-matching-en.pdf",
+        content_hash="flyerhash",
+    )
+    assert flyer_record is None, "Marketing flyer with no MPN should be discarded"
+
+
+def test_cli_from_raw_flag():
+    parser = build_parser()
+    args = parser.parse_args(["collect", "--from-raw", "--source", "sparkfun"])
+    assert args.from_raw is True
+    assert args.source == "sparkfun"
+
+

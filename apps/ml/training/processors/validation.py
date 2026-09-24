@@ -40,7 +40,58 @@ INVALID_MPN_PATTERNS = [
     r"^\?+$",
     r"^none$",
     r"^null$",
+    r"^[\-_].*$",
 ]
+
+NON_PRODUCT_CATEGORIES = {
+    "login",
+    "logout",
+    "signin",
+    "signout",
+    "service contact",
+    "service imprint",
+    "service data privacy",
+    "data privacy",
+    "imprint",
+    "impressum",
+    "user profile",
+    "dashboard",
+    "my account",
+    "press press releases",
+    "press releases",
+    "press release",
+    "news center blog",
+    "blog",
+    "application notes appnotes author",
+    "cookie settings",
+    "shopping cart",
+    "cart",
+    "checkout",
+    "about us",
+    "contact us",
+    "careers",
+    "customer service",
+    "terms and conditions",
+    "terms of use",
+    "terms of service",
+    "privacy policy",
+    "presse pressemeldungen",
+    "pressemeldungen",
+    "presse",
+    "newscenter",
+    "newscenter blog",
+    "newscenter presse",
+    "blog blog author",
+    "knowledge application notes",
+    "wissen application notes",
+    "knowledge video center",
+    "wissen video center",
+    "video center",
+    "application notes",
+    "press and media",
+    "support",
+    "r and d at we technical articles r and d we",
+}
 
 
 class DataValidationProcessor(BaseProcessor):
@@ -61,10 +112,26 @@ class DataValidationProcessor(BaseProcessor):
         if not (record.name or "").strip():
             reasons.append("MISSING_NAME: Product name is empty")
             disposition = ProcessingDisposition.REJECTED
+        elif (record.name or "").strip().lower().replace("&uuml;", "ü") in (
+            "würth elektronik",
+            "wuerth elektronik",
+            "sparkfun electronics",
+            "adafruit industries",
+            "wiha",
+            "prusa research",
+            "e3d",
+            "polymaker",
+            "skf",
+        ) and (record.mpn or "").startswith("AUTO-"):
+            reasons.append("NON_PRODUCT_HOMEPAGE: Corporate entity name with synthetic MPN")
+            disposition = ProcessingDisposition.REJECTED
 
         if not (record.category or "").strip():
             reasons.append("MISSING_CATEGORY: Category is empty")
             disposition = ProcessingDisposition.QUARANTINED
+        elif record.category.strip().lower() in NON_PRODUCT_CATEGORIES:
+            reasons.append(f"NON_PRODUCT_CATEGORY: Category '{record.category}' represents non-product web content")
+            disposition = ProcessingDisposition.REJECTED
 
         # 2. Malformed / Placeholder checks
         if record.mpn:
@@ -73,6 +140,11 @@ class DataValidationProcessor(BaseProcessor):
                     reasons.append(f"MALFORMED_MPN: Placeholder or invalid part number '{record.mpn}'")
                     disposition = ProcessingDisposition.REJECTED
                     break
+
+            if record.mpn.startswith("AUTO-") or record.mpn.startswith("PDF-"):
+                if not record.attributes and (record.category or "").strip().lower() in ("general", "unknown", "other", "technical documentation"):
+                    reasons.append(f"UNGROUNDED_PLACEHOLDER: Synthetic MPN '{record.mpn}' with no attributes and ungrounded category")
+                    disposition = ProcessingDisposition.REJECTED
 
         # 3. Provenance verification
         if not record.provenance:

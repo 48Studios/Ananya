@@ -66,13 +66,18 @@ export function LabelPreview({
   if (template === "QR_ONLY") {
     return (
       <div
-        className={`w-32 h-32 p-2 bg-white text-black border border-slate-300 rounded-lg shadow-xs flex items-center justify-center select-none print:shadow-none print:border-black print:break-inside-avoid ${className}`}
+        className={`flex flex-col w-32 h-32 p-2 bg-white text-black border border-slate-300 rounded-lg shadow-xs flex items-center justify-center select-none print:shadow-none print:border-black print:break-inside-avoid ${className}`}
       >
         <QRCodeViewer
           value={label.qrPayload}
-          size={112}
+          size={80}
           className="p-0 border-0"
         />
+        <div className="flex justify-center items-center w-full text-center border-t border-slate-200 pt-2">
+            <span className="inline-block font-mono text-xs font-bold">
+              {label.primaryCode}
+            </span>
+        </div>
       </div>
     );
   }
