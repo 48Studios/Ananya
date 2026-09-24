@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { DataPacksService } from './data-packs.service';
 import { DataPacksController } from './data-packs.controller';
 import { ImportExportModule } from '../import-export/import-export.module';
@@ -9,7 +9,9 @@ import { AttributesModule } from '../attributes/attributes.module';
 
 @Module({
   imports: [
-    ImportExportModule,
+    // Deferred edge of the Components -> Ml -> DataPacks -> ImportExport ->
+    // Components cycle; see import-export.module.ts.
+    forwardRef(() => ImportExportModule),
     SecurityAuditModule,
     ActivityModule,
     AttributesModule,

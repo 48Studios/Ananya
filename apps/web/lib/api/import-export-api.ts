@@ -9,6 +9,35 @@ export type BulkActionType =
   | "ASSIGN_LOCATION"
   | "ASSIGN_MANUFACTURER";
 
+/**
+ * What happened to one selected record. `SKIPPED` is a refusal — the record was
+ * left untouched because a domain rule said no — while `FAILED` means the write
+ * itself did not complete. The API decides which is which.
+ */
+export type BulkActionOutcome = "APPLIED" | "SKIPPED" | "FAILED";
+
+export interface BulkActionItemResultDto {
+  id: string;
+  outcome: BulkActionOutcome;
+  /** Why the record was skipped or failed; `null` when it was applied. */
+  reason: string | null;
+}
+
+export interface BulkActionResultDto {
+  entityType: string;
+  action: BulkActionType;
+  requestedCount: number;
+  appliedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  results: BulkActionItemResultDto[];
+}
+
+export interface BulkActionSupportDto {
+  entityType: string;
+  supportedActions: BulkActionType[];
+}
+
 export interface ImportExportJobDto {
   id: string;
   jobType: "IMPORT" | "EXPORT";
@@ -178,12 +207,23 @@ export const importExportApi = {
     action: BulkActionType;
     ids: string[];
     payload?: Record<string, unknown>;
-  }): Promise<{
-    entityType: string;
-    action: BulkActionType;
-    affectedCount: number;
-    success: boolean;
-  }> => {
-    return apiClient.post("/import-export/bulk-action", params);
+  }): Promise<BulkActionResultDto> => {
+    return apiClient.post<BulkActionResultDto>(
+      "/import-export/bulk-action",
+      params,
+    );
+  },
+
+  /**
+   * The actions the API can genuinely carry out for this entity type. The
+   * toolbar renders from this list, so an action with no real mutation behind
+   * it is never offered.
+   */
+  getSupportedBulkActions: (
+    entityType: string,
+  ): Promise<BulkActionSupportDto> => {
+    return apiClient.get<BulkActionSupportDto>(
+      `/import-export/bulk-actions/${encodeURIComponent(entityType)}`,
+    );
   },
 };

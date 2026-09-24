@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MlClientService } from './ml-client.service';
 import { MlService } from './ml.service';
 import { MlController } from './ml.controller';
@@ -39,7 +39,9 @@ import { MlOpsRepository } from './ops/ml-ops.repository';
 
 @Module({
   imports: [
-    DataPacksModule,
+    // Deferred edge of the Components -> Ml -> DataPacks -> ImportExport ->
+    // Components cycle; see import-export.module.ts.
+    forwardRef(() => DataPacksModule),
     SecurityAuditModule,
     // Documentation Intelligence reads document bytes through the existing
     // storage abstraction and reuses the documentation permission guards, so

@@ -21,6 +21,64 @@ from .metrics import (
 )
 
 
+# Aggregate entries sklearn's classification_report(output_dict=True) emits
+# alongside the real classes. They describe the whole sample, not one class, so
+# they are excluded from the per-class table (`accuracy` is also a bare float).
+NON_CLASS_REPORT_KEYS = ("accuracy", "macro avg", "weighted avg")
+
+
+def build_per_class_rows(per_class: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Normalizes a classification_report(output_dict=True) payload into an ordered
+    list of per-class rows: {class_name, precision, recall, f1_score, support}.
+
+    Rows are sorted by class name so the rendered report is deterministic and
+    does not depend on sklearn's internal key ordering.
+    """
+    if not per_class:
+        return []
+
+    rows: List[Dict[str, Any]] = []
+    for class_name in sorted(per_class.keys()):
+        if class_name in NON_CLASS_REPORT_KEYS:
+            continue
+        entry = per_class[class_name]
+        # Non-dict entries are aggregates (e.g. `accuracy`), never a class.
+        if not isinstance(entry, dict):
+            continue
+        rows.append(
+            {
+                "class_name": class_name,
+                "precision": entry.get("precision"),
+                "recall": entry.get("recall"),
+                "f1_score": entry.get("f1-score"),
+                "support": entry.get("support"),
+            }
+        )
+    return rows
+
+
+def _format_ratio(value: Any) -> str:
+    """Renders a precision/recall/F1 value at 3 decimals, tolerating absent entries."""
+    if value is None:
+        return "—"
+    try:
+        return f"{float(value):.3f}"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _format_support(value: Any) -> str:
+    """Renders a class support count as an integer when it is a whole number."""
+    if value is None:
+        return "—"
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    return str(int(numeric)) if numeric.is_integer() else f"{numeric:.3f}"
+
+
 class ModelEvaluator:
     """Evaluates candidate model performance against quality gates and active production baseline."""
 
@@ -119,6 +177,7 @@ class ModelEvaluator:
                 "weighted_precision": clf_metrics["weighted_precision"],
                 "weighted_recall": clf_metrics["weighted_recall"],
                 "weighted_f1": clf_metrics["weighted_f1"],
+                "per_class": clf_metrics["per_class"],
                 "duplicate_precision": dup_metrics["precision"],
                 "duplicate_recall": dup_metrics["recall"],
                 "critical_false_merges": dup_metrics["critical_false_merges"],
@@ -192,5 +251,24 @@ class ModelEvaluator:
         ]
         for gate_name, passed in g.items():
             lines.append(f"- **{gate_name}**: {'✅ PASSED' if passed else '❌ FAILED'}")
+
+        # Per-class breakdown, appended so reports without per-class metrics
+        # render exactly as before. Only emitted when real classes are present.
+        per_class_rows = build_per_class_rows(m.get("per_class"))
+        if per_class_rows:
+            lines.extend(
+                [
+                    "",
+                    "## Per-Class Classification Metrics",
+                    "| Class | Precision | Recall | F1-Score | Support |",
+                    "| :--- | :--- | :--- | :--- | :--- |",
+                ]
+            )
+            for row in per_class_rows:
+                lines.append(
+                    f"| {row['class_name']} | {_format_ratio(row['precision'])} "
+                    f"| {_format_ratio(row['recall'])} | {_format_ratio(row['f1_score'])} "
+                    f"| {_format_support(row['support'])} |"
+                )
 
         return "\n".join(lines) + "\n"

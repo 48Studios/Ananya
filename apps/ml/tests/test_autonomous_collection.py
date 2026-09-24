@@ -1416,4 +1416,144 @@ def test_train_val_test_grouping_remains_leakage_free():
     assert groups[3] == groups[4] == "GRM188"
 
 
+# =====================================================================
+# 19. Phase 2 Deterministic Category Normalization Tests (A - G)
+# =====================================================================
+
+def test_regression_a_raw_category_fallback():
+    """A — raw_category fallback: category=Uncategorized, raw_category='Components & Parts > Buttons > /' -> Switches"""
+    from apps.ml.training.processors.normalization import NormalizationProcessor, CANONICAL_CATEGORIES
+    processor = NormalizationProcessor()
+    record = ProductRecord(
+        sku="TEST-A",
+        name="Tactile Button",
+        category="Uncategorized",
+        raw_category="Components & Parts > Buttons > /",
+        provenance=ProvenanceRecord(source="test", source_type="test"),
+    )
+    processed, audit = processor.process(record)
+    assert processed.category == "Switches"
+    assert processed.raw_category == "Components & Parts > Buttons > /"
+    assert processed.category in CANONICAL_CATEGORIES
+
+
+def test_regression_b_breadcrumb_cleanup():
+    """B — breadcrumb cleanup: 'Sensors > Touch > /' -> cleaned: 'Sensors > Touch', canonical: Sensors"""
+    from apps.ml.training.collectors.web.extractor import clean_breadcrumb_path
+    from apps.ml.training.processors.normalization import normalize_category, CANONICAL_CATEGORIES
+    raw_path = "Sensors > Touch > /"
+    cleaned_path = clean_breadcrumb_path(raw_path)
+    assert cleaned_path == "Sensors > Touch"
+    canon = normalize_category(raw_path)
+    assert canon == "Sensors"
+    assert canon in CANONICAL_CATEGORIES
+
+
+def test_regression_c_canonical_category_priority():
+    """C — canonical category priority: category=Tools, raw_category='Something Else' -> Tools"""
+    from apps.ml.training.processors.normalization import NormalizationProcessor, CANONICAL_CATEGORIES
+    processor = NormalizationProcessor()
+    record = ProductRecord(
+        sku="TEST-C",
+        name="Precision Pliers",
+        category="Tools",
+        raw_category="Something Else",
+        provenance=ProvenanceRecord(source="test", source_type="test"),
+    )
+    processed, audit = processor.process(record)
+    assert processed.category == "Tools"
+    assert processed.raw_category == "Something Else"
+    assert processed.category in CANONICAL_CATEGORIES
+
+
+def test_regression_d_broad_category_remains_unresolved():
+    """D — broad category remains unresolved: category=Uncategorized, raw_category='Electronics' -> Uncategorized"""
+    from apps.ml.training.processors.normalization import NormalizationProcessor
+    processor = NormalizationProcessor()
+    record = ProductRecord(
+        sku="TEST-D",
+        name="General Board",
+        category="Uncategorized",
+        raw_category="Electronics",
+        provenance=ProvenanceRecord(source="test", source_type="test"),
+    )
+    processed, audit = processor.process(record)
+    assert processed.category == "Uncategorized"
+    assert processed.raw_category == "Electronics"
+
+
+def test_regression_e_no_general_fallback():
+    """E — no General fallback: Any unresolved product remains Uncategorized, never General."""
+    from apps.ml.training.processors.normalization import NormalizationProcessor
+    processor = NormalizationProcessor()
+    for raw in ["Electronics", "Power", "IOT", "Education", "Other", "Unknown", "Accessories > Badges/Patches > /"]:
+        record = ProductRecord(
+            sku="TEST-E",
+            name="Unresolved Item",
+            category="Uncategorized",
+            raw_category=raw,
+            provenance=ProvenanceRecord(source="test", source_type="test"),
+        )
+        processed, _ = processor.process(record)
+        assert processed.category == "Uncategorized"
+        assert processed.category != "General"
+
+
+def test_regression_f_document_safety():
+    """F — document safety: A DOCUMENT must not enter product category classification."""
+    from apps.ml.training.generators.classification import ClassificationDatasetGenerator
+    prov = ProvenanceRecord(source="test", source_type="test", verification_status=VerificationStatus.VERIFIED)
+    doc_record = ProductRecord(
+        sku="DOC-AN-1",
+        mpn="AN-100",
+        name="Application Note AN-100",
+        category="Sensors",
+        entity_type=EntityType.DOCUMENT,
+        document_type=DocumentType.APPLICATION_NOTE,
+        provenance=prov,
+    )
+    prod_record = ProductRecord(
+        sku="PROD-1",
+        mpn="SEN-100",
+        name="Digital Touch Sensor",
+        category="Sensors",
+        entity_type=EntityType.PRODUCT,
+        provenance=prov,
+    )
+    generator = ClassificationDatasetGenerator(include_variations=False)
+    examples = generator.generate([doc_record, prod_record])
+    assert len(examples) == 1
+    assert examples[0].sku == "PROD-1"
+    assert examples[0].category == "Sensors"
+    assert all(e.sku != "DOC-AN-1" for e in examples)
+
+
+def test_regression_g_taxonomy_safety():
+    """G — taxonomy safety: Every resolved category must be in CANONICAL_CATEGORIES."""
+    from apps.ml.training.processors.normalization import NormalizationProcessor, CANONICAL_CATEGORIES
+    processor = NormalizationProcessor()
+    test_cases = [
+        ("Uncategorized", "Arduino Boards", "Development Boards"),
+        ("Uncategorized", "Sensors > Touch > /", "Sensors"),
+        ("Uncategorized", "Components & Parts > Buttons > /", "Switches"),
+        ("Uncategorized", "Tools > CNC > CNC Accessories", "Tools"),
+        ("Uncategorized", "ICs > SMD ICs", "ICs & Semiconductors"),
+        ("Uncategorized", "Wiring > Ribbon Cable > /", "Cables"),
+        ("Uncategorized", "Robotics > Motors > Stepper > /", "Robotics"),
+        ("Uncategorized", "LCDs & Displays > Color TFT Displays > /", "Optoelectronics"),
+        ("Uncategorized", "> > > > Potting Compounds > > > Epoxy Potting Compounds", "Consumables"),
+    ]
+    for cat, raw, expected in test_cases:
+        record = ProductRecord(
+            sku=f"TAX-{expected}",
+            name=f"Part {expected}",
+            category=cat,
+            raw_category=raw,
+            provenance=ProvenanceRecord(source="test", source_type="test"),
+        )
+        processed, _ = processor.process(record)
+        assert processed.category == expected
+        assert processed.category in CANONICAL_CATEGORIES
+
+
 

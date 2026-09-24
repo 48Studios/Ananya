@@ -247,6 +247,17 @@
     overflow: visible !important;
   }
 
+  /*
+   * A print dialog owns the sheet. Label printing is opened from list pages
+   * (select rows -> Print Labels), and the page behind the modal is neither
+   * hidden nor inert in print, so without this the table would be printed
+   * above the labels. The dialog is portaled to <body>, so hiding <main>
+   * removes the page and keeps the dialog.
+   */
+  body:has([data-slot="dialog-content"]) main {
+    display: none !important;
+  }
+
   [data-slot="dialog-header"],
   [data-slot="dialog-footer"] {
     display: none !important;

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { COMPONENT_REPOSITORY } from './component.tokens';
 import { DrizzleComponentRepository } from '../infrastructure/repositories/drizzle-component.repository';
 import { ComponentsController } from './components.controller';
@@ -21,7 +21,9 @@ import { PermissionsModule } from '../permissions/permissions.module';
 @Module({
   imports: [
     AttributesModule,
-    MlModule,
+    // Deferred edge of the Components -> Ml -> DataPacks -> ImportExport ->
+    // Components cycle; see import-export.module.ts.
+    forwardRef(() => MlModule),
     ManufacturersModule,
     CategoriesModule,
     AuthModule,

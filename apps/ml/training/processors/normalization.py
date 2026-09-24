@@ -16,6 +16,20 @@ from .base import BaseProcessor, ProcessingDisposition, ProcessingAudit
 from ..schemas.product import ProductRecord, AttributeValueRecord
 
 
+def _clean_breadcrumb_path(path: str) -> str:
+    """
+    Cleans structural breadcrumb noise via the collector-side helper.
+
+    The import is deliberately function-local: ``collectors/__init__`` imports
+    ``web_collector``, which imports ``NormalizationProcessor`` from this module,
+    so a module-level import would create a circular import whenever this module
+    is imported first.
+    """
+    from ..collectors.web.extractor import clean_breadcrumb_path
+
+    return clean_breadcrumb_path(path)
+
+
 # Canonical Manufacturer Alias Map
 MANUFACTURER_ALIASES: Dict[str, str] = {
     "murata": "Murata Manufacturing",
@@ -92,6 +106,37 @@ EXCLUDED_CATEGORIES: set = {
     "other",
     "basics",
     "special categories",
+    # Broad labels that must remain unresolved without stronger evidence
+    "electronics",
+    "power",
+    "iot",
+    "education",
+    "sound",
+    "science",
+    "wireless",
+    # Navigation / Web noise
+    "inicio",
+    "accueil",
+    "startseite",
+    "discontinued products",
+    # Merchandise & non-product media
+    "accessories",
+    "merchandise",
+    "badges/patches",
+    "badges / patches",
+    "badges",
+    "patches",
+    "stickers",
+    "sticker",
+    "clothing",
+    "apparel",
+    "books/magazines",
+    "books / magazines",
+    "books",
+    "magazines",
+    "gift cards",
+    "gift card",
+    # Documents
     "technical documentation",
     "application note",
     "application notes",
@@ -223,8 +268,14 @@ GLOBAL_TAXONOMY_MAP: Dict[str, str] = {
     # Tools & Hardware
     "hand tools - screwdrivers": "Tools",
     "pliers, cutters": "Tools",
+    "pliers": "Tools",
+    "plier": "Tools",
     "crimpers, crimp tools": "Tools",
     "soldering irons, stations": "Tools",
+    "soldering irons": "Tools",
+    "soldering iron": "Tools",
+    "soldering stations": "Tools",
+    "soldering station": "Tools",
     "multimeters, test probes": "Tools",
     "hand tools": "Tools",
     "tools": "Tools",
@@ -287,12 +338,149 @@ GLOBAL_TAXONOMY_MAP: Dict[str, str] = {
     "pla filament": "3D Printing Materials",
     "petg filament": "3D Printing Materials",
     "abs filaments": "3D Printing Materials",
+    "polylite": "3D Printing Materials",
+    "polyflex": "3D Printing Materials",
+    "polymax": "3D Printing Materials",
+    "polymide": "3D Printing Materials",
+    "panchroma": "3D Printing Materials",
+    "fiberon": "3D Printing Materials",
+    "polysonic": "3D Printing Materials",
+    "polydissolve": "3D Printing Materials",
+    "polysmooth": "3D Printing Materials",
+    "polysupport": "3D Printing Materials",
+    "polycast": "3D Printing Materials",
+    "wood pla": "3D Printing Materials",
+    "silk pla": "3D Printing Materials",
+    "matte pla": "3D Printing Materials",
+    "pla pro": "3D Printing Materials",
     # Prototyping & Robotics
     "development boards": "Development Boards",
     "development board": "Development Boards",
     "breakout board": "Development Boards",
     "breakout boards": "Development Boards",
+    "arduino boards": "Development Boards",
+    "arduino board": "Development Boards",
+    "arduino accessories": "Development Boards",
+    "arduino accessory": "Development Boards",
+    "arduino shields": "Development Boards",
+    "arduino shield": "Development Boards",
+    "breakout pcb": "Development Boards",
+    "breakout pcbs": "Development Boards",
+    "prototyping boards": "Development Boards",
+    "prototyping board": "Development Boards",
+    "devkits": "Development Boards",
+    "devkit": "Development Boards",
+    "single-board computers": "Development Boards",
+    "single-board computer": "Development Boards",
+    "single board computers": "Development Boards",
+    "single board computer": "Development Boards",
     "robotics": "Robotics",
+    "stepper": "Robotics",
+    "stepper motors": "Robotics",
+    "stepper motor": "Robotics",
+    "motors": "Robotics",
+    "motor": "Robotics",
+    "chassis": "Robotics",
+    # Switches
+    "buttons": "Switches",
+    "button": "Switches",
+    # Connectors & Cables
+    "headers": "Connectors",
+    "header": "Connectors",
+    "sockets/connectors": "Connectors",
+    "sockets / connectors": "Connectors",
+    "socket/connector": "Connectors",
+    "terminal blocks": "Connectors",
+    "terminal block": "Connectors",
+    "ribbon cable": "Cables",
+    "ribbon cables": "Cables",
+    "jumper wires": "Cables",
+    "jumper wire": "Cables",
+    "audio cables": "Cables",
+    "audio cable": "Cables",
+    # ICs & Semiconductors
+    "ic & transistors": "ICs & Semiconductors",
+    "ics & transistors": "ICs & Semiconductors",
+    "smd ics": "ICs & Semiconductors",
+    "smd ic": "ICs & Semiconductors",
+    # Optoelectronics
+    "lcds & displays": "Optoelectronics",
+    "lcd & displays": "Optoelectronics",
+    "lcds and displays": "Optoelectronics",
+    "graphic lcds": "Optoelectronics",
+    "graphic lcd": "Optoelectronics",
+    "character lcds": "Optoelectronics",
+    "character lcd": "Optoelectronics",
+    "color tft displays": "Optoelectronics",
+    "color tft display": "Optoelectronics",
+    "tft displays": "Optoelectronics",
+    "tft display": "Optoelectronics",
+    "oleds": "Optoelectronics",
+    "oled": "Optoelectronics",
+    "e-ink / e-paper": "Optoelectronics",
+    "e-ink": "Optoelectronics",
+    "e-paper": "Optoelectronics",
+    "segment": "Optoelectronics",
+    "segmented": "Optoelectronics",
+    "monocrome lcds": "Optoelectronics",
+    "monochrome lcds": "Optoelectronics",
+    "monocrome lcd": "Optoelectronics",
+    "monochrome lcd": "Optoelectronics",
+    # Sensors
+    "touch": "Sensors",
+    "imaging": "Sensors",
+    "force": "Sensors",
+    "optical": "Sensors",
+    "proximity": "Sensors",
+    "temperature": "Sensors",
+    "current / power": "Sensors",
+    "current/power": "Sensors",
+    "distance": "Sensors",
+    "flex": "Sensors",
+    "bio-sensing": "Sensors",
+    "biometric": "Sensors",
+    "motion/inertial": "Sensors",
+    "motion / inertial": "Sensors",
+    "accelerometers": "Sensors",
+    "accelerometer": "Sensors",
+    # Tools
+    "cnc accessories": "Tools",
+    "cnc accessory": "Tools",
+    "other cnc tools": "Tools",
+    "cutters/pliers": "Tools",
+    "cutters / pliers": "Tools",
+    "wire strippers/cutters": "Tools",
+    "wire strippers / cutters": "Tools",
+    "tweezers": "Tools",
+    "tweezer": "Tools",
+    "soldering accessories": "Tools",
+    "soldering accessory": "Tools",
+    "desoldering": "Tools",
+    "measuring & testing": "Tools",
+    "hex keys / l-keys": "Tools",
+    "hex keys": "Tools",
+    "hex key": "Tools",
+    "t-handle": "Tools",
+    "t-handles": "Tools",
+    # Consumables
+    "potting compounds": "Consumables",
+    "potting compound": "Consumables",
+    "epoxy potting compounds": "Consumables",
+    "rtv silicone potting compounds": "Consumables",
+    "urethane potting compounds": "Consumables",
+    "conformal coatings": "Consumables",
+    "conformal coating": "Consumables",
+    "conformal coating strippers": "Consumables",
+    "solder & flux": "Consumables",
+    # Mechanical Parts (E3D)
+    "hotends": "Mechanical Parts",
+    "hotend": "Mechanical Parts",
+    "nozzles": "Mechanical Parts",
+    "nozzle": "Mechanical Parts",
+    "heatbreaks": "Mechanical Parts",
+    "heatbreak": "Mechanical Parts",
+    "extruders": "Mechanical Parts",
+    "extruder": "Mechanical Parts",
 }
 
 
@@ -459,7 +647,7 @@ def normalize_category(category: Optional[str]) -> str:
     """
     if not category:
         return "Uncategorized"
-    cleaned = normalize_text(category).strip()
+    cleaned = _clean_breadcrumb_path(normalize_text(category).strip())
     if not cleaned:
         return "Uncategorized"
     lower = cleaned.lower()
@@ -476,19 +664,22 @@ def normalize_category(category: Optional[str]) -> str:
         return GLOBAL_TAXONOMY_MAP[lower]
 
     # 3. Breadcrumb resolution (e.g. "Components > Passives > Resistors")
-    if any(d in cleaned for d in (">", "/", "|")):
-        delims = [d for d in (">", "/", "|") if d in cleaned]
-        sep = delims[0]
+    if any(d in cleaned for d in (">", "|")):
+        sep = ">" if ">" in cleaned else "|"
         parts = [p.strip() for p in cleaned.split(sep) if p.strip()]
+        all_parts_excluded = True
         for part in reversed(parts):
             p_clean = normalize_text(part).lower()
             if p_clean in EXCLUDED_CATEGORIES:
                 continue
+            all_parts_excluded = False
             for canon in CANONICAL_CATEGORIES:
                 if p_clean == canon.lower():
                     return canon
             if p_clean in GLOBAL_TAXONOMY_MAP:
                 return GLOBAL_TAXONOMY_MAP[p_clean]
+        if all_parts_excluded:
+            return "Uncategorized"
 
     # 4. Partial/keyword lookup in GLOBAL_TAXONOMY_MAP
     for key, canon in GLOBAL_TAXONOMY_MAP.items():
@@ -514,13 +705,53 @@ class NormalizationProcessor(BaseProcessor):
 
     name = "normalization"
 
+    def _resolve_source_specific_cases(self, record: ProductRecord) -> str:
+        """Resolves known high-confidence source cases where evidence is present on the record."""
+        mfg = (record.manufacturer or "").lower()
+        prov_src = (record.provenance.source or "").lower() if record.provenance else ""
+        # Polymaker clearly identifiable filament products
+        if "polymaker" in mfg or "polymaker" in prov_src:
+            name_str = record.name or ""
+            desc_str = record.description or ""
+            raw_str = record.raw_category or ""
+            evidence = f"{name_str} {raw_str} {desc_str}".lower()
+            non_fil = ("gift card", "polybox", "polydryer", "merchandise", "apparel", "clothing")
+            if not any(nf in evidence for nf in non_fil):
+                indicators = (
+                    "filament", "pla", "abs", "petg", "tpu", "pva", "asa", "copa", "cope",
+                    "nylon", "polycast", "polysmooth", "polysupport", "polysonic",
+                    "polylite", "polyflex", "polymax", "polymide", "panchroma", "fiberon",
+                )
+                if any(ind in evidence for ind in indicators):
+                    return "3D Printing Materials"
+        return "Uncategorized"
+
     def process(self, record: ProductRecord) -> Tuple[ProductRecord, ProcessingAudit]:
         modified = []
 
         # 1. Preserve raw category & normalize category
-        if not record.raw_category:
+        if not record.raw_category and record.category:
             record.raw_category = record.category
+
+        # Category resolution hierarchy:
+        # normalize(record.category)
+        #   -> canonical category: use it
+        #   -> Uncategorized:
+        #        normalize(record.raw_category)
+        #            -> canonical category: use it
+        #            -> otherwise remain Uncategorized
         canon_cat = normalize_category(record.category)
+        if canon_cat not in CANONICAL_CATEGORIES:
+            canon_cat = "Uncategorized"
+
+        if canon_cat == "Uncategorized" and record.raw_category:
+            fallback_cat = normalize_category(record.raw_category)
+            if fallback_cat in CANONICAL_CATEGORIES:
+                canon_cat = fallback_cat
+
+        if canon_cat == "Uncategorized":
+            canon_cat = self._resolve_source_specific_cases(record)
+
         if canon_cat != record.category:
             record.category = canon_cat
             modified.append("category")

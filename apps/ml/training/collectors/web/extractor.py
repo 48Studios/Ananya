@@ -107,9 +107,34 @@ def _flatten_json_ld(data: Any) -> List[Dict[str, Any]]:
     return items
 
 
+def clean_breadcrumb_path(path: Optional[str]) -> str:
+    """
+    Cleans structural breadcrumb noise:
+    - Strips trailing/leading '/' or '>' components
+    - Collapses repeated '>' delimiters
+    - Strips empty components and whitespace
+    - Preserves legitimate category text (e.g. 'Radiation / Geiger', 'Cutters/Pliers')
+    """
+    if not path:
+        return ""
+    raw_segments = path.split(">")
+    cleaned_segments = []
+    for seg in raw_segments:
+        s = seg.strip()
+        if not s or s in ("/", "\\", "|", "-"):
+            continue
+        s = s.strip("/").strip()
+        if s:
+            cleaned_segments.append(s)
+    return " > ".join(cleaned_segments)
+
+
 def extract_breadcrumbs_from_json_ld(items: List[Dict[str, Any]], product_name: Optional[str] = None) -> List[str]:
     """Extracts hierarchical category names from Schema.org BreadcrumbList in JSON-LD."""
-    noise = {"home", "start", "index", "en", "de", "fr", "es", "it", "zh", "ja", "shop", "products", "components", "all"}
+    noise = {
+        "home", "start", "index", "en", "de", "fr", "es", "it", "zh", "ja",
+        "shop", "products", "components", "all", "inicio", "accueil", "startseite",
+    }
     for item in items:
         if not isinstance(item, dict):
             continue
@@ -138,12 +163,17 @@ def extract_breadcrumbs_from_json_ld(items: List[Dict[str, Any]], product_name: 
                             name = it.strip()
                     if name:
                         name_clean = html.unescape(name).strip()
+                        if name_clean in ("/", "\\", "|", ">", "-", "»", "›"):
+                            continue
+                        name_clean = name_clean.strip("/").strip()
                         if name_clean and name_clean.lower() not in noise:
                             trail.append(name_clean)
 
                 if trail:
                     if product_name and trail and (trail[-1].lower() in product_name.lower() or product_name.lower() in trail[-1].lower()):
                         trail = trail[:-1]
+                    while trail and (trail[-1] in ("/", "\\", "|", ">", "-") or not trail[-1].strip("/").strip()):
+                        trail.pop()
                     if trail:
                         return trail
     return []
@@ -154,7 +184,7 @@ def extract_breadcrumbs_from_html(html_content: str, product_name: Optional[str]
     noise = {
         "home", "start", "index", "en", "de", "fr", "es", "it", "zh", "ja",
         "shop", "products", "components", "bauelemente", "katalog", "catalog",
-        "all products", "all", "overview"
+        "all products", "all", "overview", "inicio", "accueil", "startseite",
     }
     items: List[str] = []
 
@@ -185,11 +215,17 @@ def extract_breadcrumbs_from_html(html_content: str, product_name: Optional[str]
         clean = re.sub(r"<[^>]+>", "", it).strip()
         clean = html.unescape(clean)
         clean = re.sub(r"\s+", " ", clean).strip()
+        if clean in ("/", "\\", "|", ">", "-", "»", "›"):
+            continue
+        clean = clean.strip("/").strip()
         if clean and clean.lower() not in noise:
             trail.append(clean)
 
     if product_name and trail and (trail[-1].lower() in product_name.lower() or product_name.lower() in trail[-1].lower()):
         trail = trail[:-1]
+
+    while trail and (trail[-1] in ("/", "\\", "|", ">", "-") or not trail[-1].strip("/").strip()):
+        trail.pop()
 
     return trail
 
@@ -315,21 +351,21 @@ class ContentExtractor:
                     raw_cat_str = category
 
                 # 2. Inspect BreadcrumbList JSON-LD
-                if not category or category.lower() in ("general", "uncategorized", "unknown", "other"):
+                if not category or category.lower() in ("general", "uncategorized", "unknown", "other", "inicio", "accueil"):
                     bc_json = extract_breadcrumbs_from_json_ld(all_items, product_name=name)
                     if bc_json:
                         category = bc_json[-1]
-                        raw_cat_str = " > ".join(bc_json)
+                        raw_cat_str = clean_breadcrumb_path(" > ".join(bc_json))
 
                 # 3. Inspect HTML breadcrumb structures
-                if not category or category.lower() in ("general", "uncategorized", "unknown", "other"):
+                if not category or category.lower() in ("general", "uncategorized", "unknown", "other", "inicio", "accueil"):
                     bc_html = extract_breadcrumbs_from_html(html_content, product_name=name)
                     if bc_html:
                         category = bc_html[-1]
-                        raw_cat_str = " > ".join(bc_html)
+                        raw_cat_str = clean_breadcrumb_path(" > ".join(bc_html))
 
                 # 4. Constrained URL path hints
-                if not category or category.lower() in ("general", "uncategorized", "unknown", "other"):
+                if not category or category.lower() in ("general", "uncategorized", "unknown", "other", "inicio", "accueil"):
                     parsed = urlparse(url)
                     raw_parts = [p for p in parsed.path.split("/") if p and not p.endswith((".html", ".htm"))]
                     lang_codes = {"en", "de", "fr", "es", "it", "zh", "ja", "nl", "pl", "pt", "ru", "ko"}
@@ -435,9 +471,9 @@ class ContentExtractor:
         # Breadcrumbs
         bc = extract_breadcrumbs_from_html(html_content, product_name=title)
         category = bc[-1].strip() if bc else ""
-        raw_cat = " > ".join(bc) if bc else None
+        raw_cat = clean_breadcrumb_path(" > ".join(bc)) if bc else None
 
-        if not category or category.lower() in ("home", "start", "index", "en", "de"):
+        if not category or category.lower() in ("home", "start", "index", "en", "de", "inicio", "accueil"):
             # Fallback to URL path segment, filtering language codes and navigation noise
             from urllib.parse import urlparse
             raw_parts = [p for p in urlparse(url).path.split("/") if p and not p.endswith((".html", ".htm"))]

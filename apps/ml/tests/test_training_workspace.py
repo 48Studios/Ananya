@@ -369,6 +369,158 @@ def test_candidate_trainer_and_evaluator(tmp_path):
 
 
 # -----------------------------------------------------------------------------
+# 7b. Per-Class Classification Metrics in the Evaluation Report
+# -----------------------------------------------------------------------------
+def _per_class_report_payload():
+    """Minimal report dict with a realistic sklearn per_class payload."""
+    return {
+        "candidate_version": "test-v1",
+        "evaluated_at": "2026-01-01T00:00:00+00:00",
+        "validation_sample_count": 5,
+        "metrics": {
+            "candidate_top1_accuracy": 0.6,
+            "candidate_top3_accuracy": 1.0,
+            "active_baseline_top1_accuracy": 0.0,
+            "weighted_precision": 0.7,
+            "weighted_recall": 0.6,
+            "weighted_f1": 0.6,
+            "per_class": {
+                "Capacitors": {"precision": 0.5, "recall": 1.0, "f1-score": 0.6666666666666666, "support": 1.0},
+                "Fasteners": {"precision": 1.0, "recall": 0.5, "f1-score": 0.6666666666666666, "support": 2.0},
+                "Resistors": {"precision": 0.5, "recall": 0.5, "f1-score": 0.5, "support": 2.0},
+                "accuracy": 0.6,
+                "macro avg": {"precision": 0.6666666666666666, "recall": 0.6666666666666666, "f1-score": 0.611111111111111, "support": 5.0},
+                "weighted avg": {"precision": 0.7, "recall": 0.6, "f1-score": 0.6, "support": 5.0},
+            },
+            "duplicate_precision": 1.0,
+            "duplicate_recall": 1.0,
+            "critical_false_merges": 0,
+            "latency_ms": {"p50": 0.1, "p95": 0.2, "p99": 0.3},
+            "peak_ram_mb": 10.0,
+            "unverified_provenance_count": 0,
+        },
+        "quality_gates": {
+            "accuracy_gate": False,
+            "duplicate_precision_gate": True,
+            "duplicate_recall_gate": True,
+            "latency_gate": True,
+            "memory_gate": True,
+            "provenance_gate": True,
+        },
+        "promotion_eligible": False,
+    }
+
+
+def test_build_per_class_rows_sorts_by_class_name_and_drops_aggregates():
+    from apps.ml.training.evaluation import build_per_class_rows
+
+    rows = build_per_class_rows(_per_class_report_payload()["metrics"]["per_class"])
+
+    # Deterministic ordering by class name, aggregates excluded.
+    assert [r["class_name"] for r in rows] == ["Capacitors", "Fasteners", "Resistors"]
+    assert all(r["class_name"] not in ("accuracy", "macro avg", "weighted avg") for r in rows)
+
+    first = rows[0]
+    assert first["precision"] == 0.5
+    assert first["recall"] == 1.0
+    assert first["f1_score"] == pytest.approx(0.6667, abs=1e-4)
+    assert first["support"] == 1.0
+
+
+def test_build_per_class_rows_tolerates_missing_payload():
+    from apps.ml.training.evaluation import build_per_class_rows
+
+    assert build_per_class_rows(None) == []
+    assert build_per_class_rows({}) == []
+
+
+def test_render_markdown_includes_per_class_section():
+    evaluator = ModelEvaluator()
+    md = evaluator.render_markdown(_per_class_report_payload())
+
+    assert "## Per-Class Classification Metrics" in md
+    assert "| Class | Precision | Recall | F1-Score | Support |" in md
+
+    body = md.split("## Per-Class Classification Metrics", 1)[1]
+    lines = [ln for ln in body.splitlines() if ln.startswith("| ") and not ln.startswith("| Class") and not ln.startswith("| :---")]
+    assert len(lines) == 3
+    assert lines[0] == "| Capacitors | 0.500 | 1.000 | 0.667 | 1 |"
+    assert lines[1] == "| Fasteners | 1.000 | 0.500 | 0.667 | 2 |"
+    assert lines[2] == "| Resistors | 0.500 | 0.500 | 0.500 | 2 |"
+
+    # Aggregate rows must never appear in the per-class table.
+    assert "macro avg" not in body
+    assert "weighted avg" not in body
+
+
+def test_render_markdown_omits_per_class_section_when_absent():
+    evaluator = ModelEvaluator()
+    report = _per_class_report_payload()
+    report["metrics"].pop("per_class")
+
+    md = evaluator.render_markdown(report)
+
+    assert "## Per-Class Classification Metrics" not in md
+    # Existing sections and fields are preserved.
+    assert "## Primary Metrics" in md
+    assert "## Quality Gate Summary" in md
+
+
+def test_evaluation_report_json_preserves_per_class(tmp_path):
+    from apps.ml.training.trainers import CategoryClassifierTrainer
+
+    train_data = [
+        {"text": "10k ohm 0805 smd resistor", "category": "Resistors"},
+        {"text": "1k ohm pullup resistor", "category": "Resistors"},
+        {"text": "0.1uF 16V ceramic capacitor", "category": "Capacitors"},
+        {"text": "1uF X7R ceramic chip capacitor", "category": "Capacitors"},
+        {"text": "M3x8 stainless steel socket head screw", "category": "Fasteners"},
+        {"text": "M5 locknut nylon insert", "category": "Fasteners"},
+    ]
+    val_data = [
+        {"text": "4.7k ohm precision resistor", "category": "Resistors"},
+        {"text": "22uF tantalum capacitor", "category": "Capacitors"},
+        {"text": "M3 washer metric stainless", "category": "Fasteners"},
+    ]
+
+    trainer = CategoryClassifierTrainer(random_seed=42)
+    trainer.train(train_data, val_samples=val_data, version="test-v1", output_dir=str(tmp_path / "models"))
+
+    out_dir = str(tmp_path / "eval")
+    report = ModelEvaluator().evaluate(
+        trainer.champion_pipeline,
+        val_samples=val_data,
+        candidate_version="test-v1",
+        output_dir=out_dir,
+    )
+
+    # In-memory report exposes the per-class dictionary.
+    assert "per_class" in report["metrics"]
+
+    # It survives JSON serialization round-trip instead of being dropped.
+    with open(os.path.join(out_dir, "evaluation_report.json"), "r", encoding="utf-8") as f:
+        persisted = json.load(f)
+
+    per_class = persisted["metrics"]["per_class"]
+    assert set(per_class) >= {"Resistors", "Capacitors", "Fasteners", "accuracy", "macro avg", "weighted avg"}
+    for class_name in ("Resistors", "Capacitors", "Fasteners"):
+        assert set(per_class[class_name]) == {"precision", "recall", "f1-score", "support"}
+
+    # And the rendered Markdown exposes it too, sorted by class name.
+    with open(os.path.join(out_dir, "evaluation_summary.md"), "r", encoding="utf-8") as f:
+        md = f.read()
+
+    assert "## Per-Class Classification Metrics" in md
+    rendered = [
+        ln.split("|")[1].strip()
+        for ln in md.split("## Per-Class Classification Metrics", 1)[1].splitlines()
+        if ln.startswith("| ") and not ln.startswith("| Class") and not ln.startswith("| :---")
+    ]
+    assert rendered == sorted(rendered)
+    assert set(rendered) == {"Resistors", "Capacitors", "Fasteners"}
+
+
+# -----------------------------------------------------------------------------
 # 8. CLI Command Execution
 # -----------------------------------------------------------------------------
 def test_cli_pipeline(tmp_path):

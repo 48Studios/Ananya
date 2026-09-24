@@ -14,12 +14,7 @@ import {
 import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImportExportService } from './import-export.service';
-import {
-  ExportRequestDto,
-  ExportResponseDto,
-  BulkActionDto,
-  UploadedFileObj,
-} from './dtos';
+import { ExportRequestDto, ExportResponseDto, UploadedFileObj } from './dtos';
 
 @Controller('import-export')
 export class ImportExportController {
@@ -147,10 +142,5 @@ export class ImportExportController {
     const headerUserId = req?.headers?.['x-user-id'];
     const userId = typeof headerUserId === 'string' ? headerUserId : undefined;
     return await this.service.reverseImport(id, userId);
-  }
-
-  @Post('bulk-action')
-  async executeBulkAction(@Body() dto: BulkActionDto) {
-    return await this.service.executeBulkAction(dto);
   }
 }

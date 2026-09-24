@@ -2670,17 +2670,4 @@ export class ImportExportService {
 
     return job;
   }
-
-  executeBulkAction(dto: {
-    entityType: string;
-    action: string;
-    ids: string[];
-  }) {
-    return Promise.resolve({
-      entityType: dto.entityType,
-      action: dto.action,
-      affectedCount: dto.ids.length,
-      success: true,
-    });
-  }
 }

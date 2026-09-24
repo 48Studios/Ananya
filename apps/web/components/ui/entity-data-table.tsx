@@ -40,6 +40,17 @@ import {
 import { ExportDialog } from "@/components/ui/export-dialog";
 import { ImportWizard } from "@/components/ui/import-wizard";
 import { BulkActionToolbar } from "@/components/ui/bulk-action-toolbar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BatchPrintDialog } from "@/components/barcodes/batch-print-dialog";
+import {
+  dataTableRowId,
+  dataTableRowLabel,
+  dataTableSelection,
+  labelPrintEntityType,
+} from "@/lib/bulk-actions";
+
+/** Id of the built-in row-selection column. */
+const SELECTION_COLUMN_ID = "select";
 
 export interface ColumnMetaConfig {
   width?: string | number;
@@ -105,6 +116,12 @@ export interface EntityDataTableProps<TData, TValue> {
    * reset that search/filter/sort changes perform internally.
    */
   resetPageKey?: string | number | boolean;
+  /**
+   * Row selection (checkbox column + batch bar). On by default so every table
+   * can be batch-acted on; the bar offers only what the API supports for this
+   * entity type, plus label printing where the entity has a label.
+   */
+  enableSelection?: boolean;
 }
 
 export function EntityDataTable<TData, TValue>({
@@ -127,6 +144,7 @@ export function EntityDataTable<TData, TValue>({
   pageSizeOptions = [10, 20, 50, 100],
   notice,
   resetPageKey,
+  enableSelection = true,
 }: EntityDataTableProps<TData, TValue>) {
   const activeFilters = filters || filterConfigs;
   const activeLoading = loading || isLoading;
@@ -139,10 +157,52 @@ export function EntityDataTable<TData, TValue>({
   const [rowSelection, setRowSelection] = React.useState({});
   const [isExportOpen, setIsExportOpen] = React.useState(false);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
+  // Selected ids waiting for a label batch; `null` means the dialog is closed.
+  const [printLabelIds, setPrintLabelIds] = React.useState<string[] | null>(
+    null,
+  );
+
+  const selectionColumn = React.useMemo<ColumnDef<TData, TValue>>(
+    () => ({
+      id: SELECTION_COLUMN_ID,
+      enableSorting: false,
+      enableHiding: false,
+      header: ({ table: headerTable }) => (
+        <Checkbox
+          checked={headerTable.getIsAllPageRowsSelected()}
+          indeterminate={headerTable.getIsSomePageRowsSelected()}
+          onCheckedChange={(checked) =>
+            headerTable.toggleAllPageRowsSelected(checked === true)
+          }
+          aria-label="Select all rows on this page"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(checked) => row.toggleSelected(checked === true)}
+          aria-label="Select row"
+        />
+      ),
+      meta: {
+        // 48px = 14px + 16px checkbox + 14px of the shared cell padding, with a
+        // little slack. The column must be at least that wide: `px-3.5` alone
+        // consumes 28px, so a 40px column left only 12px for a 16px control.
+        headerClassName: "w-12",
+        cellClassName: "w-12",
+      },
+    }),
+    [],
+  );
+
+  const tableColumns = React.useMemo(
+    () => (enableSelection ? [selectionColumn, ...columns] : columns),
+    [enableSelection, selectionColumn, columns],
+  );
 
   const table = useReactTable({
     data,
-    columns,
+    columns: tableColumns,
     initialState: {
       pagination: {
         pageSize: initialPageSize,
@@ -158,6 +218,9 @@ export function EntityDataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
     onRowSelectionChange: setRowSelection,
+    // Records are keyed by their own id, not by row index: a selection made on
+    // page 2 must not collide with the same index on page 1.
+    getRowId: (row, index) => dataTableRowId(row, index),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -198,9 +261,15 @@ export function EntityDataTable<TData, TValue>({
   }, [pageCount, currentPageIndex, table]);
 
   const selectedRows = table.getSelectedRowModel().rows;
-  const selectedIds = selectedRows.map((r) =>
-    String((r.original as Record<string, unknown>).id || r.id),
-  );
+  const selectedOriginals = selectedRows.map((row) => row.original);
+  const { ids: selectedIds, hasEveryRecordId: selectionHasRecordIds } =
+    dataTableSelection(selectedOriginals);
+  const selectedRowLabels: Record<string, string> = {};
+  selectedRows.forEach((row) => {
+    selectedRowLabels[dataTableRowId(row.original, row.index)] =
+      dataTableRowLabel(row.original);
+  });
+  const labelEntityType = labelPrintEntityType(entityType);
   const availableCols = columns
     .map(
       (c) =>
@@ -344,16 +413,39 @@ export function EntityDataTable<TData, TValue>({
               if (onRefreshData) onRefreshData();
             }}
           />
-
-          <BulkActionToolbar
-            entityType={entityType}
-            selectedIds={selectedIds}
-            onClearSelection={() => setRowSelection({})}
-            onActionComplete={() => {
-              if (onRefreshData) onRefreshData();
-            }}
-          />
         </>
+      )}
+
+      {/* Batch action bar. It is rendered for every table and offers only the
+          actions the API supports for this entity type, so a table with no
+          batch capability says so instead of showing dead buttons. */}
+      {enableSelection && (
+        <BulkActionToolbar
+          entityType={entityType}
+          selectedIds={selectedIds}
+          rowLabels={selectedRowLabels}
+          selectionHasRecordIds={selectionHasRecordIds}
+          labelEntityType={labelEntityType}
+          onPrintLabels={
+            labelEntityType && selectionHasRecordIds
+              ? () => setPrintLabelIds(selectedIds)
+              : undefined
+          }
+          onClearSelection={() => setRowSelection({})}
+          onActionComplete={() => {
+            if (onRefreshData) onRefreshData();
+          }}
+        />
+      )}
+
+      {/* Batch label printing reuses the QR studio's own batch dialog. */}
+      {printLabelIds && labelEntityType && (
+        <BatchPrintDialog
+          isOpen
+          onClose={() => setPrintLabelIds(null)}
+          entityType={labelEntityType}
+          entityIds={printLabelIds}
+        />
       )}
 
       {/* Table Container */}
@@ -423,6 +515,8 @@ export function EntityDataTable<TData, TValue>({
                         : undefined);
                     const colMinWidth = colMeta?.minWidth;
                     const isLastCol = hIdx === headerGroup.headers.length - 1;
+                    const isSelectionCol =
+                      header.id === SELECTION_COLUMN_ID;
                     const isRightAligned =
                       header.id === "actions" ||
                       colMeta?.headerClassName?.includes("text-right");
@@ -452,7 +546,19 @@ export function EntityDataTable<TData, TValue>({
                           colMeta?.headerClassName,
                         )}
                       >
-                        {header.isPlaceholder ? null : (
+                        {header.isPlaceholder ? null : isSelectionCol ? (
+                          // A selection control is not a column title. Sending it
+                          // through the title wrapper below would put it inside a
+                          // `truncate` span, and that span's overflow clip cut the
+                          // checkbox down to the cell's content box (12px of a
+                          // 16px control). It gets a plain centred box instead.
+                          <div className="flex items-center">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                          </div>
+                        ) : (
                           <div
                             className={cn(
                               "inline-flex items-center gap-1.5 max-w-full min-w-0",
@@ -487,13 +593,18 @@ export function EntityDataTable<TData, TValue>({
                 // Skeleton Rows
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={`skeleton-${idx}`} className="animate-pulse">
-                    {columns.map((col, cIdx) => {
-                      const colMeta = (col as { meta?: ColumnMetaConfig }).meta;
+                    {table.getVisibleLeafColumns().map((col, cIdx) => {
+                      const colMeta = (col.columnDef.meta as
+                        | ColumnMetaConfig
+                        | undefined);
                       const colWidth =
                         colMeta?.width ??
-                        (col.size !== 150 ? col.size : undefined);
+                        (col.columnDef.size !== 150
+                          ? col.columnDef.size
+                          : undefined);
                       const colMinWidth = colMeta?.minWidth;
-                      const isLastCol = cIdx === columns.length - 1;
+                      const isLastCol =
+                        cIdx === table.getVisibleLeafColumns().length - 1;
                       return (
                         <td
                           key={`skeleton-cell-${cIdx}`}
@@ -579,7 +690,7 @@ export function EntityDataTable<TData, TValue>({
                 // Empty State
                 <tr>
                   <td
-                    colSpan={columns.length}
+                    colSpan={table.getVisibleLeafColumns().length}
                     className="px-6 py-12 text-center"
                   >
                     <div className="flex flex-col items-center justify-center space-y-3">

@@ -17,6 +17,10 @@ import {
   DialogShellCancelButton,
   DialogShellFooter,
 } from "@/components/ui/dialog-shell";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { settingsApi } from "@/lib/api/settings-api";
+import { clampLabelCopies, totalLabelCount } from "@/lib/bulk-actions";
 import { LabelPreview } from "./label-preview";
 import { LabelTemplate, TEMPLATE_OPTIONS, isQrOnlyTemplate } from "./templates";
 import {
@@ -54,6 +58,35 @@ export function BatchPrintDialog({
 
   const [template, setTemplate] = React.useState<LabelTemplate>("STANDARD");
   const [format, setFormat] = React.useState<BarcodeFormat>("CODE128");
+  // Copies per label. A bin label is usually printed twice (shelf + record), so
+  // the queue is stated as "X labels × N copies" before anything is sent to the
+  // printer instead of silently repeating the sheet.
+  const [copies, setCopies] = React.useState(1);
+
+  // Resolved once here and handed to every face: a face would otherwise fetch
+  // the organisation profile per instance, and the print block can hold
+  // hundreds of instances.
+  const [organizationName, setOrganizationName] = React.useState<
+    string | undefined
+  >(undefined);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+    settingsApi
+      .getOrganizationProfile()
+      .then((profile) => {
+        if (isMounted && profile?.companyName) {
+          setOrganizationName(profile.companyName);
+        }
+      })
+      .catch(() => {
+        // The faces fall back to their own default name.
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   const fetchBatchLabels = React.useCallback(async () => {
     if (!isOpen || entityIds.length === 0) return;
@@ -100,7 +133,7 @@ export function BatchPrintDialog({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-2 print:hidden">
+        <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-3 print:hidden">
           <Field>
             <FieldLabel className="text-xs">Label Template</FieldLabel>
             <Select
@@ -152,6 +185,21 @@ export function BatchPrintDialog({
               </SelectContent>
             </Select>
           </Field>
+
+          <Field>
+            <FieldLabel className="text-xs">Copies per Label</FieldLabel>
+            <Input
+              type="number"
+              min={1}
+              max={99}
+              value={copies}
+              onChange={(event) =>
+                setCopies(clampLabelCopies(Number(event.target.value)))
+              }
+              className="h-8 text-xs"
+              aria-label="Copies per label"
+            />
+          </Field>
         </div>
 
         <div className="min-h-[300px] rounded-xl border border-border bg-muted/10 p-4 print:min-h-0 print:border-0 print:bg-transparent print:p-0">
@@ -166,22 +214,52 @@ export function BatchPrintDialog({
               <span>{error}</span>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-4 justify-center print:gap-4 print:justify-start">
-              {labels.map((lbl) => (
-                <LabelPreview
-                  key={lbl.id}
-                  label={lbl}
-                  template={template}
-                  format={format}
-                />
-              ))}
-            </div>
+            <>
+              {/* Screen preview: one face per label, so the reviewer checks the
+                  DESIGN here. The repeated queue lives in the print block
+                  below, which is what the printer actually emits. */}
+              <div
+                className={cn(
+                  "flex flex-wrap gap-4 justify-center print:gap-4 print:justify-start",
+                  copies > 1 && "print:hidden",
+                )}
+              >
+                {labels.map((lbl) => (
+                  <LabelPreview
+                    key={lbl.id}
+                    label={lbl}
+                    template={template}
+                    format={format}
+                    organizationName={organizationName}
+                  />
+                ))}
+              </div>
+
+              {copies > 1 && (
+                <div className="hidden print:flex print:flex-wrap print:gap-4 print:justify-start">
+                  {labels.flatMap((lbl) =>
+                    Array.from({ length: copies }, (_, copyIndex) => (
+                      <LabelPreview
+                        key={`${lbl.id}-copy-${copyIndex}`}
+                        label={lbl}
+                        template={template}
+                        format={format}
+                        organizationName={organizationName}
+                      />
+                    )),
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </DialogShellBody>
       <DialogShellFooter className="print:hidden">
         <span className="mr-auto text-xs font-mono text-muted-foreground">
           Ready to print {labels.length} label(s)
+          {copies > 1
+            ? ` \u00d7 ${copies} copies = ${totalLabelCount(labels.length, copies)} labels`
+            : ""}
         </span>
         <DialogShellCancelButton />
         <Button

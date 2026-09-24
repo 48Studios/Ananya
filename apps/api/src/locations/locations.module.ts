@@ -13,5 +13,6 @@ import { LOCATION_REPOSITORY } from './location.tokens';
       useClass: DrizzleLocationRepository,
     },
   ],
+  exports: [LocationsService],
 })
 export class LocationsModule {}
