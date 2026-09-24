@@ -25,10 +25,12 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
+import { LabelPreview } from "@/components/barcodes/label-preview";
 import {
-  LabelPreview,
   LabelTemplate,
-} from "@/components/barcodes/label-preview";
+  TEMPLATE_OPTIONS,
+  isQrOnlyTemplate,
+} from "@/components/barcodes/templates";
 import { ScanDialog } from "@/components/barcodes/scan-dialog";
 import { BatchPrintDialog } from "@/components/barcodes/batch-print-dialog";
 import {
@@ -39,15 +41,6 @@ import {
 } from "@/lib/api/barcodes-api";
 import { componentsApi, ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, LocationDto } from "@/lib/api/locations-api";
-
-const TEMPLATE_OPTIONS: Record<LabelTemplate, string> = {
-  STANDARD: 'Standard (2" x 4")',
-  COMPACT: 'Compact (1" x 2")',
-  DETAILED: 'Detailed (3" x 4")',
-  SHELF_BIN: "Shelf Bin Tag (3\" x 1.5\")",
-  SQUARE: 'Square Tag (2" x 2")',
-  QR_ONLY: 'QR Only (1" x 1")',
-};
 
 const FORMAT_OPTIONS: Record<BarcodeFormat, string> = {
   CODE128: "Code 128 (High Density)",
@@ -480,7 +473,7 @@ export default function BarcodesHubPage() {
                 <Field>
                   <FieldLabel className="text-xs">
                     Barcode Symbology
-                    {(template === "COMPACT" || template === "SHELF_BIN" || template === "SQUARE" || template === "QR_ONLY") && (
+                    {isQrOnlyTemplate(template) && (
                       <span className="text-[10px] text-muted-foreground font-normal ml-1">
                         (QR tag)
                       </span>
@@ -489,7 +482,7 @@ export default function BarcodesHubPage() {
                   <Select
                     items={FORMAT_OPTIONS}
                     value={format}
-                    disabled={template === "COMPACT" || template === "SHELF_BIN" || template === "SQUARE" || template === "QR_ONLY"}
+                    disabled={isQrOnlyTemplate(template)}
                     onValueChange={(val) => setFormat(val as BarcodeFormat)}
                   >
                     <SelectTrigger className="h-8 text-xs">
@@ -541,7 +534,7 @@ export default function BarcodesHubPage() {
                   <Select
                     items={FORMAT_OPTIONS}
                     value={format}
-                    disabled={template === "COMPACT" || template === "SHELF_BIN" || template === "SQUARE" || template === "QR_ONLY"}
+                    disabled={isQrOnlyTemplate(template)}
                     onValueChange={(val) => setFormat(val as BarcodeFormat)}
                   >
                     <SelectTrigger className="h-8 text-xs">
@@ -613,7 +606,7 @@ export default function BarcodesHubPage() {
             </span>
           </div>
 
-          <div className="p-6 bg-muted/20 border border-border rounded-xl flex items-center justify-center w-full min-h-[260px] print:border-0 print:bg-transparent print:p-0 print:justify-start">
+          <div className="p-6 bg-muted/20 border border-border rounded-xl flex items-center justify-center w-full h-full min-h-[260px] print:border-0 print:bg-transparent print:p-0 print:justify-start">
             <LabelPreview
               label={previewLabel}
               template={template}

@@ -8,6 +8,13 @@ export interface QRCodeViewerProps {
   size?: number;
   className?: string;
   ensureActionableUrl?: boolean;
+  /**
+   * Physical/inline overrides for the wrapper (e.g. a millimetre box for a
+   * printed label). Inline styles win over the built-in chrome classes, which
+   * is what a template needs when the QR must measure in `mm` rather than in
+   * the default `size` pixels.
+   */
+  style?: React.CSSProperties;
 }
 
 /**
@@ -37,6 +44,7 @@ export function QRCodeViewer({
   size = 120,
   className = "",
   ensureActionableUrl = true,
+  style,
 }: QRCodeViewerProps) {
   const finalValue = React.useMemo(() => {
     if (!ensureActionableUrl) return value;
@@ -73,6 +81,7 @@ export function QRCodeViewer({
   return (
     <div
       className={`inline-block select-none bg-white p-1 rounded-lg border border-border print:border-0 print:p-0 ${className}`}
+      style={style}
     >
       <svg
         width={size}

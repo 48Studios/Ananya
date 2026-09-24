@@ -1,5 +1,7 @@
 from .product import (
     ProductDomain,
+    EntityType,
+    DocumentType,
     VerificationStatus,
     ProvenanceRecord,
     AttributeValueRecord,
@@ -22,6 +24,8 @@ from .tasks import (
 
 __all__ = [
     "ProductDomain",
+    "EntityType",
+    "DocumentType",
     "VerificationStatus",
     "ProvenanceRecord",
     "AttributeValueRecord",

@@ -1,19 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { BarcodeViewer } from "./barcode-viewer";
-import { QRCodeViewer } from "./qr-code-viewer";
 import { LabelData, BarcodeFormat } from "@/lib/api/barcodes-api";
 import { settingsApi } from "@/lib/api/settings-api";
-import { cn } from "@/lib/utils";
-
-export type LabelTemplate =
-  | "COMPACT"
-  | "STANDARD"
-  | "DETAILED"
-  | "SHELF_BIN"
-  | "SQUARE"
-  | "QR_ONLY";
+import {
+  CompactLabel,
+  DetailedLabel,
+  MiniQrLabel,
+  QrOnlyLabel,
+  ShelfBinLabel,
+  SquareLabel,
+  StandardLabel,
+  type LabelTemplate,
+} from "./templates";
 
 export interface LabelPreviewProps {
   label: LabelData;
@@ -23,18 +22,15 @@ export interface LabelPreviewProps {
   className?: string;
 }
 
-function cleanSubtitle(text?: string): string {
-  if (!text) return "";
-  return text
-    .replace(/\|\s*Unit:\s*[^|]+/gi, "")
-    .replace(/Unit:\s*[^|]+/gi, "")
-    .replace(/\|\s*Units:\s*[^|]+/gi, "")
-    .replace(/\s+units?\b/gi, "")
-    .replace(/\s*\|\s*$/, "")
-    .replace(/^\s*\|\s*/, "")
-    .trim();
-}
-
+/**
+ * Dispatcher for the label studio: resolves the organisation once, then renders
+ * the template face the caller chose.
+ *
+ * Every face lives in `./templates`, one file per template. The registry in
+ * `./templates/registry.ts` is the single place a template is declared, and
+ * `TEMPLATE_OPTIONS` there is a total record of the union, so adding a template
+ * fails to compile until its picker label exists.
+ */
 export function LabelPreview({
   label,
   template = "STANDARD",
@@ -61,199 +57,49 @@ export function LabelPreview({
       .catch(() => { });
   }, [organizationName]);
 
-  const displaySubtitle = cleanSubtitle(label.subtitle);
-
   if (template === "QR_ONLY") {
-    return (
-      <div
-        className={`flex flex-col w-32 h-32 p-2 bg-white text-black border border-slate-300 rounded-lg shadow-xs flex items-center justify-center select-none print:shadow-none print:border-black print:break-inside-avoid ${className}`}
-      >
-        <QRCodeViewer
-          value={label.qrPayload}
-          size={80}
-          className="p-0 border-0"
-        />
-        <div className="flex justify-center items-center w-full text-center border-t border-slate-200 pt-2">
-            <span className="inline-block font-mono text-xs font-bold">
-              {label.primaryCode}
-            </span>
-        </div>
-      </div>
-    );
+    return <QrOnlyLabel label={label} className={className} />;
   }
 
   if (template === "SQUARE") {
     return (
-      <div
-        className={`w-56 h-56 p-3 bg-white text-black border border-slate-300 rounded-lg shadow-xs flex flex-col justify-between items-center select-none print:shadow-none print:border-black print:break-inside-avoid ${className}`}
-      >
-        <div className="w-full text-center space-y-0.5 border-b border-slate-200 pb-1.5">
-          <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-slate-500">
-            <span className="truncate max-w-[110px]">{orgName}</span>
-            <span className="font-mono text-slate-400">{label.entityType}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-center w-full h-full">
-          <QRCodeViewer
-            value={label.qrPayload}
-            size={140}
-            className="p-1 border-0"
-          />
-        </div>
-
-        <div className="flex justify-between items-center w-full text-center border-t border-slate-200 pt-1.5 gap-1.5">
-          <h4
-            className={cn(
-              "text-xs font-extrabold text-slate-900 leading-tight truncate px-1 text-center",
-              label.entityType === "COMPONENT" && "grow",
-            )}
-            title={label.entityType === "COMPONENT" ? label.primaryCode : label.title}
-          >
-            {label.entityType === "COMPONENT" ? label.primaryCode : label.title}
-          </h4>
-          {label.entityType !== "COMPONENT" && (
-            <span className="inline-block font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 shrink-0">
-              {label.primaryCode}
-            </span>
-          )}
-        </div>
-      </div>
+      <SquareLabel
+        label={label}
+        organizationName={orgName}
+        className={className}
+      />
     );
   }
 
   if (template === "COMPACT") {
-    return (
-      <div
-        className={`w-64 p-3 bg-white text-black border border-slate-300 rounded-md shadow-xs flex items-center justify-between gap-2 select-none print:shadow-none print:border-black print:break-inside-avoid ${className}`}
-      >
-        <div className="space-y-0.5 min-w-0 flex-1">
-          <p className="text-xs font-bold text-slate-900 truncate uppercase">
-            {label.title}
-          </p>
-          <p className="text-[10px] font-mono text-slate-600 truncate font-semibold">
-            {label.primaryCode}
-          </p>
-        </div>
-        <QRCodeViewer
-          value={label.qrPayload}
-          size={48}
-          className="p-1 border-0"
-        />
-      </div>
-    );
+    return <CompactLabel label={label} className={className} />;
   }
 
   if (template === "SHELF_BIN") {
-    let locationText = "";
-    if (label.attribute1) {
-      locationText = label.attribute1;
-    } else if (label.entityType === "LOCATION") {
-      locationText = label.title;
-    } else {
-      locationText = "STORAGE LOCATION";
-    }
-    const locationDisplay = cleanSubtitle(locationText).toUpperCase();
-
     return (
-      <div
-        className={`w-80 p-4 bg-white text-black border-2 border-slate-800 rounded-lg shadow-sm space-y-2 select-none print:shadow-none print:break-inside-avoid ${className}`}
-      >
-        <div className="flex items-center justify-between border-b border-slate-300 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-          <span className="truncate max-w-[110px]">{orgName}</span>
-          <span className="truncate">
-            {locationDisplay}
-          </span>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <div className="space-y-1 min-w-0 flex-1">
-            <h4 className="text-base font-extrabold text-slate-900 leading-tight">
-              {label.title}
-            </h4>
-            <span className="inline-block font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
-              {label.primaryCode}
-            </span>
-          </div>
-          <QRCodeViewer
-            value={label.qrPayload}
-            size={70}
-            className="p-1 border-0 shrink-0"
-          />
-        </div>
-      </div>
+      <ShelfBinLabel
+        label={label}
+        organizationName={orgName}
+        className={className}
+      />
     );
   }
 
   if (template === "DETAILED") {
     return (
-      <div
-        className={`w-96 p-4 bg-white text-black border border-slate-400 rounded-lg shadow-xs gap-2 select-none print:shadow-none print:break-inside-avoid ${className}`}
-      >
-        <div className="flex items-start justify-between gap-2 border-b border-slate-200 pb-2">
-          <div className="space-y-0.5">
-            <h4 className="text-sm font-extrabold text-slate-900 leading-snug">
-              {label.title}
-            </h4>
-            <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
-              {label.primaryCode}
-            </span>
-          </div>
-          <QRCodeViewer
-            value={label.qrPayload}
-            size={64}
-            className="p-1 border-0"
-          />
-        </div>
-
-        <div className="flex flex-col items-center justify-center mb-3 mt-1">
-          <BarcodeViewer
-            value={label.primaryCode}
-            format={format}
-            height={55}
-            showText
-          />
-        </div>
-
-        <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono tracking-wider border-t border-slate-200 pt-3">
-          <span className="font-bold tracking-wider uppercase truncate">{orgName}</span>
-          <span>{label.entityType}</span>
-        </div>
-      </div>
+      <DetailedLabel
+        label={label}
+        organizationName={orgName}
+        format={format}
+        className={className}
+      />
     );
   }
 
-  // Standard Template (Default)
-  return (
-    <div
-      className={`w-80 p-4 bg-white text-black border border-slate-300 rounded-lg shadow-xs space-y-2 select-none print:shadow-none print:break-inside-avoid ${className}`}
-    >
-      <div className="flex items-start justify-between gap-2 border-b border-slate-200 m-0 pb-3">
-        <div className="space-y-1 min-w-0 flex-1">
-          <h4 className="text-xs font-bold text-slate-900 truncate">
-            {label.title}
-          </h4>
-          {displaySubtitle && (
-            <p className="text-[10px] text-slate-500 truncate">{displaySubtitle}</p>
-          )}
-          <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
-            {label.primaryCode}
-          </span>
-        </div>
-        <QRCodeViewer
-          value={label.qrPayload}
-          size={56}
-          className="p-1 border-0"
-        />
-      </div>
+  if (template === "MINI_QR") {
+    return <MiniQrLabel label={label} className={className} />;
+  }
 
-      <div className="flex flex-col items-center justify-center pt-2">
-        <BarcodeViewer
-          value={label.primaryCode}
-          format={format}
-          height={45}
-          showText
-        />
-      </div>
-    </div>
-  );
+  // Standard Template (Default)
+  return <StandardLabel label={label} format={format} className={className} />;
 }

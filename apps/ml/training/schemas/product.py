@@ -34,6 +34,26 @@ class ProductDomain(str, Enum):
     OTHER = "OTHER"
 
 
+class EntityType(str, Enum):
+    """Broad classification of crawled content entities."""
+    PRODUCT = "PRODUCT"
+    DOCUMENT = "DOCUMENT"
+    ARTICLE = "ARTICLE"
+    PAGE = "PAGE"
+    OTHER = "OTHER"
+
+
+class DocumentType(str, Enum):
+    """Specific document genre for technical content."""
+    DATASHEET = "DATASHEET"
+    APPLICATION_NOTE = "APPLICATION_NOTE"
+    USER_MANUAL = "USER_MANUAL"
+    TECHNICAL_DOCUMENTATION = "TECHNICAL_DOCUMENTATION"
+    PRESS_RELEASE = "PRESS_RELEASE"
+    FAQ = "FAQ"
+    OTHER = "OTHER"
+
+
 class VerificationStatus(str, Enum):
     VERIFIED = "VERIFIED"
     QUARANTINED = "QUARANTINED"
@@ -117,7 +137,10 @@ class ProductRecord(BaseModel):
     manufacturer: Optional[str] = None
     brand: Optional[str] = None
     series_family: Optional[str] = None
-    category: str
+    entity_type: EntityType = EntityType.PRODUCT
+    document_type: Optional[DocumentType] = None
+    raw_category: Optional[str] = None
+    category: str = "Uncategorized"
     domain: ProductDomain = ProductDomain.OTHER
     unit: str = "pcs"
     is_active: bool = True
@@ -131,6 +154,11 @@ class ProductRecord(BaseModel):
 
     # Provenance
     provenance: ProvenanceRecord
+
+    @property
+    def product_category(self) -> str:
+        """Alias for category exclusively holding inventory/product taxonomy."""
+        return self.category
 
     def to_training_text(self) -> str:
         """Assembles a clean composite text representation for NLP/embedding."""

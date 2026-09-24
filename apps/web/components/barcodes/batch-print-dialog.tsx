@@ -17,22 +17,14 @@ import {
   DialogShellCancelButton,
   DialogShellFooter,
 } from "@/components/ui/dialog-shell";
-import { LabelPreview, LabelTemplate } from "./label-preview";
+import { LabelPreview } from "./label-preview";
+import { LabelTemplate, TEMPLATE_OPTIONS, isQrOnlyTemplate } from "./templates";
 import {
   barcodesApi,
   EntityType,
   LabelData,
   BarcodeFormat,
 } from "@/lib/api/barcodes-api";
-
-const TEMPLATE_OPTIONS: Record<LabelTemplate, string> = {
-  STANDARD: 'Standard (2" x 4")',
-  COMPACT: 'Compact (1" x 2")',
-  DETAILED: 'Detailed (3" x 4")',
-  SHELF_BIN: "Shelf Bin Tag",
-  SQUARE: 'Square Tag (2" x 2")',
-  QR_ONLY: 'QR Only (1" x 1")',
-};
 
 const FORMAT_OPTIONS: Record<BarcodeFormat, string> = {
   CODE128: "Code 128 (High Density)",
@@ -134,7 +126,7 @@ export function BatchPrintDialog({
           <Field>
             <FieldLabel className="text-xs">
               Barcode Format
-              {(template === "COMPACT" || template === "SHELF_BIN" || template === "SQUARE" || template === "QR_ONLY") && (
+              {isQrOnlyTemplate(template) && (
                 <span className="text-[10px] text-muted-foreground font-normal ml-1">
                   (QR-only template)
                 </span>
@@ -143,7 +135,7 @@ export function BatchPrintDialog({
             <Select
               items={FORMAT_OPTIONS}
               value={format}
-              disabled={template === "COMPACT" || template === "SHELF_BIN" || template === "SQUARE" || template === "QR_ONLY"}
+              disabled={isQrOnlyTemplate(template)}
               onValueChange={(val) => setFormat(val as BarcodeFormat)}
             >
               <SelectTrigger className="h-8 text-xs">

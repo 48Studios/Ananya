@@ -9,6 +9,7 @@ Extracts structured product records across broad ERP domains:
 import io
 import re
 import json
+import html
 from pathlib import Path
 from urllib.parse import urlparse
 from typing import List, Dict, Any, Optional, Tuple
@@ -18,6 +19,8 @@ import pypdf
 from ...schemas.product import (
     ProductRecord,
     ProductDomain,
+    EntityType,
+    DocumentType,
     ProvenanceRecord,
     AttributeValueRecord,
     DocumentRefRecord,
@@ -40,7 +43,10 @@ NON_PRODUCT_URL_PATTERNS = [
     r"/service/(?:contact|imprint|data-privacy)",
     r"/(?:contact|contact-us)(?:/|\.html?|\?|$)",
     r"/(?:about|about-us|company)(?:/|\.html?|\?|$)",
-    r"/(?:careers|jobs)(?:/|\.html?|\?|$)",
+    r"/(?:careers|jobs|karriere|stellenangebote)(?:/|\.html?|\?|$)",
+    r"/(?:faqs?|frequently[-_]asked[-_]questions)(?:/|\.html?|\?|$)",
+    r"/faqs[-_]",
+    r"/(?:events?|webinars?|seminars?|messen)(?:/|\.html?|\?|$)",
     r"/(?:privacy|privacy-policy|data-privacy)(?:/|\.html?|\?|$)",
     r"/(?:terms|terms-of-use|terms-of-service|terms-and-conditions|imprint|impressum|legal|disclaimer|copyright)(?:/|\.html?|\?|$)",
     r"/(?:cookie|cookies|cookie-settings)(?:/|\.html?|\?|$)",
@@ -62,7 +68,8 @@ NON_PRODUCT_URL_PATTERNS = [
     r"/news(?:/|\.html?|\?|$)",
     r"/article(?:s)?/",
     r"/media[-_]overview",
-    r"certification\.oshwa\.org/(?:requirements|mark-usage|license-agreement|process|basics|about|directory|list|privacy-policy)\.html",
+    r"/categories(?:/|$)",
+    r"certification\.oshwa\.org/(?:requirements|mark-usage|license-agreement|process|basics|about|directory|list|privacy-policy)",
 ]
 
 NON_PRODUCT_TITLE_PATTERNS = [
@@ -75,6 +82,9 @@ NON_PRODUCT_TITLE_PATTERNS = [
     r"^(?:shopping cart|cart|checkout)\b",
     r"^(?:press release|press releases|news center|media overview)\b",
     r"^(?:about us|about the company)\b",
+    r"^(?:faq|faqs|frequently asked questions)\b",
+    r"^(?:webinars?|seminars?|events?)\b",
+    r"^(?:careers?|karriere|jobs?)\b",
     r"^(?:this browser is not supported)\b",
 ]
 
@@ -97,6 +107,93 @@ def _flatten_json_ld(data: Any) -> List[Dict[str, Any]]:
     return items
 
 
+def extract_breadcrumbs_from_json_ld(items: List[Dict[str, Any]], product_name: Optional[str] = None) -> List[str]:
+    """Extracts hierarchical category names from Schema.org BreadcrumbList in JSON-LD."""
+    noise = {"home", "start", "index", "en", "de", "fr", "es", "it", "zh", "ja", "shop", "products", "components", "all"}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        item_type = str(item.get("@type", ""))
+        if "BreadcrumbList" in item_type:
+            raw_elements = item.get("itemListElement", [])
+            if isinstance(raw_elements, list):
+                try:
+                    sorted_elems = sorted(
+                        [e for e in raw_elements if isinstance(e, dict)],
+                        key=lambda x: int(x.get("position", 0)),
+                    )
+                except Exception:
+                    sorted_elems = [e for e in raw_elements if isinstance(e, dict)]
+
+                trail = []
+                for elem in sorted_elems:
+                    name = None
+                    if "name" in elem and isinstance(elem["name"], str):
+                        name = elem["name"].strip()
+                    elif "item" in elem:
+                        it = elem["item"]
+                        if isinstance(it, dict) and "name" in it:
+                            name = str(it["name"]).strip()
+                        elif isinstance(it, str) and not it.startswith(("http://", "https://")):
+                            name = it.strip()
+                    if name:
+                        name_clean = html.unescape(name).strip()
+                        if name_clean and name_clean.lower() not in noise:
+                            trail.append(name_clean)
+
+                if trail:
+                    if product_name and trail and (trail[-1].lower() in product_name.lower() or product_name.lower() in trail[-1].lower()):
+                        trail = trail[:-1]
+                    if trail:
+                        return trail
+    return []
+
+
+def extract_breadcrumbs_from_html(html_content: str, product_name: Optional[str] = None) -> List[str]:
+    """Extracts breadcrumb segments from semantic HTML navigation elements."""
+    noise = {
+        "home", "start", "index", "en", "de", "fr", "es", "it", "zh", "ja",
+        "shop", "products", "components", "bauelemente", "katalog", "catalog",
+        "all products", "all", "overview"
+    }
+    items: List[str] = []
+
+    # 1. Microdata / Schema.org itemprop="itemListElement"
+    items = re.findall(
+        r'<li[^>]*?itemprop=["\']itemListElement["\'][^>]*?>.*?<span[^>]*?itemprop=["\']name["\'][^>]*?>(.*?)</span>',
+        html_content,
+        re.IGNORECASE | re.DOTALL,
+    )
+
+    # 2. Semantic breadcrumb container
+    if not items:
+        bc_containers = re.findall(
+            r'<(?:nav|div|ul|ol)[^>]*?(?:aria-label=["\']breadcrumb["\']|class=["\'][^"\']*\bbreadcrumb[^"\']*["\'])[^>]*>(.*?)</(?:nav|div|ul|ol)>',
+            html_content,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if bc_containers:
+            links = re.findall(r'<(?:a|span)[^>]*?>(.*?)</(?:a|span)>', bc_containers[0], re.DOTALL | re.IGNORECASE)
+            items = links
+
+    # 3. Simple <nav class="breadcrumb"><a>
+    if not items:
+        items = re.findall(r'<nav[^>]*?breadcrumb[^>]*?>.*?<a[^>]*?>(.*?)</a>', html_content, re.IGNORECASE | re.DOTALL)
+
+    trail: List[str] = []
+    for it in items:
+        clean = re.sub(r"<[^>]+>", "", it).strip()
+        clean = html.unescape(clean)
+        clean = re.sub(r"\s+", " ", clean).strip()
+        if clean and clean.lower() not in noise:
+            trail.append(clean)
+
+    if product_name and trail and (trail[-1].lower() in product_name.lower() or product_name.lower() in trail[-1].lower()):
+        trail = trail[:-1]
+
+    return trail
+
+
 class ContentExtractor:
     """Extracts structured product metadata from raw HTML and PDF payloads."""
 
@@ -105,11 +202,15 @@ class ContentExtractor:
 
     def _is_non_product_content(self, html_content: str, url: str) -> bool:
         """Determines whether an HTML payload represents non-product web content."""
-        # 1. URL path check
         parsed_url = urlparse(url)
         clean_path = parsed_url.path.strip("/")
         if clean_path in ("", "en", "de", "fr", "es", "it", "zh", "ja", "ko"):
             return True
+
+        # OSHWA registry check: Only individual certified hardware UID pages (e.g. /us000399.html) are products
+        if "certification.oshwa.org" in parsed_url.netloc:
+            if not re.search(r"/[a-z]{2}\d{6}\.html", parsed_url.path, re.IGNORECASE):
+                return True
 
         for pat in NON_PRODUCT_URL_PATTERNS:
             if re.search(pat, url, re.IGNORECASE):
@@ -122,8 +223,20 @@ class ContentExtractor:
             for pat in NON_PRODUCT_TITLE_PATTERNS:
                 if re.search(pat, title, re.IGNORECASE):
                     return True
+            if re.search(r"\bfaqs?\b", title, re.IGNORECASE) and len(title) < 60:
+                return True
 
-        # 3. Check for SPA or broken error pages
+        # 3. Check H1
+        h1_m = re.search(r"<h1[^>]*>(.*?)</h1>", html_content, re.IGNORECASE | re.DOTALL)
+        if h1_m:
+            h1 = re.sub(r"<[^>]+>", "", h1_m.group(1)).strip()
+            for pat in NON_PRODUCT_TITLE_PATTERNS:
+                if re.search(pat, h1, re.IGNORECASE):
+                    return True
+            if re.search(r"\bfaqs?\b", h1, re.IGNORECASE) and len(h1) < 60:
+                return True
+
+        # 4. Check for SPA or broken error pages
         if "This browser is not supported" in html_content:
             return True
         if "Access Denied" in html_content and len(html_content) < 5000:
@@ -157,89 +270,138 @@ class ContentExtractor:
             re.DOTALL | re.IGNORECASE,
         )
 
+        all_items: List[Dict[str, Any]] = []
         for raw_json in matches:
             try:
                 data = json.loads(raw_json.strip())
-                items = _flatten_json_ld(data)
-                for item in items:
-                    if not isinstance(item, dict):
-                        continue
-                    item_type = str(item.get("@type", ""))
-                    if any(t in item_type for t in ("Article", "BlogPosting", "NewsArticle", "WebSite", "BreadcrumbList", "Organization", "AboutPage", "ContactPage")) and "Product" not in item_type:
-                        continue
-
-                    if "Product" in item_type or item.get("sku") or item.get("mpn"):
-                        name_raw = item.get("name") or "Unnamed Product"
-                        name = name_raw.get("@value") or str(name_raw) if isinstance(name_raw, dict) else str(name_raw)
-                        sku_raw = item.get("sku")
-                        sku = str(sku_raw).strip() if sku_raw is not None and str(sku_raw).strip() else f"WEB-{content_hash[:8]}"
-                        mpn_raw = item.get("mpn")
-                        mpn = str(mpn_raw).strip() if mpn_raw is not None and str(mpn_raw).strip() else sku
-                        desc_raw = item.get("description")
-                        desc = desc_raw.get("@value") or str(desc_raw) if isinstance(desc_raw, dict) else (str(desc_raw) if desc_raw is not None else None)
-                        brand_obj = item.get("brand") or {}
-                        brand = (
-                            brand_obj.get("name")
-                            if isinstance(brand_obj, dict)
-                            else str(brand_obj)
-                        ) or self.source_config.name
-
-                        category_raw = item.get("category")
-                        category = str(category_raw).strip() if category_raw else "General"
-                        domain = infer_domain(category)
-                        if (domain == ProductDomain.OTHER or domain is None) and self.source_config.default_domain:
-                            domain = self.source_config.default_domain
-
-                        attrs: Dict[str, AttributeValueRecord] = {}
-                        prop_list = item.get("additionalProperty", [])
-                        if isinstance(prop_list, list):
-                            for prop in prop_list:
-                                if isinstance(prop, dict) and "name" in prop:
-                                    code = str(prop.get("name", "")).strip().lower().replace(" ", "_")
-                                    val = prop.get("value")
-                                    if code and val is not None:
-                                        attrs[code] = AttributeValueRecord(
-                                            code=code,
-                                            name=str(prop.get("name")),
-                                            value=str(val),
-                                            raw_value=str(val),
-                                        )
-
-                        # Also merge any specification tables found in HTML
-                        table_specs = self._extract_specification_tables(html_content)
-                        for k, v in table_specs.items():
-                            if k not in attrs:
-                                attrs[k] = v
-
-                        provenance = ProvenanceRecord(
-                            source=self.source_config.id,
-                            source_type=self.source_config.type.value,
-                            source_url=url,
-                            source_id=str(sku),
-                            collected_at=datetime.now(timezone.utc).isoformat(),
-                            source_quality=self.source_config.source_quality.value,
-                            content_type="text/html",
-                            content_hash=content_hash,
-                            verification_status=VerificationStatus.VERIFIED,
-                            verification_method="json_ld_schema",
-                        )
-
-                        records.append(
-                            ProductRecord(
-                                sku=str(sku),
-                                mpn=str(mpn),
-                                base_mpn=str(mpn).split("-")[0] if "-" in str(mpn) else str(mpn),
-                                name=str(name),
-                                description=desc,
-                                manufacturer=str(brand),
-                                category=str(category),
-                                domain=domain,
-                                attributes=attrs,
-                                provenance=provenance,
-                            )
-                        )
+                all_items.extend(_flatten_json_ld(data))
             except Exception:
                 continue
+
+        for item in all_items:
+            if not isinstance(item, dict):
+                continue
+            item_type = str(item.get("@type", ""))
+            if any(t in item_type for t in ("Article", "BlogPosting", "NewsArticle", "WebSite", "BreadcrumbList", "Organization", "AboutPage", "ContactPage")) and "Product" not in item_type:
+                continue
+
+            if "Product" in item_type or item.get("sku") or item.get("mpn"):
+                name_raw = item.get("name") or "Unnamed Product"
+                name = name_raw.get("@value") or str(name_raw) if isinstance(name_raw, dict) else str(name_raw)
+                name = html.unescape(str(name)).strip()
+
+                sku_raw = item.get("sku")
+                sku = str(sku_raw).strip() if sku_raw is not None and str(sku_raw).strip() else f"WEB-{content_hash[:8]}"
+                mpn_raw = item.get("mpn")
+                mpn = str(mpn_raw).strip() if mpn_raw is not None and str(mpn_raw).strip() else sku
+                desc_raw = item.get("description")
+                desc = desc_raw.get("@value") or str(desc_raw) if isinstance(desc_raw, dict) else (str(desc_raw) if desc_raw is not None else None)
+                if desc:
+                    desc = html.unescape(str(desc)).strip()
+                brand_obj = item.get("brand") or {}
+                brand = (
+                    brand_obj.get("name")
+                    if isinstance(brand_obj, dict)
+                    else str(brand_obj)
+                ) or self.source_config.name
+
+                category_raw = item.get("category")
+                raw_cat_str: Optional[str] = None
+                category: Optional[str] = None
+
+                # 1. Direct Schema.org Product.category
+                if category_raw:
+                    category = str(category_raw).strip()
+                    raw_cat_str = category
+
+                # 2. Inspect BreadcrumbList JSON-LD
+                if not category or category.lower() in ("general", "uncategorized", "unknown", "other"):
+                    bc_json = extract_breadcrumbs_from_json_ld(all_items, product_name=name)
+                    if bc_json:
+                        category = bc_json[-1]
+                        raw_cat_str = " > ".join(bc_json)
+
+                # 3. Inspect HTML breadcrumb structures
+                if not category or category.lower() in ("general", "uncategorized", "unknown", "other"):
+                    bc_html = extract_breadcrumbs_from_html(html_content, product_name=name)
+                    if bc_html:
+                        category = bc_html[-1]
+                        raw_cat_str = " > ".join(bc_html)
+
+                # 4. Constrained URL path hints
+                if not category or category.lower() in ("general", "uncategorized", "unknown", "other"):
+                    parsed = urlparse(url)
+                    raw_parts = [p for p in parsed.path.split("/") if p and not p.endswith((".html", ".htm"))]
+                    lang_codes = {"en", "de", "fr", "es", "it", "zh", "ja", "nl", "pl", "pt", "ru", "ko"}
+                    clean_parts = [p for p in raw_parts if p.lower() not in lang_codes]
+                    noise_tokens = {"components", "products", "produkte", "bauelemente", "katalog", "catalog", "info", "overview", "uebersicht", "portfolio", "item", "detail", "index", "shop", "view", "id"}
+                    meaningful_parts = [p for p in clean_parts if p.lower() not in noise_tokens and not p.isdigit() and len(p) >= 3]
+                    if len(meaningful_parts) >= 2:
+                        category = meaningful_parts[-2].replace("-", " ").replace("_", " ").title()
+                        raw_cat_str = f"URL > {category}"
+                    elif meaningful_parts and not (name and meaningful_parts[-1].lower() in name.lower()):
+                        category = meaningful_parts[-1].replace("-", " ").replace("_", " ").title()
+                        raw_cat_str = f"URL > {category}"
+
+                # 5. Final fallback: Uncategorized (NEVER "General")
+                if not category or category.lower() in ("general", "unknown", "other"):
+                    category = "Uncategorized"
+
+                domain = infer_domain(category)
+                if (domain == ProductDomain.OTHER or domain is None) and self.source_config.default_domain:
+                    domain = self.source_config.default_domain
+
+                attrs: Dict[str, AttributeValueRecord] = {}
+                prop_list = item.get("additionalProperty", [])
+                if isinstance(prop_list, list):
+                    for prop in prop_list:
+                        if isinstance(prop, dict) and "name" in prop:
+                            code = str(prop.get("name", "")).strip().lower().replace(" ", "_")
+                            val = prop.get("value")
+                            if code and val is not None:
+                                attrs[code] = AttributeValueRecord(
+                                    code=code,
+                                    name=str(prop.get("name")),
+                                    value=str(val),
+                                    raw_value=str(val),
+                                )
+
+                # Also merge any specification tables found in HTML
+                table_specs = self._extract_specification_tables(html_content)
+                for k, v in table_specs.items():
+                    if k not in attrs:
+                        attrs[k] = v
+
+                provenance = ProvenanceRecord(
+                    source=self.source_config.id,
+                    source_type=self.source_config.type.value,
+                    source_url=url,
+                    source_id=str(sku),
+                    collected_at=datetime.now(timezone.utc).isoformat(),
+                    source_quality=self.source_config.source_quality.value,
+                    content_type="text/html",
+                    content_hash=content_hash,
+                    verification_status=VerificationStatus.VERIFIED,
+                    verification_method="json_ld_schema",
+                )
+
+                records.append(
+                    ProductRecord(
+                        sku=str(sku),
+                        mpn=str(mpn),
+                        base_mpn=str(mpn).split("-")[0] if "-" in str(mpn) else str(mpn),
+                        name=str(name),
+                        description=desc,
+                        manufacturer=str(brand),
+                        entity_type=EntityType.PRODUCT,
+                        document_type=None,
+                        raw_category=raw_cat_str or category,
+                        category=str(category),
+                        domain=domain,
+                        attributes=attrs,
+                        provenance=provenance,
+                    )
+                )
 
         return records
 
