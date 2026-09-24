@@ -412,11 +412,12 @@ class ContentExtractor:
         if self._is_non_product_content(html_content, url):
             return []
 
-        # Special handler for OSHWA certified hardware
+        # Special handler for OSHWA certified hardware: Only valid UID pages become products
         if "certification.oshwa.org" in url or re.search(r"/[a-z]{2}\d{6}\.html", url, re.IGNORECASE):
             oshwa_record = self._extract_oshwa_hardware(html_content, url, content_hash)
             if oshwa_record:
                 return [oshwa_record]
+            return []  # Any other page on certification.oshwa.org is non-product
 
         # Clean tags/styles before searching text for MPN to avoid matching CSS selectors
         clean_text = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", html_content, flags=re.DOTALL | re.IGNORECASE)
@@ -425,18 +426,17 @@ class ContentExtractor:
         # Title
         title_m = re.search(r"<title>(.*?)</title>", html_content, re.IGNORECASE | re.DOTALL)
         title = title_m.group(1).strip() if title_m else ""
-        title = re.sub(r"\s+", " ", title)
+        title = html.unescape(re.sub(r"\s+", " ", title))
 
         # Meta description
         desc_m = re.search(r'<meta\s+name=["\']description["\']\s+content=["\'](.*?)["\']', html_content, re.IGNORECASE)
-        desc = desc_m.group(1).strip() if desc_m else ""
+        desc = html.unescape(desc_m.group(1).strip()) if desc_m else ""
 
         # Breadcrumbs
-        breadcrumbs = re.findall(r'<li[^>]*?itemprop=["\']itemListElement["\'][^>]*?>.*?<span[^>]*?itemprop=["\']name["\'][^>]*?>(.*?)</span>', html_content, re.IGNORECASE | re.DOTALL)
-        if not breadcrumbs:
-            breadcrumbs = re.findall(r'<nav[^>]*?breadcrumb[^>]*?>.*?<a[^>]*?>(.*?)</a>', html_content, re.IGNORECASE | re.DOTALL)
+        bc = extract_breadcrumbs_from_html(html_content, product_name=title)
+        category = bc[-1].strip() if bc else ""
+        raw_cat = " > ".join(bc) if bc else None
 
-        category = breadcrumbs[-1].strip() if breadcrumbs else ""
         if not category or category.lower() in ("home", "start", "index", "en", "de"):
             # Fallback to URL path segment, filtering language codes and navigation noise
             from urllib.parse import urlparse
@@ -444,16 +444,16 @@ class ContentExtractor:
             lang_codes = {"en", "de", "fr", "es", "it", "zh", "ja", "nl", "pl", "pt", "ru", "ko"}
             clean_parts = [p for p in raw_parts if p.lower() not in lang_codes]
             noise_tokens = {"components", "products", "produkte", "bauelemente", "katalog", "catalog", "info", "overview", "uebersicht", "portfolio", "item", "detail", "index", "shop"}
-            meaningful_parts = [p for p in clean_parts if p.lower() not in noise_tokens]
+            meaningful_parts = [p for p in clean_parts if p.lower() not in noise_tokens and not p.isdigit() and len(p) >= 3]
             if meaningful_parts:
                 if len(meaningful_parts) >= 2:
                     category = f"{meaningful_parts[-2].replace('-', ' ').title()} {meaningful_parts[-1].replace('-', ' ').title()}"
                 else:
                     category = meaningful_parts[-1].replace("-", " ").title()
-            elif clean_parts:
-                category = clean_parts[-1].replace("-", " ").title()
+                raw_cat = f"URL > {category}"
             else:
-                category = "General"
+                category = "Uncategorized"
+                raw_cat = "Uncategorized"
 
         # Specification table extraction
         attrs = self._extract_specification_tables(html_content)
@@ -483,6 +483,14 @@ class ContentExtractor:
         # If no genuine MPN found, check whether page has solid product signals
         # If no genuine MPN AND no specification attributes, it is an overview/category page -> reject!
         if not mpn:
+            # Guard: ensure attributes are not FAQ questions or general prose
+            is_faq_attrs = any(
+                k.startswith(("what_", "why_", "how_", "when_", "where_", "who_", "do_", "can_"))
+                or len(str(getattr(v, "value", ""))) > 150
+                for k, v in attrs.items()
+            )
+            if is_faq_attrs:
+                return []
             has_specs = len(attrs) >= 2
             has_purchase_signals = bool(re.search(r"\b(?:add\s*to\s*cart|buy\s*now|in\s*stock|out\s*of\s*stock|availability)\b", clean_text_no_tags, re.IGNORECASE))
             if not has_specs and not has_purchase_signals:
@@ -516,6 +524,9 @@ class ContentExtractor:
                 name=title or mpn,
                 description=desc,
                 manufacturer=self.source_config.name,
+                entity_type=EntityType.PRODUCT,
+                document_type=None,
+                raw_category=raw_cat or category,
                 category=category,
                 domain=dom,
                 attributes=attrs,
@@ -578,6 +589,9 @@ class ContentExtractor:
             name=name,
             description=None,
             manufacturer=mfg,
+            entity_type=EntityType.PRODUCT,
+            document_type=None,
+            raw_category=cat,
             category=cat,
             domain=dom,
             attributes=attrs,
@@ -651,11 +665,28 @@ class ContentExtractor:
             if is_compliance_or_flyer and mpn.startswith("PDF-"):
                 return None
 
-            # Detect category/domain keywords
-            category = "Technical Documentation"
+            # Determine document_type
+            text_sample = combined_text[:3000].lower() if combined_text else ""
+            if "application note" in url_and_title or "application note" in text_sample or "/appnote" in url_and_title or "appnote" in url_and_title or "an_" in url_and_title or "an-" in url_and_title:
+                doc_type = DocumentType.APPLICATION_NOTE
+            elif any(k in url_and_title or k in text_sample for k in ("user manual", "user guide", "betriebsanleitung", "bedienungsanleitung", "handbuch")):
+                doc_type = DocumentType.USER_MANUAL
+            elif any(k in url_and_title or k in text_sample for k in ("press release", "pressemitteilung", "pressemeldung")):
+                doc_type = DocumentType.PRESS_RELEASE
+            elif "faq" in url_and_title or "faq" in text_sample:
+                doc_type = DocumentType.FAQ
+            elif any(k in url_and_title or k in text_sample for k in ("datasheet", "data sheet", "datenblatt", "technical specifications")):
+                doc_type = DocumentType.DATASHEET
+            else:
+                doc_type = DocumentType.TECHNICAL_DOCUMENTATION
+
+            # Category is ONLY assigned if there is reliable evidence of specific product category
+            category = "Uncategorized"
+            raw_category = doc_type.value
             for kw in ("fastener", "screw", "bearing", "resistor", "capacitor", "inductor", "choke", "ferrite", "connector", "transformer", "valve", "sensor", "filament", "switch", "relay"):
                 if kw in combined_text.lower() or kw in url.lower():
                     category = kw.title()
+                    raw_category = f"Keyword: {kw}"
                     break
 
             # If title is missing or generic, derive readable name from filename stem
@@ -703,7 +734,7 @@ class ContentExtractor:
 
             doc_ref = DocumentRefRecord(
                 title=clean_title or f"Document {mpn}",
-                document_type="DATASHEET",
+                document_type=doc_type.value,
                 source_type="EXTERNAL_URL",
                 external_url=url,
             )
@@ -716,9 +747,12 @@ class ContentExtractor:
                 sku=mpn,
                 mpn=mpn,
                 base_mpn=mpn.split("-")[0] if "-" in mpn else mpn,
-                name=clean_title or f"Product {mpn}",
+                name=clean_title or f"Document {mpn}",
                 description=combined_text[:500] if combined_text else None,
                 manufacturer=self.source_config.name,
+                entity_type=EntityType.DOCUMENT,
+                document_type=doc_type,
+                raw_category=raw_category,
                 category=category,
                 domain=pdf_domain,
                 attributes=attrs,
