@@ -29,7 +29,14 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 
-from apps.ml.training.schemas.product import ProductDomain
+from apps.ml.training.schemas.product import (
+    ProductDomain,
+    ProductRecord,
+    ProvenanceRecord,
+    VerificationStatus,
+    EntityType,
+    DocumentType,
+)
 from apps.ml.training.collectors.web import (
     SourceRegistry,
     SourceConfig,
@@ -1157,5 +1164,256 @@ def test_cli_from_raw_flag():
     args = parser.parse_args(["collect", "--from-raw", "--source", "sparkfun"])
     assert args.from_raw is True
     assert args.source == "sparkfun"
+
+
+# =====================================================================
+# 18. Product vs Document Separation & Taxonomy Fallback Tests
+# =====================================================================
+
+def test_json_ld_product_without_category_gets_category_from_breadcrumbs():
+    source = SourceConfig(
+        id="sparkfun",
+        name="SparkFun Electronics",
+        domains=["sparkfun.com"],
+        start_urls=["https://sparkfun.com"],
+    )
+    extractor = ContentExtractor(source)
+
+    html_content = """
+    <html>
+      <head>
+        <title>SMD Resistor 10k - SparkFun Electronics</title>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": "SMD Resistor 10k",
+          "sku": "RES-10001",
+          "mpn": "RES-10001"
+        }
+        </script>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://sparkfun.com"},
+            {"@type": "ListItem", "position": 2, "name": "Components", "item": "https://sparkfun.com/components"},
+            {"@type": "ListItem", "position": 3, "name": "Resistors", "item": "https://sparkfun.com/resistors"}
+          ]
+        }
+        </script>
+      </head>
+      <body><h1>SMD Resistor 10k</h1></body>
+    </html>
+    """
+    records = extractor.extract_from_html(html_content, "https://sparkfun.com/res-10001.html", "res10001hash")
+    assert len(records) == 1
+    prod = records[0]
+    assert prod.entity_type == EntityType.PRODUCT
+    assert prod.category == "Resistors"
+    assert "Resistors" in (prod.raw_category or "")
+
+
+def test_product_without_any_category_becomes_uncategorized_not_general():
+    source = SourceConfig(
+        id="generic-mfg",
+        name="Generic Mfg",
+        domains=["generic.com"],
+        start_urls=["https://generic.com"],
+    )
+    extractor = ContentExtractor(source)
+
+    # Product with no category anywhere (no Schema.org category, no breadcrumbs, no URL hint)
+    html_content = """
+    <html>
+      <head>
+        <title>Special Precision Widget - Generic Mfg</title>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": "Special Precision Widget",
+          "sku": "WID-999",
+          "mpn": "WID-999"
+        }
+        </script>
+      </head>
+      <body><h1>Special Precision Widget</h1></body>
+    </html>
+    """
+    records = extractor.extract_from_html(html_content, "https://generic.com/item.html", "widhash")
+    assert len(records) == 1
+    prod = records[0]
+    assert prod.entity_type == EntityType.PRODUCT
+    assert prod.category == "Uncategorized"
+    assert prod.category != "General"
+
+
+def test_pdf_fallback_becomes_document_entity_type():
+    source = SourceConfig(
+        id="mfg-pdf",
+        name="Mfg PDF Docs",
+        domains=["mfg.com"],
+        start_urls=["https://mfg.com"],
+    )
+    extractor = ContentExtractor(source)
+
+    # Technical document (Application Note / Datasheet)
+    record = extractor.build_pdf_record(
+        combined_text="Application Note AN-102: Thermal design for high power converters. Operating temperature -40C to 125C. Package SOIC-8.",
+        title="Application Note AN-102 High Power",
+        url="https://mfg.com/docs/an-102.pdf",
+        content_hash="an102hash",
+    )
+    assert record is not None
+    assert record.entity_type == EntityType.DOCUMENT
+    assert record.document_type == DocumentType.APPLICATION_NOTE
+    assert record.category != "Technical Documentation"
+    assert record.category in ("Uncategorized", "ICs & Semiconductors", "Power Management")
+
+
+def test_non_product_pages_not_synthetic_products():
+    source = SourceConfig(
+        id="sparkfun",
+        name="SparkFun Electronics",
+        domains=["sparkfun.com"],
+        start_urls=["https://sparkfun.com"],
+    )
+    extractor = ContentExtractor(source)
+
+    # FAQ page
+    faq_html = "<html><head><title>Frequently Asked Questions (FAQ) - SparkFun</title></head><body><h1>FAQ</h1></body></html>"
+    faq_records = extractor.extract_from_html(faq_html, "https://sparkfun.com/pages/faq", "faqhash")
+    assert len(faq_records) == 0
+
+    # Non-UID certification page
+    cert_html = "<html><head><title>OSHWA Certification Directory</title></head><body><h1>Directory</h1></body></html>"
+    cert_records = extractor.extract_from_html(cert_html, "https://certification.oshwa.org/directory.html", "certhash")
+    assert len(cert_records) == 0
+
+    # Careers page
+    career_html = "<html><head><title>Careers at Adafruit</title></head><body><h1>Join Our Team</h1></body></html>"
+    career_records = extractor.extract_from_html(career_html, "https://adafruit.com/careers", "careerhash")
+    assert len(career_records) == 0
+
+
+def test_legitimate_product_page_becomes_product():
+    source = SourceConfig(
+        id="sparkfun",
+        name="SparkFun Electronics",
+        domains=["sparkfun.com"],
+        start_urls=["https://sparkfun.com"],
+    )
+    extractor = ContentExtractor(source)
+
+    prod_html = """
+    <html>
+      <head>
+        <title>SparkFun RedBoard Plus - DEV-18158</title>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": "SparkFun RedBoard Plus",
+          "sku": "DEV-18158",
+          "mpn": "DEV-18158",
+          "category": "Development Boards"
+        }
+        </script>
+      </head>
+      <body><h1>SparkFun RedBoard Plus</h1></body>
+    </html>
+    """
+    records = extractor.extract_from_html(prod_html, "https://sparkfun.com/products/18158", "redboardhash")
+    assert len(records) == 1
+    assert records[0].entity_type == EntityType.PRODUCT
+    assert records[0].category == "Development Boards"
+
+
+def test_classification_generator_conservative():
+    from apps.ml.training.generators.classification import ClassificationDatasetGenerator
+
+    prov = ProvenanceRecord(source="test", source_type="test", verification_status=VerificationStatus.VERIFIED)
+    valid_prod = ProductRecord(
+        sku="RES-1",
+        mpn="RC0805JR-0710KL",
+        name="10k Resistor 0805",
+        category="Resistors",
+        entity_type=EntityType.PRODUCT,
+        provenance=prov,
+    )
+    uncat_prod = ProductRecord(
+        sku="UNCAT-1",
+        mpn="WIDGET-01",
+        name="Unknown Widget",
+        category="Uncategorized",
+        entity_type=EntityType.PRODUCT,
+        provenance=prov,
+    )
+    gen_prod = ProductRecord(
+        sku="GEN-1",
+        mpn="WIDGET-02",
+        name="General Widget",
+        category="General",
+        entity_type=EntityType.PRODUCT,
+        provenance=prov,
+    )
+    doc_record = ProductRecord(
+        sku="DOC-1",
+        mpn="PDF-ABC123",
+        name="Thermal Design AN",
+        category="Technical Documentation",
+        entity_type=EntityType.DOCUMENT,
+        document_type=DocumentType.APPLICATION_NOTE,
+        provenance=prov,
+    )
+
+    gen = ClassificationDatasetGenerator(include_variations=False)
+    examples = gen.generate([valid_prod, uncat_prod, gen_prod, doc_record])
+
+    assert len(examples) == 1
+    assert examples[0].category == "Resistors"
+    assert all(e.category not in ("General", "Uncategorized", "Technical Documentation") for e in examples)
+
+
+def test_document_and_non_product_records_available_for_other_generators():
+    from apps.ml.training.generators import AttributeExtractionDatasetGenerator
+    from apps.ml.training.schemas.product import AttributeValueRecord
+
+    prov = ProvenanceRecord(source="test", source_type="test", verification_status=VerificationStatus.VERIFIED)
+    doc_record = ProductRecord(
+        sku="DOC-1",
+        mpn="PDF-ABC123",
+        name="High Power MOSFET Datasheet",
+        category="Uncategorized",
+        entity_type=EntityType.DOCUMENT,
+        document_type=DocumentType.DATASHEET,
+        provenance=prov,
+        attributes={
+            "voltage": AttributeValueRecord(code="voltage", value="60V", raw_value="60V", normalized_si=60.0, unit="V")
+        },
+    )
+
+    attr_gen = AttributeExtractionDatasetGenerator()
+    examples = attr_gen.generate([doc_record])
+    assert len(examples) >= 1
+    assert any("voltage" in e.target_attributes for e in examples)
+
+
+def test_train_val_test_grouping_remains_leakage_free():
+    from apps.ml.pipeline.build_dataset import get_base_family
+
+    records = [
+        {"mpn": "RC0805-10k-TR", "category": "Resistors"},
+        {"mpn": "RC0805-10k-REEL", "category": "Resistors"},
+        {"mpn": "RC0805-20k-TR", "category": "Resistors"},
+        {"mpn": "GRM188-10uF", "category": "Capacitors"},
+        {"mpn": "GRM188-22uF", "category": "Capacitors"},
+    ]
+    groups = [get_base_family(r["mpn"]) for r in records]
+    assert groups[0] == groups[1] == groups[2] == "RC0805"
+    assert groups[3] == groups[4] == "GRM188"
+
 
 

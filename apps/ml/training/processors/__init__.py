@@ -7,6 +7,8 @@ from .normalization import (
     normalize_manufacturer,
     normalize_category,
     strip_packaging_suffix,
+    CANONICAL_CATEGORIES,
+    EXCLUDED_CATEGORIES,
 )
 from .deduplication import DeduplicationProcessor, values_differ_critically
 from .cross_source import CrossSourceAnalyzer
@@ -23,6 +25,8 @@ __all__ = [
     "normalize_manufacturer",
     "normalize_category",
     "strip_packaging_suffix",
+    "CANONICAL_CATEGORIES",
+    "EXCLUDED_CATEGORIES",
     "DeduplicationProcessor",
     "values_differ_critically",
     "CrossSourceAnalyzer",

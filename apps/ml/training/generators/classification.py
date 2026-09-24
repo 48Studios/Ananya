@@ -9,8 +9,9 @@ Transforms ProductRecords into (text, category) training examples with:
 
 import re
 from typing import List, Dict, Any, Optional
-from ..schemas.product import ProductRecord
+from ..schemas.product import ProductRecord, EntityType
 from ..schemas.tasks import ClassificationExample
+from ..processors.normalization import CANONICAL_CATEGORIES, EXCLUDED_CATEGORIES
 
 
 def generate_text_variations(record: ProductRecord) -> List[str]:
@@ -52,6 +53,24 @@ class ClassificationDatasetGenerator:
         examples: List[ClassificationExample] = []
 
         for record in records:
+            # 1. Require entity_type == PRODUCT
+            ent_type = getattr(record, "entity_type", EntityType.PRODUCT)
+            if ent_type != EntityType.PRODUCT:
+                continue
+
+            # 2. Product category must be present
+            cat = (record.product_category or record.category or "").strip()
+            if not cat:
+                continue
+
+            # 3. Exclude non-product, generic, or document labels
+            if cat.lower() in EXCLUDED_CATEGORIES:
+                continue
+
+            # 4. Must resolve to a valid canonical Ananya taxonomy category
+            if cat not in CANONICAL_CATEGORIES:
+                continue
+
             texts = (
                 generate_text_variations(record)
                 if self.include_variations
@@ -64,7 +83,7 @@ class ClassificationDatasetGenerator:
                 examples.append(
                     ClassificationExample(
                         text=t,
-                        category=record.category,
+                        category=cat,
                         domain=record.domain.value if hasattr(record.domain, "value") else str(record.domain),
                         base_family=group_id,
                         mpn=record.mpn,

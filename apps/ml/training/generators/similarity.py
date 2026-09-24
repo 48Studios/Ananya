@@ -18,7 +18,10 @@ class SimilarityDatasetGenerator:
 
         by_cat: Dict[str, List[ProductRecord]] = {}
         for r in records:
-            by_cat.setdefault(r.category, []).append(r)
+            cat = (r.category or "").strip()
+            if not cat or cat.lower() in ("uncategorized", "unknown", "general", "other"):
+                continue
+            by_cat.setdefault(cat, []).append(r)
 
         categories = list(by_cat.keys())
         if len(categories) < 2:

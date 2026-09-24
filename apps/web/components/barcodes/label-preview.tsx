@@ -6,10 +6,10 @@ import { settingsApi } from "@/lib/api/settings-api";
 import {
   CompactLabel,
   DetailedLabel,
-  MiniQrLabel,
-  QrOnlyLabel,
+  QrCode11MmLabel,
+  QrCode1InchLabel,
+  QrCode2InchLabel,
   ShelfBinLabel,
-  SquareLabel,
   StandardLabel,
   type LabelTemplate,
 } from "./templates";
@@ -57,20 +57,6 @@ export function LabelPreview({
       .catch(() => { });
   }, [organizationName]);
 
-  if (template === "QR_ONLY") {
-    return <QrOnlyLabel label={label} className={className} />;
-  }
-
-  if (template === "SQUARE") {
-    return (
-      <SquareLabel
-        label={label}
-        organizationName={orgName}
-        className={className}
-      />
-    );
-  }
-
   if (template === "COMPACT") {
     return <CompactLabel label={label} className={className} />;
   }
@@ -96,8 +82,28 @@ export function LabelPreview({
     );
   }
 
-  if (template === "MINI_QR") {
-    return <MiniQrLabel label={label} className={className} />;
+  if (template === "QR_CODE_2_INCH") {
+    return (
+      <QrCode2InchLabel
+        label={label}
+        organizationName={orgName}
+        className={className}
+      />
+    );
+  }
+
+  if (template === "QR_CODE_1_INCH") {
+    return (
+      <QrCode1InchLabel
+        label={label}
+        organizationName={orgName}
+        className={className}
+      />
+    );
+  }
+
+  if (template === "QR_CODE_11MM") {
+    return <QrCode11MmLabel label={label} className={className} />;
   }
 
   // Standard Template (Default)

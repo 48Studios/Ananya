@@ -27,11 +27,11 @@ export { DetailedLabel } from "./detailed-label";
 export type { ShelfBinLabelProps } from "./shelf-bin-label";
 export { ShelfBinLabel } from "./shelf-bin-label";
 
-export type { SquareLabelProps } from "./square-label";
-export { SquareLabel } from "./square-label";
+export type { QrCode2InchLabelProps } from "./qr-code-2-inch-label";
+export { QrCode2InchLabel } from "./qr-code-2-inch-label";
 
-export type { QrOnlyLabelProps } from "./qr-only-label";
-export { QrOnlyLabel } from "./qr-only-label";
+export type { QrCode1InchLabelProps } from "./qr-code-1-inch-label";
+export { QrCode1InchLabel } from "./qr-code-1-inch-label";
 
-export type { MiniQrLabelProps } from "./mini-qr-label";
-export { MiniQrLabel } from "./mini-qr-label";
+export type { QrCode11MmLabelProps } from "./qr-code-11mm-label";
+export { QrCode11MmLabel } from "./qr-code-11mm-label";

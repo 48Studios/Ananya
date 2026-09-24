@@ -160,6 +160,11 @@ class ProductRecord(BaseModel):
         """Alias for category exclusively holding inventory/product taxonomy."""
         return self.category
 
+    @property
+    def document_references(self) -> List[DocumentRefRecord]:
+        """Alias for documents list."""
+        return self.documents
+
     def to_training_text(self) -> str:
         """Assembles a clean composite text representation for NLP/embedding."""
         parts = [

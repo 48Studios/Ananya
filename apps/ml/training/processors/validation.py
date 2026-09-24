@@ -12,7 +12,7 @@ Validates:
 import re
 from typing import List, Dict, Any, Tuple, Optional
 from .base import BaseProcessor, ProcessingDisposition, ProcessingAudit
-from ..schemas.product import ProductRecord, VerificationStatus
+from ..schemas.product import ProductRecord, VerificationStatus, EntityType
 
 
 # Multi-domain physical sanity bounds
@@ -141,9 +141,19 @@ class DataValidationProcessor(BaseProcessor):
                     disposition = ProcessingDisposition.REJECTED
                     break
 
-            if record.mpn.startswith("AUTO-") or record.mpn.startswith("PDF-"):
-                if not record.attributes and (record.category or "").strip().lower() in ("general", "unknown", "other", "technical documentation"):
+            is_document = getattr(record, "entity_type", EntityType.PRODUCT) == EntityType.DOCUMENT
+            if record.mpn.startswith("AUTO-"):
+                if not record.attributes and (record.category or "").strip().lower() in ("general", "unknown", "other", "uncategorized", "technical documentation"):
                     reasons.append(f"UNGROUNDED_PLACEHOLDER: Synthetic MPN '{record.mpn}' with no attributes and ungrounded category")
+                    disposition = ProcessingDisposition.REJECTED
+            elif record.mpn.startswith("PDF-") and not is_document:
+                if not record.attributes and (record.category or "").strip().lower() in ("general", "unknown", "other", "uncategorized", "technical documentation"):
+                    reasons.append(f"UNGROUNDED_PLACEHOLDER: Synthetic MPN '{record.mpn}' with no attributes and ungrounded category")
+                    disposition = ProcessingDisposition.REJECTED
+            elif record.mpn.startswith("PDF-") and is_document:
+                has_docs = bool(getattr(record, "documents", None) or getattr(record, "document_references", None))
+                if not has_docs and not record.attributes and not (record.name or "").strip():
+                    reasons.append(f"EMPTY_DOCUMENT: Document entity '{record.mpn}' has no references or content")
                     disposition = ProcessingDisposition.REJECTED
 
         # 3. Provenance verification

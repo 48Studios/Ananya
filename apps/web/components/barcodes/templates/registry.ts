@@ -14,9 +14,9 @@ export type LabelTemplate =
   | "STANDARD"
   | "DETAILED"
   | "SHELF_BIN"
-  | "SQUARE"
-  | "QR_ONLY"
-  | "MINI_QR";
+  | "QR_CODE_2_INCH"
+  | "QR_CODE_1_INCH"
+  | "QR_CODE_11MM";
 
 /**
  * Picker labels, including each label's physical size where it has one.
@@ -29,21 +29,24 @@ export const TEMPLATE_OPTIONS: Record<LabelTemplate, string> = {
   COMPACT: 'Compact (1" x 2")',
   DETAILED: 'Detailed (3" x 4")',
   SHELF_BIN: 'Shelf Bin Tag (3" x 1.5")',
-  SQUARE: 'Square Tag (2" x 2")',
-  QR_ONLY: 'QR Only (1 Inch x 1 Inch)',
-  MINI_QR: "Mini QR (1.1 cm x 1.1 cm)",
+  QR_CODE_2_INCH: "QR Code (2 Inch x 1.25 Inch)",
+  QR_CODE_1_INCH: "QR Code (1 Inch x .67 Inch)",
+  QR_CODE_11MM: "QR Code (11 MM x 8 MM)",
 };
 
 /**
  * Templates that carry a QR code and no 1D barcode, so the symbology picker is
  * meaningless for them.
+ *
+ * "QR only" here is the *rule* (no linear barcode), not a template key: the
+ * `QR_ONLY` template was merged into `QR_CODE_2_INCH`.
  */
 export const QR_ONLY_TEMPLATES: readonly LabelTemplate[] = [
   "COMPACT",
   "SHELF_BIN",
-  "SQUARE",
-  "QR_ONLY",
-  "MINI_QR",
+  "QR_CODE_2_INCH",
+  "QR_CODE_1_INCH",
+  "QR_CODE_11MM",
 ];
 
 export function isQrOnlyTemplate(template: LabelTemplate): boolean {

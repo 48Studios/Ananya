@@ -343,8 +343,8 @@ class ContentExtractor:
                         category = meaningful_parts[-1].replace("-", " ").replace("_", " ").title()
                         raw_cat_str = f"URL > {category}"
 
-                # 5. Final fallback: Uncategorized (NEVER "General")
-                if not category or category.lower() in ("general", "unknown", "other"):
+                # 5. Final fallback: If missing, fallback to Uncategorized (NEVER "General")
+                if not category:
                     category = "Uncategorized"
 
                 domain = infer_domain(category)
