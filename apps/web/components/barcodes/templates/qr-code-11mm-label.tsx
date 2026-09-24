@@ -9,9 +9,11 @@ export interface QrCode11MmLabelProps {
 }
 
 /**
- * QR Code (11 mm) — a small QR, the item code
- * underneath. For a component the item code IS the headline; for every other
- * entity the human title sits beside it.
+ * QR Code (11 MM x 8 MM) — a small QR, the item code underneath. For a
+ * component the item code IS the headline; for every other entity the human
+ * title sits beside it.
+ *
+ * A portrait face: 8 mm wide × 11 mm tall.
  */
 export function QrCode11MmLabel({
   label,

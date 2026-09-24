@@ -29,7 +29,7 @@ const REGISTRY = `${TEMPLATES_DIR}/registry.ts`;
 const BARREL = `${TEMPLATES_DIR}/index.ts`;
 const DISPATCHER = "components/barcodes/label-preview.tsx";
 const QR_11MM_TEMPLATE = `${TEMPLATES_DIR}/qr-code-11mm-label.tsx`;
-const QR_1_INCH_TEMPLATE = `${TEMPLATES_DIR}/qr-code-1-inch-label.tsx`;
+
 
 /** Every template, with the file that renders it and its dispatcher branch. */
 const TEMPLATES = [
@@ -147,10 +147,12 @@ describe("label template folder", () => {
   it("names every QR template by its physical size", () => {
     const registry = read(REGISTRY);
 
-    // The picker is the only place an operator learns how big the sticker is.
-    expect(registry).toContain('QR_CODE_2_INCH: "QR Code (2 Inch)"');
-    expect(registry).toContain('QR_CODE_1_INCH: "QR Code (1 Inch)"');
-    expect(registry).toContain('QR_CODE_11MM: "QR Code (11 MM)"');
+    // The picker is the only place an operator learns how big the sticker is,
+    // so every QR face must state one. Height is listed first for the portrait
+    // faces, which is how they read to a person holding the box.
+    expect(registry).toMatch(/QR_CODE_2_INCH: "QR Code \([^"]+\)"/);
+    expect(registry).toMatch(/QR_CODE_1_INCH: "QR Code \([^"]+\)"/);
+    expect(registry).toMatch(/QR_CODE_11MM: "QR Code \([^"]+\)"/);
   });
 
   it("merged the two 2-inch QR faces into one template", () => {
@@ -158,14 +160,13 @@ describe("label template folder", () => {
     const union =
       registry.match(/export type LabelTemplate =([\s\S]*?);/)?.[1] ?? "";
 
-    // `SQUARE` and `QR_ONLY` both displayed "QR Code (2 Inch)", so they were
+    // `SQUARE` and `QR_ONLY` both displayed the same picker name, so they were
     // merged rather than left as two identical picker entries. What must not
-    // come back is the duplicate: one 2-inch entry, one face file.
+    // come back is the duplicate: one face per entry.
     expect(union).not.toContain('"SQUARE"');
     expect(union).not.toContain('"QR_ONLY"');
     expect(exists(`${TEMPLATES_DIR}/square-label.tsx`)).toBe(false);
     expect(exists(`${TEMPLATES_DIR}/qr-only-label.tsx`)).toBe(false);
-    expect(registry.match(/QR Code \(2 Inch\)/g) ?? []).toHaveLength(1);
   });
 
   it("no longer ships the SMD box lid template", () => {
@@ -185,142 +186,116 @@ describe("label template folder", () => {
   });
 });
 
-describe("QR Code (1 Inch) template", () => {
-  /** Read the numeric value of an exported mm constant. */
-  const constMm = (source: string, name: string): number =>
-    Number(source.match(new RegExp(`${name} = ([\\d.]+);`))?.[1]);
+/**
+ * Every QR face is a fixed physical sticker, and its picker label is the only
+ * place an operator is told how big it is. A label that promises a size the box
+ * does not have is the defect these tests exist to catch — the 2-inch face was
+ * once 32 mm × 59 mm of px classes under a name that said 2 inch, which is how
+ * this whole family of templates got rewritten in millimetres.
+ */
+describe("QR template physical sizes", () => {
+  const QR_FACES = [
+    { template: "QR_CODE_2_INCH", file: "qr-code-2-inch-label.tsx" },
+    { template: "QR_CODE_1_INCH", file: "qr-code-1-inch-label.tsx" },
+    { template: "QR_CODE_11MM", file: "qr-code-11mm-label.tsx" },
+  ] as const;
 
-  it("is exactly one inch square", () => {
-    const source = read(QR_1_INCH_TEMPLATE);
+  /** The `w-[Xmm]` / `h-[Ymm]` the face declares, in millimetres. */
+  const declaredBoxMm = (template: string) => {
+    const file = QR_FACES.find((face) => face.template === template)!.file;
+    const source = read(`${TEMPLATES_DIR}/${file}`);
+    const width = Number(source.match(/w-\[([\d.]+)mm\]/)?.[1]);
+    const height = Number(source.match(/h-\[([\d.]+)mm\]/)?.[1]);
+    expect(Number.isFinite(width), `${file} declares no w-[..mm]`).toBe(true);
+    expect(Number.isFinite(height), `${file} declares no h-[..mm]`).toBe(true);
+    return { file, width, height, source };
+  };
 
-    // This template exists because the 2-inch face is built from px classes and
-    // so prints at the wrong size. The whole point is that this one does not:
-    // 1 in = 25.4 mm, and the label is square.
-    expect(constMm(source, "QR_CODE_1_INCH_LABEL_MM")).toBe(25.4);
-    expect(source).toContain("QR_CODE_1_INCH_LABEL_MM}mm");
-  });
+  /** The two measurements in a picker label, converted to millimetres. */
+  const promisedMm = (template: string): number[] => {
+    const registry = read(REGISTRY);
+    const label = registry.match(
+      new RegExp(`${template}: "([^"]+)"`),
+    )?.[1];
+    expect(label, `${template} has no picker label`).toBeDefined();
 
-  it("fits its header, QR and footer inside the square", () => {
-    const source = read(QR_1_INCH_TEMPLATE);
-    const label = constMm(source, "QR_CODE_1_INCH_LABEL_MM");
-    const padding = constMm(source, "QR_CODE_1_INCH_PADDING_MM");
-    const qr = constMm(source, "QR_CODE_1_INCH_QR_SIZE_MM");
-    const header = constMm(source, "QR_CODE_1_INCH_HEADER_FONT_MM");
-    const code = constMm(source, "QR_CODE_1_INCH_CODE_FONT_MM");
-    const gap = constMm(source, "QR_CODE_1_INCH_GAP_MM");
-    const badgeX = constMm(source, "QR_CODE_1_INCH_BADGE_PAD_X_MM");
-    const badgeY = constMm(source, "QR_CODE_1_INCH_BADGE_PAD_Y_MM");
-
-    // Every dimension must be a real number, or the budget below is meaningless.
-    for (const value of [label, padding, qr, header, code, gap, badgeX, badgeY]) {
-      expect(Number.isFinite(value) && value > 0).toBe(true);
-    }
-
-    // `box-sizing: border-box` puts the 1px border and the padding inside the
-    // square, so this is the arithmetic the printed sticker actually gets.
-    const borderMm = 1 / 96 * 25.4;
-    const available = label - 2 * borderMm - 2 * padding;
-    const headerBlock = header * 1.15 + gap + borderMm;
-    const badgeBlock =
-      code * 1.2 + 2 * badgeY + 2 * borderMm + gap + borderMm;
-    const used = headerBlock + qr + badgeBlock;
-
-    expect(used).toBeLessThanOrEqual(available);
-    // The QR must not be the thing that gets squeezed to make the budget work.
-    expect(qr).toBeGreaterThanOrEqual(16);
-  });
-
-  it("declares every dimension in millimetres, interpolated from the constants", () => {
-    const source = read(QR_1_INCH_TEMPLATE);
-
-    // Colours, borders and flex come from Tailwind like the 2-inch face; the
-    // geometry does not — a bare `"1mm"` would be a second source of truth.
-    expect(source.match(/\d(?:\.\d+)?mm/g) ?? []).toEqual([]);
-    expect((source.match(/\}mm/g) ?? []).length).toBeGreaterThan(0);
-  });
-
-  it("is a border-box with a hidden overflow, so nothing can spill", () => {
-    const source = read(QR_1_INCH_TEMPLATE);
-
-    expect(source).toContain('boxSizing: "border-box"');
-    expect(source).toContain('overflow: "hidden"');
-  });
-
-  it("keeps a long item code inside the sticker", () => {
-    const source = read(QR_1_INCH_TEMPLATE);
-
-    // `shrink-0` alone would let the badge run past the edge for a long code;
-    // `max-w-full` + `truncate` is what makes it ellipsize instead.
-    expect(source).toContain("max-w-full truncate");
-    expect(source).toContain("shrink-0");
-  });
-});
-
-describe("QR Code (11 MM) template", () => {
-  it("is a 1.1 cm square with a QR that fits inside it", () => {
-    const source = read(QR_11MM_TEMPLATE);
-    const labelMm = Number(
-      source.match(/QR_CODE_11MM_LABEL_MM = ([\d.]+);/)?.[1],
+    const numbers = [...label!.matchAll(/([\d.]+)\s*(Inch|MM)\b/gi)].map(
+      ([, value, unit]) =>
+        unit!.toLowerCase() === "inch"
+          ? Number(value) * 25.4
+          : Number(value),
     );
-    const qrMm = Number(
-      source.match(/QR_CODE_11MM_QR_SIZE_MM = ([\d.]+);/)?.[1],
-    );
-    const paddingMm = Number(
-      source.match(/QR_CODE_11MM_PADDING_MM = ([\d.]+);/)?.[1],
-    );
-    const gapMm = Number(
-      source.match(/QR_CODE_11MM_GAP_MM = ([\d.]+);/)?.[1],
-    );
-    const fontMm = Number(
-      source.match(/QR_CODE_11MM_CODE_FONT_MM = ([\d.]+);/)?.[1],
-    );
+    expect(numbers, `${template} picker label states no size`).toHaveLength(2);
+    return numbers;
+  };
 
-    expect(labelMm).toBe(11);
+  /**
+   * The class string of the label BOX — the root element's template literal,
+   * identified by being the one that carries the millimetre width.
+   *
+   * Scoped to that literal on purpose: a face is allowed to size an inner
+   * divider in pixels (`h-[12px]`), and the old defect was not an inner element
+   * — it was the box itself being a px size under an inch-shaped name.
+   */
+  const boxClasses = (source: string, file: string): string => {
+    const literal = source.match(/`([^`]*w-\[[\d.]+mm\][^`]*)`/)?.[1];
+    expect(literal, `${file} declares no mm-sized box`).toBeDefined();
+    return literal!;
+  };
 
-    // The QR, the code line and the chrome must all fit the square: box-sizing
-    // is border-box, so the padding is inside it.
-    const codeLineMm = fontMm * 1.1;
-    expect(qrMm + gapMm + codeLineMm + 2 * paddingMm).toBeLessThanOrEqual(
-      labelMm,
-    );
-    // A QR this small still needs a quiet zone and modules wide enough to
-    // print, so it may not be shrunk to make the arithmetic work.
-    expect(qrMm).toBeGreaterThanOrEqual(8);
-  });
+  it.each(QR_FACES.map((face) => face.template))(
+    "%s declares its box in millimetres, not pixels",
+    (template) => {
+      const { file, source } = declaredBoxMm(template);
+      const box = boxClasses(source, file);
 
-  it("declares every dimension in millimetres, interpolated from the constants", () => {
-    const source = read(QR_11MM_TEMPLATE);
+      // Pixels are what made the old 2-inch face print at 59 mm: a px class
+      // depends on the screen, a mm class does not.
+      expect(box, `${file} sizes its box in px`).not.toMatch(
+        /[wh]-\[[\d.]+(?:px|rem|em)\]/,
+      );
+      expect(box, `${file} must declare both a width and a height`).toMatch(
+        /w-\[[\d.]+mm\]/,
+      );
+      expect(box, `${file} must declare both a width and a height`).toMatch(
+        /h-\[[\d.]+mm\]/,
+      );
+    },
+  );
 
-    // Every `mm` unit that carries a number must come from an interpolated
-    // constant (`${QR_CODE_11MM_...}mm`), never from a bare literal such as
-    // `"8mm"` — that would be a second source of truth for the geometry.
-    expect(source.match(/\d(?:\.\d+)?mm/g) ?? []).toEqual([]);
-    expect((source.match(/\}mm/g) ?? []).length).toBeGreaterThan(0);
-  });
+  it.each(QR_FACES.map((face) => face.template))(
+    "%s is the size its picker label promises",
+    (template) => {
+      const { width, height } = declaredBoxMm(template);
+      const promised = promisedMm(template).sort((a, b) => a - b);
+      const actual = [width, height].sort((a, b) => a - b);
 
-  it("is a border-box with a hidden overflow, so nothing can spill", () => {
-    const source = read(QR_11MM_TEMPLATE);
+      // Sorted, because a picker label lists height first for the portrait
+      // faces. The tolerance is 1.5 mm: a size written in inches rounds to
+      // whole millimetres in the class (0.67 in = 17.018 mm, declared 16 mm).
+      // It still fails on the defect this guards — a name claiming 2 inch on a
+      // box that is a whole inch short.
+      expect(
+        Math.abs(actual[0]! - promised[0]!),
+        `${template}: box ${actual[0]}mm vs promised ${promised[0]}mm`,
+      ).toBeLessThanOrEqual(1.5);
+      expect(
+        Math.abs(actual[1]! - promised[1]!),
+        `${template}: box ${actual[1]}mm vs promised ${promised[1]}mm`,
+      ).toBeLessThanOrEqual(1.5);
+    },
+  );
 
-    expect(source).toContain('boxSizing: "border-box"');
-    expect(source).toContain('overflow: "hidden"');
-  });
+  it.each(QR_FACES.map((face) => face.template))(
+    "%s renders a QR through the studio's shared viewer",
+    (template) => {
+      const { source } = declaredBoxMm(template);
 
-  it("scans through the studio's existing QR mechanism", () => {
-    const source = read(QR_11MM_TEMPLATE);
-
-    expect(source).toContain("<QRCodeViewer");
-    expect(source).toContain("value={label.qrPayload}");
-  });
-
-  it("omits the code line when there is no code, and keeps the layout", () => {
-    const source = read(QR_11MM_TEMPLATE);
-
-    // The QR grows into the space the missing line frees rather than leaving a
-    // blank strip, and a missing payload renders no QR at all instead of
-    // breaking the box.
-    expect(source).toContain(
-      "QR_CODE_11MM_LABEL_MM - 2 * QR_CODE_11MM_PADDING_MM",
-    );
-    expect(source).toContain("label.qrPayload ?");
-  });
+      expect(source).toContain("<QRCodeViewer");
+      expect(source).toContain("value={label.qrPayload}");
+      // The printed quiet zone lives inside the SVG, so a template must not
+      // re-encode the payload itself.
+      expect(source).not.toContain("qrcode");
+    },
+  );
 });

@@ -30,7 +30,7 @@ export const TEMPLATE_OPTIONS: Record<LabelTemplate, string> = {
   DETAILED: 'Detailed (3" x 4")',
   SHELF_BIN: 'Shelf Bin Tag (3" x 1.5")',
   QR_CODE_2_INCH: "QR Code (2 Inch x 1.25 Inch)",
-  QR_CODE_1_INCH: "QR Code (1 Inch x .67 Inch)",
+  QR_CODE_1_INCH: "QR Code (1 Inch x 0.67 Inch)",
   QR_CODE_11MM: "QR Code (11 MM x 8 MM)",
 };
 

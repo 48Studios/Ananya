@@ -691,6 +691,7 @@ export default function BarcodesHubPage() {
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Live Label Preview
             </span>
+
             <div className="flex items-center gap-2">
               <span
                 className="text-[11px] font-mono text-muted-foreground"
@@ -726,7 +727,12 @@ export default function BarcodesHubPage() {
             </div>
           </div>
 
-          <div className="p-6 bg-muted/20 border border-border rounded-xl w-full h-full min-h-[260px] grid overflow-auto print:block print:overflow-visible print:border-0 print:bg-transparent print:p-0 print:min-h-0">
+          {/*
+            A bounded height, so a magnified label scrolls inside the panel
+            instead of stretching the studio page to a metre tall. Both axes
+            scroll for the same reason: at 800% the 3" shelf tag is 2608 px wide.
+          */}
+          <div className="p-6 bg-muted/20 border border-border rounded-xl w-full h-full min-h-[260px] max-h-[min(600px,70vh)] grid overflow-auto print:block print:overflow-visible print:border-0 print:bg-transparent print:p-0 print:min-h-0 print:max-h-none">
             {/*
               The scaler reserves the *zoomed* footprint, which is what makes
               the panel scroll instead of clipping when a label is magnified.
@@ -752,14 +758,22 @@ export default function BarcodesHubPage() {
                 } as React.CSSProperties
               }
             >
-              <div className="origin-top-left [transform:scale(var(--label-zoom))] print:[transform:none]">
-                <div ref={labelBoxRef} className="w-fit">
-                  <LabelPreview
-                    label={previewLabel}
-                    template={template}
-                    format={format}
-                  />
-                </div>
+              {/*
+                `w-fit` is load-bearing, not cosmetic: a block-level wrapper
+                would stretch to the scaler's *already zoomed* width and then be
+                scaled again, so the magnified label would occupy zoom² of
+                scrollable space (20504 px instead of 2608 px at 800%).
+                Shrink-wrapping keeps the transform applied exactly once.
+              */}
+              <div
+                ref={labelBoxRef}
+                className="w-fit origin-top-left [transform:scale(var(--label-zoom))] print:[transform:none]"
+              >
+                <LabelPreview
+                  label={previewLabel}
+                  template={template}
+                  format={format}
+                />
               </div>
             </div>
           </div>

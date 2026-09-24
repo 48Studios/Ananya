@@ -10,13 +10,12 @@ export interface QrCode1InchLabelProps {
 }
 
 /**
- * QR Code (1 Inch) — organisation in the header, a medium QR, the item code
- * underneath. For a component the item code IS the headline; for every other
- * entity the human title sits beside it.
+ * QR Code (1 Inch x 0.67 Inch) — organisation in the header, a medium QR, the
+ * item code underneath. For a component the item code IS the headline; for
+ * every other entity the human title sits beside it.
  *
- * This is the merged face. It absorbed the former `QR_ONLY` template, which was
- * the same idea with less on it: one QR template at this size, one picker
- * entry. The minimal-QR case is {@link QrCode11MmLabel} instead.
+ * A portrait face: 16 mm wide × 25.4 mm tall, i.e. one inch tall. The minimal
+ * QR case is {@link QrCode11MmLabel}.
  */
 export function QrCode1InchLabel({
   label,
