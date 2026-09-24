@@ -12,6 +12,7 @@ import {
   Search,
   Check,
   ChevronDown,
+  ZoomIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,37 @@ const FORMAT_OPTIONS: Record<BarcodeFormat, string> = {
   UPCA: "UPC-A (12 Digits)",
 };
 
+/**
+ * Preview magnifications, keyed by the multiplier the Select carries as a string.
+ *
+ * The ladder exists because some faces are physically tiny — the 1.1 cm QR label
+ * is 42 px across at actual size, which is unreadable on screen. 800% is what
+ * makes its item code legible without a loupe.
+ */
+const PREVIEW_ZOOM_OPTIONS: Record<string, string> = {
+  "1": "Actual size (100%)",
+  "1.5": "150%",
+  "2": "200%",
+  "3": "300%",
+  "4": "400%",
+  "6": "600%",
+  "8": "800%",
+};
+
+/** CSS reference pixels per millimetre (96 dpi). */
+const MM_PER_CSS_PX = 25.4 / 96;
+
+/**
+ * The printed footprint of a measured label, in millimetres.
+ *
+ * Shown beside the zoom because the faces mix two units internally — some are
+ * built from Tailwind's px scale, others from `mm` — so the number an operator
+ * needs before printing is the physical size, not the class names.
+ */
+function labelFootprintMm(width: number, height: number): string {
+  return `${(width * MM_PER_CSS_PX).toFixed(1)} × ${(height * MM_PER_CSS_PX).toFixed(1)} mm`;
+}
+
 type StudioMode = "SPECIFIC_ENTITY" | "CUSTOM_PAYLOAD";
 
 export default function BarcodesHubPage() {
@@ -76,6 +108,15 @@ export default function BarcodesHubPage() {
   const [template, setTemplate] = React.useState<LabelTemplate>("SHELF_BIN");
   const [activeLabel, setActiveLabel] = React.useState<LabelData | null>(null);
   const [labelLoading, setLabelLoading] = React.useState(false);
+
+  // Live preview magnification. The previewed label is a physical object, so
+  // only the on-screen presentation scales — never the label's own CSS.
+  const [previewZoom, setPreviewZoom] = React.useState(1);
+  const labelBoxRef = React.useRef<HTMLDivElement | null>(null);
+  const [labelFootprint, setLabelFootprint] = React.useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   // Custom Generator Manual State
   const [sampleCode, setSampleCode] = React.useState("ANANYA-INV-2026");
@@ -215,6 +256,55 @@ export default function BarcodesHubPage() {
     studioMode === "SPECIFIC_ENTITY" && activeLabel
       ? activeLabel
       : customLabel;
+
+  /**
+   * Measure the label's natural (unzoomed) size, which is what the scaler
+   * reserves scrollable space for and what the footprint readout reports.
+   *
+   * The measured node sits inside the zoom transform, so its rect is the
+   * natural size times the zoom — dividing by the zoom recovers the exact
+   * fractional size. `offsetWidth` would be simpler but rounds to whole pixels,
+   * and a 11 mm label is 41.6 px: rounded, it would report 11.1 mm.
+   *
+   * Reading the zoom through a ref (rather than as a dependency) is what lets
+   * this callback stay stable, so switching zoom does not tear down and rebuild
+   * the ResizeObserver that calls it.
+   */
+  const previewZoomRef = React.useRef(previewZoom);
+  previewZoomRef.current = previewZoom;
+
+  const measureLabelFootprint = React.useCallback(() => {
+    const node = labelBoxRef.current;
+    if (!node) return;
+    const zoom = previewZoomRef.current || 1;
+    const rect = node.getBoundingClientRect();
+    const width = rect.width / zoom;
+    const height = rect.height / zoom;
+    setLabelFootprint((prev) =>
+      prev && prev.width === width && prev.height === height
+        ? prev
+        : { width, height },
+    );
+  }, []);
+
+  // Layout effect, so the footprint is in place before the browser paints.
+  React.useLayoutEffect(measureLabelFootprint, [
+    measureLabelFootprint,
+    template,
+    format,
+    previewLabel,
+    previewZoom,
+  ]);
+
+  // A template switch, a font swap or a reflow can all change the label's size
+  // without it remounting, so it is watched rather than only sampled.
+  React.useEffect(() => {
+    const node = labelBoxRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measureLabelFootprint);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [measureLabelFootprint]);
 
   const handleOpenBatchComponents = () => {
     setBatchEntityType("COMPONENT");
@@ -597,21 +687,81 @@ export default function BarcodesHubPage() {
 
         {/* Live Vector Label Preview Container */}
         <div className="lg:col-span-6 bg-card border border-border rounded-xl p-6 flex flex-col items-center justify-center space-y-4 shadow-xs min-h-[360px] print:border-0 print:bg-transparent print:p-6 print:shadow-none print:min-h-0 print:items-start">
-          <div className="w-full flex items-center justify-between print:hidden">
+          <div className="w-full flex items-center justify-between gap-3 print:hidden">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Live Label Preview
             </span>
-            <span className="text-[11px] font-mono text-muted-foreground">
-              {TEMPLATE_OPTIONS[template]}
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className="text-[11px] font-mono text-muted-foreground"
+                title="Printed footprint of the label"
+              >
+                {labelFootprint
+                  ? labelFootprintMm(labelFootprint.width, labelFootprint.height)
+                  : TEMPLATE_OPTIONS[template]}
+              </span>
+              <Select
+                items={PREVIEW_ZOOM_OPTIONS}
+                value={String(previewZoom)}
+                onValueChange={(val) => setPreviewZoom(Number(val) || 1)}
+              >
+                <SelectTrigger
+                  size="sm"
+                  aria-label="Label preview zoom"
+                  className="h-8 text-xs"
+                >
+                  <ZoomIn className="size-3.5 text-muted-foreground" />
+                  <SelectValue placeholder="Zoom">
+                    {(val) => PREVIEW_ZOOM_OPTIONS[val as string] || val}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PREVIEW_ZOOM_OPTIONS).map(([val, label]) => (
+                    <SelectItem key={val} value={val}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="p-6 bg-muted/20 border border-border rounded-xl flex items-center justify-center w-full h-full min-h-[260px] print:border-0 print:bg-transparent print:p-0 print:justify-start">
-            <LabelPreview
-              label={previewLabel}
-              template={template}
-              format={format}
-            />
+          <div className="p-6 bg-muted/20 border border-border rounded-xl w-full h-full min-h-[260px] grid overflow-auto print:block print:overflow-visible print:border-0 print:bg-transparent print:p-0 print:min-h-0">
+            {/*
+              The scaler reserves the *zoomed* footprint, which is what makes
+              the panel scroll instead of clipping when a label is magnified.
+              Everything here is presentational: the `print:` resets return the
+              label to its own size, so a magnified preview never changes what
+              the printer emits.
+
+              `m-auto` inside a grid (not `justify-center` in a flex row) is
+              the safe way to centre overflowing content — a centred flex item
+              is clipped on both sides once it outgrows the scroll container.
+            */}
+            <div
+              className={`m-auto shrink-0 print:m-0 print:[width:auto] print:[height:auto] ${
+                labelFootprint
+                  ? "[width:calc(var(--label-w)*var(--label-zoom))] [height:calc(var(--label-h)*var(--label-zoom))]"
+                  : ""
+              }`}
+              style={
+                {
+                  "--label-w": `${labelFootprint?.width ?? 0}px`,
+                  "--label-h": `${labelFootprint?.height ?? 0}px`,
+                  "--label-zoom": previewZoom,
+                } as React.CSSProperties
+              }
+            >
+              <div className="origin-top-left [transform:scale(var(--label-zoom))] print:[transform:none]">
+                <div ref={labelBoxRef} className="w-fit">
+                  <LabelPreview
+                    label={previewLabel}
+                    template={template}
+                    format={format}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
