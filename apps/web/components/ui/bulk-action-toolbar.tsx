@@ -270,6 +270,13 @@ export function BulkActionToolbar({
 
       The wrapper spans the viewport, so it must let clicks through to the rows
       behind it; only the bar itself takes the pointer.
+
+      NOTE on the vertical offset: this wrapper sits inside the table's
+      `space-y-4` root, and Tailwind v4's `space-y-*` puts `margin-bottom` on the
+      non-last children. A margin on a `fixed` element still moves it, so
+      `bottom-6` renders as a 40px gap rather than 24px. That is pre-existing
+      (the bar was `fixed bottom-6` before too) and is left alone so the bar does
+      not visibly move; add `mb-0` here if `bottom-6` should mean exactly 24px.
     */
     <div className="pointer-events-none fixed inset-x-0 bottom-6 z-30 flex justify-center md:pl-(--content-area-left) print:hidden">
       {/*
