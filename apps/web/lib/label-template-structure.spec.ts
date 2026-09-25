@@ -328,4 +328,36 @@ describe("template physical sizes", () => {
       expect(source).not.toContain("qrcode");
     },
   );
+
+  it("sizes the 11 mm QR from its box, so no clip is load-bearing there", () => {
+    const { source } = declaredBoxMm("QR_CODE_11MM");
+
+    // The face is 8 mm wide behind a 1 px border, so its inner width is 7.47 mm
+    // and the QR has to be exactly that. A fixed `size` cannot say it: 30 px of
+    // SVG is 7.94 mm, i.e. 0.23 mm proud on each side, which only looked right
+    // on screen because the wrapper clipped it — and print is where that clip is
+    // not honoured, so the code printed over the border. The area is now the
+    // space the divider leaves, and the viewer's SVG is stretched to it.
+    const area = source.match(/"([^"]*flex-1[^"]*)"/)?.[1];
+    expect(area, "the QR area does not take the box's leftover space").toBeDefined();
+    expect(area).toContain("min-h-0");
+    expect(
+      area,
+      "a percentage height is a shrink-to-fit, not a size",
+    ).not.toContain("h-full");
+    expect(source).toContain("[&>svg]:w-full");
+    expect(source).toContain("[&>svg]:h-full");
+
+    // The divider is a budget, not a free choice: the box is 11 mm tall and the
+    // QR needs the 7.47 mm width, so the band (its 1 px top border included) may
+    // not exceed ~11.34 px or the QR starts being height-limited instead.
+    const divider = source.match(/"([^"]*h-\[[\d.]+px\][^"]*)"/)?.[1];
+    expect(divider, "the divider no longer declares its height").toBeDefined();
+    expect(divider).toContain("shrink-0");
+    const bandPx = Number(divider!.match(/h-\[([\d.]+)px\]/)![1]);
+    expect(
+      bandPx,
+      `a ${bandPx}px divider leaves the QR less than its 7.47 mm width`,
+    ).toBeLessThanOrEqual(11.34);
+  });
 });
