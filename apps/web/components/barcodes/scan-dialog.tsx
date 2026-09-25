@@ -77,7 +77,7 @@ export function ScanDialog({
   onClose,
   onScanSuccess,
   title = "Quick Barcode & QR Scan",
-  description = "Scan any QR code, Code 128, Code 39, or EAN barcode using camera, image upload, or manual entry.",
+  description = "Scan any QR code, Code 128, Code 39, or EAN barcode.",
 }: ScanDialogProps) {
   const router = useRouter();
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -472,11 +472,19 @@ export function ScanDialog({
       >
         <DialogShellBody className="space-y-4">
           {/* Controls Bar */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-primary">
+          {/*
+            The label is `w-fit shrink-0` so it is always exactly as wide as its
+            checkbox and text, and `flex-wrap` on the row is what keeps that
+            honest: without it the label absorbs every pixel of shortfall, and
+            measured at a 352px row the text broke onto two lines — three at
+            292px — while the checkbox was squeezed to 13px. Wrapping lets the
+            label drop to its own line at full width instead of being crushed.
+          */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-primary shrink-0">
               <Scan className="size-4" />
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Live Camera & Scanner
+                Live Scanner
               </span>
               {scannedFormat && (
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">
@@ -484,14 +492,14 @@ export function ScanDialog({
                 </span>
               )}
             </div>
-            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <label className="flex w-fit shrink-0 items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={autoNavigate}
                 onChange={(e) => setAutoNavigate(e.target.checked)}
-                className="size-3.5 rounded border-border text-primary focus:ring-primary"
+                className="size-3.5 shrink-0 rounded border-border text-primary focus:ring-primary"
               />
-              <span>Auto-open page on match</span>
+              <span className="whitespace-nowrap">Auto-open page on match</span>
             </label>
           </div>
 
@@ -564,7 +572,7 @@ export function ScanDialog({
           )}
 
           {/* Manual Input & Image Upload Toolbar */}
-          <div className="space-y-1">
+          <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-medium text-foreground">
               <span>Enter or Paste Code / Payload</span>
               <button

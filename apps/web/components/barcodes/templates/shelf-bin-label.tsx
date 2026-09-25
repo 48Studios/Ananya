@@ -43,7 +43,7 @@ export function ShelfBinLabel({
     >
       <div className="flex shrink-0 items-center justify-between border-b border-slate-300 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
         <span className="truncate max-w-[110px]">{organizationName}</span>
-        <span className="truncate">{locationDisplay}</span>
+        <span className="truncate">{label.entityType === "LOCATION" ? locationDisplay : label.entityType}</span>
       </div>
       <div className="flex flex-1 items-center justify-between gap-4">
         <div className="space-y-1 min-w-0 flex-1">

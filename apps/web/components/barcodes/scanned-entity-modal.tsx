@@ -89,32 +89,38 @@ export function ScannedEntityModal({
   const getEntityIcon = () => {
     switch (result.entityType) {
       case "LOCATION":
-        return <MapPin className="size-4 text-primary" />;
+        return <MapPin className="size-5 text-primary" />;
       case "COMPONENT":
-        return <Box className="size-4 text-primary" />;
+        return <Box className="size-5 text-primary" />;
       case "PURCHASE_ORDER":
       case "WORK_ORDER":
-        return <FileText className="size-4 text-primary" />;
+        return <FileText className="size-5 text-primary" />;
       case "PROJECT":
-        return <Briefcase className="size-4 text-primary" />;
+        return <Briefcase className="size-5 text-primary" />;
       default:
-        return <CheckCircle2 className="size-4 text-primary" />;
+        return <CheckCircle2 className="size-5 text-primary" />;
     }
   };
 
   const modalTitle = (
-    <div className="flex items-center gap-2">
-      {getEntityIcon()}
-      <span>
-        {result.entityType === "LOCATION" && "Location Scanned"}
-        {result.entityType === "COMPONENT" && "Component Scanned"}
-        {result.entityType === "PURCHASE_ORDER" && "Purchase Order Scanned"}
-        {result.entityType === "WORK_ORDER" && "Work Order Scanned"}
-        {result.entityType === "PROJECT" && "Project Scanned"}
-      </span>
-      <span className="font-mono text-xs uppercase bg-primary/10 text-primary px-2 py-0.5 rounded font-semibold ml-1">
-        {result.code}
-      </span>
+    <div className="flex flex-row items-center gap-3">
+      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary shrink-0">
+        {getEntityIcon()}
+      </div>
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-row items-center gap-1">
+          <span>
+            {result.entityType === "LOCATION" && "Location Scanned"}
+            {result.entityType === "COMPONENT" && "Component Scanned"}
+            {result.entityType === "PURCHASE_ORDER" && "Purchase Order Scanned"}
+            {result.entityType === "WORK_ORDER" && "Work Order Scanned"}
+            {result.entityType === "PROJECT" && "Project Scanned"}
+          </span>
+        </div>
+        <span className="text-xs text-muted-foreground truncate max-w-[300px]">
+          {result.subtitle}
+        </span>
+      </div>
     </div>
   );
 
@@ -126,7 +132,7 @@ export function ScannedEntityModal({
           if (!open) onClose();
         }}
         title={modalTitle}
-        description={result.subtitle}
+        description={null}
         size="lg"
       >
         <DialogShellBody className="space-y-4">

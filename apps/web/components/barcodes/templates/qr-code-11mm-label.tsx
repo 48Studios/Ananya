@@ -13,7 +13,15 @@ export interface QrCode11MmLabelProps {
  * component the item code IS the headline; for every other entity the human
  * title sits beside it.
  *
- * A portrait face: 8 mm wide × 11 mm tall.
+ * A portrait face: 8 mm wide × 11 mm tall. It is the one face small enough for
+ * the payload to decide whether the code prints at all, so it encodes the RAW
+ * payload rather than the scanner URL the shared viewer builds by default: on a
+ * 7 mm square that is 41 modules instead of 49, i.e. 0.171 mm per module rather
+ * than 0.143. Every other face has the room and keeps the URL, which is what
+ * lets a phone's own camera open the record. Here the trade goes the other way,
+ * because a module below ~0.25 mm is at the edge of what a 203 dpi printer can
+ * hold — and the label carries its human code beside the QR, so it stays usable
+ * without a scan. The in-app scanner resolves either form.
  */
 export function QrCode11MmLabel({
   label,
@@ -27,6 +35,7 @@ export function QrCode11MmLabel({
         <QRCodeViewer
           value={label.qrPayload}
           size={26}
+          ensureActionableUrl={false}
           className="!p-0 border-0"
         />
       </div>
