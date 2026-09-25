@@ -1,5 +1,8 @@
 name: Continuous Integration
 
+# NOTE: docker.yml subscribes to this workflow by name through workflow_run.
+# Renaming it silently stops container image publishing from main.
+
 on:
   push:
     branches:
@@ -18,34 +21,11 @@ permissions:
   contents: read
 
 jobs:
+  # The calling job keeps the "Monorepo Quality Gates" name because pull
+  # request status checks are matched on it.
   quality-gates:
     name: Monorepo Quality Gates
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: pnpm
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run ESLint Audit
-        run: pnpm lint
-
-      - name: Run TypeScript Type Check
-        run: pnpm check-types
-
-      - name: Run Test Suite
-        run: pnpm test
-
-      - name: Run Production Build Validation
-        run: pnpm build
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_quality-gates.yml
 

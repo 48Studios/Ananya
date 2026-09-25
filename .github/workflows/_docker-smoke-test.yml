@@ -1,0 +1,131 @@
+# ==============================================================================
+# Reusable workflow: Production Stack Docker Smoke Test
+#
+# Boots the production-equivalent compose stack from source, asserts that every
+# application container stays up, probes the health endpoints and always tears
+# the stack down again.
+#
+# Called by:
+#   - docker.yml  (compose profile "all", ML container verified)
+#   - release.yml (compose profile "worker")
+#
+# No Node/pnpm setup is required: every image is built inside Docker, so the
+# runner only needs the Docker daemon it already ships with.
+#
+# Deliberately NOT declared here: `concurrency` (see _quality-gates.yml).
+# ==============================================================================
+name: Docker Smoke Test
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build and test. Defaults to the caller's ref.
+        required: false
+        type: string
+        default: ""
+      compose_profile:
+        description: Compose profile that activates the application services.
+        required: false
+        type: string
+        default: worker
+      verify_ml:
+        description: Also require the ananya-ml container to stay up and answer its health probe.
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    name: Run Smoke Test
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROFILE: ${{ inputs.compose_profile }}
+      VERIFY_ML: ${{ inputs.verify_ml }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Boot Production Application Stack & Run Health Checks
+        run: |
+          compose() {
+            docker compose -f compose.yml -f compose.local.yml --profile "$COMPOSE_PROFILE" "$@"
+          }
+
+          echo "=== 1. Starting PostgreSQL ==="
+          compose up -d db
+
+          echo "=== 2. Running schema migrations ==="
+          compose run --build --rm migrate
+
+          echo "=== 3. Booting production-equivalent application stack ==="
+          compose up --build -d
+
+          echo "=== 4. Container Status (docker compose ps -a) ==="
+          compose ps -a
+
+          echo "=== 5. Waiting 5s for process initialization ==="
+          sleep 5
+
+          echo "=== 6. Checking Service Exit States ==="
+          containers=(ananya-db ananya-api ananya-worker ananya-web)
+          if [ "$VERIFY_ML" = "true" ]; then
+            containers+=(ananya-ml)
+          fi
+
+          for c in "${containers[@]}"; do
+            running=$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo "false")
+            exit_code=$(docker inspect -f '{{.State.ExitCode}}' "$c" 2>/dev/null || echo "1")
+            echo "Container '$c' -> Running: $running, ExitCode: $exit_code"
+
+            if [ "$running" != "true" ]; then
+              echo "❌ CONTAINER FAILURE: '$c' exited prematurely with exit code $exit_code!"
+              echo "--- Container Logs for '$c' ---"
+              docker logs "$c"
+              echo "--------------------------------"
+              exit 1
+            fi
+          done
+
+          echo "=== 7. Health Probes Verification ==="
+          echo "Probing Web Health (http://localhost:3000/api/health)..."
+          if ! curl --fail --retry 10 --retry-delay 3 --retry-connrefused http://localhost:3000/api/health; then
+            echo "❌ Web Health Probe Failed! Logs:"
+            docker logs ananya-web
+            exit 1
+          fi
+
+          echo "Probing API Internal Health..."
+          if ! docker exec ananya-api node -e "fetch('http://localhost:4000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"; then
+            echo "❌ API Health Probe Failed! Logs:"
+            docker logs ananya-api
+            exit 1
+          fi
+
+          echo "Probing Worker Internal Health..."
+          if ! docker exec ananya-worker node -e "fetch('http://localhost:4001/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"; then
+            echo "❌ Worker Health Probe Failed! Logs:"
+            docker logs ananya-worker
+            exit 1
+          fi
+
+          if [ "$VERIFY_ML" = "true" ]; then
+            echo "Probing ML Service Health (http://localhost:5001/health)..."
+            if ! curl --fail --retry 10 --retry-delay 3 --retry-connrefused http://localhost:5001/health; then
+              echo "❌ ML Health Probe Failed! Logs:"
+              docker logs ananya-ml
+              exit 1
+            fi
+          fi
+
+          echo "✅ Production-equivalent deployment integration smoke test passed cleanly!"
+
+      - name: Cleanup Production Stack
+        if: always()
+        run: |
+          docker compose -f compose.yml -f compose.local.yml --profile "$COMPOSE_PROFILE" down -v --remove-orphans || true
