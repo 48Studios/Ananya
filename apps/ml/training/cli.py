@@ -350,6 +350,260 @@ def cmd_data_plan(args: argparse.Namespace) -> CollectionPlan:
     return plan
 
 
+def cmd_audit_category_recovery(args: argparse.Namespace) -> Dict[str, Any]:
+    """Audits proposed category recoveries from Uncategorized records using product signals."""
+    from .processors.normalization import classify_product_signals, CANONICAL_CATEGORIES
+
+    try:
+        dataset_path = resolve_coverage_dataset_path(
+            version=getattr(args, "version", None),
+            path=getattr(args, "path", None),
+        )
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+    if not dataset_path.exists():
+        print(f"Error: unique_records.json not found at {dataset_path}")
+        sys.exit(1)
+
+    with open(dataset_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    records = data if isinstance(data, list) else data.get("records", data.get("dataset", []))
+    total_records = len(records)
+    product_records = [r for r in records if r.get("entity_type", "PRODUCT") == "PRODUCT"]
+    uncat_records = [r for r in product_records if r.get("category") == "Uncategorized"]
+
+    recoveries_by_category: Dict[str, List[Dict[str, Any]]] = {}
+    ambiguous_records: List[Dict[str, Any]] = []
+    intentionally_uncategorized: List[Dict[str, Any]] = []
+
+    for r in uncat_records:
+        name = r.get("name", "")
+        desc = r.get("description", "")
+        cat, sig, conf = classify_product_signals(name, desc)
+        if cat in CANONICAL_CATEGORIES and conf in ("HIGH", "MEDIUM"):
+            recoveries_by_category.setdefault(cat, []).append({
+                "name": name,
+                "signal": sig,
+                "confidence": conf,
+                "sku": r.get("sku"),
+            })
+        elif conf == "LOW":
+            ambiguous_records.append({
+                "name": name,
+                "signal": sig,
+                "confidence": conf,
+                "sku": r.get("sku"),
+            })
+        else:
+            intentionally_uncategorized.append({
+                "name": name,
+                "sku": r.get("sku"),
+            })
+
+    version_str = getattr(args, "version", None) or dataset_path.parent.name
+    print("=" * 70)
+    print(f" ANANYA ML CATEGORY RECOVERY AUDIT: {version_str}")
+    print("=" * 70)
+    print(f"Total Records:                {total_records:,}")
+    print(f"Total PRODUCT Records:        {len(product_records):,}")
+    print(f"Current Uncategorized:        {len(uncat_records):,} ({len(uncat_records)/len(product_records)*100:.1f}%)")
+    print("\nProposed Recoveries by Category:")
+    print("-" * 70)
+    print(f"{'Category':<25} {'Count':>8}   {'Confidence':<10} {'Sample Signals'}")
+    print("-" * 70)
+    total_recoverable = 0
+    for cat in sorted(recoveries_by_category.keys(), key=lambda k: len(recoveries_by_category[k]), reverse=True):
+        items = recoveries_by_category[cat]
+        cnt = len(items)
+        total_recoverable += cnt
+        signals = list(dict.fromkeys(item["signal"] for item in items if item.get("signal")))[:3]
+        sig_str = ", ".join(signals) if signals else "-"
+        print(f"{cat:<25} {cnt:>8}   {'HIGH':<10} {sig_str}")
+
+    print("-" * 70)
+    print(f"{'TOTAL RECOVERABLE':<25} {total_recoverable:>8}")
+    print(f"{'AMBIGUOUS RECORDS':<25} {len(ambiguous_records):>8}")
+    left_uncat = len(uncat_records) - total_recoverable - len(ambiguous_records)
+    print(f"{'INTENTIONALLY UNCATEGORIZED':<25} {left_uncat:>8} ({left_uncat/len(uncat_records)*100:.1f}%)")
+    print("=" * 70)
+
+    audit_summary = {
+        "dataset_version": version_str,
+        "total_records": total_records,
+        "product_records": len(product_records),
+        "current_uncategorized": len(uncat_records),
+        "total_recoverable": total_recoverable,
+        "recoverable_by_category": {cat: len(items) for cat, items in recoveries_by_category.items()},
+        "ambiguous_count": len(ambiguous_records),
+        "intentionally_uncategorized_count": left_uncat,
+    }
+
+    if getattr(args, "output_json", None):
+        out_path = Path(args.output_json)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as jf:
+            json.dump(audit_summary, jf, indent=2)
+        print(f"\nAudit report JSON written to {out_path}")
+
+    return audit_summary
+
+
+def cmd_reprocess_category(args: argparse.Namespace) -> Path:
+    """Reprocesses an existing dataset crawl without network calls, producing a new version."""
+    from .processors.normalization import NormalizationProcessor
+    from .processors.validation import DataValidationProcessor
+    from .processors.deduplication import DeduplicationProcessor
+    from .processors.cross_source import CrossSourceAnalyzer
+    from .datasets.splitter import DeterministicDatasetSplitter
+    from .generators.classification import ClassificationDatasetGenerator
+    from .generators import (
+        AttributeExtractionDatasetGenerator,
+        AttributeRelevanceDatasetGenerator,
+        EntityResolutionDatasetGenerator,
+        NormalizationDatasetGenerator,
+        DuplicateMatchingDatasetGenerator,
+        SimilarityDatasetGenerator,
+    )
+    from .coverage import calculate_category_coverage, format_coverage_comparison
+
+    try:
+        dataset_path = resolve_coverage_dataset_path(
+            version=getattr(args, "version", None),
+            path=getattr(args, "path", None),
+        )
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+    if not dataset_path.exists():
+        print(f"Error: unique_records.json not found at {dataset_path}")
+        sys.exit(1)
+
+    with open(dataset_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    raw_records = data if isinstance(data, list) else data.get("records", data.get("dataset", []))
+    initial_coverages = calculate_category_coverage(raw_records, include_all_present=True)
+
+    records: List[ProductRecord] = []
+    for r in raw_records:
+        try:
+            records.append(ProductRecord(**r))
+        except Exception:
+            pass
+
+    quiet = getattr(args, "quiet", False)
+    verbose = getattr(args, "verbose", False)
+    progress = LiveProgress(quiet=quiet, verbose=verbose)
+
+    # 1. Normalization with Signal Classification
+    progress.start_stage("Re-normalizing with product signals", total=len(records))
+    normalizer = NormalizationProcessor()
+    normalized, _ = normalizer.process_batch(records)
+    progress.finish_stage(f"Normalizing      {len(normalized):,}/{len(records):,}")
+
+    # 2. Validation & Quarantine
+    progress.start_stage("Validating records", total=len(normalized))
+    validated, quarantined = DataValidationProcessor.detect_cross_source_conflicts(normalized)
+    progress.finish_stage(f"Validating       {len(validated):,}/{len(normalized):,}")
+
+    # 3. Deduplication
+    progress.start_stage("Deduplicating records", total=len(validated))
+    deduper = DeduplicationProcessor()
+    unique_records, value_conflicts = deduper.deduplicate(validated)
+    progress.finish_stage(f"Deduplicating    {len(unique_records):,}/{len(validated):,}")
+
+    # 4. Generate Task Datasets
+    progress.start_stage("Generating task datasets", total=len(unique_records))
+    cls_gen = ClassificationDatasetGenerator()
+    cls_examples = cls_gen.generate(unique_records)
+    attr_ext_gen = AttributeExtractionDatasetGenerator()
+    attr_ext_examples = attr_ext_gen.generate(unique_records)
+    attr_rel_gen = AttributeRelevanceDatasetGenerator()
+    attr_rel_examples = attr_rel_gen.generate(unique_records)
+    entity_gen = EntityResolutionDatasetGenerator()
+    entity_examples = entity_gen.generate(unique_records)
+    norm_gen = NormalizationDatasetGenerator()
+    norm_examples = norm_gen.generate(unique_records)
+    dup_gen = DuplicateMatchingDatasetGenerator()
+    dup_examples = dup_gen.generate(unique_records)
+    sim_gen = SimilarityDatasetGenerator()
+    sim_examples = sim_gen.generate(unique_records)
+    progress.finish_stage()
+
+    # 5. Output directory & version
+    in_version = getattr(args, "version", None) or dataset_path.parent.name
+    out_version = getattr(args, "output_version", None) or f"{in_version}-reprocessed"
+    out_dir = Path(settings.training_data_dir) / out_version
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Persist splits
+    splitter = DeterministicDatasetSplitter()
+    splitter.persist_splits(
+        [e.model_dump() for e in cls_examples],
+        output_dir=str(out_dir),
+        dataset_name=f"reprocessed_{out_version}",
+        version=out_version,
+    )
+
+    # Persist task-specific JSONL corpora
+    tasks_dir = out_dir / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    task_payloads = {
+        "classification": [e.model_dump() for e in cls_examples],
+        "attribute_extraction": [e.model_dump() for e in attr_ext_examples],
+        "attribute_relevance": [e.model_dump() for e in attr_rel_examples],
+        "entity_resolution": [e.model_dump() for e in entity_examples],
+        "normalization": [e.model_dump() for e in norm_examples],
+        "duplicate_matching": [e.model_dump() for e in dup_examples],
+        "similarity": [e.model_dump() for e in sim_examples],
+    }
+    for task_name, task_list in task_payloads.items():
+        task_file = tasks_dir / f"{task_name}.jsonl"
+        with open(task_file, "w", encoding="utf-8") as tf:
+            for item in task_list:
+                tf.write(json.dumps(item, default=str) + "\n")
+
+    # Persist unique records, quarantine, cross-source analysis
+    with open(out_dir / "unique_records.json", "w", encoding="utf-8") as f:
+        json.dump([r.model_dump() for r in unique_records], f, indent=2, default=str)
+
+    with open(out_dir / "quarantined.json", "w", encoding="utf-8") as f:
+        json.dump(
+            [{"record": r.model_dump(), "reasons": a.reasons, "disposition": a.disposition.value} for r, a in quarantined],
+            f,
+            indent=2,
+            default=str,
+        )
+
+    # Copy source_health if available from source dataset
+    src_health_file = dataset_path.parent / "source_health.json"
+    if src_health_file.exists():
+        import shutil
+        shutil.copy2(src_health_file, out_dir / "source_health.json")
+
+    cross_analyzer = CrossSourceAnalyzer(unique_records)
+    cross_report = cross_analyzer.analyze()
+    with open(out_dir / "cross_source_analysis.json", "w", encoding="utf-8") as f:
+        json.dump(cross_report, f, indent=2)
+
+    # Final coverage comparison
+    final_raw = [r.model_dump() for r in unique_records]
+    final_coverages = calculate_category_coverage(final_raw, include_all_present=True)
+    comp_table = format_coverage_comparison(initial_coverages, final_coverages)
+
+    print("\n" + "=" * 70)
+    print(f" REPROCESSING COMPLETE: {out_version}")
+    print("=" * 70)
+    print(f"Output Directory: {out_dir}")
+    print(f"Unique Records:   {len(unique_records):,}")
+    print("\n" + comp_table + "\n")
+    return out_dir
+
+
 def cmd_dataset_split(args: argparse.Namespace) -> None:
     """Splits a dataset deterministically into train/val/test with zero group leakage."""
     with open(args.input, "r", encoding="utf-8") as f:
@@ -671,6 +925,24 @@ def build_parser() -> argparse.ArgumentParser:
     p_plan.add_argument("--config", help="Path to custom sources.yaml configuration")
     add_common_flags(p_plan)
     p_plan.set_defaults(func=cmd_data_plan)
+
+    # audit-category-recovery
+    p_audit = subparsers.add_parser("audit-category-recovery", help="Audit recoverable categories from Uncategorized records")
+    audit_version_group = p_audit.add_mutually_exclusive_group(required=False)
+    audit_version_group.add_argument("--version", help="Dataset version name (e.g., dataset-crawl-1790343594)")
+    audit_version_group.add_argument("--path", help="Path to unique_records.json file or its containing directory")
+    p_audit.add_argument("--output-json", help="Path to write machine-readable JSON audit report")
+    add_common_flags(p_audit)
+    p_audit.set_defaults(func=cmd_audit_category_recovery)
+
+    # reprocess-category
+    p_reproc = subparsers.add_parser("reprocess-category", help="Reprocess existing crawl dataset with category signals into a new version")
+    reproc_version_group = p_reproc.add_mutually_exclusive_group(required=False)
+    reproc_version_group.add_argument("--version", help="Input dataset version name (e.g., dataset-crawl-1790343594)")
+    reproc_version_group.add_argument("--path", help="Path to input unique_records.json file or its containing directory")
+    p_reproc.add_argument("--output-version", help="New output dataset version name (defaults to <version>-reprocessed)")
+    add_common_flags(p_reproc)
+    p_reproc.set_defaults(func=cmd_reprocess_category)
 
     # dataset build
     p_build = subparsers.add_parser("dataset-build", help="Build task dataset (e.g. classification)")

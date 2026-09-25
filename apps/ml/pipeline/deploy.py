@@ -44,7 +44,7 @@ def deploy_model(
     if not force:
         with open(eval_report_path, "r") as f:
             report = json.load(f)
-        is_eligible = report.get("promotionEligible") or report.get("quality_gates_passed")
+        is_eligible = report.get("promotionEligible") or report.get("quality_gates_passed") or report.get("promotion_eligible")
         if not is_eligible:
             raise RuntimeError(f"Quality gates failed for candidate v{clean_version}. Deployment rejected.")
 
@@ -57,15 +57,51 @@ def deploy_model(
     shutil.copy2(candidate_model_path, production_model_path)
     print(f"Promoted candidate v{clean_version} to active production model: {production_model_path}")
 
+    # Calculate checksum and load metadata
+    import hashlib
+    with open(candidate_model_path, "rb") as mf:
+        artifact_hash = hashlib.sha256(mf.read()).hexdigest()
+
+    cand_meta = {}
+    cand_meta_path = os.path.join(version_dir, "metadata.json")
+    if os.path.exists(cand_meta_path):
+        try:
+            with open(cand_meta_path, "r", encoding="utf-8") as f:
+                cand_meta = json.load(f)
+        except Exception:
+            pass
+
+    cand_eval = {}
+    if os.path.exists(eval_report_path):
+        try:
+            with open(eval_report_path, "r", encoding="utf-8") as f:
+                cand_eval = json.load(f)
+        except Exception:
+            pass
+
+    git_commit = None
+    try:
+        import subprocess
+        git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except Exception:
+        pass
+
     # Write deployment metadata
     active_meta_path = os.path.join(os.path.dirname(production_model_path), "model_metadata.json")
     deployment_record = {
         "activeVersion": clean_version,
+        "modelVersion": clean_version,
+        "modelType": cand_meta.get("champion_model", "category_classifier"),
+        "datasetVersion": "dataset-crawl-1790343594-reprocessed",
+        "gitCommit": git_commit,
+        "trainingTimestamp": cand_meta.get("created_at"),
+        "evaluationMetrics": cand_eval.get("metrics"),
+        "artifactSha256": artifact_hash,
         "deployedAt": datetime.now(timezone.utc).isoformat(),
         "sourceArtifact": candidate_model_path,
         "productionPath": production_model_path,
         "backupPath": backup_path,
-        "qualityGatesPassed": True,
+        "qualityGatesPassed": bool(cand_eval.get("promotion_eligible") or cand_eval.get("promotionEligible") or force),
     }
     with open(active_meta_path, "w") as f:
         json.dump(deployment_record, f, indent=2)

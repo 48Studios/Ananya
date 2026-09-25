@@ -200,20 +200,27 @@ def count_unique_product_records(
 def calculate_category_coverage(
     records: List[Dict[str, Any]],
     targets: Optional[Dict[str, int]] = None,
+    include_all_present: bool = False,
 ) -> List[CategoryCoverage]:
     """
     Calculates category coverage and deficits for product records against targets.
 
     Deficit is calculated as max(0, target - current), ensuring no negative deficits.
     Deterministic ordering: deficit descending, then category name ascending.
+    If include_all_present is True, all categories present in the data are included,
+    even if they are not explicitly specified in targets.
     """
     if targets is None:
-        targets = DEFAULT_COVERAGE_TARGETS
+        effective_targets = dict(DEFAULT_COVERAGE_TARGETS)
+    else:
+        effective_targets = dict(targets)
 
     _, category_counts = count_unique_product_records(records)
 
     report: List[CategoryCoverage] = []
-    for cat, target in targets.items():
+    seen_cats = set()
+    for cat, target in effective_targets.items():
+        seen_cats.add(cat)
         current = category_counts.get(cat, 0)
         deficit = max(0, target - current)
         coverage_ratio = current / target if target > 0 else (1.0 if current >= target else 0.0)
@@ -226,6 +233,20 @@ def calculate_category_coverage(
                 coverage_ratio=coverage_ratio,
             )
         )
+
+    if include_all_present:
+        for cat, current in category_counts.items():
+            if cat not in seen_cats and cat != "Uncategorized":
+                seen_cats.add(cat)
+                report.append(
+                    CategoryCoverage(
+                        category=cat,
+                        current=current,
+                        target=0,
+                        deficit=0,
+                        coverage_ratio=1.0,
+                    )
+                )
 
     # Deterministic ordering: highest deficit first, then category name ascending
     report.sort(key=lambda x: (-x.deficit, x.category))
@@ -416,19 +437,31 @@ def format_coverage_comparison(
     after: List[CategoryCoverage],
 ) -> str:
     """Formats human-readable coverage change comparison table."""
+    before_map = {c.category: c for c in before}
     after_map = {c.category: c for c in after}
+
+    # Collect all unique categories, preserving before order first, then any extra in after
+    all_categories: List[str] = [c.category for c in before]
+    for c in after:
+        if c.category not in before_map:
+            all_categories.append(c.category)
+
     lines = [
         "CATEGORY COVERAGE CHANGE",
         "",
         f"{'Category':<28} {'Before':>7} {'After':>7} {'Target':>7} {'Change':>8}",
         "-" * 61,
     ]
-    for b in before:
-        a = after_map.get(b.category)
-        a_current = a.current if a else b.current
-        diff = a_current - b.current
+    for cat in all_categories:
+        b = before_map.get(cat)
+        a = after_map.get(cat)
+        b_current = b.current if b else 0
+        a_current = a.current if a else (b.current if b else 0)
+        target_val = b.target if (b and b.target > 0) else (a.target if (a and a.target > 0) else None)
+        target_str = str(target_val) if target_val is not None else "-"
+        diff = a_current - b_current
         diff_str = f"+{diff}" if diff > 0 else str(diff)
         lines.append(
-            f"{b.category:<28} {b.current:>7} {a_current:>7} {b.target:>7} {diff_str:>8}"
+            f"{cat:<28} {b_current:>7} {a_current:>7} {target_str:>7} {diff_str:>8}"
         )
     return "\n".join(lines)

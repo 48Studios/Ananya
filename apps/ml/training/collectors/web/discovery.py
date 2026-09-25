@@ -358,9 +358,32 @@ class DiscoveryEngine:
         if category_plan and hasattr(category_plan, "categories"):
             prioritized_cats = [
                 c for c in category_plan.categories
-                if getattr(c, "priority", None) is not None and getattr(c, "budget", 0) > 0
+                if getattr(c, "priority", None) is not None
+                and getattr(c, "budget", 0) > 0
+                and (not hasattr(self.source_config, "supports_category") or self.source_config.supports_category(c.category))
             ]
             if prioritized_cats:
+                # Enqueue category discovery seeds for capable sources
+                for cat_item in prioritized_cats:
+                    cat_seeds = self.generate_category_discovery_seeds(
+                        category=cat_item.category,
+                        queries=getattr(cat_item, "queries", []),
+                    )
+                    for s_url in cat_seeds:
+                        self._filter_and_enqueue(
+                            s_url,
+                            report=report,
+                            seen_urls=seen_urls,
+                            page_queue=page_queue,
+                            doc_queue=doc_queue,
+                            policy_manager=policy_manager,
+                            acquisition_store=acquisition_store,
+                            client=client,
+                            resume=resume,
+                            limit=discovery_limit,
+                            product_queue=product_queue,
+                        )
+
                 def _score_url(url: str) -> int:
                     u_lower = url.lower()
                     for item in prioritized_cats:
@@ -396,13 +419,17 @@ class DiscoveryEngine:
         Preserves domain boundary constraints and robots policy.
         """
         seeds: List[str] = []
-        for start_url in self.source_config.start_urls:
-            if "catalog" in start_url.lower() or "product" in start_url.lower():
-                for q in queries:
-                    slug = re.sub(r"[^a-zA-Z0-9]+", "-", q.lower()).strip("-")
-                    cand = urljoin(start_url, f"?q={slug}")
-                    if self.is_allowed(cand) and cand not in seeds:
-                        seeds.append(cand)
+        search_template = self.source_config.metadata.get("search_url")
+        if search_template:
+            from urllib.parse import quote_plus
+            for q in queries:
+                slug = quote_plus(q)
+                try:
+                    cand = search_template.format(query=slug, category=category.lower())
+                except KeyError:
+                    cand = search_template.format(query=slug)
+                if self.is_allowed(cand) and cand not in seeds:
+                    seeds.append(cand)
         return seeds
 
 

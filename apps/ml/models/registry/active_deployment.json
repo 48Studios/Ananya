@@ -1,7 +1,154 @@
 {
-  "activeVersion": "1.6.0",
-  "deployedAt": "2026-09-22T16:52:09.748052+00:00",
-  "sourceArtifact": "apps/ml/models/registry/v1.6.0/category_classifier.pkl",
+  "activeVersion": "1.7.0",
+  "modelVersion": "1.7.0",
+  "modelType": "hybrid_union_model",
+  "datasetVersion": "dataset-crawl-1790343594-reprocessed",
+  "gitCommit": "d279c531f1138ef0f977ede6d80dfaf0f41f9662",
+  "trainingTimestamp": "2026-09-25T14:44:58.351310+00:00",
+  "evaluationMetrics": {
+    "candidate_top1_accuracy": 0.9478,
+    "candidate_top3_accuracy": 0.9911,
+    "active_baseline_top1_accuracy": 0.0589,
+    "weighted_precision": 0.9505,
+    "weighted_recall": 0.9478,
+    "weighted_f1": 0.9459,
+    "per_class": {
+      "3D Printing Materials": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 187.0
+      },
+      "Cables": {
+        "precision": 0.9696969696969697,
+        "recall": 0.9696969696969697,
+        "f1-score": 0.9696969696969697,
+        "support": 165.0
+      },
+      "Capacitors": {
+        "precision": 0.85,
+        "recall": 1.0,
+        "f1-score": 0.918918918918919,
+        "support": 17.0
+      },
+      "Connectors": {
+        "precision": 1.0,
+        "recall": 0.8235294117647058,
+        "f1-score": 0.9032258064516129,
+        "support": 17.0
+      },
+      "Consumables": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 22.0
+      },
+      "Development Boards": {
+        "precision": 0.781021897810219,
+        "recall": 0.9385964912280702,
+        "f1-score": 0.852589641434263,
+        "support": 114.0
+      },
+      "Fasteners": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 3.0
+      },
+      "ICs & Semiconductors": {
+        "precision": 1.0,
+        "recall": 0.5806451612903226,
+        "f1-score": 0.7346938775510204,
+        "support": 31.0
+      },
+      "Mechanical Parts": {
+        "precision": 1.0,
+        "recall": 0.8205128205128205,
+        "f1-score": 0.9014084507042254,
+        "support": 39.0
+      },
+      "Optoelectronics": {
+        "precision": 0.9351851851851852,
+        "recall": 0.9528301886792453,
+        "f1-score": 0.9439252336448598,
+        "support": 106.0
+      },
+      "Passive Components": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 3.0
+      },
+      "Relays": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 4.0
+      },
+      "Resistors": {
+        "precision": 1.0,
+        "recall": 0.375,
+        "f1-score": 0.5454545454545454,
+        "support": 8.0
+      },
+      "Robotics": {
+        "precision": 0.9411764705882353,
+        "recall": 0.927536231884058,
+        "f1-score": 0.9343065693430657,
+        "support": 69.0
+      },
+      "Sensors": {
+        "precision": 0.8823529411764706,
+        "recall": 0.9375,
+        "f1-score": 0.9090909090909091,
+        "support": 128.0
+      },
+      "Switches": {
+        "precision": 0.9166666666666666,
+        "recall": 1.0,
+        "f1-score": 0.9565217391304348,
+        "support": 22.0
+      },
+      "Tools": {
+        "precision": 0.9919786096256684,
+        "recall": 0.9763157894736842,
+        "f1-score": 0.9840848806366048,
+        "support": 380.0
+      },
+      "Valves & Pneumatics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 27.0
+      },
+      "accuracy": 0.9478390461997019,
+      "macro avg": {
+        "precision": 0.9037821522638565,
+        "recall": 0.8501201702516598,
+        "f1-score": 0.8641065301143017,
+        "support": 1342.0
+      },
+      "weighted avg": {
+        "precision": 0.9505342900488761,
+        "recall": 0.9478390461997019,
+        "f1-score": 0.9458631541858644,
+        "support": 1342.0
+      }
+    },
+    "duplicate_precision": 1.0,
+    "duplicate_recall": 1.0,
+    "critical_false_merges": 0,
+    "latency_ms": {
+      "p50": 0.704,
+      "p95": 1.372,
+      "p99": 1.71
+    },
+    "peak_ram_mb": 260.2,
+    "unverified_provenance_count": 0
+  },
+  "artifactSha256": "ff69f348a898bb657ef3b278cd1748ff9384e0eca0cab5ee48fc88b66c89843c",
+  "deployedAt": "2026-09-25T14:45:36.186252+00:00",
+  "sourceArtifact": "apps/ml/models/registry/v1.7.0/category_classifier.pkl",
   "productionPath": "apps/ml/models/category_classifier.pkl",
   "backupPath": "apps/ml/models/category_classifier.pkl.backup",
   "qualityGatesPassed": true

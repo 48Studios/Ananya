@@ -689,6 +689,182 @@ def normalize_category(category: Optional[str]) -> str:
     return "Uncategorized"
 
 
+# Signal classification patterns
+_MERCHANDISE_PATTERN = re.compile(
+    r"\b(?:t-shirt|shirt|shirts|hoodie|hoodies|plushie|plushies|plush|(?:(?<!cushion\s)cushion(?!(\s*grip)))|"
+    r"mug|mugs|coaster|coasters|keychain|keychains|sticker|stickers|poster|posters|"
+    r"badge|badges|patch|patches|tote bag|(?<!pi\s)(?<!raspberry\s)hats?|beanie|beanies|socks|backpack|backpacks)\b",
+    re.IGNORECASE,
+)
+
+_TOOL_PATTERN = re.compile(
+    r"\b(?:screwdriver|screwdrivers|multi-bit driver|nut driver|nut drivers|screw starter|"
+    r"wrench|wrenches|plier|pliers|hex key|hex keys|allen key|allen keys|(?:hex\s+)?l-key(?:s)?|"
+    r"crimper|crimpers|crimping tool|wire stripper|strippers|"
+    r"soldering iron|soldering station|desoldering pump|multimeter|multimeters|"
+    r"tweezer|tweezers|ratchet|ratchets|scraper|scrapers|hammer|hammers|saw|saws|drill bit|drill bits)\b",
+    re.IGNORECASE,
+)
+
+_DEV_BOARD_PATTERN = re.compile(
+    r"\b(?:arduino|feather\s+m[0-9]|feather\s+rp[0-9]|teensy|raspberry\s+pi\s+[0-9]|"
+    r"raspberry\s+pi\s+zero|single-board\s+computer|sbc|eval\s+kit|evaluation\s+board|"
+    r"evaluation\s+kit|devkit|dev\s+board|development\s+board|nucleo|discovery\s+kit|"
+    r"launchpad|micro:bit|pyportal|pygamer|circuit\s+playground)\b",
+    re.IGNORECASE,
+)
+
+_RELAY_PATTERN = re.compile(
+    r"\b(?:solid\s+state\s+relay(?:s)?|ssr|electromechanical\s+relay(?:s)?|"
+    r"latching\s+relay(?:s)?|non-latching\s+relay(?:s)?|reed\s+relay(?:s)?|"
+    r"power\s+relay(?:s)?|relay\s+module|relay\s+featherwing|relay\s+board|"
+    r"relay\s+shield|relay\s+control\s+kit|photorelay|mosfet\s+relay)\b"
+    r"|\brelay(?:s)?\b",
+    re.IGNORECASE,
+)
+_NON_RELAY_GUARDS = re.compile(
+    r"\b(?:relay\s+race|tor\s+relay|mail\s+relay|smtp\s+relay|relay\s+server|relay\s+node)\b",
+    re.IGNORECASE,
+)
+
+_TRANSISTOR_PATTERN = re.compile(
+    r"\b(?:(?:n-channel|p-channel|power|sic|rf|logic-level)\s+)?mosfet(?:s)?\b"
+    r"|\b(?:bjt|igbt|jfet)\b"
+    r"|\b(?:bipolar|junction|npn|pnp|darlington|power)\s+transistor(?:s)?\b"
+    r"|\btransistor(?:s)?\b",
+    re.IGNORECASE,
+)
+
+_IC_PATTERN = re.compile(
+    r"\b(?:multicore\s+microcontroller|microcontroller(?:s)?|microprocessor(?:s)?|\bmcu\b|\bmpu\b|"
+    r"operational\s+amplifier(?:s)?|op-?amp(?:s)?|instrumentation\s+amplifier(?:s)?|"
+    r"voltage\s+regulator(?:s)?|linear\s+regulator(?:s)?|switching\s+regulator(?:s)?|"
+    r"buck\s+converter(?:s)?|boost\s+converter(?:s)?|buck-boost\s+converter(?:s)?|pmic|"
+    r"eeprom|flash\s+memory|sram|fram|\bfpga\b|\bcpld\b|"
+    r"analog-to-digital\s+converter|digital-to-analog\s+converter|"
+    r"(?:audio\s+|stereo\s+|quad\s+|12-bit\s+|16-bit\s+|24-bit\s+|8-bit\s+|10-bit\s+)?(?:dac|adc)\b|"
+    r"logic\s+ic|transceiver|gate\s+driver|motor\s+driver\s+ic|integrated\s+circuit(?:s)?)\b",
+    re.IGNORECASE,
+)
+
+_SENSOR_PATTERN = re.compile(
+    r"\b(?:accelerometer|gyroscope|magnetometer|barometer|altimeter|hygrometer|"
+    r"thermocouple|phototransistor|photodiode|ambient light sensor|gas sensor|"
+    r"proximity sensor|distance sensor|current sensor|temperature sensor|imu sensor|"
+    r"humidity sensor|pressure sensor|touch sensor|color sensor|optical sensor|"
+    r"co2 sensor|air quality sensor|soil sensor|flow sensor)\b"
+    r"|\b(?:sensor|sensors)\b",
+    re.IGNORECASE,
+)
+
+_FASTENER_PATTERN = re.compile(
+    r"\b(?:machine\s+screw(?:s)?|socket\s+head\s+cap\s+screw(?:s)?|hex\s+head\s+cap\s+screw(?:s)?|"
+    r"pan\s+head\s+screw(?:s)?|flat\s+head\s+screw(?:s)?|set\s+screw(?:s)?|thumb\s+screw(?:s)?|"
+    r"hex\s+standoff(?:s)?|standoff(?:s)?|hex\s+spacer(?:s)?|spacer(?:s)?|"
+    r"hex\s+nut(?:s)?|lock\s+nut(?:s)?|nylon\s+lock\s+nut(?:s)?|wing\s+nut(?:s)?|trapezoid\s+nut(?:s)?|"
+    r"flat\s+washer(?:s)?|spring\s+washer(?:s)?|lock\s+washer(?:s)?|washer(?:s)?|"
+    r"carriage\s+bolt(?:s)?|hex\s+bolt(?:s)?|u-bolt(?:s)?|bolt(?:s)?|"
+    r"threaded\s+rod(?:s)?|fastener(?:s)?|screw\s+set|screw\s+replacement)\b"
+    r"|\b(?:screw|screws)\b",
+    re.IGNORECASE,
+)
+_FASTENER_NEGATIVE_GUARDS = re.compile(
+    r"\b(?:bolt-on|screw-attached|screw\s+terminal|screw\s+terminals|shield|cover)\b",
+    re.IGNORECASE,
+)
+
+_RESISTOR_PATTERN = re.compile(
+    r"\b(?:smd\s+resistor(?:s)?|chip\s+resistor(?:s)?|through-hole\s+resistor(?:s)?|"
+    r"carbon\s+film\s+resistor(?:s)?|metal\s+film\s+resistor(?:s)?|resistor\s+network(?:s)?|"
+    r"resistor(?:s)?|potentiometer(?:s)?|trimpot(?:s)?)\b",
+    re.IGNORECASE,
+)
+
+_CAPACITOR_PATTERN = re.compile(
+    r"\b(?:ceramic\s+capacitor(?:s)?|electrolytic\s+capacitor(?:s)?|tantalum\s+capacitor(?:s)?|"
+    r"film\s+capacitor(?:s)?|supercapacitor(?:s)?|mlcc|capacitor(?:s)?)\b",
+    re.IGNORECASE,
+)
+
+_CABLE_PATTERN = re.compile(
+    r"\b(?:ribbon\s+cable(?:s)?|jumper\s+wire(?:s)?|coaxial\s+cable(?:s)?|hook-up\s+wire(?:s)?|"
+    r"usb\s+cable(?:s)?|ethernet\s+cable(?:s)?|hdmi\s+cable(?:s)?|power\s+cable(?:s)?|"
+    r"cable\s+harness(?:es)?|wire\s+harness(?:es)?|cable(?:s)?|jumper\s+wires)\b",
+    re.IGNORECASE,
+)
+
+
+def classify_product_signals(
+    name: str,
+    desc: str = "",
+    attrs: Optional[Dict[str, Any]] = None,
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """
+    Deterministic product-signal classifier based on product name and attributes.
+    Returns (canonical_category, matched_signal, confidence) or (None, None, None).
+    Confidence is 'HIGH', 'MEDIUM', or 'LOW'.
+    """
+    if not name:
+        return None, None, None
+
+    text = normalize_text(name).strip()
+
+    # 1. Tools guard: Tools must NEVER be classified as Fasteners
+    m_tool = _TOOL_PATTERN.search(text)
+    if m_tool:
+        return "Tools", m_tool.group(0), "HIGH"
+
+    if _MERCHANDISE_PATTERN.search(text):
+        return None, None, None
+
+    # 2. Relays (checked before general transistors/ICs so relay modules don't get misrouted)
+    m_relay = _RELAY_PATTERN.search(text)
+    if m_relay and not _NON_RELAY_GUARDS.search(text):
+        return "Relays", m_relay.group(0), "HIGH"
+
+    # 3. Transistors
+    m_trans = _TRANSISTOR_PATTERN.search(text)
+    if m_trans:
+        return "Transistors", m_trans.group(0), "HIGH"
+
+    # 4. Development boards guard (guard dev boards before general ICs)
+    m_dev = _DEV_BOARD_PATTERN.search(text)
+    if m_dev:
+        return "Development Boards", m_dev.group(0), "HIGH"
+
+    # 5. Sensors
+    m_sens = _SENSOR_PATTERN.search(text)
+    if m_sens:
+        return "Sensors", m_sens.group(0), "HIGH"
+
+    # 6. ICs & Semiconductors
+    m_ic = _IC_PATTERN.search(text)
+    if m_ic:
+        return "ICs & Semiconductors", m_ic.group(0), "HIGH"
+
+    # 7. Cables (check before fasteners so 'power cable (screw-attached)' is Cables)
+    m_cable = _CABLE_PATTERN.search(text)
+    if m_cable:
+        return "Cables", m_cable.group(0), "HIGH"
+
+    # 8. Fasteners
+    m_fast = _FASTENER_PATTERN.search(text)
+    if m_fast and not _FASTENER_NEGATIVE_GUARDS.search(text):
+        return "Fasteners", m_fast.group(0), "HIGH"
+
+    # 9. Resistors
+    m_res = _RESISTOR_PATTERN.search(text)
+    if m_res:
+        return "Resistors", m_res.group(0), "HIGH"
+
+    # 10. Capacitors
+    m_cap = _CAPACITOR_PATTERN.search(text)
+    if m_cap and "capacitor load" not in text.lower():
+        return "Capacitors", m_cap.group(0), "HIGH"
+
+    return None, None, None
+
+
 def strip_packaging_suffix(mpn: str) -> Tuple[str, str]:
     """
     Strips commercial packaging suffixes (e.g. -TR, /TR, -REEL, -ND)
@@ -734,13 +910,11 @@ class NormalizationProcessor(BaseProcessor):
             record.raw_category = record.category
 
         # Category resolution hierarchy:
-        # normalize(record.category)
-        #   -> canonical category: use it
-        #   -> Uncategorized:
-        #        normalize(record.raw_category)
-        #            -> canonical category: use it
-        #            -> otherwise remain Uncategorized
         canon_cat = normalize_category(record.category)
+        cat_src = "taxonomy" if canon_cat in CANONICAL_CATEGORIES else None
+        cat_sig = record.category if canon_cat in CANONICAL_CATEGORIES else None
+        cat_conf = "HIGH" if canon_cat in CANONICAL_CATEGORIES else None
+
         if canon_cat not in CANONICAL_CATEGORIES:
             canon_cat = "Uncategorized"
 
@@ -748,13 +922,46 @@ class NormalizationProcessor(BaseProcessor):
             fallback_cat = normalize_category(record.raw_category)
             if fallback_cat in CANONICAL_CATEGORIES:
                 canon_cat = fallback_cat
+                cat_src = "taxonomy"
+                cat_sig = record.raw_category
+                cat_conf = "HIGH"
 
         if canon_cat == "Uncategorized":
-            canon_cat = self._resolve_source_specific_cases(record)
+            source_specific = self._resolve_source_specific_cases(record)
+            if source_specific in CANONICAL_CATEGORIES:
+                canon_cat = source_specific
+                cat_src = "source_specific"
+                cat_sig = "polymaker_filament"
+                cat_conf = "HIGH"
+
+        if canon_cat == "Uncategorized":
+            sig_cat, sig_val, sig_conf = classify_product_signals(
+                record.name,
+                record.description or "",
+                record.attributes,
+            )
+            if sig_cat in CANONICAL_CATEGORIES and sig_conf in ("HIGH", "MEDIUM"):
+                canon_cat = sig_cat
+                cat_src = "product_signal"
+                cat_sig = sig_val
+                cat_conf = sig_conf
+
+        if canon_cat == "Uncategorized" and record.collection_target_category:
+            if record.collection_target_category in CANONICAL_CATEGORIES:
+                canon_cat = record.collection_target_category
+                cat_src = "collection_target"
+                cat_sig = record.collection_target_category
+                cat_conf = "MEDIUM"
 
         if canon_cat != record.category:
             record.category = canon_cat
             modified.append("category")
+
+        if cat_src and getattr(record, "category_source", None) != cat_src:
+            record.category_source = cat_src
+            record.category_signal = cat_sig
+            record.category_confidence = cat_conf
+            modified.append("category_source")
 
         # 2. Normalize Manufacturer
         if record.manufacturer:

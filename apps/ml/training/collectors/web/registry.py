@@ -125,10 +125,23 @@ class SourceConfig(BaseModel):
     )
     group: Optional[str] = None
     default_domain: ProductDomain = ProductDomain.ELECTRONICS
+    capabilities: List[str] = Field(default_factory=list, description="Categories or capabilities supported by this source")
     headers: Dict[str, str] = Field(default_factory=dict)
     user_agent: str = "AnanyaBot/1.0 (+https://ananya.48studios.internal/bot; data-training)"
     custom_parser: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    def supports_category(self, category: str) -> bool:
+        """Checks if this source is capable of collecting items for the given category."""
+        if not self.capabilities:
+            grp = (self.group or "").lower()
+            cat_lower = category.lower()
+            if grp == "tools" and cat_lower != "tools":
+                return False
+            if grp == "3d_printing" and cat_lower not in ("3d printing materials", "mechanical parts"):
+                return False
+            return True
+        return any(c.lower() == category.lower() for c in self.capabilities)
 
     @field_validator("default_domain", mode="before")
     @classmethod

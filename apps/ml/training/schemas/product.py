@@ -144,6 +144,10 @@ class ProductRecord(BaseModel):
     domain: ProductDomain = ProductDomain.OTHER
     unit: str = "pcs"
     is_active: bool = True
+    collection_target_category: Optional[str] = None
+    category_source: Optional[str] = None
+    category_signal: Optional[str] = None
+    category_confidence: Optional[str] = None
 
     # Detailed specifications
     attributes: Dict[str, AttributeValueRecord] = Field(default_factory=dict)
