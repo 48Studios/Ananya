@@ -13,6 +13,8 @@ import {
   Upload,
   Play,
   QrCode,
+  Zap,
+  ZapOff,
 } from "lucide-react";
 import jsQR from "jsqr";
 import { Button } from "@/components/ui/button";
@@ -128,6 +130,8 @@ export function ScanDialog({
   );
   const [scannedFormat, setScannedFormat] = React.useState<string | null>(null);
   const [autoNavigate, setAutoNavigate] = React.useState(false);
+  const [torchOn, setTorchOn] = React.useState(false);
+  const [torchAvailable, setTorchAvailable] = React.useState(false);
 
   // Dedicated details modal state
   const [isDetailsModalOpen, setIsDetailsModalOpen] = React.useState(false);
@@ -147,6 +151,9 @@ export function ScanDialog({
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
+    // The flash belongs to the track that was just stopped, so the control
+    // starts each new stream — and each camera flip — in the off state.
+    setTorchOn(false);
   }, []);
 
   // Close dialog and clean up resources
@@ -378,6 +385,21 @@ export function ScanDialog({
       });
 
       mediaStreamRef.current = stream;
+
+      // The torch (camera flash) is a per-track capability and a mobile-only one:
+      // the running track is asked whether it has one, so the control appears on
+      // a phone with a flash and stays out of the way everywhere else. `torch`
+      // is not part of the constraint set the DOM lib models, hence the cast.
+      const torchCapable = Boolean(
+        (
+          stream.getVideoTracks()[0]?.getCapabilities?.() as unknown as
+            | { torch?: boolean }
+            | undefined
+        )?.torch,
+      );
+      setTorchAvailable(torchCapable);
+      setTorchOn(false);
+
       setIsCameraActive(true);
 
       const video = videoRef.current;
@@ -475,6 +497,31 @@ export function ScanDialog({
     };
     reader.readAsDataURL(file);
     e.target.value = "";
+  };
+
+  /**
+   * Toggle the camera flash on the live track.
+   *
+   * The constraint is applied to the TRACK, not the stream, and through
+   * `advanced` so a browser that does not implement the torch constraint ignores
+   * it instead of failing the whole request. The track's own settings are then
+   * read back — an engine that silently drops the constraint is not told it
+   * succeeded — falling back to the requested state only where the setting is
+   * not reported, and a device that refuses it loses the control entirely rather
+   * than keeping a button that does nothing.
+   */
+  const toggleTorch = async () => {
+    const track = mediaStreamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    const next = !torchOn;
+    try {
+      await track.applyConstraints({
+        advanced: [{ torch: next }],
+      } as unknown as MediaTrackConstraints);
+      setTorchOn(track.getSettings().torch ?? next);
+    } catch {
+      setTorchAvailable(false);
+    }
   };
 
   const toggleCameraFacing = () => {
@@ -631,6 +678,26 @@ export function ScanDialog({
                   >
                     <RefreshCw className="size-3" />
                   </Button>
+                  {torchAvailable && (
+                    <Button
+                      variant="secondary"
+                      size="icon-xs"
+                      onClick={toggleTorch}
+                      title={torchOn ? "Turn off flash" : "Turn on flash"}
+                      aria-pressed={torchOn}
+                      className={`border-0 ${
+                        torchOn
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                          : "bg-black/60 text-white hover:bg-black/80"
+                      }`}
+                    >
+                      {torchOn ? (
+                        <Zap className="size-3" />
+                      ) : (
+                        <ZapOff className="size-3" />
+                      )}
+                    </Button>
+                  )}
                   <Button
                     variant="secondary"
                     size="xs"
