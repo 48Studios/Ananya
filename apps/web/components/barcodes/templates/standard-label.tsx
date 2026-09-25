@@ -14,6 +14,11 @@ export interface StandardLabelProps {
 /**
  * Standard label (2" × 4") — the default: title, subtitle, item code, QR and a
  * 1D barcode. The only template that prints a linear barcode.
+ *
+ * A fixed physical box: 101.6 mm wide × 50.8 mm tall (2" tall × 4" wide, the
+ * order {@link TEMPLATE_OPTIONS} writes sizes in). It used to be `w-80` with an
+ * auto height — 84.7 mm of face under a name that said 4 inch. The barcode is
+ * centred in the space the header leaves, so the face fills the sticker.
  */
 export function StandardLabel({
   label,
@@ -24,9 +29,9 @@ export function StandardLabel({
 
   return (
     <div
-      className={`w-80 p-4 bg-white text-black border border-slate-300 rounded-lg shadow-xs space-y-2 select-none print:shadow-none print:break-inside-avoid ${className}`}
+      className={`w-[101.6mm] h-[50.8mm] p-4 bg-white text-black border border-slate-300 rounded-lg shadow-xs flex flex-col overflow-hidden select-none print:shadow-none print:break-inside-avoid ${className}`}
     >
-      <div className="flex items-start justify-between gap-2 border-b border-slate-200 m-0 pb-3">
+      <div className="flex shrink-0 items-start justify-between gap-2 border-b border-slate-200 m-0 pb-3">
         <div className="space-y-1 min-w-0 flex-1">
           <h4 className="text-xs font-bold text-slate-900 truncate">
             {label.title}
@@ -43,11 +48,11 @@ export function StandardLabel({
         <QRCodeViewer
           value={label.qrPayload}
           size={56}
-          className="p-1 border-0"
+          className="shrink-0 p-1 border-0"
         />
       </div>
 
-      <div className="flex flex-col items-center justify-center pt-2">
+      <div className="flex flex-1 flex-col items-center justify-center">
         <BarcodeViewer
           value={label.primaryCode}
           format={format}

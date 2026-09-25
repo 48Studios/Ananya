@@ -4,6 +4,7 @@ import * as React from "react";
 import { LabelData, BarcodeFormat } from "@/lib/api/barcodes-api";
 import { settingsApi } from "@/lib/api/settings-api";
 import {
+  CompactHalfInchLabel,
   CompactLabel,
   DetailedLabel,
   QrCode11MmLabel,
@@ -58,7 +59,11 @@ export function LabelPreview({
   }, [organizationName]);
 
   if (template === "COMPACT") {
-    return <CompactLabel label={label} className={className} />;
+    return <CompactLabel label={label} className={className} organizationName={orgName} />;
+  }
+
+  if (template === "COMPACT_HALF_INCH") {
+    return <CompactHalfInchLabel label={label} className={className} organizationName={orgName} />;
   }
 
   if (template === "SHELF_BIN") {

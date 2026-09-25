@@ -7,7 +7,7 @@ import { describe, it, expect } from "vitest";
  * Label templates are one file per template in `components/barcodes/templates/`,
  * declared by the registry next to them. The registry and the dispatcher are
  * joined by hand, the three surfaces that offer a template picker are joined to
- * the registry by hand, and the 11 mm QR label is a physical object. None of
+ * the registry by hand, and every measured label is a physical object. None of
  * that is checked by the compiler, so it is pinned here.
  *
  * These are source assertions over the real files — the convention the rest of
@@ -37,6 +37,11 @@ const TEMPLATES = [
     component: "StandardLabel",
   },
   { template: "COMPACT", file: "compact-label.tsx", component: "CompactLabel" },
+  {
+    template: "COMPACT_HALF_INCH",
+    file: "compact-half-inch-label.tsx",
+    component: "CompactHalfInchLabel",
+  },
   { template: "DETAILED", file: "detailed-label.tsx", component: "DetailedLabel" },
   { template: "SHELF_BIN",
     file: "shelf-bin-label.tsx",
@@ -186,22 +191,37 @@ describe("label template folder", () => {
 });
 
 /**
- * Every QR face is a fixed physical sticker, and its picker label is the only
- * place an operator is told how big it is. A label that promises a size the box
- * does not have is the defect these tests exist to catch — the 2-inch face was
- * once 32 mm × 59 mm of px classes under a name that said 2 inch, which is how
- * this whole family of templates got rewritten in millimetres.
+ * Every measured face is a fixed physical sticker, and its picker label is the
+ * only place an operator is told how big it is. A label that promises a size the
+ * box does not have is the defect these tests exist to catch: the 2-inch QR face
+ * was once 32 mm × 59 mm of px classes under a name that said 2 inch, and the
+ * compact face was 67.7 mm wide under a name that said 2 inch. The px-built
+ * faces (`STANDARD`, `COMPACT`, `DETAILED`, `SHELF_BIN`) are held to the same
+ * rule as the QR family, so the picker and the printer cannot drift apart again.
  */
-describe("QR template physical sizes", () => {
-  const QR_FACES = [
+describe("template physical sizes", () => {
+  /** Every face whose box is a fixed physical size, with the file that draws it. */
+  const MEASURED_FACES = [
+    { template: "STANDARD", file: "standard-label.tsx" },
+    { template: "COMPACT", file: "compact-label.tsx" },
+    { template: "COMPACT_HALF_INCH", file: "compact-half-inch-label.tsx" },
+    { template: "DETAILED", file: "detailed-label.tsx" },
+    { template: "SHELF_BIN", file: "shelf-bin-label.tsx" },
     { template: "QR_CODE_2_INCH", file: "qr-code-2-inch-label.tsx" },
     { template: "QR_CODE_1_INCH", file: "qr-code-1-inch-label.tsx" },
     { template: "QR_CODE_11MM", file: "qr-code-11mm-label.tsx" },
   ] as const;
 
+  /** Faces that are a QR and nothing else, so the QR-specific rules apply. */
+  const QR_FACES = [
+    "QR_CODE_2_INCH",
+    "QR_CODE_1_INCH",
+    "QR_CODE_11MM",
+  ] as const;
+
   /** The `w-[Xmm]` / `h-[Ymm]` the face declares, in millimetres. */
   const declaredBoxMm = (template: string) => {
-    const file = QR_FACES.find((face) => face.template === template)!.file;
+    const file = MEASURED_FACES.find((face) => face.template === template)!.file;
     const source = read(`${TEMPLATES_DIR}/${file}`);
     const width = Number(source.match(/w-\[([\d.]+)mm\]/)?.[1]);
     const height = Number(source.match(/h-\[([\d.]+)mm\]/)?.[1]);
@@ -210,19 +230,29 @@ describe("QR template physical sizes", () => {
     return { file, width, height, source };
   };
 
-  /** The two measurements in a picker label, converted to millimetres. */
+  /**
+   * The two measurements in a picker label, converted to millimetres.
+   *
+   * Both quote styles are read: the inch faces are written with the inch mark
+   * inside a single-quoted string (`'Compact (1" x 2")'`), the QR family with
+   * the word `Inch` inside a double-quoted one.
+   */
   const promisedMm = (template: string): number[] => {
     const registry = read(REGISTRY);
     const label = registry.match(
-      new RegExp(`${template}: "([^"]+)"`),
-    )?.[1];
+      new RegExp(`${template}: (['"])([\\s\\S]*?)\\1,`),
+    )?.[2];
     expect(label, `${template} has no picker label`).toBeDefined();
 
-    const numbers = [...label!.matchAll(/([\d.]+)\s*(Inch|MM)\b/gi)].map(
-      ([, value, unit]) =>
-        unit!.toLowerCase() === "inch"
-          ? Number(value) * 25.4
-          : Number(value),
+    // `N Inch` / `N MM` for the QR family, `N"` for the inch faces. A size word
+    // inside a name (`Half-Inch`) has no digit in front of it, so it is not a
+    // measurement.
+    const numbers = [
+      ...label!.matchAll(/([\d.]+)\s*(Inch\b|MM\b|")/gi),
+    ].map(([, value, unit]) =>
+      // The only millimetre unit in use is `MM`; every other reading is inches,
+      // whether it is spelled out or given as an inch mark.
+      /^mm$/i.test(unit!) ? Number(value) : Number(value) * 25.4,
     );
     expect(numbers, `${template} picker label states no size`).toHaveLength(2);
     return numbers;
@@ -242,7 +272,7 @@ describe("QR template physical sizes", () => {
     return literal!;
   };
 
-  it.each(QR_FACES.map((face) => face.template))(
+  it.each(MEASURED_FACES.map((face) => face.template))(
     "%s declares its box in millimetres, not pixels",
     (template) => {
       const { file, source } = declaredBoxMm(template);
@@ -262,7 +292,7 @@ describe("QR template physical sizes", () => {
     },
   );
 
-  it.each(QR_FACES.map((face) => face.template))(
+  it.each(MEASURED_FACES.map((face) => face.template))(
     "%s is the size its picker label promises",
     (template) => {
       const { width, height } = declaredBoxMm(template);
@@ -270,10 +300,11 @@ describe("QR template physical sizes", () => {
       const actual = [width, height].sort((a, b) => a - b);
 
       // Sorted, because a picker label lists height first for the portrait
-      // faces. The tolerance is 1.5 mm: a size written in inches rounds to
-      // whole millimetres in the class (0.67 in = 17.018 mm, declared 16 mm).
-      // It still fails on the defect this guards — a name claiming 2 inch on a
-      // box that is a whole inch short.
+      // faces. The tolerance is 1.5 mm, which is what the 1-inch QR face needs:
+      // its 0.67 inch is really 17.018 mm against a declared 16 mm. Every face
+      // converted from px classes lands exactly on its promise. It still fails
+      // on the defects this guards — a name claiming 2 inch on a box a whole
+      // inch short, or a 67.7 mm wide face under a 2 inch name.
       expect(
         Math.abs(actual[0]! - promised[0]!),
         `${template}: box ${actual[0]}mm vs promised ${promised[0]}mm`,
@@ -285,7 +316,7 @@ describe("QR template physical sizes", () => {
     },
   );
 
-  it.each(QR_FACES.map((face) => face.template))(
+  it.each(QR_FACES)(
     "%s renders a QR through the studio's shared viewer",
     (template) => {
       const { source } = declaredBoxMm(template);

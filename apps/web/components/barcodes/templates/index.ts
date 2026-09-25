@@ -21,6 +21,9 @@ export { StandardLabel } from "./standard-label";
 export type { CompactLabelProps } from "./compact-label";
 export { CompactLabel } from "./compact-label";
 
+export type { CompactHalfInchLabelProps } from "./compact-half-inch-label";
+export { CompactHalfInchLabel } from "./compact-half-inch-label";
+
 export type { DetailedLabelProps } from "./detailed-label";
 export { DetailedLabel } from "./detailed-label";
 

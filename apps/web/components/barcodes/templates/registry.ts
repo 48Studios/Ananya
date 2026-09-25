@@ -11,6 +11,7 @@
 
 export type LabelTemplate =
   | "COMPACT"
+  | "COMPACT_HALF_INCH"
   | "STANDARD"
   | "DETAILED"
   | "SHELF_BIN"
@@ -21,14 +22,22 @@ export type LabelTemplate =
 /**
  * Picker labels, including each label's physical size where it has one.
  *
+ * A size here is the face's actual printed box, written **tall × wide** — the
+ * order the QR faces have always used, and the way an operator reads a sticker
+ * held in the hand. Every measured face declares that same box in `mm` in its
+ * own file, and `lib/label-template-structure.spec.ts` fails when the two
+ * disagree: a name promising a size the sticker does not have is the defect
+ * both halves of this family were rewritten to remove.
+ *
  * Typed as a total record of {@link LabelTemplate}, so a new template cannot be
  * added without a label for the picker.
  */
 export const TEMPLATE_OPTIONS: Record<LabelTemplate, string> = {
   STANDARD: 'Standard (2" x 4")',
   COMPACT: 'Compact (1" x 2")',
+  COMPACT_HALF_INCH: 'Compact Half-Inch (0.5" x 1.5")',
   DETAILED: 'Detailed (3" x 4")',
-  SHELF_BIN: 'Shelf Bin Tag (3" x 1.5")',
+  SHELF_BIN: 'Shelf Bin Tag (1.5" x 3")',
   QR_CODE_2_INCH: "QR Code (2 Inch x 1.25 Inch)",
   QR_CODE_1_INCH: "QR Code (1 Inch x 0.67 Inch)",
   QR_CODE_11MM: "QR Code (11 MM x 8 MM)",
@@ -43,6 +52,7 @@ export const TEMPLATE_OPTIONS: Record<LabelTemplate, string> = {
  */
 export const QR_ONLY_TEMPLATES: readonly LabelTemplate[] = [
   "COMPACT",
+  "COMPACT_HALF_INCH",
   "SHELF_BIN",
   "QR_CODE_2_INCH",
   "QR_CODE_1_INCH",

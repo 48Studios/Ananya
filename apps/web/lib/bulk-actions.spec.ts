@@ -217,8 +217,8 @@ describe("data table wiring", () => {
   it("gives the selection column room for its control", () => {
     // A 16px checkbox needs 14 + 16 + 14 = 44px. The original 40px column left
     // only 12px of content box, so the header control was squeezed and clipped.
-    expect(dataTableSource).toMatch(/headerClassName:\s*"w-12"/);
-    expect(dataTableSource).toMatch(/cellClassName:\s*"w-12"/);
+    expect(dataTableSource).toMatch(/headerClassName:\s*"w-10 pl-5 pr-3"/);
+    expect(dataTableSource).toMatch(/cellClassName:\s*"w-10 pl-5 pr-3"/);
   });
 
   it("keeps the checkbox out of the truncating column-title wrapper", () => {
