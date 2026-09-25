@@ -188,8 +188,8 @@ export function EntityDataTable<TData, TValue>({
         // 48px = 14px + 16px checkbox + 14px of the shared cell padding, with a
         // little slack. The column must be at least that wide: `px-3.5` alone
         // consumes 28px, so a 40px column left only 12px for a 16px control.
-        headerClassName: "w-12",
-        cellClassName: "w-12",
+        headerClassName: "w-10 pl-5 pr-3",
+        cellClassName: "w-10 pl-5 pr-3",
       },
     }),
     [],
