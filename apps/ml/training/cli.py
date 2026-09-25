@@ -187,26 +187,96 @@ def cmd_dataset_build(args: argparse.Namespace) -> None:
     verbose = getattr(args, "verbose", False)
     progress = LiveProgress(quiet=quiet, verbose=verbose)
     progress.start_stage("Generating tasks", total=len(records))
-def cmd_data_coverage(args: argparse.Namespace) -> None:
+    generator = ClassificationDatasetGenerator()
+    examples = generator.generate(records)
+    progress.finish_stage(f"Generating tasks  {len(examples):,} examples")
+
+    out_path = args.output or str(settings.training_data_dir / "classification_dataset.json")
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump([e.model_dump() for e in examples], f, indent=2, default=str)
+
+    if not quiet:
+        print(f"Built task dataset with {len(examples):,} examples at {out_path}")
+
+
+DEFAULT_COVERAGE_TARGETS: Dict[str, int] = {
+    "Capacitors": 200,
+    "Relays": 150,
+    "Resistors": 200,
+    "Transistors": 150,
+    "Fasteners": 200,
+    "Passive Components": 200,
+    "ICs & Semiconductors": 500,
+    "Cables": 600,
+}
+
+
+def resolve_coverage_dataset_path(
+    version: Optional[str] = None,
+    path: Optional[str] = None,
+) -> Path:
+    """Resolves the path to unique_records.json using settings.training_data_dir or explicit path."""
+    if path:
+        dataset_path = Path(path)
+        if dataset_path.is_dir():
+            dataset_path = dataset_path / "unique_records.json"
+        return dataset_path
+    elif version:
+        return Path(settings.training_data_dir) / version / "unique_records.json"
+    else:
+        raise ValueError("Either --version or --path must be supplied.")
+
+
+def calculate_data_coverage(
+    records: List[Dict[str, Any]],
+    targets: Optional[Dict[str, int]] = None,
+) -> List[Dict[str, Any]]:
+    """Calculates category coverage and deficits for PRODUCT records with deduplication."""
+    if targets is None:
+        targets = DEFAULT_COVERAGE_TARGETS
+
+    category_counts: Dict[str, int] = {}
+    seen_keys: set = set()
+
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        # PRODUCT-only counting; exclude DOCUMENT and any non-PRODUCT entity
+        if rec.get("entity_type") != "PRODUCT":
+            continue
+        key = (rec.get("sku") or rec.get("mpn") or rec.get("name") or str(rec.get("id") or "")) + "|" + (rec.get("manufacturer") or "")
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        cat = rec.get("category", "Uncategorized")
+        category_counts[cat] = category_counts.get(cat, 0) + 1
+
+    report = []
+    for cat, target in targets.items():
+        current = category_counts.get(cat, 0)
+        deficit = max(0, target - current)
+        report.append({"category": cat, "current": current, "target": target, "deficit": deficit})
+
+    # Deterministic ordering: highest deficit first, ties broken alphabetically by category
+    report.sort(key=lambda x: (-x["deficit"], x["category"]))
+    return report
+
+
+def cmd_data_coverage(args: argparse.Namespace) -> List[Dict[str, Any]]:
     """Report category coverage and deficits.
 
     Either --version (dataset name) or --path (explicit path to unique_records.json) must be supplied.
     Optional --targets JSON maps canonical category names to desired target counts.
     Optional --output-json writes a machine‑readable JSON report.
     """
-    import json
-    from pathlib import Path
-    from typing import Dict
-
-    # Resolve dataset path
-    if getattr(args, "path", None):
-        dataset_path = Path(args.path)
-        if dataset_path.is_dir():
-            dataset_path = dataset_path / "unique_records.json"
-    elif getattr(args, "version", None):
-        dataset_path = Path(settings.dataset_base_dir) / args.version / "unique_records.json"
-    else:
-        print("Error: either --version or --path must be supplied.")
+    try:
+        dataset_path = resolve_coverage_dataset_path(
+            version=getattr(args, "version", None),
+            path=getattr(args, "path", None),
+        )
+    except ValueError as e:
+        print(f"Error: {e}")
         sys.exit(1)
 
     if not dataset_path.exists():
@@ -215,50 +285,21 @@ def cmd_data_coverage(args: argparse.Namespace) -> None:
 
     # Load records
     with open(dataset_path, "r", encoding="utf-8") as f:
-        records = json.load(f)
+        data = json.load(f)
+
+    records = data if isinstance(data, list) else data.get("records", data.get("dataset", []))
 
     # Default target mapping (canonical categories -> target count)
-    default_targets: Dict[str, int] = {
-        "Capacitors": 200,
-        "Relays": 150,
-        "Resistors": 200,
-        "Transistors": 150,
-        "Fasteners": 200,
-        "Passive Components": 200,
-        "ICs & Semiconductors": 500,
-        "Cables": 600,
-    }
-
-    # Load optional custom targets
+    targets = dict(DEFAULT_COVERAGE_TARGETS)
     if getattr(args, "targets", None):
-        with open(args.targets, "r", encoding="utf-8") as tf:
-            custom_targets = json.load(tf)
-        targets = {**default_targets, **custom_targets}
-    else:
-        targets = default_targets
+        if isinstance(args.targets, dict):
+            custom_targets = args.targets
+        else:
+            with open(args.targets, "r", encoding="utf-8") as tf:
+                custom_targets = json.load(tf)
+        targets.update(custom_targets)
 
-    # Count products per category (unique products only)
-    category_counts: Dict[str, int] = {}
-    seen_keys: set = set()
-    for rec in records:
-        if not isinstance(rec, dict):
-            continue
-        if rec.get("entity_type") != "PRODUCT":
-            continue
-        key = (rec.get("sku") or rec.get("mpn") or rec.get("name") or "") + "|" + (rec.get("manufacturer") or "")
-        if key in seen_keys:
-            continue
-        seen_keys.add(key)
-        cat = rec.get("category", "Uncategorized")
-        category_counts[cat] = category_counts.get(cat, 0) + 1
-
-    # Build report list
-    report = []
-    for cat, target in targets.items():
-        current = category_counts.get(cat, 0)
-        deficit = max(0, target - current)
-        report.append({"category": cat, "current": current, "target": target, "deficit": deficit})
-    report.sort(key=lambda x: x["deficit"], reverse=True)
+    report = calculate_data_coverage(records, targets=targets)
 
     # Human‑readable table
     print("Category Coverage Report")
@@ -278,17 +319,7 @@ def cmd_data_coverage(args: argparse.Namespace) -> None:
             json.dump({"report": report}, jf, indent=2)
         print(f"JSON report written to {out_path}")
 
-    generator = ClassificationDatasetGenerator()
-    examples = generator.generate(records)
-    progress.finish_stage(f"Generating tasks  {len(examples):,} examples")
-
-    out_path = args.output or str(settings.training_data_dir / "classification_dataset.json")
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump([e.model_dump() for e in examples], f, indent=2, default=str)
-
-    if not quiet:
-        print(f"Built task dataset with {len(examples):,} examples at {out_path}")
+    return report
 
 
 def cmd_dataset_split(args: argparse.Namespace) -> None:
