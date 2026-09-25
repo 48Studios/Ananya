@@ -1,3 +1,19 @@
+/**
+ * The same widths as {@link NAV_TOKENS}, as numbers.
+ *
+ * They exist because a pixel value is needed as a *length* — the content-area
+ * offset the layout publishes for the floating batch bar — and a Tailwind class
+ * cannot be read back at runtime. The class strings above stay literal text on
+ * purpose: Tailwind's scanner reads source text, so a class built from an
+ * interpolation would generate no CSS at all and the rail would lose its width.
+ * `navigation-metrics.spec.ts` asserts the two stay in step.
+ */
+export const NAV_WIDTHS_PX = {
+  RAIL: 60,
+  SIDEBAR_EXPANDED: 280,
+  SIDEBAR_COLLAPSED: 72,
+} as const;
+
 export const NAV_TOKENS = {
   // Shared Header Height across Rail, Sidebar, and Top App Bar (56px)
   HEADER_HEIGHT: "h-14 min-h-[56px]",

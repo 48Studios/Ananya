@@ -211,6 +211,7 @@ class DiscoveryEngine:
         resume: bool = True,
         discovery_limit: int = 50000,
         progress: Optional[Any] = None,
+        category_plan: Optional[Any] = None,
     ) -> DiscoveryResult:
         """
         Executes decoupled discovery across configured start URLs, sitemaps, and robots.txt.
@@ -353,6 +354,29 @@ class DiscoveryEngine:
                 product_queue=product_queue,
             )
 
+        # Prioritize crawl queues if category_plan is provided
+        if category_plan and hasattr(category_plan, "categories"):
+            prioritized_cats = [
+                c for c in category_plan.categories
+                if getattr(c, "priority", None) is not None and getattr(c, "budget", 0) > 0
+            ]
+            if prioritized_cats:
+                def _score_url(url: str) -> int:
+                    u_lower = url.lower()
+                    for item in prioritized_cats:
+                        cat_tokens = [w for w in re.split(r"[^a-z0-9]+", item.category.lower()) if len(w) > 2]
+                        if any(tok in u_lower for tok in cat_tokens):
+                            return item.priority or 999
+                        for q in getattr(item, "queries", []):
+                            q_tokens = [w for w in re.split(r"[^a-z0-9]+", q.lower()) if len(w) > 3 and w not in ("manufacturer", "product", "component", "datasheet")]
+                            if q_tokens and all(tok in u_lower for tok in q_tokens):
+                                return item.priority or 999
+                    return 9999
+
+                product_queue.sort(key=_score_url)
+                page_queue.sort(key=_score_url)
+                doc_queue.sort(key=_score_url)
+
         final_page_queue = product_queue + page_queue
         report.final_crawl_queue = len(final_page_queue) + len(doc_queue)
         return DiscoveryResult(
@@ -361,6 +385,26 @@ class DiscoveryEngine:
             doc_queue=doc_queue,
             sitemap_urls=list(seen_sitemaps),
         )
+
+    def generate_category_discovery_seeds(
+        self,
+        category: str,
+        queries: List[str],
+    ) -> List[str]:
+        """
+        Generates source-specific discovery seed URLs for a category within allowed domains.
+        Preserves domain boundary constraints and robots policy.
+        """
+        seeds: List[str] = []
+        for start_url in self.source_config.start_urls:
+            if "catalog" in start_url.lower() or "product" in start_url.lower():
+                for q in queries:
+                    slug = re.sub(r"[^a-zA-Z0-9]+", "-", q.lower()).strip("-")
+                    cand = urljoin(start_url, f"?q={slug}")
+                    if self.is_allowed(cand) and cand not in seeds:
+                        seeds.append(cand)
+        return seeds
+
 
     def _filter_and_enqueue(
         self,

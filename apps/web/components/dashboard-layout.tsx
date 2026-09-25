@@ -3,13 +3,14 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
-import { NavigationProvider } from "@/lib/navigation/navigation-context";
+import { NavigationProvider, useNavigation } from "@/lib/navigation/navigation-context";
 import { NavigationRail } from "@/lib/navigation/components/navigation-rail";
 import { ContextSidebar } from "@/lib/navigation/components/context-sidebar";
 import { TopHeader } from "@/lib/navigation/components/top-header";
 import { MobileDrawer } from "@/lib/navigation/components/mobile-drawer";
 import { CommandPalette } from "@/lib/navigation/components/command-palette";
 import { AppFooter } from "@/components/app-footer";
+import { NAV_WIDTHS_PX } from "@/lib/navigation/tokens";
 
 const PUBLIC_ROUTES = [
   "/login",
@@ -39,7 +40,38 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <NavigationProvider>
-      <div className="flex h-screen overflow-hidden bg-background text-foreground print:h-auto print:overflow-visible">
+      <AuthenticatedShell>{children}</AuthenticatedShell>
+    </NavigationProvider>
+  );
+}
+
+/**
+ * The authenticated application shell.
+ *
+ * A separate component because it has to be rendered INSIDE
+ * `NavigationProvider` to read the sidebar state — `DashboardLayout` owns the
+ * provider and therefore cannot consume its own context.
+ */
+function AuthenticatedShell({ children }: { children: React.ReactNode }) {
+  const { sidebarWidth } = useNavigation();
+
+  /*
+    Publish where the content area begins.
+    
+    The content column holds the two navigation regions (`60px` rail plus the
+    sidebar at `280px` expanded / `72px` collapsed, both hidden below `md`), so
+    an overlay that is `fixed` — such as the batch action bar — cannot discover
+    this geometry from its own box the way an in-flow element could. The values
+    come from `NAV_WIDTHS_PX`, the same numbers `NAV_TOKENS` renders as classes,
+    so the offset cannot drift from the widths on screen.
+  */
+  const contentAreaLeft = NAV_WIDTHS_PX.RAIL + sidebarWidth;
+
+  return (
+    <div
+      className="flex h-screen overflow-hidden bg-background text-foreground print:h-auto print:overflow-visible"
+      style={{ "--content-area-left": `${contentAreaLeft}px` } as React.CSSProperties}
+    >
         {/* Desktop Region 1: Global Navigation Rail (Fixed 60px) */}
         <div className="hidden md:block print:hidden">
           <NavigationRail />
@@ -75,6 +107,5 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
-    </NavigationProvider>
   );
 }

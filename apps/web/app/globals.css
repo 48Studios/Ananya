@@ -258,6 +258,22 @@
     display: none !important;
   }
 
+  /*
+   * A dialog body is a scroll box: `flex-1 min-h-0` inside a dialog clamped by
+   * `max-h-[calc(100dvh-2rem)]`. Carrying that into print displaces the content
+   * outside the page box — with 20 labels queued the first one measured at
+   * -89.8 mm, i.e. above the page, so the sheet printed blank. Printing is a
+   * flow, not a scroll: release every clamp so the content takes its natural
+   * height and the engine can paginate it.
+   */
+  [data-slot="dialog-content"],
+  [data-slot="dialog-body"] {
+    max-height: none !important;
+    min-height: 0 !important;
+    flex: none !important;
+    overflow: visible !important;
+  }
+
   [data-slot="dialog-header"],
   [data-slot="dialog-footer"] {
     display: none !important;

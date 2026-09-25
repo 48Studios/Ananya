@@ -97,6 +97,10 @@ class AutonomousWebCollector(BaseCollector):
         verbose: bool = False,
         document_workers: int = 1,
         from_raw: bool = False,
+        category_aware: bool = False,
+        plan: Optional[Any] = None,
+        plan_version: Optional[str] = None,
+        budget: Optional[int] = None,
         **kwargs: Any,
     ) -> List[ProductRecord]:
         """
@@ -108,6 +112,51 @@ class AutonomousWebCollector(BaseCollector):
                 quiet=quiet,
                 verbose=verbose,
             )
+
+        initial_coverages: Optional[List[Any]] = None
+        if category_aware:
+            from ..coverage import (
+                generate_collection_plan,
+                calculate_category_coverage,
+                format_plan_table,
+            )
+            baseline_records: List[Dict[str, Any]] = []
+            baseline_path: Optional[Path] = None
+            if plan_version:
+                cand = Path(settings.training_data_dir) / plan_version / "unique_records.json"
+                if cand.exists():
+                    baseline_path = cand
+            if not baseline_path:
+                all_dirs = sorted(
+                    Path(settings.training_data_dir).glob("dataset-crawl-*"),
+                    key=lambda p: p.stat().st_mtime,
+                    reverse=True,
+                )
+                for d in all_dirs:
+                    cand = d / "unique_records.json"
+                    if cand.exists():
+                        baseline_path = cand
+                        break
+
+            if baseline_path and baseline_path.exists():
+                try:
+                    with open(baseline_path, "r", encoding="utf-8") as bf:
+                        bdata = json.load(bf)
+                    baseline_records = bdata if isinstance(bdata, list) else bdata.get("records", [])
+                except Exception as be:
+                    logger.debug(f"Failed to read baseline dataset {baseline_path}: {be}")
+
+            if plan is None:
+                plan = generate_collection_plan(
+                    records=baseline_records,
+                    total_budget=budget or 1000,
+                    dataset_version=plan_version or (baseline_path.parent.name if baseline_path else None),
+                    dataset_path=str(baseline_path) if baseline_path else None,
+                )
+
+            initial_coverages = calculate_category_coverage(baseline_records)
+            if not quiet:
+                print("\n" + format_plan_table(plan) + "\n")
 
         # Determine sources to run
         if source_id:
@@ -181,6 +230,7 @@ class AutonomousWebCollector(BaseCollector):
                     quiet=quiet,
                     verbose=verbose,
                     document_workers=document_workers,
+                    category_plan=plan if category_aware else None,
                 )
                 all_extracted_records.extend(source_records)
             except Exception as e:
@@ -206,6 +256,28 @@ class AutonomousWebCollector(BaseCollector):
         # Run existing pipeline: Clean -> Normalize -> Validate -> Dedupe -> Split -> Manifest
         if auto_process and not dry_run and all_extracted_records:
             self._run_downstream_pipeline(all_extracted_records, quiet=quiet, verbose=verbose)
+            if category_aware and initial_coverages and hasattr(self, "last_pipeline_report"):
+                snapshot_loc = self.last_pipeline_report.get("snapshot_location")
+                if snapshot_loc:
+                    new_unique_path = Path(snapshot_loc) / "unique_records.json"
+                    if new_unique_path.exists():
+                        try:
+                            from ..coverage import (
+                                calculate_category_coverage,
+                                format_coverage_comparison,
+                            )
+                            with open(new_unique_path, "r", encoding="utf-8") as uf:
+                                new_raw = json.load(uf)
+                            new_records = new_raw if isinstance(new_raw, list) else new_raw.get("records", [])
+                            final_coverages = calculate_category_coverage(new_records)
+                            comp_table = format_coverage_comparison(initial_coverages, final_coverages)
+                            self.last_pipeline_report["initial_coverage"] = [c.to_dict() for c in initial_coverages]
+                            self.last_pipeline_report["final_coverage"] = [c.to_dict() for c in final_coverages]
+                            self.last_pipeline_report["coverage_change_table"] = comp_table
+                            if not quiet:
+                                print("\n" + comp_table + "\n")
+                        except Exception as e:
+                            logger.debug(f"Failed to calculate final coverage: {e}")
 
         return all_extracted_records
 
@@ -586,6 +658,7 @@ class AutonomousWebCollector(BaseCollector):
         quiet: bool = False,
         verbose: bool = False,
         document_workers: int = 1,
+        category_plan: Optional[Any] = None,
     ) -> List[ProductRecord]:
         """Runs discovery and extraction for a single source."""
         if not quiet:
@@ -619,6 +692,7 @@ class AutonomousWebCollector(BaseCollector):
             client=client,
             resume=resume,
             progress=progress,
+            category_plan=category_plan,
         )
 
         # Print structured DISCOVERY REPORT

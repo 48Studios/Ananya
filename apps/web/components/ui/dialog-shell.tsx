@@ -153,6 +153,7 @@ export function DialogShellBody({
 }) {
   return (
     <div
+      data-slot="dialog-body"
       className={cn(
         className,
         "min-h-0 flex-1 px-6 py-5",

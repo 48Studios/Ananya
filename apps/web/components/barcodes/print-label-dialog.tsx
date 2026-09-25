@@ -25,6 +25,7 @@ import {
   LabelData,
   BarcodeFormat,
 } from "@/lib/api/barcodes-api";
+import { printLabelDocument } from "@/lib/print/print-document";
 
 const FORMAT_OPTIONS: Record<BarcodeFormat, string> = {
   CODE128: "Code 128 (High Density)",
@@ -64,6 +65,9 @@ export function PrintLabelDialog({
 
   const [template, setTemplate] = React.useState<LabelTemplate>(initialTemp);
   const [format, setFormat] = React.useState<BarcodeFormat>("CODE128");
+
+  /** Holds the rendered label face, which is what the print document clones. */
+  const labelSheetRef = React.useRef<HTMLDivElement | null>(null);
 
   // Fetch or refresh label payload whenever dialog opens
   React.useEffect(() => {
@@ -110,13 +114,15 @@ export function PrintLabelDialog({
     };
   }, [isOpen, entityType, entityId, defaultTemplate, initialLabel]);
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const dialogTitle =
     title ||
     `Print ${entityType === "LOCATION" ? "Location Tag" : "Component Label"}`;
+
+  const handlePrint = () => {
+    const face = labelSheetRef.current?.firstElementChild;
+    if (!(face instanceof HTMLElement)) return;
+    void printLabelDocument({ sources: [{ node: face }] });
+  };
 
   return (
     <DialogShell
@@ -212,7 +218,12 @@ export function PrintLabelDialog({
               <span>{error}</span>
             </div>
           ) : label ? (
-            <div className="flex justify-center print:justify-start w-full">
+            // The face printed is the face previewed: the print document is
+            // built from this element, so the two cannot drift apart.
+            <div
+              ref={labelSheetRef}
+              className="flex justify-center print:justify-start w-full"
+            >
               <LabelPreview
                 label={label}
                 template={template}

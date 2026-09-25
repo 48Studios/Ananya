@@ -200,16 +200,14 @@ def cmd_dataset_build(args: argparse.Namespace) -> None:
         print(f"Built task dataset with {len(examples):,} examples at {out_path}")
 
 
-DEFAULT_COVERAGE_TARGETS: Dict[str, int] = {
-    "Capacitors": 200,
-    "Relays": 150,
-    "Resistors": 200,
-    "Transistors": 150,
-    "Fasteners": 200,
-    "Passive Components": 200,
-    "ICs & Semiconductors": 500,
-    "Cables": 600,
-}
+from .coverage import (
+    DEFAULT_COVERAGE_TARGETS,
+    calculate_category_coverage,
+    generate_collection_plan,
+    format_plan_table,
+    CategoryQueryStrategy,
+    CollectionPlan,
+)
 
 
 def resolve_coverage_dataset_path(
@@ -233,34 +231,8 @@ def calculate_data_coverage(
     targets: Optional[Dict[str, int]] = None,
 ) -> List[Dict[str, Any]]:
     """Calculates category coverage and deficits for PRODUCT records with deduplication."""
-    if targets is None:
-        targets = DEFAULT_COVERAGE_TARGETS
-
-    category_counts: Dict[str, int] = {}
-    seen_keys: set = set()
-
-    for rec in records:
-        if not isinstance(rec, dict):
-            continue
-        # PRODUCT-only counting; exclude DOCUMENT and any non-PRODUCT entity
-        if rec.get("entity_type") != "PRODUCT":
-            continue
-        key = (rec.get("sku") or rec.get("mpn") or rec.get("name") or str(rec.get("id") or "")) + "|" + (rec.get("manufacturer") or "")
-        if key in seen_keys:
-            continue
-        seen_keys.add(key)
-        cat = rec.get("category", "Uncategorized")
-        category_counts[cat] = category_counts.get(cat, 0) + 1
-
-    report = []
-    for cat, target in targets.items():
-        current = category_counts.get(cat, 0)
-        deficit = max(0, target - current)
-        report.append({"category": cat, "current": current, "target": target, "deficit": deficit})
-
-    # Deterministic ordering: highest deficit first, ties broken alphabetically by category
-    report.sort(key=lambda x: (-x["deficit"], x["category"]))
-    return report
+    coverages = calculate_category_coverage(records, targets=targets)
+    return [c.to_dict() for c in coverages]
 
 
 def cmd_data_coverage(args: argparse.Namespace) -> List[Dict[str, Any]]:
@@ -320,6 +292,62 @@ def cmd_data_coverage(args: argparse.Namespace) -> List[Dict[str, Any]]:
         print(f"JSON report written to {out_path}")
 
     return report
+
+
+def cmd_data_plan(args: argparse.Namespace) -> CollectionPlan:
+    """Report category coverage and generate prioritized collection plan."""
+    version = getattr(args, "version", None)
+    path = getattr(args, "path", None)
+
+    try:
+        dataset_path = resolve_coverage_dataset_path(version=version, path=path)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+    if not dataset_path.exists():
+        print(f"Error: unique_records.json not found at {dataset_path}")
+        sys.exit(1)
+
+    # Load records
+    with open(dataset_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    records = data if isinstance(data, list) else data.get("records", data.get("dataset", []))
+
+    # Optional custom targets
+    targets = dict(DEFAULT_COVERAGE_TARGETS)
+    if getattr(args, "targets", None):
+        if isinstance(args.targets, dict):
+            custom_targets = args.targets
+        else:
+            with open(args.targets, "r", encoding="utf-8") as tf:
+                custom_targets = json.load(tf)
+        targets.update(custom_targets)
+
+    budget = getattr(args, "budget", 1000) or 1000
+    config_path = getattr(args, "config", None) or str(Path(settings.base_dir) / "config" / "sources.yaml")
+    query_strategy = CategoryQueryStrategy(config_path=config_path)
+
+    plan = generate_collection_plan(
+        records=records,
+        targets=targets,
+        total_budget=budget,
+        dataset_version=version,
+        dataset_path=str(dataset_path),
+        query_strategy=query_strategy,
+    )
+
+    print(format_plan_table(plan))
+
+    if getattr(args, "output_json", None):
+        out_path = Path(args.output_json)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as jf:
+            json.dump(plan.to_dict(), jf, indent=2)
+        print(f"\nCollection plan JSON written to {out_path}")
+
+    return plan
 
 
 def cmd_dataset_split(args: argparse.Namespace) -> None:
@@ -484,6 +512,9 @@ def cmd_collect(args: argparse.Namespace) -> None:
             quiet=getattr(args, "quiet", False),
             verbose=getattr(args, "verbose", False),
             document_workers=document_workers,
+            category_aware=getattr(args, "category_aware", False),
+            plan_version=getattr(args, "plan_version", None),
+            budget=getattr(args, "budget", None),
         )
         return records
 
@@ -571,6 +602,9 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--continuous", action="store_true", help="Run continuous periodic collection loop")
         p.add_argument("--interval", type=int, default=3600, help="Continuous collection cycle interval in seconds (default: 3600)")
         p.add_argument("--config", help="Path to custom sources.yaml configuration")
+        p.add_argument("--category-aware", action="store_true", default=False, help="Enable category-aware collection prioritizing deficit categories")
+        p.add_argument("--plan-version", help="Baseline dataset version to compute coverage deficits from (defaults to latest)")
+        p.add_argument("--budget", type=int, default=1000, help="Total collection budget across categories (default: 1000)")
         add_common_flags(p)
         p.set_defaults(func=cmd_collect)
 
@@ -625,6 +659,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_coverage.add_argument("--output-json", help="Path to write machine‑readable JSON report")
     add_common_flags(p_coverage)
     p_coverage.set_defaults(func=cmd_data_coverage)
+
+    # data plan
+    p_plan = subparsers.add_parser("data-plan", help="Generate category-aware collection plan based on deficits")
+    plan_version_group = p_plan.add_mutually_exclusive_group(required=False)
+    plan_version_group.add_argument("--version", help="Dataset version name (e.g., dataset-crawl-1790258177)")
+    plan_version_group.add_argument("--path", help="Path to unique_records.json file or its containing directory")
+    p_plan.add_argument("--budget", type=int, default=1000, help="Total collection budget (default: 1000)")
+    p_plan.add_argument("--targets", help="JSON file mapping category -> target count")
+    p_plan.add_argument("--output-json", help="Path to write machine-readable JSON plan")
+    p_plan.add_argument("--config", help="Path to custom sources.yaml configuration")
+    add_common_flags(p_plan)
+    p_plan.set_defaults(func=cmd_data_plan)
 
     # dataset build
     p_build = subparsers.add_parser("dataset-build", help="Build task dataset (e.g. classification)")

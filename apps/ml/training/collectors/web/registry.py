@@ -166,6 +166,7 @@ class SourceRegistry(BaseModel):
     """Registry holding all configured collection sources."""
 
     sources: List[SourceConfig] = Field(default_factory=list)
+    category_queries: Dict[str, List[str]] = Field(default_factory=dict)
 
     @classmethod
     def from_yaml(cls, path: str) -> "SourceRegistry":

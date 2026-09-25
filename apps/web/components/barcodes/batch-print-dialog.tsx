@@ -18,9 +18,9 @@ import {
   DialogShellFooter,
 } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { settingsApi } from "@/lib/api/settings-api";
 import { clampLabelCopies, totalLabelCount } from "@/lib/bulk-actions";
+import { printLabelDocument } from "@/lib/print/print-document";
 import { LabelPreview } from "./label-preview";
 import { LabelTemplate, TEMPLATE_OPTIONS, isQrOnlyTemplate } from "./templates";
 import {
@@ -62,6 +62,12 @@ export function BatchPrintDialog({
   // the queue is stated as "X labels × N copies" before anything is sent to the
   // printer instead of silently repeating the sheet.
   const [copies, setCopies] = React.useState(1);
+
+  /**
+   * Holds the rendered label faces, one per label. The print document is built
+   * from these elements, so the sheet is exactly the queue that was reviewed.
+   */
+  const labelSheetRef = React.useRef<HTMLDivElement | null>(null);
 
   // Resolved once here and handed to every face: a face would otherwise fetch
   // the organisation profile per instance, and the print block can hold
@@ -112,6 +118,20 @@ export function BatchPrintDialog({
   React.useEffect(() => {
     fetchBatchLabels();
   }, [fetchBatchLabels]);
+
+  const handlePrint = () => {
+    const faces = Array.from(labelSheetRef.current?.children ?? []).filter(
+      (child): child is HTMLElement => child instanceof HTMLElement,
+    );
+    if (faces.length === 0) return;
+
+    // Copies are a sheet concern, not a preview concern: the on-screen queue
+    // stays one face per label while the print sheet repeats each face, so the
+    // two can never disagree about what was reviewed.
+    void printLabelDocument({
+      sources: faces.map((node) => ({ node, copies })),
+    });
+  };
 
   return (
     <DialogShell
@@ -214,43 +234,21 @@ export function BatchPrintDialog({
               <span>{error}</span>
             </div>
           ) : (
-            <>
-              {/* Screen preview: one face per label, so the reviewer checks the
-                  DESIGN here. The repeated queue lives in the print block
-                  below, which is what the printer actually emits. */}
-              <div
-                className={cn(
-                  "flex flex-wrap gap-4 justify-center print:gap-4 print:justify-start",
-                  copies > 1 && "print:hidden",
-                )}
-              >
-                {labels.map((lbl) => (
-                  <LabelPreview
-                    key={lbl.id}
-                    label={lbl}
-                    template={template}
-                    format={format}
-                    organizationName={organizationName}
-                  />
-                ))}
-              </div>
-
-              {copies > 1 && (
-                <div className="hidden print:flex print:flex-wrap print:gap-4 print:justify-start">
-                  {labels.flatMap((lbl) =>
-                    Array.from({ length: copies }, (_, copyIndex) => (
-                      <LabelPreview
-                        key={`${lbl.id}-copy-${copyIndex}`}
-                        label={lbl}
-                        template={template}
-                        format={format}
-                        organizationName={organizationName}
-                      />
-                    )),
-                  )}
-                </div>
-              )}
-            </>
+            // Screen queue: one face per label. The printed sheet adds copies.
+            <div
+              ref={labelSheetRef}
+              className="flex flex-wrap gap-4 justify-center"
+            >
+              {labels.map((lbl) => (
+                <LabelPreview
+                  key={lbl.id}
+                  label={lbl}
+                  template={template}
+                  format={format}
+                  organizationName={organizationName}
+                />
+              ))}
+            </div>
           )}
         </div>
       </DialogShellBody>
@@ -265,7 +263,7 @@ export function BatchPrintDialog({
         <Button
           size="sm"
           disabled={loading || labels.length === 0}
-          onClick={() => window.print()}
+          onClick={handlePrint}
         >
           <Printer className="mr-1.5 size-4" />
           Print Labels

@@ -28,8 +28,6 @@ const TEMPLATES_DIR = "components/barcodes/templates";
 const REGISTRY = `${TEMPLATES_DIR}/registry.ts`;
 const BARREL = `${TEMPLATES_DIR}/index.ts`;
 const DISPATCHER = "components/barcodes/label-preview.tsx";
-const QR_11MM_TEMPLATE = `${TEMPLATES_DIR}/qr-code-11mm-label.tsx`;
-
 
 /** Every template, with the file that renders it and its dispatcher branch. */
 const TEMPLATES = [
@@ -169,18 +167,19 @@ describe("label template folder", () => {
     expect(exists(`${TEMPLATES_DIR}/qr-only-label.tsx`)).toBe(false);
   });
 
-  it("no longer ships the SMD box lid template", () => {
+  it("no longer ships an SMD box template", () => {
     const sources = [
       read(REGISTRY),
       read(BARREL),
       read(DISPATCHER),
-      read(QR_11MM_TEMPLATE),
     ].join("\n");
 
-    // Removed on request; the API fields it read (mpn/packageName/description)
-    // went with it, so a re-introduction has to declare them again.
+    // Removed on request. An earlier SMD face also read API fields the barcode
+    // API never returned (mpn / packageName / description), so a re-introduction
+    // has to declare those fields again before it can render.
     expect(sources).not.toContain("SMD_BOX");
-    expect(sources).not.toContain("SmdBoxLidLabel");
+    expect(sources).not.toContain("SmdBox");
+    expect(exists(`${TEMPLATES_DIR}/smd-box-label.tsx`)).toBe(false);
     expect(exists(`${TEMPLATES_DIR}/smd-box-lid-label.tsx`)).toBe(false);
     expect(read("lib/api/barcodes-api.ts")).not.toContain("packageName");
   });

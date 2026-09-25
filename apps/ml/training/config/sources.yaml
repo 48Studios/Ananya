@@ -901,3 +901,48 @@ sources:
     max_pages: 250
     max_files: 80
     default_domain: consumables
+
+# ==============================================================================
+# Category-Specific Query Templates for Autonomous Discovery
+# ==============================================================================
+category_queries:
+  Cables:
+    - "{category} manufacturer product"
+    - "electronic cable manufacturer product"
+    - "USB cable manufacturer product"
+    - "ribbon cable manufacturer"
+  ICs & Semiconductors:
+    - "{category} manufacturer product"
+    - "IC semiconductor manufacturer product"
+    - "microcontroller manufacturer product"
+    - "integrated circuit datasheet"
+  Resistors:
+    - "{category} manufacturer product"
+    - "SMD resistor manufacturer"
+    - "through hole resistor manufacturer"
+    - "SMD resistor 0805 manufacturer"
+  Capacitors:
+    - "{category} manufacturer product"
+    - "ceramic capacitor manufacturer"
+    - "electrolytic capacitor manufacturer"
+    - "tantalum capacitor manufacturer"
+  Passive Components:
+    - "{category} manufacturer product"
+    - "passive electronic components manufacturer"
+    - "inductor ferrite manufacturer"
+  Fasteners:
+    - "{category} manufacturer product"
+    - "metric machine screws manufacturer"
+    - "hex standoff hardware manufacturer"
+    - "nylon lock nut fastener"
+  Transistors:
+    - "{category} manufacturer product"
+    - "MOSFET transistor manufacturer"
+    - "bipolar junction transistor product"
+    - "power transistor datasheet"
+  Relays:
+    - "{category} manufacturer product"
+    - "electromechanical relay manufacturer"
+    - "solid state relay manufacturer"
+    - "DIN rail relay product"
+

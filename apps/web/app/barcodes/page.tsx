@@ -42,6 +42,7 @@ import {
 } from "@/lib/api/barcodes-api";
 import { componentsApi, ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, LocationDto } from "@/lib/api/locations-api";
+import { printLabelDocument } from "@/lib/print/print-document";
 
 const FORMAT_OPTIONS: Record<BarcodeFormat, string> = {
   CODE128: "Code 128 (High Density)",
@@ -196,6 +197,19 @@ export default function BarcodesHubPage() {
       isMounted = false;
     };
   }, [studioMode, selectedEntityType, selectedEntityId, locations, components]);
+
+  /**
+   * Print the single previewed face on its own sheet.
+   *
+   * `labelBoxRef` holds the scaled preview, so the FACE is cloned rather than
+   * the scaler: the magnifier is an on-screen aid and must never reach the
+   * printer. The clone is untransformed, so it prints at its natural size.
+   */
+  const handlePrintLabel = () => {
+    const face = labelBoxRef.current?.firstElementChild;
+    if (!(face instanceof HTMLElement)) return;
+    void printLabelDocument({ sources: [{ node: face }] });
+  };
 
   // Handle switching entity type
   const handleEntityTypeChange = (type: EntityType) => {
@@ -676,7 +690,7 @@ export default function BarcodesHubPage() {
             </span>
             <Button
               size="sm"
-              onClick={() => window.print()}
+              onClick={handlePrintLabel}
               disabled={labelLoading || !previewLabel}
             >
               <Printer className="w-3.5 h-3.5 mr-1.5" />

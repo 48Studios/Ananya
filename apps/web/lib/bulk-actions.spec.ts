@@ -279,8 +279,27 @@ describe("data table wiring", () => {
     // A fixed 920px bar left a wide dead gap before the close button. `w-max`
     // is required rather than `w-fit`: with a wrapping flex child, fit-content
     // resolves to the widest ITEM, so the bar collapsed and wrapped early.
-    expect(toolbarSource).toMatch(/w-max max-w-\[min\(100vw-2rem,60rem\)\]/);
+    expect(toolbarSource).toMatch(/w-max max-w-\[min\(100%,60rem\)\]/);
     expect(toolbarSource).not.toMatch(/w-\[min\(920px/);
+  });
+
+  it("centres on the content area, not the viewport", () => {
+    // `fixed` stays for the vertical pinning — a `sticky` bar only pinned while
+    // below the fold (measured: bottom 900 -> 375 after scrolling 600px) — but
+    // `fixed` alone centres on the VIEWPORT, which put the bar left of the
+    // content it acts on. The layout publishes the content offset; `md:` scopes
+    // it to the breakpoint where the rail and sidebar are actually shown.
+    expect(toolbarSource).toMatch(
+      /pointer-events-none fixed inset-x-0 bottom-6 z-30 flex justify-center md:pl-\(--content-area-left\)/,
+    );
+    expect(toolbarSource).not.toContain("-translate-x-1/2");
+  });
+
+  it("lets clicks through the fixed bar's empty width", () => {
+    // The wrapper spans the viewport, so it must not swallow clicks meant for
+    // the rows behind it.
+    expect(toolbarSource).toMatch(/pointer-events-none fixed/);
+    expect(toolbarSource).toMatch(/pointer-events-auto w-max/);
   });
 
   it("gives every action the same width", () => {
@@ -318,11 +337,13 @@ describe("data table wiring", () => {
     expect(batchDialogSource).toContain("Copies per Label");
     expect(batchDialogSource).toContain("clampLabelCopies(");
     expect(batchDialogSource).toContain("totalLabelCount(labels.length, copies)");
-    expect(batchDialogSource).toContain(
-      '"hidden print:flex print:flex-wrap print:gap-4 print:justify-start"',
+    // Copies are applied by the print document, not by rendering a second,
+    // print-only copy of the queue into the live DOM. The old hidden block was
+    // a workaround for printing the live DOM, which no longer happens.
+    expect(batchDialogSource).not.toContain("hidden print:flex");
+    expect(batchDialogSource).toMatch(
+      /sources: faces\.map\(\(node\) => \(\{ node, copies \}\)\)/,
     );
-    // The screen list must not print alongside the repeated queue.
-    expect(batchDialogSource).toMatch(/copies > 1 && "print:hidden"/);
     // One organisation lookup feeds every face, however many copies there are.
     expect(batchDialogSource).toContain("organizationName={organizationName}");
   });
