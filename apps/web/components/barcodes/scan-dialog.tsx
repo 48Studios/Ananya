@@ -12,6 +12,7 @@ import {
   Plus,
   Upload,
   Play,
+  QrCode,
 } from "lucide-react";
 import jsQR from "jsqr";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,32 @@ declare global {
     };
   }
 }
+
+/**
+ * The bars of the reticle's barcode skeleton: `[x, width]` pairs in the strip's
+ * own 96-unit viewBox, drawn in `currentColor` so the guide takes the studio's
+ * primary colour. Drawn rather than taken from the icon set because the
+ * `Barcode` glyph is five evenly spaced bars, which reads as ruled lines at this
+ * size — a barcode silhouette needs uneven bar widths.
+ */
+const RETICLE_BARCODE_BARS: ReadonlyArray<readonly [number, number]> = [
+  [0, 3],
+  [6, 2],
+  [11, 5],
+  [19, 2],
+  [24, 4],
+  [31, 3],
+  [37, 2],
+  [42, 5],
+  [50, 2],
+  [55, 4],
+  [62, 3],
+  [68, 2],
+  [73, 5],
+  [81, 3],
+  [87, 2],
+  [92, 4],
+];
 
 export interface ScanDialogProps {
   isOpen: boolean;
@@ -468,7 +495,7 @@ export function ScanDialog({
         }}
         title={title}
         description={description}
-        size="md"
+        size="sm"
       >
         <DialogShellBody className="space-y-4">
           {/* Controls Bar */}
@@ -504,7 +531,21 @@ export function ScanDialog({
           </div>
 
           {/* Camera Viewport (Always rendered in DOM, toggled via style) */}
-          <div className="relative rounded-xl overflow-hidden border border-border bg-black aspect-video flex items-center justify-center">
+          {/*
+            Square, because that is the region the scanner actually decodes: the
+            reading loop crops to a centred square of `min(width, height) * 0.75`
+            before jsQR looks at it, and the video element already crops the 16:9
+            feed to its centre with `object-cover`. A 16:9 preview therefore
+            showed the operator a wide view the decoder never reads, and put the
+            part that matters in the middle of it.
+
+            The side is `min(100%, 28rem, 55vh)` rather than a plain `max-w`:
+            this is a square, so it has to be capped by the SCREEN as well as by
+            the dialog, or on a short window it would be tall enough to push the
+            manual input and the buttons below the fold. `min()` keeps it square
+            at every size instead of letting a max-height flatten it.
+          */}
+          <div className="relative mx-auto w-[min(100%,28rem,55vh)] aspect-square flex items-center justify-center rounded-xl overflow-hidden border border-border bg-black">
             <video
               ref={videoRef}
               autoPlay
@@ -531,12 +572,51 @@ export function ScanDialog({
             {isCameraActive && (
               <>
                 {/* Target Alignment Reticle */}
+                {/*
+                  The guide names what the scanner reads instead of only framing
+                  empty space: a QR skeleton beside a barcode skeleton, so it is
+                  obvious that either form fits here. Both are drawn empty — a
+                  slot to aim at, not a code — and stay ghosted so the live feed
+                  reads through them. QR and barcode share one row so the sweep
+                  line crosses both, and the caption sits on the frame's bottom
+                  edge, clear of them at any size.
+
+                  The frame is 75% of the preview and square, which is not a
+                  stylistic choice: it is the exact centre crop the reading loop
+                  decodes first, so aim inside it and the code is where the
+                  scanner is already looking.
+                */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-56 h-44 border-2 border-primary/90 rounded-xl relative flex items-center justify-center shadow-lg">
-                    <div className="w-full h-0.5 bg-primary animate-pulse absolute top-1/2 -translate-y-1/2" />
-                    <span className="text-[10px] font-mono text-primary bg-background/80 px-2.5 py-0.5 rounded shadow-xs font-semibold">
+                  <div className="w-3/4 aspect-square relative">
+                    {/* Open corners, squared off like a QR's finder patterns. */}
+                    <span className="absolute top-0 left-0 size-7 rounded-tl-lg border-t-2 border-l-2 border-primary/90" />
+                    <span className="absolute top-0 right-0 size-7 rounded-tr-lg border-t-2 border-r-2 border-primary/90" />
+                    <span className="absolute bottom-0 left-0 size-7 rounded-bl-lg border-b-2 border-l-2 border-primary/90" />
+                    <span className="absolute bottom-0 right-0 size-7 rounded-br-lg border-b-2 border-r-2 border-primary/90" />
+
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex items-center gap-4">
+                        <QrCode
+                          className="size-14 shrink-0 text-primary/45"
+                          strokeWidth={1.5}
+                        />
+                        <svg
+                          viewBox="0 0 96 28"
+                          fill="currentColor"
+                          className="h-7 w-24 shrink-0 text-primary/45"
+                        >
+                          {RETICLE_BARCODE_BARS.map(([x, width]) => (
+                            <rect key={x} x={x} width={width} height={28} />
+                          ))}
+                        </svg>
+                      </div>
+                    </div>
+
+                    <span className="absolute inset-x-0 bottom-[-8px] mx-auto w-fit whitespace-nowrap text-[10px] font-mono text-primary bg-background/80 px-2.5 py-0.5 rounded shadow-xs font-semibold">
                       Hold QR / Barcode Here
                     </span>
+
+                    <div className="w-full h-0.5 bg-primary animate-pulse absolute top-1/2 -translate-y-1/2" />
                   </div>
                 </div>
 
