@@ -1,3 +1,5 @@
+import { sessionExpiredUrl } from "./post-login-destination";
+
 export class ApiError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -106,7 +108,9 @@ async function throwApiError(
       typeof window !== "undefined" &&
       !window.location.pathname.startsWith("/login")
     ) {
-      window.location.href = "/login?expired=true";
+      // Carry the surface that was interrupted so signing in returns to it —
+      // the scanner app must not drop the operator on the ERP dashboard.
+      window.location.href = sessionExpiredUrl(window.location.pathname);
     }
   }
 

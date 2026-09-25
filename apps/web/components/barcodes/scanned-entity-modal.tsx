@@ -13,6 +13,7 @@ import {
   FileText,
   Briefcase,
   Search,
+  ScanLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +29,16 @@ export interface ScannedEntityModalProps {
   onClose: () => void;
   result: BarcodeLookupResult | null;
   onScanAnother?: () => void;
+  /**
+   * Whether the modal may take the operator off the surface it was opened from.
+   *
+   * The standalone scanner app (`/scan`) sets this to `false`: it runs as its
+   * own installable surface, so "Open Full Page" would leave the scanner and
+   * turn a scan into a page visit. In that mode the footer collapses to a
+   * single action that returns to the camera. Every other caller keeps the
+   * default, so the ERP's own behaviour is unchanged.
+   */
+  allowNavigation?: boolean;
 }
 
 interface ContainingComponentItem {
@@ -43,6 +54,7 @@ export function ScannedEntityModal({
   onClose,
   result,
   onScanAnother,
+  allowNavigation = true,
 }: ScannedEntityModalProps) {
   const router = useRouter();
   const [isPrintModalOpen, setIsPrintModalOpen] = React.useState(false);
@@ -57,6 +69,9 @@ export function ScannedEntityModal({
   if (!result) return null;
 
   const handleNavigate = () => {
+    // Belt and braces: the scanner surface has no navigation to fall back on,
+    // so the guard lives here as well as on the buttons that call it.
+    if (!allowNavigation) return;
     onClose();
     if (result.targetUrl) {
       router.push(result.targetUrl);
@@ -159,10 +174,12 @@ export function ScannedEntityModal({
                 <Printer className="size-3.5 mr-1.5" />
                 Print Label
               </Button>
-              <Button size="sm" onClick={handleNavigate}>
-                <ExternalLink className="size-3.5 mr-1.5" />
-                Open Full Page
-              </Button>
+              {allowNavigation ? (
+                <Button size="sm" onClick={handleNavigate}>
+                  <ExternalLink className="size-3.5 mr-1.5" />
+                  Open Full Page
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -237,18 +254,20 @@ export function ScannedEntityModal({
                                   <Printer className="size-3" />
                                   <span className="sr-only">Print</span>
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="xs"
-                                  onClick={() => {
-                                    onClose();
-                                    router.push(`/components/${comp.componentId}`);
-                                  }}
-                                  title="View component details"
-                                >
-                                  <ExternalLink className="size-3" />
-                                  <span className="sr-only">View</span>
-                                </Button>
+                                {allowNavigation ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="xs"
+                                    onClick={() => {
+                                      onClose();
+                                      router.push(`/components/${comp.componentId}`);
+                                    }}
+                                    title="View component details"
+                                  >
+                                    <ExternalLink className="size-3" />
+                                    <span className="sr-only">View</span>
+                                  </Button>
+                                ) : null}
                               </div>
                             </td>
                           </tr>
@@ -337,40 +356,49 @@ export function ScannedEntityModal({
           )}
         </DialogShellBody>
 
-        <DialogShellFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
-          {onScanAnother ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleScanAnother}
-              className="w-full sm:w-auto"
-            >
-              <RotateCcw className="size-3.5 mr-1.5" />
-              Scan Another
-            </Button>
-          ) : (
-            <div />
-          )}
+        {allowNavigation ? (
+          <DialogShellFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
+            {onScanAnother ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleScanAnother}
+                className="w-full sm:w-auto"
+              >
+                <RotateCcw className="size-3.5 mr-1.5" />
+                Scan Another
+              </Button>
+            ) : (
+              <div />
+            )}
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              className="w-full sm:w-auto"
-            >
-              Close
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onClose}
+                className="w-full sm:w-auto"
+              >
+                Close
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleNavigate}
+                className="w-full sm:w-auto"
+              >
+                Open Full Page
+                <ExternalLink className="size-3.5 ml-1.5" />
+              </Button>
+            </div>
+          </DialogShellFooter>
+        ) : (
+          <DialogShellFooter>
+            <Button size="sm" className="w-full" onClick={handleScanAnother}>
+              <ScanLine className="size-3.5 mr-1.5" />
+              Scan Next
             </Button>
-            <Button
-              size="sm"
-              onClick={handleNavigate}
-              className="w-full sm:w-auto"
-            >
-              Open Full Page
-              <ExternalLink className="size-3.5 ml-1.5" />
-            </Button>
-          </div>
-        </DialogShellFooter>
+          </DialogShellFooter>
+        )}
       </DialogShell>
 
       {/* Main Print Label Dialog for this entity */}

@@ -9,12 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { postLoginDestination } from "@/lib/post-login-destination";
 
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
   const isExpired = searchParams?.get("expired") === "true";
+  // The middleware records the blocked route, and the session-expiry redirect
+  // records where the operator was; both are honoured so the scanner app comes
+  // back to the scanner rather than to the ERP dashboard.
+  const destination = postLoginDestination(searchParams?.get("from"));
 
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -31,7 +36,7 @@ function LoginFormContent() {
     setError(null);
     try {
       await login(email, password);
-      router.push("/dashboard");
+      router.push(destination);
     } catch {
       setError("Invalid credentials or account deactivated.");
     } finally {

@@ -13,6 +13,7 @@ import {
   clearStoredAuthToken,
   broadcastAuthEvent,
 } from "../api-client";
+import { sessionExpiredUrl } from "../post-login-destination";
 
 interface AuthContextType {
   user: UserProfileDto | null;
@@ -103,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             typeof window !== "undefined" &&
             !window.location.pathname.startsWith("/login")
           ) {
-            window.location.href = "/login?expired=true";
+            window.location.href = sessionExpiredUrl(window.location.pathname);
           }
         }
       };
@@ -119,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           typeof window !== "undefined" &&
           !window.location.pathname.startsWith("/login")
         ) {
-          window.location.href = "/login?expired=true";
+          window.location.href = sessionExpiredUrl(window.location.pathname);
         }
       }
     };

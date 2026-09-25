@@ -1,8 +1,9 @@
 {
   "name": "@ananya/web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",

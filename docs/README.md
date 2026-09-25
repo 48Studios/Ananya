@@ -19,6 +19,8 @@ How the running system behaves in production, and what an operator controls.
 
 - [ML Operations](ML_OPERATIONS.md) — training, evaluation, deployment and rollback
   of the category model, and the ML & Intelligence control plane.
+- [Scanner App](SCANNER_APP.md) — the installable `/scan` surface: iPhone
+  install, HTTPS/camera requirements, and the scan lifecycle.
 - [Authentication](AUTHENTICATION.md)
 - [Data Lifecycle](DATA_LIFECYCLE.md)
 - [Information Architecture](INFORMATION_ARCHITECTURE.md)

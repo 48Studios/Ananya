@@ -21,6 +21,21 @@ const PUBLIC_ROUTES = [
   "/setup",
 ];
 
+/**
+ * Routes that are an application in their own right.
+ *
+ * `/scan` is the installable scanner: it is opened from an iPhone Home Screen
+ * and must be nothing but a camera. Rendering the navigation rail, the sidebar,
+ * the header or the footer around it would turn the installed app back into a
+ * web page — and its own chrome already fills the viewport, so anything the
+ * shell rendered would sit behind a camera feed.
+ *
+ * This only removes the shell; authentication is untouched (the middleware and
+ * `AuthProvider` still own the session, so the scanner cannot be reached
+ * without one).
+ */
+const STANDALONE_ROUTES = ["/scan"];
+
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, loading } = useAuth();
@@ -28,9 +43,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const isPublicRoute = PUBLIC_ROUTES.some((route) =>
     pathname?.startsWith(route),
   );
+  const isStandaloneRoute = STANDALONE_ROUTES.some((route) =>
+    pathname?.startsWith(route),
+  );
 
-  // Completely isolate public pages or unauthenticated state from the authenticated ERP shell
-  if (isPublicRoute || !user || loading) {
+  // Completely isolate public pages, standalone surfaces, or unauthenticated
+  // state from the authenticated ERP shell
+  if (isPublicRoute || isStandaloneRoute || !user || loading) {
     return (
       <main className="min-h-screen w-full bg-background text-foreground">
         {children}
