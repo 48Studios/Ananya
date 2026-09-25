@@ -19,6 +19,7 @@ import {
 } from "@/lib/api/import-export-api";
 import type { EntityType } from "@/lib/api/barcodes-api";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   BULK_ACTION_LABELS,
   BULK_ACTION_LOADING_NOTE,
@@ -37,6 +38,13 @@ const ACTION_ICONS: Partial<
   UPDATE_STATUS: CheckCircle,
   DELETE: Trash2,
 };
+
+/**
+ * One width for every action button. The labels differ in length by more than
+ * half ("Delete" vs "Print Labels"), and letting each size itself made the row
+ * read as a ragged line; a shared minimum turns it into a set of equal cells.
+ */
+const ACTION_BUTTON_CLASS = "min-w-[7rem]";
 
 export interface BulkActionToolbarProps {
   /** Import/export entity type of the table, when the page declares one. */
@@ -189,7 +197,7 @@ export function BulkActionToolbar({
     }
 
     return (
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-wrap items-center gap-2">
         {actions.map((action) => {
           const Icon = ACTION_ICONS[action];
           return (
@@ -199,12 +207,12 @@ export function BulkActionToolbar({
               size="sm"
               onClick={() => handleBulkExecute(action)}
               disabled={loading}
-              className="h-8 text-xs"
+              className={ACTION_BUTTON_CLASS}
             >
               {loading && activeAction === action ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                <Loader2 className="size-3.5 animate-spin" />
               ) : Icon ? (
-                <Icon className="w-3.5 h-3.5 mr-1" />
+                <Icon className="size-3.5" />
               ) : null}
               {BULK_ACTION_LABELS[action]}
             </Button>
@@ -217,95 +225,146 @@ export function BulkActionToolbar({
             size="sm"
             onClick={onPrintLabels}
             disabled={loading}
-            className="h-8 text-xs"
+            className={ACTION_BUTTON_CLASS}
           >
-            <Printer className="w-3.5 h-3.5 mr-1" />
+            <Printer className="size-3.5" />
             Print Labels
           </Button>
-        )}
-
-        {displayLabel && (
-          <span className="text-muted-foreground">
-            {displayLabel} records
-          </span>
         )}
       </div>
     );
   };
 
+  /**
+   * The close control clears the selection and dismisses an outcome. Its label
+   * says which, and names the records it is about — that is the only place the
+   * entity type appears now that the trailing "… records" text is gone.
+   */
+  const selectionNoun = displayLabel
+    ? `${displayLabel} record${selectedIds.length === 1 ? "" : "s"}`
+    : "records";
+  const dismissLabel = result
+    ? selectedIds.length > 0
+      ? "Dismiss results and clear selection"
+      : "Dismiss results"
+    : `Deselect all ${selectionNoun}`;
+
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[min(920px,calc(100vw-2rem))] bg-card border border-border shadow-2xl rounded-xl px-4 py-2.5 text-xs animate-in slide-in-from-bottom-5 duration-200 print:hidden">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 pr-3 border-r border-border font-semibold text-foreground shrink-0">
-          <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px]">
-            {selectedIds.length}
-          </span>
-          <span>Selected</span>
+    // `w-max` (not `w-fit`): with a wrapping flex child, `fit-content` resolves
+    // the inner container to its WIDEST ITEM rather than the sum of its items,
+    // so the bar collapsed to ~470px and the buttons wrapped at a viewport with
+    // room to spare. `max-content` measures the single-line row, then `max-w`
+    // clamps it on a narrow viewport, where the buttons wrap inside it.
+    <div className="fixed bottom-6 left-1/2 z-40 w-max max-w-[min(100vw-2rem,60rem)] -translate-x-1/2 rounded-xl border border-border bg-card text-xs shadow-2xl animate-in slide-in-from-bottom-5 duration-200 print:hidden">
+      {/*
+        Row 1 — identity, actions, dismiss. Widths are assigned per block rather
+        than by content: the count and the dismiss control are fixed, the actions
+        take what is left and wrap inside it. The bar hugs its own content, so
+        there is no gap between the last action and the close button.
+      */}
+      <div className="flex items-center gap-3 px-3 py-2">
+        {selectedIds.length > 0 && (
+          <div className="flex shrink-0 items-center gap-2 font-semibold text-foreground">
+            <span className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-[10px] tabular-nums text-primary">
+              {selectedIds.length}
+            </span>
+            <span>Selected</span>
+          </div>
+        )}
+
+        {selectedIds.length > 0 && (
+          <div className="flex min-w-0 flex-wrap items-center gap-2 border-l border-border pl-3">
+            {renderActionControls()}
+          </div>
+        )}
+
+        <div className="flex shrink-0 items-center border-l border-border pl-2">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleDismiss}
+            aria-label={dismissLabel}
+            title={dismissLabel}
+          >
+            <X className="size-4" />
+          </Button>
         </div>
-
-        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-          {error && (
-            <span className="text-destructive font-medium">{error}</span>
-          )}
-
-          {result && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-foreground">
-                {BULK_ACTION_LABELS[result.action]} ·{" "}
-                {summarizeBulkActionResult(result)}
-              </span>
-              {detailRows.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowDetails((open) => !open)}
-                  className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
-                >
-                  {showDetails ? (
-                    <ChevronUp className="w-3.5 h-3.5" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  )}
-                  Details
-                </button>
-              )}
-            </div>
-          )}
-
-          {renderActionControls()}
-        </div>
-
-        <button
-          type="button"
-          onClick={handleDismiss}
-          className="p-1 text-muted-foreground hover:text-foreground rounded shrink-0"
-          title={result ? "Dismiss results" : "Deselect all"}
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
 
-      {showDetails && detailRows.length > 0 && (
-        <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-border bg-muted/30 divide-y divide-border">
-          {detailRows.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-start justify-between gap-3 px-3 py-2"
-            >
-              <span className="font-medium text-foreground truncate">
-                {rowLabels?.[item.id] ?? item.id}
-              </span>
-              <span
-                className={
-                  item.outcome === "FAILED"
-                    ? "text-destructive text-right"
-                    : "text-muted-foreground text-right"
-                }
-              >
-                {item.outcome === "FAILED" ? "Failed" : "Skipped"}
-                {item.reason ? ` — ${item.reason}` : ""}
-              </span>
-            </div>
-          ))}
+      {/*
+        Row 2 — the outcome owns a full row. Inline, a long summary or a long
+        refusal reason stretched the action row and pushed the buttons around.
+      */}
+      {(error || result) && (
+        <div className="space-y-2 border-t border-border px-3 py-2">
+          {error ? (
+            <span className="font-medium text-destructive">{error}</span>
+          ) : result ? (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="shrink-0 rounded-md border border-border bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                    {BULK_ACTION_LABELS[result.action]}
+                  </span>
+                  <span className="min-w-0 text-foreground">
+                    {summarizeBulkActionResult(result)}
+                  </span>
+                </div>
+                {detailRows.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDetails((open) => !open)}
+                    aria-expanded={showDetails}
+                    className="inline-flex shrink-0 items-center gap-1 text-muted-foreground hover:text-foreground"
+                  >
+                    {showDetails ? (
+                      <ChevronUp className="size-3.5" />
+                    ) : (
+                      <ChevronDown className="size-3.5" />
+                    )}
+                    Details ({detailRows.length})
+                  </button>
+                )}
+              </div>
+
+              {showDetails && detailRows.length > 0 && (
+                <div className="max-h-40 divide-y divide-border overflow-y-auto rounded-lg border border-border bg-muted/30">
+                  {detailRows.map((item) => {
+                    const name = rowLabels?.[item.id] ?? item.id;
+                    return (
+                      // Three assigned columns: a fixed name column, a fixed
+                      // verdict, and the reason taking the remaining width (it
+                      // wraps rather than being cut — the reason is the point).
+                      <div
+                        key={item.id}
+                        className="flex items-start gap-3 px-3 py-2"
+                      >
+                        <span
+                          className="w-36 shrink-0 truncate font-medium text-foreground"
+                          title={name}
+                        >
+                          {name}
+                        </span>
+                        <span
+                          className={cn(
+                            "shrink-0 font-medium",
+                            item.outcome === "FAILED"
+                              ? "text-destructive"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {item.outcome === "FAILED" ? "Failed" : "Skipped"}
+                        </span>
+                        <span className="min-w-0 max-w-[32rem] flex-1 text-muted-foreground">
+                          {item.reason ?? "No reason reported."}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : null}
         </div>
       )}
     </div>

@@ -275,6 +275,37 @@ describe("data table wiring", () => {
     expect(toolbarSource).toContain("rowLabels?.[item.id]");
   });
 
+  it("sizes the bar to its content instead of a fixed width", () => {
+    // A fixed 920px bar left a wide dead gap before the close button. `w-max`
+    // is required rather than `w-fit`: with a wrapping flex child, fit-content
+    // resolves to the widest ITEM, so the bar collapsed and wrapped early.
+    expect(toolbarSource).toMatch(/w-max max-w-\[min\(100vw-2rem,60rem\)\]/);
+    expect(toolbarSource).not.toMatch(/w-\[min\(920px/);
+  });
+
+  it("gives every action the same width", () => {
+    expect(toolbarSource).toMatch(
+      /const ACTION_BUTTON_CLASS = "min-w-\[7rem\]"/,
+    );
+    expect(toolbarSource).toContain("className={ACTION_BUTTON_CLASS}");
+  });
+
+  it("gives the outcome its own row under the actions", () => {
+    // Inline, a long summary stretched the action row and moved the buttons.
+    expect(toolbarSource).toMatch(/border-t border-border px-3 py-2/);
+    // The trailing "… records" label was noise and is gone; the entity name now
+    // lives in the dismiss control's accessible label instead.
+    expect(toolbarSource).not.toContain("{displayLabel} records");
+    expect(toolbarSource).toMatch(/aria-label=\{dismissLabel\}/);
+  });
+
+  it("assigns the three detail columns explicitly", () => {
+    // Fixed name column, fixed verdict, reason takes the rest and wraps — the
+    // reason is the whole point of the disclosure, so it is never truncated.
+    expect(toolbarSource).toMatch(/w-36 shrink-0 truncate font-medium/);
+    expect(toolbarSource).toMatch(/max-w-\[32rem\] flex-1/);
+  });
+
   it("keeps the batch bar and the page behind a print dialog out of the sheet", () => {
     // The floating bar is fixed over the page, so it must never print.
     expect(toolbarSource).toContain("print:hidden");
