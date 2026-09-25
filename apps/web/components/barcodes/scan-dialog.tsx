@@ -480,7 +480,7 @@ export function ScanDialog({
             292px — while the checkbox was squeezed to 13px. Wrapping lets the
             label drop to its own line at full width instead of being crushed.
           */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-primary shrink-0">
               <Scan className="size-4" />
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -499,7 +499,7 @@ export function ScanDialog({
                 onChange={(e) => setAutoNavigate(e.target.checked)}
                 className="size-3.5 shrink-0 rounded border-border text-primary focus:ring-primary"
               />
-              <span className="whitespace-nowrap">Auto-open page on match</span>
+              <span>Auto-open page on match</span>
             </label>
           </div>
 
@@ -578,7 +578,7 @@ export function ScanDialog({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="text-[11px] text-primary hover:underline flex items-center gap-1"
+                className="text-[11px] text-primary hover:underline flex items-center gap-2 text-left"
               >
                 <Upload className="size-3" />
                 Scan from image file
