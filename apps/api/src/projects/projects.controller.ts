@@ -16,6 +16,7 @@ import {
   AllocateMaterialDto,
   IssueMaterialDto,
   ReturnMaterialDto,
+  ProjectActionDto,
 } from './dtos';
 import { ProjectExceptionFilter } from './project-exception.filter';
 import { ProjectStatus, ProjectPriority } from '@ananya/projects';
@@ -60,28 +61,28 @@ export class ProjectsController {
   }
 
   @Post(':id/start')
-  start(@Param('id') id: string) {
-    return this.projectsService.start(id);
+  start(@Param('id') id: string, @Body() dto?: ProjectActionDto) {
+    return this.projectsService.start(id, dto?.performedBy);
   }
 
   @Post(':id/pause')
-  pause(@Param('id') id: string) {
-    return this.projectsService.pause(id);
+  pause(@Param('id') id: string, @Body() dto?: ProjectActionDto) {
+    return this.projectsService.pause(id, dto?.performedBy);
   }
 
   @Post(':id/complete')
-  complete(@Param('id') id: string) {
-    return this.projectsService.complete(id);
+  complete(@Param('id') id: string, @Body() dto?: ProjectActionDto) {
+    return this.projectsService.complete(id, dto?.performedBy);
   }
 
   @Post(':id/archive')
-  archive(@Param('id') id: string) {
-    return this.projectsService.archive(id);
+  archive(@Param('id') id: string, @Body() dto?: ProjectActionDto) {
+    return this.projectsService.archive(id, dto?.performedBy);
   }
 
   @Post(':id/cancel')
-  cancel(@Param('id') id: string) {
-    return this.projectsService.cancel(id);
+  cancel(@Param('id') id: string, @Body() dto?: ProjectActionDto) {
+    return this.projectsService.cancel(id, dto?.performedBy);
   }
 
   @Post(':id/milestones')
@@ -93,8 +94,13 @@ export class ProjectsController {
   completeMilestone(
     @Param('id') id: string,
     @Param('milestoneId') milestoneId: string,
+    @Body() dto?: ProjectActionDto,
   ) {
-    return this.projectsService.completeMilestone(id, milestoneId);
+    return this.projectsService.completeMilestone(
+      id,
+      milestoneId,
+      dto?.performedBy,
+    );
   }
 
   @Post(':id/materials/allocate')

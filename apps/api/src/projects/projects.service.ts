@@ -50,6 +50,7 @@ export class ProjectsService {
       startDate: new Date(dto.startDate),
       targetCompletionDate: new Date(dto.targetCompletionDate),
       priority: dto.priority,
+      performedBy: dto.performedBy,
     });
     await this.projectRepository.save(project);
     return project;
@@ -65,20 +66,23 @@ export class ProjectsService {
       await this.salesOrdersService.findOne(dto.salesOrderId);
     }
 
-    project.update({
-      name: dto.name,
-      projectType: dto.projectType,
-      description: dto.description,
-      owner: dto.owner,
-      projectManager: dto.projectManager,
-      customerId: dto.customerId,
-      salesOrderId: dto.salesOrderId,
-      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-      targetCompletionDate: dto.targetCompletionDate
-        ? new Date(dto.targetCompletionDate)
-        : undefined,
-      priority: dto.priority,
-    });
+    project.update(
+      {
+        name: dto.name,
+        projectType: dto.projectType,
+        description: dto.description,
+        owner: dto.owner,
+        projectManager: dto.projectManager,
+        customerId: dto.customerId,
+        salesOrderId: dto.salesOrderId,
+        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+        targetCompletionDate: dto.targetCompletionDate
+          ? new Date(dto.targetCompletionDate)
+          : undefined,
+        priority: dto.priority,
+      },
+      dto.performedBy,
+    );
     await this.projectRepository.save(project);
     return project;
   }
@@ -109,37 +113,37 @@ export class ProjectsService {
     return project;
   }
 
-  async start(id: string): Promise<Project> {
+  async start(id: string, performedBy?: string): Promise<Project> {
     const project = await this.findOne(id);
-    project.start();
+    project.start(performedBy);
     await this.projectRepository.save(project);
     return project;
   }
 
-  async pause(id: string): Promise<Project> {
+  async pause(id: string, performedBy?: string): Promise<Project> {
     const project = await this.findOne(id);
-    project.pause();
+    project.pause(performedBy);
     await this.projectRepository.save(project);
     return project;
   }
 
-  async complete(id: string): Promise<Project> {
+  async complete(id: string, performedBy?: string): Promise<Project> {
     const project = await this.findOne(id);
-    project.complete();
+    project.complete(performedBy);
     await this.projectRepository.save(project);
     return project;
   }
 
-  async archive(id: string): Promise<Project> {
+  async archive(id: string, performedBy?: string): Promise<Project> {
     const project = await this.findOne(id);
-    project.archive();
+    project.archive(performedBy);
     await this.projectRepository.save(project);
     return project;
   }
 
-  async cancel(id: string): Promise<Project> {
+  async cancel(id: string, performedBy?: string): Promise<Project> {
     const project = await this.findOne(id);
-    project.cancel();
+    project.cancel(performedBy);
     await this.projectRepository.save(project);
     return project;
   }
@@ -158,9 +162,13 @@ export class ProjectsService {
     return milestone;
   }
 
-  async completeMilestone(id: string, milestoneId: string): Promise<Project> {
+  async completeMilestone(
+    id: string,
+    milestoneId: string,
+    performedBy?: string,
+  ): Promise<Project> {
     const project = await this.findOne(id);
-    project.completeMilestone(milestoneId);
+    project.completeMilestone(milestoneId, performedBy);
     await this.projectRepository.save(project);
     return project;
   }

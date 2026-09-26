@@ -1,0 +1,800 @@
+[
+  {
+    "componentA": {
+      "mpn": "GRM188R71C104KA01D",
+      "description": "CAP CER 0.1UF 16V X7R 0603 SMD",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "componentB": {
+      "mpn": "GRM188R71C104KA01D-TR",
+      "description": "CAP CER 0.1UF 16V X7R 0603 SMD Tape & Reel",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "GRM188R71C104KA01J",
+      "description": "CAP CER 0.1UF 16V X7R 0603 330MM REEL",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "componentB": {
+      "mpn": "GRM188R71C104KA01J-TR",
+      "description": "CAP CER 0.1UF 16V X7R 0603 330MM REEL Tape & Reel",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "GRM21BR61A226ME51L",
+      "description": "CAP CER 22UF 10V X5R 0805 SMD",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "componentB": {
+      "mpn": "GRM21BR61A226ME51L-TR",
+      "description": "CAP CER 22UF 10V X5R 0805 SMD Tape & Reel",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "C0805C105K8RACTU",
+      "description": "CAP CER 1UF 10V X7R 0805 10%",
+      "manufacturer": "Kemet Electronics"
+    },
+    "componentB": {
+      "mpn": "C0805C105K8RACTU-TR",
+      "description": "CAP CER 1UF 10V X7R 0805 10% Tape & Reel",
+      "manufacturer": "Kemet Electronics"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "C0603C104K5RACTU",
+      "description": "CAP CER 0.1UF 50V X7R 0603 SMD",
+      "manufacturer": "Kemet Electronics"
+    },
+    "componentB": {
+      "mpn": "C0603C104K5RACTU-TR",
+      "description": "CAP CER 0.1UF 50V X7R 0603 SMD Tape & Reel",
+      "manufacturer": "Kemet Electronics"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "RC0805FR-0710KL",
+      "description": "RES SMD 10K OHM 1% 1/8W 0805",
+      "manufacturer": "Yageo"
+    },
+    "componentB": {
+      "mpn": "RC0805FR-0710KL-TR",
+      "description": "RES SMD 10K OHM 1% 1/8W 0805 Tape & Reel",
+      "manufacturer": "Yageo"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "RC0805FR-0710KL",
+      "description": "RES SMD 10K OHM 1% 1/8W 0805",
+      "manufacturer": "Yageo"
+    },
+    "componentB": {
+      "mpn": "RC0805FR0710KL",
+      "description": "res smd 10k ohm 1% 1/8w 0805",
+      "manufacturer": "Yageo"
+    },
+    "isDuplicate": true,
+    "pairType": "FORMATTING_VARIATION"
+  },
+  {
+    "componentA": {
+      "mpn": "RC0805FR-07100KL",
+      "description": "RES SMD 100K OHM 1% 1/8W 0805",
+      "manufacturer": "Yageo"
+    },
+    "componentB": {
+      "mpn": "RC0805FR-07100KL-TR",
+      "description": "RES SMD 100K OHM 1% 1/8W 0805 Tape & Reel",
+      "manufacturer": "Yageo"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "RC0805FR-07100KL",
+      "description": "RES SMD 100K OHM 1% 1/8W 0805",
+      "manufacturer": "Yageo"
+    },
+    "componentB": {
+      "mpn": "RC0805FR07100KL",
+      "description": "res smd 100k ohm 1% 1/8w 0805",
+      "manufacturer": "Yageo"
+    },
+    "isDuplicate": true,
+    "pairType": "FORMATTING_VARIATION"
+  },
+  {
+    "componentA": {
+      "mpn": "CRCW080510K0FKEA",
+      "description": "RES SMD 10K OHM 1% 1/8W 0805",
+      "manufacturer": "Vishay Dale"
+    },
+    "componentB": {
+      "mpn": "CRCW080510K0FKEA-TR",
+      "description": "RES SMD 10K OHM 1% 1/8W 0805 Tape & Reel",
+      "manufacturer": "Vishay Dale"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "CRCW0603100KFKEA",
+      "description": "RES SMD 100K OHM 1% 1/10W 0603",
+      "manufacturer": "Vishay Dale"
+    },
+    "componentB": {
+      "mpn": "CRCW0603100KFKEA-TR",
+      "description": "RES SMD 100K OHM 1% 1/10W 0603 Tape & Reel",
+      "manufacturer": "Vishay Dale"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "SWPA4020S100MT",
+      "description": "IND SMD 10UH 1.5A SHIELDED 4020",
+      "manufacturer": "Sunlord Electronics"
+    },
+    "componentB": {
+      "mpn": "SWPA4020S100MT-TR",
+      "description": "IND SMD 10UH 1.5A SHIELDED 4020 Tape & Reel",
+      "manufacturer": "Sunlord Electronics"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "BLM21PG121SN1D",
+      "description": "FERRITE BEAD 120 OHM 0805 1LN 3A",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "componentB": {
+      "mpn": "BLM21PG121SN1D-TR",
+      "description": "FERRITE BEAD 120 OHM 0805 1LN 3A Tape & Reel",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "1N4148WS-7-F",
+      "description": "DIODE GEN PURP 75V 150MA SOD323",
+      "manufacturer": "Diodes Incorporated"
+    },
+    "componentB": {
+      "mpn": "1N4148WS-7-F-TR",
+      "description": "DIODE GEN PURP 75V 150MA SOD323 Tape & Reel",
+      "manufacturer": "Diodes Incorporated"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "1N4148WS-7-F",
+      "description": "DIODE GEN PURP 75V 150MA SOD323",
+      "manufacturer": "Diodes Incorporated"
+    },
+    "componentB": {
+      "mpn": "1N4148WS7F",
+      "description": "diode gen purp 75v 150ma sod323",
+      "manufacturer": "Diodes Incorporated"
+    },
+    "isDuplicate": true,
+    "pairType": "FORMATTING_VARIATION"
+  },
+  {
+    "componentA": {
+      "mpn": "SS34-E3/57T",
+      "description": "DIODE SCHOTTKY 40V 3A DO214AB SMC",
+      "manufacturer": "Vishay Semiconductors"
+    },
+    "componentB": {
+      "mpn": "SS34-E3/57T-TR",
+      "description": "DIODE SCHOTTKY 40V 3A DO214AB SMC Tape & Reel",
+      "manufacturer": "Vishay Semiconductors"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "SS34-E3/57T",
+      "description": "DIODE SCHOTTKY 40V 3A DO214AB SMC",
+      "manufacturer": "Vishay Semiconductors"
+    },
+    "componentB": {
+      "mpn": "SS34E3/57T",
+      "description": "diode schottky 40v 3a do214ab smc",
+      "manufacturer": "Vishay Semiconductors"
+    },
+    "isDuplicate": true,
+    "pairType": "FORMATTING_VARIATION"
+  },
+  {
+    "componentA": {
+      "mpn": "BSS138",
+      "description": "MOSFET N-CH 50V 220MA SOT-23",
+      "manufacturer": "onsemi"
+    },
+    "componentB": {
+      "mpn": "BSS138-TR",
+      "description": "MOSFET N-CH 50V 220MA SOT-23 Tape & Reel",
+      "manufacturer": "onsemi"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "SI2302CDS-T1-GE3",
+      "description": "MOSFET N-CH 20V 2.6A SOT23",
+      "manufacturer": "Vishay Siliconix"
+    },
+    "componentB": {
+      "mpn": "SI2302CDS-T1-GE3-TR",
+      "description": "MOSFET N-CH 20V 2.6A SOT23 Tape & Reel",
+      "manufacturer": "Vishay Siliconix"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "SI2302CDS-T1-GE3",
+      "description": "MOSFET N-CH 20V 2.6A SOT23",
+      "manufacturer": "Vishay Siliconix"
+    },
+    "componentB": {
+      "mpn": "SI2302CDST1GE3",
+      "description": "mosfet n-ch 20v 2.6a sot23",
+      "manufacturer": "Vishay Siliconix"
+    },
+    "isDuplicate": true,
+    "pairType": "FORMATTING_VARIATION"
+  },
+  {
+    "componentA": {
+      "mpn": "STM32F407VGT6",
+      "description": "IC MCU 32BIT 1MB FLASH 100LQFP",
+      "manufacturer": "STMicroelectronics"
+    },
+    "componentB": {
+      "mpn": "STM32F407VGT6-TR",
+      "description": "IC MCU 32BIT 1MB FLASH 100LQFP Tape & Reel",
+      "manufacturer": "STMicroelectronics"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "NE5532DR",
+      "description": "IC OPAMP AUDIO 2 CIRCUIT 8SOIC",
+      "manufacturer": "Texas Instruments"
+    },
+    "componentB": {
+      "mpn": "NE5532DR-TR",
+      "description": "IC OPAMP AUDIO 2 CIRCUIT 8SOIC Tape & Reel",
+      "manufacturer": "Texas Instruments"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "AMS1117-3.3",
+      "description": "IC REG LINEAR 3.3V 1A SOT-223",
+      "manufacturer": "Advanced Monolithic Systems"
+    },
+    "componentB": {
+      "mpn": "AMS1117-3.3-TR",
+      "description": "IC REG LINEAR 3.3V 1A SOT-223 Tape & Reel",
+      "manufacturer": "Advanced Monolithic Systems"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "AMS1117-3.3",
+      "description": "IC REG LINEAR 3.3V 1A SOT-223",
+      "manufacturer": "Advanced Monolithic Systems"
+    },
+    "componentB": {
+      "mpn": "AMS11173.3",
+      "description": "ic reg linear 3.3v 1a sot-223",
+      "manufacturer": "Advanced Monolithic Systems"
+    },
+    "isDuplicate": true,
+    "pairType": "FORMATTING_VARIATION"
+  },
+  {
+    "componentA": {
+      "mpn": "B4B-XH-A(LF)(SN)",
+      "description": "CONN HEADER VERT 4POS 2.5MM",
+      "manufacturer": "JST"
+    },
+    "componentB": {
+      "mpn": "B4B-XH-A(LF)(SN)-TR",
+      "description": "CONN HEADER VERT 4POS 2.5MM Tape & Reel",
+      "manufacturer": "JST"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "B4B-XH-A(LF)(SN)",
+      "description": "CONN HEADER VERT 4POS 2.5MM",
+      "manufacturer": "JST"
+    },
+    "componentB": {
+      "mpn": "B4BXHA(LF)(SN)",
+      "description": "conn header vert 4pos 2.5mm",
+      "manufacturer": "JST"
+    },
+    "isDuplicate": true,
+    "pairType": "FORMATTING_VARIATION"
+  },
+  {
+    "componentA": {
+      "mpn": "B3F-1000",
+      "description": "SWITCH TACTILE SPST-NO 0.05A 24V",
+      "manufacturer": "Omron Electronics"
+    },
+    "componentB": {
+      "mpn": "B3F-1000-TR",
+      "description": "SWITCH TACTILE SPST-NO 0.05A 24V Tape & Reel",
+      "manufacturer": "Omron Electronics"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "B3F-1000",
+      "description": "SWITCH TACTILE SPST-NO 0.05A 24V",
+      "manufacturer": "Omron Electronics"
+    },
+    "componentB": {
+      "mpn": "B3F1000",
+      "description": "switch tactile spst-no 0.05a 24v",
+      "manufacturer": "Omron Electronics"
+    },
+    "isDuplicate": true,
+    "pairType": "FORMATTING_VARIATION"
+  },
+  {
+    "componentA": {
+      "mpn": "WP7113ID",
+      "description": "LED RED DIFFUSED T-1 3/4 T/H 5MM",
+      "manufacturer": "Kingbright"
+    },
+    "componentB": {
+      "mpn": "WP7113ID-TR",
+      "description": "LED RED DIFFUSED T-1 3/4 T/H 5MM Tape & Reel",
+      "manufacturer": "Kingbright"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "30068-0050",
+      "description": "CABLE RIBBON 10COND 1.27MM PITCH 30.5M",
+      "manufacturer": "Molex"
+    },
+    "componentB": {
+      "mpn": "30068-0050-TR",
+      "description": "CABLE RIBBON 10COND 1.27MM PITCH 30.5M Tape & Reel",
+      "manufacturer": "Molex"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "30068-0050",
+      "description": "CABLE RIBBON 10COND 1.27MM PITCH 30.5M",
+      "manufacturer": "Molex"
+    },
+    "componentB": {
+      "mpn": "300680050",
+      "description": "cable ribbon 10cond 1.27mm pitch 30.5m",
+      "manufacturer": "Molex"
+    },
+    "isDuplicate": true,
+    "pairType": "FORMATTING_VARIATION"
+  },
+  {
+    "componentA": {
+      "mpn": "91290A115",
+      "description": "M3 X 8MM METRIC SOCKET HEAD SCREW 316 SS",
+      "manufacturer": "McMaster-Carr"
+    },
+    "componentB": {
+      "mpn": "91290A115-TR",
+      "description": "M3 X 8MM METRIC SOCKET HEAD SCREW 316 SS Tape & Reel",
+      "manufacturer": "McMaster-Carr"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "FR4-1.6-1OZ",
+      "description": "FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ",
+      "manufacturer": "Shengyi Technology"
+    },
+    "componentB": {
+      "mpn": "FR4-1.6-1OZ-TR",
+      "description": "FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ Tape & Reel",
+      "manufacturer": "Shengyi Technology"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "FR4-1.6-1OZ",
+      "description": "FR-4 COPPER CLAD LAMINATE 1.6MM DOUBLE SIDED 1OZ",
+      "manufacturer": "Shengyi Technology"
+    },
+    "componentB": {
+      "mpn": "FR41.61OZ",
+      "description": "fr-4 copper clad laminate 1.6mm double sided 1oz",
+      "manufacturer": "Shengyi Technology"
+    },
+    "isDuplicate": true,
+    "pairType": "FORMATTING_VARIATION"
+  },
+  {
+    "componentA": {
+      "mpn": "SAC305-0.8-500G",
+      "description": "LEAD-FREE SOLDER WIRE SAC305 0.8MM FLUX CORE 500G",
+      "manufacturer": "Kester"
+    },
+    "componentB": {
+      "mpn": "SAC305-0.8-500G-TR",
+      "description": "LEAD-FREE SOLDER WIRE SAC305 0.8MM FLUX CORE 500G Tape & Reel",
+      "manufacturer": "Kester"
+    },
+    "isDuplicate": true,
+    "pairType": "PACKAGING_SUFFIX_VARIANT"
+  },
+  {
+    "componentA": {
+      "mpn": "SAC305-0.8-500G",
+      "description": "LEAD-FREE SOLDER WIRE SAC305 0.8MM FLUX CORE 500G",
+      "manufacturer": "Kester"
+    },
+    "componentB": {
+      "mpn": "SAC3050.8500G",
+      "description": "lead-free solder wire sac305 0.8mm flux core 500g",
+      "manufacturer": "Kester"
+    },
+    "isDuplicate": true,
+    "pairType": "FORMATTING_VARIATION"
+  },
+  {
+    "componentA": {
+      "mpn": "GRM188R71C104KA01D",
+      "description": "CAP CER 0.1UF 16V X7R 0603 SMD",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "componentB": {
+      "mpn": "GRM188R71C104KA01J",
+      "description": "CAP CER 0.1UF 16V X7R 0603 330MM REEL",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "GRM188R71C104KA01D",
+      "description": "CAP CER 0.1UF 16V X7R 0603 SMD",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "componentB": {
+      "mpn": "GRM21BR61A226ME51L",
+      "description": "CAP CER 22UF 10V X5R 0805 SMD",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "GRM188R71C104KA01D",
+      "description": "CAP CER 0.1UF 16V X7R 0603 SMD",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "componentB": {
+      "mpn": "C0805C105K8RACTU",
+      "description": "CAP CER 1UF 10V X7R 0805 10%",
+      "manufacturer": "Kemet Electronics"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "GRM188R71C104KA01J",
+      "description": "CAP CER 0.1UF 16V X7R 0603 330MM REEL",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "componentB": {
+      "mpn": "GRM21BR61A226ME51L",
+      "description": "CAP CER 22UF 10V X5R 0805 SMD",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "GRM188R71C104KA01J",
+      "description": "CAP CER 0.1UF 16V X7R 0603 330MM REEL",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "componentB": {
+      "mpn": "C0805C105K8RACTU",
+      "description": "CAP CER 1UF 10V X7R 0805 10%",
+      "manufacturer": "Kemet Electronics"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "GRM188R71C104KA01J",
+      "description": "CAP CER 0.1UF 16V X7R 0603 330MM REEL",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "componentB": {
+      "mpn": "C0603C104K5RACTU",
+      "description": "CAP CER 0.1UF 50V X7R 0603 SMD",
+      "manufacturer": "Kemet Electronics"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "GRM21BR61A226ME51L",
+      "description": "CAP CER 22UF 10V X5R 0805 SMD",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "componentB": {
+      "mpn": "C0805C105K8RACTU",
+      "description": "CAP CER 1UF 10V X7R 0805 10%",
+      "manufacturer": "Kemet Electronics"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "GRM21BR61A226ME51L",
+      "description": "CAP CER 22UF 10V X5R 0805 SMD",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "componentB": {
+      "mpn": "C0603C104K5RACTU",
+      "description": "CAP CER 0.1UF 50V X7R 0603 SMD",
+      "manufacturer": "Kemet Electronics"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "C0805C105K8RACTU",
+      "description": "CAP CER 1UF 10V X7R 0805 10%",
+      "manufacturer": "Kemet Electronics"
+    },
+    "componentB": {
+      "mpn": "C0603C104K5RACTU",
+      "description": "CAP CER 0.1UF 50V X7R 0603 SMD",
+      "manufacturer": "Kemet Electronics"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "RC0805FR-0710KL",
+      "description": "RES SMD 10K OHM 1% 1/8W 0805",
+      "manufacturer": "Yageo"
+    },
+    "componentB": {
+      "mpn": "RC0805FR-07100KL",
+      "description": "RES SMD 100K OHM 1% 1/8W 0805",
+      "manufacturer": "Yageo"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "RC0805FR-0710KL",
+      "description": "RES SMD 10K OHM 1% 1/8W 0805",
+      "manufacturer": "Yageo"
+    },
+    "componentB": {
+      "mpn": "CRCW080510K0FKEA",
+      "description": "RES SMD 10K OHM 1% 1/8W 0805",
+      "manufacturer": "Vishay Dale"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "RC0805FR-0710KL",
+      "description": "RES SMD 10K OHM 1% 1/8W 0805",
+      "manufacturer": "Yageo"
+    },
+    "componentB": {
+      "mpn": "CRCW0603100KFKEA",
+      "description": "RES SMD 100K OHM 1% 1/10W 0603",
+      "manufacturer": "Vishay Dale"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "RC0805FR-07100KL",
+      "description": "RES SMD 100K OHM 1% 1/8W 0805",
+      "manufacturer": "Yageo"
+    },
+    "componentB": {
+      "mpn": "CRCW080510K0FKEA",
+      "description": "RES SMD 10K OHM 1% 1/8W 0805",
+      "manufacturer": "Vishay Dale"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "RC0805FR-07100KL",
+      "description": "RES SMD 100K OHM 1% 1/8W 0805",
+      "manufacturer": "Yageo"
+    },
+    "componentB": {
+      "mpn": "CRCW0603100KFKEA",
+      "description": "RES SMD 100K OHM 1% 1/10W 0603",
+      "manufacturer": "Vishay Dale"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "CRCW080510K0FKEA",
+      "description": "RES SMD 10K OHM 1% 1/8W 0805",
+      "manufacturer": "Vishay Dale"
+    },
+    "componentB": {
+      "mpn": "CRCW0603100KFKEA",
+      "description": "RES SMD 100K OHM 1% 1/10W 0603",
+      "manufacturer": "Vishay Dale"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "SWPA4020S100MT",
+      "description": "IND SMD 10UH 1.5A SHIELDED 4020",
+      "manufacturer": "Sunlord Electronics"
+    },
+    "componentB": {
+      "mpn": "BLM21PG121SN1D",
+      "description": "FERRITE BEAD 120 OHM 0805 1LN 3A",
+      "manufacturer": "Murata Manufacturing"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "1N4148WS-7-F",
+      "description": "DIODE GEN PURP 75V 150MA SOD323",
+      "manufacturer": "Diodes Incorporated"
+    },
+    "componentB": {
+      "mpn": "SS34-E3/57T",
+      "description": "DIODE SCHOTTKY 40V 3A DO214AB SMC",
+      "manufacturer": "Vishay Semiconductors"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "BSS138",
+      "description": "MOSFET N-CH 50V 220MA SOT-23",
+      "manufacturer": "onsemi"
+    },
+    "componentB": {
+      "mpn": "SI2302CDS-T1-GE3",
+      "description": "MOSFET N-CH 20V 2.6A SOT23",
+      "manufacturer": "Vishay Siliconix"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "STM32F407VGT6",
+      "description": "IC MCU 32BIT 1MB FLASH 100LQFP",
+      "manufacturer": "STMicroelectronics"
+    },
+    "componentB": {
+      "mpn": "NE5532DR",
+      "description": "IC OPAMP AUDIO 2 CIRCUIT 8SOIC",
+      "manufacturer": "Texas Instruments"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "STM32F407VGT6",
+      "description": "IC MCU 32BIT 1MB FLASH 100LQFP",
+      "manufacturer": "STMicroelectronics"
+    },
+    "componentB": {
+      "mpn": "AMS1117-3.3",
+      "description": "IC REG LINEAR 3.3V 1A SOT-223",
+      "manufacturer": "Advanced Monolithic Systems"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  },
+  {
+    "componentA": {
+      "mpn": "NE5532DR",
+      "description": "IC OPAMP AUDIO 2 CIRCUIT 8SOIC",
+      "manufacturer": "Texas Instruments"
+    },
+    "componentB": {
+      "mpn": "AMS1117-3.3",
+      "description": "IC REG LINEAR 3.3V 1A SOT-223",
+      "manufacturer": "Advanced Monolithic Systems"
+    },
+    "isDuplicate": false,
+    "pairType": "ELECTRICAL_OR_SERIES_DIFFERENCE"
+  }
+]

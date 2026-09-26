@@ -36,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -54,6 +55,11 @@ import {
 } from "@/lib/api/projects-api";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
+import {
+  inventoryProjectionsApi,
+  type InventoryProjectionDto,
+} from "@/lib/api/inventory-projections-api";
+import { useAuth } from "@/lib/auth/auth-context";
 
 function getStatusBadge(status: ProjectStatus) {
   switch (status) {
@@ -116,6 +122,11 @@ export default function ViewProjectPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
+  const { user: currentUser } = useAuth();
+  const currentUserName = currentUser
+    ? [currentUser.firstName, currentUser.lastName].filter(Boolean).join(" ") ||
+      currentUser.email
+    : "";
 
   const [project, setProject] = React.useState<ProjectDto | null>(null);
   const [componentsMap, setComponentsMap] = React.useState<
@@ -145,18 +156,35 @@ export default function ViewProjectPage() {
   const [showArchiveDialog, setShowArchiveDialog] = React.useState(false);
   const [showCancelDialog, setShowCancelDialog] = React.useState(false);
 
-  // Material form state
+  // Allocate Material state (2A)
   const [showAllocateForm, setShowAllocateForm] = React.useState(false);
-  const [showIssueForm, setShowIssueForm] = React.useState(false);
-  const [showReturnForm, setShowReturnForm] = React.useState(false);
-  const [materialError, setMaterialError] = React.useState<string | null>(null);
-  const [materialSubmitting, setMaterialSubmitting] = React.useState(false);
+  const [allocComponentId, setAllocComponentId] = React.useState("");
+  const [allocLocationId, setAllocLocationId] = React.useState("");
+  const [allocQuantity, setAllocQuantity] = React.useState("");
+  const [allocUnit, setAllocUnit] = React.useState("pcs");
+  const [allocNotes, setAllocNotes] = React.useState("");
+  const [allocError, setAllocError] = React.useState<string | null>(null);
+  const [allocSubmitting, setAllocSubmitting] = React.useState(false);
+  const [allocLoadingProjections, setAllocLoadingProjections] =
+    React.useState(false);
+  const [allocProjections, setAllocProjections] = React.useState<
+    InventoryProjectionDto[]
+  >([]);
 
-  const [matComponentId, setMatComponentId] = React.useState("");
-  const [matLocationId, setMatLocationId] = React.useState("");
-  const [matQuantity, setMatQuantity] = React.useState("");
-  const [matUnit, setMatUnit] = React.useState("pcs");
-  const [matNotes, setMatNotes] = React.useState("");
+  // Issue Material state (2B)
+  const [showIssueForm, setShowIssueForm] = React.useState(false);
+  const [issueSelectedMatId, setIssueSelectedMatId] = React.useState("");
+  const [issueQuantity, setIssueQuantity] = React.useState("");
+  const [issueError, setIssueError] = React.useState<string | null>(null);
+  const [issueSubmitting, setIssueSubmitting] = React.useState(false);
+
+  // Return Material state (2C)
+  const [showReturnForm, setShowReturnForm] = React.useState(false);
+  const [returnComponentId, setReturnComponentId] = React.useState("");
+  const [returnLocationId, setReturnLocationId] = React.useState("");
+  const [returnQuantity, setReturnQuantity] = React.useState("");
+  const [returnError, setReturnError] = React.useState<string | null>(null);
+  const [returnSubmitting, setReturnSubmitting] = React.useState(false);
 
   const fetchData = React.useCallback(async () => {
     if (!id) return;
@@ -200,7 +228,10 @@ export default function ViewProjectPage() {
     if (!project) return;
     setIsStarting(true);
     try {
-      const updated = await projectsApi.start(project.id);
+      const updated = await projectsApi.start(
+        project.id,
+        currentUserName || undefined,
+      );
       setProject(updated);
       setShowStartDialog(false);
       fetchData();
@@ -215,7 +246,10 @@ export default function ViewProjectPage() {
     if (!project) return;
     setIsPausing(true);
     try {
-      const updated = await projectsApi.pause(project.id);
+      const updated = await projectsApi.pause(
+        project.id,
+        currentUserName || undefined,
+      );
       setProject(updated);
       setShowPauseDialog(false);
       fetchData();
@@ -230,7 +264,10 @@ export default function ViewProjectPage() {
     if (!project) return;
     setIsCompleting(true);
     try {
-      const updated = await projectsApi.complete(project.id);
+      const updated = await projectsApi.complete(
+        project.id,
+        currentUserName || undefined,
+      );
       setProject(updated);
       setShowCompleteDialog(false);
       fetchData();
@@ -247,7 +284,10 @@ export default function ViewProjectPage() {
     if (!project) return;
     setIsArchiving(true);
     try {
-      const updated = await projectsApi.archive(project.id);
+      const updated = await projectsApi.archive(
+        project.id,
+        currentUserName || undefined,
+      );
       setProject(updated);
       setShowArchiveDialog(false);
       fetchData();
@@ -264,7 +304,10 @@ export default function ViewProjectPage() {
     if (!project) return;
     setIsCancelling(true);
     try {
-      const updated = await projectsApi.cancel(project.id);
+      const updated = await projectsApi.cancel(
+        project.id,
+        currentUserName || undefined,
+      );
       setProject(updated);
       setShowCancelDialog(false);
       fetchData();
@@ -275,97 +318,319 @@ export default function ViewProjectPage() {
     }
   };
 
-  const resetMaterialForm = () => {
-    setMatComponentId("");
-    setMatLocationId("");
-    setMatQuantity("");
-    setMatUnit("pcs");
-    setMatNotes("");
-    setMaterialError(null);
+  // Allocate Material helpers (2A)
+  const handleAllocComponentChange = async (compId: string) => {
+    setAllocComponentId(compId);
+    setAllocLocationId("");
+    setAllocQuantity("");
+    setAllocError(null);
+    const comp = componentsMap[compId];
+    if (comp?.unit) {
+      setAllocUnit(comp.unit);
+    } else {
+      setAllocUnit("pcs");
+    }
+
+    if (!compId) {
+      setAllocProjections([]);
+      return;
+    }
+
+    setAllocLoadingProjections(true);
+    try {
+      const projections = await inventoryProjectionsApi.getByComponent(compId);
+      setAllocProjections(projections || []);
+    } catch (err) {
+      console.error("Failed to load inventory projections", err);
+      setAllocProjections([]);
+    } finally {
+      setAllocLoadingProjections(false);
+    }
+  };
+
+  const availableAllocProjections = React.useMemo(() => {
+    return allocProjections.filter((p) => p.quantity > 0);
+  }, [allocProjections]);
+
+  const allocLocationOptions = React.useMemo(() => {
+    return availableAllocProjections.map((p) => {
+      const loc = locationsMap[p.locationId];
+      return {
+        value: p.locationId,
+        label: loc ? `${loc.name} (${loc.code})` : p.locationId,
+        chip: `${p.quantity} ${p.unitOfMeasure || allocUnit} available`,
+        sublabel: loc?.kind ? `Type: ${loc.kind}` : undefined,
+      };
+    });
+  }, [availableAllocProjections, locationsMap, allocUnit]);
+
+  const selectedAllocProjection = React.useMemo(() => {
+    return availableAllocProjections.find(
+      (p) => p.locationId === allocLocationId,
+    );
+  }, [availableAllocProjections, allocLocationId]);
+
+  const maxAllocQuantity = selectedAllocProjection
+    ? selectedAllocProjection.quantity
+    : 0;
+
+  const resetAllocateForm = () => {
+    setAllocComponentId("");
+    setAllocLocationId("");
+    setAllocQuantity("");
+    setAllocUnit("pcs");
+    setAllocNotes("");
+    setAllocProjections([]);
+    setAllocError(null);
     setShowAllocateForm(false);
-    setShowIssueForm(false);
-    setShowReturnForm(false);
   };
 
   const handleAllocateMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!project) return;
-    if (!matComponentId || !matLocationId || !matQuantity) {
-      setMaterialError("Component, location, and quantity are required");
+    if (!allocComponentId) {
+      setAllocError("Please select a component");
       return;
     }
-    setMaterialSubmitting(true);
-    setMaterialError(null);
+    if (!allocLocationId) {
+      setAllocError("Please select a location with available stock");
+      return;
+    }
+    const qty = parseFloat(allocQuantity);
+    if (!allocQuantity || isNaN(qty) || qty <= 0) {
+      setAllocError("Please enter a valid quantity greater than 0");
+      return;
+    }
+    if (qty > maxAllocQuantity) {
+      setAllocError(
+        `Quantity cannot exceed available stock (${maxAllocQuantity} ${allocUnit}) at selected location`,
+      );
+      return;
+    }
+
+    setAllocSubmitting(true);
+    setAllocError(null);
     try {
       const payload: AllocateMaterialPayload = {
-        componentId: matComponentId,
-        locationId: matLocationId,
-        quantity: parseFloat(matQuantity),
-        unitOfMeasure: matUnit || "pcs",
-        notes: matNotes || undefined,
+        componentId: allocComponentId,
+        locationId: allocLocationId,
+        quantity: qty,
+        unitOfMeasure: allocUnit,
+        notes: allocNotes.trim() || undefined,
+        performedBy: currentUserName || undefined,
       };
       const updated = await projectsApi.allocateMaterial(project.id, payload);
       setProject(updated);
-      resetMaterialForm();
+      resetAllocateForm();
       fetchData();
     } catch (err: unknown) {
-      setMaterialError(
-        err instanceof Error ? err.message : "Allocation failed",
-      );
+      setAllocError(err instanceof Error ? err.message : "Allocation failed");
     } finally {
-      setMaterialSubmitting(false);
+      setAllocSubmitting(false);
     }
+  };
+
+  // Issue Material helpers (2B)
+  const issueEligibleMaterials = React.useMemo(() => {
+    if (!project) return [];
+    return project.materials.filter((mat) => {
+      const unissued =
+        mat.allocatedQuantity - (mat.issuedQuantity - mat.returnedQuantity);
+      return unissued > 0;
+    });
+  }, [project]);
+
+  const issueComponentOptions = React.useMemo(() => {
+    return issueEligibleMaterials.map((mat) => {
+      const comp = componentsMap[mat.componentId];
+      const loc = locationsMap[mat.locationId];
+      const unissued =
+        mat.allocatedQuantity - (mat.issuedQuantity - mat.returnedQuantity);
+      return {
+        value: mat.id,
+        label: comp ? comp.name : mat.componentId,
+        chip: comp ? comp.sku : undefined,
+        sublabel: `Location: ${loc ? `${loc.name} (${loc.code})` : mat.locationId} • Unissued: ${unissued} ${mat.unitOfMeasure}`,
+      };
+    });
+  }, [issueEligibleMaterials, componentsMap, locationsMap]);
+
+  const selectedIssueMat = React.useMemo(() => {
+    return project?.materials.find((m) => m.id === issueSelectedMatId);
+  }, [project, issueSelectedMatId]);
+
+  const selectedIssueLoc = selectedIssueMat
+    ? locationsMap[selectedIssueMat.locationId]
+    : null;
+  const maxIssueQuantity = selectedIssueMat
+    ? selectedIssueMat.allocatedQuantity -
+      (selectedIssueMat.issuedQuantity - selectedIssueMat.returnedQuantity)
+    : 0;
+
+  const resetIssueForm = () => {
+    setIssueSelectedMatId("");
+    setIssueQuantity("");
+    setIssueError(null);
+    setShowIssueForm(false);
   };
 
   const handleIssueMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!project) return;
-    if (!matComponentId || !matLocationId || !matQuantity) {
-      setMaterialError("Component, location, and quantity are required");
+    if (!project || !selectedIssueMat) {
+      setIssueError("Please select an allocated component");
       return;
     }
-    setMaterialSubmitting(true);
-    setMaterialError(null);
+    const qty = parseFloat(issueQuantity);
+    if (!issueQuantity || isNaN(qty) || qty <= 0) {
+      setIssueError("Please enter a valid quantity greater than 0");
+      return;
+    }
+    if (qty > maxIssueQuantity) {
+      setIssueError(
+        `Quantity cannot exceed remaining allocated balance (${maxIssueQuantity} ${selectedIssueMat.unitOfMeasure})`,
+      );
+      return;
+    }
+
+    setIssueSubmitting(true);
+    setIssueError(null);
     try {
       const payload: IssueMaterialPayload = {
-        componentId: matComponentId,
-        locationId: matLocationId,
-        quantity: parseFloat(matQuantity),
+        componentId: selectedIssueMat.componentId,
+        locationId: selectedIssueMat.locationId,
+        quantity: qty,
+        performedBy: currentUserName || undefined,
       };
       const updated = await projectsApi.issueMaterial(project.id, payload);
       setProject(updated);
-      resetMaterialForm();
+      resetIssueForm();
       fetchData();
     } catch (err: unknown) {
-      setMaterialError(err instanceof Error ? err.message : "Issue failed");
+      setIssueError(err instanceof Error ? err.message : "Issue failed");
     } finally {
-      setMaterialSubmitting(false);
+      setIssueSubmitting(false);
     }
+  };
+
+  // Return Material helpers (2C)
+  const returnEligibleMaterials = React.useMemo(() => {
+    if (!project) return [];
+    return project.materials.filter((mat) => {
+      const netIssued = mat.issuedQuantity - mat.returnedQuantity;
+      return netIssued > 0;
+    });
+  }, [project]);
+
+  const returnComponentOptions = React.useMemo(() => {
+    const compIdMap = new Map<string, number>();
+    for (const mat of returnEligibleMaterials) {
+      const netIssued = mat.issuedQuantity - mat.returnedQuantity;
+      compIdMap.set(
+        mat.componentId,
+        (compIdMap.get(mat.componentId) || 0) + netIssued,
+      );
+    }
+    return Array.from(compIdMap.entries()).map(([cid, totalNetIssued]) => {
+      const comp = componentsMap[cid];
+      return {
+        value: cid,
+        label: comp ? comp.name : cid,
+        chip: comp ? comp.sku : undefined,
+        sublabel: `Total Issued: ${totalNetIssued} ${comp?.unit || "units"}`,
+      };
+    });
+  }, [returnEligibleMaterials, componentsMap]);
+
+  const handleReturnComponentChange = (compId: string) => {
+    setReturnComponentId(compId);
+    setReturnQuantity("");
+    setReturnError(null);
+    const locs = returnEligibleMaterials
+      .filter((m) => m.componentId === compId)
+      .map((m) => m.locationId);
+    if (locs.length === 1 && locs[0]) {
+      setReturnLocationId(locs[0]);
+    } else {
+      setReturnLocationId("");
+    }
+  };
+
+  const returnLocationOptions = React.useMemo(() => {
+    if (!returnComponentId) return [];
+    return returnEligibleMaterials
+      .filter((m) => m.componentId === returnComponentId)
+      .map((m) => {
+        const loc = locationsMap[m.locationId];
+        const netIssued = m.issuedQuantity - m.returnedQuantity;
+        return {
+          value: m.locationId,
+          label: loc ? `${loc.name} (${loc.code})` : m.locationId,
+          chip: `${netIssued} ${m.unitOfMeasure} returnable`,
+          sublabel: loc?.kind ? `Type: ${loc.kind}` : undefined,
+        };
+      });
+  }, [returnComponentId, returnEligibleMaterials, locationsMap]);
+
+  const selectedReturnMat = React.useMemo(() => {
+    return project?.materials.find(
+      (m) =>
+        m.componentId === returnComponentId &&
+        m.locationId === returnLocationId,
+    );
+  }, [project, returnComponentId, returnLocationId]);
+
+  const maxReturnQuantity = selectedReturnMat
+    ? selectedReturnMat.issuedQuantity - selectedReturnMat.returnedQuantity
+    : 0;
+
+  const resetReturnForm = () => {
+    setReturnComponentId("");
+    setReturnLocationId("");
+    setReturnQuantity("");
+    setReturnError(null);
+    setShowReturnForm(false);
   };
 
   const handleReturnMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!project) return;
-    if (!matComponentId || !matLocationId || !matQuantity) {
-      setMaterialError("Component, location, and quantity are required");
+    if (!returnComponentId) {
+      setReturnError("Please select a component");
       return;
     }
-    setMaterialSubmitting(true);
-    setMaterialError(null);
+    if (!returnLocationId) {
+      setReturnError("Please select a storage location");
+      return;
+    }
+    const qty = parseFloat(returnQuantity);
+    if (!returnQuantity || isNaN(qty) || qty <= 0) {
+      setReturnError("Please enter a valid quantity greater than 0");
+      return;
+    }
+    if (qty > maxReturnQuantity) {
+      setReturnError(
+        `Quantity cannot exceed net issued balance (${maxReturnQuantity} ${selectedReturnMat?.unitOfMeasure || ""})`,
+      );
+      return;
+    }
+
+    setReturnSubmitting(true);
+    setReturnError(null);
     try {
       const payload: ReturnMaterialPayload = {
-        componentId: matComponentId,
-        locationId: matLocationId,
-        quantity: parseFloat(matQuantity),
+        componentId: returnComponentId,
+        locationId: returnLocationId,
+        quantity: qty,
+        performedBy: currentUserName || undefined,
       };
       const updated = await projectsApi.returnMaterial(project.id, payload);
       setProject(updated);
-      resetMaterialForm();
+      resetReturnForm();
       fetchData();
     } catch (err: unknown) {
-      setMaterialError(err instanceof Error ? err.message : "Return failed");
+      setReturnError(err instanceof Error ? err.message : "Return failed");
     } finally {
-      setMaterialSubmitting(false);
+      setReturnSubmitting(false);
     }
   };
 
@@ -396,134 +661,6 @@ export default function ViewProjectPage() {
     project.status,
   );
   const canIssueReturn = project.status === "ACTIVE";
-
-  const renderMaterialForm = (
-    title: string,
-    description: string,
-    onSubmit: (e: React.FormEvent) => void,
-    submitLabel: string,
-    showNotes = false,
-  ) => (
-    <DialogShell
-      open
-      onOpenChange={(open) => {
-        if (!open) {
-          resetMaterialForm();
-        }
-      }}
-      title={title}
-      description={description}
-      size="sm"
-    >
-      <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-        <DialogShellBody className="space-y-3">
-          {materialError && (
-            <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
-              <AlertCircle className="h-4 w-4 flex-shrink-0" />
-              <span>{materialError}</span>
-            </div>
-          )}
-
-          <Field>
-            <FieldLabel htmlFor="mat-comp">
-              Component <span className="text-destructive">*</span>
-            </FieldLabel>
-            <Select
-              value={matComponentId}
-              onValueChange={(val) => setMatComponentId(val ?? "")}
-            >
-              <SelectTrigger id="mat-comp">
-                <SelectValue placeholder="Select component..." />
-              </SelectTrigger>
-              <SelectContent>
-                {componentsList.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.sku} — {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field>
-              <FieldLabel htmlFor="mat-loc">
-                Location <span className="text-destructive">*</span>
-              </FieldLabel>
-              <Select
-                value={matLocationId}
-                onValueChange={(val) => setMatLocationId(val ?? "")}
-              >
-                <SelectTrigger id="mat-loc">
-                  <SelectValue placeholder="Select location..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {locationsList.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>
-                      {l.code} — {l.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="mat-qty">
-                Quantity <span className="text-destructive">*</span>
-              </FieldLabel>
-              <Input
-                id="mat-qty"
-                type="number"
-                step="any"
-                min="0.0001"
-                value={matQuantity}
-                onChange={(e) => setMatQuantity(e.target.value)}
-                placeholder="0"
-                className="font-mono font-bold"
-              />
-            </Field>
-          </div>
-
-          {showNotes && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field>
-                <FieldLabel htmlFor="mat-unit">Unit</FieldLabel>
-                <Input
-                  id="mat-unit"
-                  type="text"
-                  value={matUnit}
-                  onChange={(e) => setMatUnit(e.target.value)}
-                  placeholder="pcs"
-                  className="font-mono"
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="mat-notes">Notes</FieldLabel>
-                <Input
-                  id="mat-notes"
-                  type="text"
-                  value={matNotes}
-                  onChange={(e) => setMatNotes(e.target.value)}
-                  placeholder="Optional notes"
-                />
-              </Field>
-            </div>
-          )}
-        </DialogShellBody>
-        <DialogShellFooter>
-          <DialogShellCancelButton onClick={resetMaterialForm}>
-            Cancel
-          </DialogShellCancelButton>
-          <Button type="submit" size="sm" disabled={materialSubmitting}>
-            {materialSubmitting && (
-              <span className="mr-1.5 inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            )}
-            {submitLabel}
-          </Button>
-        </DialogShellFooter>
-      </form>
-    </DialogShell>
-  );
 
   return (
     <div className="space-y-6 print:space-y-4">
@@ -634,29 +771,504 @@ export default function ViewProjectPage() {
         />
       </DialogShell>
 
-      {/* Material Forms */}
-      {showAllocateForm &&
-        renderMaterialForm(
-          "Allocate Material",
-          `Reserve planned component quantity against project "${project.projectNumber}" from a specific location.`,
-          handleAllocateMaterial,
-          "Allocate",
-          true,
-        )}
-      {showIssueForm &&
-        renderMaterialForm(
-          "Issue Material",
-          `Issue committed stock to project "${project.projectNumber}" from the selected storage location.`,
-          handleIssueMaterial,
-          "Issue Material",
-        )}
-      {showReturnForm &&
-        renderMaterialForm(
-          "Return Material",
-          `Return unused project stock from the selected location back into available inventory.`,
-          handleReturnMaterial,
-          "Return Material",
-        )}
+      {/* Allocate Material Modal (Req 2A, 4) */}
+      <DialogShell
+        open={showAllocateForm}
+        onOpenChange={(open) => {
+          if (!open) resetAllocateForm();
+        }}
+        title="Allocate Material"
+        description={`Reserve planned component quantity against project "${project.projectNumber}" from available inventory.`}
+        size="sm"
+      >
+        <form
+          onSubmit={handleAllocateMaterial}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <DialogShellBody className="space-y-3">
+            {allocError && (
+              <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span>{allocError}</span>
+              </div>
+            )}
+
+            <Field>
+              <FieldLabel htmlFor="alloc-comp">
+                Component <span className="text-destructive">*</span>
+              </FieldLabel>
+              <SearchableSelect
+                id="alloc-comp"
+                value={allocComponentId}
+                onValueChange={handleAllocComponentChange}
+                placeholder="Select component..."
+                searchPlaceholder="Search components by name or SKU..."
+                emptyText="No components found."
+                disabled={allocSubmitting}
+                options={componentsList.map((c) => ({
+                  value: c.id,
+                  label: c.name,
+                  chip: c.sku,
+                  sublabel: c.unit ? `Unit: ${c.unit}` : undefined,
+                }))}
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="alloc-loc">
+                Location <span className="text-destructive">*</span>
+              </FieldLabel>
+              <SearchableSelect
+                id="alloc-loc"
+                value={allocLocationId}
+                onValueChange={(val) => {
+                  setAllocLocationId(val ?? "");
+                  setAllocQuantity("");
+                  setAllocError(null);
+                }}
+                placeholder={
+                  allocLoadingProjections
+                    ? "Loading available stock locations..."
+                    : !allocComponentId
+                      ? "Select a component first..."
+                      : allocLocationOptions.length === 0
+                        ? "No locations have available stock"
+                        : "Select location with available stock..."
+                }
+                searchPlaceholder="Search locations with stock..."
+                emptyText={
+                  allocLoadingProjections
+                    ? "Loading..."
+                    : !allocComponentId
+                      ? "Select a component first."
+                      : "No locations have stock for this component."
+                }
+                disabled={
+                  allocSubmitting ||
+                  !allocComponentId ||
+                  allocLoadingProjections ||
+                  allocLocationOptions.length === 0
+                }
+                options={allocLocationOptions}
+              />
+            </Field>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="alloc-qty">
+                  Quantity <span className="text-destructive">*</span>
+                </FieldLabel>
+                <Input
+                  id="alloc-qty"
+                  type="number"
+                  step="any"
+                  min="0.0001"
+                  max={maxAllocQuantity > 0 ? maxAllocQuantity : undefined}
+                  value={allocQuantity}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAllocQuantity(val);
+                    if (val && parseFloat(val) > maxAllocQuantity) {
+                      setAllocError(
+                        `Quantity cannot exceed available stock (${maxAllocQuantity} ${allocUnit})`,
+                      );
+                    } else {
+                      setAllocError(null);
+                    }
+                  }}
+                  placeholder="0"
+                  disabled={!allocLocationId || allocSubmitting}
+                  className="font-mono font-bold"
+                />
+                {allocLocationId && selectedAllocProjection && (
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1">
+                    <span>
+                      Available:{" "}
+                      <strong className="text-foreground">
+                        {maxAllocQuantity} {allocUnit}
+                      </strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAllocQuantity(String(maxAllocQuantity))}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Fill Max
+                    </button>
+                  </div>
+                )}
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="alloc-unit">Unit</FieldLabel>
+                <Input
+                  id="alloc-unit"
+                  type="text"
+                  readOnly
+                  disabled
+                  value={allocUnit}
+                  className="font-mono bg-muted text-muted-foreground cursor-not-allowed"
+                />
+              </Field>
+            </div>
+
+            <Field>
+              <FieldLabel htmlFor="alloc-notes">Notes</FieldLabel>
+              <Input
+                id="alloc-notes"
+                type="text"
+                value={allocNotes}
+                onChange={(e) => setAllocNotes(e.target.value)}
+                placeholder="Optional notes"
+                disabled={allocSubmitting}
+              />
+            </Field>
+          </DialogShellBody>
+          <DialogShellFooter>
+            <DialogShellCancelButton onClick={resetAllocateForm}>
+              Cancel
+            </DialogShellCancelButton>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={
+                allocSubmitting ||
+                !allocComponentId ||
+                !allocLocationId ||
+                !allocQuantity ||
+                parseFloat(allocQuantity) <= 0 ||
+                parseFloat(allocQuantity) > maxAllocQuantity
+              }
+            >
+              {allocSubmitting && (
+                <span className="mr-1.5 inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              )}
+              Allocate
+            </Button>
+          </DialogShellFooter>
+        </form>
+      </DialogShell>
+
+      {/* Issue Material Modal (Req 2B) */}
+      <DialogShell
+        open={showIssueForm}
+        onOpenChange={(open) => {
+          if (!open) resetIssueForm();
+        }}
+        title="Issue Material"
+        description={`Issue allocated component stock to project "${project.projectNumber}".`}
+        size="sm"
+      >
+        <form
+          onSubmit={handleIssueMaterial}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <DialogShellBody className="space-y-3">
+            {issueError && (
+              <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span>{issueError}</span>
+              </div>
+            )}
+
+            {issueEligibleMaterials.length === 0 && (
+              <div className="p-3 bg-muted/40 border border-border rounded-lg text-xs text-muted-foreground text-center">
+                No unissued allocated components available on this project.
+                Allocate materials first.
+              </div>
+            )}
+
+            <Field>
+              <FieldLabel htmlFor="issue-comp">
+                Allocated Component <span className="text-destructive">*</span>
+              </FieldLabel>
+              <SearchableSelect
+                id="issue-comp"
+                value={issueSelectedMatId}
+                onValueChange={(val) => {
+                  setIssueSelectedMatId(val ?? "");
+                  setIssueQuantity("");
+                  setIssueError(null);
+                }}
+                placeholder={
+                  issueEligibleMaterials.length === 0
+                    ? "No allocated components available"
+                    : "Select allocated component..."
+                }
+                searchPlaceholder="Search allocated components..."
+                emptyText="No allocated components with unissued balance."
+                disabled={issueSubmitting || issueEligibleMaterials.length === 0}
+                options={issueComponentOptions}
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="issue-loc">Allocated Location</FieldLabel>
+              <Input
+                id="issue-loc"
+                type="text"
+                readOnly
+                disabled
+                value={
+                  selectedIssueLoc
+                    ? `${selectedIssueLoc.name} (${selectedIssueLoc.code})`
+                    : selectedIssueMat
+                      ? selectedIssueMat.locationId
+                      : "—"
+                }
+                className="font-mono bg-muted text-muted-foreground cursor-not-allowed"
+              />
+            </Field>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="issue-qty">
+                  Quantity <span className="text-destructive">*</span>
+                </FieldLabel>
+                <Input
+                  id="issue-qty"
+                  type="number"
+                  step="any"
+                  min="0.0001"
+                  max={maxIssueQuantity > 0 ? maxIssueQuantity : undefined}
+                  value={issueQuantity}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setIssueQuantity(val);
+                    if (val && parseFloat(val) > maxIssueQuantity) {
+                      setIssueError(
+                        `Quantity cannot exceed remaining allocation (${maxIssueQuantity} ${selectedIssueMat?.unitOfMeasure})`,
+                      );
+                    } else {
+                      setIssueError(null);
+                    }
+                  }}
+                  placeholder="0"
+                  disabled={!selectedIssueMat || issueSubmitting}
+                  className="font-mono font-bold"
+                />
+                {selectedIssueMat && (
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1">
+                    <span>
+                      Max:{" "}
+                      <strong className="text-foreground">
+                        {maxIssueQuantity} {selectedIssueMat.unitOfMeasure}
+                      </strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIssueQuantity(String(maxIssueQuantity))}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Fill Max
+                    </button>
+                  </div>
+                )}
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="issue-unit">Unit</FieldLabel>
+                <Input
+                  id="issue-unit"
+                  type="text"
+                  readOnly
+                  disabled
+                  value={selectedIssueMat?.unitOfMeasure || "pcs"}
+                  className="font-mono bg-muted text-muted-foreground cursor-not-allowed"
+                />
+              </Field>
+            </div>
+          </DialogShellBody>
+          <DialogShellFooter>
+            <DialogShellCancelButton onClick={resetIssueForm}>
+              Cancel
+            </DialogShellCancelButton>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={
+                issueSubmitting ||
+                !selectedIssueMat ||
+                !issueQuantity ||
+                parseFloat(issueQuantity) <= 0 ||
+                parseFloat(issueQuantity) > maxIssueQuantity
+              }
+            >
+              {issueSubmitting && (
+                <span className="mr-1.5 inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              )}
+              Issue Material
+            </Button>
+          </DialogShellFooter>
+        </form>
+      </DialogShell>
+
+      {/* Return Material Modal (Req 2C, 4) */}
+      <DialogShell
+        open={showReturnForm}
+        onOpenChange={(open) => {
+          if (!open) resetReturnForm();
+        }}
+        title="Return Material"
+        description={`Return unused project stock from project "${project.projectNumber}" back into available inventory.`}
+        size="sm"
+      >
+        <form
+          onSubmit={handleReturnMaterial}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <DialogShellBody className="space-y-3">
+            {returnError && (
+              <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span>{returnError}</span>
+              </div>
+            )}
+
+            {returnEligibleMaterials.length === 0 && (
+              <div className="p-3 bg-muted/40 border border-border rounded-lg text-xs text-muted-foreground text-center">
+                No issued components found on this project to return. Only
+                issued materials can be returned.
+              </div>
+            )}
+
+            <Field>
+              <FieldLabel htmlFor="return-comp">
+                Component <span className="text-destructive">*</span>
+              </FieldLabel>
+              <SearchableSelect
+                id="return-comp"
+                value={returnComponentId}
+                onValueChange={handleReturnComponentChange}
+                placeholder={
+                  returnEligibleMaterials.length === 0
+                    ? "No returnable components available"
+                    : "Select component to return..."
+                }
+                searchPlaceholder="Search returnable components..."
+                emptyText="No issued components found to return."
+                disabled={
+                  returnSubmitting || returnEligibleMaterials.length === 0
+                }
+                options={returnComponentOptions}
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="return-loc">
+                Storage Location <span className="text-destructive">*</span>
+              </FieldLabel>
+              <SearchableSelect
+                id="return-loc"
+                value={returnLocationId}
+                onValueChange={(val) => {
+                  setReturnLocationId(val ?? "");
+                  setReturnQuantity("");
+                  setReturnError(null);
+                }}
+                placeholder={
+                  !returnComponentId
+                    ? "Select a component first..."
+                    : returnLocationOptions.length === 0
+                      ? "No locations stored for this component"
+                      : "Select location where component is stored..."
+                }
+                searchPlaceholder="Search storage locations..."
+                emptyText="No storage locations found for this component."
+                disabled={
+                  returnSubmitting ||
+                  !returnComponentId ||
+                  returnLocationOptions.length === 0
+                }
+                options={returnLocationOptions}
+              />
+            </Field>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="return-qty">
+                  Quantity <span className="text-destructive">*</span>
+                </FieldLabel>
+                <Input
+                  id="return-qty"
+                  type="number"
+                  step="any"
+                  min="0.0001"
+                  max={maxReturnQuantity > 0 ? maxReturnQuantity : undefined}
+                  value={returnQuantity}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setReturnQuantity(val);
+                    if (val && parseFloat(val) > maxReturnQuantity) {
+                      setReturnError(
+                        `Quantity cannot exceed net issued balance (${maxReturnQuantity} ${selectedReturnMat?.unitOfMeasure})`,
+                      );
+                    } else {
+                      setReturnError(null);
+                    }
+                  }}
+                  placeholder="0"
+                  disabled={!returnLocationId || returnSubmitting}
+                  className="font-mono font-bold"
+                />
+                {selectedReturnMat && (
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1">
+                    <span>
+                      Returnable:{" "}
+                      <strong className="text-foreground">
+                        {maxReturnQuantity} {selectedReturnMat.unitOfMeasure}
+                      </strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReturnQuantity(String(maxReturnQuantity))
+                      }
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Return All
+                    </button>
+                  </div>
+                )}
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="return-unit">Unit</FieldLabel>
+                <Input
+                  id="return-unit"
+                  type="text"
+                  readOnly
+                  disabled
+                  value={selectedReturnMat?.unitOfMeasure || "pcs"}
+                  className="font-mono bg-muted text-muted-foreground cursor-not-allowed"
+                />
+              </Field>
+            </div>
+          </DialogShellBody>
+          <DialogShellFooter>
+            <DialogShellCancelButton onClick={resetReturnForm}>
+              Cancel
+            </DialogShellCancelButton>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={
+                returnSubmitting ||
+                !returnComponentId ||
+                !returnLocationId ||
+                !returnQuantity ||
+                parseFloat(returnQuantity) <= 0 ||
+                parseFloat(returnQuantity) > maxReturnQuantity
+              }
+            >
+              {returnSubmitting && (
+                <span className="mr-1.5 inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              )}
+              Return Material
+            </Button>
+          </DialogShellFooter>
+        </form>
+      </DialogShell>
 
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">

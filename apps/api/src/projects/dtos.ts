@@ -47,6 +47,10 @@ export class CreateProjectDto {
   @IsString()
   @IsOptional()
   priority?: ProjectPriority;
+
+  @IsString()
+  @IsOptional()
+  performedBy?: string;
 }
 
 export class UpdateProjectDto {
@@ -89,6 +93,16 @@ export class UpdateProjectDto {
   @IsString()
   @IsOptional()
   priority?: ProjectPriority;
+
+  @IsString()
+  @IsOptional()
+  performedBy?: string;
+}
+
+export class ProjectActionDto {
+  @IsString()
+  @IsOptional()
+  performedBy?: string;
 }
 
 export class AllocateMaterialDto {

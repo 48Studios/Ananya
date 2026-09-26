@@ -27,6 +27,10 @@ import {
 } from "@/lib/api/warehouse-transfers-api";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
+import {
+  inventoryProjectionsApi,
+  type InventoryProjectionDto,
+} from "@/lib/api/inventory-projections-api";
 
 const lineSchema = z.object({
   componentId: z.string().min(1, "Component item is required"),
@@ -68,6 +72,13 @@ export function WarehouseTransferForm({
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [loadingRef, setLoadingRef] = React.useState(true);
 
+  // Source location inventory projections (Req 1, 2)
+  const [sourceProjections, setSourceProjections] = React.useState<
+    Record<string, InventoryProjectionDto>
+  >({});
+  const [loadingSourceProjections, setLoadingSourceProjections] =
+    React.useState(false);
+
   const isEdit = Boolean(initialData);
 
   React.useEffect(() => {
@@ -91,6 +102,7 @@ export function WarehouseTransferForm({
     control,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<WarehouseTransferFormValues>({
     resolver: zodResolver(transferSchema),
@@ -125,10 +137,95 @@ export function WarehouseTransferForm({
           requestedDate: new Date().toISOString().split("T")[0],
           notes: "",
           lines: [
-            { componentId: "", quantity: 10, unitOfMeasure: "pcs", notes: "" },
+            { componentId: "", quantity: 1, unitOfMeasure: "pcs", notes: "" },
           ],
         },
   });
+
+  const sourceLocationId = watch("sourceLocationId");
+  const destinationLocationId = watch("destinationLocationId");
+  const watchedLines = watch("lines");
+
+  // Fetch components available at source location whenever source location changes (Req 1)
+  React.useEffect(() => {
+    if (!sourceLocationId) {
+      setSourceProjections({});
+      return;
+    }
+    let isCurrent = true;
+    setLoadingSourceProjections(true);
+    inventoryProjectionsApi
+      .getByLocation(sourceLocationId)
+      .then((projections) => {
+        if (!isCurrent) return;
+        const map: Record<string, InventoryProjectionDto> = {};
+        for (const p of projections || []) {
+          if (p.quantity > 0) {
+            map[p.componentId] = p;
+          }
+        }
+        setSourceProjections(map);
+
+        // Clear any line item whose component does not exist in the selected location
+        const currentLines = control._formValues.lines || [];
+        currentLines.forEach((l: { componentId?: string }, idx: number) => {
+          if (l.componentId && !map[l.componentId]) {
+            setValue(`lines.${idx}.componentId`, "", { shouldValidate: true });
+            setValue(`lines.${idx}.quantity`, 1);
+          }
+        });
+      })
+      .catch((err) => {
+        console.error("Failed to load source location inventory:", err);
+        if (isCurrent) setSourceProjections({});
+      })
+      .finally(() => {
+        if (isCurrent) setLoadingSourceProjections(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [sourceLocationId, setValue, control]);
+
+  // Clear destination if it matches the selected source location (Req 3)
+  React.useEffect(() => {
+    if (sourceLocationId && destinationLocationId === sourceLocationId) {
+      setValue("destinationLocationId", "", { shouldValidate: true });
+    }
+  }, [sourceLocationId, destinationLocationId, setValue]);
+
+  // Destination options: omit the source location (Req 3)
+  const destinationLocationOptions = React.useMemo(() => {
+    return locations
+      .filter((loc) => loc.id !== sourceLocationId)
+      .map((loc) => ({
+        value: loc.id,
+        label: loc.name,
+        chip: loc.code,
+        sublabel: loc.kind ? `Type: ${loc.kind}` : undefined,
+      }));
+  }, [locations, sourceLocationId]);
+
+  // Components dropdown options: only show components with stock at the source location (Req 1)
+  const availableComponents = React.useMemo(() => {
+    if (!sourceLocationId) return [];
+    return components.filter((c) => Boolean(sourceProjections[c.id]));
+  }, [components, sourceLocationId, sourceProjections]);
+
+  const componentOptions = React.useMemo(() => {
+    return availableComponents.map((c) => {
+      const proj = sourceProjections[c.id];
+      return {
+        value: c.id,
+        label: c.name,
+        chip: c.sku,
+        sublabel: proj
+          ? `Available at location: ${proj.quantity} ${proj.unitOfMeasure || c.unit || "pcs"}`
+          : undefined,
+      };
+    });
+  }, [availableComponents, sourceProjections]);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -136,10 +233,23 @@ export function WarehouseTransferForm({
   });
 
   const handleComponentChange = (idx: number, compId: string) => {
-    setValue(`lines.${idx}.componentId`, compId);
+    setValue(`lines.${idx}.componentId`, compId, { shouldValidate: true });
     const comp = components.find((c) => c.id === compId);
-    if (comp) {
-      setValue(`lines.${idx}.unitOfMeasure`, comp.unit || "pcs");
+    const proj = sourceProjections[compId];
+    if (comp || proj) {
+      setValue(
+        `lines.${idx}.unitOfMeasure`,
+        proj?.unitOfMeasure || comp?.unit || "pcs",
+      );
+    }
+    const maxAvailable = proj ? proj.quantity : 1;
+    const currentQty = control._formValues.lines?.[idx]?.quantity;
+    if (currentQty && currentQty > maxAvailable) {
+      setValue(`lines.${idx}.quantity`, maxAvailable, { shouldValidate: true });
+    } else if (!currentQty || currentQty <= 0) {
+      setValue(`lines.${idx}.quantity`, Math.min(1, maxAvailable), {
+        shouldValidate: true,
+      });
     }
   };
 
@@ -147,6 +257,19 @@ export function WarehouseTransferForm({
     values,
   ) => {
     setServerError(null);
+
+    // Validate quantities against available stock (Req 2)
+    for (let i = 0; i < values.lines.length; i++) {
+      const l = values.lines[i];
+      if (!l) continue;
+      const proj = sourceProjections[l.componentId];
+      if (proj && l.quantity > proj.quantity) {
+        setServerError(
+          `Line #${i + 1}: Quantity (${l.quantity}) exceeds available stock (${proj.quantity} ${proj.unitOfMeasure || "pcs"}) at source location.`,
+        );
+        return;
+      }
+    }
     try {
       if (isEdit && initialData) {
         const payload: UpdateWarehouseTransferPayload = {
@@ -255,13 +378,21 @@ export function WarehouseTransferForm({
                   id="transfer-dest-loc"
                   value={field.value}
                   onValueChange={field.onChange}
-                  placeholder="Select receiving location..."
+                  placeholder={
+                    !sourceLocationId
+                      ? "Select source location first..."
+                      : "Select receiving location..."
+                  }
                   searchPlaceholder="Search locations..."
-                  options={locations.map((loc) => ({
-                    value: loc.id,
-                    label: loc.name,
-                    chip: loc.code,
-                  }))}
+                  emptyText={
+                    !sourceLocationId
+                      ? "Please select a source location first."
+                      : destinationLocationOptions.length === 0
+                        ? "No other locations available."
+                        : "No matching locations found."
+                  }
+                  options={destinationLocationOptions}
+                  disabled={!sourceLocationId}
                 />
               )}
             />
@@ -306,6 +437,11 @@ export function WarehouseTransferForm({
               type="button"
               variant="outline"
               size="xs"
+              disabled={
+                !sourceLocationId ||
+                loadingSourceProjections ||
+                availableComponents.length === 0
+              }
               onClick={() =>
                 append({
                   componentId: "",
@@ -326,90 +462,167 @@ export function WarehouseTransferForm({
             </p>
           )}
 
+          {!sourceLocationId ? (
+            <div className="p-3 bg-muted/20 border border-dashed border-border rounded-lg text-center text-xs text-muted-foreground">
+              Please select a source location above to view and transfer available stock.
+            </div>
+          ) : loadingSourceProjections ? (
+            <div className="p-3 bg-muted/20 border border-dashed border-border rounded-lg text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              Loading stock at selected source location...
+            </div>
+          ) : availableComponents.length === 0 ? (
+            <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg text-center text-xs text-destructive flex items-center justify-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              No components with available inventory were found at this source location.
+            </div>
+          ) : null}
+
           <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-            {fields.map((field, idx) => (
-              <div
-                key={field.id}
-                className="p-3 bg-muted/20 border border-border rounded-lg grid grid-cols-1 sm:grid-cols-12 gap-2 items-end"
-              >
-                <div className="sm:col-span-6 space-y-1">
-                  <label className="text-[11px] font-medium text-muted-foreground">
-                    Item #{idx + 1} Component{" "}
-                    <span className="text-destructive">*</span>
-                  </label>
-                  <Controller
-                    name={`lines.${idx}.componentId` as const}
-                    control={control}
-                    render={({ field: compField }) => (
-                      <SearchableSelect
-                        value={compField.value}
-                        onValueChange={(val) => {
-                          compField.onChange(val ?? "");
-                          handleComponentChange(idx, val ?? "");
-                        }}
-                        placeholder="Select component..."
-                        searchPlaceholder="Search components..."
-                        triggerClassName="h-8 text-xs"
-                        options={components.map((c) => ({
-                          value: c.id,
-                          label: c.name,
-                          chip: c.sku,
-                        }))}
-                      />
+            {fields.map((field, idx) => {
+              const currentCompId = watchedLines?.[idx]?.componentId;
+              const currentProj = currentCompId
+                ? sourceProjections[currentCompId]
+                : null;
+              const maxAvailable = currentProj ? currentProj.quantity : null;
+
+              return (
+                <div
+                  key={field.id}
+                  className="p-3 bg-muted/20 border border-border rounded-lg grid grid-cols-1 sm:grid-cols-12 gap-2 items-end"
+                >
+                  <div className="sm:col-span-6 space-y-1">
+                    <label className="text-[11px] font-medium text-muted-foreground">
+                      Item #{idx + 1} Component{" "}
+                      <span className="text-destructive">*</span>
+                    </label>
+                    <Controller
+                      name={`lines.${idx}.componentId` as const}
+                      control={control}
+                      render={({ field: compField }) => (
+                        <SearchableSelect
+                          value={compField.value}
+                          onValueChange={(val) => {
+                            compField.onChange(val ?? "");
+                            handleComponentChange(idx, val ?? "");
+                          }}
+                          disabled={
+                            !sourceLocationId ||
+                            loadingSourceProjections ||
+                            availableComponents.length === 0
+                          }
+                          placeholder={
+                            !sourceLocationId
+                              ? "Select source location first..."
+                              : loadingSourceProjections
+                                ? "Loading stock..."
+                                : availableComponents.length === 0
+                                  ? "No components in stock"
+                                  : "Select component..."
+                          }
+                          searchPlaceholder="Search components in source stock..."
+                          emptyText={
+                            !sourceLocationId
+                              ? "Select source location first."
+                              : loadingSourceProjections
+                                ? "Loading stock..."
+                                : "No components with stock available."
+                          }
+                          triggerClassName="h-8 text-xs"
+                          options={componentOptions}
+                        />
+                      )}
+                    />
+                    {errors.lines?.[idx]?.componentId?.message && (
+                      <p className="text-[11px] text-destructive">
+                        {errors.lines[idx]?.componentId?.message}
+                      </p>
                     )}
-                  />
-                  {errors.lines?.[idx]?.componentId?.message && (
-                    <p className="text-[11px] text-destructive">
-                      {errors.lines[idx]?.componentId?.message}
-                    </p>
-                  )}
-                </div>
+                  </div>
 
-                <div className="sm:col-span-3 space-y-1">
-                  <label className="text-[11px] font-medium text-muted-foreground">
-                    Quantity <span className="text-destructive">*</span>
-                  </label>
-                  <Input
-                    type="number"
-                    step="any"
-                    min={0.0001}
-                    {...register(`lines.${idx}.quantity` as const, {
-                      valueAsNumber: true,
-                    })}
-                    className="h-8 text-xs font-mono font-bold"
-                  />
-                  {errors.lines?.[idx]?.quantity?.message && (
-                    <p className="text-[11px] text-destructive">
-                      {errors.lines[idx]?.quantity?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="sm:col-span-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-medium text-muted-foreground">
+                        Quantity <span className="text-destructive">*</span>
+                      </label>
+                      {maxAvailable !== null && maxAvailable > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setValue(`lines.${idx}.quantity`, maxAvailable, {
+                              shouldValidate: true,
+                            })
+                          }
+                          className="text-[10px] text-primary hover:underline font-mono font-medium cursor-pointer"
+                        >
+                          Max: {maxAvailable}
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      type="number"
+                      step="any"
+                      min={0.0001}
+                      max={maxAvailable !== null ? maxAvailable : undefined}
+                      disabled={!currentCompId}
+                      {...register(`lines.${idx}.quantity` as const, {
+                        valueAsNumber: true,
+                        min: {
+                          value: 0.0001,
+                          message: "Quantity must be greater than 0",
+                        },
+                        validate: (val) => {
+                          if (maxAvailable !== null && val > maxAvailable) {
+                            return `Max available is ${maxAvailable} ${currentProj?.unitOfMeasure || "units"}`;
+                          }
+                          return true;
+                        },
+                      })}
+                      className="h-8 text-xs font-mono font-bold"
+                    />
+                    {errors.lines?.[idx]?.quantity?.message ? (
+                      <p className="text-[11px] text-destructive">
+                        {errors.lines[idx]?.quantity?.message}
+                      </p>
+                    ) : currentCompId && maxAvailable !== null ? (
+                      <p className="text-[10px] text-muted-foreground">
+                        Available:{" "}
+                        <span className="font-mono font-semibold text-foreground">
+                          {maxAvailable}
+                        </span>{" "}
+                        {currentProj?.unitOfMeasure || "pcs"}
+                      </p>
+                    ) : null}
+                  </div>
 
-                <div className="sm:col-span-2 space-y-1">
-                  <label className="text-[11px] font-medium text-muted-foreground">
-                    Unit
-                  </label>
-                  <Input
-                    type="text"
-                    {...register(`lines.${idx}.unitOfMeasure` as const)}
-                    className="h-8 text-xs font-mono"
-                  />
-                </div>
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="text-[11px] font-medium text-muted-foreground">
+                      Unit
+                    </label>
+                    <Input
+                      type="text"
+                      readOnly
+                      tabIndex={-1}
+                      {...register(`lines.${idx}.unitOfMeasure` as const)}
+                      className="h-8 text-xs font-mono bg-muted/50 text-muted-foreground cursor-not-allowed"
+                    />
+                  </div>
 
-                <div className="sm:col-span-1 flex justify-end">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={fields.length === 1}
-                    onClick={() => remove(idx)}
-                    className="text-destructive hover:bg-destructive/10 h-8 w-8"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="sm:col-span-1 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={fields.length === 1}
+                      onClick={() => remove(idx)}
+                      className="text-destructive hover:bg-destructive/10 h-8 w-8"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </DialogShellBody>

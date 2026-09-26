@@ -89,6 +89,7 @@ export interface CreateProjectPayload {
   startDate: string;
   targetCompletionDate: string;
   priority?: ProjectPriority;
+  performedBy?: string;
 }
 
 export interface UpdateProjectPayload {
@@ -102,6 +103,7 @@ export interface UpdateProjectPayload {
   startDate?: string;
   targetCompletionDate?: string;
   priority?: ProjectPriority;
+  performedBy?: string;
 }
 
 export interface AllocateMaterialPayload {
@@ -168,34 +170,34 @@ export const projectsApi = {
   update: (id: string, payload: UpdateProjectPayload): Promise<ProjectDto> =>
     apiClient.put<ProjectDto, UpdateProjectPayload>(`/projects/${id}`, payload),
 
-  start: (id: string): Promise<ProjectDto> =>
-    apiClient.post<ProjectDto, Record<string, never>>(
+  start: (id: string, performedBy?: string): Promise<ProjectDto> =>
+    apiClient.post<ProjectDto, { performedBy?: string }>(
       `/projects/${id}/start`,
-      {},
+      { performedBy },
     ),
 
-  pause: (id: string): Promise<ProjectDto> =>
-    apiClient.post<ProjectDto, Record<string, never>>(
+  pause: (id: string, performedBy?: string): Promise<ProjectDto> =>
+    apiClient.post<ProjectDto, { performedBy?: string }>(
       `/projects/${id}/pause`,
-      {},
+      { performedBy },
     ),
 
-  complete: (id: string): Promise<ProjectDto> =>
-    apiClient.post<ProjectDto, Record<string, never>>(
+  complete: (id: string, performedBy?: string): Promise<ProjectDto> =>
+    apiClient.post<ProjectDto, { performedBy?: string }>(
       `/projects/${id}/complete`,
-      {},
+      { performedBy },
     ),
 
-  archive: (id: string): Promise<ProjectDto> =>
-    apiClient.post<ProjectDto, Record<string, never>>(
+  archive: (id: string, performedBy?: string): Promise<ProjectDto> =>
+    apiClient.post<ProjectDto, { performedBy?: string }>(
       `/projects/${id}/archive`,
-      {},
+      { performedBy },
     ),
 
-  cancel: (id: string): Promise<ProjectDto> =>
-    apiClient.post<ProjectDto, Record<string, never>>(
+  cancel: (id: string, performedBy?: string): Promise<ProjectDto> =>
+    apiClient.post<ProjectDto, { performedBy?: string }>(
       `/projects/${id}/cancel`,
-      {},
+      { performedBy },
     ),
 
   addMilestone: (
@@ -207,10 +209,14 @@ export const projectsApi = {
       payload,
     ),
 
-  completeMilestone: (id: string, milestoneId: string): Promise<ProjectDto> =>
-    apiClient.post<ProjectDto, Record<string, never>>(
+  completeMilestone: (
+    id: string,
+    milestoneId: string,
+    performedBy?: string,
+  ): Promise<ProjectDto> =>
+    apiClient.post<ProjectDto, { performedBy?: string }>(
       `/projects/${id}/milestones/${milestoneId}/complete`,
-      {},
+      { performedBy },
     ),
 
   allocateMaterial: (

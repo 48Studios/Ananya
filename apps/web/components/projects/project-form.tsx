@@ -19,6 +19,13 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
+  SearchableSelect,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select";
+import { usersApi } from "@/lib/api/users-api";
+import { type UserProfileDto } from "@/lib/api/auth-api";
+import { useAuth } from "@/lib/auth/auth-context";
+import {
   projectsApi,
   type ProjectDto,
   type CreateProjectPayload,
@@ -54,9 +61,13 @@ export function ProjectForm({
   onSuccess,
   onCancel,
 }: ProjectFormProps) {
+  const { user: currentUser } = useAuth();
   const isEdit = Boolean(initialData);
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const [users, setUsers] = React.useState<UserProfileDto[]>([]);
+  const [loadingUsers, setLoadingUsers] = React.useState(false);
 
   const [name, setName] = React.useState(initialData?.name || "");
   const [projectType, setProjectType] = React.useState<ProjectType>(
@@ -82,6 +93,68 @@ export function ProjectForm({
   const [priority, setPriority] = React.useState<ProjectPriority>(
     initialData?.priority || "MEDIUM",
   );
+
+  React.useEffect(() => {
+    let isMounted = true;
+    setLoadingUsers(true);
+    usersApi
+      .getAll()
+      .then((data) => {
+        if (isMounted) setUsers(data || []);
+      })
+      .catch((err) => {
+        console.error("Failed to load organization users:", err);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingUsers(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const currentUserName = currentUser
+    ? [currentUser.firstName, currentUser.lastName].filter(Boolean).join(" ") || currentUser.email
+    : "";
+
+  // For new project, default Project Manager and Owner to current user if empty
+  React.useEffect(() => {
+    if (!isEdit && currentUserName) {
+      if (!projectManager) setProjectManager(currentUserName);
+      if (!owner) setOwner(currentUserName);
+    }
+  }, [isEdit, currentUserName, projectManager, owner]);
+
+  const userOptions: SearchableSelectOption[] = React.useMemo(() => {
+    const list: SearchableSelectOption[] = users.map((u) => {
+      const fullName = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
+      const label = fullName || u.email;
+      return {
+        value: label,
+        label,
+        sublabel: fullName ? u.email : (u.department || undefined),
+        chip: u.department || u.roleName || undefined,
+      };
+    });
+
+    if (
+      projectManager &&
+      !list.some((o) => o.value.toLowerCase() === projectManager.toLowerCase())
+    ) {
+      list.unshift({
+        value: projectManager,
+        label: projectManager,
+        chip: "Selected",
+      });
+    }
+    if (
+      owner &&
+      !list.some((o) => o.value.toLowerCase() === owner.toLowerCase())
+    ) {
+      list.unshift({ value: owner, label: owner, chip: "Selected" });
+    }
+    return list;
+  }, [users, projectManager, owner]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,6 +189,7 @@ export function ProjectForm({
           startDate,
           targetCompletionDate,
           priority,
+          performedBy: currentUserName || undefined,
         };
         const updated = await projectsApi.update(initialData.id, payload);
         onSuccess(updated);
@@ -129,6 +203,7 @@ export function ProjectForm({
           startDate,
           targetCompletionDate,
           priority,
+          performedBy: currentUserName || undefined,
         };
         const created = await projectsApi.create(payload);
         onSuccess(created);
@@ -215,23 +290,36 @@ export function ProjectForm({
             <FieldLabel htmlFor="project-manager">
               Project Manager <span className="text-destructive">*</span>
             </FieldLabel>
-            <Input
+            <SearchableSelect
               id="project-manager"
-              type="text"
-              placeholder="e.g. Arun K"
               value={projectManager}
-              onChange={(e) => setProjectManager(e.target.value)}
+              onValueChange={(val) => setProjectManager(val || "")}
+              placeholder={
+                loadingUsers
+                  ? "Loading organization users..."
+                  : "Select project manager..."
+              }
+              searchPlaceholder="Search users by name, email, department..."
+              emptyText="No organization users found."
+              disabled={isSubmitting}
+              options={userOptions}
             />
           </Field>
 
           <Field>
             <FieldLabel htmlFor="project-owner">Owner</FieldLabel>
-            <Input
+            <SearchableSelect
               id="project-owner"
-              type="text"
-              placeholder="e.g. Operations Lead"
               value={owner}
-              onChange={(e) => setOwner(e.target.value)}
+              onValueChange={(val) => setOwner(val || "")}
+              placeholder={
+                loadingUsers ? "Loading organization users..." : "Select owner..."
+              }
+              searchPlaceholder="Search users by name, email, department..."
+              emptyText="No organization users found."
+              disabled={isSubmitting}
+              clearable
+              options={userOptions}
             />
           </Field>
         </div>

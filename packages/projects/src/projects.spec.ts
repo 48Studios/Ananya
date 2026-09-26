@@ -122,4 +122,92 @@ describe("Projects Bounded Context Aggregates", () => {
       ).toThrow();
     });
   });
+
+  describe("Project Materials & Activity Log", () => {
+    it("should record actual user in activity log on create, update, lifecycle, and material actions", () => {
+      const project = Project.create({
+        projectNumber: "PRJ-2026-0003",
+        name: "Solar Farm Substation Control",
+        projectManager: "Arun K",
+        owner: "Sarath JR",
+        startDate: new Date("2026-09-01"),
+        targetCompletionDate: new Date("2026-12-01"),
+        performedBy: "Sarath JR",
+      });
+
+      expect(project.activities[0]?.performedBy).toBe("Sarath JR");
+      expect(project.activities[0]?.activityType).toBe("CREATED");
+
+      project.update(
+        { description: "High-priority installation" },
+        "Sarath JR",
+      );
+      expect(
+        project.activities[project.activities.length - 1]?.performedBy,
+      ).toBe("Sarath JR");
+
+      project.start("Sarath JR");
+      expect(
+        project.activities[project.activities.length - 1]?.performedBy,
+      ).toBe("Sarath JR");
+
+      project.allocateMaterial(
+        "comp-1",
+        "loc-bin-1",
+        50,
+        "pcs",
+        "Initial reserve",
+        "Sarath JR",
+      );
+      const allocActivity = project.activities[project.activities.length - 1];
+      expect(allocActivity?.performedBy).toBe("Sarath JR");
+      expect(allocActivity?.activityType).toBe("MATERIAL_ALLOCATED");
+
+      project.issueMaterial("comp-1", "loc-bin-1", 30, "Sarath JR");
+      const issueActivity = project.activities[project.activities.length - 1];
+      expect(issueActivity?.performedBy).toBe("Sarath JR");
+      expect(issueActivity?.activityType).toBe("MATERIAL_ISSUED");
+
+      project.returnMaterial("comp-1", "loc-bin-1", 10, "Sarath JR");
+      const returnActivity = project.activities[project.activities.length - 1];
+      expect(returnActivity?.performedBy).toBe("Sarath JR");
+      expect(returnActivity?.activityType).toBe("MATERIAL_RETURNED");
+
+      const mat = project.materials[0];
+      expect(mat?.allocatedQuantity).toBe(50);
+      expect(mat?.issuedQuantity).toBe(30);
+      expect(mat?.returnedQuantity).toBe(10);
+    });
+
+    it("should enforce quantity constraints on issue and return", () => {
+      const project = Project.create({
+        projectNumber: "PRJ-2026-0004",
+        name: "Constraint Test Project",
+        projectManager: "PM",
+        startDate: new Date("2026-09-01"),
+        targetCompletionDate: new Date("2026-12-01"),
+      });
+
+      project.start("User");
+      project.allocateMaterial("comp-1", "loc-1", 20, "pcs", undefined, "User");
+
+      // Cannot issue more than allocated (20)
+      expect(() => project.issueMaterial("comp-1", "loc-1", 25, "User")).toThrow();
+
+      // Issue 15
+      project.issueMaterial("comp-1", "loc-1", 15, "User");
+
+      // Cannot issue more than remaining unissued (20 - 15 = 5)
+      expect(() => project.issueMaterial("comp-1", "loc-1", 10, "User")).toThrow();
+
+      // Cannot return more than net issued (15)
+      expect(() => project.returnMaterial("comp-1", "loc-1", 20, "User")).toThrow();
+
+      // Return 5
+      project.returnMaterial("comp-1", "loc-1", 5, "User");
+
+      // Net issued is now 10, remaining unissued is now 20 - 10 = 10
+      expect(() => project.issueMaterial("comp-1", "loc-1", 10, "User")).not.toThrow();
+    });
+  });
 });

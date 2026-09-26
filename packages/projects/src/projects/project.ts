@@ -95,6 +95,7 @@ export interface CreateProjectProps {
   startDate: Date;
   targetCompletionDate: Date;
   priority?: ProjectPriority;
+  performedBy?: string;
 }
 
 export interface UpdateProjectProps {
@@ -108,6 +109,7 @@ export interface UpdateProjectProps {
   startDate?: Date;
   targetCompletionDate?: Date;
   priority?: ProjectPriority;
+  performedBy?: string;
 }
 
 export class Project implements ProjectProps {
@@ -185,7 +187,7 @@ export class Project implements ProjectProps {
     project.logActivity({
       activityType: "CREATED",
       description: `Project "${project.name}" (${project.projectNumber}) created under status PLANNING`,
-      performedBy: project.owner,
+      performedBy: props.performedBy || project.owner || project.projectManager,
     });
 
     return project;
@@ -197,7 +199,7 @@ export class Project implements ProjectProps {
 
   public update(
     props: UpdateProjectProps,
-    performedBy = "Project Manager",
+    performedBy?: string,
   ): void {
     if (
       this.status === "COMPLETED" ||
@@ -227,11 +229,16 @@ export class Project implements ProjectProps {
     this.logActivity({
       activityType: "STATUS_CHANGED",
       description: `Updated project metadata & parameters`,
-      performedBy,
+      performedBy:
+        performedBy ||
+        props.performedBy ||
+        this.owner ||
+        this.projectManager ||
+        "User",
     });
   }
 
-  public start(performedBy = "Project Manager"): void {
+  public start(performedBy?: string): void {
     if (
       this.status === "COMPLETED" ||
       this.status === "ARCHIVED" ||
@@ -247,11 +254,12 @@ export class Project implements ProjectProps {
     this.logActivity({
       activityType: "STATUS_CHANGED",
       description: `Project status transitioned from ${prevStatus} to ACTIVE`,
-      performedBy,
+      performedBy:
+        performedBy || this.owner || this.projectManager || "User",
     });
   }
 
-  public pause(performedBy = "Project Manager"): void {
+  public pause(performedBy?: string): void {
     if (this.status !== "ACTIVE") {
       throw new InvalidProjectStatusError(
         `Only ACTIVE projects can be paused (current: ${this.status})`,
@@ -262,11 +270,12 @@ export class Project implements ProjectProps {
     this.logActivity({
       activityType: "STATUS_CHANGED",
       description: `Project status set to ON_HOLD`,
-      performedBy,
+      performedBy:
+        performedBy || this.owner || this.projectManager || "User",
     });
   }
 
-  public complete(performedBy = "Project Manager"): void {
+  public complete(performedBy?: string): void {
     if (this.status === "CANCELLED" || this.status === "ARCHIVED") {
       throw new InvalidProjectStatusError(
         `Cannot complete project in status ${this.status}`,
@@ -278,22 +287,24 @@ export class Project implements ProjectProps {
     this.logActivity({
       activityType: "STATUS_CHANGED",
       description: `Project status transitioned from ${prevStatus} to COMPLETED (Read-only)`,
-      performedBy,
+      performedBy:
+        performedBy || this.owner || this.projectManager || "User",
     });
   }
 
-  public archive(performedBy = "Project Manager"): void {
+  public archive(performedBy?: string): void {
     const prevStatus = this.status;
     this.status = "ARCHIVED";
     this.updatedAt = new Date();
     this.logActivity({
       activityType: "ARCHIVED",
       description: `Project archived from status ${prevStatus}`,
-      performedBy,
+      performedBy:
+        performedBy || this.owner || this.projectManager || "User",
     });
   }
 
-  public cancel(performedBy = "Project Manager"): void {
+  public cancel(performedBy?: string): void {
     if (this.status === "COMPLETED" || this.status === "ARCHIVED") {
       throw new InvalidProjectStatusError(
         `Cannot cancel project in status ${this.status}`,
@@ -305,7 +316,8 @@ export class Project implements ProjectProps {
     this.logActivity({
       activityType: "STATUS_CHANGED",
       description: `Project cancelled from status ${prevStatus}`,
-      performedBy,
+      performedBy:
+        performedBy || this.owner || this.projectManager || "User",
     });
   }
 
@@ -315,7 +327,7 @@ export class Project implements ProjectProps {
     quantity: number,
     unitOfMeasure = "pcs",
     notes?: string,
-    performedBy = "Inventory Lead",
+    performedBy?: string,
   ): ProjectMaterialProps {
     if (
       this.status === "COMPLETED" ||
@@ -362,7 +374,8 @@ export class Project implements ProjectProps {
     this.logActivity({
       activityType: "MATERIAL_ALLOCATED",
       description: `Allocated ${quantity} ${unitOfMeasure} of component (${componentId})`,
-      performedBy,
+      performedBy:
+        performedBy || this.owner || this.projectManager || "User",
     });
 
     return mat;
@@ -372,7 +385,7 @@ export class Project implements ProjectProps {
     componentId: string,
     locationId: string,
     quantity: number,
-    performedBy = "Warehouse Lead",
+    performedBy?: string,
   ): ProjectMaterialProps {
     if (this.status !== "ACTIVE") {
       throw new InvalidProjectStatusError(
@@ -412,7 +425,8 @@ export class Project implements ProjectProps {
     this.logActivity({
       activityType: "MATERIAL_ISSUED",
       description: `Issued ${quantity} ${mat.unitOfMeasure} of component (${componentId}) to project`,
-      performedBy,
+      performedBy:
+        performedBy || this.owner || this.projectManager || "User",
     });
 
     return mat;
@@ -422,7 +436,7 @@ export class Project implements ProjectProps {
     componentId: string,
     locationId: string,
     quantity: number,
-    performedBy = "Warehouse Lead",
+    performedBy?: string,
   ): ProjectMaterialProps {
     if (this.status !== "ACTIVE") {
       throw new InvalidProjectStatusError(
@@ -461,7 +475,8 @@ export class Project implements ProjectProps {
     this.logActivity({
       activityType: "MATERIAL_RETURNED",
       description: `Returned ${quantity} ${mat.unitOfMeasure} of component (${componentId}) from project to warehouse`,
-      performedBy,
+      performedBy:
+        performedBy || this.owner || this.projectManager || "User",
     });
 
     return mat;
@@ -488,7 +503,7 @@ export class Project implements ProjectProps {
     return milestone;
   }
 
-  public completeMilestone(milestoneId: string): void {
+  public completeMilestone(milestoneId: string, performedBy?: string): void {
     const milestone = this.milestones.find((m) => m.id === milestoneId);
     if (!milestone) {
       throw new Error(
@@ -499,6 +514,13 @@ export class Project implements ProjectProps {
     milestone.completionPercentage = 100;
     milestone.updatedAt = new Date();
     this.updatedAt = new Date();
+    if (performedBy) {
+      this.logActivity({
+        activityType: "STATUS_CHANGED",
+        description: `Completed milestone: ${milestone.name}`,
+        performedBy,
+      });
+    }
   }
 
   private logActivity(props: {
