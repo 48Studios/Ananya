@@ -489,13 +489,15 @@ export function WarehouseTransferForm({
               return (
                 <div
                   key={field.id}
-                  className="p-3 bg-muted/20 border border-border rounded-lg grid grid-cols-1 sm:grid-cols-12 gap-2 items-end"
+                  className="p-3 bg-muted/20 border border-border rounded-lg grid grid-cols-1 sm:grid-cols-12 gap-2 items-start"
                 >
                   <div className="sm:col-span-6 space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground">
-                      Item #{idx + 1} Component{" "}
-                      <span className="text-destructive">*</span>
-                    </label>
+                    <div className="h-4 flex items-center">
+                      <label className="text-[11px] font-medium text-muted-foreground truncate">
+                        Item #{idx + 1} Component{" "}
+                        <span className="text-destructive">*</span>
+                      </label>
+                    </div>
                     <Controller
                       name={`lines.${idx}.componentId` as const}
                       control={control}
@@ -534,30 +536,17 @@ export function WarehouseTransferForm({
                       )}
                     />
                     {errors.lines?.[idx]?.componentId?.message && (
-                      <p className="text-[11px] text-destructive">
+                      <p className="text-[11px] text-destructive leading-tight">
                         {errors.lines[idx]?.componentId?.message}
                       </p>
                     )}
                   </div>
 
                   <div className="sm:col-span-3 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-medium text-muted-foreground">
+                    <div className="h-4 flex items-center">
+                      <label className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
                         Quantity <span className="text-destructive">*</span>
                       </label>
-                      {maxAvailable !== null && maxAvailable > 0 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setValue(`lines.${idx}.quantity`, maxAvailable, {
-                              shouldValidate: true,
-                            })
-                          }
-                          className="text-[10px] text-primary hover:underline font-mono font-medium cursor-pointer"
-                        >
-                          Max: {maxAvailable}
-                        </button>
-                      )}
                     </div>
                     <Input
                       type="number"
@@ -573,7 +562,7 @@ export function WarehouseTransferForm({
                         },
                         validate: (val) => {
                           if (maxAvailable !== null && val > maxAvailable) {
-                            return `Max available is ${maxAvailable} ${currentProj?.unitOfMeasure || "units"}`;
+                            return `Max available is ${maxAvailable}`;
                           }
                           return true;
                         },
@@ -581,24 +570,38 @@ export function WarehouseTransferForm({
                       className="h-8 text-xs font-mono font-bold"
                     />
                     {errors.lines?.[idx]?.quantity?.message ? (
-                      <p className="text-[11px] text-destructive">
+                      <p className="text-[11px] text-destructive leading-tight">
                         {errors.lines[idx]?.quantity?.message}
                       </p>
                     ) : currentCompId && maxAvailable !== null ? (
-                      <p className="text-[10px] text-muted-foreground">
-                        Available:{" "}
-                        <span className="font-mono font-semibold text-foreground">
-                          {maxAvailable}
-                        </span>{" "}
-                        {currentProj?.unitOfMeasure || "pcs"}
-                      </p>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground leading-none pt-0.5">
+                        <span className="whitespace-nowrap">
+                          Max:{" "}
+                          <strong className="font-mono text-foreground font-semibold">
+                            {maxAvailable}
+                          </strong>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setValue(`lines.${idx}.quantity`, maxAvailable, {
+                              shouldValidate: true,
+                            })
+                          }
+                          className="text-primary hover:underline font-medium cursor-pointer ml-1 whitespace-nowrap"
+                        >
+                          Fill Max
+                        </button>
+                      </div>
                     ) : null}
                   </div>
 
                   <div className="sm:col-span-2 space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground">
-                      Unit
-                    </label>
+                    <div className="h-4 flex items-center">
+                      <label className="text-[11px] font-medium text-muted-foreground">
+                        Unit
+                      </label>
+                    </div>
                     <Input
                       type="text"
                       readOnly
@@ -608,14 +611,15 @@ export function WarehouseTransferForm({
                     />
                   </div>
 
-                  <div className="sm:col-span-1 flex justify-end">
+                  <div className="sm:col-span-1 space-y-1 flex flex-col items-end">
+                    <div className="h-4 hidden sm:block" />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       disabled={fields.length === 1}
                       onClick={() => remove(idx)}
-                      className="text-destructive hover:bg-destructive/10 h-8 w-8"
+                      className="text-destructive hover:bg-destructive/10 h-8 w-8 shrink-0"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>

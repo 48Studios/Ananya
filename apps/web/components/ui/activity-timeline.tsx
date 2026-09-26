@@ -65,7 +65,7 @@ export function ActivityIcon({
   return (
     <div
       className={cn(
-        "p-2 rounded-lg border flex items-center justify-center shrink-0",
+        "p-2 rounded-lg border flex items-center justify-center shrink-0 aspect-square h-12",
         colorClass,
         className,
       )}
@@ -193,7 +193,7 @@ export function ActivityTimeline({ events }: { events: ActivityEventDto[] }) {
     <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
       {events.map((event) => (
         <div key={event.id} className="relative">
-          <div className="absolute -left-6 top-4 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-background" />
+          <div className="absolute -left-4.5 top-13 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-background" />
           <ActivityCard event={event} />
         </div>
       ))}

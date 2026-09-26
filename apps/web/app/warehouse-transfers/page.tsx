@@ -167,7 +167,7 @@ export default function WarehouseTransfersPage() {
       {
         accessorKey: "sourceLocationId",
         header: "Source Location",
-        meta: { width: "23%" },
+        meta: { width: "20%" },
         cell: ({ row }) => {
           const loc = locationsMap[row.original.sourceLocationId];
           const name = loc
@@ -195,7 +195,7 @@ export default function WarehouseTransfersPage() {
       {
         accessorKey: "destinationLocationId",
         header: "Destination Location",
-        meta: { width: "23%" },
+        meta: { width: "20%" },
         cell: ({ row }) => {
           const loc = locationsMap[row.original.destinationLocationId];
           const name = loc
@@ -252,7 +252,7 @@ export default function WarehouseTransfersPage() {
       {
         id: "actions",
         header: "Actions",
-        meta: { width: "4%", headerClassName: "text-right" },
+        meta: { width: "10%", headerClassName: "text-right" },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/warehouse-transfers/${row.original.id}`}>

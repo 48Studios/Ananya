@@ -3,17 +3,13 @@
 import * as React from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
-import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ColumnDef } from "@tanstack/react-table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
 import {
   DialogShell,
   DialogShellBody,
@@ -33,11 +29,8 @@ import {
   AlertTriangle,
   Upload,
   Download,
-  Search,
-  Filter,
   RefreshCw,
   Eye,
-  FileSpreadsheet,
   Layers,
   History,
   Loader2,
@@ -49,12 +42,6 @@ export default function DataOperationsPage() {
   const [jobs, setJobs] = React.useState<ImportExportJobDto[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-
-  // Filters
-  const [search, setSearch] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState("ALL");
-  const [entityFilter, setEntityFilter] = React.useState("ALL");
-  const [typeFilter, setTypeFilter] = React.useState("ALL");
 
   // Reversal Dialog State
   const [revertingJob, setRevertingJob] = React.useState<ImportExportJobDto | null>(null);
@@ -123,34 +110,6 @@ export default function DataOperationsPage() {
     }
   };
 
-  // Filtered jobs
-  const filteredJobs = React.useMemo(() => {
-    return jobs.filter((job) => {
-      if (typeFilter !== "ALL" && job.jobType !== typeFilter) {
-        return false;
-      }
-      if (statusFilter !== "ALL" && job.status !== statusFilter) {
-        return false;
-      }
-      if (entityFilter !== "ALL" && job.entityType !== entityFilter) {
-        return false;
-      }
-      if (search.trim()) {
-        const q = search.toLowerCase().trim();
-        const matchesName = job.fileName?.toLowerCase().includes(q);
-        const matchesEntity = job.entityType.toLowerCase().includes(q);
-        const matchesLabel = getEntityLabel(job.entityType)
-          .toLowerCase()
-          .includes(q);
-        const matchesId = job.id.toLowerCase().includes(q);
-        if (!matchesName && !matchesEntity && !matchesLabel && !matchesId) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [jobs, search, statusFilter, entityFilter, typeFilter]);
-
   // Aggregate metrics
   const totalOperations = jobs.length;
   const completedImports = jobs.filter(
@@ -167,6 +126,267 @@ export default function DataOperationsPage() {
     });
     return Array.from(set).sort();
   }, [jobs]);
+
+  const columns = React.useMemo<ColumnDef<ImportExportJobDto>[]>(
+    () => [
+      {
+        id: "createdAt",
+        accessorFn: (row) => `${row.id} ${row.createdAt}`,
+        header: "Date & Time",
+        sortingFn: (rowA, rowB) =>
+          new Date(rowA.original.createdAt).getTime() -
+          new Date(rowB.original.createdAt).getTime(),
+        cell: ({ row }) => {
+          const job = row.original;
+          return (
+            <div className="whitespace-nowrap">
+              <div className="flex items-center gap-1.5 font-medium text-foreground">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <span>
+                  {new Date(job.createdAt).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
+              <div className="font-mono text-[10px] text-muted-foreground pl-5 truncate max-w-[140px]">
+                {job.id}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        id: "jobType",
+        accessorKey: "jobType",
+        header: "Type",
+        filterFn: (row, _id, value) => {
+          if (!value || value === "ALL") return true;
+          return row.original.jobType === value;
+        },
+        cell: ({ row }) => {
+          const isImport = row.original.jobType === "IMPORT";
+          return (
+            <div className="whitespace-nowrap">
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium ${
+                  isImport
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : "bg-muted text-muted-foreground border border-border"
+                }`}
+              >
+                {isImport ? (
+                  <Upload className="w-3 h-3" />
+                ) : (
+                  <Download className="w-3 h-3" />
+                )}
+                {row.original.jobType}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        id: "entityType",
+        accessorFn: (row) =>
+          `${row.entityType} ${getEntityLabel(row.entityType)}`,
+        header: "Target Entity",
+        filterFn: (row, _id, value) => {
+          if (!value || value === "ALL") return true;
+          return row.original.entityType === value;
+        },
+        cell: ({ row }) => {
+          const job = row.original;
+          return (
+            <div className="whitespace-nowrap">
+              <div className="font-semibold text-foreground">
+                {getEntityLabel(job.entityType)}
+              </div>
+              <div className="text-[10px] font-mono text-muted-foreground">
+                {job.entityType}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        id: "fileName",
+        accessorFn: (row) =>
+          `${row.fileName || "Direct Stream / API"} ${row.format}`,
+        header: "File Source",
+        cell: ({ row }) => {
+          const job = row.original;
+          return (
+            <div className="whitespace-nowrap">
+              <div className="font-medium text-foreground truncate max-w-[180px]">
+                {job.fileName || "Direct Stream / API"}
+              </div>
+              <div className="text-[10px] text-muted-foreground uppercase">
+                {job.format}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        id: "records",
+        header: "Records",
+        accessorFn: (row) => `${row.processedRecords} / ${row.totalRecords}`,
+        cell: ({ row }) => {
+          const job = row.original;
+          const createdCount = job.createdEntities?.length ?? 0;
+          const sideEffectCount =
+            job.createdEntities?.filter((e) => e.isSideEffect).length ?? 0;
+
+          return (
+            <div className="whitespace-nowrap">
+              <div className="font-medium text-foreground">
+                {job.processedRecords} / {job.totalRecords}
+              </div>
+              {createdCount > 0 && (
+                <div className="text-[10px] text-muted-foreground">
+                  {createdCount} created
+                  {sideEffectCount > 0 && ` (${sideEffectCount} side-effects)`}
+                </div>
+              )}
+              {job.failedRecords > 0 && (
+                <div className="text-[10px] text-destructive font-medium">
+                  {job.failedRecords} error(s)
+                </div>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: "status",
+        accessorKey: "status",
+        header: "Status",
+        filterFn: (row, _id, value) => {
+          if (!value || value === "ALL") return true;
+          return row.original.status === value;
+        },
+        cell: ({ row }) => {
+          const job = row.original;
+          const isReversed = job.status === "REVERSED";
+
+          return (
+            <div className="whitespace-nowrap">
+              {isReversed ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  <RotateCcw className="w-3 h-3" />
+                  REVERTED
+                </span>
+              ) : job.status === "COMPLETED" ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <CheckCircle2 className="w-3 h-3" />
+                  COMPLETED
+                </span>
+              ) : job.status === "FAILED" ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-destructive/10 text-destructive border border-destructive/20">
+                  <XCircle className="w-3 h-3" />
+                  FAILED
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  {job.status}
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: () => <div className="text-right">Actions</div>,
+        enableSorting: false,
+        enableGlobalFilter: false,
+        cell: ({ row }) => {
+          const job = row.original;
+          const isImport = job.jobType === "IMPORT";
+          const isReversible =
+            isImport &&
+            (job.status === "COMPLETED" ||
+              job.status === "PROCESSING" ||
+              job.processedRecords > 0) &&
+            job.status !== "REVERSED";
+          const isReversed = job.status === "REVERSED";
+
+          return (
+            <div className="flex items-center justify-end space-x-1.5 whitespace-nowrap">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setInspectingJob(job)}
+                className="h-7 px-2 text-xs"
+                title="Inspect details and logs"
+              >
+                <Eye className="w-3.5 h-3.5 mr-1" />
+                Inspect
+              </Button>
+
+              {isReversible && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setRevertError(null);
+                    setRevertingJob(job);
+                  }}
+                  className="h-7 px-2.5 text-xs shadow-none"
+                >
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  Undo / Revert
+                </Button>
+              )}
+              {isReversed && (
+                <span className="text-[11px] text-muted-foreground italic px-2">
+                  Undone
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+    ],
+    [],
+  );
+
+  const filterConfigs = React.useMemo<FilterConfig[]>(
+    () => [
+      {
+        columnId: "jobType",
+        title: "Types",
+        options: [
+          { label: "Imports", value: "IMPORT" },
+          { label: "Exports", value: "EXPORT" },
+        ],
+      },
+      {
+        columnId: "status",
+        title: "Statuses",
+        options: [
+          { label: "Completed", value: "COMPLETED" },
+          { label: "Reverted (Undone)", value: "REVERSED" },
+          { label: "Failed", value: "FAILED" },
+          { label: "Processing", value: "PROCESSING" },
+          { label: "Queued", value: "QUEUED" },
+        ],
+      },
+      {
+        columnId: "entityType",
+        title: "Entities",
+        options: distinctEntities.map((ent) => ({
+          label: getEntityLabel(ent),
+          value: ent,
+        })),
+      },
+    ],
+    [distinctEntities],
+  );
 
   return (
     <div className="space-y-6">
@@ -197,39 +417,6 @@ export default function DataOperationsPage() {
         }
       />
 
-      {/* Toast Notice Banner */}
-      {notice && (
-        <div
-          className={`p-3.5 rounded-lg border text-xs flex items-center justify-between transition-all duration-300 ${
-            notice.type === "success"
-              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
-              : notice.type === "error"
-                ? "bg-destructive/10 border-destructive/20 text-destructive"
-                : "bg-primary/10 border-primary/20 text-primary"
-          }`}
-        >
-          <div className="flex items-center gap-2 font-medium">
-            {notice.type === "success" ? (
-              <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-            ) : notice.type === "error" ? (
-              <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-            ) : (
-              <History className="w-4 h-4 text-primary shrink-0" />
-            )}
-            <span>{notice.message}</span>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setNotice(null)}
-            className="h-6 w-6 text-muted-foreground hover:text-foreground -mr-1"
-          >
-            <span className="sr-only">Dismiss</span>
-            &times;
-          </Button>
-        </div>
-      )}
-
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
@@ -258,281 +445,70 @@ export default function DataOperationsPage() {
         />
       </div>
 
-      {/* Filters Toolbar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-4 bg-card border border-border rounded-xl shadow-2xs">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
-          <Input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by file name, entity, or job ID..."
-            className="pl-9 h-8 text-xs"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-
-          {/* Operation Type Filter */}
-          <Select
-            value={typeFilter}
-            onValueChange={(val) => setTypeFilter(val || "ALL")}
-          >
-            <SelectTrigger className="h-8 text-xs w-[120px]">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Types</SelectItem>
-              <SelectItem value="IMPORT">Imports</SelectItem>
-              <SelectItem value="EXPORT">Exports</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Status Filter */}
-          <Select
-            value={statusFilter}
-            onValueChange={(val) => setStatusFilter(val || "ALL")}
-          >
-            <SelectTrigger className="h-8 text-xs w-[140px]">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Statuses</SelectItem>
-              <SelectItem value="COMPLETED">Completed</SelectItem>
-              <SelectItem value="REVERSED">Reverted (Undone)</SelectItem>
-              <SelectItem value="FAILED">Failed</SelectItem>
-              <SelectItem value="PROCESSING">Processing</SelectItem>
-              <SelectItem value="QUEUED">Queued</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Entity Filter */}
-          <Select
-            value={entityFilter}
-            onValueChange={(val) => setEntityFilter(val || "ALL")}
-          >
-            <SelectTrigger className="h-8 text-xs w-[160px]">
-              <SelectValue placeholder="All Entities" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Entities</SelectItem>
-              {distinctEntities.map((ent) => (
-                <SelectItem key={ent} value={ent}>
-                  {getEntityLabel(ent)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Table Content */}
-      {loading ? (
-        <LoadingState message="Loading data operations history..." />
-      ) : error ? (
+      {/* Entity Data Table */}
+      {error && jobs.length === 0 ? (
         <ErrorState
           title="Error Loading Operations"
           message={error}
           onRetry={loadJobs}
         />
-      ) : filteredJobs.length === 0 ? (
-        <div className="text-center py-16 px-4 border border-dashed border-border rounded-xl bg-muted/10 space-y-3">
-          <FileSpreadsheet className="w-10 h-10 text-muted-foreground mx-auto" />
-          <h3 className="text-sm font-semibold text-foreground">
-            No Data Operations Found
-          </h3>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            {jobs.length === 0
+      ) : (
+        <EntityDataTable
+          columns={columns}
+          data={jobs}
+          filters={filterConfigs}
+          loading={loading}
+          enableSelection={false}
+          searchPlaceholder="Search by file name, entity, or job ID..."
+          emptyTitle="No Data Operations Found"
+          emptyMessage={
+            jobs.length === 0
               ? "No import or export jobs have been recorded yet. Perform an import to start tracking operations."
-              : "No operations match the selected search or filter criteria."}
-          </p>
-          {jobs.length === 0 && (
+              : "No operations match the selected search or filter criteria."
+          }
+          actionButton={
             <Button
               size="sm"
               onClick={() => setIsImportWizardOpen(true)}
-              className="mt-2"
             >
               <Upload className="w-3.5 h-3.5 mr-1.5" />
-              Perform First Import
+              New Import
             </Button>
-          )}
-        </div>
-      ) : (
-        <div className="border border-border rounded-xl overflow-hidden bg-card shadow-2xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold">
-                  <th className="py-3 px-4">Date & Time</th>
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4">Target Entity</th>
-                  <th className="py-3 px-4">File Source</th>
-                  <th className="py-3 px-4">Records</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filteredJobs.map((job) => {
-                  const isImport = job.jobType === "IMPORT";
-                  const isReversible =
-                    isImport &&
-                    (job.status === "COMPLETED" ||
-                      job.status === "PROCESSING" ||
-                      job.processedRecords > 0) &&
-                    job.status !== "REVERSED";
-                  const isReversed = job.status === "REVERSED";
-
-                  const createdCount = job.createdEntities?.length ?? 0;
-                  const sideEffectCount =
-                    job.createdEntities?.filter((e) => e.isSideEffect).length ??
-                    0;
-
-                  return (
-                    <tr
-                      key={job.id}
-                      className="hover:bg-muted/20 transition-colors"
-                    >
-                      {/* Date & Time */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 font-medium text-foreground">
-                          <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                          <span>
-                            {new Date(job.createdAt).toLocaleString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </div>
-                        <div className="font-mono text-[10px] text-muted-foreground pl-5 truncate max-w-[140px]">
-                          {job.id}
-                        </div>
-                      </td>
-
-                      {/* Operation Type */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium ${
-                            isImport
-                              ? "bg-primary/10 text-primary border border-primary/20"
-                              : "bg-muted text-muted-foreground border border-border"
-                          }`}
-                        >
-                          {isImport ? (
-                            <Upload className="w-3 h-3" />
-                          ) : (
-                            <Download className="w-3 h-3" />
-                          )}
-                          {job.jobType}
-                        </span>
-                      </td>
-
-                      {/* Target Entity */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="font-semibold text-foreground">
-                          {getEntityLabel(job.entityType)}
-                        </div>
-                        <div className="text-[10px] font-mono text-muted-foreground">
-                          {job.entityType}
-                        </div>
-                      </td>
-
-                      {/* File Source */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="font-medium text-foreground truncate max-w-[180px]">
-                          {job.fileName || "Direct Stream / API"}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground uppercase">
-                          {job.format}
-                        </div>
-                      </td>
-
-                      {/* Records Summary */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="font-medium text-foreground">
-                          {job.processedRecords} / {job.totalRecords}
-                        </div>
-                        {createdCount > 0 && (
-                          <div className="text-[10px] text-muted-foreground">
-                            {createdCount} created
-                            {sideEffectCount > 0 && ` (${sideEffectCount} side-effects)`}
-                          </div>
-                        )}
-                        {job.failedRecords > 0 && (
-                          <div className="text-[10px] text-destructive font-medium">
-                            {job.failedRecords} error(s)
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Status Badge */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        {isReversed ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                            <RotateCcw className="w-3 h-3" />
-                            REVERTED
-                          </span>
-                        ) : job.status === "COMPLETED" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            <CheckCircle2 className="w-3 h-3" />
-                            COMPLETED
-                          </span>
-                        ) : job.status === "FAILED" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-destructive/10 text-destructive border border-destructive/20">
-                            <XCircle className="w-3 h-3" />
-                            FAILED
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                            {job.status}
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3 px-4 whitespace-nowrap text-right space-x-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setInspectingJob(job)}
-                          className="h-7 px-2 text-xs"
-                          title="Inspect details and logs"
-                        >
-                          <Eye className="w-3.5 h-3.5 mr-1" />
-                          Inspect
-                        </Button>
-
-                        {isReversible && (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                              setRevertError(null);
-                              setRevertingJob(job);
-                            }}
-                            className="h-7 px-2.5 text-xs shadow-none"
-                          >
-                            <RotateCcw className="w-3 h-3 mr-1" />
-                            Undo / Revert
-                          </Button>
-                        )}
-                        {isReversed && (
-                          <span className="text-[11px] text-muted-foreground italic px-2">
-                            Undone
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          }
+          notice={
+            notice ? (
+              <div
+                className={`p-3.5 rounded-lg border text-xs flex items-center justify-between transition-all duration-300 ${
+                  notice.type === "success"
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                    : notice.type === "error"
+                      ? "bg-destructive/10 border-destructive/20 text-destructive"
+                      : "bg-primary/10 border-primary/20 text-primary"
+                }`}
+              >
+                <div className="flex items-center gap-2 font-medium">
+                  {notice.type === "success" ? (
+                    <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                  ) : notice.type === "error" ? (
+                    <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                  ) : (
+                    <History className="w-4 h-4 text-primary shrink-0" />
+                  )}
+                  <span>{notice.message}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setNotice(null)}
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground -mr-1"
+                >
+                  <span className="sr-only">Dismiss</span>
+                  &times;
+                </Button>
+              </div>
+            ) : null
+          }
+        />
       )}
 
       {/* REVERT CONFIRMATION DIALOG */}

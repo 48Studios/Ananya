@@ -1478,25 +1478,22 @@ export default function ViewProjectPage() {
           <div className="flex items-center gap-2 print:hidden">
             {canAllocate && (
               <Button
-                size="xs"
-                variant="outline"
+                variant="default"
                 onClick={() => setShowAllocateForm(true)}
               >
                 <Package className="w-3.5 h-3.5 mr-1" />
                 Allocate
               </Button>
             )}
-            {canIssueReturn && (
+            {project.materials.length > 0 && canIssueReturn && (
               <>
                 <Button
-                  size="xs"
                   variant="outline"
                   onClick={() => setShowIssueForm(true)}
                 >
                   Issue
                 </Button>
                 <Button
-                  size="xs"
                   variant="outline"
                   onClick={() => setShowReturnForm(true)}
                 >

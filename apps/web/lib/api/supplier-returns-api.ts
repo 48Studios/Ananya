@@ -5,6 +5,7 @@ export interface SupplierReturnDto {
   returnNumber: string;
   supplierId: string;
   supplierName?: string;
+  purchaseOrderId?: string;
   poNumber?: string;
   totalAmount: number;
   status: "DRAFT" | "DISPATCHED" | "CREDITED";

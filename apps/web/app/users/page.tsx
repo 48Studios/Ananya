@@ -216,7 +216,7 @@ export default function UsersListPage() {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 justify-end">
             <PermissionGuard permission="Administration.Users">
               <Button
                 variant="ghost"

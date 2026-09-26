@@ -163,13 +163,13 @@ export default function TransactionsPage() {
       {
         accessorKey: "transactionType",
         header: () => <span className="whitespace-nowrap">Type</span>,
-        meta: { width: "100px", minWidth: "95px" },
+        meta: { width: "110px", minWidth: "110px" },
         cell: ({ row }) => getTransactionBadge(row.original.transactionType),
       },
       {
         accessorKey: "componentId",
         header: () => <span className="whitespace-nowrap">Component</span>,
-        meta: { minWidth: "180px" },
+        meta: { minWidth: "165px" },
         cell: ({ row }) => {
           const comp = componentsMap[row.original.componentId];
           const fullName = comp

@@ -40,6 +40,12 @@ import { AttributeFormDialog } from "@/components/attributes/attribute-form-dial
 import { AttributeOptionsDialog } from "@/components/attributes/attribute-options-dialog";
 import { AttributeCategoriesDialog } from "@/components/attributes/attribute-categories-dialog";
 import { AttributeReviewQueueDialog } from "@/components/attributes/attribute-review-queue-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { attributeReviewQueueApi } from "@/lib/api/attribute-review-queue-api";
 import {
   attributesApi,
@@ -215,9 +221,25 @@ export default function AttributesPage() {
         header: "Code",
         meta: { width: "11%" },
         cell: ({ row }) => (
-          <span className="font-mono text-[11px] font-semibold text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20 truncate">
-            {row.original.code}
-          </span>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <span
+                      title={row.original.code}
+                      className="inline-block font-mono text-[11px] text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded truncate max-w-full align-middle cursor-default"
+                    />
+                  }
+                >
+                  {row.original.code}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {row.original.code}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ),
       },
       {

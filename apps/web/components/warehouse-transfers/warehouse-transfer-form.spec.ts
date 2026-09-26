@@ -19,7 +19,7 @@ export function filterAvailableComponents(
   if (!sourceLocationId) return [];
   return components.filter((c) => {
     const proj = sourceProjections[c.id];
-    return proj && proj.quantity > 0;
+    return Boolean(proj && proj.quantity > 0);
   });
 }
 
@@ -51,31 +51,34 @@ describe("Warehouse Transfer Form Logic", () => {
   const dummyLocations: LocationDto[] = [
     {
       id: "loc-src",
-      organizationId: "org-1",
       code: "WH-SRC",
       name: "Source Warehouse",
       kind: "WAREHOUSE",
+      parentId: null,
       isActive: true,
+      metadata: {},
       createdAt: "2026-01-01",
       updatedAt: "2026-01-01",
     },
     {
       id: "loc-dest",
-      organizationId: "org-1",
       code: "WH-DST",
       name: "Destination Warehouse",
       kind: "WAREHOUSE",
+      parentId: null,
       isActive: true,
+      metadata: {},
       createdAt: "2026-01-01",
       updatedAt: "2026-01-01",
     },
     {
       id: "loc-staging",
-      organizationId: "org-1",
       code: "STG-1",
       name: "Staging Area",
       kind: "STAGING",
+      parentId: null,
       isActive: true,
+      metadata: {},
       createdAt: "2026-01-01",
       updatedAt: "2026-01-01",
     },
@@ -84,31 +87,28 @@ describe("Warehouse Transfer Form Logic", () => {
   const dummyComponents: ComponentDto[] = [
     {
       id: "comp-1",
-      organizationId: "org-1",
       name: "Resistor 10k",
       sku: "RES-10K",
       unit: "pcs",
-      isDraft: false,
+      isActive: true,
       createdAt: "2026-01-01",
       updatedAt: "2026-01-01",
     },
     {
       id: "comp-2",
-      organizationId: "org-1",
       name: "Capacitor 100uF",
       sku: "CAP-100U",
       unit: "pcs",
-      isDraft: false,
+      isActive: true,
       createdAt: "2026-01-01",
       updatedAt: "2026-01-01",
     },
     {
       id: "comp-3",
-      organizationId: "org-1",
       name: "Microcontroller",
       sku: "MCU-32",
       unit: "pcs",
-      isDraft: false,
+      isActive: true,
       createdAt: "2026-01-01",
       updatedAt: "2026-01-01",
     },
@@ -133,23 +133,19 @@ describe("Warehouse Transfer Form Logic", () => {
       const projections: Record<string, InventoryProjectionDto> = {
         "comp-1": {
           id: "proj-1",
-          organizationId: "org-1",
           componentId: "comp-1",
           locationId: "loc-src",
           quantity: 50,
           unitOfMeasure: "pcs",
-          createdAt: "2026-01-01",
-          updatedAt: "2026-01-01",
+          lastUpdated: "2026-01-01",
         },
         "comp-2": {
           id: "proj-2",
-          organizationId: "org-1",
           componentId: "comp-2",
           locationId: "loc-src",
           quantity: 0, // Zero stock
           unitOfMeasure: "pcs",
-          createdAt: "2026-01-01",
-          updatedAt: "2026-01-01",
+          lastUpdated: "2026-01-01",
         },
       };
 
@@ -178,13 +174,11 @@ describe("Warehouse Transfer Form Logic", () => {
     const projections: Record<string, InventoryProjectionDto> = {
       "comp-1": {
         id: "proj-1",
-        organizationId: "org-1",
         componentId: "comp-1",
         locationId: "loc-src",
         quantity: 25,
         unitOfMeasure: "pcs",
-        createdAt: "2026-01-01",
-        updatedAt: "2026-01-01",
+        lastUpdated: "2026-01-01",
       },
     };
 

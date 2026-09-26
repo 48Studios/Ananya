@@ -14,6 +14,8 @@ import {
   supplierReturnsApi,
   type SupplierReturnDto,
 } from "@/lib/api/supplier-returns-api";
+import { suppliersApi } from "@/lib/api/suppliers-api";
+import { purchaseOrdersApi } from "@/lib/api/purchase-orders-api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -23,12 +25,25 @@ export default function SupplierReturnsPage() {
   const [returns, setReturns] = React.useState<SupplierReturnDto[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [suppliersMap, setSuppliersMap] = React.useState<Record<string, string>>({});
+  const [posMap, setPosMap] = React.useState<Record<string, string>>({});
 
   const fetchReturns = React.useCallback(() => {
     setLoading(true);
-    supplierReturnsApi
-      .getAll()
-      .then((data) => setReturns(data || []))
+    Promise.all([
+      supplierReturnsApi.getAll().catch(() => []),
+      suppliersApi.getAll().catch(() => []),
+      purchaseOrdersApi.getAll().catch(() => []),
+    ])
+      .then(([data, sups, pos]) => {
+        setReturns(data || []);
+        const sMap: Record<string, string> = {};
+        for (const s of sups) sMap[s.id] = s.name;
+        setSuppliersMap(sMap);
+        const pMap: Record<string, string> = {};
+        for (const p of pos) pMap[p.id] = p.poNumber;
+        setPosMap(pMap);
+      })
       .catch(() => setReturns([]))
       .finally(() => setLoading(false));
   }, []);
@@ -71,20 +86,29 @@ export default function SupplierReturnsPage() {
     {
       accessorKey: "supplierName",
       header: "Supplier",
-      cell: ({ row }) => (
-        <span className="font-medium text-foreground">
-          {row.original.supplierName || "Supplier"}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const name =
+          row.original.supplierName ||
+          suppliersMap[row.original.supplierId] ||
+          "Supplier";
+        return <span className="font-medium text-foreground">{name}</span>;
+      },
     },
     {
       accessorKey: "poNumber",
       header: "Ref PO",
-      cell: ({ row }) => (
-        <span className="font-mono text-xs text-muted-foreground">
-          {row.original.poNumber || "-"}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const poNum =
+          row.original.poNumber ||
+          (row.original.purchaseOrderId
+            ? posMap[row.original.purchaseOrderId]
+            : undefined);
+        return (
+          <span className="font-mono text-xs text-muted-foreground">
+            {poNum || "-"}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "totalAmount",

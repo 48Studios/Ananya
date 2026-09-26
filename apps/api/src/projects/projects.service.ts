@@ -1,4 +1,9 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import {
   Project,
   ProjectRepository,
@@ -16,6 +21,8 @@ import {
 } from './dtos';
 import { CustomersService } from '../customers/customers.service';
 import { SalesOrdersService } from '../sales-orders/sales-orders.service';
+import { InventoryTransactionsService } from '../inventory-transactions/inventory-transactions.service';
+import { InventoryProjectionsService } from '../inventory-projections/inventory-projections.service';
 
 export const PROJECT_REPOSITORY = 'PROJECT_REPOSITORY';
 
@@ -26,6 +33,8 @@ export class ProjectsService {
     private readonly projectRepository: ProjectRepository,
     private readonly customersService: CustomersService,
     private readonly salesOrdersService: SalesOrdersService,
+    private readonly inventoryTransactionsService: InventoryTransactionsService,
+    private readonly inventoryProjectionsService: InventoryProjectionsService,
   ) {}
 
   async create(dto: CreateProjectDto): Promise<Project> {
@@ -178,6 +187,20 @@ export class ProjectsService {
     dto: AllocateMaterialDto,
   ): Promise<Project> {
     const project = await this.findOne(id);
+
+    // Validate available stock at the selected location
+    const projection =
+      await this.inventoryProjectionsService.getByComponentAndLocation(
+        dto.componentId,
+        dto.locationId,
+      );
+    const availableStock = projection ? projection.quantity : 0;
+    if (availableStock < dto.quantity) {
+      throw new BadRequestException(
+        `Cannot allocate ${dto.quantity} units. Available stock at selected location is only ${availableStock} ${dto.unitOfMeasure || 'units'}.`,
+      );
+    }
+
     project.allocateMaterial(
       dto.componentId,
       dto.locationId,
@@ -192,25 +215,67 @@ export class ProjectsService {
 
   async issueMaterial(id: string, dto: IssueMaterialDto): Promise<Project> {
     const project = await this.findOne(id);
-    project.issueMaterial(
+
+    // Validate available stock at the selected location before issuing
+    const projection =
+      await this.inventoryProjectionsService.getByComponentAndLocation(
+        dto.componentId,
+        dto.locationId,
+      );
+    const availableStock = projection ? projection.quantity : 0;
+    if (availableStock < dto.quantity) {
+      throw new BadRequestException(
+        `Cannot issue ${dto.quantity} units. Available stock at selected location is only ${availableStock}.`,
+      );
+    }
+
+    const mat = project.issueMaterial(
       dto.componentId,
       dto.locationId,
       dto.quantity,
       dto.performedBy,
     );
+
+    // Log physical stock deduction transaction
+    await this.inventoryTransactionsService.create({
+      transactionType: 'Issue',
+      componentId: dto.componentId,
+      sourceLocationId: dto.locationId,
+      quantity: dto.quantity,
+      unitOfMeasure: mat.unitOfMeasure || 'pcs',
+      reference: project.projectNumber,
+      reason: `Project material issue (${project.projectNumber})`,
+      createdBy: dto.performedBy || project.owner || 'User',
+    });
+
     await this.projectRepository.save(project);
+    await this.inventoryProjectionsService.rebuild();
     return project;
   }
 
   async returnMaterial(id: string, dto: ReturnMaterialDto): Promise<Project> {
     const project = await this.findOne(id);
-    project.returnMaterial(
+    const mat = project.returnMaterial(
       dto.componentId,
       dto.locationId,
       dto.quantity,
       dto.performedBy,
     );
+
+    // Log physical stock return transaction back into location
+    await this.inventoryTransactionsService.create({
+      transactionType: 'Return',
+      componentId: dto.componentId,
+      destinationLocationId: dto.locationId,
+      quantity: dto.quantity,
+      unitOfMeasure: mat.unitOfMeasure || 'pcs',
+      reference: project.projectNumber,
+      reason: `Project material return (${project.projectNumber})`,
+      createdBy: dto.performedBy || project.owner || 'User',
+    });
+
     await this.projectRepository.save(project);
+    await this.inventoryProjectionsService.rebuild();
     return project;
   }
 }
