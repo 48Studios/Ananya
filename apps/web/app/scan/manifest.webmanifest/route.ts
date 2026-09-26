@@ -33,8 +33,9 @@ const scannerManifest: MetadataRoute.Manifest = {
   theme_color: "#000000",
   icons: [
     // Standard Chromium and Android PWA required icon sizes
-    { src: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
-    { src: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
+    { src: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    { src: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     // The 180px icon is what iOS uses for the Home Screen; the SVG covers
     // every other size and is the app's own vector mark.
     { src: "/apple-icon.png", sizes: "180x180", type: "image/png" },

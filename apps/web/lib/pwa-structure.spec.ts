@@ -22,6 +22,9 @@ describe("PWA maximum compatibility configuration", () => {
       expect(iconSizes).toContain("192x192");
       expect(iconSizes).toContain("512x512");
       expect(iconSizes).toContain("180x180");
+
+      const purposes = rootManifest.icons?.map((i) => (i as { purpose?: string }).purpose);
+      expect(purposes).toContain("maskable");
     });
   });
 
@@ -31,6 +34,7 @@ describe("PWA maximum compatibility configuration", () => {
       expect(scanManifestSource).toContain('sizes: "192x192"');
       expect(scanManifestSource).toContain('sizes: "512x512"');
       expect(scanManifestSource).toContain('sizes: "180x180"');
+      expect(scanManifestSource).toContain('purpose: "maskable"');
     });
   });
 
@@ -40,6 +44,7 @@ describe("PWA maximum compatibility configuration", () => {
     it("configures appleWebApp capable and status bar style", () => {
       expect(layoutSource).toContain("appleWebApp");
       expect(layoutSource).toContain("capable: true");
+      expect(layoutSource).toContain('"apple-mobile-web-app-capable": "yes"');
     });
 
     it("configures touch and favicon icons", () => {
@@ -54,18 +59,41 @@ describe("PWA maximum compatibility configuration", () => {
   });
 
   describe("Service Worker and static assets", () => {
-    it("provides a service worker with a fetch event handler", () => {
+    it("provides a service worker with a fetch event handler and offline navigation fallback", () => {
       const swSource = read("public/sw.js");
       expect(swSource).toContain('addEventListener("install"');
       expect(swSource).toContain('addEventListener("activate"');
       expect(swSource).toContain('addEventListener("fetch"');
+      // Verifies non-http schemes (extensions) and non-GET requests are bypassed
+      expect(swSource).toContain('!event.request.url.startsWith("http://")');
+      expect(swSource).toContain('event.request.method !== "GET"');
+      // Verifies offline fallback on navigation failure
+      expect(swSource).toContain('event.request.mode === "navigate"');
+      expect(swSource).toContain("Service Unavailable (Offline)");
     });
 
-    it("provides valid public site.webmanifest with non-empty identity", () => {
+    it("registers service worker across all secure contexts and localhost IPs", () => {
+      const pwaRegisterSource = read("components/pwa-register.tsx");
+      expect(pwaRegisterSource).toContain("window.isSecureContext");
+      expect(pwaRegisterSource).toContain('"127.0.0.1"');
+      expect(pwaRegisterSource).toContain('{ scope: "/" }');
+      expect(pwaRegisterSource).toContain("visibilitychange");
+    });
+
+    it("provides valid public site.webmanifest with non-empty identity and maskable icon", () => {
       const siteManifest = JSON.parse(read("public/site.webmanifest"));
       expect(siteManifest.name).toBe("Ananya ERP");
       expect(siteManifest.short_name).toBe("Ananya");
       expect(siteManifest.icons.length).toBeGreaterThan(0);
+      const purposes = siteManifest.icons.map((i: { purpose?: string }) => i.purpose);
+      expect(purposes).toContain("maskable");
+    });
+
+    it("configures non-caching headers for service worker in Next.js", () => {
+      const nextConfigSource = read("next.config.mjs");
+      expect(nextConfigSource).toContain('source: "/sw.js"');
+      expect(nextConfigSource).toContain("no-cache, no-store, must-revalidate");
+      expect(nextConfigSource).toContain("Service-Worker-Allowed");
     });
   });
 });

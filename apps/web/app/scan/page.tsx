@@ -29,6 +29,9 @@ export const metadata: Metadata = {
     apple: "/apple-icon.png",
   },
   formatDetection: { telephone: false },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
