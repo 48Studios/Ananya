@@ -122,6 +122,20 @@ export interface EntityDataTableProps<TData, TValue> {
    * entity type, plus label printing where the entity has a label.
    */
   enableSelection?: boolean;
+  /**
+   * Hides the search input from the toolbar. If there are no other toolbar controls,
+   * the entire toolbar is omitted.
+   */
+  hideSearch?: boolean;
+  /**
+   * When true, removes the outer border, corner rounding, and shadow from the table
+   * container so it integrates seamlessly when nested inside a parent card (e.g. SectionCard).
+   */
+  borderless?: boolean;
+  /**
+   * If true, suppresses horizontal scrollbar on the table container and adheres to 100% width.
+   */
+  noHorizontalScroll?: boolean;
 }
 
 export function EntityDataTable<TData, TValue>({
@@ -145,6 +159,9 @@ export function EntityDataTable<TData, TValue>({
   notice,
   resetPageKey,
   enableSelection = true,
+  hideSearch = false,
+  borderless = false,
+  noHorizontalScroll = false,
 }: EntityDataTableProps<TData, TValue>) {
   const activeFilters = filters || filterConfigs;
   const activeLoading = loading || isLoading;
@@ -288,106 +305,123 @@ export function EntityDataTable<TData, TValue>({
     });
   }, [columns]);
 
+  const showToolbar = Boolean(
+    notice ||
+      !hideSearch ||
+      (activeFilters && activeFilters.length > 0) ||
+      canImportExport ||
+      actionButton,
+  );
+
   return (
-    <div className="space-y-4">
+    <div className={cn("space-y-4", borderless && "space-y-0")}>
       {/* Sticky toolbar: the status area and the search controls own the scroll
           position, so a success/failure notice is always visible alongside the
           search box and never scrolls the reviewer back through the page. */}
-      <div className="sticky top-0 z-20 space-y-3 border-b border-border bg-background pt-2 pb-3">
-        {notice && <div className="space-y-3">{notice}</div>}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex flex-1 items-center gap-2 flex-wrap">
-            {/* Search Input */}
-            <div className="relative flex-1 min-w-[200px] max-w-xs">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="text"
-                value={
-                  searchKey
-                    ? ((table
-                        .getColumn(searchKey)
-                        ?.getFilterValue() as string) ?? "")
-                    : globalFilter
-                }
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (searchKey) {
-                    table.getColumn(searchKey)?.setFilterValue(val);
-                  } else {
-                    setGlobalFilter(val);
-                  }
-                }}
-                placeholder={searchPlaceholder}
-                className="pl-9 h-9 text-sm"
-              />
+      {showToolbar && (
+        <div
+          className={cn(
+            "sticky top-0 z-20 space-y-3 border-b border-border bg-background pt-2 pb-3",
+            borderless && "px-4 pt-3 pb-3 bg-card",
+          )}
+        >
+          {notice && <div className="space-y-3">{notice}</div>}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="flex flex-1 items-center gap-2 flex-wrap">
+              {/* Search Input */}
+              {!hideSearch && (
+                <div className="relative flex-1 min-w-[200px] max-w-xs">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    value={
+                      searchKey
+                        ? ((table
+                            .getColumn(searchKey)
+                            ?.getFilterValue() as string) ?? "")
+                        : globalFilter
+                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (searchKey) {
+                        table.getColumn(searchKey)?.setFilterValue(val);
+                      } else {
+                        setGlobalFilter(val);
+                      }
+                    }}
+                    placeholder={searchPlaceholder}
+                    className="pl-9 h-9 text-sm"
+                  />
+                </div>
+              )}
+
+              {/* Select Filters */}
+              {activeFilters?.map((filter) => {
+                const colId = filter.columnId || filter.id || "";
+                const column = colId ? table.getColumn(colId) : undefined;
+                if (!column) return null;
+                const filterValue = (column.getFilterValue() as string) ?? "";
+
+                return (
+                  <Select
+                    key={colId}
+                    value={filterValue || "ALL"}
+                    onValueChange={(val) =>
+                      column.setFilterValue(val === "ALL" ? undefined : val)
+                    }
+                  >
+                    <SelectTrigger className="w-40 !h-9 text-xs">
+                      <SelectValue placeholder={`All ${filter.title}`} />
+                    </SelectTrigger>
+                    <SelectContent className="p-1.5">
+                      <SelectItem value="ALL" className="text-xs">
+                        All {filter.title}
+                      </SelectItem>
+                      {filter.options.map((opt) => (
+                        <SelectItem
+                          key={opt.value}
+                          value={opt.value}
+                          className="text-xs"
+                        >
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              })}
             </div>
 
-            {/* Select Filters */}
-            {activeFilters?.map((filter) => {
-              const colId = filter.columnId || filter.id || "";
-              const column = colId ? table.getColumn(colId) : undefined;
-              if (!column) return null;
-              const filterValue = (column.getFilterValue() as string) ?? "";
+            <div className="flex items-center gap-2">
+              {canImportExport && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    onClick={() => setIsImportOpen(true)}
+                    className="text-xs"
+                  >
+                    <Upload className="w-3.5 h-3.5 mr-1" />
+                    Import
+                  </Button>
 
-              return (
-                <Select
-                  key={colId}
-                  value={filterValue || "ALL"}
-                  onValueChange={(val) =>
-                    column.setFilterValue(val === "ALL" ? undefined : val)
-                  }
-                >
-                  <SelectTrigger className="w-40 !h-9 text-xs">
-                    <SelectValue placeholder={`All ${filter.title}`} />
-                  </SelectTrigger>
-                  <SelectContent className="p-1.5">
-                    <SelectItem value="ALL" className="text-xs">
-                      All {filter.title}
-                    </SelectItem>
-                    {filter.options.map((opt) => (
-                      <SelectItem
-                        key={opt.value}
-                        value={opt.value}
-                        className="text-xs"
-                      >
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              );
-            })}
-          </div>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    onClick={() => setIsExportOpen(true)}
+                    className="text-xs"
+                  >
+                    <Download className="w-3.5 h-3.5 mr-1" />
+                    Export
+                  </Button>
+                </>
+              )}
 
-          <div className="flex items-center gap-2">
-            {canImportExport && (
-              <>
-                <Button
-                  variant="outline"
-                  size="default"
-                  onClick={() => setIsImportOpen(true)}
-                  className="text-xs"
-                >
-                  <Upload className="w-3.5 h-3.5 mr-1" />
-                  Import
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="default"
-                  onClick={() => setIsExportOpen(true)}
-                  className="text-xs"
-                >
-                  <Download className="w-3.5 h-3.5 mr-1" />
-                  Export
-                </Button>
-              </>
-            )}
-
-            {actionButton && <div>{actionButton}</div>}
+              {actionButton && <div>{actionButton}</div>}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Export Dialog */}
       {canImportExport && entityType && (
@@ -449,20 +483,29 @@ export function EntityDataTable<TData, TValue>({
       )}
 
       {/* Table Container */}
-      <div className="bg-card border border-border rounded-lg overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+      <div
+        className={cn(
+          "bg-card overflow-hidden",
+          borderless
+            ? "border-0 rounded-none shadow-none"
+            : "border border-border rounded-lg shadow-xs",
+        )}
+      >
+        <div className={noHorizontalScroll ? "overflow-hidden" : "overflow-x-auto"}>
           <table
             className={cn(
               "w-full text-sm text-left border-collapse",
-              hasCustomSizing && "table-fixed",
+              (hasCustomSizing || noHorizontalScroll) && "table-fixed",
               tableClassName,
             )}
             style={{
-              minWidth: minWidth
-                ? typeof minWidth === "number"
-                  ? `${minWidth}px`
-                  : minWidth
-                : undefined,
+              minWidth: noHorizontalScroll
+                ? undefined
+                : minWidth
+                  ? typeof minWidth === "number"
+                    ? `${minWidth}px`
+                    : minWidth
+                  : undefined,
             }}
           >
             {hasCustomSizing && (

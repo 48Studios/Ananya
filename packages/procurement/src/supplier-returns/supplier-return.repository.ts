@@ -11,4 +11,6 @@ export interface SupplierReturnRepository {
   findMany(options?: FindManySupplierReturnsOptions): Promise<SupplierReturn[]>;
   save(returnDoc: SupplierReturn): Promise<void>;
   generateNextReturnNumber(): Promise<string>;
+  delete(id: string): Promise<void>;
+  deleteLine(lineId: string): Promise<void>;
 }

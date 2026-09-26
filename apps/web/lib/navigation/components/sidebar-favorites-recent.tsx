@@ -153,7 +153,7 @@ export function SidebarFavoritesRecent({
   const itemsToDisplay = activeTab === "favorites" ? pinnedItems : recentItems;
 
   return (
-    <div className="space-y-1.5 pb-1 select-none">
+    <div className="space-y-1.5 pt-1 pb-1 select-none">
       {/* Segmented Pill Switcher */}
       <div className="px-1">
         <div className="flex items-center h-9 p-1 text-xs border border-solid border-secondary rounded-md">

@@ -19,6 +19,7 @@ describe('ProjectsService Material Stock Integration', () => {
     dummyProject = Project.create({
       projectNumber: 'PRJ-2026-0001',
       name: 'Test Project',
+      projectManager: 'PM-1',
       startDate: new Date('2026-01-01'),
       targetCompletionDate: new Date('2026-12-31'),
     });

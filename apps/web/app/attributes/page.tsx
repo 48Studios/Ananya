@@ -596,19 +596,6 @@ export default function AttributesPage() {
         loading={loading}
         emptyTitle="No attribute definitions found"
         emptyMessage="Create custom specifications or install domain specifications from the Data Packs Hub."
-        actionButton={
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditingAttribute(null);
-              setIsFormOpen(true);
-            }}
-            className="gap-1.5 text-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            New Attribute
-          </Button>
-        }
       />
 
       {/* Create / Edit Dialog */}

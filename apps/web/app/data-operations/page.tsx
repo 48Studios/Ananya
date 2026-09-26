@@ -466,15 +466,6 @@ export default function DataOperationsPage() {
               ? "No import or export jobs have been recorded yet. Perform an import to start tracking operations."
               : "No operations match the selected search or filter criteria."
           }
-          actionButton={
-            <Button
-              size="sm"
-              onClick={() => setIsImportWizardOpen(true)}
-            >
-              <Upload className="w-3.5 h-3.5 mr-1.5" />
-              New Import
-            </Button>
-          }
           notice={
             notice ? (
               <div

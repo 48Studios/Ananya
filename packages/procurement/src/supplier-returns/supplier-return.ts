@@ -52,7 +52,7 @@ export interface AddSupplierReturnLineInput {
 export class SupplierReturn {
   public readonly id: string;
   public readonly returnNumber: string;
-  public readonly supplierId: string;
+  public supplierId: string;
   public purchaseOrderId?: string | null;
   public rmaNumber?: string | null;
   public status: SupplierReturnStatus;
@@ -143,6 +143,56 @@ export class SupplierReturn {
     }
     this.status = "DISPATCHED";
     this.dispatchedAt = new Date();
+    this.updatedAt = new Date();
+  }
+
+  public complete(): void {
+    if (this.status !== "DISPATCHED") {
+      throw new InvalidSupplierReturnStatusError(
+        "Return must be DISPATCHED before completing.",
+      );
+    }
+    this.status = "COMPLETED";
+    this.updatedAt = new Date();
+  }
+
+  public cancel(): void {
+    if (this.status === "COMPLETED") {
+      throw new InvalidSupplierReturnStatusError(
+        "Cannot cancel a COMPLETED return.",
+      );
+    }
+    this.status = "CANCELLED";
+    this.updatedAt = new Date();
+  }
+
+  public removeLine(lineId: string): void {
+    if (this.status !== "DRAFT") {
+      throw new InvalidSupplierReturnStatusError(
+        "Cannot modify lines of non-DRAFT return.",
+      );
+    }
+    const idx = this.lines.findIndex((l) => l.id === lineId);
+    if (idx !== -1) {
+      this.lines.splice(idx, 1);
+      this.recalculateTotal();
+    }
+  }
+
+  public updateDetails(input: {
+    supplierId?: string;
+    purchaseOrderId?: string | null;
+    rmaNumber?: string | null;
+  }): void {
+    if (this.status !== "DRAFT") {
+      throw new InvalidSupplierReturnStatusError(
+        "Cannot modify details of non-DRAFT return.",
+      );
+    }
+    if (input.supplierId) this.supplierId = input.supplierId;
+    if (input.purchaseOrderId !== undefined)
+      this.purchaseOrderId = input.purchaseOrderId;
+    if (input.rmaNumber !== undefined) this.rmaNumber = input.rmaNumber;
     this.updatedAt = new Date();
   }
 

@@ -137,14 +137,15 @@ export function StatusBadge({ status, label, className }: StatusBadgeProps) {
 
   return (
     <span
+      title={displayLabel}
       className={cn(
-        "inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full border",
+        "inline-flex items-center min-w-0 max-w-full px-2 py-0.5 text-xs font-semibold rounded-full border",
         variantStyles,
         className,
       )}
     >
       <IconComponent className="w-3 h-3 mr-1 shrink-0" />
-      {displayLabel}
+      <span className="truncate min-w-0">{displayLabel}</span>
     </span>
   );
 }

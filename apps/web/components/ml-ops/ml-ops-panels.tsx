@@ -18,6 +18,7 @@ import {
   Undo2,
 } from "lucide-react";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -28,6 +29,10 @@ import {
 } from "@/components/ui/detail-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
+import {
+  EntityDataTable,
+  type FilterConfig,
+} from "@/components/ui/entity-data-table";
 import {
   Select,
   SelectContent,
@@ -42,6 +47,7 @@ import type {
   MlDatasetDto,
   MlDeploymentRecordDto,
   MlModelsDto,
+  MlModelVersionDto,
   MlOverviewDto,
   MlTrainingRunDetailDto,
   MlTrainingRunSummaryDto,
@@ -533,6 +539,140 @@ export function MlModelsPanel({
 }) {
   const rollbackBlocked = rollbackUnavailableReason(models);
 
+  const modelColumns = React.useMemo<ColumnDef<MlModelVersionDto>[]>(
+    () => [
+      {
+        accessorKey: "version",
+        header: "Version",
+        cell: ({ row }) => {
+          const version = row.original;
+          const isProduction =
+            version.version === models.production.artifactVersion;
+          const isRunning = version.version === models.running.version;
+          return (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-mono font-semibold text-xs text-foreground bg-muted/60 px-2 py-0.5 rounded border border-border">
+                v{version.version}
+              </span>
+              {isProduction ? (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                  production
+                </span>
+              ) : null}
+              {isRunning && !isProduction ? (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
+                  running
+                </span>
+              ) : null}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "createdAt",
+        header: "Trained",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {formatDateTime(row.original.createdAt)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "championModel",
+        header: "Architecture",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground font-mono">
+            {row.original.championModel ?? "Not available"}
+          </span>
+        ),
+      },
+      {
+        id: "candidateTop1Accuracy",
+        header: "Top-1",
+        accessorFn: (row) => row.metrics?.candidateTop1Accuracy,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs font-semibold">
+            {formatMetric(row.original.metrics?.candidateTop1Accuracy, "ratio")}
+          </span>
+        ),
+      },
+      {
+        id: "gates",
+        header: "Gates",
+        accessorFn: (row) =>
+          row.gates.unavailable
+            ? "Not available"
+            : row.gates.promotionEligible
+              ? "Passed"
+              : "Failed",
+        cell: ({ row }) => {
+          const gates = row.original.gates;
+          if (gates.unavailable) {
+            return (
+              <span className="text-xs text-muted-foreground">
+                Not available
+              </span>
+            );
+          }
+          return gates.promotionEligible ? (
+            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+              Passed
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
+              Failed
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "datasetVersion",
+        header: "Dataset",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground">
+            {row.original.datasetVersion ?? "Not available"}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          const version = row.original;
+          const isProduction =
+            version.version === models.production.artifactVersion;
+          if (version.trainingRunId && version.runDeployable) {
+            return (
+              <Button
+                size="xs"
+                variant="outline"
+                disabled={busy || !canWrite}
+                onClick={() =>
+                  onDeployRun(
+                    version.trainingRunId as string,
+                    version.version,
+                  )
+                }
+              >
+                Deploy
+              </Button>
+            );
+          }
+          return (
+            <span className="text-xs text-muted-foreground">
+              {version.deployable
+                ? isProduction
+                  ? "In production"
+                  : "Not deployable from here"
+                : "Not deployable"}
+            </span>
+          );
+        },
+      },
+    ],
+    [models, busy, canWrite, onDeployRun],
+  );
+
   return (
     <div className="space-y-6">
       <SectionCard
@@ -628,97 +768,16 @@ export function MlModelsPanel({
         contentClassName="p-0"
         description="Every candidate the registry holds, newest first."
       >
-        {models.versions.length === 0 ? (
-          <div className="p-6">
-            <EmptyState {...emptyStateFor("models")} compact />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="px-6 py-3 font-medium">Version</th>
-                  <th className="px-6 py-3 font-medium">Trained</th>
-                  <th className="px-6 py-3 font-medium">Architecture</th>
-                  <th className="px-6 py-3 font-medium">Top-1</th>
-                  <th className="px-6 py-3 font-medium">Gates</th>
-                  <th className="px-6 py-3 font-medium">Dataset</th>
-                  <th className="px-6 py-3 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {models.versions.map((version) => {
-                  const isProduction =
-                    version.version === models.production.artifactVersion;
-                  const isRunning = version.version === models.running.version;
-                  return (
-                    <tr key={version.version} className="hover:bg-muted/15">
-                      <td className="px-6 py-3">
-                        <span className="font-mono font-semibold">
-                          v{version.version}
-                        </span>
-                        {isProduction ? (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            production
-                          </span>
-                        ) : null}
-                        {isRunning && !isProduction ? (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            running
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="px-6 py-3 text-muted-foreground">
-                        {formatDateTime(version.createdAt)}
-                      </td>
-                      <td className="px-6 py-3 text-muted-foreground">
-                        {version.championModel ?? "Not available"}
-                      </td>
-                      <td className="px-6 py-3 font-mono">
-                        {formatMetric(version.metrics?.candidateTop1Accuracy, "ratio")}
-                      </td>
-                      <td className="px-6 py-3">
-                        {version.gates.unavailable
-                          ? "Not available"
-                          : version.gates.promotionEligible
-                            ? "Passed"
-                            : "Failed"}
-                      </td>
-                      <td className="px-6 py-3 text-muted-foreground">
-                        {version.datasetVersion ?? "Not available"}
-                      </td>
-                      <td className="px-6 py-3">
-                        {version.trainingRunId && version.runDeployable ? (
-                          <Button
-                            size="xs"
-                            variant="outline"
-                            disabled={busy || !canWrite}
-                            onClick={() =>
-                              onDeployRun(
-                                version.trainingRunId as string,
-                                version.version,
-                              )
-                            }
-                          >
-                            Deploy
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            {version.deployable
-                              ? isProduction
-                                ? "In production"
-                                : "Not deployable from here"
-                              : "Not deployable"}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <EntityDataTable
+          data={models.versions}
+          columns={modelColumns}
+          hideSearch
+          borderless
+          emptyTitle="No model versions"
+          emptyMessage="No model versions found in registry."
+          enableSelection={false}
+          initialPageSize={10}
+        />
       </SectionCard>
 
       <SectionCard
@@ -799,152 +858,234 @@ export function MlRunsPanel({
   onDeployRun,
 }: {
   runs: MlTrainingRunSummaryDto[];
-  page: number;
-  totalPages: number;
-  total: number;
-  statusFilter: TrainingRunStatus | "ALL";
-  loading: boolean;
+  page?: number;
+  totalPages?: number;
+  total?: number;
+  statusFilter?: TrainingRunStatus | "ALL";
+  loading?: boolean;
   busy: boolean;
   canWrite: boolean;
-  onStatusFilter: (status: TrainingRunStatus | "ALL") => void;
-  onPage: (page: number) => void;
+  onStatusFilter?: (status: TrainingRunStatus | "ALL") => void;
+  onPage?: (page: number) => void;
   onViewRun: (runId: string) => void;
   onDeployRun: (runId: string, candidateVersion: string | null) => void;
 }) {
+  const runColumns = React.useMemo<ColumnDef<MlTrainingRunSummaryDto>[]>(
+    () => [
+      {
+        accessorKey: "id",
+        header: "Run",
+        meta: { width: "8%" },
+        cell: ({ row }) => (
+          <span
+            className="font-mono text-xs font-semibold text-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border"
+            title={row.original.id}
+          >
+            {row.original.id.slice(0, 8)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "triggeredAt",
+        header: "Started",
+        meta: { width: "14%" },
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {formatDateTime(row.original.triggeredAt)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "triggeredByEmail",
+        header: "Triggered By",
+        meta: { width: "13%" },
+        cell: ({ row }) => {
+          const email = row.original.triggeredByEmail ?? "Not recorded";
+          return (
+            <span
+              className="text-xs text-muted-foreground truncate block"
+              title={email}
+            >
+              {email}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "datasetVersion",
+        header: "Dataset",
+        meta: { width: "13%" },
+        cell: ({ row }) => {
+          const version = row.original.datasetVersion ?? "Not available";
+          return (
+            <span
+              className="text-xs text-muted-foreground font-mono truncate block"
+              title={version}
+            >
+              {version}
+            </span>
+          );
+        },
+      },
+      {
+        id: "records",
+        header: "Records",
+        meta: { width: "8%" },
+        cell: ({ row }) => (
+          <span
+            className="font-mono text-xs whitespace-nowrap"
+            title={`Training: ${formatCount(row.original.trainingRecordCount)}, Validation: ${formatCount(row.original.validationRecordCount)}`}
+          >
+            {formatCount(row.original.trainingRecordCount)} /{" "}
+            {formatCount(row.original.validationRecordCount)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "candidateModelVersion",
+        header: "Candidate",
+        meta: { width: "8%" },
+        cell: ({ row }) => (
+          <span className="font-mono text-xs font-semibold">
+            {formatVersion(row.original.candidateModelVersion)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        meta: { width: "11%" },
+        cell: ({ row }) => (
+          <div className="flex items-center min-w-0 max-w-full">
+            {runStatusBadge(row.original.status)}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "deploymentStatus",
+        header: "Deployment",
+        meta: { width: "9%" },
+        cell: ({ row }) => {
+          const label = deploymentStatusLabel(row.original.deploymentStatus);
+          return (
+            <span
+              className="text-xs text-muted-foreground truncate block"
+              title={label}
+            >
+              {label}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "durationMs",
+        header: "Duration",
+        meta: { width: "7%" },
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+            {formatDuration(row.original.durationMs)}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        meta: {
+          width: "9%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
+        cell: ({ row }) => {
+          const run = row.original;
+          return (
+            <div className="flex items-center justify-end gap-1.5">
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => onViewRun(run.id)}
+              >
+                View
+              </Button>
+              {canDeployCandidate(run) ? (
+                <Button
+                  size="xs"
+                  disabled={busy || !canWrite}
+                  onClick={() =>
+                    onDeployRun(run.id, run.candidateModelVersion)
+                  }
+                >
+                  Deploy
+                </Button>
+              ) : null}
+            </div>
+          );
+        },
+      },
+    ],
+    [busy, canWrite, onViewRun, onDeployRun],
+  );
+
+  const runCount = total ?? runs.length;
+
   return (
     <SectionCard
       title="Training Runs"
       icon={History}
-      description={`${formatCount(total)} run${total === 1 ? "" : "s"} recorded. History is paginated.`}
+      description={`${formatCount(runCount)} run${runCount === 1 ? "" : "s"} recorded. Click View to inspect step logs, gate evaluation, and metrics.`}
       actions={
-        <div className="">
+        <div className="flex items-center gap-2">
           <Select
             value={statusFilter}
             onValueChange={(value: string | null) =>
-              onStatusFilter((value ?? "ALL") as TrainingRunStatus | "ALL")
+              onStatusFilter?.((value ?? "ALL") as TrainingRunStatus | "ALL")
             }
           >
-            <SelectTrigger className="h-8">
+            <SelectTrigger className="h-8 w-40 text-xs">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All statuses</SelectItem>
-              <SelectItem value="PASSED">Passed gates</SelectItem>
-              <SelectItem value="REJECTED">Rejected by gates</SelectItem>
-              <SelectItem value="FAILED">Failed</SelectItem>
-              <SelectItem value="RUNNING">Running</SelectItem>
-              <SelectItem value="QUEUED">Queued</SelectItem>
-              <SelectItem value="EVALUATING">Evaluating</SelectItem>
+              <SelectItem value="ALL" className="text-xs">
+                All statuses
+              </SelectItem>
+              <SelectItem value="PASSED" className="text-xs">
+                Passed gates
+              </SelectItem>
+              <SelectItem value="REJECTED" className="text-xs">
+                Rejected by gates
+              </SelectItem>
+              <SelectItem value="FAILED" className="text-xs">
+                Failed
+              </SelectItem>
+              <SelectItem value="RUNNING" className="text-xs">
+                Running
+              </SelectItem>
+              <SelectItem value="QUEUED" className="text-xs">
+                Queued
+              </SelectItem>
+              <SelectItem value="EVALUATING" className="text-xs">
+                Evaluating
+              </SelectItem>
+              <SelectItem value="CANCELLED" className="text-xs">
+                Cancelled
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
       }
       contentClassName="p-0"
     >
-      {runs.length === 0 && !loading ? (
-        <div className="p-6">
-          <EmptyState {...emptyStateFor("runs")} compact />
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th className="px-6 py-3 font-medium">Run</th>
-                <th className="px-6 py-3 font-medium">Started</th>
-                <th className="px-6 py-3 font-medium">Triggered By</th>
-                <th className="px-6 py-3 font-medium">Dataset</th>
-                <th className="px-6 py-3 font-medium">Records</th>
-                <th className="px-6 py-3 font-medium">Candidate</th>
-                <th className="px-6 py-3 font-medium">Result</th>
-                <th className="px-6 py-3 font-medium">Deployment</th>
-                <th className="px-6 py-3 font-medium">Duration</th>
-                <th className="px-6 py-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {runs.map((run) => (
-                <tr key={run.id} className="hover:bg-muted/15">
-                  <td className="px-6 py-3 font-mono text-xs">
-                    <span title={run.id}>{run.id.slice(0, 8)}</span>
-                  </td>
-                  <td className="px-6 py-3 text-muted-foreground">
-                    {formatDateTime(run.triggeredAt)}
-                  </td>
-                  <td className="px-6 py-3 text-muted-foreground">
-                    {run.triggeredByEmail ?? "Not recorded"}
-                  </td>
-                  <td className="px-6 py-3 text-muted-foreground">
-                    {run.datasetVersion ?? "Not available"}
-                  </td>
-                  <td className="px-6 py-3 font-mono text-xs">
-                    {formatCount(run.trainingRecordCount)}
-                    {" / "}
-                    {formatCount(run.validationRecordCount)}
-                  </td>
-                  <td className="px-6 py-3 font-mono">
-                    {formatVersion(run.candidateModelVersion)}
-                  </td>
-                  <td className="px-6 py-3">{runStatusBadge(run.status)}</td>
-                  <td className="px-6 py-3 text-muted-foreground">
-                    {deploymentStatusLabel(run.deploymentStatus)}
-                  </td>
-                  <td className="px-6 py-3 text-muted-foreground">
-                    {formatDuration(run.durationMs)}
-                  </td>
-                  <td className="px-6 py-3">
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        onClick={() => onViewRun(run.id)}
-                      >
-                        View
-                      </Button>
-                      {canDeployCandidate(run) ? (
-                        <Button
-                          size="xs"
-                          disabled={busy || !canWrite}
-                          onClick={() =>
-                            onDeployRun(run.id, run.candidateModelVersion)
-                          }
-                        >
-                          Deploy
-                        </Button>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {totalPages > 1 ? (
-        <div className="flex items-center justify-between border-t border-border px-6 py-3 text-xs text-muted-foreground">
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={page <= 1 || loading}
-              onClick={() => onPage(page - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={page >= totalPages || loading}
-              onClick={() => onPage(page + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      <EntityDataTable
+        data={runs}
+        columns={runColumns}
+        hideSearch
+        borderless
+        noHorizontalScroll
+        loading={Boolean(loading)}
+        emptyTitle="No Training Runs"
+        emptyMessage="No training runs recorded matching your criteria."
+        enableSelection={false}
+        initialPageSize={10}
+      />
     </SectionCard>
   );
 }

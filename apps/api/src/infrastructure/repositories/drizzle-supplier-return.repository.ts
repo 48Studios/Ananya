@@ -160,4 +160,17 @@ export class DrizzleSupplierReturnRepository implements SupplierReturnRepository
     const num = (Number(result?.count ?? 0) + 1).toString().padStart(4, '0');
     return `SR-${year}-${num}`;
   }
+
+  async delete(id: string): Promise<void> {
+    await db
+      .delete(supplierReturnLines)
+      .where(eq(supplierReturnLines.supplierReturnId, id));
+    await db.delete(supplierReturns).where(eq(supplierReturns.id, id));
+  }
+
+  async deleteLine(lineId: string): Promise<void> {
+    await db
+      .delete(supplierReturnLines)
+      .where(eq(supplierReturnLines.id, lineId));
+  }
 }

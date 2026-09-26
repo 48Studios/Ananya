@@ -29,6 +29,12 @@ import {
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -182,12 +188,26 @@ export default function PurchaseOrdersPage() {
         header: "PO Number",
         meta: { width: "12%" },
         cell: ({ row }) => (
-          <Link
-            href={`/purchase-orders/${row.original.id}`}
-            className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase whitespace-nowrap inline-block"
-          >
-            {row.original.poNumber}
-          </Link>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/purchase-orders/${row.original.id}`}
+                      title={row.original.poNumber}
+                      className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase inline-block truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  {row.original.poNumber}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {row.original.poNumber}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ),
       },
       {

@@ -2,7 +2,16 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Undo2, Plus, CheckCircle2, Clock } from "lucide-react";
+import Link from "next/link";
+import {
+  Undo2,
+  Plus,
+  CheckCircle2,
+  Clock,
+  Truck,
+  XCircle,
+  Eye,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -19,6 +28,12 @@ import { purchaseOrdersApi } from "@/lib/api/purchase-orders-api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { DialogShell } from "@/components/ui/dialog-shell";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { SupplierReturnForm } from "@/components/supplier-returns/supplier-return-form";
 
 export default function SupplierReturnsPage() {
@@ -67,8 +82,10 @@ export default function SupplierReturnsPage() {
       title: "Status",
       options: [
         { label: "Draft", value: "DRAFT" },
+        { label: "Approved", value: "APPROVED" },
         { label: "Dispatched", value: "DISPATCHED" },
-        { label: "Credited", value: "CREDITED" },
+        { label: "Completed", value: "COMPLETED" },
+        { label: "Cancelled", value: "CANCELLED" },
       ],
     },
   ];
@@ -78,9 +95,12 @@ export default function SupplierReturnsPage() {
       accessorKey: "returnNumber",
       header: "Return No.",
       cell: ({ row }) => (
-        <span className="font-mono text-xs font-semibold text-primary">
+        <Link
+          href={`/supplier-returns/${row.original.id}`}
+          className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold"
+        >
           {row.original.returnNumber || "-"}
-        </span>
+        </Link>
       ),
     },
     {
@@ -103,10 +123,34 @@ export default function SupplierReturnsPage() {
           (row.original.purchaseOrderId
             ? posMap[row.original.purchaseOrderId]
             : undefined);
+        if (!poNum) {
+          return <span className="text-muted-foreground">-</span>;
+        }
         return (
-          <span className="font-mono text-xs text-muted-foreground">
-            {poNum || "-"}
-          </span>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={
+                        row.original.purchaseOrderId
+                          ? `/purchase-orders/${row.original.purchaseOrderId}`
+                          : `/purchase-orders`
+                      }
+                      title={poNum}
+                      className="font-mono text-xs text-muted-foreground hover:text-foreground bg-muted/30 px-1.5 py-0.5 rounded transition-colors uppercase inline-block truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  {poNum}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {poNum}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         );
       },
     },
@@ -124,27 +168,67 @@ export default function SupplierReturnsPage() {
       header: "Status",
       cell: ({ row }) => {
         const s = row.original.status;
-        if (s === "CREDITED") {
+        if (s === "COMPLETED") {
           return (
             <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <CheckCircle2 className="w-3 h-3 mr-1" /> Debit Credited
+              <CheckCircle2 className="w-3 h-3 mr-1" /> COMPLETED
+            </span>
+          );
+        }
+        if (s === "APPROVED") {
+          return (
+            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+              <CheckCircle2 className="w-3 h-3 mr-1" /> APPROVED
+            </span>
+          );
+        }
+        if (s === "DISPATCHED") {
+          return (
+            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+              <Truck className="w-3 h-3 mr-1" /> DISPATCHED
+            </span>
+          );
+        }
+        if (s === "CANCELLED") {
+          return (
+            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-muted text-muted-foreground border border-border">
+              <XCircle className="w-3 h-3 mr-1" /> CANCELLED
             </span>
           );
         }
         return (
-          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-            <Clock className="w-3 h-3 mr-1" /> {s || "DRAFT"}
+          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <Clock className="w-3 h-3 mr-1" /> DRAFT
           </span>
         );
       },
     },
     {
-      accessorKey: "returnDate",
+      accessorKey: "createdAt",
       header: "Date",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {row.original.returnDate ? formatDate(row.original.returnDate) : "-"}
+          {row.original.createdAt ? formatDate(row.original.createdAt) : "-"}
         </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => <div className="text-right">Actions</div>,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-1">
+          <Link href={`/supplier-returns/${row.original.id}`}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              title="View details & status"
+            >
+              <Eye className="w-3.5 h-3.5 mr-1" />
+              View
+            </Button>
+          </Link>
+        </div>
       ),
     },
   ];
@@ -175,7 +259,7 @@ export default function SupplierReturnsPage() {
         />
         <StatCard
           title="Credited Returns"
-          value={returns.filter((r) => r?.status === "CREDITED").length}
+          value={returns.filter((r) => r?.status === "COMPLETED").length}
           icon={CheckCircle2}
         />
       </div>

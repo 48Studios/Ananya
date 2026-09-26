@@ -141,6 +141,21 @@ export class PurchaseInvoice {
     this.updatedAt = new Date();
   }
 
+  public markAsPaid(): void {
+    this.status = "PAID";
+    this.updatedAt = new Date();
+  }
+
+  public cancel(): void {
+    this.status = "CANCELLED";
+    this.updatedAt = new Date();
+  }
+
+  public updateStatus(status: PurchaseInvoiceStatus): void {
+    this.status = status;
+    this.updatedAt = new Date();
+  }
+
   public static rehydrate(props: PurchaseInvoiceProps): PurchaseInvoice {
     return new PurchaseInvoice(props);
   }

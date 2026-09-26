@@ -127,12 +127,6 @@ export default function ProcurementPage() {
         loading={loading}
         emptyTitle="No Purchase Orders Found"
         emptyMessage="No active purchase orders match your filter."
-        actionButton={
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Create Purchase Order
-          </Button>
-        }
       />
     </div>
   );

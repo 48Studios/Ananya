@@ -26,6 +26,9 @@ export class CreatePurchaseInvoiceDto {
   @IsDateString()
   @IsNotEmpty()
   dueDate!: string;
+
+  @IsOptional()
+  lines?: AddPurchaseInvoiceLineDto[];
 }
 
 export class AddPurchaseInvoiceLineDto {
@@ -40,4 +43,10 @@ export class AddPurchaseInvoiceLineDto {
   @IsNumber()
   @IsNotEmpty()
   unitPrice!: number;
+}
+
+export class UpdatePurchaseInvoiceStatusDto {
+  @IsString()
+  @IsNotEmpty()
+  status!: string;
 }

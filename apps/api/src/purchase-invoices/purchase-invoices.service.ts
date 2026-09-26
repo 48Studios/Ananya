@@ -2,6 +2,7 @@ import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import {
   PurchaseInvoice,
   PurchaseInvoiceRepository,
+  PurchaseInvoiceStatus,
   ThreeWayMatcher,
 } from '@ananya/procurement';
 import { CreatePurchaseInvoiceDto, AddPurchaseInvoiceLineDto } from './dtos';
@@ -30,6 +31,13 @@ export class PurchaseInvoicesService {
       goodsReceiptId: dto.goodsReceiptId,
       dueDate: new Date(dto.dueDate),
     });
+
+    if (dto.lines && dto.lines.length > 0) {
+      for (const line of dto.lines) {
+        invoice.addLine(line);
+      }
+    }
+
     await this.invoiceRepository.save(invoice);
     return invoice;
   }
@@ -77,6 +85,30 @@ export class PurchaseInvoicesService {
   async approve(id: string): Promise<PurchaseInvoice> {
     const invoice = await this.findOne(id);
     invoice.approveForPayment();
+    await this.invoiceRepository.save(invoice);
+    return invoice;
+  }
+
+  async pay(id: string): Promise<PurchaseInvoice> {
+    const invoice = await this.findOne(id);
+    invoice.markAsPaid();
+    await this.invoiceRepository.save(invoice);
+    return invoice;
+  }
+
+  async cancel(id: string): Promise<PurchaseInvoice> {
+    const invoice = await this.findOne(id);
+    invoice.cancel();
+    await this.invoiceRepository.save(invoice);
+    return invoice;
+  }
+
+  async updateStatus(
+    id: string,
+    status: PurchaseInvoiceStatus,
+  ): Promise<PurchaseInvoice> {
+    const invoice = await this.findOne(id);
+    invoice.updateStatus(status);
     await this.invoiceRepository.save(invoice);
     return invoice;
   }

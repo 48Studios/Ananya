@@ -4,6 +4,7 @@ import * as React from "react";
 import { Loader2, Sparkles } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -121,7 +122,7 @@ export default function MlOperationsPage() {
       try {
         const pageData = await mlOpsApi.listTrainingRuns({
           page,
-          pageSize: ML_OPS_HISTORY_PAGE_SIZE,
+          pageSize: 100,
           status: status === "ALL" ? undefined : status,
         });
         setRuns(pageData);
@@ -193,6 +194,7 @@ export default function MlOperationsPage() {
   );
 
   const openRun = React.useCallback(async (runId: string) => {
+    setActiveTab("runs");
     setDetailLoading(true);
     setActionError(null);
     try {
@@ -396,21 +398,39 @@ export default function MlOperationsPage() {
                 {detailLoading ? (
                   <LoadingState message="Loading run detail..." />
                 ) : detail ? (
-                  <MlRunDetailPanel
-                    run={detail}
-                    canWrite={canWrite}
-                    busy={busy}
-                    currentRunningVersion={models?.running.version ?? null}
-                    onDeploy={() =>
-                      setPendingDeploy({
-                        runId: detail.id,
-                        currentVersion:
-                          models?.production.artifactVersion ??
-                          detail.deployment.previousModelVersion,
-                        candidateVersion: detail.candidateModelVersion,
-                      })
-                    }
-                  />
+                  <div className="space-y-4 pt-4 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground">
+                          Run Details: <span className="font-mono text-xs text-primary">{detail.id}</span>
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          Step-by-step pipeline execution, evaluation gates, and candidate metrics.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => setDetail(null)}
+                      >
+                        Close Detail
+                      </Button>
+                    </div>
+                    <MlRunDetailPanel
+                      run={detail}
+                      canWrite={canWrite}
+                      busy={busy}
+                      currentRunningVersion={models?.running.version ?? null}
+                      onDeploy={() =>
+                        setPendingDeploy({
+                          runId: detail.id,
+                          currentVersion:
+                            models?.production.artifactVersion ??
+                            detail.deployment.previousModelVersion,
+                          candidateVersion: detail.candidateModelVersion,
+                        })
+                      }
+                    />
+                  </div>
                 ) : null}
               </div>
             ) : null}

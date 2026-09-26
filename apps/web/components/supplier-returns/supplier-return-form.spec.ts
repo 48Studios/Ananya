@@ -168,19 +168,22 @@ describe("Supplier Return Form Logic", () => {
 
       const filteredSup2 = filterPurchaseOrdersBySupplier(mockPurchaseOrders, "sup-2");
       expect(filteredSup2).toHaveLength(1);
-      expect(filteredSup2[0].id).toBe("po-3");
+      expect(filteredSup2[0]?.id).toBe("po-3");
     });
   });
 
   describe("buildPoOptions", () => {
     it("formats purchase orders with poNumber, status, and formatted grand total", () => {
-      const options = buildPoOptions([mockPurchaseOrders[0]]);
+      const firstPo = mockPurchaseOrders[0];
+      expect(firstPo).toBeDefined();
+      if (!firstPo) return;
+      const options = buildPoOptions([firstPo]);
       expect(options).toHaveLength(1);
-      expect(options[0].value).toBe("po-1");
-      expect(options[0].label).toBe("PO-2026-0001");
-      expect(options[0].chip).toBe("APPROVED");
-      expect(options[0].sublabel).toContain("APPROVED");
-      expect(options[0].sublabel).toContain("1,180.00");
+      expect(options[0]?.value).toBe("po-1");
+      expect(options[0]?.label).toBe("PO-2026-0001");
+      expect(options[0]?.chip).toBe("APPROVED");
+      expect(options[0]?.sublabel).toContain("APPROVED");
+      expect(options[0]?.sublabel).toContain("1,180.00");
     });
   });
 

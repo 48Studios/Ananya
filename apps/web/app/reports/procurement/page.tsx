@@ -21,6 +21,12 @@ import { DonutChartWidget } from "@/components/charts/donut-chart-widget";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   ReportFilters,
   FilterState,
 } from "@/components/reports/report-filters";
@@ -88,13 +94,27 @@ export default function ProcurementReportsPage() {
         accessorKey: "poNumber",
         header: "PO #",
         cell: ({ row }) => (
-          <Link
-            href={`/purchase-orders/${row.original.id}`}
-            className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted font-bold inline-flex items-center gap-1 uppercase"
-          >
-            {row.original.poNumber}
-            <ExternalLink className="w-3 h-3 text-muted-foreground" />
-          </Link>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/purchase-orders/${row.original.id}`}
+                      title={row.original.poNumber}
+                      className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted font-bold inline-flex items-center gap-1 uppercase truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  <span className="truncate">{row.original.poNumber}</span>
+                  <ExternalLink className="w-3 h-3 text-muted-foreground shrink-0" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {row.original.poNumber}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ),
       },
       {

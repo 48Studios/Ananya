@@ -20,6 +20,30 @@ export class CreateSupplierReturnDto {
   rmaNumber?: string;
 }
 
+export class UpdateSupplierReturnDto {
+  @IsString()
+  @IsOptional()
+  supplierId?: string;
+
+  @IsString()
+  @IsOptional()
+  purchaseOrderId?: string;
+
+  @IsString()
+  @IsOptional()
+  rmaNumber?: string;
+}
+
+export class UpdateSupplierReturnStatusDto {
+  @IsString()
+  @IsNotEmpty()
+  status!: string;
+
+  @IsString()
+  @IsOptional()
+  rmaNumber?: string;
+}
+
 export class AddSupplierReturnLineDto {
   @IsString()
   @IsNotEmpty()
