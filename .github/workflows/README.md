@@ -2,19 +2,19 @@
 
 ## Entry points
 
-| Workflow                      | Trigger                                                                | Purpose                                                                                                    |
-| ----------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `ci.yml`                      | `push` to `main` / `release/*`, `pull_request`                          | Pull request gate and main branch validation.                                                              |
-| `docker.yml`                  | `workflow_run` after a successful `Continuous Integration` run on `main` | Smoke tests the production compose stack, then publishes `edge` / `sha-*` images to GHCR.                   |
-| `release.yml`                 | `push` of a `v*` tag                                                    | Quality gates, smoke test, semver image publishing (`latest`, `x.y.z`, `x.y`, channels) and GitHub Release. |
+| Workflow      | Trigger                                                                  | Purpose                                                                                                     |
+| ------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `ci.yml`      | `push` to `main` / `release/*`, `pull_request`                           | Pull request gate and main branch validation.                                                               |
+| `docker.yml`  | `workflow_run` after a successful `Continuous Integration` run on `main` | Smoke tests the production compose stack, then publishes `edge` / `sha-*` images to GHCR.                   |
+| `release.yml` | `push` of a `v*` tag                                                     | Quality gates, smoke test, semver image publishing (`latest`, `x.y.z`, `x.y`, channels) and GitHub Release. |
 
 ## Reusable building blocks
 
 Files prefixed with `_` are only invoked through `workflow_call`; they never trigger on their own.
 
-| Workflow                | Called by                   | Contents                                                             |
-| ----------------------- | --------------------------- | -------------------------------------------------------------------- |
-| `_quality-gates.yml`    | `ci.yml`, `release.yml`     | install, lint, `check-types`, test, production build                  |
+| Workflow                 | Called by                   | Contents                                                              |
+| ------------------------ | --------------------------- | --------------------------------------------------------------------- |
+| `_quality-gates.yml`     | `ci.yml`, `release.yml`     | install, lint, `check-types`, test, production build                  |
 | `_docker-smoke-test.yml` | `docker.yml`, `release.yml` | compose stack boot, migrations, container state and health assertions |
 
 ## Rules that keep this working
@@ -28,4 +28,10 @@ Files prefixed with `_` are only invoked through `workflow_call`; they never tri
 
 ## Adding a new image service
 
-Add the service to the matrix in **both** `docker.yml` and `release.yml`. The two matrices are intentionally not shared: continuous integration builds use rolling `edge` tags, releases use explicit version tags.
+Add the service to the matrix in **both** `docker.yml` and `release.yml`. The two matrices are intentionally not shared: continuous integration builds use rolling `edge` tags on native `linux/amd64` for maximum delivery speed, while releases use explicit version tags across multi-architecture (`linux/amd64,linux/arm64`).
+
+## Caching Strategy
+
+- `_quality-gates.yml` caches both `.turbo/cache` and Next.js (`apps/web/.next/cache`) via `actions/cache@v4` to achieve instantaneous incremental checks on PRs.
+- `_docker-smoke-test.yml` uses Buildx to parallelize Compose service builds and eliminate redundant compilation between migration and application startup.
+- Container publishing uses GitHub Actions layer cache (`type=gha`) scoped per service.
