@@ -51,26 +51,30 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Boot Production Application Stack & Run Health Checks
+        id: smoke_test
         run: |
           compose() {
             docker compose -f compose.yml -f compose.local.yml --profile "$COMPOSE_PROFILE" "$@"
           }
 
-          echo "=== 1. Starting PostgreSQL ==="
+          echo "=== 1. Building container images in parallel ==="
+          compose build
+
+          echo "=== 2. Starting PostgreSQL ==="
           compose up -d db
 
-          echo "=== 2. Running schema migrations ==="
-          compose run --build --rm migrate
+          echo "=== 3. Running schema migrations ==="
+          compose run --rm migrate
 
-          echo "=== 3. Booting production-equivalent application stack ==="
-          compose up --build -d
+          echo "=== 4. Booting production-equivalent application stack ==="
+          compose up -d
 
-          echo "=== 4. Container Status (docker compose ps -a) ==="
+          echo "=== 5. Container Status (docker compose ps -a) ==="
           compose ps -a
-
-          echo "=== 5. Waiting 5s for process initialization ==="
-          sleep 5
 
           echo "=== 6. Checking Service Exit States ==="
           containers=(ananya-db ananya-api ananya-worker ananya-web)
@@ -124,6 +128,38 @@ jobs:
           fi
 
           echo "✅ Production-equivalent deployment integration smoke test passed cleanly!"
+
+      - name: Generate Smoke Test Summary
+        if: always()
+        run: |
+          echo "## 🐳 Docker Smoke Test Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| :--- | :--- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Profile | \`${{ inputs.compose_profile }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Overall Smoke Test | ${{ steps.smoke_test.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| PostgreSQL Database | ${{ steps.smoke_test.outcome == 'success' && '✅ Healthy' || '⚠️ Check logs' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Schema Migrations | ${{ steps.smoke_test.outcome == 'success' && '✅ Applied' || '⚠️ Check logs' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| API Service Health | ${{ steps.smoke_test.outcome == 'success' && '✅ Healthy' || '⚠️ Check logs' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Worker Service Health | ${{ steps.smoke_test.outcome == 'success' && '✅ Healthy' || '⚠️ Check logs' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Web Service Health | ${{ steps.smoke_test.outcome == 'success' && '✅ Healthy' || '⚠️ Check logs' }} |" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ inputs.verify_ml }}" = "true" ]; then
+            echo "| ML Service Health | ${{ steps.smoke_test.outcome == 'success' && '✅ Healthy' || '⚠️ Check logs' }} |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Collect Container Diagnostic Logs on Failure
+        if: failure()
+        run: |
+          echo "<details><summary>🔍 Container Diagnostic Logs (Click to expand)</summary>" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          for c in ananya-api ananya-worker ananya-web ananya-ml ananya-db ananya-migrate; do
+            if docker ps -a --format '{{.Names}}' | grep -q "^${c}$"; then
+              echo "### Logs for $c" >> "$GITHUB_STEP_SUMMARY"
+              echo '```text' >> "$GITHUB_STEP_SUMMARY"
+              docker logs --tail 80 "$c" 2>&1 >> "$GITHUB_STEP_SUMMARY" || true
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Cleanup Production Stack
         if: always()

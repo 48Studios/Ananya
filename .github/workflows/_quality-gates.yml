@@ -37,17 +37,43 @@ jobs:
           node-version-file: ".nvmrc"
           cache: pnpm
 
+      - name: Restore Turborepo & Next.js Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .turbo/cache
+            apps/web/.next/cache
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
+
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Run ESLint Audit
-        run: pnpm lint
+        id: lint
+        run: pnpm turbo run lint --output-logs=new-only --log-order=grouped
 
       - name: Run TypeScript Type Check
-        run: pnpm check-types
-
-      - name: Run Test Suite
-        run: pnpm test
+        id: check_types
+        run: pnpm turbo run check-types --output-logs=new-only --log-order=grouped
 
       - name: Run Production Build Validation
-        run: pnpm build
+        id: build
+        run: pnpm turbo run build --output-logs=new-only --log-order=grouped
+
+      - name: Run Test Suite
+        id: test
+        run: pnpm turbo run test --output-logs=new-only --log-order=grouped
+
+      - name: Generate Quality Gates Summary
+        if: always()
+        run: |
+          echo "## 🛡️ Monorepo Quality Gates Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| :--- | :--- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ESLint Audit | ${{ steps.lint.outcome == 'success' && '✅ Passed' || (steps.lint.outcome == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| TypeScript Type Check | ${{ steps.check_types.outcome == 'success' && '✅ Passed' || (steps.check_types.outcome == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Production Build Validation | ${{ steps.build.outcome == 'success' && '✅ Passed' || (steps.build.outcome == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Test Suite | ${{ steps.test.outcome == 'success' && '✅ Passed' || (steps.test.outcome == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> "$GITHUB_STEP_SUMMARY"

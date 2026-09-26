@@ -56,9 +56,6 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Set up QEMU for Multi-Architecture Builds
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -87,14 +84,25 @@ jobs:
             org.opencontainers.image.documentation=https://github.com/48studios/ananya#readme
             org.opencontainers.image.source=https://github.com/48studios/ananya
 
-      - name: Build & Push Multi-Architecture Docker Image
+      - name: Build & Push Docker Image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Generate Image Publish Summary
+        if: always()
+        run: |
+          echo "## 📦 Published Container Image (${{ matrix.service }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Image**: \`${{ matrix.image }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Platform**: \`linux/amd64\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Tags**:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

@@ -2,19 +2,19 @@
 
 ## Entry points
 
-| Workflow      | Trigger                                                                  | Purpose                                                                                                     |
-| ------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `ci.yml`      | `push` to `main` / `release/*`, `pull_request`                           | Pull request gate and main branch validation.                                                               |
-| `docker.yml`  | `workflow_run` after a successful `Continuous Integration` run on `main` | Smoke tests the production compose stack, then publishes `edge` / `sha-*` images to GHCR.                   |
-| `release.yml` | `push` of a `v*` tag                                                     | Quality gates, smoke test, semver image publishing (`latest`, `x.y.z`, `x.y`, channels) and GitHub Release. |
+| Workflow                      | Trigger                                                                | Purpose                                                                                                    |
+| ----------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `ci.yml`                      | `push` to `main` / `release/*`, `pull_request`                          | Pull request gate and main branch validation.                                                              |
+| `docker.yml`                  | `workflow_run` after a successful `Continuous Integration` run on `main` | Smoke tests the production compose stack, then publishes `edge` / `sha-*` images to GHCR.                   |
+| `release.yml`                 | `push` of a `v*` tag                                                    | Quality gates, smoke test, semver image publishing (`latest`, `x.y.z`, `x.y`, channels) and GitHub Release. |
 
 ## Reusable building blocks
 
 Files prefixed with `_` are only invoked through `workflow_call`; they never trigger on their own.
 
-| Workflow                 | Called by                   | Contents                                                              |
-| ------------------------ | --------------------------- | --------------------------------------------------------------------- |
-| `_quality-gates.yml`     | `ci.yml`, `release.yml`     | install, lint, `check-types`, test, production build                  |
+| Workflow                | Called by                   | Contents                                                             |
+| ----------------------- | --------------------------- | -------------------------------------------------------------------- |
+| `_quality-gates.yml`    | `ci.yml`, `release.yml`     | install, lint, `check-types`, test, production build                  |
 | `_docker-smoke-test.yml` | `docker.yml`, `release.yml` | compose stack boot, migrations, container state and health assertions |
 
 ## Rules that keep this working
