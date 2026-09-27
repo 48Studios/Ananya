@@ -1,0 +1,78 @@
+{
+  "pair": "Connectors <-> Sensors",
+  "total_errors": 3,
+  "records": [
+    {
+      "record_id": "AUTO-87aaa0f2",
+      "text": "AUTO-87AAA0F2 AUTO-87aaa0f2 List Help Header W\u00fcrth Elektronik Component Catalog",
+      "expected": "Connectors",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.484294
+        },
+        {
+          "category": "Connectors",
+          "probability": 0.303228
+        },
+        {
+          "category": "Capacitors",
+          "probability": 0.055041
+        }
+      ],
+      "confidence": 0.484294,
+      "source": "wuerth-elektronik",
+      "manufacturer": "manufacturer",
+      "sku": "AUTO-87aaa0f2"
+    },
+    {
+      "record_id": "AUTO-87aaa0f2",
+      "text": "AUTO87AAA0F2 AUTO-87aaa0f2 List Help Header W\u00fcrth Elektronik Component Catalog",
+      "expected": "Connectors",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.455039
+        },
+        {
+          "category": "Connectors",
+          "probability": 0.324005
+        },
+        {
+          "category": "Capacitors",
+          "probability": 0.059478
+        }
+      ],
+      "confidence": 0.455039,
+      "source": "wuerth-elektronik",
+      "manufacturer": "manufacturer",
+      "sku": "AUTO-87aaa0f2"
+    },
+    {
+      "record_id": "AUTO-87aaa0f2",
+      "text": "auto-87aaa0f2 auto-87aaa0f2 list help header w\u00fcrth elektronik component catalog",
+      "expected": "Connectors",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.484294
+        },
+        {
+          "category": "Connectors",
+          "probability": 0.303228
+        },
+        {
+          "category": "Capacitors",
+          "probability": 0.055041
+        }
+      ],
+      "confidence": 0.484294,
+      "source": "wuerth-elektronik",
+      "manufacturer": "manufacturer",
+      "sku": "AUTO-87aaa0f2"
+    }
+  ]
+}

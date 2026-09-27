@@ -1,0 +1,54 @@
+{
+  "pair": "Optoelectronics <-> Sensors",
+  "total_errors": 2,
+  "records": [
+    {
+      "record_id": "1676",
+      "text": "1676 1676 Resistive Touchscreen Overlay - 7\" diag. 165mm x 105mm - 4 Wire If you already have a 7\" TFT that is about 165mm x 105mm in size (with a visible area equal to or smaller than ~152mm x 91mm), you can put this glass resistive overlay over it to add a resistive touch screen. Adafruit Industries Electronics & Components",
+      "expected": "Optoelectronics",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.466678
+        },
+        {
+          "category": "Optoelectronics",
+          "probability": 0.250118
+        },
+        {
+          "category": "Tools",
+          "probability": 0.056487
+        }
+      ],
+      "confidence": 0.466678,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "1676"
+    },
+    {
+      "record_id": "1676",
+      "text": "1676 1676 resistive touchscreen overlay - 7\" diag. 165mm x 105mm - 4 wire if you already have a 7\" tft that is about 165mm x 105mm in size (with a visible area equal to or smaller than ~152mm x 91mm), you can put this glass resistive overlay over it to add a resistive touch screen. adafruit industries electronics & components",
+      "expected": "Optoelectronics",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.466678
+        },
+        {
+          "category": "Optoelectronics",
+          "probability": 0.250118
+        },
+        {
+          "category": "Tools",
+          "probability": 0.056487
+        }
+      ],
+      "confidence": 0.466678,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "1676"
+    }
+  ]
+}

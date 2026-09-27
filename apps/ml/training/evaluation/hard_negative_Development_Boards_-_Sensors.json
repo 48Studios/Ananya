@@ -1,0 +1,126 @@
+{
+  "pair": "Development Boards <-> Sensors",
+  "total_errors": 5,
+  "records": [
+    {
+      "record_id": "WRL-15031",
+      "text": "WRL-15031 WRL-15031 SparkFun WiFi IR Blaster (ESP8266) The SparkFun WiFi IR Blaster is designed to connect all of those old, legacy IR-controlled devices to a WiFi network exposing them IoT capabilities! SparkFun Electronics Open Source Hardware",
+      "expected": "Sensors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.598224
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.15682
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.080324
+        }
+      ],
+      "confidence": 0.598224,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "WRL-15031"
+    },
+    {
+      "record_id": "WRL-15031",
+      "text": "WRL15031 WRL15031 SparkFun WiFi IR Blaster (ESP8266) The SparkFun WiFi IR Blaster is designed to connect all of those old, legacy IR-controlled devices to a WiFi network exposing them IoT capabilities! SparkFun Electronics Open Source Hardware",
+      "expected": "Sensors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.568799
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.14087
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.08363
+        }
+      ],
+      "confidence": 0.568799,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "WRL-15031"
+    },
+    {
+      "record_id": "WRL-15031",
+      "text": "wrl-15031 wrl-15031 sparkfun wifi ir blaster (esp8266) the sparkfun wifi ir blaster is designed to connect all of those old, legacy ir-controlled devices to a wifi network exposing them iot capabilities! sparkfun electronics open source hardware",
+      "expected": "Sensors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.598224
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.15682
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.080324
+        }
+      ],
+      "confidence": 0.598224,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "WRL-15031"
+    },
+    {
+      "record_id": "924",
+      "text": "924 924 Emic 2 Text-to-Speech module Give your project a voice! Designed by Parallax in conjunction with Grand Idea Studio, the Emic 2 Text-to-Speech Module is a multi-language voice synthesizer that converts a stream of digital text into natural sounding speech. Its simple command-based interface makes it easy to integrate into any embedded system. It is by far the best sounding, easiest-to-use TTS module we've ever seen!Key Features: Adafruit Industries Electronics & Components",
+      "expected": "Development Boards",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.26258
+        },
+        {
+          "category": "Development Boards",
+          "probability": 0.224146
+        },
+        {
+          "category": "Tools",
+          "probability": 0.169986
+        }
+      ],
+      "confidence": 0.26258,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "924"
+    },
+    {
+      "record_id": "924",
+      "text": "924 924 emic 2 text-to-speech module give your project a voice! designed by parallax in conjunction with grand idea studio, the emic 2 text-to-speech module is a multi-language voice synthesizer that converts a stream of digital text into natural sounding speech. its simple command-based interface makes it easy to integrate into any embedded system. it is by far the best sounding, easiest-to-use tts module we've ever seen!key features: adafruit industries electronics & components",
+      "expected": "Development Boards",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.26258
+        },
+        {
+          "category": "Development Boards",
+          "probability": 0.224146
+        },
+        {
+          "category": "Tools",
+          "probability": 0.169986
+        }
+      ],
+      "confidence": 0.26258,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "924"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "pair": "Sensors <-> Switches",
+  "total_errors": 2,
+  "records": [
+    {
+      "record_id": "COM-13247",
+      "text": "COM-13247 COM-13247 Magnetic Door Switch Set This Magnetic Door Switch Set is a small reed switch assembly that's commonly used in home security systems to alert you when doors or other openings... well, open. SparkFun Electronics Open Source Hardware",
+      "expected": "Sensors",
+      "predicted": "Switches",
+      "top3": [
+        {
+          "category": "Switches",
+          "probability": 0.260518
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.217783
+        },
+        {
+          "category": "Tools",
+          "probability": 0.204102
+        }
+      ],
+      "confidence": 0.260518,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "COM-13247"
+    },
+    {
+      "record_id": "COM-13247",
+      "text": "com-13247 com-13247 magnetic door switch set this magnetic door switch set is a small reed switch assembly that's commonly used in home security systems to alert you when doors or other openings... well, open. sparkfun electronics open source hardware",
+      "expected": "Sensors",
+      "predicted": "Switches",
+      "top3": [
+        {
+          "category": "Switches",
+          "probability": 0.260518
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.217783
+        },
+        {
+          "category": "Tools",
+          "probability": 0.204102
+        }
+      ],
+      "confidence": 0.260518,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "COM-13247"
+    }
+  ]
+}

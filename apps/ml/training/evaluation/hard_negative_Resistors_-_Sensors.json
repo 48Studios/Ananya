@@ -1,0 +1,54 @@
+{
+  "pair": "Resistors <-> Sensors",
+  "total_errors": 2,
+  "records": [
+    {
+      "record_id": "US000349",
+      "text": "US000349 US000349 Adafruit DS3502 I2C Digital 10K Potentiometer Breakout Adafruit Industries, LLC",
+      "expected": "Resistors",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.474067
+        },
+        {
+          "category": "Resistors",
+          "probability": 0.24218
+        },
+        {
+          "category": "Development Boards",
+          "probability": 0.122693
+        }
+      ],
+      "confidence": 0.474067,
+      "source": "oshwa-hardware-registry",
+      "manufacturer": "public_dataset",
+      "sku": "US000349"
+    },
+    {
+      "record_id": "US000349",
+      "text": "us000349 us000349 adafruit ds3502 i2c digital 10k potentiometer breakout adafruit industries, llc",
+      "expected": "Resistors",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.474067
+        },
+        {
+          "category": "Resistors",
+          "probability": 0.24218
+        },
+        {
+          "category": "Development Boards",
+          "probability": 0.122693
+        }
+      ],
+      "confidence": 0.474067,
+      "source": "oshwa-hardware-registry",
+      "manufacturer": "public_dataset",
+      "sku": "US000349"
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "pair": "Cables <-> Development Boards",
+  "total_errors": 5,
+  "records": [
+    {
+      "record_id": "CAB-09215",
+      "text": "CAB-09215 CAB-09215 AVR Programming Cable SparkFun Electronics Open Source Hardware",
+      "expected": "Development Boards",
+      "predicted": "Cables",
+      "top3": [
+        {
+          "category": "Cables",
+          "probability": 0.977719
+        },
+        {
+          "category": "Development Boards",
+          "probability": 0.015388
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.002374
+        }
+      ],
+      "confidence": 0.977719,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "CAB-09215"
+    },
+    {
+      "record_id": "CAB-09215",
+      "text": "CAB09215 CAB09215 AVR Programming Cable SparkFun Electronics Open Source Hardware",
+      "expected": "Development Boards",
+      "predicted": "Cables",
+      "top3": [
+        {
+          "category": "Cables",
+          "probability": 0.937385
+        },
+        {
+          "category": "Development Boards",
+          "probability": 0.034608
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.010596
+        }
+      ],
+      "confidence": 0.937385,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "CAB-09215"
+    },
+    {
+      "record_id": "CAB-09215",
+      "text": "cab-09215 cab-09215 avr programming cable sparkfun electronics open source hardware",
+      "expected": "Development Boards",
+      "predicted": "Cables",
+      "top3": [
+        {
+          "category": "Cables",
+          "probability": 0.977719
+        },
+        {
+          "category": "Development Boards",
+          "probability": 0.015388
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.002374
+        }
+      ],
+      "confidence": 0.977719,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "CAB-09215"
+    },
+    {
+      "record_id": "2087",
+      "text": "2087 2087 Flex Cable for Raspberry Pi Camera or Display \u2014 Various Sizes dir=\"ltr\">Is the flex cable for your Raspberry Pi Camera (either 'classic' or 'NoIR' type) or Raspberry Pi Display too short? Or maybe it's cluttering your workspace, and you want something more compact.  Whatever your Pi Camera needs, we have a variety of cable lengths for your Raspberry Pi Camera Board or Raspberry Pi NoIR Camera Board. Adafruit Industries Electronics & Components",
+      "expected": "Cables",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.492714
+        },
+        {
+          "category": "Cables",
+          "probability": 0.480083
+        },
+        {
+          "category": "Optoelectronics",
+          "probability": 0.008174
+        }
+      ],
+      "confidence": 0.492714,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "2087"
+    },
+    {
+      "record_id": "2087",
+      "text": "2087 2087 flex cable for raspberry pi camera or display \u2014 various sizes dir=\"ltr\">is the flex cable for your raspberry pi camera (either 'classic' or 'noir' type) or raspberry pi display too short? or maybe it's cluttering your workspace, and you want something more compact.  whatever your pi camera needs, we have a variety of cable lengths for your raspberry pi camera board or raspberry pi noir camera board. adafruit industries electronics & components",
+      "expected": "Cables",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.492714
+        },
+        {
+          "category": "Cables",
+          "probability": 0.480083
+        },
+        {
+          "category": "Optoelectronics",
+          "probability": 0.008174
+        }
+      ],
+      "confidence": 0.492714,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "2087"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "pair": "Cables <-> Tools",
+  "total_errors": 2,
+  "records": [
+    {
+      "record_id": "GPS-19576",
+      "text": "GPS-19576 GPS-19576 Magnetic Mount SMA - 2m This magnetic mount works well with helical GNSS antennas. SparkFun Electronics Open Source Hardware",
+      "expected": "Cables",
+      "predicted": "Tools",
+      "top3": [
+        {
+          "category": "Tools",
+          "probability": 0.213205
+        },
+        {
+          "category": "Cables",
+          "probability": 0.203172
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.183815
+        }
+      ],
+      "confidence": 0.213205,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "GPS-19576"
+    },
+    {
+      "record_id": "GPS-19576",
+      "text": "gps-19576 gps-19576 magnetic mount sma - 2m this magnetic mount works well with helical gnss antennas. sparkfun electronics open source hardware",
+      "expected": "Cables",
+      "predicted": "Tools",
+      "top3": [
+        {
+          "category": "Tools",
+          "probability": 0.213205
+        },
+        {
+          "category": "Cables",
+          "probability": 0.203172
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.183815
+        }
+      ],
+      "confidence": 0.213205,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "GPS-19576"
+    }
+  ]
+}

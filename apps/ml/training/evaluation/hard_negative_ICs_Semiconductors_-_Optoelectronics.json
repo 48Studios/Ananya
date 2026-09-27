@@ -1,0 +1,54 @@
+{
+  "pair": "ICs & Semiconductors <-> Optoelectronics",
+  "total_errors": 2,
+  "records": [
+    {
+      "record_id": "450",
+      "text": "450 450 74HC595 Shift Register - 3 pack Add lots more outputs to a microcontroller system with chainable shift registers. These chips take a serial input (SPI) of 1 byte (8 bits) and then output those digital bits onto 8 pins. You can chain them together so putting three in a row with the serial output of one plugged into the serial input of another to make 3 x 8 = 24 digital outputs. You can chain pretty much as many as you want. This makes it easy to control a lot of outputs like LEDs from only 3 digital microcontroller pins. Adafruit Industries Electronics & Components",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Optoelectronics",
+      "top3": [
+        {
+          "category": "Optoelectronics",
+          "probability": 0.30811
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.17925
+        },
+        {
+          "category": "Development Boards",
+          "probability": 0.13652
+        }
+      ],
+      "confidence": 0.30811,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "450"
+    },
+    {
+      "record_id": "450",
+      "text": "450 450 74hc595 shift register - 3 pack add lots more outputs to a microcontroller system with chainable shift registers. these chips take a serial input (spi) of 1 byte (8 bits) and then output those digital bits onto 8 pins. you can chain them together so putting three in a row with the serial output of one plugged into the serial input of another to make 3 x 8 = 24 digital outputs. you can chain pretty much as many as you want. this makes it easy to control a lot of outputs like leds from only 3 digital microcontroller pins. adafruit industries electronics & components",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Optoelectronics",
+      "top3": [
+        {
+          "category": "Optoelectronics",
+          "probability": 0.30811
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.17925
+        },
+        {
+          "category": "Development Boards",
+          "probability": 0.13652
+        }
+      ],
+      "confidence": 0.30811,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "450"
+    }
+  ]
+}

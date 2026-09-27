@@ -1,0 +1,78 @@
+{
+  "pair": "Passive Components <-> Robotics",
+  "total_errors": 3,
+  "records": [
+    {
+      "record_id": "1589",
+      "text": "1589 1589 4700uF 10v Electrolytic Capacitor This Big Freaking Capacitor is just the trick when you have a lot of current sloshing around your project. They'll help smooth out voltage spikes by providing a little buffering. We use these to help stabilize solar panels on our solar Lipoly charger kit, but they'd also be great with our servo driver boards or on the power connection to our 5V 10A power supply. Adafruit Industries Electronics & Components",
+      "expected": "Passive Components",
+      "predicted": "Robotics",
+      "top3": [
+        {
+          "category": "Robotics",
+          "probability": 0.164789
+        },
+        {
+          "category": "Connectors",
+          "probability": 0.137106
+        },
+        {
+          "category": "Passive Components",
+          "probability": 0.111427
+        }
+      ],
+      "confidence": 0.164789,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "1589"
+    },
+    {
+      "record_id": "1589",
+      "text": "1589 1589 4700\u00b5F 10v Electrolytic Capacitor This Big Freaking Capacitor is just the trick when you have a lot of current sloshing around your project. They'll help smooth out voltage spikes by providing a little buffering. We use these to help stabilize solar panels on our solar Lipoly charger kit, but they'd also be great with our servo driver boards or on the power connection to our 5V 10A power supply. Adafruit Industries Electronics & Components",
+      "expected": "Passive Components",
+      "predicted": "Robotics",
+      "top3": [
+        {
+          "category": "Robotics",
+          "probability": 0.166048
+        },
+        {
+          "category": "Connectors",
+          "probability": 0.13752
+        },
+        {
+          "category": "Passive Components",
+          "probability": 0.109362
+        }
+      ],
+      "confidence": 0.166048,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "1589"
+    },
+    {
+      "record_id": "1589",
+      "text": "1589 1589 4700uf 10v electrolytic capacitor this big freaking capacitor is just the trick when you have a lot of current sloshing around your project. they'll help smooth out voltage spikes by providing a little buffering. we use these to help stabilize solar panels on our solar lipoly charger kit, but they'd also be great with our servo driver boards or on the power connection to our 5v 10a power supply. adafruit industries electronics & components",
+      "expected": "Passive Components",
+      "predicted": "Robotics",
+      "top3": [
+        {
+          "category": "Robotics",
+          "probability": 0.164789
+        },
+        {
+          "category": "Connectors",
+          "probability": 0.137106
+        },
+        {
+          "category": "Passive Components",
+          "probability": 0.111427
+        }
+      ],
+      "confidence": 0.164789,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "1589"
+    }
+  ]
+}

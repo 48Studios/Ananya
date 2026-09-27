@@ -1,0 +1,78 @@
+{
+  "pair": "Capacitors <-> Resistors",
+  "total_errors": 3,
+  "records": [
+    {
+      "record_id": "AUTO-c369a93d",
+      "text": "AUTO-C369A93D AUTO-c369a93d Resistors | Passive Components | W\u00fcrth Elektronik Product Catalog EMC components, ferrites, common mode chokes, inductors, ESD protection, signal transformers, capacitors, resistors and crystals & oscillators W\u00fcrth Elektronik Component Catalog",
+      "expected": "Resistors",
+      "predicted": "Capacitors",
+      "top3": [
+        {
+          "category": "Capacitors",
+          "probability": 0.569506
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.149612
+        },
+        {
+          "category": "Connectors",
+          "probability": 0.081996
+        }
+      ],
+      "confidence": 0.569506,
+      "source": "wuerth-elektronik",
+      "manufacturer": "manufacturer",
+      "sku": "AUTO-c369a93d"
+    },
+    {
+      "record_id": "AUTO-c369a93d",
+      "text": "AUTOC369A93D AUTO-c369a93d Resistors | Passive Components | W\u00fcrth Elektronik Product Catalog EMC components, ferrites, common mode chokes, inductors, ESD protection, signal transformers, capacitors, resistors and crystals & oscillators W\u00fcrth Elektronik Component Catalog",
+      "expected": "Resistors",
+      "predicted": "Capacitors",
+      "top3": [
+        {
+          "category": "Capacitors",
+          "probability": 0.58131
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.138528
+        },
+        {
+          "category": "Connectors",
+          "probability": 0.079944
+        }
+      ],
+      "confidence": 0.58131,
+      "source": "wuerth-elektronik",
+      "manufacturer": "manufacturer",
+      "sku": "AUTO-c369a93d"
+    },
+    {
+      "record_id": "AUTO-c369a93d",
+      "text": "auto-c369a93d auto-c369a93d resistors | passive components | w\u00fcrth elektronik product catalog emc components, ferrites, common mode chokes, inductors, esd protection, signal transformers, capacitors, resistors and crystals & oscillators w\u00fcrth elektronik component catalog",
+      "expected": "Resistors",
+      "predicted": "Capacitors",
+      "top3": [
+        {
+          "category": "Capacitors",
+          "probability": 0.569506
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.149612
+        },
+        {
+          "category": "Connectors",
+          "probability": 0.081996
+        }
+      ],
+      "confidence": 0.569506,
+      "source": "wuerth-elektronik",
+      "manufacturer": "manufacturer",
+      "sku": "AUTO-c369a93d"
+    }
+  ]
+}

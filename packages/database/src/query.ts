@@ -11,6 +11,7 @@ export {
   gte,
   lte,
   gt,
+  lt,
   inArray,
   notInArray,
 } from "drizzle-orm";
