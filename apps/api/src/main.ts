@@ -3,13 +3,17 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { LocationExceptionFilter } from './locations/location-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpLoggingInterceptor } from './common/logging/http-logging.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Trust upstream reverse proxy (e.g. Caddy, Nginx, Cloudflare) for accurate IP resolution
+  app.set('trust proxy', true);
 
   const corsOrigin = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())

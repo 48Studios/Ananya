@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
+import { RequestContextMiddleware } from './common/context/request-context';
 import { AppController } from './app.controller';
 import { LocationsModule } from './locations/locations.module';
 import { ComponentsModule } from './components/components.module';
@@ -162,4 +163,8 @@ import { DatabaseModule } from './database/database.module';
   ],
   controllers: [AppController],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestContextMiddleware).forRoutes({ path: '*', method: RequestMethod.ALL });
+  }
+}

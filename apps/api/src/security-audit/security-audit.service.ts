@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { db } from '@ananya/database';
 import { securityAuditLogs } from '@ananya/database/schema';
 import { desc, eq } from '@ananya/database/query';
+import { RequestContext } from '../common/context/request-context';
 
 export interface RecordAuditPayload {
   userId?: string | null;
@@ -15,14 +16,19 @@ export interface RecordAuditPayload {
 @Injectable()
 export class SecurityAuditService {
   async record(payload: RecordAuditPayload) {
+    const ctx = RequestContext.get();
+    const resolvedIp = payload.ipAddress || ctx?.clientIp || null;
+    const resolvedUserId = payload.userId || ctx?.userId || null;
+    const resolvedUserEmail = payload.userEmail || ctx?.userEmail || null;
+
     const [entry] = await db
       .insert(securityAuditLogs)
       .values({
-        userId: payload.userId || null,
-        userEmail: payload.userEmail || null,
+        userId: resolvedUserId,
+        userEmail: resolvedUserEmail,
         action: payload.action,
         category: payload.category,
-        ipAddress: payload.ipAddress || null,
+        ipAddress: resolvedIp,
         details: payload.details || null,
       })
       .returning();

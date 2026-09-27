@@ -21,6 +21,8 @@ import {
   SetupOrganizationDto,
 } from './dtos';
 
+import { getClientIp } from '../common/utils/client-ip.util';
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -31,8 +33,8 @@ export class AuthController {
 
   @Post('login')
   login(@Body() dto: LoginDto, @Req() req: Request) {
-    const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
-    const userAgent = req.headers['user-agent'] || 'Unknown Browser';
+    const ip = getClientIp(req);
+    const userAgent = (req.headers['user-agent'] as string) || 'Unknown Browser';
     return this.authService.login(dto, ip, userAgent);
   }
 

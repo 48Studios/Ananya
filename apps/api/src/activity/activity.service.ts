@@ -3,10 +3,16 @@ import { db } from '@ananya/database';
 import { activityEvents, securityAuditLogs } from '@ananya/database/schema';
 import { eq, and, desc, or, ilike } from '@ananya/database/query';
 import { CreateActivityEventDto, QueryActivityEventsDto } from './dtos';
+import { RequestContext } from '../common/context/request-context';
 
 @Injectable()
 export class ActivityService {
   async createEvent(dto: CreateActivityEventDto) {
+    const ctx = RequestContext.get();
+    const resolvedIp = dto.ipAddress || ctx?.clientIp || null;
+    const resolvedUserId = dto.userId || ctx?.userId || null;
+    const resolvedUserEmail = dto.userEmail || ctx?.userEmail || null;
+
     const [event] = await db
       .insert(activityEvents)
       .values({
@@ -16,13 +22,13 @@ export class ActivityService {
         entityId: dto.entityId,
         entityTitle: dto.entityTitle || dto.entityId,
         description: dto.description,
-        userId: dto.userId,
+        userId: resolvedUserId,
         userName: dto.userName,
-        userEmail: dto.userEmail,
+        userEmail: resolvedUserEmail,
         status: dto.status || 'SUCCESS',
         severity: dto.severity || 'INFO',
         href: dto.href,
-        ipAddress: dto.ipAddress,
+        ipAddress: resolvedIp,
         metadata: dto.metadata || {},
       })
       .returning();

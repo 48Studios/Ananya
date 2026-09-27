@@ -9,6 +9,7 @@ import {
 import type { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { Observable, catchError, throwError } from 'rxjs';
+import { getClientIp } from '../utils/client-ip.util';
 
 interface HttpErrorLike {
   name?: string;
@@ -50,7 +51,7 @@ export class HttpLoggingInterceptor implements NestInterceptor {
           route: this.getRoute(request),
           statusCode: response.statusCode,
           durationMs,
-          ip: request.ip,
+          ip: getClientIp(request),
           userAgent: request.get('user-agent') || undefined,
           connectionClosed,
         }),

@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PermissionsService } from '../permissions/permissions.service';
+import { RequestContext } from '../common/context/request-context';
 
 /**
  * Authenticated principal attached to the request by a permission guard.
@@ -132,6 +133,8 @@ export function createPermissionGuard(
         roleName: user.roleName,
         permissions,
       };
+
+      RequestContext.setUser({ id: user.id, email: user.email });
 
       return true;
     }

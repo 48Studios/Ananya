@@ -199,12 +199,43 @@ export default function AuditExplorerPage() {
         accessorKey: "ipAddress",
         header: "IP Address",
         meta: { width: "16%" },
-        cell: ({ row }) => (
-          <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-            <Globe className="w-3 h-3 text-muted-foreground shrink-0" />
-            <span>{row.original.ipAddress || "127.0.0.1"}</span>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const ip = row.original.ipAddress;
+          const isLoopback = ip === "127.0.0.1" || ip === "::1" || ip === "localhost";
+          const isMissing = !ip;
+
+          return (
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <div className="flex items-center gap-1.5 font-mono text-xs cursor-default">
+                      <Globe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span
+                        className={
+                          isMissing
+                            ? "text-muted-foreground/60 italic"
+                            : isLoopback
+                              ? "text-muted-foreground"
+                              : "text-foreground font-medium"
+                        }
+                      >
+                        {isMissing ? "Internal" : ip}
+                      </span>
+                    </div>
+                  }
+                />
+                <TooltipContent side="top" className="text-xs">
+                  {isMissing
+                    ? "Internal system or background process execution"
+                    : isLoopback
+                      ? "Direct loopback / local connection"
+                      : `Origin client IP: ${ip}`}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        },
       },
       {
         accessorKey: "createdAt",
@@ -454,11 +485,17 @@ export default function AuditExplorerPage() {
 
                   <div>
                     <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block mb-0.5">
-                      Network Source
+                      Network Source (Client IP)
                     </span>
-                    <span className="font-mono text-foreground">
-                      {selectedLog.ipAddress || "127.0.0.1"}
+                    <span className="font-mono text-foreground font-semibold">
+                      {selectedLog.ipAddress || "Internal System Execution"}
                     </span>
+                    {selectedLog.ipAddress &&
+                      (selectedLog.ipAddress === "127.0.0.1" || selectedLog.ipAddress === "::1") && (
+                        <span className="text-[10px] text-muted-foreground block">
+                          (Loopback / Local host connection)
+                        </span>
+                      )}
                   </div>
 
                   <div className="sm:col-span-2">
