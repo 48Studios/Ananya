@@ -2,15 +2,17 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   OnModuleInit,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { db } from '@ananya/database';
-import { users } from '@ananya/database/schema';
+import { users, userSessions } from '@ananya/database/schema';
 import { eq, or, ilike } from '@ananya/database/query';
 import { CreateUserDto, UpdateUserDto, AdminResetPasswordDto } from './dtos';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { RolesService } from '../roles/roles.service';
+import type { AuthenticatedRequestUser } from '../auth/permission.guard';
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -118,12 +120,24 @@ export class UsersService implements OnModuleInit {
     return u || null;
   }
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto, caller?: AuthenticatedRequestUser) {
     const existing = await this.findByEmail(dto.email);
     if (existing) {
       throw new BadRequestException(
         `User with email "${dto.email}" already exists.`,
       );
+    }
+
+    if (dto.roleId && caller && caller.roleName !== 'Administrator') {
+      const assignedRole = await this.rolesService.findById(dto.roleId);
+      if (
+        assignedRole.name === 'Administrator' ||
+        (assignedRole.permissions as string[])?.includes('*')
+      ) {
+        throw new ForbiddenException(
+          'Only Administrators can assign the Administrator role.',
+        );
+      }
     }
 
     const [newUser] = await db
@@ -148,14 +162,42 @@ export class UsersService implements OnModuleInit {
       category: 'SECURITY',
       userId: newUser.id,
       userEmail: newUser.email,
-      details: { email: newUser.email, roleId: newUser.roleId },
+      details: {
+        email: newUser.email,
+        roleId: newUser.roleId,
+        createdBy: caller?.email || 'system',
+      },
     });
 
     return this.findById(newUser.id);
   }
 
-  async update(id: string, dto: UpdateUserDto) {
-    await this.findById(id);
+  async update(
+    id: string,
+    dto: UpdateUserDto,
+    caller?: AuthenticatedRequestUser,
+  ) {
+    const target = await this.findById(id);
+
+    if (caller && caller.roleName !== 'Administrator') {
+      if (target.roleName === 'Administrator') {
+        throw new ForbiddenException(
+          'Only Administrators can modify Administrator accounts.',
+        );
+      }
+
+      if (dto.roleId !== undefined && dto.roleId !== null) {
+        const assignedRole = await this.rolesService.findById(dto.roleId);
+        if (
+          assignedRole.name === 'Administrator' ||
+          (assignedRole.permissions as string[])?.includes('*')
+        ) {
+          throw new ForbiddenException(
+            'Only Administrators can assign the Administrator role.',
+          );
+        }
+      }
+    }
 
     const [updated] = await db
       .update(users)
@@ -178,12 +220,16 @@ export class UsersService implements OnModuleInit {
       category: 'SECURITY',
       userId: id,
       userEmail: updated.email,
+      details: {
+        updatedBy: caller?.email || 'system',
+        fields: Object.keys(dto),
+      },
     });
 
     return this.findById(id);
   }
 
-  async disableUser(id: string) {
+  async disableUser(id: string, caller?: AuthenticatedRequestUser) {
     const u = await this.findById(id);
     if (u.email === 'jrsarath@48studios.internal') {
       throw new BadRequestException(
@@ -191,23 +237,43 @@ export class UsersService implements OnModuleInit {
       );
     }
 
+    if (caller && caller.roleName !== 'Administrator') {
+      if (u.roleName === 'Administrator') {
+        throw new ForbiddenException(
+          'Only Administrators can disable Administrator accounts.',
+        );
+      }
+    }
+
     await db
       .update(users)
       .set({ status: 'DISABLED', updatedAt: new Date() })
       .where(eq(users.id, id));
+
+    // Revoke all active sessions on account disable
+    await db.delete(userSessions).where(eq(userSessions.userId, id));
 
     await this.auditService.record({
       action: 'USER_DISABLED',
       category: 'SECURITY',
       userId: id,
       userEmail: u.email,
+      details: { disabledBy: caller?.email || 'system' },
     });
 
     return { success: true };
   }
 
-  async activateUser(id: string) {
+  async activateUser(id: string, caller?: AuthenticatedRequestUser) {
     const u = await this.findById(id);
+
+    if (caller && caller.roleName !== 'Administrator') {
+      if (u.roleName === 'Administrator') {
+        throw new ForbiddenException(
+          'Only Administrators can activate Administrator accounts.',
+        );
+      }
+    }
 
     await db
       .update(users)
@@ -219,13 +285,26 @@ export class UsersService implements OnModuleInit {
       category: 'SECURITY',
       userId: id,
       userEmail: u.email,
+      details: { activatedBy: caller?.email || 'system' },
     });
 
     return { success: true };
   }
 
-  async adminResetPassword(id: string, dto: AdminResetPasswordDto) {
+  async adminResetPassword(
+    id: string,
+    dto: AdminResetPasswordDto,
+    caller?: AuthenticatedRequestUser,
+  ) {
     const u = await this.findById(id);
+
+    if (caller && caller.roleName !== 'Administrator') {
+      if (u.roleName === 'Administrator') {
+        throw new ForbiddenException(
+          'Only Administrators can reset passwords of Administrator accounts.',
+        );
+      }
+    }
 
     await db
       .update(users)
@@ -235,11 +314,19 @@ export class UsersService implements OnModuleInit {
       })
       .where(eq(users.id, id));
 
+    // Invalidate all active sessions for the targeted user
+    await db.delete(userSessions).where(eq(userSessions.userId, id));
+
     await this.auditService.record({
       action: 'PASSWORD_RESET_ADMIN',
       category: 'SECURITY',
       userId: id,
       userEmail: u.email,
+      details: {
+        resetBy: caller?.email || caller?.id || 'admin',
+        targetUserId: id,
+        targetEmail: u.email,
+      },
     });
 
     return { success: true };

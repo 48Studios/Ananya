@@ -1,0 +1,1 @@
+NestJS operator control plane for the ML training lifecycle, model registry, dataset snapshots and deployment history behind administrator-only routes.

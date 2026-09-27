@@ -1,0 +1,6 @@
+- Each script exposes both a callable function (e.g. `collect_records`, `run_validation`, `build_dataset_snapshot`, `train_model`, `evaluate_model`, `deploy_model`) and a `__main__` argparse CLI, enabling reuse from the orchestrator and standalone execution.
+- All file paths use relative workspace paths rooted at `apps/ml/...` (data under `apps/ml/data/`, models under `apps/ml/models/registry/v<version>/`), passed as parameters with defaults rather than hard-coded constants.
+- Every stage prints a bordered header banner (e.g. `ANANYA AUTHORITATIVE ... REPORT (RFC-0058)`) using repeated `=` characters before emitting structured logs, providing consistent console output across stages.
+- Record schemas carry a `provenance` dict with `sourceType`, `sourceIdentifier`, `sourceUrl`, `retrievalTimestamp`, `verificationStatus`, and `verificationMethod` fields, and validation enforces `verificationStatus == 'VERIFIED'` before records enter downstream stages.
+- Versioning uses a `<version>` string parameter propagated through every stage, producing outputs under `v<version>/` directories and dataset snapshots named `<components>-<date>-v<version>`.
+- Cross-source conflicts and schema failures are quarantined into a separate `quarantine.json` with explicit `quarantineType` and `rejectionReasons` rather than being silently dropped.

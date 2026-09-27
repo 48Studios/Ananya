@@ -1,0 +1,6 @@
+- Each form declares a local zod schema constant and derives its form value type via `z.infer<typeof schema>`.
+- Forms are composed of `DialogShell` + `DialogShellBody` + `DialogShellFooter` from `@/components/ui/dialog-shell`, with `DialogShellCancelButton` paired with a primary submit `Button`.
+- Server errors are surfaced through a local `serverError` string state rendered as a red-bordered banner at the top of `DialogShellBody`, populated from caught `Error` instances.
+- Submit handlers wrap API calls in try/catch, set `serverError` on failure, and propagate success via an `onSuccess(savedDto)` callback passed through props.
+- Reference data (components, locations) is fetched once in a `useEffect` and cached in component state before rendering the form fields.
+- Dynamic line-item sections use `useFieldArray` from react-hook-form with `append`/`remove` buttons and per-field error display via `errors.lines[idx].field`.

@@ -1,0 +1,6 @@
+- Each search domain is implemented as a separate provider class implementing `ISearchProvider` with a `category` constant and a `search(query, limit)` method that returns `SearchResultItem[]`.
+- Search results are produced by iterating over Drizzle query rows and mapping each row into a uniform `SearchResultItem` object containing `id`, `type`, `category`, `title`, `subtitle`, `status`, `href`, and `iconName`.
+- Bulk mutations are never performed directly in the import-export layer; `BulkActionService` delegates every mutation to the owning domain module's service, keeping business-rule enforcement centralized.
+- Entity-specific import logic is dispatched via a `canonicalEntity === 'X'` if/else chain inside `ImportExportService.executeImport`, with pre-fetched reference tables loaded into `Map`s keyed by normalized codes before processing rows.
+- Row-level validation errors are collected into a `{ row, column?, value?, message }[]` array during both `previewImport` and `executeImport`, rather than throwing early, so clients can display per-row feedback.
+- Column values are always read through `getRowFieldValue(row, targetField, columnMapping)`, which first consults an explicit column-mapping dict, then falls back to exact field name, then to a case-insensitive match.

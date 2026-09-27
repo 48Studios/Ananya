@@ -1,0 +1,8 @@
+Five sibling React Server Components marked `"use client"` that compose the application's global chrome:
+- `dashboard-layout.tsx` is the root layout: it reads `usePathname`, `useAuth`, and `useNavigation` to decide whether to render a bare `<main>` (public routes in `PUBLIC_ROUTES`, standalone surfaces like `/scan` in `STANDALONE_ROUTES`, or unauthenticated/loading state) or the full `AuthenticatedShell`. The shell wraps children in `NavigationProvider` and renders the fixed navigation rail, context sidebar, mobile drawer, top header, main content area, and `AppFooter`, publishing `--content-area-left` via CSS custom property from `NAV_WIDTHS_PX` so overlays can align with the nav geometry.
+- `theme-provider.tsx` is a thin re-export of `next-themes`'s `ThemeProvider`.
+- `pwa-register.tsx` registers `/sw.js` on the client after guarding for `serviceWorker` support and secure-context / localhost conditions, and calls `registration.update()` on `visibilitychange`.
+- `command-palette.tsx` implements the ⌘K/Ctrl+K global dialog using shadcn `CommandDialog`, debounced server search via `searchApi.query`, permission-filtered quick actions from `ALL_QUICK_ACTIONS`, and recent searches/pages persisted under `ananya_recent_searches` / `ananya_recent_pages` keys in `localStorage`.
+- `app-footer.tsx` displays environment badge, version, organization link, and repository link sourced from `getAppInfo()`.
+
+Dependency direction is one-way outward: these components consume shared contexts (`@/lib/auth/auth-context`, `@/lib/navigation/navigation-context`) and UI primitives (`@/components/ui/*`) but are not consumed by them. They are leaf presentation wrappers around the navigation subsystem.

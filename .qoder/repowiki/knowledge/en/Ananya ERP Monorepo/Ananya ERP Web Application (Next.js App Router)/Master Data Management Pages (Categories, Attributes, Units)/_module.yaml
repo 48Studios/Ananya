@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: web_app/master_data_routes
+title: Master Data Management Pages (Categories, Attributes, Units)
+scope:
+    - apps/web/app/categories/
+    - apps/web/app/attributes/
+    - apps/web/app/units/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/components_catalog

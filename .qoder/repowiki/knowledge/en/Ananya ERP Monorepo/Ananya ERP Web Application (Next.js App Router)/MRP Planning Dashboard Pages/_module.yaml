@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: web_app/mrp_module
+title: MRP Planning Dashboard Pages
+scope:
+    - apps/web/app/mrp/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/planning_scheduling

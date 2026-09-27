@@ -1,0 +1,1 @@
+None — these are plain React components consumed by the web app's page tree; no build or test scripts live in this scope.

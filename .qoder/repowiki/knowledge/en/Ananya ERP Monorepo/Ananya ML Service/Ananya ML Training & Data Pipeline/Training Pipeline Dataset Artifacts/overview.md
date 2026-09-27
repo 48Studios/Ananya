@@ -1,0 +1,1 @@
+Stores the raw crawled source material and staged output directories that feed the ML training pipeline's data processing stages.

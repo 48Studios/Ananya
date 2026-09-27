@@ -1,0 +1,1 @@
+NestJS feature modules exposing REST endpoints for projects, tasks, time entries, service requests, work orders, warranty claims, RMA requests, maintenance schedules, service notes, and generic notes.

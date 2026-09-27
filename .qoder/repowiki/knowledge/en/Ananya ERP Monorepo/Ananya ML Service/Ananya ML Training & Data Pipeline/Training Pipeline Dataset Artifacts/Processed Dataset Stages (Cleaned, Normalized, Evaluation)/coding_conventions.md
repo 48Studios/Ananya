@@ -1,0 +1,2 @@
+- Each processing stage is represented as a dedicated subdirectory under `datasets/` rather than as separate top-level folders.
+- Empty stage directories are preserved in version control via a `.gitkeep` file instead of being ignored.

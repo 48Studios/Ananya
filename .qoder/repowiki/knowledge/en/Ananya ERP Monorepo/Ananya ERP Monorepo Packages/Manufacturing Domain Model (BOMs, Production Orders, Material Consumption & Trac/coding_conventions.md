@@ -1,0 +1,6 @@
+- Each aggregate lives in its own folder with three core files: `<entity>.ts` (class + props), `<entity>.errors.ts` (domain error classes extending `DomainError`), and `<entity>.repository.ts` (interface declaring find/save/delete operations).
+- Entities use a private constructor plus static `create(input)` and `rehydrate(props)` factories to enforce invariants at construction time and allow persistence round-trips.
+- Status transitions are enforced inside mutating methods by checking the current status against allowed transitions and throwing a typed transition error from the local `.errors.ts` file.
+- Mutations on draft-only entities guard against modification after release/post by throwing an `Immutable*Error` when the entity is not in DRAFT state.
+- New identifiers are generated via `ObjectId.generate().value` from `@ananya/core` rather than accepting external IDs, keeping identity creation within the domain layer.
+- Timestamps (`createdAt`, `updatedAt`, `releasedAt`, `postedAt`, `consumedAt`) are set to `new Date()` inside the entity's own methods, never delegated to callers.

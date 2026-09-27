@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: api/search_import_export
+title: Global Search & Import/Export Bulk Actions
+scope:
+    - apps/api/src/search/
+    - apps/api/src/import-export/
+source_files: []
+depends_on: []
+related_to:
+    - path: web_app/data_operations

@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: shared_packages/crm
+title: CRM Bounded Context (Accounts, Leads, Opportunities, Activities, Notes)
+scope:
+    - packages/crm/
+source_files: []
+depends_on: []
+related_to: []

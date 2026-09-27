@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: api/ml_attributes/component_consolidation
+title: Component Consolidation Execution Engine
+scope:
+    - apps/api/src/ml/component-consolidation/
+source_files: []
+depends_on: []
+related_to:
+    - path: web_app/shared_components/component_management

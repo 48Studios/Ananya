@@ -1,0 +1,1 @@
+Next.js App Router with React Server Components + `'use client'` pages; TanStack Table via `EntityDataTable`; Lucide icons; Tailwind CSS classes; API access through typed clients in `@/lib/api/*`.

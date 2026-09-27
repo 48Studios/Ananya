@@ -1,0 +1,1 @@
+Next.js React Server Components with `"use client"` directives, Tailwind CSS classes, lucide-react icons, and shadcn-style primitives from `@/components/ui` (Button, DialogShell, FileUploader, Select, etc.).

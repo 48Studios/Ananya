@@ -1,0 +1,6 @@
+- Legacy URL aliases are implemented as minimal page components that immediately call `redirect('/canonical-path')` from `next/navigation`.
+- Client pages declare `'use client'` at the top and manage data fetching with a `useCallback` wrapped in a `useEffect` that triggers on mount.
+- Parallel data loading uses `Promise.all([...].catch(() => fallback))` so individual API failures don't abort the whole page load.
+- Error handling wraps each async mutation in try/catch, narrowing `err instanceof Error` and falling back to a user-facing string message.
+- Status badges are rendered via a local `getStatusBadge(status)` switch over the `WarehouseTransferStatus` union, mapping each enum value to a colored pill with a matching Lucide icon.
+- User actions go through confirmation dialogs (`ConfirmDialog` or `DialogShell`) before invoking API mutations, with per-action `is*ing` loading flags.

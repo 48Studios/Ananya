@@ -1,0 +1,1 @@
+NestJS feature modules using dependency injection tokens for repository abstraction; domain models and use-case classes from the shared `@ananya/procurement` package; persistence via Drizzle ORM through `../infrastructure/repositories/drizzle-*` implementations; reporting reads directly from `@ananya/database` schema/query layer.

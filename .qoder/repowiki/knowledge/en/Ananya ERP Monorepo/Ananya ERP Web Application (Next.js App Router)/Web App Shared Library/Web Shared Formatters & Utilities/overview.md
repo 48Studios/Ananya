@@ -1,0 +1,1 @@
+Shared presentation helpers for the web app: null-safe number/currency/percentage/date formatters, a clsx+tailwind-merge class-name combiner, and a React tree walker that extracts select option items.

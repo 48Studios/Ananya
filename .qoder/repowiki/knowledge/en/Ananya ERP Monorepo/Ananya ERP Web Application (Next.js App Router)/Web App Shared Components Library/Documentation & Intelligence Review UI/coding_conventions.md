@@ -1,0 +1,6 @@
+- Each dialog component exposes a narrow props interface with `isOpen`/`onClose` plus domain-specific callbacks (e.g. `onCreated`, `onUpdated`, `onSpecificationsChange`, `onApplied`) so the parent owns all data and side effects.
+- Mutations update local state via pure helper functions from `@/lib/component-documentation` and `@/lib/document-intelligence` (`applyDocumentCreated`, `applyAnalysisState`, `mergeAnalysisResult`, `applyDecisionToAnalysis`) instead of refetching lists.
+- Error handling wraps each async operation in try/catch, normalizes unknown errors to strings via `err instanceof Error ? err.message : fallback`, and renders them in a consistent destructive-bordered banner inside `DialogShellBody`.
+- Busy/per-action loading is tracked with a scoped `busyId` or `busyAttributeId` state variable, disabling relevant buttons and showing a `<Loader2>` spinner during the request.
+- Permission gating uses `useAuth().hasPermission(COMPONENT_WRITE_PERMISSION)` (or equivalent) to derive a `canWrite` boolean passed down as a prop, which controls whether analysis and apply actions are enabled.
+- External references are distinguished from stored files via `isExternalReference(document)` and render a different set of footer actions (Open vs Preview/Download/Versions), keeping the card layout stable across document kinds.

@@ -1,0 +1,5 @@
+- Each route group follows a list/detail pattern: a flat `page.tsx` renders a table of records and a sibling `[id]/page.tsx` renders the detail view, linked via `<Link href=\`/entity/${row.original.id}\``.
+- List pages declare a local TypeScript interface for the record shape and seed it with an inlined `mock*` array wrapped in `React.useState`, keeping pages self-contained without external stores.
+- Table columns are built as `ColumnDef<Entity>[]` arrays using `accessorKey` plus custom `cell` renderers, with an explicit `actions` column (id: `"actions"`) containing a ghost icon button linking to the detail route.
+- Detail pages retrieve the route parameter through `const params = useParams()` and cast `params?.id as string`, falling back to a hardcoded default when rendering titles.
+- Shared presentation is delegated to `@/components/ui` primitives (`PageHeader`, `StatCard`, `EntityDataTable`, `StatusBadge`, `TooltipProvider/Tooltip`) rather than composing raw HTML for headers, stat rows, and status badges.

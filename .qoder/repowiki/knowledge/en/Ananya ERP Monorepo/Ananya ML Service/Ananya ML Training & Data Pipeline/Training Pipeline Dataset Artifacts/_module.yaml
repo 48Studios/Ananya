@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: ml_service/training_pipeline/datasets
+title: Training Pipeline Dataset Artifacts
+scope:
+    - apps/ml/training/datasets/
+source_files: []
+depends_on: []
+related_to: []

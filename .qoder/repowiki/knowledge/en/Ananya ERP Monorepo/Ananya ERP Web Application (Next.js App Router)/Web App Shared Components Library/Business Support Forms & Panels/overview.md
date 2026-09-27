@@ -1,0 +1,1 @@
+Client-side forms and panels for business-support domains (projects, tasks, time entries, service requests, warehouse policies, reports, ML ops, inventory transactions) that submit to the backend APIs.

@@ -1,0 +1,1 @@
+Python stdlib only for the benchmark harness (`http.server.ThreadingHTTPServer`, `argparse`, `tempfile`, `statistics`, `threading`); uses `httpx` for the collector's HTTP client and relies on the platform's own `cupsfilter` (macOS) or a minimal inline PDF writer for deterministic test PDFs.

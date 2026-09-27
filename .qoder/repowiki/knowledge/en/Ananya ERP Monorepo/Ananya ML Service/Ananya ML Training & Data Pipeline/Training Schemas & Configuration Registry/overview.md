@@ -1,0 +1,1 @@
+Pydantic data schemas for ML dataset manifests, product records, and task examples, plus centralized workspace configuration and a YAML source registry for the Ananya ML training pipeline.

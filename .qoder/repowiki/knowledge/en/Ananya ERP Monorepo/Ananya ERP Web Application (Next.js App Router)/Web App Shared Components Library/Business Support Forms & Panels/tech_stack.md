@@ -1,0 +1,1 @@
+React Server Components host these as `"use client"` components; validation uses `zod` with `@hookform/resolvers/zod` and `react-hook-form`'s `Controller` for non-input fields; icons come from `lucide-react`; tables use `@tanstack/react-table` via `EntityDataTable`.

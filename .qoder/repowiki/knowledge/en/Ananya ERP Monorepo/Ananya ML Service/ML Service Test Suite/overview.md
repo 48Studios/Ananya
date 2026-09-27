@@ -1,0 +1,1 @@
+Pytest suite covering the ML service's FastAPI endpoints, category/manufacturer resolution, autonomous data collection, training pipeline control plane, and TUI.

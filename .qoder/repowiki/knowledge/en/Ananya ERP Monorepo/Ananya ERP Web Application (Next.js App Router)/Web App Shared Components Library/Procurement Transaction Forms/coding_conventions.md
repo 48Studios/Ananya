@@ -1,0 +1,6 @@
+- Each form defines a top-level Zod schema plus an optional per-line-item Zod schema, resolved via `zodResolver` passed to `useForm`.
+- Master data (suppliers, components, locations, related entities) is loaded in a `useEffect` using `Promise.all` with `.catch(() => [])` fallbacks and an `isMounted` guard to avoid stale state updates.
+- Server errors are surfaced through a local `serverError` state string rendered as a red-bordered alert block inside `DialogShellBody`, cleared before each submission attempt.
+- Dynamic line items are managed with `useFieldArray` (`append`/`remove`/`replace`) and fields are registered either via `Controller` or `register(\`lines.${index}.field\`)` with `valueAsNumber: true` for numeric inputs.
+- Computed totals and derived values (subtotal, tax, grand total, filtered option lists) are memoized with `React.useMemo` over watched form values.
+- Forms render inside `DialogShellBody` / `DialogShellFooter` with a `DialogShellCancelButton` and a submit `Button` that is disabled while `isSubmitting` or when required prerequisites (e.g., locations, selected PO) are missing.

@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: ml_service/training_pipeline/datasets/raw_data
+title: Raw & Crawl Training Data Artifacts
+scope:
+    - apps/ml/training/datasets/raw/
+    - apps/ml/training/datasets/training/
+source_files: []
+depends_on: []
+related_to: []

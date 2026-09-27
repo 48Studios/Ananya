@@ -1,0 +1,1 @@
+Agent-facing skill definitions that guide an AI agent in working with shadcn/ui components and Turborepo monorepo build configuration.

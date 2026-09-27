@@ -1,0 +1,5 @@
+- Each route group follows a list-detail pattern: a flat `page.tsx` renders a filtered `EntityDataTable` of records, while a sibling `[id]/page.tsx` reads the id via `useParams()` and shows a detail view with a back-link button.
+- List pages declare a local TypeScript interface for the record shape and seed state with a `const mock*` array initialized inside `useState`, keeping all data in-process without external calls.
+- Monetary values are consistently rendered through `formatCurrency` from `@/lib/utils`, and dates through `formatDate`, rather than inline formatting.
+- Record status fields are displayed via the shared `<StatusBadge status={...} />` component using a string literal union type (e.g. `"DRAFT" | "CONFIRMED" | "SHIPPED" | "FULFILLED"`).
+- Long identifiers (SO numbers, quote numbers) in table cells are wrapped in `TooltipProvider`/`Tooltip` with a truncated link styled as a monospaced badge, improving readability on narrow columns.

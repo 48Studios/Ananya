@@ -1,0 +1,1 @@
+NestJS application that wires domain feature modules behind a single HTTP surface, sharing Drizzle-backed repositories, auth guards, and cross-cutting infrastructure via one root AppModule.

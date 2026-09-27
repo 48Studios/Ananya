@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: ml_service/model_registry
+title: ML Model Registry & Artifacts
+scope:
+    - apps/ml/models/
+source_files: []
+depends_on: []
+related_to:
+    - path: ml_service/fastapi_app
+    - path: ml_service/training_pipeline

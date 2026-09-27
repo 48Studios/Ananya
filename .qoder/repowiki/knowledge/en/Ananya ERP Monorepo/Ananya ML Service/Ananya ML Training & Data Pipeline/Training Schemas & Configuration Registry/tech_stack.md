@@ -1,0 +1,1 @@
+Pydantic v2 models for all schema validation; YAML for the source registry; optional PyTorch introspection for CUDA/MPS device detection in `settings.detect_device`.

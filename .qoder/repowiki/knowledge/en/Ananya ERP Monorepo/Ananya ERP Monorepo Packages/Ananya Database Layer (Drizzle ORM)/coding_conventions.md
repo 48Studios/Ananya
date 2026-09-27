@@ -1,0 +1,5 @@
+- Schema files each export a single Drizzle `pgTable` definition and are aggregated through barrel exports in `src/schema/index.ts` rather than imported individually by consumers.
+- Runtime access goes through the lazy `getPool()` / `getDb()` factories (or the proxied `db`/`pool` objects) instead of constructing pools or clients inline, ensuring a single shared connection pool per process.
+- Repositories accept a `DbExecutor` parameter (produced via `toDbExecutor(tx)`) so they can participate in an outer `db.transaction` without binding to the global client.
+- Seed and bootstrap scripts wrap their work in `db.transaction(async (tx) => ...)` and use `if (!existing) await tx.insert(...)` guards to make seeding idempotent.
+- Database queries import helpers like `eq`, `and`, `ilike`, `desc` from `@ananya/database/query` rather than directly from `drizzle-orm`, centralizing the query-builder surface.

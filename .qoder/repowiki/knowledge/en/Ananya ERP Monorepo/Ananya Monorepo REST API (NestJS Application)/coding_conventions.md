@@ -1,0 +1,6 @@
+- Each domain capability lives in its own folder containing a `<feature>.module.ts`, `<feature>.controller.ts`, `<feature>.service.ts`, and optional `dtos.ts` or `*.dto.ts` files.
+- Persistence is never done directly in services; services depend on repository classes under `src/infrastructure/repositories/` named `drizzle-<entity>.repository.ts` that implement domain interfaces from workspace packages.
+- Controllers declare routes with NestJS decorators and delegate all business logic to injected services; controllers contain no direct DB calls.
+- Request bodies are validated via class-validator decorators on DTO classes defined alongside each feature module.
+- Domain-specific errors are surfaced through feature-scoped exception filters (e.g. `*-exception.filter.ts`) registered in the corresponding module.
+- Cross-cutting security is applied uniformly via reusable guards and decorators from `src/auth/` (role, permission, component-write, attribute-permission) rather than ad-hoc checks inside controllers.

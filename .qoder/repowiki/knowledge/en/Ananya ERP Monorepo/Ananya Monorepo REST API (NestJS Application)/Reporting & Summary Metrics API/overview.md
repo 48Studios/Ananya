@@ -1,0 +1,1 @@
+NestJS reporting module exposing read-only summary endpoints for inventory, procurement, manufacturing, projects, transactions, finance, and cash-flow forecasting.

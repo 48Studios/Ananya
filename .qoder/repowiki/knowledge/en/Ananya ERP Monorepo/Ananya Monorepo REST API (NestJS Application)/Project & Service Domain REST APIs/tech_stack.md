@@ -1,0 +1,1 @@
+NestJS feature modules with class-validator DTOs; Drizzle ORM repositories injected via string tokens; domain models and repository interfaces consumed from the shared `@ananya/projects` package.

@@ -1,0 +1,6 @@
+- Each form declares a top-level Zod schema plus a per-line-item schema and exposes the inferred values type via `z.infer<typeof schema>`.
+- Reference catalogs (components, locations) are loaded once on mount via `Promise.all([componentsApi.getAll(), locationsApi.getAll()])` and stored in local `useState`.
+- Multi-line items are managed with `useFieldArray({ control, name: 'lines' })` and rendered by mapping `fields`, with `append`/`remove` buttons wired to add/remove rows.
+- Server errors are surfaced through a shared banner inside `DialogShellBody` using `AlertCircle` plus a red-bordered container, set via a `serverError` state initialized to null.
+- Submit handlers build typed payloads from form values, call the corresponding `*Api.create` or `*Api.update`, and propagate caught `Error.message` into `serverError`.
+- Form fields use `Controller` for custom select inputs and `register` for plain inputs, with `Field`/`FieldLabel`/`FieldError` wrapping every controlled input.

@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: web_app/warehouse_routes
+title: Warehouse & Transfer Management Pages
+scope:
+    - apps/web/app/warehouse/
+    - apps/web/app/warehouses/
+    - apps/web/app/warehouse-transfers/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/inventory_warehouse

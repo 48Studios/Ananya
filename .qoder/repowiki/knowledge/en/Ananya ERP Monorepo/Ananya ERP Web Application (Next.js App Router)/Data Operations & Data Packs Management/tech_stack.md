@@ -1,0 +1,1 @@
+Next.js App Router client components, TanStack React Table (`ColumnDef`, `FilterConfig`) for the operations table, Lucide icons, and custom `@/components/ui` primitives (`EntityDataTable`, `DialogShell`, `PageHeader`, `StatCard`).

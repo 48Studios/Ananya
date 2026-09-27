@@ -1,0 +1,13 @@
+schema_version: 1
+module_path: api/auth_identity
+title: Authentication, Users, Roles & Permissions
+scope:
+    - apps/api/src/auth/
+    - apps/api/src/users/
+    - apps/api/src/roles/
+    - apps/api/src/permissions/
+source_files: []
+depends_on: []
+related_to:
+    - path: web_app/auth_onboarding
+    - path: web_app/settings_security

@@ -1,0 +1,1 @@
+React Server Components marked `"use client"`, `react-hook-form` with `@hookform/resolvers/zod` for validation, Zod schemas per entity, Lucide icons, and Tailwind CSS; API calls go through generated `@/lib/api/*` clients typed against backend DTOs.

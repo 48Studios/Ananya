@@ -1,0 +1,6 @@
+- Forms declare a Zod schema at file scope and derive their TypeScript value type via `z.infer<typeof schema>` exported as `<Name>FormValues`.
+- Every form wraps its content in `DialogShellBody` / `DialogShellFooter` with a `DialogShellCancelButton` and a submit `Button` that is disabled while `isSubmitting` is true and shows a spinning `Loader2` icon.
+- Server errors are surfaced via a local `serverError` string state rendered inside a red-bordered alert div at the top of `DialogShellBody`, cleared before each submit attempt.
+- Submit handlers catch `err instanceof Error` to display the error message, falling back to a human-readable default string for non-Error throws.
+- Optional date fields are normalized to `YYYY-MM-DD` strings via `.split('T')[0]` when populating `defaultValues` from DTOs that carry ISO timestamps.
+- Lookup-heavy selects (components, locations, BOM revisions) are loaded lazily via `React.useEffect` into local state, with non-blocking `.catch()` handlers so load failures do not break the form.

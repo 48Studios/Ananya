@@ -1,0 +1,1 @@
+NestJS controllers/services/modules with class-validator decorators for DTO validation; domain models and enums imported from the monorepo packages `@ananya/sales` and `@ananya/crm`; persistence abstracted behind repository interfaces implemented by Drizzle-based repositories in `../infrastructure/repositories/`.

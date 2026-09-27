@@ -1,0 +1,1 @@
+Turborepo + pnpm monorepo that composes the Ananya ERP platform's NestJS API, Next.js web app, FastAPI ML service, shared packages, and CI/CD into a single Dockerized stack.

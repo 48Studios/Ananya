@@ -1,0 +1,1 @@
+Each package exposes a uniform script surface: `build` (via `tsc -p tsconfig.build.json`), `check-types` (`tsc --noEmit`), and `test` (`vitest run --passWithNoTests`). Database-specific commands live only in `packages/database`: `db:generate`, `db:push`, `db:migrate`, `db:setup`, `db:bootstrap`, `db:studio`, `db:check`.

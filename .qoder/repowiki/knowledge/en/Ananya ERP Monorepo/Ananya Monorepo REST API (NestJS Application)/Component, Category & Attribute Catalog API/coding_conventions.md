@@ -1,0 +1,4 @@
+- Each feature module defines a `*.tokens.ts` file exporting `Symbol` constants that serve as DI tokens for repository abstractions, with the concrete Drizzle implementation bound in `*.module.ts` via `{ provide: TOKEN, useClass: DrizzleXxxRepository }`.
+- Controller methods are annotated with per-route `@UseGuards(Read|Write|Delete)Guard` from `../auth/*-permissions`, matching the operation type (read/write/delete) rather than using a single guard on the whole controller.
+- Domain exceptions thrown by services are translated to HTTP responses by a per-module exception filter registered via `@UseFilters(XxxExceptionFilter)` on the controller class.
+- Request payloads are typed with dedicated DTO classes placed next to the controller (or under a `dtos/` subfolder for larger sets like attributes), keeping route I/O contracts separate from service types.

@@ -1,0 +1,5 @@
+- Each page is a `'use client'` default-exported React function component that composes `PageHeader`, `StatCard`, and `EntityDataTable` in a consistent top-to-bottom layout order.
+- Table columns are declared as a `ColumnDef<T>[]` array where numeric/monetary values use `font-mono` styling and currency/date fields are formatted via `formatCurrency` and `formatDate` utilities.
+- Status-like enum fields are mapped to shared `StatusBadge` or inline styled spans rather than raw string output, centralizing visual semantics.
+- Data fetching pages initialize `[data, setData]`, `loading`, and `error` state via `useState`, then populate data in a `useEffect` with `.catch` error handling and a `.finally` loading toggle.
+- Monaco-style voucher/reference numbers are rendered with a monospace, muted background pill class pattern for visual distinction in table cells.

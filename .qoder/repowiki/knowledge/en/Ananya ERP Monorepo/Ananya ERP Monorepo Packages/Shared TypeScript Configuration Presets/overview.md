@@ -1,0 +1,1 @@
+Publishes a private npm package of reusable tsconfig presets that extend a strict base configuration for libraries, React apps, Next.js, and NestJS projects.

@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: ml_service/training_pipeline/generators
+title: ML Training Dataset Generators
+scope:
+    - apps/ml/training/generators/
+source_files: []
+depends_on: []
+related_to: []

@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: web_app/reports_intelligence
+title: Reports, Intelligence & Operations Dashboard Pages
+scope:
+    - apps/web/app/reports/
+    - apps/web/app/intelligence/
+    - apps/web/app/dashboard/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/ml_attributes/ml_ops
+    - path: api/reporting

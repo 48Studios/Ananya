@@ -1,0 +1,1 @@
+NestJS modules with Drizzle ORM (`@ananya/database`) for PostgreSQL access; passwords hashed via Node `crypto.createHash('sha256')`; session tokens generated with `crypto.randomBytes(32)`; authorization expressed as string permission codes checked by an in-process `PermissionsService` rather than a token-signing scheme.

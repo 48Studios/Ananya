@@ -1,0 +1,1 @@
+React client components for creating/editing components and attribute definitions, reviewing AI suggestions, and executing component consolidation from the review queue.

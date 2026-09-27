@@ -1,0 +1,1 @@
+Domain package providing inventory management aggregates, repositories, and use-case classes for components, locations, manufacturers, categories, transactions, projections, reservations, batches, serials, attributes, and units.

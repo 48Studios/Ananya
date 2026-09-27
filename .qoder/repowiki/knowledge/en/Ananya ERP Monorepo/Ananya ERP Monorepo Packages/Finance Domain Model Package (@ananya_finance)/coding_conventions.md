@@ -1,0 +1,6 @@
+- Each aggregate is modeled as a class with a private constructor and two static factory methods: `create(props)` for new instances and `rehydrate(props)` for deserialization from persisted state.
+- Every aggregate exposes a matching `*Props` interface describing its persisted shape and a separate `Create*Props` interface used by the `create` factory, separating construction input from stored state.
+- Aggregate invariants and lifecycle transitions (e.g. `post()`, `applyPayment()`, `complete()`) enforce status-based guards by throwing `Error` when called from an invalid state rather than returning error codes.
+- Persisted identifiers are generated centrally via `ObjectId.generate().value` from `@ananya/core` inside `create` factories instead of being supplied by callers.
+- Persistence abstraction is expressed as a plain TypeScript interface per aggregate (e.g. `AccountRepository`, `JournalEntryRepository`) declared alongside the entity, with no implementation shipped in this package.
+- Feature folders follow a uniform three-file pattern: `<entity>.ts`, `<entity>.repository.ts`, and an `index.ts` barrel that re-exports both.

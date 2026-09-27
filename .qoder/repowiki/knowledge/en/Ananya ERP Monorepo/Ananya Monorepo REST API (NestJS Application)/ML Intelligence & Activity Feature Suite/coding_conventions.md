@@ -1,0 +1,4 @@
+- Each sub-feature lives under `apps/api/src/ml/<feature>/` and is registered in `ml.module.ts` controllers/providers/exports rather than bootstrapped independently.
+- Feature services expose only their business APIs via the module's `exports` array; internal repositories and adapters remain private to the feature folder.
+- Access control is enforced through NestJS Guards (`ComponentWriteGuard`, `AttributeRead/WriteGuard`, `MlAdminGuard`) applied at the controller layer instead of ad-hoc checks inside handlers.
+- User and system actions are recorded by injecting `ActivityService` from the sibling `ActivityModule` rather than writing directly to the activity store.

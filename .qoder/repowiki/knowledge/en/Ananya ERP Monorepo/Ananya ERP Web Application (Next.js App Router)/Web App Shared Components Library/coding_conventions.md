@@ -1,0 +1,3 @@
+- Each domain form lives in its own directory as a single default-exported React client component backed by zod schema + react-hook-form.
+- Reusable visual building blocks live under `components/ui/` and are composed by domain forms rather than duplicated.
+- Domain features that span multiple entities (charts, barcode labels, scanner surface, documentation review) are grouped into their own top-level directories instead of being scattered across form folders.

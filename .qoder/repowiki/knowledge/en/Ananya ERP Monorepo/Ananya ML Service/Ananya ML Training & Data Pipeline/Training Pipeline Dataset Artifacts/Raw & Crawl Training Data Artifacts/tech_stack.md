@@ -1,0 +1,1 @@
+Plain JSON + PDF/HTML assets with no runtime dependencies; manifests carry SHA-256 checksums and Unix-timestamp-based versioning to make each crawl snapshot reproducible.

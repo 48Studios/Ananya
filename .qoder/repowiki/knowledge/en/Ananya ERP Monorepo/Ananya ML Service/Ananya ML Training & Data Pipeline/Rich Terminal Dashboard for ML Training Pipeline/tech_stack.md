@@ -1,0 +1,1 @@
+Built on Rich (`rich.live.Live`, `rich.layout.Layout`, `rich.panel.Panel`, `rich.table.Table`) with optional psutil/system resource fallbacks for CPU/memory/disk metrics; uses stdlib `queue`, `threading`, `termios`, `tty`, `select` for non-blocking I/O.

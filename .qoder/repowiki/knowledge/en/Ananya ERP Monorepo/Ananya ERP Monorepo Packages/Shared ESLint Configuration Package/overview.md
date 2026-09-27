@@ -1,0 +1,1 @@
+Publishes a private npm package of reusable ESLint flat-config presets (base, React, Next.js) consumed by other workspace packages via named exports.

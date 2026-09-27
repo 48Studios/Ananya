@@ -1,0 +1,1 @@
+Client-side React dialog forms for creating and editing warehouse transfers, inventory reservations, and stock adjustments with multi-line item entry.

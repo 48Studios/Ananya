@@ -1,0 +1,1 @@
+React server/client components using `"use client"` directives; primitive layer built on `@base-ui/react` (button, input, select, dialog, popover, tabs, etc.), `cmdk` for command palette, `react-hook-form` + `@radix-ui/react-slot` for form composition, `class-variance-authority` for variant-driven styling, and `lucide-react` icons.

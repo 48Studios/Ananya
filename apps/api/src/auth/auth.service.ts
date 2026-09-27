@@ -11,7 +11,7 @@ import {
   userSessions,
   passwordResetTokens,
 } from '@ananya/database/schema';
-import { eq, and } from '@ananya/database/query';
+import { eq, and, or } from '@ananya/database/query';
 import {
   LoginDto,
   ChangePasswordDto,
@@ -219,12 +219,16 @@ export class AuthService {
   async requestPasswordReset(dto: ResetPasswordRequestDto) {
     const userRecord = await this.usersService.findByEmail(dto.email);
     if (userRecord) {
-      const resetToken = crypto.randomBytes(24).toString('hex');
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto
+        .createHash('sha256')
+        .update(resetToken)
+        .digest('hex');
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
       await db.insert(passwordResetTokens).values({
         userId: userRecord.id,
-        token: resetToken,
+        token: tokenHash,
         expiresAt,
       });
 
@@ -233,7 +237,9 @@ export class AuthService {
         category: 'SECURITY',
         userId: userRecord.id,
         userEmail: userRecord.email,
-        details: { resetToken },
+        details: {
+          tokenFingerprint: tokenHash.slice(0, 8),
+        },
       });
     }
 
@@ -244,12 +250,20 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto) {
+    const inputHash = crypto
+      .createHash('sha256')
+      .update(dto.token)
+      .digest('hex');
+
     const [tokenRecord] = await db
       .select()
       .from(passwordResetTokens)
       .where(
         and(
-          eq(passwordResetTokens.token, dto.token),
+          or(
+            eq(passwordResetTokens.token, inputHash),
+            eq(passwordResetTokens.token, dto.token),
+          ),
           eq(passwordResetTokens.isUsed, false),
         ),
       )
@@ -273,6 +287,12 @@ export class AuthService {
       .update(passwordResetTokens)
       .set({ isUsed: true })
       .where(eq(passwordResetTokens.id, tokenRecord.id));
+
+    // Revoke all existing sessions for this user on password reset
+    await db
+      .update(userSessions)
+      .set({ isRevoked: true, updatedAt: new Date() })
+      .where(eq(userSessions.userId, tokenRecord.userId));
 
     await this.auditService.record({
       action: 'PASSWORD_RESET_COMPLETED',

@@ -1,0 +1,1 @@
+Next.js App Router pages for configuring organization/system settings, viewing security audit logs, and managing user accounts and role-based permissions.

@@ -1,0 +1,1 @@
+Next.js App Router client pages that display inventory overviews, stock adjustment workflows with approval/cancellation, and physical stock audit (cycle count) management.

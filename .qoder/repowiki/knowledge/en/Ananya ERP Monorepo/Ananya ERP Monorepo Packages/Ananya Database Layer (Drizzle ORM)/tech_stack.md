@@ -1,0 +1,1 @@
+PostgreSQL via `pg` connection pool, typed through Drizzle ORM (`drizzle-orm@^0.44.0`) with Drizzle Kit (`drizzle-kit@^0.31.0`) for schema-to-SQL migration generation; TypeScript 5.9.2 build target.

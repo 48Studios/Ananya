@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: shared_packages/sales
+title: Sales Domain Package (Customers, Quotations, Orders, Fulfillment & Returns)
+scope:
+    - packages/sales/
+source_files: []
+depends_on: []
+related_to: []

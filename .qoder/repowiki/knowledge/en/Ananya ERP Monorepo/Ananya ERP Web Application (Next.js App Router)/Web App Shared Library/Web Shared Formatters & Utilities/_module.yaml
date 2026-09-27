@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: web_app/shared_libs/formatters_utils
+title: Web Shared Formatters & Utilities
+scope:
+    - apps/web/lib/formatters.ts
+    - apps/web/lib/utils.ts
+    - apps/web/lib/select-utils.ts
+source_files: []
+depends_on: []
+related_to: []

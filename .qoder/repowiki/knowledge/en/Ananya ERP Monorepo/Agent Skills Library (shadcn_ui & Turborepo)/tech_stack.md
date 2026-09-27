@@ -1,0 +1,1 @@
+Skill manifests use YAML frontmatter (`name`, `description`, `allowed-tools`, `user-invocable`, `metadata.version`) consumed by the agent framework; shadcn skill also ships an `agents/openai.yml` interface descriptor for OpenAI-style agents.

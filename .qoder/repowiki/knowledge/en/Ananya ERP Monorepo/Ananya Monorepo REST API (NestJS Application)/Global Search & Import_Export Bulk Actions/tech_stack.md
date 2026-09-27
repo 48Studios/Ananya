@@ -1,0 +1,1 @@
+NestJS with `@nestjs/platform-express` `FileInterceptor` for multipart uploads; Drizzle ORM (`@ananya/database` schema + query builder) for all DB access; CSV/XLSX templates generated in-memory by `importer-registry.ts`; job persistence via the `importExportJobs` Drizzle table.

@@ -1,0 +1,6 @@
+- All cross-thread communication goes through immutable `dataclass` events derived from `TUIEvent`; workers never touch `TUIState` directly.
+- State mutation is centralized in `TUIState.apply_event`, which dispatches on `isinstance(event, ...)` subclasses — new event types are added by defining a dataclass and handling it in this single method.
+- Rendering functions are pure: they accept a `TUIState` and return Rich `Panel`/`Layout`/`Text` objects without side effects, enabling safe re-rendering inside the Live loop.
+- All numeric display goes through `formatters.py` helpers (`format_number`, `format_bytes`, `format_rate`, `format_percentage`, `format_duration`, `format_eta`, `render_progress_bar`) which return the `PLACEHOLDER` em-dash for invalid values instead of raising or printing NaN/None.
+- Visual styling is sourced exclusively from `theme.py` constants (`COLOR_*`, `SYM_*`, `PANEL_BOX`, `TUI_THEME`); panels never hardcode color strings or box styles.
+- Failure classification is normalized via `normalize_failure_type` before being stored, so downstream views always see canonical categories like `HTTP 404`, `WAF / 307`, `NETWORK_ERROR` rather than raw error strings.

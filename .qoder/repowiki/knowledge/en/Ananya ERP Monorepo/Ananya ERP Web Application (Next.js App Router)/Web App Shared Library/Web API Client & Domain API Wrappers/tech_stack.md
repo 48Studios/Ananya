@@ -1,0 +1,1 @@
+Plain browser `fetch` over HTTP; authentication via Bearer tokens stored in `localStorage`/cookie and coordinated across tabs through `BroadcastChannel("ananya_auth_channel")`; base URL injected at build time via the Next.js `NEXT_PUBLIC_API_URL` environment variable.

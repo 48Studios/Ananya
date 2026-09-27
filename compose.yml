@@ -153,8 +153,8 @@ services:
     profiles:
       - ml
       - all
-    ports:
-      - "${ML_PORT:-5001}:5001"
+    # Port 5001 is NOT published to host: ML service is private to the 'internal' Docker network.
+    # The NestJS API acts as the authenticated, authorized reverse proxy (SEC-07).
     environment:
       PORT: 5001
     networks:

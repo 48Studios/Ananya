@@ -1,0 +1,1 @@
+Reusable evaluation engine that scores candidate ML models against classification, duplicate-detection, latency/memory, and provenance quality gates and emits JSON + Markdown reports.

@@ -1,0 +1,1 @@
+Next.js App Router client components (`"use client"`), `@tanstack/react-table` ColumnDef types consumed by the shared `EntityDataTable`, lucide-react icons, and shadcn-style primitives under `@/components/ui`.

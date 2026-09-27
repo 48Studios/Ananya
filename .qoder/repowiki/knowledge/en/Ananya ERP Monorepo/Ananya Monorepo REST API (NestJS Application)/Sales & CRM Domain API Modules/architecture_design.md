@@ -1,0 +1,7 @@
+Each subdirectory under apps/api/src is a self-contained NestJS feature module following the standard controller/service/module + dtos.ts layout:
+- `*.controller.ts` declares `@Controller('<resource>')` routes (CRUD plus domain-specific action endpoints like `:id/activate`, `:id/convert`, `:id/send`).
+- `*.service.ts` holds business logic that delegates entity mutations to domain objects from `@ananya/sales` / `@ananya/crm` (e.g. `Customer.create`, `Lead.convert`) and persists via an injected repository.
+- `*.module.ts` wires the controller and service, registers a tokenized repository provider (`CUSTOMER_REPOSITORY`, `LEAD_REPOSITORY`, etc.) bound to a concrete `Drizzle*Repository` from `../infrastructure/repositories/`, and exports only the service.
+- `dtos.ts` defines request bodies validated with class-validator decorators; types/enums come from the shared domain packages rather than being redefined here.
+
+Cross-module dependencies are explicit: `leads.service.ts` imports `CrmAccountsService` so lead conversion creates a corresponding account/contact, and `leads.module.ts` imports `CrmAccountsModule`. The dependency direction is one-way — downstream domains (leads) depend on upstream ones (crm-accounts), never the reverse. Repository implementations live outside this scope in `../infrastructure/repositories/`, keeping persistence details out of the feature modules.

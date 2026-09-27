@@ -1,0 +1,6 @@
+- Each component file wraps a primitive from `@base-ui/react` (or another base library) and applies Tailwind classes through `cn(...)` from `@/lib/utils`, never inline raw className strings without merging.
+- Compound components use a consistent `data-slot="<component-name>"` attribute pattern on every sub-component (e.g. `data-slot="dialog-content"`, `data-slot="select-trigger"`, `data-slot="form-item"`) to enable descendant styling and testing hooks.
+- Variant-driven styling is declared once via `cva(...)` with named `variant`/`size` keys and default values, then consumed by destructuring props with `VariantProps<typeof ...>`.
+- Client-side components opt in explicitly with the `"use client"` directive at the top of the file when they use React state, hooks, or event handlers.
+- Accessibility attributes are derived from primitive state: `aria-invalid` toggled via `aria-invalid={!!error}`, `role="alert"` on error messages, and `sr-only` text for screen-reader-only labels.
+- Components accept an optional `className` prop that is always merged last via `cn(baseStyles, className)` so consumers can override defaults without redefining them.

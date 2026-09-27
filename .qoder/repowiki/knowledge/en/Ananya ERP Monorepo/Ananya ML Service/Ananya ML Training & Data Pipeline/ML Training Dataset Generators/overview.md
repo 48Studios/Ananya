@@ -1,0 +1,1 @@
+Generates task-specific training datasets (classification, attribute extraction/relevance, normalization, entity resolution, duplicate matching, similarity triplets) from ProductRecord inputs.

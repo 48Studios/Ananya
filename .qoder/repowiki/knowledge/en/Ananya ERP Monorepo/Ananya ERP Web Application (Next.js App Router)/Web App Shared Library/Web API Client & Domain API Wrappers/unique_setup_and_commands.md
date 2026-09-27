@@ -1,0 +1,1 @@
+The client expects `NEXT_PUBLIC_API_URL` to be set at build time (defaults to `http://localhost:4000`); callers can register a global 401 redirect handler via `registerUnauthorizedHandler(handler)` before making requests.

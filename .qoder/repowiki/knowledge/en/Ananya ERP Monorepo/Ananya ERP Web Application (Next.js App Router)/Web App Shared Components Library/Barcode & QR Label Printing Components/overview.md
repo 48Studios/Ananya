@@ -1,0 +1,1 @@
+React components that generate, preview, and print standardized barcode/QR label faces for locations, components, and other entities in the web app.

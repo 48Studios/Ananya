@@ -1,0 +1,1 @@
+Python ABC-based collector interface; optional `psycopg2` for live PostgreSQL access (imported lazily so it stays an extra dependency); `httpx` for HTTP crawling; `threading` + `queue.Queue` + `ThreadPoolExecutor` for decoupled download/parse concurrency in the web collector; `hashlib.sha256` for raw-data checksums.

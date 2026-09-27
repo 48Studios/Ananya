@@ -1,0 +1,1 @@
+NestJS feature module that wires ML intelligence findings, component consolidation, documentation/specification analysis, ML ops controls, and the activity/audit event API behind shared auth and security-audit boundaries.

@@ -1,0 +1,1 @@
+TypeScript domain library built with `tsc` (`tsconfig.build.json`) and tested with Vitest; uses Node `crypto.randomUUID()` for aggregate IDs and depends on the shared `@ananya/core` workspace package.

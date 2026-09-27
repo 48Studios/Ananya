@@ -1,0 +1,1 @@
+ESLint v9 flat config format; TypeScript via `typescript-eslint`; React linting via `eslint-plugin-react` + `eslint-plugin-react-hooks`; Next.js linting via `@next/eslint-plugin-next`; Turborepo awareness via `eslint-plugin-turbo`; Prettier integration via `eslint-config-prettier`.

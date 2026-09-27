@@ -1,0 +1,6 @@
+- Controllers are thin: they only map HTTP decorators (@Controller, @Get, @Post, @Body, @Param, @Query) to single method calls on the injected service.
+- Services receive repositories via `@Inject(TOKEN)` constructor parameters where TOKEN is a string constant exported alongside the service (e.g. JOURNAL_ENTRY_REPOSITORY, PAYMENT_REPOSITORY).
+- Repository bindings are declared in the module's providers array using `{ provide: TOKEN, useClass: DrizzleXxxRepository }` rather than direct class imports.
+- Domain entity creation uses static factory methods (e.g. `JournalEntry.create`, `Payment.create`) instead of constructors, and state transitions call domain methods (`post`, `cancel`, `reverse`, `void`) before saving.
+- Missing-resource lookups throw NestJS `NotFoundException` with a message including the resource ID.
+- Filtering endpoints accept optional query parameters typed against domain enums from `@ananya/finance` (e.g. AccountType, PaymentStatus, JournalStatus, ReconciliationStatus).

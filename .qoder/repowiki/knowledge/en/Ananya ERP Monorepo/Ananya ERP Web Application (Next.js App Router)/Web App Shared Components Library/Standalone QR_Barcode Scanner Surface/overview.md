@@ -1,0 +1,1 @@
+Full-screen standalone scanner app that opens a camera, decodes QR/barcode labels in real time, and overlays the ERP's entity details modal without navigating away.

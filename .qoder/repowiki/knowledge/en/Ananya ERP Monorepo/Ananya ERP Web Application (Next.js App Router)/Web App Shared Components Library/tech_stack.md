@@ -1,0 +1,1 @@
+React Server Components with `"use client"` directives, Radix UI + Base UI primitives, cmdk for the command palette, Recharts for dashboard charts, and zod + react-hook-form for all form validation.

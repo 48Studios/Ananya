@@ -1,0 +1,5 @@
+- Repository injection uses a `Symbol` token exported from a `*.tokens.ts` file and bound in the module's providers array via `{ provide: TOKEN, useClass: DrizzleXxxRepository }`.
+- Feature modules export their service class and its repository token so downstream modules can consume them through the DI container.
+- Cross-module domain dependencies are expressed as `imports: [...]` of sibling feature modules (e.g. inventory-transactions, inventory-projections, stock-adjustments) rather than direct infrastructure calls.
+- Request bodies are validated with class-validator decorators defined in per-module `dtos.ts` or `create-*.dto.ts` files, often nested via `ValidateNested` + `Type()`.
+- Domain-specific HTTP errors are surfaced through dedicated `*-exception.filter.ts` classes registered at the module level instead of generic exceptions.

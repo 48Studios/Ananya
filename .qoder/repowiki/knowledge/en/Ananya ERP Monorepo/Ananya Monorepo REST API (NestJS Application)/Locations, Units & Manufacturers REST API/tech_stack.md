@@ -1,0 +1,1 @@
+NestJS controllers/services/modules with Drizzle-based repositories injected through tokens; domain types and use-case classes come from the shared `@ananya/inventory` package.

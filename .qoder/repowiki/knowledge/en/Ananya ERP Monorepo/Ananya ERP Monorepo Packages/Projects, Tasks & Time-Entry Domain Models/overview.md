@@ -1,0 +1,1 @@
+Defines the domain models, value types, and repository interfaces for Projects (with materials, milestones, activity audit), Tasks, and Time Entries in the Ananya workspace.

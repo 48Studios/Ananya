@@ -1,0 +1,1 @@
+Runtime behavior is driven by environment variables: `ANANYA_ML_DEVICE` overrides hardware auto-detection (`cpu`/`mps`/`cuda`); `ANANYA_ML_DATA_DIR`, `ANANYA_ML_MODELS_DIR`, `ANANYA_ML_REGISTRY_DIR`, `ANANYA_ML_EXPERIMENTS_DIR` override default paths; `DATABASE_URL` supplies the read-only snapshot connection string.

@@ -1,0 +1,1 @@
+Next.js App Router client components, `@tanstack/react-table` column definitions, `lucide-react` icons, and a typed API client layer (`@/lib/api/mrp-api`, `@/lib/api/planning-messages-api`) returning DTO types such as `MrpRequirementDto`, `PlannedProductionOrderDto`, `MrpRunRecordDto`, and `PlanningMessageDto`.

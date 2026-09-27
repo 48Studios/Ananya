@@ -1,0 +1,6 @@
+- Each aggregate lives in its own subdirectory with a matching `<aggregate>.ts` class, `<aggregate>.repository.ts` interface, and `index.ts` barrel that re-exports both.
+- Aggregates expose a private constructor plus static factory methods `create(props)` for new instances and `rehydrate(props)` for deserialization from storage.
+- Domain validation is enforced inside `create()` and mutating methods by throwing `Error` with descriptive messages when invariants are violated (e.g., required fields missing, invalid status transitions).
+- Aggregate IDs are generated via `ObjectId.generate().value` from `@ananya/core` rather than passed in by callers.
+- Timestamps use paired `createdAt` / `updatedAt` Date fields, with `updatedAt` refreshed on every mutation method.
+- Repository interfaces follow a uniform shape: `findById`, `findMany(options?)`, `save(entity)`, plus aggregate-specific queries like `findByNumber` or `generateNextLeadNumber`.

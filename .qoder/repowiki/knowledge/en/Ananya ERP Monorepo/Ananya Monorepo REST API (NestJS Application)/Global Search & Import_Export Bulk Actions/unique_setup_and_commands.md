@@ -1,0 +1,1 @@
+The `ImportExportModule` uses `forwardRef(() => ComponentsModule)` to break a three-way cycle (Components → Ml → DataPacks → ImportExport); adding new bulk-action-capable entities requires registering them both in `bulk-action-registry.ts` and wiring the case branch in `BulkActionService.applyOne`, otherwise the request is rejected before reaching the switch.

@@ -1,0 +1,1 @@
+TypeScript modules targeting the Next.js web app; environment variables prefixed `NEXT_PUBLIC_` are read at runtime via `process.env`; package version sourced from `../package.json`.

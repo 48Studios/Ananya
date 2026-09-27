@@ -1,0 +1,16 @@
+schema_version: 1
+module_path: api/accounting_finance
+title: Accounting & Finance REST API
+scope:
+    - apps/api/src/accounts/
+    - apps/api/src/journal-entries/
+    - apps/api/src/receivable-invoices/
+    - apps/api/src/payable-invoices/
+    - apps/api/src/payments/
+    - apps/api/src/bank-accounts/
+    - apps/api/src/bank-reconciliations/
+source_files: []
+depends_on: []
+related_to:
+    - path: web_app/finance_routes
+    - path: web_app/journal_and_payments

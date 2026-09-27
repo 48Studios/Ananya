@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: web_app/journal_and_payments
+title: Journal Entries, Payments & Chart of Accounts Pages
+scope:
+    - apps/web/app/journal-entries/
+    - apps/web/app/payments/
+    - apps/web/app/chart-of-accounts/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/accounting_finance

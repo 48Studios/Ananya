@@ -1,0 +1,3 @@
+- Pure utility modules colocate their implementation and a matching `<module>.spec.ts` in the same directory.
+- Backend-facing helpers live under `lib/api/<domain>-api.ts` and are thin wrappers around the shared authenticated client in `api-client.ts`.
+- Presentation-only modules avoid importing React/DOM and instead export pure functions that derive labels, filters, eligibility, and review actions from payload objects.

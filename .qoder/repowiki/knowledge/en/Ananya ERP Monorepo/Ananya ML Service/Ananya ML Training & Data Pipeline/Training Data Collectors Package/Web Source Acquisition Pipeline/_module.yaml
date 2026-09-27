@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: ml_service/training_pipeline/collectors/web_collectors
+title: Web Source Acquisition Pipeline
+scope:
+    - apps/ml/training/collectors/web/
+source_files: []
+depends_on: []
+related_to: []

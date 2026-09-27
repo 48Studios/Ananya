@@ -7,7 +7,13 @@ import {
   Body,
   Param,
   Req,
+  UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
+import {
+  createPermissionGuard,
+  type AuthenticatedRequest,
+} from '../auth/permission.guard';
 import { SettingsService } from './settings.service';
 import { OrganizationResetService } from './organization-reset.service';
 import {
@@ -36,11 +42,17 @@ export class SettingsController {
   }
 
   @Post('organization/reset')
+  @UseGuards(
+    createPermissionGuard('Administration.Roles', 'reset organization data'),
+  )
   resetOrganizationData(
     @Body() dto: ResetOrganizationDto,
-    @Req() req: { user?: { id: string } },
+    @Req() req: AuthenticatedRequest,
   ) {
-    const userId = req.user?.id || 'system';
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException('Authentication is required.');
+    }
     return this.resetService.resetOrganizationData(dto, userId);
   }
 

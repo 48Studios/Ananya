@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: ml_service/training_pipeline/pipeline_scripts
+title: Authoritative ML Training Pipeline Scripts (RFC-0058)
+scope:
+    - apps/ml/pipeline/
+source_files: []
+depends_on: []
+related_to: []

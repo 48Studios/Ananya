@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: web_app/shared_components/procurement_forms
+title: Procurement Transaction Forms
+scope:
+    - apps/web/components/purchase-orders/
+    - apps/web/components/purchase-invoices/
+    - apps/web/components/goods-receipts/
+    - apps/web/components/supplier-returns/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/procurement

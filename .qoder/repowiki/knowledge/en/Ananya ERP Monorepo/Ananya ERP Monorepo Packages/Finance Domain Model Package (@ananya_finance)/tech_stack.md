@@ -1,0 +1,1 @@
+TypeScript 5.9.2 compiled to CommonJS; unit tests run via Vitest; ID generation delegated to `@ananya/core`'s `ObjectId`.

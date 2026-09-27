@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: shared_packages/projects
+title: Projects, Tasks & Time-Entry Domain Models
+scope:
+    - packages/projects/
+source_files: []
+depends_on: []
+related_to: []

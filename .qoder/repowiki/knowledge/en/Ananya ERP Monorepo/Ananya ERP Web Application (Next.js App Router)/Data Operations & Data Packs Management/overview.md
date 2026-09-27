@@ -1,0 +1,1 @@
+Next.js App Router pages that expose batch import/export job history with rollback and a browsable catalog for installing preconfigured data packs into the workspace.

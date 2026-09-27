@@ -1,0 +1,1 @@
+Defines an abstract trainer interface and a scikit-learn-based category classifier trainer that trains multiple candidate pipelines, selects a champion by validation accuracy, and persists artifacts.

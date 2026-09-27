@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: web_app/shared_components/barcode_label_printing
+title: Barcode & QR Label Printing Components
+scope:
+    - apps/web/components/barcodes/
+source_files: []
+depends_on: []
+related_to: []

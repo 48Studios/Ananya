@@ -1,0 +1,1 @@
+NestJS feature modules exposing REST endpoints for inventory transactions, projections, reservations, batches, serials, warehouses, stock counts/adjustments, cycle counts, warehouse transfers, policies, and barcode scanning.

@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   OnModuleInit,
 } from '@nestjs/common';
 import { db } from '@ananya/database';
@@ -10,6 +11,7 @@ import { eq } from '@ananya/database/query';
 import { CreateRoleDto, UpdateRoleDto } from './dtos';
 import { SYSTEM_ROLE_PERMISSIONS } from '../permissions/permissions.service';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
+import type { AuthenticatedRequestUser } from '../auth/permission.guard';
 
 @Injectable()
 export class RolesService implements OnModuleInit {
@@ -60,7 +62,7 @@ export class RolesService implements OnModuleInit {
     return role;
   }
 
-  async create(dto: CreateRoleDto) {
+  async create(dto: CreateRoleDto, caller?: AuthenticatedRequestUser) {
     const [existing] = await db
       .select()
       .from(roles)
@@ -70,6 +72,16 @@ export class RolesService implements OnModuleInit {
     if (existing) {
       throw new BadRequestException(
         `Role with name "${dto.name}" already exists.`,
+      );
+    }
+
+    if (
+      dto.permissions?.includes('*') &&
+      caller &&
+      caller.roleName !== 'Administrator'
+    ) {
+      throw new ForbiddenException(
+        'Only Administrators can grant wildcard (*) permissions.',
       );
     }
 
@@ -90,17 +102,42 @@ export class RolesService implements OnModuleInit {
     await this.auditService.record({
       action: 'ROLE_CREATED',
       category: 'SECURITY',
-      details: { roleId: role.id, name: role.name },
+      details: {
+        roleId: role.id,
+        name: role.name,
+        createdBy: caller?.email || 'system',
+      },
     });
 
     return role;
   }
 
-  async update(id: string, dto: UpdateRoleDto) {
+  async update(
+    id: string,
+    dto: UpdateRoleDto,
+    caller?: AuthenticatedRequestUser,
+  ) {
     const role = await this.findById(id);
 
-    if (role.isSystem && dto.name && dto.name !== role.name) {
-      throw new BadRequestException('System role names cannot be altered.');
+    if (role.isSystem) {
+      if (dto.name && dto.name !== role.name) {
+        throw new BadRequestException('System role names cannot be altered.');
+      }
+      if (dto.permissions !== undefined) {
+        throw new BadRequestException(
+          'System role permissions cannot be modified.',
+        );
+      }
+    }
+
+    if (
+      dto.permissions?.includes('*') &&
+      caller &&
+      caller.roleName !== 'Administrator'
+    ) {
+      throw new ForbiddenException(
+        'Only Administrators can grant wildcard (*) permissions.',
+      );
     }
 
     const [updated] = await db
@@ -123,13 +160,17 @@ export class RolesService implements OnModuleInit {
     await this.auditService.record({
       action: 'ROLE_UPDATED',
       category: 'SECURITY',
-      details: { roleId: id, name: updated.name },
+      details: {
+        roleId: id,
+        name: updated.name,
+        updatedBy: caller?.email || 'system',
+      },
     });
 
     return updated;
   }
 
-  async delete(id: string) {
+  async delete(id: string, caller?: AuthenticatedRequestUser) {
     const role = await this.findById(id);
 
     if (role.isSystem) {
@@ -141,7 +182,11 @@ export class RolesService implements OnModuleInit {
     await this.auditService.record({
       action: 'ROLE_DELETED',
       category: 'SECURITY',
-      details: { roleId: id, name: role.name },
+      details: {
+        roleId: id,
+        name: role.name,
+        deletedBy: caller?.email || 'system',
+      },
     });
 
     return { success: true };

@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: web_app/service_routes
+title: Service, RMA & Warranty Post-Sales Pages
+scope:
+    - apps/web/app/service/
+    - apps/web/app/rma/
+    - apps/web/app/warranty/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/projects_services

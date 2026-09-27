@@ -1,0 +1,1 @@
+Python with Pydantic v2 schemas, scikit-learn for the category classifier trainer, Rich for the live TUI dashboard, and YAML-based source configuration; the pipeline scripts additionally use the existing RFC-0058 training runner as a legacy backend.

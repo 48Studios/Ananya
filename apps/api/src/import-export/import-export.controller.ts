@@ -9,12 +9,18 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  UnauthorizedException,
+  UseGuards,
   Logger,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImportExportService } from './import-export.service';
 import { ExportRequestDto, ExportResponseDto, UploadedFileObj } from './dtos';
+import {
+  createPermissionGuard,
+  type AuthenticatedRequest,
+} from '../auth/permission.guard';
 
 @Controller('import-export')
 export class ImportExportController {
@@ -23,11 +29,17 @@ export class ImportExportController {
   constructor(private readonly service: ImportExportService) {}
 
   @Get('template/:entityType')
+  @UseGuards(
+    createPermissionGuard('Inventory.Read', 'download import template'),
+  )
   getTemplate(@Param('entityType') entityType: string) {
     return this.service.getTemplate(entityType);
   }
 
   @Get('template/:entityType/csv')
+  @UseGuards(
+    createPermissionGuard('Inventory.Read', 'download import template'),
+  )
   getTemplateCsv(@Param('entityType') entityType: string, @Req() req: Request) {
     const csv = this.service.getTemplateCsv(entityType);
     if (req.res) {
@@ -41,6 +53,9 @@ export class ImportExportController {
   }
 
   @Get('template/:entityType/xlsx')
+  @UseGuards(
+    createPermissionGuard('Inventory.Read', 'download import template'),
+  )
   getTemplateXlsx(
     @Param('entityType') entityType: string,
     @Req() req: Request,
@@ -60,6 +75,7 @@ export class ImportExportController {
   }
 
   @Post('import/preview')
+  @UseGuards(createPermissionGuard('Inventory.Update', 'preview import data'))
   @UseInterceptors(FileInterceptor('file'))
   previewImport(
     @UploadedFile() file: UploadedFileObj,
@@ -81,21 +97,21 @@ export class ImportExportController {
   }
 
   @Post('import/execute')
+  @UseGuards(createPermissionGuard('Inventory.Update', 'execute data import'))
   @UseInterceptors(FileInterceptor('file'))
   async executeImport(
     @UploadedFile() file: UploadedFileObj,
     @Body('entityType') entityType: string,
     @Body('columnMapping') columnMappingStr: string,
-    @Body('userId') bodyUserId?: string,
-    @Req() req?: Request,
+    @Req() req: AuthenticatedRequest,
   ) {
-    const headerUserId = req?.headers?.['x-user-id'];
-    const userId =
-      bodyUserId ||
-      (typeof headerUserId === 'string' ? headerUserId : undefined);
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException('Authentication is required.');
+    }
 
     this.logger.log(
-      `[IMPORT EXECUTE REQUEST] Received file: "${file?.originalname}", size: ${file?.size} bytes, entityType: "${entityType}", userId: "${userId || 'NONE'}"`,
+      `[IMPORT EXECUTE REQUEST] Received file: "${file?.originalname}", size: ${file?.size} bytes, entityType: "${entityType}", userId: "${userId}"`,
     );
 
     if (!file || !file.buffer || file.size === 0) {
@@ -121,6 +137,7 @@ export class ImportExportController {
   }
 
   @Post('export')
+  @UseGuards(createPermissionGuard('Reports.Export', 'export system data'))
   async executeExport(
     @Body() dto: ExportRequestDto,
   ): Promise<ExportResponseDto> {
@@ -128,19 +145,27 @@ export class ImportExportController {
   }
 
   @Get('jobs')
+  @UseGuards(createPermissionGuard('Inventory.Read', 'view import/export jobs'))
   async getJobs(@Query('userId') userId?: string) {
     return await this.service.getJobs(userId);
   }
 
   @Get('jobs/:id')
+  @UseGuards(createPermissionGuard('Inventory.Read', 'view import/export jobs'))
   async getJob(@Param('id') id: string) {
     return await this.service.getJob(id);
   }
 
   @Post('jobs/:id/reverse')
-  async reverseImport(@Param('id') id: string, @Req() req?: Request) {
-    const headerUserId = req?.headers?.['x-user-id'];
-    const userId = typeof headerUserId === 'string' ? headerUserId : undefined;
+  @UseGuards(createPermissionGuard('Inventory.Update', 'reverse import job'))
+  async reverseImport(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException('Authentication is required.');
+    }
     return await this.service.reverseImport(id, userId);
   }
 }

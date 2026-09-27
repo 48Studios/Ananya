@@ -1,0 +1,1 @@
+React client components using `react-hook-form` with `@hookform/resolvers/zod` for schema-driven validation; lucide-react icons; Tailwind CSS via shadcn-style UI primitives.

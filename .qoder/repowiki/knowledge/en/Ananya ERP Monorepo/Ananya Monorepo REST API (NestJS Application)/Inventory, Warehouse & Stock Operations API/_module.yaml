@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: api/inventory_warehouse
+title: Inventory, Warehouse & Stock Operations API
+scope:
+    - apps/api/src/inventory-transactions/
+    - apps/api/src/inventory-projections/
+    - apps/api/src/reservations/
+    - apps/api/src/batches/
+    - apps/api/src/serials/
+    - apps/api/src/warehouses/
+    - apps/api/src/stock-counts/
+    - apps/api/src/stock-adjustments/
+    - apps/api/src/cycle-counts/
+    - apps/api/src/warehouse-transfers/
+    - apps/api/src/warehouse-policies/
+    - apps/api/src/barcodes/
+source_files: []
+depends_on: []
+related_to:
+    - path: web_app/inventory_routes
+    - path: web_app/shared_components/quality_control_forms
+    - path: web_app/shared_components/warehouse_operations_forms
+    - path: web_app/warehouse_routes

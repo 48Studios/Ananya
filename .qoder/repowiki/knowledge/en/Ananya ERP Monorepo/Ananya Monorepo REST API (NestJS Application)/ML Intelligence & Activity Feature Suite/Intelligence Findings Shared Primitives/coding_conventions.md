@@ -1,0 +1,5 @@
+- Shared constants are declared as `as const` tuple arrays and paired with a derived `typeof ...[number]` TypeScript type, keeping runtime values and types in sync.
+- Domain-specific policy (env var names, defaults, error classes, conflict reasons) is passed into shared helpers via a scope object rather than being hardcoded inside the shared module.
+- Errors produced by the shared layer are returned as plain descriptors (`ApplyTimeoutDescriptor`) instead of thrown, letting each caller wrap them in its own exception type and wording.
+- Stable identities are built by first normalizing payloads deterministically (sorted keys, Date→ISO, non-finite numbers→null, circular-ref rejection) and then hashing with SHA-256, never including volatile fields like timestamps or row ids.
+- Transaction-scoped database configuration uses `SET LOCAL set_config(...)` with bind parameters so bounds revert on commit/rollback and cannot leak onto pooled connections.

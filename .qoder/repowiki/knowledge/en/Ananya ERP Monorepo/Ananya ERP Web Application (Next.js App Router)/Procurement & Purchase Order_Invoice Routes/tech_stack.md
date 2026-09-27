@@ -1,0 +1,1 @@
+Next.js App Router client components with TypeScript, `@tanstack/react-table` for table columns, `lucide-react` icons, and shadcn-style UI primitives (`button`, `dialog-shell`, `confirm-dialog`, `entity-data-table`). Data access goes through generated API clients under `@/lib/api/*`.

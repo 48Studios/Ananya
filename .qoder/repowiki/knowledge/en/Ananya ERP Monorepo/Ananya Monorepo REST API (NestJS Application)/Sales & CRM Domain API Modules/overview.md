@@ -1,0 +1,1 @@
+NestJS feature modules exposing REST endpoints for customers, leads, accounts, opportunities, activities, quotations, sales orders, fulfillment, and customer returns backed by domain entities from @ananya/sales and @ananya/crm.

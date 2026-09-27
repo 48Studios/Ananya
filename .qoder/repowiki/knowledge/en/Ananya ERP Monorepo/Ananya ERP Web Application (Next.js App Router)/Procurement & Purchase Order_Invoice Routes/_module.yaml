@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: web_app/procurement_routes
+title: Procurement & Purchase Order/Invoice Routes
+scope:
+    - apps/web/app/procurement/
+    - apps/web/app/purchase-orders/
+    - apps/web/app/purchase-invoices/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/procurement

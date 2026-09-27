@@ -1,0 +1,1 @@
+Local development CLI and pipeline for autonomous data collection, dataset curation, task generation, model training, evaluation, and experiment tracking for Ananya ERP product intelligence.

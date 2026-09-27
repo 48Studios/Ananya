@@ -1,0 +1,1 @@
+NestJS module exposing a unified global search across domain entities and an import/export API with CSV/XLSX template generation, preview, execution, job tracking, and bulk actions delegated to owning modules.

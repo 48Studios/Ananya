@@ -1,0 +1,7 @@
+Three sibling pure-function modules under `apps/web/lib/` that share a common design contract: they import backend DTOs from `./api/*` but never touch React, DOM, or network layers, so every rule is unit-testable in vitest.
+
+- `component-documentation.ts` owns the document type vocabulary (mirroring `apps/api/src/documents/document-types.ts`), MIME-based preview classification, external URL validation, tag parsing, and targeted list-state updaters (`applyDocumentCreated/Updated/Removed`) that mutate an in-memory array without refetching.
+- `component-entity-assignment.ts` implements the client-side mirror of the API's `PendingComponentEntityService`: case-insensitive trimmed name matching against an `AssignableEntity[]`, with deterministic tie-breaking by suggested parent, code, then id.
+- `component-review-queue.ts` is the largest surface: labels, badge mappings, decision lifecycle (`DECISION_ALLOWED_STATUSES`, `canDecide`, `decidableActions`), filter options re-exported from `intelligence-review-filters`, tab/grouping logic, summary derivation, and surgical page reconciliation helpers (`applyFindingStatusToQueuePage`, `applyConsolidationToFinding`).
+
+Dependency direction is one-way: these modules depend on generated API DTO types and on `intelligence-review-filters` for shared filter vocabulary; nothing in this module imports UI components or stores. Mutations are expressed as pure functions returning new objects rather than side effects, keeping the boundary between derived view state and server authority explicit.

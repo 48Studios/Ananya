@@ -1,0 +1,1 @@
+Aggregates shared Next.js web app utilities — an authenticated API client with per-domain wrappers, presentation-only intelligence/attribute/component helpers, and cross-cutting formatters, navigation, and misc helpers.

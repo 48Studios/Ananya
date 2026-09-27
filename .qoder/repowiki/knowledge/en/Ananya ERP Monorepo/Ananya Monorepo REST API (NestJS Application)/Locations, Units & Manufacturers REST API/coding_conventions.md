@@ -1,0 +1,5 @@
+- Each resource folder mirrors the same file set — controller, service, module, create/update DTOs, exception filter, and injection-token file — keeping HTTP, orchestration, persistence wiring, and validation concerns separated.
+- Controllers are thin decorators over service methods, using `@UseFilters(<Resource>ExceptionFilter)` at class level to centralize error handling per resource.
+- Services construct `Create*`/`Update*`/`Delete*` use-case instances from `@ananya/inventory` in their constructor and delegate `execute()` calls, rather than implementing domain logic inline.
+- Repositories are consumed through an injection token defined in a local `*.tokens.ts` file and bound in the module's providers array with `useClass` pointing at the Drizzle implementation.
+- Read endpoints throw domain-specific not-found exceptions (e.g. `LocationNotFoundError`) after a null check on the repository result instead of returning nulls.

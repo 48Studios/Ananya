@@ -1,0 +1,1 @@
+Collection of small, framework-agnostic utility modules for the Next.js web app covering data-table pagination helpers, import job state derivation, safe post-login redirects, shipping carrier definitions, and build-time app metadata.

@@ -1,0 +1,4 @@
+- Each report endpoint is a thin controller method that forwards to a single async service method returning a plain object.
+- Aggregations use Drizzle's `select({ count: count() })` or raw `sql<string>` templates with `COALESCE(SUM(...), 0)` and coerce results via `Number()` / `parseFloat()` against `?? '0'` defaults.
+- Status-filtered counts are expressed as separate queries using `eq(table.status, '<STATE>')` rather than conditional aggregation in SQL.
+- Date-sensitive queries compute month boundaries with `new Date(Date.UTC(year, month, 1))` and compare via `gte(column, monthStart)`.

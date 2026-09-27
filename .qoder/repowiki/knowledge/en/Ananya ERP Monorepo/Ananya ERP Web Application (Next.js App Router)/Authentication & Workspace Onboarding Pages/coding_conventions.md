@@ -1,0 +1,6 @@
+- Each route file declares `"use client"` at the top and exports a default function component as the page entry point.
+- Heavy or async sub-trees are wrapped in `<React.Suspense fallback={<div className="min-h-screen bg-background" />}>` around a named content component (see login and join pages).
+- Form fields use the shared `Field` + `FieldLabel` wrapper paired with `Input` from `@/components/ui`, giving consistent labels, ids, and styling across all pages.
+- Error states are rendered as a small destructive banner div near the top of the form, populated from a local `error` string state cleared on submit.
+- Async actions follow a loading/error pattern: set `loading`/`submitting`/`validating`, clear error, try/catch with typed `err instanceof Error` handling, and always `finally` reset the loading flag.
+- Navigation after successful operations uses `router.push('/dashboard')` rather than `window.location`, keeping navigation within the Next.js router.

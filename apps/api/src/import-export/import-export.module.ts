@@ -14,6 +14,8 @@ import { PurchaseOrdersModule } from '../purchase-orders/purchase-orders.module'
 import { RolesModule } from '../roles/roles.module';
 import { SuppliersModule } from '../suppliers/suppliers.module';
 import { UnitsModule } from '../units/units.module';
+import { AuthModule } from '../auth/auth.module';
+import { PermissionsModule } from '../permissions/permissions.module';
 
 /**
  * Bulk actions are carried out by the owning modules' own services (see
@@ -38,6 +40,8 @@ import { UnitsModule } from '../units/units.module';
     RolesModule,
     SuppliersModule,
     UnitsModule,
+    forwardRef(() => AuthModule),
+    PermissionsModule,
   ],
   controllers: [ImportExportController, BulkActionsController],
   providers: [ImportExportService, BulkActionService],

@@ -1,0 +1,1 @@
+Next.js 16 (App Router, standalone output), React 19, Tailwind CSS 4 + shadcn/ui + Base-UI, react-hook-form + zod v4 for validation, TanStack Table for data grids, Recharts for charts, date-fns for dates, jsQR/qrcode for barcode/QR handling, and @vercel/analytics for telemetry.

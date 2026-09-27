@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: web_app/finance_routes
+title: Finance Module Frontend Routes (Chart of Accounts, AP & AR)
+scope:
+    - apps/web/app/accounts/
+    - apps/web/app/accounts-payable/
+    - apps/web/app/accounts-receivable/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/accounting_finance

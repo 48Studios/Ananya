@@ -1,0 +1,5 @@
+- Each feature folder ships a matching controller, service, DTOs, and module file named after the feature (e.g. `material-requirements.controller.ts`, `material-requirements.service.ts`, `dtos.ts`, `material-requirements.module.ts`).
+- Repository dependencies are injected through string constants exported from the service file (e.g. `PLANNING_RUN_REPOSITORY`) and bound to concrete `Drizzle*Repository` classes in the module's `providers` array rather than via TypeScript types.
+- DTOs are plain classes decorated with `class-validator` decorators (`IsString`, `IsNotEmpty`, `IsNumber`, `Min`, `Max`) and imported directly into the corresponding controller's `@Body()` parameters.
+- Domain entity construction goes through static factory methods on the entity classes from `@ananya/mrp` (e.g. `PlanningRun.create(...)`, `MaterialRequirement.create(...)`), never direct constructor calls.
+- Single-entity lookup methods throw `NotFoundException` with an interpolated message when the repository returns null.

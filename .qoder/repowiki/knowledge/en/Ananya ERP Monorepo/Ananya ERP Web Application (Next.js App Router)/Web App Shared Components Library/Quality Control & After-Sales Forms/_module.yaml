@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: web_app/shared_components/quality_control_forms
+title: Quality Control & After-Sales Forms
+scope:
+    - apps/web/components/cycle-counts/
+    - apps/web/components/rma/
+    - apps/web/components/warranty/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/inventory_warehouse

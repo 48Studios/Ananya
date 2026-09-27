@@ -1,0 +1,5 @@
+- Each trainer subclass sets a `model_type` class attribute to a string identifier used to distinguish implementations.
+- Optional external dependencies (TUI events, progress callbacks) are imported lazily inside method bodies and wrapped in try/except so they never raise during training.
+- Candidate models are constructed as scikit-learn `Pipeline` objects combining a `TfidfVectorizer` step with a `LogisticRegression` classifier, parameterized by shared hyperparameters stored on the trainer instance.
+- Training results per candidate are recorded into a `candidate_results` dict containing train accuracy, validation accuracy, top-3 accuracy, and fit time before comparing against the current best.
+- Persisted artifacts are written to paths created with `Path.mkdir(parents=True, exist_ok=True)` and returned as absolute string paths.

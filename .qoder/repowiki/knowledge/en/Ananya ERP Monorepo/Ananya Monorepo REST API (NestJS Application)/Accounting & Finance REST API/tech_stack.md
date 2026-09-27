@@ -1,0 +1,1 @@
+NestJS controllers/services/modules with dependency injection; persistence abstraction via repository interfaces implemented with Drizzle ORM (drizzle-account.repository, drizzle-journal-entry.repository); domain model supplied by the shared `@ananya/finance` package.

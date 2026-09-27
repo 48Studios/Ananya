@@ -1,0 +1,3 @@
+- Public formatter functions accept `number | string | null | undefined` inputs and an explicit `fallback` parameter, returning the fallback when the input is nullish or not a finite number.
+- Null-safety is enforced at function entry by early-returning the fallback before any coercion or formatting call, preventing TypeError crashes on null/undefined values.
+- The module exposes a single consumer-facing entry point via `export * from "./formatters"` inside `utils.ts`, so callers import formatters through `lib/utils` rather than directly.

@@ -1,0 +1,6 @@
+- Every script reads/writes `manifest.json` as the single source of truth for created IDs, enabling idempotent seeding and deterministic cleanup scoped to the `AI-TEST-` namespace.
+- HTTP calls go exclusively through the shared `api/get/post/put/del/upload` helpers in `lib.mjs`, which attach a Bearer token resolved from `ANANYA_TOKEN` or `/tmp/ai-test-token.env`.
+- Seed steps check for existing records before creating them (by code/id lookup) and mark adopted vs newly created entries with an `adopted` flag in the manifest.
+- Cleanup scripts default to dry-run mode and only perform mutations when `--execute` is passed, printing a plan of deletions first.
+- Test fixtures use explicit keys (e.g. `A1`, `B9`, `D18`) and group labels (Group A–H) in both `dataset.mjs` and `manifest.json` to make each scenario traceable in reports.
+- Deliberate edge cases (missing MPN, conflicting manufacturer/category, duplicate pairs, suspicious binding) are encoded as structured specs rather than ad-hoc API calls, keeping the seed deterministic and reproducible.

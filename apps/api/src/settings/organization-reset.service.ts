@@ -1,11 +1,12 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { db, pool } from '@ananya/database';
-import { users } from '@ananya/database/schema';
+import { users, roles } from '@ananya/database/schema';
 import { eq } from '@ananya/database/query';
 import { ActivityService } from '../activity/activity.service';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
@@ -36,12 +37,30 @@ export class OrganizationResetService {
         userId,
       );
 
-    const [user] = isUuid
-      ? await db.select().from(users).where(eq(users.id, userId)).limit(1)
-      : await db.select().from(users).limit(1);
+    if (!isUuid) {
+      throw new UnauthorizedException('Invalid user identity.');
+    }
+
+    const [user] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        passwordHash: users.passwordHash,
+        roleName: roles.name,
+      })
+      .from(users)
+      .leftJoin(roles, eq(users.roleId, roles.id))
+      .where(eq(users.id, userId))
+      .limit(1);
 
     if (!user) {
       throw new UnauthorizedException('User not found.');
+    }
+
+    if (user.roleName !== 'Administrator') {
+      throw new ForbiddenException(
+        'Only Administrators can reset organization data.',
+      );
     }
 
     const inputHash = hashPassword(dto.passwordConfirm);

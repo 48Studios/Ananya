@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: ml_service/fastapi_app
+title: Ananya ML Service FastAPI Surface
+scope:
+    - apps/ml/app/
+source_files: []
+depends_on: []
+related_to:
+    - path: ml_service/benchmarks
+    - path: ml_service/model_registry
+    - path: ml_service/tests

@@ -1,0 +1,1 @@
+No build or runtime scripts specific to this module; pages are served automatically by Next.js routing based on the `apps/web/app/<route>/page.tsx` layout.

@@ -1,0 +1,20 @@
+schema_version: 1
+module_path: api/projects_services
+title: Project & Service Domain REST APIs
+scope:
+    - apps/api/src/projects/
+    - apps/api/src/tasks/
+    - apps/api/src/time-entries/
+    - apps/api/src/service-requests/
+    - apps/api/src/work-orders/
+    - apps/api/src/warranty-claims/
+    - apps/api/src/rma-requests/
+    - apps/api/src/maintenance-schedules/
+    - apps/api/src/service-notes/
+    - apps/api/src/notes/
+source_files: []
+depends_on: []
+related_to:
+    - path: web_app/maintenance_routes
+    - path: web_app/projects_and_tasks
+    - path: web_app/service_routes

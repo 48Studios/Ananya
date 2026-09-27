@@ -1,0 +1,1 @@
+Next.js App Router client components, TanStack Table (`@tanstack/react-table`) via the custom `EntityDataTable`, Lucide icons, and Tailwind CSS styling; data access through typed REST API clients under `@/lib/api`.

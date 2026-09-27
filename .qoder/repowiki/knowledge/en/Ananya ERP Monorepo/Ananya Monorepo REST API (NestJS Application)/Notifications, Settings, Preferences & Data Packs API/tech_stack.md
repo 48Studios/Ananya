@@ -1,0 +1,1 @@
+NestJS feature modules over Drizzle ORM (`@ananya/database`); DTOs are plain TypeScript classes used by Nest controllers; data-pack payloads are embedded JSON arrays serialized to CSV via the shared `ImportExportService`.

@@ -1,0 +1,1 @@
+Next.js App Router client components, React state + Suspense wrappers, lucide-react icons, and a custom `@/components/ui` primitive set (Button, Input, Field, Select, Checkbox). Authentication context comes from `@/lib/auth/auth-context`; HTTP mutations go through `@/lib/api/auth-api`.

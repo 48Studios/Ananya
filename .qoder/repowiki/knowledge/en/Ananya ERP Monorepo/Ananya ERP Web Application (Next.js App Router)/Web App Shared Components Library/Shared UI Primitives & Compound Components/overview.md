@@ -1,0 +1,1 @@
+Reusable React component primitives and compound components built on Base UI, Radix, and cmdk that provide the visual foundation for the web application's pages and features.

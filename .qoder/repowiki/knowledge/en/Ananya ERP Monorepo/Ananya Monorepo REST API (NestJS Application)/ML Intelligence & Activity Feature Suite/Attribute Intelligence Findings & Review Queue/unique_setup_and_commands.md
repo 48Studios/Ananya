@@ -1,0 +1,1 @@
+Audit runs are intentionally whole-library and parameterless: the queue service rejects any request body fields on `POST /ml/attributes/review-queue/audit` to prevent callers from mistakenly scoping the run. A per-process `auditInFlight` flag serializes concurrent audits within a single node.

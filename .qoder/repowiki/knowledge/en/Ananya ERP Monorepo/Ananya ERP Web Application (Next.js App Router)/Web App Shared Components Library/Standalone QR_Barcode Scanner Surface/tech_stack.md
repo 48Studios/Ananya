@@ -1,0 +1,1 @@
+React client components with Next.js `useSearchParams`; barcode decoding uses the native `BarcodeDetector` API when available (Android Chrome) and falls back to `jsqr` (QR + inversion attempts) otherwise; camera access via `navigator.mediaDevices.getUserMedia`; icons from `lucide-react`; UI primitives from the project's shadcn-style `@/components/ui/button`.

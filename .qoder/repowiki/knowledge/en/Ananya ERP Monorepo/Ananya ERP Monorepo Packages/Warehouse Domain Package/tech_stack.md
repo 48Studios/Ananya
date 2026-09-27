@@ -1,0 +1,1 @@
+TypeScript package built with `tsc -p tsconfig.build.json`, tested with Vitest (`vitest run --passWithNoTests`), published as `@ananya/warehouse` with dual `types`/`default` exports pointing at source TS for IDE support.

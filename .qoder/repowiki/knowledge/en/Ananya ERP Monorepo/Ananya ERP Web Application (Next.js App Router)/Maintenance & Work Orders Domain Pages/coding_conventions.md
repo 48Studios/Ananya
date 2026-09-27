@@ -1,0 +1,6 @@
+- Each route segment is a `"use client"` React function component that declares local state for loading/error/toast and triggers data fetching via `React.useEffect` calling a `fetchData` wrapped in `React.useCallback`.
+- Error handling follows an `err instanceof Error ? err.message : "fallback string"` pattern before setting a user-facing error state, with a Retry button wired back to the fetch function.
+- List pages render data through the shared `EntityDataTable` component, passing a `ColumnDef[]` array, a `FilterConfig[]` array, and an `entityType` or `searchKey` prop rather than building tables inline.
+- Create/Edit flows are opened inside a `DialogShell` wrapping a domain-specific form component (`MaintenanceForm`, `WorkOrderForm`) that receives `onSuccess` / `onCancel` callbacks to close the dialog and refresh the list.
+- Destructive or state-transition actions (delete, release, start, complete, cancel) are gated behind a `ConfirmDialog` with a dedicated `isXxx` boolean flag per action.
+- Status and priority values are rendered via local switch-based badge helpers (`getStatusBadge`, `getPriorityBadge`) that map enum strings to colored pill elements.

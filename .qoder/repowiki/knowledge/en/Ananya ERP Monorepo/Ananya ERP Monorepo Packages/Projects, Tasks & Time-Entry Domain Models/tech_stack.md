@@ -1,0 +1,1 @@
+TypeScript domain library built with `tsc` (via `tsconfig.build.json`), tested with Vitest (`vitest.config.ts`), and published as a private workspace package depending on `@ananya/core` for `ObjectId` generation.

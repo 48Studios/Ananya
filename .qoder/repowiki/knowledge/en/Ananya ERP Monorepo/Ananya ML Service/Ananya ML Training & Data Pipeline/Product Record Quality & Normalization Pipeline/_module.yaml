@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: ml_service/training_pipeline/processors
+title: Product Record Quality & Normalization Pipeline
+scope:
+    - apps/ml/training/processors/
+source_files: []
+depends_on: []
+related_to: []

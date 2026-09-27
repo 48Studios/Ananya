@@ -1,0 +1,1 @@
+Local production-equivalent stack is built via `docker compose -f compose.yml -f compose.local.yml up -d db && docker compose -f compose.yml -f compose.local.yml run --build --rm migrate && docker compose -f compose.yml -f compose.local.yml --profile all up --build -d`. Production deploys use `compose.prod.yml` with `ANANYA_VERSION` pinned and `COMPOSE_PROFILES=all`.

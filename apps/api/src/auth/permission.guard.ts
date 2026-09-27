@@ -78,6 +78,18 @@ export function createPermissionGuard(
     async canActivate(context: ExecutionContext): Promise<boolean> {
       const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
+      // If request.user was already verified and populated by global AuthGuard,
+      // evaluate permissions directly without a duplicate session query.
+      if (request.user) {
+        const permissions = request.user.permissions ?? [];
+        if (!this.permissionsService.hasPermission(permissions, permission)) {
+          throw new ForbiddenException(
+            `You do not have permission to ${subject} (requires ${permission}).`,
+          );
+        }
+        return true;
+      }
+
       const token = extractBearerToken(request);
       if (!token) {
         throw new UnauthorizedException(

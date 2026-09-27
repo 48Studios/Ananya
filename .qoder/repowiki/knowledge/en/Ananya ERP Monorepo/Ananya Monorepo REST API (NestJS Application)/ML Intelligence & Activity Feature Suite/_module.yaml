@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: api/ml_attributes
+title: ML Intelligence & Activity Feature Suite
+scope:
+    - apps/api/src/ml/
+    - apps/api/src/activity/
+source_files: []
+depends_on: []
+related_to: []

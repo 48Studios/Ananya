@@ -1,0 +1,1 @@
+Next.js App Router client pages for field service tickets, return merchandise authorizations (RMA), and warranty claims, each exposing a list view with an inline create dialog.

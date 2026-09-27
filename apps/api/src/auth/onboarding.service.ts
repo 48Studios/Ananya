@@ -63,12 +63,18 @@ export class OnboardingService {
     const passwordHash = hashPassword(dto.adminPassword);
 
     try {
-      // Fetch system Admin Role
+      // Fetch system Administrator Role
       const [adminRole] = await db
         .select()
         .from(roles)
-        .where(eq(roles.name, 'Admin'))
+        .where(eq(roles.name, 'Administrator'))
         .limit(1);
+
+      if (!adminRole) {
+        throw new BadRequestException(
+          'System Administrator role not found. Ensure system roles are initialized.',
+        );
+      }
 
       // Create Root Admin User
       const [adminUser] = await db
@@ -78,7 +84,7 @@ export class OnboardingService {
           passwordHash,
           firstName: dto.adminFirstName,
           lastName: dto.adminLastName,
-          roleId: adminRole ? adminRole.id : null,
+          roleId: adminRole.id,
           status: 'ACTIVE',
         })
         .returning();

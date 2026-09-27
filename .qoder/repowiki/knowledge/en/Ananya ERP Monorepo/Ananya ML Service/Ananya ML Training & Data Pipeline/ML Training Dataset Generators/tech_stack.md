@@ -1,0 +1,1 @@
+Pure Python with Pydantic-style typed example models (`ClassificationExample`, `AttributeExtractionExample`, `DuplicatePairExample`, etc.) defined in `..schemas.tasks`; domain constants (`CANONICAL_CATEGORIES`, `EXCLUDED_CATEGORIES`, `MANUFACTURER_ALIASES`) consumed from `..processors.normalization`.

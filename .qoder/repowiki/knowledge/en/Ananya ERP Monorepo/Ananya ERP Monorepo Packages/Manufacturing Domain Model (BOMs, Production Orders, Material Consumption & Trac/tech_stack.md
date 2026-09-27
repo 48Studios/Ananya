@@ -1,0 +1,1 @@
+TypeScript domain model built on `@ananya/core` for shared primitives (`ObjectId`, `DomainError`); tests run via Vitest (`vitest.config.ts`); build via `tsc -p tsconfig.build.json`.

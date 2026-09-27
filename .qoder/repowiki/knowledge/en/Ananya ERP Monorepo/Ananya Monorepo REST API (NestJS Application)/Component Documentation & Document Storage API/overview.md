@@ -1,0 +1,1 @@
+NestJS module exposing authenticated CRUD, versioning, and download/preview endpoints for component documentation files and external URL references backed by a pluggable local filesystem storage provider.

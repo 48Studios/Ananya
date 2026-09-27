@@ -1,0 +1,1 @@
+Client-side React forms for creating and operating on work orders, BOMs, maintenance schedules, material consumption, and finished goods within the manufacturing workflow.

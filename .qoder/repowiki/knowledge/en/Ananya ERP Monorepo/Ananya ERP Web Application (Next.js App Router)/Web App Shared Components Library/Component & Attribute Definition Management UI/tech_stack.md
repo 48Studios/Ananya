@@ -1,0 +1,1 @@
+Next.js client components (`"use client"`) built on react-hook-form + @hookform/resolvers/zod for validation, lucide-react icons, and shadcn/ui primitives (`DialogShell`, `Button`, `Select`, `Field`, `Switch`). AI features call the ML API (`mlApi.suggest`, `recordFeedback`) and the backend's attribute suggestion endpoints.

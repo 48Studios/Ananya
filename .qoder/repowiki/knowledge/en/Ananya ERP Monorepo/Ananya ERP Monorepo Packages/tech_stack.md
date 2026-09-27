@@ -1,0 +1,1 @@
+TypeScript 5.9 with strict configs from `@ananya/typescript-config`; Drizzle ORM + PostgreSQL driver (`pg`) in `@ananya/database`; Vitest for testing; ESLint flat config presets from `@ananya/eslint-config`; all packages published as private npm packages under the `@ananya/` scope resolved via pnpm workspaces.

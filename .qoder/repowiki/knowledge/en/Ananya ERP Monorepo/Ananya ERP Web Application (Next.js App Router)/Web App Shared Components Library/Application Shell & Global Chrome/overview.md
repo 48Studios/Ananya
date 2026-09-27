@@ -1,0 +1,1 @@
+Top-level Next.js client components that wrap every page with the authenticated ERP shell, theme provider, PWA service worker registration, command palette, and app footer.

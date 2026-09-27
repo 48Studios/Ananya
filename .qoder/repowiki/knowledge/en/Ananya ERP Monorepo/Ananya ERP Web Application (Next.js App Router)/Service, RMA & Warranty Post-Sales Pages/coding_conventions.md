@@ -1,0 +1,5 @@
+- Each page is a `"use client"` default-exported function component that loads its entity list via `getAll()` from a domain-scoped API client and stores results in a `React.useState` array plus a `loading` boolean.
+- List rendering goes through the shared `EntityDataTable` component with a typed `columns: ColumnDef<EntityDto>[]` definition, using `accessorKey` for simple fields and custom `cell` renderers for formatted values.
+- Status values are displayed through the shared `StatusBadge` component rather than ad-hoc styling, with a fallback enum value passed when the entity field is missing.
+- Create flows open a `DialogShell` wrapping a domain-specific form component (`*RequestForm` / `*ClaimForm`) and refresh the list by calling the same `fetchXxx` callback used on mount after `onSuccess` fires.
+- Dates are formatted via the shared `formatDate` utility from `@/lib/utils` instead of inline date logic.

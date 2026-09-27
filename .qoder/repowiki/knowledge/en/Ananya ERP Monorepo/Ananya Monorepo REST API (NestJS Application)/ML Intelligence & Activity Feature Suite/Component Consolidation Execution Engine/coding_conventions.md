@@ -1,0 +1,5 @@
+- Each domain migration is implemented as a class implementing `ConsolidationAdapter` with static `id`, `label`, and numeric `order`, then registered in the orchestrator's sorted adapter list rather than via DI containers.
+- All database mutations inside the consolidation path go through the `executor: DbExecutor` supplied in `ConsolidationContext`; no direct `db` client calls are made from adapters or repositories inside the transaction body.
+- Blocking conditions are surfaced by throwing typed error classes (`ConsolidationConflictError`, `ConsolidationAdapterBlockedError`, `ConsolidationPlanError`) carrying machine-readable codes, so the caller can distinguish refusals from adapter warnings without parsing prose.
+- Deterministic ordering is enforced both at the application level (sorting adapters by `order` then `id`) and at the database level (every lock query uses `ORDER BY id`) to prevent deadlocks between concurrent consolidations.
+- Pre/post snapshots of source components are captured before any adapter runs and stored on the consolidation record, providing auditability while explicitly not serving as an undo mechanism.

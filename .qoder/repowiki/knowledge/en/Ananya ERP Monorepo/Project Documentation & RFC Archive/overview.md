@@ -1,0 +1,1 @@
+Central documentation repository for the Ananya system covering architecture, operations, development guides, engineering standards, and a numbered RFC archive of architectural decisions.

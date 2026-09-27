@@ -1,17 +1,19 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
   Inject,
   forwardRef,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { db } from '@ananya/database';
-import { userInvitations, users } from '@ananya/database/schema';
+import { userInvitations, users, roles } from '@ananya/database/schema';
 import { eq, and } from '@ananya/database/query';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { ActivityService } from '../activity/activity.service';
 import { AuthService } from './auth.service';
 import { CreateInvitationDto, AcceptInvitationDto } from './dtos';
+import type { AuthenticatedRequestUser } from './permission.guard';
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -26,12 +28,15 @@ export class InvitationsService {
     private readonly authService: AuthService,
   ) {}
 
-  async createInvitation(dto: CreateInvitationDto, invitedById?: string) {
+  async createInvitation(
+    dto: CreateInvitationDto,
+    invitedBy: AuthenticatedRequestUser,
+  ) {
     // Check if user exists
     const [existingUser] = await db
       .select()
       .from(users)
-      .where(eq(users.email, dto.email));
+      .where(eq(users.email, dto.email.toLowerCase()));
 
     if (existingUser) {
       throw new BadRequestException(
@@ -39,27 +44,55 @@ export class InvitationsService {
       );
     }
 
-    const token =
-      Math.random().toString(36).substring(2) + Date.now().toString(36);
+    // Role privilege check: non-administrators cannot invite users to Administrator role
+    if (dto.roleId) {
+      const [targetRole] = await db
+        .select()
+        .from(roles)
+        .where(eq(roles.id, dto.roleId))
+        .limit(1);
+
+      if (!targetRole) {
+        throw new BadRequestException(`Role with ID "${dto.roleId}" not found.`);
+      }
+
+      const isTargetAdmin =
+        targetRole.name === 'Administrator' ||
+        targetRole.name === 'Admin' ||
+        (Array.isArray(targetRole.permissions) &&
+          targetRole.permissions.includes('*'));
+
+      const isCallerAdmin =
+        invitedBy.roleName === 'Administrator' ||
+        (invitedBy.permissions && invitedBy.permissions.includes('*'));
+
+      if (isTargetAdmin && !isCallerAdmin) {
+        throw new ForbiddenException(
+          'Only Administrators can invite users with the Administrator role or wildcard permissions.',
+        );
+      }
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     const [invitation] = await db
       .insert(userInvitations)
       .values({
-        email: dto.email,
+        email: dto.email.toLowerCase(),
         roleId: dto.roleId || null,
         department: dto.department || null,
         token,
         expiresAt,
         status: 'PENDING',
-        invitedById: invitedById || null,
+        invitedById: invitedBy.id,
       })
       .returning();
 
     await this.auditService.record({
       action: 'USER_INVITATION_CREATED',
       category: 'Security',
-      userId: invitedById,
+      userId: invitedBy.id,
       userEmail: dto.email,
       details: { invitationId: invitation!.id, email: dto.email },
     });

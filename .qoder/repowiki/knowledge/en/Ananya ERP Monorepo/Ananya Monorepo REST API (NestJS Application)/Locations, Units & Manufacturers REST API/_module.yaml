@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: api/location_unit_manufacturer
+title: Locations, Units & Manufacturers REST API
+scope:
+    - apps/api/src/locations/
+    - apps/api/src/units/
+    - apps/api/src/manufacturers/
+source_files: []
+depends_on: []
+related_to:
+    - path: web_app/shared_components/inventory_forms

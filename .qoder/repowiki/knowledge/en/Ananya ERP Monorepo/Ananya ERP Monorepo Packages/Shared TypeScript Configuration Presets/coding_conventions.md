@@ -1,0 +1,3 @@
+- Every preset file declares both `$schema` and an `extends` pointing to `./base.json`, never duplicating base compiler options.
+- Domain-specific presets override only the minimal subset of compilerOptions needed for their target while inheriting strictness from base.
+- Each JSON file is self-contained and valid against the tsconfig schema, enabling IDE validation without requiring a consuming project.

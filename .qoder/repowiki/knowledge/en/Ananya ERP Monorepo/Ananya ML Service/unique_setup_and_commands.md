@@ -1,0 +1,1 @@
+Run the HTTP server via the FastAPI app entry point under `apps/ml/`; drive the full lifecycle (collect → build dataset → train → evaluate → deploy) through the `pipeline/*.py` scripts which delegate to `training/` modules; run the interactive TUI via `training/cli.py`.

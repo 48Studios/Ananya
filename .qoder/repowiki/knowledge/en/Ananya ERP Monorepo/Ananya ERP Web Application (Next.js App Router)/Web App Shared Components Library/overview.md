@@ -1,0 +1,1 @@
+Aggregates all reusable React client components for the Next.js ERP web app, from UI primitives and forms to domain-specific dashboards, scanners, and label printing.

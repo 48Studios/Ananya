@@ -1,0 +1,1 @@
+NestJS feature modules exposing REST endpoints for the procurement domain — suppliers, purchase orders, goods receipts, supplier returns, purchase invoices, procurement policies, and reporting metrics.

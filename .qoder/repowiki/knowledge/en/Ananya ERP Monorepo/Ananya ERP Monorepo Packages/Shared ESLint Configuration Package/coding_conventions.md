@@ -1,0 +1,6 @@
+- Each preset file exports a single `config` (or `nextJsConfig`) constant typed as `import("eslint").Linter.Config[]` containing a flat-config array.
+- Presets compose shared rules by spreading `tseslint.configs.recommended`, `js.configs.recommended`, and `eslint-config-prettier` at the top of each array.
+- Plugin registration uses the flat-config `{ plugins: { name: plugin } }` shape rather than the legacy `plugins` string array.
+- React presets disable `react/react-in-jsx-scope` because the new JSX transform makes manual imports unnecessary.
+- Global environment globals are merged into `languageOptions.globals` using the `globals` package (e.g. `globals.browser`, `globals.serviceworker`).
+- Base configuration is reused by extending it via `...baseConfig` instead of duplicating common rule blocks.

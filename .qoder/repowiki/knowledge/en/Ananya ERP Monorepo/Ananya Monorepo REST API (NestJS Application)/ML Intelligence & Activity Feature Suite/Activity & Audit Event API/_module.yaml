@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: api/ml_attributes/activity
+title: Activity & Audit Event API
+scope:
+    - apps/api/src/activity/
+source_files: []
+depends_on: []
+related_to:
+    - path: web_app/settings_security

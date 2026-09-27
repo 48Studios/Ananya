@@ -1,0 +1,1 @@
+NestJS controllers/services with Drizzle ORM (`@ananya/database`) for typed SQL queries against PostgreSQL-backed `activityEvents` and `securityAuditLogs` tables; request validation via `class-validator` decorators.

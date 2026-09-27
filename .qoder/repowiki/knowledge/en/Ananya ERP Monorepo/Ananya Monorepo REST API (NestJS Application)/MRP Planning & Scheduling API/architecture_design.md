@@ -1,0 +1,8 @@
+Six sibling NestJS feature modules (planning-runs, material-requirements, purchase-recommendations, production-recommendations, capacity-plans, planning-messages) each follow a uniform three-file layout: `*.controller.ts` for HTTP routing, `*.service.ts` for domain logic + repository injection, `dtos.ts` for class-validator input schemas, and `*.module.ts` wiring providers.
+
+Dependency direction is one-way outward:
+- Controllers depend only on their local service and shared DTOs.
+- Services depend on repositories via string-typed `@Inject(...)` tokens exported from the same file (e.g. `PLANNING_RUN_REPOSITORY`, `CAPACITY_PLAN_REPOSITORY`) and are bound in the module's `providers` array to concrete `Drizzle*Repository` implementations under `../infrastructure/repositories/`.
+- The `planning-runs` module additionally imports `ComponentsModule`, `BomsModule`, and `SalesOrdersModule` to read demand/BOM data, and uses raw Drizzle queries (`db.select`, `sql`, `and`, `inArray`) against `inventoryProjections` / `inventoryReservationLines` / `inventoryReservations` tables to compute net demand before persisting outputs through the injected repositories.
+- Domain entities (`PlanningRun`, `MaterialRequirement`, `PurchaseRecommendation`, `ProductionRecommendation`, `CapacityPlan`, `PlanningMessage`) and their repository interfaces come from the external `@ananya/mrp` package; this module owns only the HTTP surface and orchestration.
+- `planning-runs` is the entry point that drives the MRP engine synchronously inside `createAndExecute`, recording lifecycle events as `PlanningMessage` rows with severity levels (INFO/WARNING/ERROR).

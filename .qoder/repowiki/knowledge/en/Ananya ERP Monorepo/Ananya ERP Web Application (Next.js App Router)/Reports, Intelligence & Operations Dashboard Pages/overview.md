@@ -1,0 +1,1 @@
+Next.js client pages that expose the reporting hub, ML/Intelligence operator console, and the real-time operations dashboard, each aggregating domain APIs into KPI cards, charts, and tables.

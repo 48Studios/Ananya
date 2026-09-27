@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: web_app/data_operations
+title: Data Operations & Data Packs Management
+scope:
+    - apps/web/app/data-operations/
+    - apps/web/app/import-history/
+    - apps/web/app/data-packs/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/search_import_export

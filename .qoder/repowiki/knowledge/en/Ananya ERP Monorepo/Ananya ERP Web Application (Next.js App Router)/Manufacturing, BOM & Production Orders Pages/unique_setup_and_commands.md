@@ -1,0 +1,1 @@
+No build or setup scripts are specific to this module; pages are served automatically by Next.js routing at `/manufacturing`, `/boms`, `/boms/:id`, and `/production-orders`.

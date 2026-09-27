@@ -1,0 +1,6 @@
+Three sibling form components (`WarehouseTransferForm`, `ReservationForm`, `StockAdjustmentForm`) each live in their own directory under `apps/web/components/` and are consumed as dialog shells by parent pages. Each form is a self-contained client component that:
+- Loads reference catalogs (components + locations) via `@/lib/api/*` on mount using `Promise.all`.
+- Declares Zod schemas per form plus per-line-item schema, resolved through `@hookform/resolvers/zod`.
+- Uses `react-hook-form` (`useForm`, `useFieldArray`, `Controller`) for state and validation, with `SearchableSelect` / `Select` / `Input` from `@/components/ui` for fields.
+- Submits to domain-specific APIs (`warehouseTransfersApi`, `reservationsApi`, `stockAdjustmentsApi`) and surfaces errors via a shared `DialogShellBody` / `DialogShellFooter` layout.
+The transfer form additionally depends on `inventoryProjectionsApi` to filter available components by source location and enforce quantity limits against real-time stock projections — the only form with cross-domain data coupling beyond the base catalogs.

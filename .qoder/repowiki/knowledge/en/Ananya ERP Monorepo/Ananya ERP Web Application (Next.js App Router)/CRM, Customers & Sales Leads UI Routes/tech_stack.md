@@ -1,0 +1,1 @@
+Next.js App Router client components, `@tanstack/react-table` for column definitions, `lucide-react` icons, Tailwind CSS utility classes, and shared primitives from `@/components/ui` (`Button`, `PageHeader`, `StatCard`, `EntityDataTable`, `StatusBadge`, `Tooltip`).

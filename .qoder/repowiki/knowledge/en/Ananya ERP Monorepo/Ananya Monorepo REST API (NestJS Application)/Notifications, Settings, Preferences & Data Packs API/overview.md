@@ -1,0 +1,1 @@
+NestJS feature modules exposing REST endpoints for user notifications, organization/system settings, per-user preferences, and installable data packs that seed lookup tables.

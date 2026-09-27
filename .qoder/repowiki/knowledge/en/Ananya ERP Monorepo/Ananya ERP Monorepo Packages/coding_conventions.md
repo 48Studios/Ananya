@@ -1,0 +1,5 @@
+- Every bounded-context package declares `@ananya/core` as a dependency to reuse value objects and domain error types.
+- Domain packages expose repository interfaces (not implementations) so persistence can be swapped or mocked at the application layer.
+- All packages use the shared `@ananya/typescript-config` preset and the `@ananya/eslint-config` presets rather than local TS/ESLint settings.
+- Package manifests follow a uniform shape: private `@ananya/*` name, `main` pointing to `dist/index.js`, `types` pointing to `src/index.ts`, and `exports` mapping the default entry plus any subpath exports.
+- Cross-package dependencies are pinned via pnpm workspace protocol (`workspace:*` / `workspace:^`) instead of version ranges.

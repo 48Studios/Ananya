@@ -1,0 +1,4 @@
+- Model artifacts are versioned by directory name under `models/registry/<version>/` and include a `metadata.json` alongside the serialized classifier.
+- Each ML task (attribute intelligence, category classification, duplicate detection, manufacturer resolution, datasheet extraction) is implemented as a separate service class under `app/services/` and exposed as a FastAPI endpoint.
+- Training pipeline stages follow a base-class pattern in `training/trainers/base.py` and `training/processors/base.py` so collectors, processors, and trainers are interchangeable.
+- Datasets are organized as timestamped directories under `training/datasets/training/` and `data/datasets/` containing paired `train.json`/`val.json` splits plus `duplicate_pairs.json`.

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { MlService } from './ml.service';
 import { MlClientService } from './ml-client.service';
+import { Public } from '../auth/public.decorator';
 import { AttributeWriteGuard } from '../auth/attribute-permissions';
 import {
   MlAdminGuard,
@@ -99,6 +100,7 @@ export class MlController {
    *
    * Public by design: no ERP data, no write, no inference. See the class audit.
    */
+  @Public()
   @Get('health')
   async health() {
     const isServiceHealthy = await this.mlClient.health();

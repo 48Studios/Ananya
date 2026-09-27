@@ -1,0 +1,6 @@
+- Each page wraps its root export with `"use client"` and manages loading/error/success state using local `useState` plus a `loadData` callback invoked from `useEffect`.
+- Sensitive UI sections and action buttons are wrapped in `<PermissionGuard permission="...">` using dot-notation permission strings (e.g. `Administration.Users`, `Administration.Roles`) rather than ad-hoc checks.
+- Data fetching is performed with `Promise.all` to load related entities in parallel (e.g. users + roles, user + audit logs, role + assigned users) inside a single `loadData` function.
+- Error handling follows a uniform try/catch that sets an error message string and falls back to a generic message when the caught value is not an `instanceof Error`.
+- List/detail pages render KPI metrics via `StatCard` cards before presenting an `EntityDataTable` or `DetailTable` for the primary entity.
+- CRUD operations open a `DialogShell` form that reuses `DialogShellBody`/`DialogShellFooter` with a submit button that shows a spinning `Loader2` icon while `formSubmitting` is true.

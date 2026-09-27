@@ -1,0 +1,5 @@
+- Metric functions return flat dictionaries with rounded numeric fields (typically `round(..., 4)`) rather than namedtuples or dataclasses, keeping reports JSON-serializable.
+- Optional or missing metric values are rendered as the em-dash string "—" instead of null or NaN in both the Markdown renderer and helper formatters.
+- Quality gates are expressed as a dictionary of boolean predicates whose `.values()` are aggregated with `all()` to derive a single `promotion_eligible` flag.
+- Evaluation outputs are always emitted as a paired JSON + Markdown file set (`evaluation_report.json`, `evaluation_summary.md`) written into a caller-provided `output_dir`.
+- Soft dependencies (TUI event emission, progress callbacks, sklearn imports) are imported lazily inside functions and wrapped in try/except blocks so the core evaluation path remains resilient to optional layer failures.

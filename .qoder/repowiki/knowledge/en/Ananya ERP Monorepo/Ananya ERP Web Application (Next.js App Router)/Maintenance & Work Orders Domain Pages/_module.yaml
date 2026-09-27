@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: web_app/maintenance_routes
+title: Maintenance & Work Orders Domain Pages
+scope:
+    - apps/web/app/maintenance/
+    - apps/web/app/equipment/
+    - apps/web/app/work-orders/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/projects_services

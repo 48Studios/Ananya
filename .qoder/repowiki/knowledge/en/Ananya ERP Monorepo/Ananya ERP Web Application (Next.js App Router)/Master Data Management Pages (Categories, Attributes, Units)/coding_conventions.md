@@ -1,0 +1,6 @@
+- Each page declares `'use client'` at the top and owns its data lifecycle via `React.useState` + `React.useCallback` fetch function invoked from a `useEffect` on mount.
+- List pages render their table through the shared `EntityDataTable` component, passing `columns` built with `React.useMemo<ColumnDef<T>[]>`, `filterConfigs` arrays, and `searchKey`.
+- Create/Edit operations are performed inside a `DialogShell` wrapping a domain-specific form component (`CategoryForm`, `UnitForm`, `AttributeFormDialog`) whose `onSuccess` callback updates local state and shows a toast.
+- Delete operations go through a `ConfirmDialog` with `variant="destructive"`, setting a `deleteLoading` flag and clearing the selected entity in `finally`.
+- API errors are caught as `unknown`, narrowed via `err instanceof Error`, and surfaced either as a full-page `ErrorState` (detail pages) or inline alert blocks inside `EntityDataTable.notice` (list pages).
+- Toast / success messages are rendered as temporary state cleared after a fixed `setTimeout(..., 4000)` delay rather than via a global notification system.

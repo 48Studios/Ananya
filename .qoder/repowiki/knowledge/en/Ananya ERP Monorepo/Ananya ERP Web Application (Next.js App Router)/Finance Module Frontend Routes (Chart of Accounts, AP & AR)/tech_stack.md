@@ -1,0 +1,1 @@
+Next.js App Router client components, TanStack Table (`@tanstack/react-table`) ColumnDef schema, Lucide icons, Tailwind CSS styling via shadcn-style `@/components/ui/*` primitives.

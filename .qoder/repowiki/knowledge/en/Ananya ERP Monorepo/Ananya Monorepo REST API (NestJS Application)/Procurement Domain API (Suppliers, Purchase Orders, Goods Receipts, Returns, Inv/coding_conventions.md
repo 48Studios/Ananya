@@ -1,0 +1,6 @@
+- Each feature module declares a string token constant (e.g. `PURCHASE_ORDER_REPOSITORY`) exported from its service file and binds it to a `Drizzle*Repository` implementation in the module's `providers` array.
+- Services import business use-case constructors (`CreatePurchaseOrder`, `CreateGoodsReceipt`, etc.) from `@ananya/procurement` and instantiate them in the constructor, delegating execution to those use cases rather than embedding domain rules inline.
+- Controllers are thin route handlers that accept DTOs from a local `dtos.ts` and forward calls to the injected service without additional validation or transformation.
+- Domain-specific error mapping is centralized in per-module `@Catch` exception filters that translate `@ananya/procurement` domain errors into structured HTTP JSON responses with appropriate status codes.
+- Cross-entity side effects (inventory transactions, projections, PO line updates) are performed by calling sibling services/modules (e.g. `InventoryTransactionsService`, `InventoryProjectionsService`, `PurchaseOrdersService`) rather than reaching into repositories directly.
+- Read-only reporting endpoints bypass the repository layer entirely and query tables directly via `db.select(...)` from `@ananya/database`.

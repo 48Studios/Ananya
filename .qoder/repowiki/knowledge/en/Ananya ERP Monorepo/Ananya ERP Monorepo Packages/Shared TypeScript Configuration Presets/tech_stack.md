@@ -1,0 +1,1 @@
+TypeScript tsconfig JSON presets targeting ES2022 with strict checks; uses modern `moduleDetection: "force"`, `moduleResolution: "Bundler"`, and `verbatimModuleSyntax`; Nest preset falls back to CommonJS/Node resolution with decorator emit.

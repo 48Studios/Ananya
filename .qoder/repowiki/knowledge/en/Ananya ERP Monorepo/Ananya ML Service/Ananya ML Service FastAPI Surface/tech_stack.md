@@ -1,0 +1,1 @@
+FastAPI with Pydantic v2 models for request/response validation; pickled scikit-learn pipelines for the category classifier; optional ONNX embeddings via `ENABLE_ONNX_EMBEDDINGS`; background training jobs run on Python threads against the existing `apps/ml/pipeline` codebase rather than a separate worker process.

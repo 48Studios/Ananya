@@ -1,0 +1,1 @@
+Standalone benchmark scripts that measure the end-to-end document acquisition pipeline and the RFC-0057 domain-aware duplicate detector against deterministic local test fixtures.

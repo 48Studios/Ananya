@@ -1,0 +1,1 @@
+React client components with `react-hook-form` + `zod` validation; UI built on Tailwind classes and shadcn-style primitives (`Button`, `Input`, `SearchableSelect`, `DialogShell*`, `Field*`); icons from `lucide-react`; API clients imported from `@/lib/api/*`.

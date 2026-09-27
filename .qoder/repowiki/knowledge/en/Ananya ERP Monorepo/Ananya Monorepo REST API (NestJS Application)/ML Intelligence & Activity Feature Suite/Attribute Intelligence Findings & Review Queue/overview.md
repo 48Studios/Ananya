@@ -1,0 +1,1 @@
+Persists, queues, reviews and applies attribute-library intelligence findings, providing the HTTP review queue surface and the audit orchestration that turns producer issues into reviewable rows.

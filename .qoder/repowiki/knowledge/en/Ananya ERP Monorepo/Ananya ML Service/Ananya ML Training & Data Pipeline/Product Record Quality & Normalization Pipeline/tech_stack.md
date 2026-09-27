@@ -1,0 +1,1 @@
+Pure Python with Pydantic `BaseModel` for `ProcessingAudit`; no external ML or data-processing libraries beyond `re`, `unicodedata`, and `collections.defaultdict`.

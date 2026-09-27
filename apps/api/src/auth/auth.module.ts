@@ -9,6 +9,9 @@ import { SecurityAuditModule } from '../security-audit/security-audit.module';
 import { ActivityModule } from '../activity/activity.module';
 import { ComponentWriteGuard } from './component-write.guard';
 
+import { APP_GUARD } from '@nestjs/core';
+import { AuthGuard } from './auth.guard';
+
 @Module({
   imports: [
     UsersModule,
@@ -22,12 +25,18 @@ import { ComponentWriteGuard } from './component-write.guard';
     InvitationsService,
     OnboardingService,
     ComponentWriteGuard,
+    AuthGuard,
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard,
+    },
   ],
   exports: [
     AuthService,
     InvitationsService,
     OnboardingService,
     ComponentWriteGuard,
+    AuthGuard,
   ],
 })
 export class AuthModule {}

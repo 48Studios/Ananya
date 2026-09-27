@@ -1,0 +1,13 @@
+schema_version: 1
+module_path: web_app/shared_components/manufacturing_forms
+title: Manufacturing Operations Forms
+scope:
+    - apps/web/components/work-orders/
+    - apps/web/components/maintenance/
+    - apps/web/components/material-consumption/
+    - apps/web/components/boms/
+    - apps/web/components/finished-goods/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/manufacturing

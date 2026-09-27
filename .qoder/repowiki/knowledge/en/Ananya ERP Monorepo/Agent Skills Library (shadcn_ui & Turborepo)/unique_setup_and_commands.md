@@ -1,0 +1,1 @@
+No build step — skills are loaded directly from Markdown. The shadcn skill requires the `shadcn` CLI to be available on PATH (via npx/pnpm/bunx) because it instructs the agent to run commands like `npx shadcn@latest info --json`, `add`, `docs`, `preset resolve`, etc., against the user's project directory.

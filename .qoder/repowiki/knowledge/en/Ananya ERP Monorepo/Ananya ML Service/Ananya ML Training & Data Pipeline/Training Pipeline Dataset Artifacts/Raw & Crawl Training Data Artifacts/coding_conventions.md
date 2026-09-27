@@ -1,0 +1,4 @@
+- Each crawl output directory is named `dataset-crawl-<unix_timestamp>` and contains the fixed set of files `manifest.json`, `train.json`, `val.json`, `test.json`.
+- `manifest.json` records dataset identity, processing version, SHA-256 checksum, split/domain/category counts, `group_key: base_family`, `zero_leakage_verified`, and seed/ratio metadata.
+- Raw document filenames follow `<vendor_slug>_<sha256>.pdf|html`, grouping sources by vendor prefix (e.g. `espressif-systems_`, `mg-chemicals-consumables_`).
+- Product records use the schema defined in `raw/fixtures.json`: top-level fields `sku`, `mpn`, `base_mpn`, `name`, `description`, `manufacturer`, `series_family`, `category`, `domain`, `unit`, plus an `attributes` map keyed by attribute code and a `provenance` block with `source`, `source_type`, `collected_at`, `verification_status`, and `verification_method`.

@@ -1,0 +1,6 @@
+- Each feature module declares a string constant token (e.g. `PROJECT_REPOSITORY`) and binds it to a concrete `Drizzle*Repository` implementation inside the module's `providers` array, so services inject the repository via `@Inject(TOKEN)`.
+- Controllers are thin pass-throughs that delegate all logic to the corresponding service, using `@Body`, `@Param`, and `@Query` decorators for request binding.
+- Domain entities are created through static factory methods (e.g. `Project.create(...)`, `TimeEntry.create(...)`) and mutated via instance methods rather than direct property assignment, then persisted by calling `repository.save(entity)`.
+- DTO classes use class-validator decorators (`@IsString`, `@IsNotEmpty`, `@IsOptional`, `@Min`) to declare input validation rules alongside TypeScript types.
+- Cross-entity references are validated eagerly at the service layer by calling `findOne` on the referenced domain service (e.g. customers, sales orders, tasks) before mutating the owning entity.
+- Module dependency declarations in `imports` mirror the runtime service dependencies, ensuring transitive access to other feature modules' exported services.

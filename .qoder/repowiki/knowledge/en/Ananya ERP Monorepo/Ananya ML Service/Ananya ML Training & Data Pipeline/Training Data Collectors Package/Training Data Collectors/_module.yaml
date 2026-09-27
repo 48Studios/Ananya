@@ -1,0 +1,13 @@
+schema_version: 1
+module_path: ml_service/training_pipeline/collectors/core_collectors
+title: Training Data Collectors
+scope:
+    - apps/ml/training/collectors/base.py
+    - apps/ml/training/collectors/ananya_db.py
+    - apps/ml/training/collectors/catalog.py
+    - apps/ml/training/collectors/distributor.py
+    - apps/ml/training/collectors/documents.py
+    - apps/ml/training/collectors/web_collector.py
+source_files: []
+depends_on: []
+related_to: []

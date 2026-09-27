@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: shared_packages/inventory
+title: Inventory Domain Package
+scope:
+    - packages/inventory/
+source_files: []
+depends_on: []
+related_to: []

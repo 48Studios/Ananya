@@ -1,0 +1,6 @@
+- Database access goes through a `DbExecutor` parameter (defaulting to the global `db`) so callers can enrol reads/writes in an outer transaction without changing the repository API.
+- Findings are persisted idempotently by a deterministic fingerprint computed from issue type, subject, current/suggested values and intelligence version, with `ON CONFLICT DO UPDATE` that preserves reviewer decisions and revives STALE→PENDING.
+- HTTP endpoints are thin projections over services; all authorization is enforced via `AttributeReadGuard`/`AttributeWriteGuard` and reviewer identity is always taken from `request.user`, never from the request body.
+- Staleness is validated at decision time by comparing stored `metadata.expectedState` or `currentValue` against live rows via `describeAttributeFindingStaleness`, and stale findings are retired rather than allowed to age out terminal decisions.
+- Producer issues are normalized through pure functions (`attribute-audit-normalizer.ts`) that return findings plus warnings instead of throwing, so one malformed issue does not abort a whole-library audit.
+- Query filters are normalized centrally in `normalizeQuery`, which rejects unknown status/category/applicationResult values as `BadRequestException` to avoid silently returning the entire queue when a filter is misspelled.

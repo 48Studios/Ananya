@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: api/notifications_settings
+title: Notifications, Settings, Preferences & Data Packs API
+scope:
+    - apps/api/src/notifications/
+    - apps/api/src/settings/
+    - apps/api/src/preferences/
+    - apps/api/src/data-packs/
+source_files: []
+depends_on: []
+related_to:
+    - path: web_app/settings_security

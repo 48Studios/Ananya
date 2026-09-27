@@ -1,0 +1,1 @@
+Defines the CRM bounded context with domain aggregates for accounts, leads, opportunities, activities, and notes, each exposing a repository interface for persistence.

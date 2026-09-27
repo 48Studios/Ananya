@@ -1,0 +1,14 @@
+schema_version: 1
+module_path: web_app/settings_security
+title: Administration Settings, Users & Roles Management
+scope:
+    - apps/web/app/settings/
+    - apps/web/app/users/
+    - apps/web/app/roles/
+source_files: []
+depends_on: []
+related_to:
+    - path: api/auth_identity
+    - path: api/ml_attributes/activity
+    - path: api/notifications_settings
+    - path: api/security_audit

@@ -1,0 +1,14 @@
+schema_version: 1
+module_path: api/manufacturing
+title: Manufacturing Domain API (BOMs, Production Orders, Material Consumptions, Finished Goods, Traceability)
+scope:
+    - apps/api/src/boms/
+    - apps/api/src/production-orders/
+    - apps/api/src/material-consumptions/
+    - apps/api/src/finished-goods/
+    - apps/api/src/manufacturing-traceability/
+source_files: []
+depends_on: []
+related_to:
+    - path: web_app/manufacturing_routes
+    - path: web_app/shared_components/manufacturing_forms

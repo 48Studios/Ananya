@@ -1,0 +1,1 @@
+Next.js App Router client pages that present manufacturing dashboards, bill-of-materials management with revision workflows, and production order scheduling for shop-floor execution.

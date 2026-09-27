@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: web_app/shared_components/ui_primitives
+title: Shared UI Primitives & Compound Components
+scope:
+    - apps/web/components/ui/
+source_files: []
+depends_on: []
+related_to: []

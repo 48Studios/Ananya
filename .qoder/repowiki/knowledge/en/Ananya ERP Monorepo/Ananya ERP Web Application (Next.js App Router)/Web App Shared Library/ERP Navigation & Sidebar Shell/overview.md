@@ -1,0 +1,1 @@
+Provides the app-wide navigation context, declarative module/sidebar configuration, and shared sidebar/rail/header components that render the ERP's multi-module navigation shell.

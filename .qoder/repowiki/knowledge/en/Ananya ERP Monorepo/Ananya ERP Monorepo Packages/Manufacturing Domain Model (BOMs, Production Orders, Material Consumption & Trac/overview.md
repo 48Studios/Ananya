@@ -1,0 +1,1 @@
+Domain package defining manufacturing aggregates — Bill of Materials, Production Orders, Material Consumptions, Finished Goods Receipts, and traceability events — with repository interfaces for persistence.

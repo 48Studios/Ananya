@@ -1,0 +1,7 @@
+Each file is an independent, side-effect-free module exporting pure functions and constants consumed by other parts of `apps/web`. There are no cross-imports between these files — they form a flat collection of single-responsibility utilities:
+- `data-table-pagination.ts` defines a `DataTableQuery` signature type and three pure helpers (`dataTableQuerySignature`, `clampPageIndex`, `pageIndexForResizedPage`) used by TanStack-based tables to preserve reviewer page position across mutations.
+- `import-job-status.ts` depends only on `./api/import-export-api` to map backend `ImportExportJobDto.status` plus record counts into a stable UI `ImportJobState` enum via `deriveImportJobState` and `isJobTerminal`.
+- `post-login-destination.ts` provides a same-site path validator (`INTERNAL_PATH` regex) and paired round-trip helpers `postLoginDestination` / `sessionExpiredUrl` so middleware and login routes cannot drift apart.
+- `shipping-carriers.ts` declares a `ShippingCarrierOption[]` registry (`SHIPPING_PROVIDERS`) with per-carrier `buildTrackingUrl` closures and lookup helpers `getAutoTrackingUrl` / `getShippingProviderName`.
+- `app-info.ts` reads `NEXT_PUBLIC_*` runtime env vars and `../package.json` to assemble an `AppInfo` object for UI footers and diagnostics.
+All modules avoid I/O and framework coupling; dependencies flow outward only from consumers into these leaf utilities.

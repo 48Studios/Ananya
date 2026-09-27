@@ -1,0 +1,4 @@
+- Each pipeline stage is implemented as a class (Collector, Processor, Generator, Trainer, Evaluator) instantiated per command invocation rather than via global state.
+- Data flows between stages as JSON files written to versioned directories resolved from `settings.*_dir` paths, never via in-memory sharing between scripts.
+- CLI commands accept optional `--tui/--no-tui` flags and emit events through the `tui.emit_event` interface to drive the live dashboard when available.
+- All cross-stage contracts are typed via Pydantic models in `schemas/` (e.g. `ProductRecord`, manifest/task schemas) and records are round-tripped through `.model_dump()` / constructor unpacking at file boundaries.

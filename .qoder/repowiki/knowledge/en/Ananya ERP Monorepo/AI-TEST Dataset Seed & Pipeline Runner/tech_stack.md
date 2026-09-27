@@ -1,0 +1,1 @@
+Node.js ESM scripts calling the Ananya HTTP API over `http://localhost:4000`; PDF generation uses macOS `cupsfilter` text filter; direct database cleanup uses `docker exec psql` against the `ananya-db` container; manifest-driven idempotency via `manifest.json`.

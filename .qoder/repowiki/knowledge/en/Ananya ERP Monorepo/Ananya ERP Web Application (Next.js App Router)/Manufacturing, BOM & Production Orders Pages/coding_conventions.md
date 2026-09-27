@@ -1,0 +1,6 @@
+- Each route segment is a default-exported client component that fetches data in a `useEffect`/`useCallback` hook and renders loading/error states before committing to the UI.
+- List pages define table columns as `ColumnDef<Dto>[]` arrays and render rows through the shared `EntityDataTable`, using `accessorKey` plus custom `cell` renderers for formatted values.
+- Status display is centralized in small helper functions (e.g., `getStatusBadge`) that switch over enum-like string literals (`RELEASED`, `DRAFT`, `OBSOLETE`, `IN_PROGRESS`, `COMPLETED`) and return styled badge JSX.
+- Cross-entity references are resolved by fetching all related entities once and building an in-memory `Record<string, Dto>` map keyed by id, then looking up items during render instead of issuing per-row requests.
+- Mutations (create, edit, duplicate, release, obsolete, delete) are wrapped in try/catch blocks that set a local `error` state string and surface it via the `EntityDataTable.notice` slot or a dedicated `ErrorState` component.
+- User actions that modify state open a `DialogShell` modal containing a feature-specific form component, passing `initialData`, `onSuccess`, and `onCancel` callbacks to keep the dialog lifecycle declarative.

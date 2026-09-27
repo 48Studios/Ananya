@@ -1,0 +1,5 @@
+- Each aggregate lives in its own sub-directory containing an entity file, a repository-interface file, and an `index.ts` barrel that re-exports both.
+- Aggregate entities use a private constructor paired with static factory methods `create(props)` for construction and `rehydrate(props)` for deserialization, with validation thrown as `Error` in factories.
+- State transitions are exposed as instance methods that validate the current status before mutating it and updating `updatedAt` to `new Date()`.
+- Repository interfaces follow a fixed shape: `findById`, `findByNumber`, `findMany(options)`, `save(entity)`, and `generateNext*Number()`, with a dedicated `FindMany<Entity>Options` interface describing filter fields.
+- Value-object enums (status, priority, category, frequency, decision) are declared as string literal union types in the same file as their owning aggregate.

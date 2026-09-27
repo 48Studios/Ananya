@@ -1,0 +1,6 @@
+- Each component file declares `"use client"` at the top and exports a single React function component paired with a named `Props` interface.
+- Chart widgets guard against empty or all-zero data by returning a centered placeholder div with `text-muted-foreground` instead of rendering an empty chart.
+- Recharts elements style axes, grids, and tooltips using CSS custom properties (`var(--border)`, `var(--card)`, `var(--foreground)`) rather than hardcoded colors to stay theme-aware.
+- Dashboard cards wrap their content in a card shell using the shared pattern `bg-card border border-border rounded-xl p-5 shadow-2xs space-y-4`.
+- Domain data is consumed as typed DTOs from `@/lib/api/*` modules and transformed into display-ready lists inside `React.useMemo` keyed on the incoming props.
+- Navigation within dashboard cards uses Next.js `Link` with absolute routes (e.g. `/work-orders/${id}`, `/purchase-orders/new`) and pairs each item with a `StatusBadge` and optional `URGENT` badge.

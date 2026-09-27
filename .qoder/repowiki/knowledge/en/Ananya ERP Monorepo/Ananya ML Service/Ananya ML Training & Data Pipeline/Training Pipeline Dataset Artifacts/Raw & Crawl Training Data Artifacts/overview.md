@@ -1,0 +1,1 @@
+Stores the raw source material (PDFs, HTML, catalogs, fixtures) and the versioned crawl dataset splits consumed by the ML training pipeline.

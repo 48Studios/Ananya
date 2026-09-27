@@ -1,0 +1,6 @@
+- Each aggregate gets a single `drizzle-<entity>.repository.ts` file exporting a class that implements the corresponding repository interface from the owning domain package.
+- Row-to-entity conversion is centralized in a local `toDomain` helper that delegates to the domain entity's static `rehydrate` factory rather than constructing entities directly.
+- Upsert persistence is implemented as `db.insert(...).values({...}).onConflictDoUpdate({ target: ..., set: {..., updatedAt: new Date()} })` so every save is idempotent and refreshes the audit timestamp.
+- Optional filtering in `findMany` builds a Drizzle query object incrementally, appending `.where(eq(...))` clauses only when the matching option is present, then applies a default `orderBy(desc(...))` before execution.
+- Postgres SQLSTATE codes are read through `getPostgresErrorCode` which walks the `cause` chain up to a bounded depth instead of reading `error.code` directly, accounting for Drizzle's wrapping.
+- Cross-cutting concerns are exposed as Nest providers registered under string token constants (e.g. `DATABASE_CONNECTION`, `DATABASE_POOL`) rather than class injection tokens.

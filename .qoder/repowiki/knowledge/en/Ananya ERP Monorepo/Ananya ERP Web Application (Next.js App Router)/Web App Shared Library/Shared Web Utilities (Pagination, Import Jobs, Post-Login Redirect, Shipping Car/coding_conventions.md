@@ -1,0 +1,5 @@
+- Pure functions take inputs and return derived values without side effects, making them trivially testable and reusable across components.
+- String-based enums or discriminated union types (e.g. `ImportJobState`, carrier categories) are preferred over raw strings for domain states passed between layers.
+- User-supplied URLs or paths are validated against strict allowlists (regex `INTERNAL_PATH`, same-site absolute check) before being honoured, defaulting to a safe constant.
+- Lookup tables are declared as exported const arrays of typed option objects (e.g. `SHIPPING_PROVIDERS`) with optional builder closures, and queried via case-insensitive `.find`.
+- Fallback defaults are applied for missing or malformed inputs (null/undefined checks, `.toUpperCase()` normalization, `?? 0` numeric defaults) so callers never need to guard.

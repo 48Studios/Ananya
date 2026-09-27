@@ -1,0 +1,6 @@
+- Public interfaces are exposed through a single package-level `__init__.py` that re-exports classes and enums, keeping internal modules private.
+- Configuration and state models use Pydantic `BaseModel` with validators and aliases (e.g., `AliasChoices` for flexible field names) rather than plain dicts.
+- All mutable shared state (AcquisitionStore records, CrawlPolicyManager rate windows) is guarded by `threading.Lock` / `RLock` to support concurrent document workers.
+- File I/O uses atomic write patterns: write to a `.tmp` or `.part` file then `os.replace` to the final path to avoid partial reads.
+- URLs are always normalized through `canonicalize_url` before deduplication, classification, or storage, stripping tracking params, default ports, fragments, and collapsing slashes.
+- HTTP responses are handled via streaming (`client.stream` / `iter_bytes`) with incremental SHA-256 hashing so large PDFs never reside fully in memory.

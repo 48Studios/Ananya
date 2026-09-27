@@ -1,0 +1,6 @@
+- Form components are exported as named functions receiving `{ onSuccess, onCancel }` (and optional `initialData` for edit mode) and render inside `DialogShellBody` / `DialogShellFooter` so callers can embed them in dialogs.
+- Validation schemas are declared as local `z.object(...)` constants and passed to `useForm({ resolver: zodResolver(schema) })`, with `z.infer<typeof schema>` used to type the form values.
+- Server errors are surfaced through a local `serverError` state rendered as a red-bordered banner at the top of `DialogShellBody`, while field-level Zod errors are shown via `FieldError` next to the offending input.
+- Submit handlers call the matching `*Api.create` / `*Api.update` method from `@/lib/api/*`, catch `Error` instances to display their message, and otherwise fall back to a domain-specific failure string.
+- Enum-like picklists (priority, category, picking rule, etc.) are defined inline as arrays of `{ label, value }` tuples and rendered through `Select` / `SelectItem` rather than imported enums.
+- Presentational-only panels (ML ops, report filters, transaction timeline) receive all data and callbacks as props and perform no data fetching, delegating mutations to caller-supplied handlers.

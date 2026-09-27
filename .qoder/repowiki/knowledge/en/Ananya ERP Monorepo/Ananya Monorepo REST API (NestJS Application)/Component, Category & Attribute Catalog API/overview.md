@@ -1,0 +1,1 @@
+NestJS feature modules exposing REST endpoints for components, categories, and the attribute library (definitions, options, category/component bindings) backed by Drizzle repositories.

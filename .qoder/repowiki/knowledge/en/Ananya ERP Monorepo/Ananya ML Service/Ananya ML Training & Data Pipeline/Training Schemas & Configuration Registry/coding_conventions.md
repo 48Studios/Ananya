@@ -1,0 +1,5 @@
+- All data contracts are expressed as Pydantic `BaseModel` subclasses with typed fields and `Field(default_factory=...)` for mutable defaults (dicts, lists, timestamps).
+- Enumerated domains use Python `str`-based `Enum` classes (e.g. `ProductDomain`, `EntityType`, `VerificationStatus`, `DuplicateLabel`) rather than plain strings, keeping allowed values explicit.
+- Every record that crosses ingestion boundaries carries a `ProvenanceRecord` field so origin, license, confidence, and verification status are preserved end-to-end across product and task schemas.
+- Configuration values are sourced from environment variables via `os.environ.get(...)` inside `Field(default_factory=...)`, falling back to repository-relative defaults when unset.
+- External data sources are declared as YAML entries under a top-level `sources:` list with uniform keys (`id`, `group`, `type`, `source_quality`, `enabled`, `domains`, `start_urls`, `rate_limit`, `allowed_content_types`, `max_depth/pages/files`, `default_domain`).

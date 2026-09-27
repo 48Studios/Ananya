@@ -1,0 +1,1 @@
+NestJS feature modules over Drizzle ORM repositories; request validation via class-transformer-style DTOs; dependency injection via `Symbol` tokens.

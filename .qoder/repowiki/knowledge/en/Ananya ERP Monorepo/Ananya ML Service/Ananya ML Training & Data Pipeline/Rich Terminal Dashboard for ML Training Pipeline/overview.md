@@ -1,0 +1,1 @@
+A thread-safe Rich-based terminal dashboard that renders live status, pipeline stages, sources, failures, logs, and training/evaluation metrics for the Ananya ML Trainer.
