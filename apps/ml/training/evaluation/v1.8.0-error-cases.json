@@ -1,0 +1,1682 @@
+[
+  {
+    "record_id": "GPS-19576",
+    "text": "GPS-19576 GPS-19576 Magnetic Mount SMA - 2m This magnetic mount works well with helical GNSS antennas. SparkFun Electronics Open Source Hardware",
+    "expected": "Cables",
+    "predicted": "Tools",
+    "top3": [
+      {
+        "category": "Tools",
+        "probability": 0.213205
+      },
+      {
+        "category": "Cables",
+        "probability": 0.203172
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.183815
+      }
+    ],
+    "confidence": 0.213205,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "GPS-19576"
+  },
+  {
+    "record_id": "GPS-19576",
+    "text": "GPS19576 GPS19576 Magnetic Mount SMA - 2m This magnetic mount works well with helical GNSS antennas. SparkFun Electronics Open Source Hardware",
+    "expected": "Cables",
+    "predicted": "Robotics",
+    "top3": [
+      {
+        "category": "Robotics",
+        "probability": 0.218977
+      },
+      {
+        "category": "Tools",
+        "probability": 0.209203
+      },
+      {
+        "category": "Cables",
+        "probability": 0.188607
+      }
+    ],
+    "confidence": 0.218977,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "GPS-19576"
+  },
+  {
+    "record_id": "GPS-19576",
+    "text": "gps-19576 gps-19576 magnetic mount sma - 2m this magnetic mount works well with helical gnss antennas. sparkfun electronics open source hardware",
+    "expected": "Cables",
+    "predicted": "Tools",
+    "top3": [
+      {
+        "category": "Tools",
+        "probability": 0.213205
+      },
+      {
+        "category": "Cables",
+        "probability": 0.203172
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.183815
+      }
+    ],
+    "confidence": 0.213205,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "GPS-19576"
+  },
+  {
+    "record_id": "CAB-09215",
+    "text": "CAB-09215 CAB-09215 AVR Programming Cable SparkFun Electronics Open Source Hardware",
+    "expected": "Development Boards",
+    "predicted": "Cables",
+    "top3": [
+      {
+        "category": "Cables",
+        "probability": 0.977719
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.015388
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.002374
+      }
+    ],
+    "confidence": 0.977719,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "CAB-09215"
+  },
+  {
+    "record_id": "CAB-09215",
+    "text": "CAB09215 CAB09215 AVR Programming Cable SparkFun Electronics Open Source Hardware",
+    "expected": "Development Boards",
+    "predicted": "Cables",
+    "top3": [
+      {
+        "category": "Cables",
+        "probability": 0.937385
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.034608
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.010596
+      }
+    ],
+    "confidence": 0.937385,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "CAB-09215"
+  },
+  {
+    "record_id": "CAB-09215",
+    "text": "cab-09215 cab-09215 avr programming cable sparkfun electronics open source hardware",
+    "expected": "Development Boards",
+    "predicted": "Cables",
+    "top3": [
+      {
+        "category": "Cables",
+        "probability": 0.977719
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.015388
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.002374
+      }
+    ],
+    "confidence": 0.977719,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "CAB-09215"
+  },
+  {
+    "record_id": "1676",
+    "text": "1676 1676 Resistive Touchscreen Overlay - 7\" diag. 165mm x 105mm - 4 Wire If you already have a 7\" TFT that is about 165mm x 105mm in size (with a visible area equal to or smaller than ~152mm x 91mm), you can put this glass resistive overlay over it to add a resistive touch screen. Adafruit Industries Electronics & Components",
+    "expected": "Optoelectronics",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.466678
+      },
+      {
+        "category": "Optoelectronics",
+        "probability": 0.250118
+      },
+      {
+        "category": "Tools",
+        "probability": 0.056487
+      }
+    ],
+    "confidence": 0.466678,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "1676"
+  },
+  {
+    "record_id": "1676",
+    "text": "1676 1676 resistive touchscreen overlay - 7\" diag. 165mm x 105mm - 4 wire if you already have a 7\" tft that is about 165mm x 105mm in size (with a visible area equal to or smaller than ~152mm x 91mm), you can put this glass resistive overlay over it to add a resistive touch screen. adafruit industries electronics & components",
+    "expected": "Optoelectronics",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.466678
+      },
+      {
+        "category": "Optoelectronics",
+        "probability": 0.250118
+      },
+      {
+        "category": "Tools",
+        "probability": 0.056487
+      }
+    ],
+    "confidence": 0.466678,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "1676"
+  },
+  {
+    "record_id": "US000776",
+    "text": "US000776 US000776 SparkFun Qwiic 12 Bit ADC - 4 Channel (ADS1015) SparkFun Electronics",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.384091
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.277584
+      },
+      {
+        "category": "Tools",
+        "probability": 0.101831
+      }
+    ],
+    "confidence": 0.384091,
+    "source": "oshwa-hardware-registry",
+    "manufacturer": "public_dataset",
+    "sku": "US000776"
+  },
+  {
+    "record_id": "US000776",
+    "text": "us000776 us000776 sparkfun qwiic 12 bit adc - 4 channel (ads1015) sparkfun electronics",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.384091
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.277584
+      },
+      {
+        "category": "Tools",
+        "probability": 0.101831
+      }
+    ],
+    "confidence": 0.384091,
+    "source": "oshwa-hardware-registry",
+    "manufacturer": "public_dataset",
+    "sku": "US000776"
+  },
+  {
+    "record_id": "DEV-15845",
+    "text": "DEV-15845 DEV-15845 Teensy 4 Audio Shield (Rev D) The Teensy 4 Audio Shield is a feature-rich codec board for the Teensy 4.0 that provides simultaneous 16-bit, 44.1kHz stereo audio input/output, a headphone amp, and a microSD card slot. SparkFun Electronics Open Source Hardware",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.938764
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.04822
+      },
+      {
+        "category": "Tools",
+        "probability": 0.003987
+      }
+    ],
+    "confidence": 0.938764,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "DEV-15845"
+  },
+  {
+    "record_id": "DEV-15845",
+    "text": "DEV15845 DEV15845 Teensy 4 Audio Shield (Rev D) The Teensy 4 Audio Shield is a feature-rich codec board for the Teensy 4.0 that provides simultaneous 16-bit, 44.1kHz stereo audio input/output, a headphone amp, and a microSD card slot. SparkFun Electronics Open Source Hardware",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.922814
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.058143
+      },
+      {
+        "category": "Tools",
+        "probability": 0.005318
+      }
+    ],
+    "confidence": 0.922814,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "DEV-15845"
+  },
+  {
+    "record_id": "DEV-15845",
+    "text": "dev-15845 dev-15845 teensy 4 audio shield (rev d) the teensy 4 audio shield is a feature-rich codec board for the teensy 4.0 that provides simultaneous 16-bit, 44.1khz stereo audio input/output, a headphone amp, and a microsd card slot. sparkfun electronics open source hardware",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.938764
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.04822
+      },
+      {
+        "category": "Tools",
+        "probability": 0.003987
+      }
+    ],
+    "confidence": 0.938764,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "DEV-15845"
+  },
+  {
+    "record_id": "1651",
+    "text": "1651 1651 2.8\" TFT Touch Shield for Arduino with Resistive Touch Screen v2 Spice up your Arduino project with a beautiful large touchscreen display shield with built in microSD card connection. This TFT display is big (2.8\" diagonal) bright (4 white-LED backlight) and colorful (18-bit 262,000 different shades)! 240x320 pixels with individual pixel control. It has way more resolution than a black and white 128x64 display. As a bonus, this display has a resistive touchscreen attached to it already, so you can detect finger presses anywhere on the screen. (We also have a capacitive-touch version of this shield here) Adafruit Industries Electronics & Components",
+    "expected": "Development Boards",
+    "predicted": "Optoelectronics",
+    "top3": [
+      {
+        "category": "Optoelectronics",
+        "probability": 0.878262
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.098112
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.00611
+      }
+    ],
+    "confidence": 0.878262,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "1651"
+  },
+  {
+    "record_id": "1651",
+    "text": "1651 1651 2.8\" tft touch shield for arduino with resistive touch screen v2 spice up your arduino project with a beautiful large touchscreen display shield with built in microsd card connection. this tft display is big (2.8\" diagonal) bright (4 white-led backlight) and colorful (18-bit 262,000 different shades)! 240x320 pixels with individual pixel control. it has way more resolution than a black and white 128x64 display. as a bonus, this display has a resistive touchscreen attached to it already, so you can detect finger presses anywhere on the screen. (we also have a capacitive-touch version of this shield here) adafruit industries electronics & components",
+    "expected": "Development Boards",
+    "predicted": "Optoelectronics",
+    "top3": [
+      {
+        "category": "Optoelectronics",
+        "probability": 0.878262
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.098112
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.00611
+      }
+    ],
+    "confidence": 0.878262,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "1651"
+  },
+  {
+    "record_id": "1549",
+    "text": "1549 1549 Adafruit USB Power Gauge Mini-Kit This little USB port go-between is like a speed gauge for your USB devices. Instead of hauling out a multimeter and splicing cables, plug this in between for a quick reading on how much current is being drawn from the port. Great for seeing the charge rate of your phone or tablet, checking your battery chargers, or other USB powered projects.There are a few USB power meters out there, The Practical Meter and the USB Spypow. We wanted something that was made for makers: Reprogrammable micro-controller, analog output, TTL serial output for debugging / datalogging and of course, open source.Data is passed through transparently from end to end, so you can use it with any USB device at any speed. The power line has a 0.1 ohm current sense resistor and an INA169 high-side current sensor that is tracked by a little ATtiny85 chip. The microcontroller is programmed to read the current draw as well as the bus voltage and light up the strip of LEDs on the side.The blue LEDs will light up, one for each Watt of power draw (which is ~200mA at 5V nominal), with a couple levels of PWM dimming for increasing current. You can measure up to 1A of current draw - most USB ports are rated for 500mA. It's safe to use this with something that draws up to 2 A of current, it'll just 'max out' the LEDs.The green LED is helpful to tell if you have too much droop on your power line. It stays lit as long as the voltage is higher than 4.5V, most devices won't charge effectively once it goes below that so if the green LED goes out, you know you should check your port, shorten the USB cable, or reduce the current draw.As an awesome extra, we also print out the voltage, current and wattage data as readable text on the TX pin at 9600 baud. Connect an FTDI friend, USB console cable, microcontroller, XBee, whatever you want that can read 9600 baud TTL serial data for datalogging, plotting or display.Comes as a mini kit with an assembled & tested PCB plus a separate USB jack and plug as shown above. Before use, solder the jack and plug. It'll only take you a few minutes and can be done with any soldering iron. Or, advanced users can splice it between a USB extension cable.Please note: this is a handy gadget but it isn't a multimeter! We do some basic calibration during test, but the serial output readings are not precise and should be used as a basic guide rather than lab-grade data plots. Assume a variance of at least 0.1V and 50mA due to noise, thermal changes, etc. Adafruit Industries Electronics & Components",
+    "expected": "Tools",
+    "predicted": "Optoelectronics",
+    "top3": [
+      {
+        "category": "Optoelectronics",
+        "probability": 0.274623
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.227507
+      },
+      {
+        "category": "Cables",
+        "probability": 0.211515
+      }
+    ],
+    "confidence": 0.274623,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "1549"
+  },
+  {
+    "record_id": "1549",
+    "text": "1549 1549 Adafruit USB Power Gauge Mini-Kit This little USB port go-between is like a speed gauge for your USB devices. Instead of hauling out a multimeter and splicing cables, plug this in between for a quick reading on how much current is being drawn from the port. Great for seeing the charge rate of your phone or tablet, checking your battery chargers, or other USB powered projects.There are a few USB power meters out there, The Practical Meter and the USB Spypow. We wanted something that was made for makers: Reprogrammable micro-controller, analog output, TTL serial output for debugging / datalogging and of course, open source.Data is passed through transparently from end to end, so you can use it with any USB device at any speed. The power line has a 0.1\u03a9 current sense resistor and an INA169 high-side current sensor that is tracked by a little ATtiny85 chip. The microcontroller is programmed to read the current draw as well as the bus voltage and light up the strip of LEDs on the side.The blue LEDs will light up, one for each Watt of power draw (which is ~200mA at 5V nominal), with a couple levels of PWM dimming for increasing current. You can measure up to 1A of current draw - most USB ports are rated for 500mA. It's safe to use this with something that draws up to 2 A of current, it'll just 'max out' the LEDs.The green LED is helpful to tell if you have too much droop on your power line. It stays lit as long as the voltage is higher than 4.5V, most devices won't charge effectively once it goes below that so if the green LED goes out, you know you should check your port, shorten the USB cable, or reduce the current draw.As an awesome extra, we also print out the voltage, current and wattage data as readable text on the TX pin at 9600 baud. Connect an FTDI friend, USB console cable, microcontroller, XBee, whatever you want that can read 9600 baud TTL serial data for datalogging, plotting or display.Comes as a mini kit with an assembled & tested PCB plus a separate USB jack and plug as shown above. Before use, solder the jack and plug. It'll only take you a few minutes and can be done with any soldering iron. Or, advanced users can splice it between a USB extension cable.Please note: this is a handy gadget but it isn't a multimeter! We do some basic calibration during test, but the serial output readings are not precise and should be used as a basic guide rather than lab-grade data plots. Assume a variance of at least 0.1V and 50mA due to noise, thermal changes, etc. Adafruit Industries Electronics & Components",
+    "expected": "Tools",
+    "predicted": "Optoelectronics",
+    "top3": [
+      {
+        "category": "Optoelectronics",
+        "probability": 0.274273
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.229912
+      },
+      {
+        "category": "Cables",
+        "probability": 0.212609
+      }
+    ],
+    "confidence": 0.274273,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "1549"
+  },
+  {
+    "record_id": "1549",
+    "text": "1549 1549 adafruit usb power gauge mini-kit this little usb port go-between is like a speed gauge for your usb devices. instead of hauling out a multimeter and splicing cables, plug this in between for a quick reading on how much current is being drawn from the port. great for seeing the charge rate of your phone or tablet, checking your battery chargers, or other usb powered projects.there are a few usb power meters out there, the practical meter and the usb spypow. we wanted something that was made for makers: reprogrammable micro-controller, analog output, ttl serial output for debugging / datalogging and of course, open source.data is passed through transparently from end to end, so you can use it with any usb device at any speed. the power line has a 0.1 ohm current sense resistor and an ina169 high-side current sensor that is tracked by a little attiny85 chip. the microcontroller is programmed to read the current draw as well as the bus voltage and light up the strip of leds on the side.the blue leds will light up, one for each watt of power draw (which is ~200ma at 5v nominal), with a couple levels of pwm dimming for increasing current. you can measure up to 1a of current draw - most usb ports are rated for 500ma. it's safe to use this with something that draws up to 2 a of current, it'll just 'max out' the leds.the green led is helpful to tell if you have too much droop on your power line. it stays lit as long as the voltage is higher than 4.5v, most devices won't charge effectively once it goes below that so if the green led goes out, you know you should check your port, shorten the usb cable, or reduce the current draw.as an awesome extra, we also print out the voltage, current and wattage data as readable text on the tx pin at 9600 baud. connect an ftdi friend, usb console cable, microcontroller, xbee, whatever you want that can read 9600 baud ttl serial data for datalogging, plotting or display.comes as a mini kit with an assembled & tested pcb plus a separate usb jack and plug as shown above. before use, solder the jack and plug. it'll only take you a few minutes and can be done with any soldering iron. or, advanced users can splice it between a usb extension cable.please note: this is a handy gadget but it isn't a multimeter! we do some basic calibration during test, but the serial output readings are not precise and should be used as a basic guide rather than lab-grade data plots. assume a variance of at least 0.1v and 50ma due to noise, thermal changes, etc. adafruit industries electronics & components",
+    "expected": "Tools",
+    "predicted": "Optoelectronics",
+    "top3": [
+      {
+        "category": "Optoelectronics",
+        "probability": 0.274623
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.227507
+      },
+      {
+        "category": "Cables",
+        "probability": 0.211515
+      }
+    ],
+    "confidence": 0.274623,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "1549"
+  },
+  {
+    "record_id": "AUTO-c369a93d",
+    "text": "AUTO-C369A93D AUTO-c369a93d Resistors | Passive Components | W\u00fcrth Elektronik Product Catalog EMC components, ferrites, common mode chokes, inductors, ESD protection, signal transformers, capacitors, resistors and crystals & oscillators W\u00fcrth Elektronik Component Catalog",
+    "expected": "Resistors",
+    "predicted": "Capacitors",
+    "top3": [
+      {
+        "category": "Capacitors",
+        "probability": 0.569506
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.149612
+      },
+      {
+        "category": "Connectors",
+        "probability": 0.081996
+      }
+    ],
+    "confidence": 0.569506,
+    "source": "wuerth-elektronik",
+    "manufacturer": "manufacturer",
+    "sku": "AUTO-c369a93d"
+  },
+  {
+    "record_id": "AUTO-c369a93d",
+    "text": "AUTOC369A93D AUTO-c369a93d Resistors | Passive Components | W\u00fcrth Elektronik Product Catalog EMC components, ferrites, common mode chokes, inductors, ESD protection, signal transformers, capacitors, resistors and crystals & oscillators W\u00fcrth Elektronik Component Catalog",
+    "expected": "Resistors",
+    "predicted": "Capacitors",
+    "top3": [
+      {
+        "category": "Capacitors",
+        "probability": 0.58131
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.138528
+      },
+      {
+        "category": "Connectors",
+        "probability": 0.079944
+      }
+    ],
+    "confidence": 0.58131,
+    "source": "wuerth-elektronik",
+    "manufacturer": "manufacturer",
+    "sku": "AUTO-c369a93d"
+  },
+  {
+    "record_id": "AUTO-c369a93d",
+    "text": "auto-c369a93d auto-c369a93d resistors | passive components | w\u00fcrth elektronik product catalog emc components, ferrites, common mode chokes, inductors, esd protection, signal transformers, capacitors, resistors and crystals & oscillators w\u00fcrth elektronik component catalog",
+    "expected": "Resistors",
+    "predicted": "Capacitors",
+    "top3": [
+      {
+        "category": "Capacitors",
+        "probability": 0.569506
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.149612
+      },
+      {
+        "category": "Connectors",
+        "probability": 0.081996
+      }
+    ],
+    "confidence": 0.569506,
+    "source": "wuerth-elektronik",
+    "manufacturer": "manufacturer",
+    "sku": "AUTO-c369a93d"
+  },
+  {
+    "record_id": "WRL-15031",
+    "text": "WRL-15031 WRL-15031 SparkFun WiFi IR Blaster (ESP8266) The SparkFun WiFi IR Blaster is designed to connect all of those old, legacy IR-controlled devices to a WiFi network exposing them IoT capabilities! SparkFun Electronics Open Source Hardware",
+    "expected": "Sensors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.598224
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.15682
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.080324
+      }
+    ],
+    "confidence": 0.598224,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "WRL-15031"
+  },
+  {
+    "record_id": "WRL-15031",
+    "text": "WRL15031 WRL15031 SparkFun WiFi IR Blaster (ESP8266) The SparkFun WiFi IR Blaster is designed to connect all of those old, legacy IR-controlled devices to a WiFi network exposing them IoT capabilities! SparkFun Electronics Open Source Hardware",
+    "expected": "Sensors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.568799
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.14087
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.08363
+      }
+    ],
+    "confidence": 0.568799,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "WRL-15031"
+  },
+  {
+    "record_id": "WRL-15031",
+    "text": "wrl-15031 wrl-15031 sparkfun wifi ir blaster (esp8266) the sparkfun wifi ir blaster is designed to connect all of those old, legacy ir-controlled devices to a wifi network exposing them iot capabilities! sparkfun electronics open source hardware",
+    "expected": "Sensors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.598224
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.15682
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.080324
+      }
+    ],
+    "confidence": 0.598224,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "WRL-15031"
+  },
+  {
+    "record_id": "PRT-17867",
+    "text": "PRT-17867 PRT-17867 MI:pro Protector Case for micro:bit V2 The MI:pro Protector is a simple and compact protective case for the micro:bit. SparkFun Electronics Open Source Hardware",
+    "expected": "Tools",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.985913
+      },
+      {
+        "category": "Tools",
+        "probability": 0.007093
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.001206
+      }
+    ],
+    "confidence": 0.985913,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "PRT-17867"
+  },
+  {
+    "record_id": "PRT-17867",
+    "text": "PRT17867 PRT17867 MI:pro Protector Case for micro:bit V2 The MI:pro Protector is a simple and compact protective case for the micro:bit. SparkFun Electronics Open Source Hardware",
+    "expected": "Tools",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.984083
+      },
+      {
+        "category": "Tools",
+        "probability": 0.007976
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.001483
+      }
+    ],
+    "confidence": 0.984083,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "PRT-17867"
+  },
+  {
+    "record_id": "PRT-17867",
+    "text": "prt-17867 prt-17867 mi:pro protector case for micro:bit v2 the mi:pro protector is a simple and compact protective case for the micro:bit. sparkfun electronics open source hardware",
+    "expected": "Tools",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.985913
+      },
+      {
+        "category": "Tools",
+        "probability": 0.007093
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.001206
+      }
+    ],
+    "confidence": 0.985913,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "PRT-17867"
+  },
+  {
+    "record_id": "PRT-17868",
+    "text": "PRT-17868 PRT-17868 MI:pro Mountable Case for micro:bit V2 The Mountable MI:pro is a simple and compact protective case for the micro:bit. SparkFun Electronics Open Source Hardware",
+    "expected": "Tools",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.976787
+      },
+      {
+        "category": "Tools",
+        "probability": 0.010049
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.002664
+      }
+    ],
+    "confidence": 0.976787,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "PRT-17868"
+  },
+  {
+    "record_id": "PRT-17868",
+    "text": "PRT17868 PRT17868 MI:pro Mountable Case for micro:bit V2 The Mountable MI:pro is a simple and compact protective case for the micro:bit. SparkFun Electronics Open Source Hardware",
+    "expected": "Tools",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.973847
+      },
+      {
+        "category": "Tools",
+        "probability": 0.011351
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.002998
+      }
+    ],
+    "confidence": 0.973847,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "PRT-17868"
+  },
+  {
+    "record_id": "PRT-17868",
+    "text": "prt-17868 prt-17868 mi:pro mountable case for micro:bit v2 the mountable mi:pro is a simple and compact protective case for the micro:bit. sparkfun electronics open source hardware",
+    "expected": "Tools",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.976787
+      },
+      {
+        "category": "Tools",
+        "probability": 0.010049
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.002664
+      }
+    ],
+    "confidence": 0.976787,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "PRT-17868"
+  },
+  {
+    "record_id": "KIT-13973",
+    "text": "KIT-13973 KIT-13973 SparkFun Beginner Parts Kit The SparkFun Beginner Parts Kit is a small container of frequently used parts that gives you all of the basic components you need to get started! SparkFun Electronics Open Source Hardware",
+    "expected": "Optoelectronics",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.371589
+      },
+      {
+        "category": "Tools",
+        "probability": 0.149247
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.129602
+      }
+    ],
+    "confidence": 0.371589,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "KIT-13973"
+  },
+  {
+    "record_id": "KIT-13973",
+    "text": "KIT13973 KIT13973 SparkFun Beginner Parts Kit The SparkFun Beginner Parts Kit is a small container of frequently used parts that gives you all of the basic components you need to get started! SparkFun Electronics Open Source Hardware",
+    "expected": "Optoelectronics",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.329527
+      },
+      {
+        "category": "Tools",
+        "probability": 0.17043
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.138153
+      }
+    ],
+    "confidence": 0.329527,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "KIT-13973"
+  },
+  {
+    "record_id": "KIT-13973",
+    "text": "kit-13973 kit-13973 sparkfun beginner parts kit the sparkfun beginner parts kit is a small container of frequently used parts that gives you all of the basic components you need to get started! sparkfun electronics open source hardware",
+    "expected": "Optoelectronics",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.371589
+      },
+      {
+        "category": "Tools",
+        "probability": 0.149247
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.129602
+      }
+    ],
+    "confidence": 0.371589,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "KIT-13973"
+  },
+  {
+    "record_id": "COM-26191",
+    "text": "COM26191 COM26191 Raspberry Pi RP2040 Microcontroller IC The RP2040 is the debut microcontroller from Raspberry Pi. SparkFun Electronics Open Source Hardware",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.685589
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.298518
+      },
+      {
+        "category": "Cables",
+        "probability": 0.006486
+      }
+    ],
+    "confidence": 0.685589,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "COM-26191"
+  },
+  {
+    "record_id": "US000349",
+    "text": "US000349 US000349 Adafruit DS3502 I2C Digital 10K Potentiometer Breakout Adafruit Industries, LLC",
+    "expected": "Resistors",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.474067
+      },
+      {
+        "category": "Resistors",
+        "probability": 0.24218
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.122693
+      }
+    ],
+    "confidence": 0.474067,
+    "source": "oshwa-hardware-registry",
+    "manufacturer": "public_dataset",
+    "sku": "US000349"
+  },
+  {
+    "record_id": "US000349",
+    "text": "us000349 us000349 adafruit ds3502 i2c digital 10k potentiometer breakout adafruit industries, llc",
+    "expected": "Resistors",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.474067
+      },
+      {
+        "category": "Resistors",
+        "probability": 0.24218
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.122693
+      }
+    ],
+    "confidence": 0.474067,
+    "source": "oshwa-hardware-registry",
+    "manufacturer": "public_dataset",
+    "sku": "US000349"
+  },
+  {
+    "record_id": "450",
+    "text": "450 450 74HC595 Shift Register - 3 pack Add lots more outputs to a microcontroller system with chainable shift registers. These chips take a serial input (SPI) of 1 byte (8 bits) and then output those digital bits onto 8 pins. You can chain them together so putting three in a row with the serial output of one plugged into the serial input of another to make 3 x 8 = 24 digital outputs. You can chain pretty much as many as you want. This makes it easy to control a lot of outputs like LEDs from only 3 digital microcontroller pins. Adafruit Industries Electronics & Components",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Optoelectronics",
+    "top3": [
+      {
+        "category": "Optoelectronics",
+        "probability": 0.30811
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.17925
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.13652
+      }
+    ],
+    "confidence": 0.30811,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "450"
+  },
+  {
+    "record_id": "450",
+    "text": "450 450 74hc595 shift register - 3 pack add lots more outputs to a microcontroller system with chainable shift registers. these chips take a serial input (spi) of 1 byte (8 bits) and then output those digital bits onto 8 pins. you can chain them together so putting three in a row with the serial output of one plugged into the serial input of another to make 3 x 8 = 24 digital outputs. you can chain pretty much as many as you want. this makes it easy to control a lot of outputs like leds from only 3 digital microcontroller pins. adafruit industries electronics & components",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Optoelectronics",
+    "top3": [
+      {
+        "category": "Optoelectronics",
+        "probability": 0.30811
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.17925
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.13652
+      }
+    ],
+    "confidence": 0.30811,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "450"
+  },
+  {
+    "record_id": "V6-175-B-24V",
+    "text": "V6-175-B-24V V6-175-B-24V V6 1.75mm All-Metal HotEnd High-temperature performance\nThe benefit of an all-metal design means the V6 can comfortably reach 300\u00b0C with the supplied thermistor. If you\u2019d like to print at higher temperatures (up to 500\u00b0C), then you will need to use a plated copper heater block along with a PT100 or PT1000. Print standard materials such as PLA, PETG and ABS and high-temperature materials such as Polycarbonate, Ultem, Nylon and PEEK.\nEasy to use\nThe V6 features a cartridge-style heater block, enabling a no-fuss approach to replacing both heater cartridges and temperature sensors. Replacement thermistors, PT100\u2019s and thermocouples can be slid into place and secured with a grub screw, ensuring maintenance is simple and painless.\nPrecise\nOur all-metal HeatBreak maintains a sharp thermal break to provide better control over filament output; improving start and stops when extruding, as well as more effective retraction, combating oozing and stringing. The all-metal HeatBreak features a refined internal surface finish to reduce extrusion force and improve the reliability of retractions.\nComposer Export1211136871454321910DescriptionBOM IDQtyCollet11HeatSink21HeatBreak31V6 HeaterBlock41M3x3 Grubscrew51DescriptionBOM IDQtyM3x8 Dome-head screw61V6 Nozzle71V6 Sock81ThermistorCartridge91HeaterCartridge103DescriptionBOM IDQtySelf Tapping Screws114E-FAN-30-30-10121Fan Duct131Collet Clip141tooltip E3D",
+    "expected": "Mechanical Parts",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.798321
+      },
+      {
+        "category": "Mechanical Parts",
+        "probability": 0.115425
+      },
+      {
+        "category": "3D Printing Materials",
+        "probability": 0.03774
+      }
+    ],
+    "confidence": 0.798321,
+    "source": "e3d-online-hardware",
+    "manufacturer": "manufacturer",
+    "sku": "V6-175-B-24V"
+  },
+  {
+    "record_id": "V6-175-B-24V",
+    "text": "V6175B24V V6175B24V V6 1.75mm All-Metal HotEnd High-temperature performance\nThe benefit of an all-metal design means the V6 can comfortably reach 300\u00b0C with the supplied thermistor. If you\u2019d like to print at higher temperatures (up to 500\u00b0C), then you will need to use a plated copper heater block along with a PT100 or PT1000. Print standard materials such as PLA, PETG and ABS and high-temperature materials such as Polycarbonate, Ultem, Nylon and PEEK.\nEasy to use\nThe V6 features a cartridge-style heater block, enabling a no-fuss approach to replacing both heater cartridges and temperature sensors. Replacement thermistors, PT100\u2019s and thermocouples can be slid into place and secured with a grub screw, ensuring maintenance is simple and painless.\nPrecise\nOur all-metal HeatBreak maintains a sharp thermal break to provide better control over filament output; improving start and stops when extruding, as well as more effective retraction, combating oozing and stringing. The all-metal HeatBreak features a refined internal surface finish to reduce extrusion force and improve the reliability of retractions.\nComposer Export1211136871454321910DescriptionBOM IDQtyCollet11HeatSink21HeatBreak31V6 HeaterBlock41M3x3 Grubscrew51DescriptionBOM IDQtyM3x8 Dome-head screw61V6 Nozzle71V6 Sock81ThermistorCartridge91HeaterCartridge103DescriptionBOM IDQtySelf Tapping Screws114E-FAN-30-30-10121Fan Duct131Collet Clip141tooltip E3D",
+    "expected": "Mechanical Parts",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.835682
+      },
+      {
+        "category": "Mechanical Parts",
+        "probability": 0.082709
+      },
+      {
+        "category": "3D Printing Materials",
+        "probability": 0.03568
+      }
+    ],
+    "confidence": 0.835682,
+    "source": "e3d-online-hardware",
+    "manufacturer": "manufacturer",
+    "sku": "V6-175-B-24V"
+  },
+  {
+    "record_id": "V6-175-B-24V",
+    "text": "v6-175-b-24v v6-175-b-24v v6 1.75mm all-metal hotend high-temperature performance\nthe benefit of an all-metal design means the v6 can comfortably reach 300\u00b0c with the supplied thermistor. if you\u2019d like to print at higher temperatures (up to 500\u00b0c), then you will need to use a plated copper heater block along with a pt100 or pt1000. print standard materials such as pla, petg and abs and high-temperature materials such as polycarbonate, ultem, nylon and peek.\neasy to use\nthe v6 features a cartridge-style heater block, enabling a no-fuss approach to replacing both heater cartridges and temperature sensors. replacement thermistors, pt100\u2019s and thermocouples can be slid into place and secured with a grub screw, ensuring maintenance is simple and painless.\nprecise\nour all-metal heatbreak maintains a sharp thermal break to provide better control over filament output; improving start and stops when extruding, as well as more effective retraction, combating oozing and stringing. the all-metal heatbreak features a refined internal surface finish to reduce extrusion force and improve the reliability of retractions.\ncomposer export1211136871454321910descriptionbom idqtycollet11heatsink21heatbreak31v6 heaterblock41m3x3 grubscrew51descriptionbom idqtym3x8 dome-head screw61v6 nozzle71v6 sock81thermistorcartridge91heatercartridge103descriptionbom idqtyself tapping screws114e-fan-30-30-10121fan duct131collet clip141tooltip e3d",
+    "expected": "Mechanical Parts",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.798321
+      },
+      {
+        "category": "Mechanical Parts",
+        "probability": 0.115425
+      },
+      {
+        "category": "3D Printing Materials",
+        "probability": 0.03774
+      }
+    ],
+    "confidence": 0.798321,
+    "source": "e3d-online-hardware",
+    "manufacturer": "manufacturer",
+    "sku": "V6-175-B-24V"
+  },
+  {
+    "record_id": "1589",
+    "text": "1589 1589 4700uF 10v Electrolytic Capacitor This Big Freaking Capacitor is just the trick when you have a lot of current sloshing around your project. They'll help smooth out voltage spikes by providing a little buffering. We use these to help stabilize solar panels on our solar Lipoly charger kit, but they'd also be great with our servo driver boards or on the power connection to our 5V 10A power supply. Adafruit Industries Electronics & Components",
+    "expected": "Passive Components",
+    "predicted": "Robotics",
+    "top3": [
+      {
+        "category": "Robotics",
+        "probability": 0.164789
+      },
+      {
+        "category": "Connectors",
+        "probability": 0.137106
+      },
+      {
+        "category": "Passive Components",
+        "probability": 0.111427
+      }
+    ],
+    "confidence": 0.164789,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "1589"
+  },
+  {
+    "record_id": "1589",
+    "text": "1589 1589 4700\u00b5F 10v Electrolytic Capacitor This Big Freaking Capacitor is just the trick when you have a lot of current sloshing around your project. They'll help smooth out voltage spikes by providing a little buffering. We use these to help stabilize solar panels on our solar Lipoly charger kit, but they'd also be great with our servo driver boards or on the power connection to our 5V 10A power supply. Adafruit Industries Electronics & Components",
+    "expected": "Passive Components",
+    "predicted": "Robotics",
+    "top3": [
+      {
+        "category": "Robotics",
+        "probability": 0.166048
+      },
+      {
+        "category": "Connectors",
+        "probability": 0.13752
+      },
+      {
+        "category": "Passive Components",
+        "probability": 0.109362
+      }
+    ],
+    "confidence": 0.166048,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "1589"
+  },
+  {
+    "record_id": "1589",
+    "text": "1589 1589 4700uf 10v electrolytic capacitor this big freaking capacitor is just the trick when you have a lot of current sloshing around your project. they'll help smooth out voltage spikes by providing a little buffering. we use these to help stabilize solar panels on our solar lipoly charger kit, but they'd also be great with our servo driver boards or on the power connection to our 5v 10a power supply. adafruit industries electronics & components",
+    "expected": "Passive Components",
+    "predicted": "Robotics",
+    "top3": [
+      {
+        "category": "Robotics",
+        "probability": 0.164789
+      },
+      {
+        "category": "Connectors",
+        "probability": 0.137106
+      },
+      {
+        "category": "Passive Components",
+        "probability": 0.111427
+      }
+    ],
+    "confidence": 0.164789,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "1589"
+  },
+  {
+    "record_id": "81",
+    "text": "81 81 Adafruit Motor/Stepper/Servo Shield for Arduino kit This kit is now discontinued. We've upgraded the Adafruit Motor Shield v1 to v2, with stacking-support and higher-current motor drivers, Please check out the v2 shield - its much better!Here is a design for a full-featured motor shield that will be able to power many simple to medium-complexity projects. Adafruit Industries Electronics & Components",
+    "expected": "Robotics",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.779666
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.19891
+      },
+      {
+        "category": "Tools",
+        "probability": 0.004771
+      }
+    ],
+    "confidence": 0.779666,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "81"
+  },
+  {
+    "record_id": "81",
+    "text": "81 81 adafruit motor/stepper/servo shield for arduino kit this kit is now discontinued. we've upgraded the adafruit motor shield v1 to v2, with stacking-support and higher-current motor drivers, please check out the v2 shield - its much better!here is a design for a full-featured motor shield that will be able to power many simple to medium-complexity projects. adafruit industries electronics & components",
+    "expected": "Robotics",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.779666
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.19891
+      },
+      {
+        "category": "Tools",
+        "probability": 0.004771
+      }
+    ],
+    "confidence": 0.779666,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "81"
+  },
+  {
+    "record_id": "99",
+    "text": "99 99 EM-406A GPS Module Sirf III chipset GPS module with 6 pin cable. Includes power/lock indicator LED and backup supercap. One of the nicest GPS modules I've come across Adafruit Industries Electronics & Components",
+    "expected": "Sensors",
+    "predicted": "Cables",
+    "top3": [
+      {
+        "category": "Cables",
+        "probability": 0.347681
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.190603
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.137395
+      }
+    ],
+    "confidence": 0.347681,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "99"
+  },
+  {
+    "record_id": "99",
+    "text": "99 99 em-406a gps module sirf iii chipset gps module with 6 pin cable. includes power/lock indicator led and backup supercap. one of the nicest gps modules i've come across adafruit industries electronics & components",
+    "expected": "Sensors",
+    "predicted": "Cables",
+    "top3": [
+      {
+        "category": "Cables",
+        "probability": 0.347681
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.190603
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.137395
+      }
+    ],
+    "confidence": 0.347681,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "99"
+  },
+  {
+    "record_id": "AUTO-87aaa0f2",
+    "text": "AUTO-87AAA0F2 AUTO-87aaa0f2 List Help Header W\u00fcrth Elektronik Component Catalog",
+    "expected": "Connectors",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.484294
+      },
+      {
+        "category": "Connectors",
+        "probability": 0.303228
+      },
+      {
+        "category": "Capacitors",
+        "probability": 0.055041
+      }
+    ],
+    "confidence": 0.484294,
+    "source": "wuerth-elektronik",
+    "manufacturer": "manufacturer",
+    "sku": "AUTO-87aaa0f2"
+  },
+  {
+    "record_id": "AUTO-87aaa0f2",
+    "text": "AUTO87AAA0F2 AUTO-87aaa0f2 List Help Header W\u00fcrth Elektronik Component Catalog",
+    "expected": "Connectors",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.455039
+      },
+      {
+        "category": "Connectors",
+        "probability": 0.324005
+      },
+      {
+        "category": "Capacitors",
+        "probability": 0.059478
+      }
+    ],
+    "confidence": 0.455039,
+    "source": "wuerth-elektronik",
+    "manufacturer": "manufacturer",
+    "sku": "AUTO-87aaa0f2"
+  },
+  {
+    "record_id": "AUTO-87aaa0f2",
+    "text": "auto-87aaa0f2 auto-87aaa0f2 list help header w\u00fcrth elektronik component catalog",
+    "expected": "Connectors",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.484294
+      },
+      {
+        "category": "Connectors",
+        "probability": 0.303228
+      },
+      {
+        "category": "Capacitors",
+        "probability": 0.055041
+      }
+    ],
+    "confidence": 0.484294,
+    "source": "wuerth-elektronik",
+    "manufacturer": "manufacturer",
+    "sku": "AUTO-87aaa0f2"
+  },
+  {
+    "record_id": "2087",
+    "text": "2087 2087 Flex Cable for Raspberry Pi Camera or Display \u2014 Various Sizes dir=\"ltr\">Is the flex cable for your Raspberry Pi Camera (either 'classic' or 'NoIR' type) or Raspberry Pi Display too short? Or maybe it's cluttering your workspace, and you want something more compact.  Whatever your Pi Camera needs, we have a variety of cable lengths for your Raspberry Pi Camera Board or Raspberry Pi NoIR Camera Board. Adafruit Industries Electronics & Components",
+    "expected": "Cables",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.492714
+      },
+      {
+        "category": "Cables",
+        "probability": 0.480083
+      },
+      {
+        "category": "Optoelectronics",
+        "probability": 0.008174
+      }
+    ],
+    "confidence": 0.492714,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "2087"
+  },
+  {
+    "record_id": "2087",
+    "text": "2087 2087 flex cable for raspberry pi camera or display \u2014 various sizes dir=\"ltr\">is the flex cable for your raspberry pi camera (either 'classic' or 'noir' type) or raspberry pi display too short? or maybe it's cluttering your workspace, and you want something more compact.  whatever your pi camera needs, we have a variety of cable lengths for your raspberry pi camera board or raspberry pi noir camera board. adafruit industries electronics & components",
+    "expected": "Cables",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.492714
+      },
+      {
+        "category": "Cables",
+        "probability": 0.480083
+      },
+      {
+        "category": "Optoelectronics",
+        "probability": 0.008174
+      }
+    ],
+    "confidence": 0.492714,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "2087"
+  },
+  {
+    "record_id": "WRL-19032",
+    "text": "WRL-19032 WRL-19032 SiK Telemetry Radio V3 - 915MHz, 100mW The 915MHz SiK Telemetry Radio V3 is a lightweight and inexpensive open source radio platform that can allow for ranges of 300m or more out of the box. SparkFun Electronics Open Source Hardware",
+    "expected": "Robotics",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.301507
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.156716
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.150188
+      }
+    ],
+    "confidence": 0.301507,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "WRL-19032"
+  },
+  {
+    "record_id": "WRL-19032",
+    "text": "WRL19032 WRL19032 SiK Telemetry Radio V3 - 915MHz, 100mW The 915MHz SiK Telemetry Radio V3 is a lightweight and inexpensive open source radio platform that can allow for ranges of 300m or more out of the box. SparkFun Electronics Open Source Hardware",
+    "expected": "Robotics",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.280334
+      },
+      {
+        "category": "Tools",
+        "probability": 0.167552
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.146539
+      }
+    ],
+    "confidence": 0.280334,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "WRL-19032"
+  },
+  {
+    "record_id": "WRL-19032",
+    "text": "wrl-19032 wrl-19032 sik telemetry radio v3 - 915mhz, 100mw the 915mhz sik telemetry radio v3 is a lightweight and inexpensive open source radio platform that can allow for ranges of 300m or more out of the box. sparkfun electronics open source hardware",
+    "expected": "Robotics",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.301507
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.156716
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.150188
+      }
+    ],
+    "confidence": 0.301507,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "WRL-19032"
+  },
+  {
+    "record_id": "924",
+    "text": "924 924 Emic 2 Text-to-Speech module Give your project a voice! Designed by Parallax in conjunction with Grand Idea Studio, the Emic 2 Text-to-Speech Module is a multi-language voice synthesizer that converts a stream of digital text into natural sounding speech. Its simple command-based interface makes it easy to integrate into any embedded system. It is by far the best sounding, easiest-to-use TTS module we've ever seen!Key Features: Adafruit Industries Electronics & Components",
+    "expected": "Development Boards",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.26258
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.224146
+      },
+      {
+        "category": "Tools",
+        "probability": 0.169986
+      }
+    ],
+    "confidence": 0.26258,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "924"
+  },
+  {
+    "record_id": "924",
+    "text": "924 924 emic 2 text-to-speech module give your project a voice! designed by parallax in conjunction with grand idea studio, the emic 2 text-to-speech module is a multi-language voice synthesizer that converts a stream of digital text into natural sounding speech. its simple command-based interface makes it easy to integrate into any embedded system. it is by far the best sounding, easiest-to-use tts module we've ever seen!key features: adafruit industries electronics & components",
+    "expected": "Development Boards",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.26258
+      },
+      {
+        "category": "Development Boards",
+        "probability": 0.224146
+      },
+      {
+        "category": "Tools",
+        "probability": 0.169986
+      }
+    ],
+    "confidence": 0.26258,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "924"
+  },
+  {
+    "record_id": "REVO-ROTO-COLDSIDE-SENSOR-AS",
+    "text": "REVO-ROTO-COLDSIDE-SENSOR-AS REVO-ROTO-COLDSIDE-SENSOR-AS Roto Extruder Roto is the extruder that Revo deserves. It carefully balances weight (140g) and force (70N+) to provide the lightest, most power-dense 3D printing extruder on the market.\nLightweight yet full of force\nThe roto gearbox consists of a planetary initial stage followed by a spur secondary stage with a dual hobb third stage. To put it concisely, this results in enough extrusion force to fully utilise our Revo High Flow nozzles' maximum volumetric flow rates while providing a favourable motor stall (rather than filament grind) failure mode.\n\nMaintenance minded\nEase of use was a major consideration in the design of Roto. To access the hobbs all you need to do is remove three bolts to remove the heatsink and filament path whilst leaving the body of your extruder mounted in situ.\nWe have also revamped the filament tensioning system, providing a simple bi-stable mechanism that either provides the optimal tension or completely releases the tension to help with filament loading and cold pulls. This means you can change the nozzle and release the filament with one hand.\nCool Design\nRoto features a first of its kind 3D printed metal heatsink. SLM 3D printing gave us unparalleled design freedom, which means beyond the obvious cool factor of using this technology, the design has been highly optimised. The heatsink prevents heat creep by reducing heat build-up via conduction and directs air through the air-break to disrupt the radiating heat from the HotSide, resulting in the most thermally effective heatsink we have ever produced.\nStandard\u2026 or smart\nRoto's evolution doesn't stop at the base performance characteristics you're used to. Upgrade to the sensored bundle to add filament monitoring, an action button, fan speed monitoring and heatsink temperature monitoring to your arsenal. With all these improvements, you can implement peace of mind within your workflow with remote monitoring and quick, simple maintenance for the most hands-off 3D printing experience ever.\nWant more juicy details? Visit our blog for a further deep dive into what makes Revo Roto the most power dense extruder on the market.\nPair with your perfect Hotside\nPair your Roto Extruder with one of our carefully curated Hotside packs to ensure your printing needs are met, straight out of the box. All Hotside packs come with your heating and sensing elements plus a variety of nozzles for you to start quick swapping with. Select from the following options:\u202f \nStarter - Ideal for users printing at standard speeds with PLA, PETG and ASA\u202f \nHigh Flow - Perfect if you're looking to push your Prusa printer's print speed capabilities to the limit\u202f \nHigh Flow X - All the benefits of the High Flow pack with the bonus of abrasive resistance for printing with fibre filled materials\u202f\n\nBuying Outside the UK?\nAvoid additional charges and lead time by ordering from your local E3D Reseller. E3D",
+    "expected": "Mechanical Parts",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.449292
+      },
+      {
+        "category": "Mechanical Parts",
+        "probability": 0.323729
+      },
+      {
+        "category": "3D Printing Materials",
+        "probability": 0.107986
+      }
+    ],
+    "confidence": 0.449292,
+    "source": "e3d-online-hardware",
+    "manufacturer": "manufacturer",
+    "sku": "REVO-ROTO-COLDSIDE-SENSOR-AS"
+  },
+  {
+    "record_id": "REVO-ROTO-COLDSIDE-SENSOR-AS",
+    "text": "REVOROTOCOLDSIDESENSORAS REVOROTOCOLDSIDESENSORAS Roto Extruder Roto is the extruder that Revo deserves. It carefully balances weight (140g) and force (70N+) to provide the lightest, most power-dense 3D printing extruder on the market.\nLightweight yet full of force\nThe roto gearbox consists of a planetary initial stage followed by a spur secondary stage with a dual hobb third stage. To put it concisely, this results in enough extrusion force to fully utilise our Revo High Flow nozzles' maximum volumetric flow rates while providing a favourable motor stall (rather than filament grind) failure mode.\n\nMaintenance minded\nEase of use was a major consideration in the design of Roto. To access the hobbs all you need to do is remove three bolts to remove the heatsink and filament path whilst leaving the body of your extruder mounted in situ.\nWe have also revamped the filament tensioning system, providing a simple bi-stable mechanism that either provides the optimal tension or completely releases the tension to help with filament loading and cold pulls. This means you can change the nozzle and release the filament with one hand.\nCool Design\nRoto features a first of its kind 3D printed metal heatsink. SLM 3D printing gave us unparalleled design freedom, which means beyond the obvious cool factor of using this technology, the design has been highly optimised. The heatsink prevents heat creep by reducing heat build-up via conduction and directs air through the air-break to disrupt the radiating heat from the HotSide, resulting in the most thermally effective heatsink we have ever produced.\nStandard\u2026 or smart\nRoto's evolution doesn't stop at the base performance characteristics you're used to. Upgrade to the sensored bundle to add filament monitoring, an action button, fan speed monitoring and heatsink temperature monitoring to your arsenal. With all these improvements, you can implement peace of mind within your workflow with remote monitoring and quick, simple maintenance for the most hands-off 3D printing experience ever.\nWant more juicy details? Visit our blog for a further deep dive into what makes Revo Roto the most power dense extruder on the market.\nPair with your perfect Hotside\nPair your Roto Extruder with one of our carefully curated Hotside packs to ensure your printing needs are met, straight out of the box. All Hotside packs come with your heating and sensing elements plus a variety of nozzles for you to start quick swapping with. Select from the following options:\u202f \nStarter - Ideal for users printing at standard speeds with PLA, PETG and ASA\u202f \nHigh Flow - Perfect if you're looking to push your Prusa printer's print speed capabilities to the limit\u202f \nHigh Flow X - All the benefits of the High Flow pack with the bonus of abrasive resistance for printing with fibre filled materials\u202f\n\nBuying Outside the UK?\nAvoid additional charges and lead time by ordering from your local E3D Reseller. E3D",
+    "expected": "Mechanical Parts",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.378121
+      },
+      {
+        "category": "Mechanical Parts",
+        "probability": 0.372969
+      },
+      {
+        "category": "3D Printing Materials",
+        "probability": 0.116109
+      }
+    ],
+    "confidence": 0.378121,
+    "source": "e3d-online-hardware",
+    "manufacturer": "manufacturer",
+    "sku": "REVO-ROTO-COLDSIDE-SENSOR-AS"
+  },
+  {
+    "record_id": "REVO-ROTO-COLDSIDE-SENSOR-AS",
+    "text": "revo-roto-coldside-sensor-as revo-roto-coldside-sensor-as roto extruder roto is the extruder that revo deserves. it carefully balances weight (140g) and force (70n+) to provide the lightest, most power-dense 3d printing extruder on the market.\nlightweight yet full of force\nthe roto gearbox consists of a planetary initial stage followed by a spur secondary stage with a dual hobb third stage. to put it concisely, this results in enough extrusion force to fully utilise our revo high flow nozzles' maximum volumetric flow rates while providing a favourable motor stall (rather than filament grind) failure mode.\n\nmaintenance minded\nease of use was a major consideration in the design of roto. to access the hobbs all you need to do is remove three bolts to remove the heatsink and filament path whilst leaving the body of your extruder mounted in situ.\nwe have also revamped the filament tensioning system, providing a simple bi-stable mechanism that either provides the optimal tension or completely releases the tension to help with filament loading and cold pulls. this means you can change the nozzle and release the filament with one hand.\ncool design\nroto features a first of its kind 3d printed metal heatsink. slm 3d printing gave us unparalleled design freedom, which means beyond the obvious cool factor of using this technology, the design has been highly optimised. the heatsink prevents heat creep by reducing heat build-up via conduction and directs air through the air-break to disrupt the radiating heat from the hotside, resulting in the most thermally effective heatsink we have ever produced.\nstandard\u2026 or smart\nroto's evolution doesn't stop at the base performance characteristics you're used to. upgrade to the sensored bundle to add filament monitoring, an action button, fan speed monitoring and heatsink temperature monitoring to your arsenal. with all these improvements, you can implement peace of mind within your workflow with remote monitoring and quick, simple maintenance for the most hands-off 3d printing experience ever.\nwant more juicy details? visit our blog for a further deep dive into what makes revo roto the most power dense extruder on the market.\npair with your perfect hotside\npair your roto extruder with one of our carefully curated hotside packs to ensure your printing needs are met, straight out of the box. all hotside packs come with your heating and sensing elements plus a variety of nozzles for you to start quick swapping with. select from the following options:\u202f \nstarter - ideal for users printing at standard speeds with pla, petg and asa\u202f \nhigh flow - perfect if you're looking to push your prusa printer's print speed capabilities to the limit\u202f \nhigh flow x - all the benefits of the high flow pack with the bonus of abrasive resistance for printing with fibre filled materials\u202f\n\nbuying outside the uk?\navoid additional charges and lead time by ordering from your local e3d reseller. e3d",
+    "expected": "Mechanical Parts",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.449292
+      },
+      {
+        "category": "Mechanical Parts",
+        "probability": 0.323729
+      },
+      {
+        "category": "3D Printing Materials",
+        "probability": 0.107986
+      }
+    ],
+    "confidence": 0.449292,
+    "source": "e3d-online-hardware",
+    "manufacturer": "manufacturer",
+    "sku": "REVO-ROTO-COLDSIDE-SENSOR-AS"
+  },
+  {
+    "record_id": "REVO-ROTO-COLDSIDE-MK3-AS",
+    "text": "REVOROTOCOLDSIDEMK3AS REVOROTOCOLDSIDEMK3AS Roto Extruder Prusa MK3 Edition Please note: This Extruder kit is not compatible with the Prusa MK3.5.\nPlease note, this kit is designed specifically for use with a Prusa MK3. If you're planning to install Roto on a different 3D printer then please use this link.\nRoto is the extruder that Revo deserves. It carefully balances weight (140g) and force (70N+) to provide the lightest, most power-dense 3D printing extruder on the market.\nLightweight yet full of force\nThe roto gearbox consists of a planetary initial stage followed by a spur secondary stage with a dual hobb third stage. To put it concisely, this results in enough extrusion force to fully utilise our Revo High Flow nozzles' maximum volumetric flow rates while providing a favourable motor stall (rather than filament grind) failure mode.\n\nMaintenance minded\nEase of use was a major consideration in the design of Roto. To access the hobbs all you need to do is remove three bolts to remove the heatsink and filament path whilst leaving the body of your extruder mounted in situ.\nWe have also revamped the filament tensioning system, providing a simple bi-stable mechanism that either provides the optimal tension or completely releases the tension to help with filament loading and cold pulls. This means you can change the nozzle and release the filament with one hand.\nCool Design\nRoto features a first of its kind 3D printed metal heatsink. SLM 3D printing gave us unparalleled design freedom, which means beyond the obvious cool factor of using this technology, the design has been highly optimised. The heatsink prevents heat creep by reducing heat build-up via conduction and directs air through the air-break to disrupt the radiating heat from the HotSide, resulting in the most thermally effective heatsink we have ever produced.\nStandard\u2026 or smart\nRoto's evolution doesn't stop at the base performance characteristics you're used to. Why not add the MK3 Roto Filament sensor to your printer to implement peace of mind within your workflow with remote monitoring and quick, simple maintenance for the most hands-off 3D printing experience ever.\nWant more juicy details? Visit our blog for a further deep dive into what makes Revo Roto the most power dense extruder on the market.\nPair with your perfect Hotside\nPair your Roto Extruder with one of our carefully curated Hotside packs to ensure your printing needs are met, straight out of the box. All Hotside packs come with your heating and sensing elements plus a variety of nozzles for you to start quick swapping with. Select from the following options:\u202f \nStarter - Ideal for users printing at standard speeds with PLA, PETG and ASA\u202f \nHigh Flow - Perfect if you're looking to push your Prusa printer's print speed capabilities to the limit\u202f \nHigh Flow X - All the benefits of the High Flow pack with the bonus of abrasive resistance for printing with fibre filled materials\u202f \nPlease note:\n\nThis kit does not include the Roto Filament Sensor as it is only compatible with the MK3S and MK3S+. You can purchase it separately here.\n\nWe have not tested MMU1, 2 or 3 units with roto and are therefore unable to provide support for these configurations.\nThis kit is not compatible with the Prusa MK3.5\n\n \nBuying Outside the UK?\nAvoid additional charges and lead time by ordering from your local E3D Reseller. E3D",
+    "expected": "Mechanical Parts",
+    "predicted": "Sensors",
+    "top3": [
+      {
+        "category": "Sensors",
+        "probability": 0.403084
+      },
+      {
+        "category": "Mechanical Parts",
+        "probability": 0.396263
+      },
+      {
+        "category": "3D Printing Materials",
+        "probability": 0.089207
+      }
+    ],
+    "confidence": 0.403084,
+    "source": "e3d-online-hardware",
+    "manufacturer": "manufacturer",
+    "sku": "REVO-ROTO-COLDSIDE-MK3-AS"
+  },
+  {
+    "record_id": "COM-13247",
+    "text": "COM-13247 COM-13247 Magnetic Door Switch Set This Magnetic Door Switch Set is a small reed switch assembly that's commonly used in home security systems to alert you when doors or other openings... well, open. SparkFun Electronics Open Source Hardware",
+    "expected": "Sensors",
+    "predicted": "Switches",
+    "top3": [
+      {
+        "category": "Switches",
+        "probability": 0.260518
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.217783
+      },
+      {
+        "category": "Tools",
+        "probability": 0.204102
+      }
+    ],
+    "confidence": 0.260518,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "COM-13247"
+  },
+  {
+    "record_id": "COM-13247",
+    "text": "COM13247 COM13247 Magnetic Door Switch Set This Magnetic Door Switch Set is a small reed switch assembly that's commonly used in home security systems to alert you when doors or other openings... well, open. SparkFun Electronics Open Source Hardware",
+    "expected": "Sensors",
+    "predicted": "Tools",
+    "top3": [
+      {
+        "category": "Tools",
+        "probability": 0.281285
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.273969
+      },
+      {
+        "category": "Switches",
+        "probability": 0.168927
+      }
+    ],
+    "confidence": 0.281285,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "COM-13247"
+  },
+  {
+    "record_id": "COM-13247",
+    "text": "com-13247 com-13247 magnetic door switch set this magnetic door switch set is a small reed switch assembly that's commonly used in home security systems to alert you when doors or other openings... well, open. sparkfun electronics open source hardware",
+    "expected": "Sensors",
+    "predicted": "Switches",
+    "top3": [
+      {
+        "category": "Switches",
+        "probability": 0.260518
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.217783
+      },
+      {
+        "category": "Tools",
+        "probability": 0.204102
+      }
+    ],
+    "confidence": 0.260518,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "COM-13247"
+  },
+  {
+    "record_id": "735",
+    "text": "735 735 74LVC245 - Breadboard Friendly 8-bit Logic Level Shifter Most of our customers love using the Arduino for prototyping, design, and invention but find themselves stuck when trying to connect the Arduino to the latest sensors, displays, controllers, interfaces, etc. as they are almost all 3.3V logic these days. We try to solve this problem by having all our breakout boards be 5V compatible or when that's not possible, including a level shifter chip but there are still thousands of tempting devices out there.This chip solves the problem of how to interface 3.3V logic devices to a 5.0V logic chip such as the Arduino. Most 3.3V devices do not like being run with 5V signals and can be damaged or flaky. The 74LVC245 is designed so that even when it runs at 1.8V, it still happily accepts 5V signals in one pin and converts it to a lower logic level on the opposite pin. This chip is only for digital signals, it doesn't convert analog signals (you need an op-amp for that). It has 8 pipes it can convert but it won't work with bi-directional/pull-up based devices such as I2C or 1-Wire. It does work great for SPI, Serial, Parallel bus, and other logic interfaces.Using it is simple. We suggest checking out the 74LVC245 datasheet for details but essentially: connect VCC to your logic level you want to convert to (say 3.3V), Ground connects to Ground. Wire OE (output enable) to ground to enable the device and DIR (direction) to VCC. Then digital logic on the A pins up to 5V will appear on the B pins shifted down to the VCC logic. Adafruit Industries Electronics & Components",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.813132
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.060438
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.055892
+      }
+    ],
+    "confidence": 0.813132,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "735"
+  },
+  {
+    "record_id": "735",
+    "text": "735 735 74lvc245 - breadboard friendly 8-bit logic level shifter most of our customers love using the arduino for prototyping, design, and invention but find themselves stuck when trying to connect the arduino to the latest sensors, displays, controllers, interfaces, etc. as they are almost all 3.3v logic these days. we try to solve this problem by having all our breakout boards be 5v compatible or when that's not possible, including a level shifter chip but there are still thousands of tempting devices out there.this chip solves the problem of how to interface 3.3v logic devices to a 5.0v logic chip such as the arduino. most 3.3v devices do not like being run with 5v signals and can be damaged or flaky. the 74lvc245 is designed so that even when it runs at 1.8v, it still happily accepts 5v signals in one pin and converts it to a lower logic level on the opposite pin. this chip is only for digital signals, it doesn't convert analog signals (you need an op-amp for that). it has 8 pipes it can convert but it won't work with bi-directional/pull-up based devices such as i2c or 1-wire. it does work great for spi, serial, parallel bus, and other logic interfaces.using it is simple. we suggest checking out the 74lvc245 datasheet for details but essentially: connect vcc to your logic level you want to convert to (say 3.3v), ground connects to ground. wire oe (output enable) to ground to enable the device and dir (direction) to vcc. then digital logic on the a pins up to 5v will appear on the b pins shifted down to the vcc logic. adafruit industries electronics & components",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.813132
+      },
+      {
+        "category": "Sensors",
+        "probability": 0.060438
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.055892
+      }
+    ],
+    "confidence": 0.813132,
+    "source": "adafruit-industries",
+    "manufacturer": "distributor",
+    "sku": "735"
+  },
+  {
+    "record_id": "AUTO-19fa776f",
+    "text": "AUTO-19FA776F AUTO-19fa776f Arduino Boards - Arduino - Microcontrollers - Development Boards - SparkFun Electronics SparkFun Electronics is an online retail store that sells the bits and pieces to make your electronics projects possible. SparkFun Electronics Open Source Hardware",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.989988
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.008026
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.000572
+      }
+    ],
+    "confidence": 0.989988,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "AUTO-19fa776f"
+  },
+  {
+    "record_id": "AUTO-19fa776f",
+    "text": "AUTO19FA776F AUTO-19fa776f Arduino Boards - Arduino - Microcontrollers - Development Boards - SparkFun Electronics SparkFun Electronics is an online retail store that sells the bits and pieces to make your electronics projects possible. SparkFun Electronics Open Source Hardware",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.990963
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.007358
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.000499
+      }
+    ],
+    "confidence": 0.990963,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "AUTO-19fa776f"
+  },
+  {
+    "record_id": "AUTO-19fa776f",
+    "text": "auto-19fa776f auto-19fa776f arduino boards - arduino - microcontrollers - development boards - sparkfun electronics sparkfun electronics is an online retail store that sells the bits and pieces to make your electronics projects possible. sparkfun electronics open source hardware",
+    "expected": "ICs & Semiconductors",
+    "predicted": "Development Boards",
+    "top3": [
+      {
+        "category": "Development Boards",
+        "probability": 0.989988
+      },
+      {
+        "category": "ICs & Semiconductors",
+        "probability": 0.008026
+      },
+      {
+        "category": "Robotics",
+        "probability": 0.000572
+      }
+    ],
+    "confidence": 0.989988,
+    "source": "sparkfun-electronics",
+    "manufacturer": "distributor",
+    "sku": "AUTO-19fa776f"
+  }
+]

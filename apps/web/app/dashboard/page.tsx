@@ -428,17 +428,6 @@ export default function DashboardPage() {
         description="Real-time operational command center and synchronized metrics across inventory, procurement, and manufacturing."
         actions={
           <div className="flex items-center gap-2">
-            {lastSyncTime && (
-              <span className="text-[11px] font-mono text-muted-foreground hidden sm:inline-block mr-1">
-                Synced at{" "}
-                {lastSyncTime.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}
-              </span>
-            )}
-
             <Button
               size="sm"
               variant="outline"

@@ -1,0 +1,174 @@
+{
+  "pair": "Mechanical Parts <-> Sensors",
+  "total_errors": 7,
+  "records": [
+    {
+      "record_id": "V6-175-B-24V",
+      "text": "V6-175-B-24V V6-175-B-24V V6 1.75mm All-Metal HotEnd High-temperature performance\nThe benefit of an all-metal design means the V6 can comfortably reach 300\u00b0C with the supplied thermistor. If you\u2019d like to print at higher temperatures (up to 500\u00b0C), then you will need to use a plated copper heater block along with a PT100 or PT1000. Print standard materials such as PLA, PETG and ABS and high-temperature materials such as Polycarbonate, Ultem, Nylon and PEEK.\nEasy to use\nThe V6 features a cartridge-style heater block, enabling a no-fuss approach to replacing both heater cartridges and temperature sensors. Replacement thermistors, PT100\u2019s and thermocouples can be slid into place and secured with a grub screw, ensuring maintenance is simple and painless.\nPrecise\nOur all-metal HeatBreak maintains a sharp thermal break to provide better control over filament output; improving start and stops when extruding, as well as more effective retraction, combating oozing and stringing. The all-metal HeatBreak features a refined internal surface finish to reduce extrusion force and improve the reliability of retractions.\nComposer Export1211136871454321910DescriptionBOM IDQtyCollet11HeatSink21HeatBreak31V6 HeaterBlock41M3x3 Grubscrew51DescriptionBOM IDQtyM3x8 Dome-head screw61V6 Nozzle71V6 Sock81ThermistorCartridge91HeaterCartridge103DescriptionBOM IDQtySelf Tapping Screws114E-FAN-30-30-10121Fan Duct131Collet Clip141tooltip E3D",
+      "expected": "Mechanical Parts",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.798321
+        },
+        {
+          "category": "Mechanical Parts",
+          "probability": 0.115425
+        },
+        {
+          "category": "3D Printing Materials",
+          "probability": 0.03774
+        }
+      ],
+      "confidence": 0.798321,
+      "source": "e3d-online-hardware",
+      "manufacturer": "manufacturer",
+      "sku": "V6-175-B-24V"
+    },
+    {
+      "record_id": "V6-175-B-24V",
+      "text": "V6175B24V V6175B24V V6 1.75mm All-Metal HotEnd High-temperature performance\nThe benefit of an all-metal design means the V6 can comfortably reach 300\u00b0C with the supplied thermistor. If you\u2019d like to print at higher temperatures (up to 500\u00b0C), then you will need to use a plated copper heater block along with a PT100 or PT1000. Print standard materials such as PLA, PETG and ABS and high-temperature materials such as Polycarbonate, Ultem, Nylon and PEEK.\nEasy to use\nThe V6 features a cartridge-style heater block, enabling a no-fuss approach to replacing both heater cartridges and temperature sensors. Replacement thermistors, PT100\u2019s and thermocouples can be slid into place and secured with a grub screw, ensuring maintenance is simple and painless.\nPrecise\nOur all-metal HeatBreak maintains a sharp thermal break to provide better control over filament output; improving start and stops when extruding, as well as more effective retraction, combating oozing and stringing. The all-metal HeatBreak features a refined internal surface finish to reduce extrusion force and improve the reliability of retractions.\nComposer Export1211136871454321910DescriptionBOM IDQtyCollet11HeatSink21HeatBreak31V6 HeaterBlock41M3x3 Grubscrew51DescriptionBOM IDQtyM3x8 Dome-head screw61V6 Nozzle71V6 Sock81ThermistorCartridge91HeaterCartridge103DescriptionBOM IDQtySelf Tapping Screws114E-FAN-30-30-10121Fan Duct131Collet Clip141tooltip E3D",
+      "expected": "Mechanical Parts",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.835682
+        },
+        {
+          "category": "Mechanical Parts",
+          "probability": 0.082709
+        },
+        {
+          "category": "3D Printing Materials",
+          "probability": 0.03568
+        }
+      ],
+      "confidence": 0.835682,
+      "source": "e3d-online-hardware",
+      "manufacturer": "manufacturer",
+      "sku": "V6-175-B-24V"
+    },
+    {
+      "record_id": "V6-175-B-24V",
+      "text": "v6-175-b-24v v6-175-b-24v v6 1.75mm all-metal hotend high-temperature performance\nthe benefit of an all-metal design means the v6 can comfortably reach 300\u00b0c with the supplied thermistor. if you\u2019d like to print at higher temperatures (up to 500\u00b0c), then you will need to use a plated copper heater block along with a pt100 or pt1000. print standard materials such as pla, petg and abs and high-temperature materials such as polycarbonate, ultem, nylon and peek.\neasy to use\nthe v6 features a cartridge-style heater block, enabling a no-fuss approach to replacing both heater cartridges and temperature sensors. replacement thermistors, pt100\u2019s and thermocouples can be slid into place and secured with a grub screw, ensuring maintenance is simple and painless.\nprecise\nour all-metal heatbreak maintains a sharp thermal break to provide better control over filament output; improving start and stops when extruding, as well as more effective retraction, combating oozing and stringing. the all-metal heatbreak features a refined internal surface finish to reduce extrusion force and improve the reliability of retractions.\ncomposer export1211136871454321910descriptionbom idqtycollet11heatsink21heatbreak31v6 heaterblock41m3x3 grubscrew51descriptionbom idqtym3x8 dome-head screw61v6 nozzle71v6 sock81thermistorcartridge91heatercartridge103descriptionbom idqtyself tapping screws114e-fan-30-30-10121fan duct131collet clip141tooltip e3d",
+      "expected": "Mechanical Parts",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.798321
+        },
+        {
+          "category": "Mechanical Parts",
+          "probability": 0.115425
+        },
+        {
+          "category": "3D Printing Materials",
+          "probability": 0.03774
+        }
+      ],
+      "confidence": 0.798321,
+      "source": "e3d-online-hardware",
+      "manufacturer": "manufacturer",
+      "sku": "V6-175-B-24V"
+    },
+    {
+      "record_id": "REVO-ROTO-COLDSIDE-SENSOR-AS",
+      "text": "REVO-ROTO-COLDSIDE-SENSOR-AS REVO-ROTO-COLDSIDE-SENSOR-AS Roto Extruder Roto is the extruder that Revo deserves. It carefully balances weight (140g) and force (70N+) to provide the lightest, most power-dense 3D printing extruder on the market.\nLightweight yet full of force\nThe roto gearbox consists of a planetary initial stage followed by a spur secondary stage with a dual hobb third stage. To put it concisely, this results in enough extrusion force to fully utilise our Revo High Flow nozzles' maximum volumetric flow rates while providing a favourable motor stall (rather than filament grind) failure mode.\n\nMaintenance minded\nEase of use was a major consideration in the design of Roto. To access the hobbs all you need to do is remove three bolts to remove the heatsink and filament path whilst leaving the body of your extruder mounted in situ.\nWe have also revamped the filament tensioning system, providing a simple bi-stable mechanism that either provides the optimal tension or completely releases the tension to help with filament loading and cold pulls. This means you can change the nozzle and release the filament with one hand.\nCool Design\nRoto features a first of its kind 3D printed metal heatsink. SLM 3D printing gave us unparalleled design freedom, which means beyond the obvious cool factor of using this technology, the design has been highly optimised. The heatsink prevents heat creep by reducing heat build-up via conduction and directs air through the air-break to disrupt the radiating heat from the HotSide, resulting in the most thermally effective heatsink we have ever produced.\nStandard\u2026 or smart\nRoto's evolution doesn't stop at the base performance characteristics you're used to. Upgrade to the sensored bundle to add filament monitoring, an action button, fan speed monitoring and heatsink temperature monitoring to your arsenal. With all these improvements, you can implement peace of mind within your workflow with remote monitoring and quick, simple maintenance for the most hands-off 3D printing experience ever.\nWant more juicy details? Visit our blog for a further deep dive into what makes Revo Roto the most power dense extruder on the market.\nPair with your perfect Hotside\nPair your Roto Extruder with one of our carefully curated Hotside packs to ensure your printing needs are met, straight out of the box. All Hotside packs come with your heating and sensing elements plus a variety of nozzles for you to start quick swapping with. Select from the following options:\u202f \nStarter - Ideal for users printing at standard speeds with PLA, PETG and ASA\u202f \nHigh Flow - Perfect if you're looking to push your Prusa printer's print speed capabilities to the limit\u202f \nHigh Flow X - All the benefits of the High Flow pack with the bonus of abrasive resistance for printing with fibre filled materials\u202f\n\nBuying Outside the UK?\nAvoid additional charges and lead time by ordering from your local E3D Reseller. E3D",
+      "expected": "Mechanical Parts",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.449292
+        },
+        {
+          "category": "Mechanical Parts",
+          "probability": 0.323729
+        },
+        {
+          "category": "3D Printing Materials",
+          "probability": 0.107986
+        }
+      ],
+      "confidence": 0.449292,
+      "source": "e3d-online-hardware",
+      "manufacturer": "manufacturer",
+      "sku": "REVO-ROTO-COLDSIDE-SENSOR-AS"
+    },
+    {
+      "record_id": "REVO-ROTO-COLDSIDE-SENSOR-AS",
+      "text": "REVOROTOCOLDSIDESENSORAS REVOROTOCOLDSIDESENSORAS Roto Extruder Roto is the extruder that Revo deserves. It carefully balances weight (140g) and force (70N+) to provide the lightest, most power-dense 3D printing extruder on the market.\nLightweight yet full of force\nThe roto gearbox consists of a planetary initial stage followed by a spur secondary stage with a dual hobb third stage. To put it concisely, this results in enough extrusion force to fully utilise our Revo High Flow nozzles' maximum volumetric flow rates while providing a favourable motor stall (rather than filament grind) failure mode.\n\nMaintenance minded\nEase of use was a major consideration in the design of Roto. To access the hobbs all you need to do is remove three bolts to remove the heatsink and filament path whilst leaving the body of your extruder mounted in situ.\nWe have also revamped the filament tensioning system, providing a simple bi-stable mechanism that either provides the optimal tension or completely releases the tension to help with filament loading and cold pulls. This means you can change the nozzle and release the filament with one hand.\nCool Design\nRoto features a first of its kind 3D printed metal heatsink. SLM 3D printing gave us unparalleled design freedom, which means beyond the obvious cool factor of using this technology, the design has been highly optimised. The heatsink prevents heat creep by reducing heat build-up via conduction and directs air through the air-break to disrupt the radiating heat from the HotSide, resulting in the most thermally effective heatsink we have ever produced.\nStandard\u2026 or smart\nRoto's evolution doesn't stop at the base performance characteristics you're used to. Upgrade to the sensored bundle to add filament monitoring, an action button, fan speed monitoring and heatsink temperature monitoring to your arsenal. With all these improvements, you can implement peace of mind within your workflow with remote monitoring and quick, simple maintenance for the most hands-off 3D printing experience ever.\nWant more juicy details? Visit our blog for a further deep dive into what makes Revo Roto the most power dense extruder on the market.\nPair with your perfect Hotside\nPair your Roto Extruder with one of our carefully curated Hotside packs to ensure your printing needs are met, straight out of the box. All Hotside packs come with your heating and sensing elements plus a variety of nozzles for you to start quick swapping with. Select from the following options:\u202f \nStarter - Ideal for users printing at standard speeds with PLA, PETG and ASA\u202f \nHigh Flow - Perfect if you're looking to push your Prusa printer's print speed capabilities to the limit\u202f \nHigh Flow X - All the benefits of the High Flow pack with the bonus of abrasive resistance for printing with fibre filled materials\u202f\n\nBuying Outside the UK?\nAvoid additional charges and lead time by ordering from your local E3D Reseller. E3D",
+      "expected": "Mechanical Parts",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.378121
+        },
+        {
+          "category": "Mechanical Parts",
+          "probability": 0.372969
+        },
+        {
+          "category": "3D Printing Materials",
+          "probability": 0.116109
+        }
+      ],
+      "confidence": 0.378121,
+      "source": "e3d-online-hardware",
+      "manufacturer": "manufacturer",
+      "sku": "REVO-ROTO-COLDSIDE-SENSOR-AS"
+    },
+    {
+      "record_id": "REVO-ROTO-COLDSIDE-SENSOR-AS",
+      "text": "revo-roto-coldside-sensor-as revo-roto-coldside-sensor-as roto extruder roto is the extruder that revo deserves. it carefully balances weight (140g) and force (70n+) to provide the lightest, most power-dense 3d printing extruder on the market.\nlightweight yet full of force\nthe roto gearbox consists of a planetary initial stage followed by a spur secondary stage with a dual hobb third stage. to put it concisely, this results in enough extrusion force to fully utilise our revo high flow nozzles' maximum volumetric flow rates while providing a favourable motor stall (rather than filament grind) failure mode.\n\nmaintenance minded\nease of use was a major consideration in the design of roto. to access the hobbs all you need to do is remove three bolts to remove the heatsink and filament path whilst leaving the body of your extruder mounted in situ.\nwe have also revamped the filament tensioning system, providing a simple bi-stable mechanism that either provides the optimal tension or completely releases the tension to help with filament loading and cold pulls. this means you can change the nozzle and release the filament with one hand.\ncool design\nroto features a first of its kind 3d printed metal heatsink. slm 3d printing gave us unparalleled design freedom, which means beyond the obvious cool factor of using this technology, the design has been highly optimised. the heatsink prevents heat creep by reducing heat build-up via conduction and directs air through the air-break to disrupt the radiating heat from the hotside, resulting in the most thermally effective heatsink we have ever produced.\nstandard\u2026 or smart\nroto's evolution doesn't stop at the base performance characteristics you're used to. upgrade to the sensored bundle to add filament monitoring, an action button, fan speed monitoring and heatsink temperature monitoring to your arsenal. with all these improvements, you can implement peace of mind within your workflow with remote monitoring and quick, simple maintenance for the most hands-off 3d printing experience ever.\nwant more juicy details? visit our blog for a further deep dive into what makes revo roto the most power dense extruder on the market.\npair with your perfect hotside\npair your roto extruder with one of our carefully curated hotside packs to ensure your printing needs are met, straight out of the box. all hotside packs come with your heating and sensing elements plus a variety of nozzles for you to start quick swapping with. select from the following options:\u202f \nstarter - ideal for users printing at standard speeds with pla, petg and asa\u202f \nhigh flow - perfect if you're looking to push your prusa printer's print speed capabilities to the limit\u202f \nhigh flow x - all the benefits of the high flow pack with the bonus of abrasive resistance for printing with fibre filled materials\u202f\n\nbuying outside the uk?\navoid additional charges and lead time by ordering from your local e3d reseller. e3d",
+      "expected": "Mechanical Parts",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.449292
+        },
+        {
+          "category": "Mechanical Parts",
+          "probability": 0.323729
+        },
+        {
+          "category": "3D Printing Materials",
+          "probability": 0.107986
+        }
+      ],
+      "confidence": 0.449292,
+      "source": "e3d-online-hardware",
+      "manufacturer": "manufacturer",
+      "sku": "REVO-ROTO-COLDSIDE-SENSOR-AS"
+    },
+    {
+      "record_id": "REVO-ROTO-COLDSIDE-MK3-AS",
+      "text": "REVOROTOCOLDSIDEMK3AS REVOROTOCOLDSIDEMK3AS Roto Extruder Prusa MK3 Edition Please note: This Extruder kit is not compatible with the Prusa MK3.5.\nPlease note, this kit is designed specifically for use with a Prusa MK3. If you're planning to install Roto on a different 3D printer then please use this link.\nRoto is the extruder that Revo deserves. It carefully balances weight (140g) and force (70N+) to provide the lightest, most power-dense 3D printing extruder on the market.\nLightweight yet full of force\nThe roto gearbox consists of a planetary initial stage followed by a spur secondary stage with a dual hobb third stage. To put it concisely, this results in enough extrusion force to fully utilise our Revo High Flow nozzles' maximum volumetric flow rates while providing a favourable motor stall (rather than filament grind) failure mode.\n\nMaintenance minded\nEase of use was a major consideration in the design of Roto. To access the hobbs all you need to do is remove three bolts to remove the heatsink and filament path whilst leaving the body of your extruder mounted in situ.\nWe have also revamped the filament tensioning system, providing a simple bi-stable mechanism that either provides the optimal tension or completely releases the tension to help with filament loading and cold pulls. This means you can change the nozzle and release the filament with one hand.\nCool Design\nRoto features a first of its kind 3D printed metal heatsink. SLM 3D printing gave us unparalleled design freedom, which means beyond the obvious cool factor of using this technology, the design has been highly optimised. The heatsink prevents heat creep by reducing heat build-up via conduction and directs air through the air-break to disrupt the radiating heat from the HotSide, resulting in the most thermally effective heatsink we have ever produced.\nStandard\u2026 or smart\nRoto's evolution doesn't stop at the base performance characteristics you're used to. Why not add the MK3 Roto Filament sensor to your printer to implement peace of mind within your workflow with remote monitoring and quick, simple maintenance for the most hands-off 3D printing experience ever.\nWant more juicy details? Visit our blog for a further deep dive into what makes Revo Roto the most power dense extruder on the market.\nPair with your perfect Hotside\nPair your Roto Extruder with one of our carefully curated Hotside packs to ensure your printing needs are met, straight out of the box. All Hotside packs come with your heating and sensing elements plus a variety of nozzles for you to start quick swapping with. Select from the following options:\u202f \nStarter - Ideal for users printing at standard speeds with PLA, PETG and ASA\u202f \nHigh Flow - Perfect if you're looking to push your Prusa printer's print speed capabilities to the limit\u202f \nHigh Flow X - All the benefits of the High Flow pack with the bonus of abrasive resistance for printing with fibre filled materials\u202f \nPlease note:\n\nThis kit does not include the Roto Filament Sensor as it is only compatible with the MK3S and MK3S+. You can purchase it separately here.\n\nWe have not tested MMU1, 2 or 3 units with roto and are therefore unable to provide support for these configurations.\nThis kit is not compatible with the Prusa MK3.5\n\n \nBuying Outside the UK?\nAvoid additional charges and lead time by ordering from your local E3D Reseller. E3D",
+      "expected": "Mechanical Parts",
+      "predicted": "Sensors",
+      "top3": [
+        {
+          "category": "Sensors",
+          "probability": 0.403084
+        },
+        {
+          "category": "Mechanical Parts",
+          "probability": 0.396263
+        },
+        {
+          "category": "3D Printing Materials",
+          "probability": 0.089207
+        }
+      ],
+      "confidence": 0.403084,
+      "source": "e3d-online-hardware",
+      "manufacturer": "manufacturer",
+      "sku": "REVO-ROTO-COLDSIDE-MK3-AS"
+    }
+  ]
+}

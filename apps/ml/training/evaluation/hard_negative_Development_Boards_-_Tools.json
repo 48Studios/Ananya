@@ -1,0 +1,150 @@
+{
+  "pair": "Development Boards <-> Tools",
+  "total_errors": 6,
+  "records": [
+    {
+      "record_id": "PRT-17867",
+      "text": "PRT-17867 PRT-17867 MI:pro Protector Case for micro:bit V2 The MI:pro Protector is a simple and compact protective case for the micro:bit. SparkFun Electronics Open Source Hardware",
+      "expected": "Tools",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.985913
+        },
+        {
+          "category": "Tools",
+          "probability": 0.007093
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.001206
+        }
+      ],
+      "confidence": 0.985913,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "PRT-17867"
+    },
+    {
+      "record_id": "PRT-17867",
+      "text": "PRT17867 PRT17867 MI:pro Protector Case for micro:bit V2 The MI:pro Protector is a simple and compact protective case for the micro:bit. SparkFun Electronics Open Source Hardware",
+      "expected": "Tools",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.984083
+        },
+        {
+          "category": "Tools",
+          "probability": 0.007976
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.001483
+        }
+      ],
+      "confidence": 0.984083,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "PRT-17867"
+    },
+    {
+      "record_id": "PRT-17867",
+      "text": "prt-17867 prt-17867 mi:pro protector case for micro:bit v2 the mi:pro protector is a simple and compact protective case for the micro:bit. sparkfun electronics open source hardware",
+      "expected": "Tools",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.985913
+        },
+        {
+          "category": "Tools",
+          "probability": 0.007093
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.001206
+        }
+      ],
+      "confidence": 0.985913,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "PRT-17867"
+    },
+    {
+      "record_id": "PRT-17868",
+      "text": "PRT-17868 PRT-17868 MI:pro Mountable Case for micro:bit V2 The Mountable MI:pro is a simple and compact protective case for the micro:bit. SparkFun Electronics Open Source Hardware",
+      "expected": "Tools",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.976787
+        },
+        {
+          "category": "Tools",
+          "probability": 0.010049
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.002664
+        }
+      ],
+      "confidence": 0.976787,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "PRT-17868"
+    },
+    {
+      "record_id": "PRT-17868",
+      "text": "PRT17868 PRT17868 MI:pro Mountable Case for micro:bit V2 The Mountable MI:pro is a simple and compact protective case for the micro:bit. SparkFun Electronics Open Source Hardware",
+      "expected": "Tools",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.973847
+        },
+        {
+          "category": "Tools",
+          "probability": 0.011351
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.002998
+        }
+      ],
+      "confidence": 0.973847,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "PRT-17868"
+    },
+    {
+      "record_id": "PRT-17868",
+      "text": "prt-17868 prt-17868 mi:pro mountable case for micro:bit v2 the mountable mi:pro is a simple and compact protective case for the micro:bit. sparkfun electronics open source hardware",
+      "expected": "Tools",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.976787
+        },
+        {
+          "category": "Tools",
+          "probability": 0.010049
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.002664
+        }
+      ],
+      "confidence": 0.976787,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "PRT-17868"
+    }
+  ]
+}

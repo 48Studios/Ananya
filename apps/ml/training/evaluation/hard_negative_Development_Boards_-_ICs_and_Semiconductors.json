@@ -1,0 +1,270 @@
+{
+  "pair": "Development Boards <-> ICs & Semiconductors",
+  "total_errors": 11,
+  "records": [
+    {
+      "record_id": "US000776",
+      "text": "US000776 US000776 SparkFun Qwiic 12 Bit ADC - 4 Channel (ADS1015) SparkFun Electronics",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.384091
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.277584
+        },
+        {
+          "category": "Tools",
+          "probability": 0.101831
+        }
+      ],
+      "confidence": 0.384091,
+      "source": "oshwa-hardware-registry",
+      "manufacturer": "public_dataset",
+      "sku": "US000776"
+    },
+    {
+      "record_id": "US000776",
+      "text": "us000776 us000776 sparkfun qwiic 12 bit adc - 4 channel (ads1015) sparkfun electronics",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.384091
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.277584
+        },
+        {
+          "category": "Tools",
+          "probability": 0.101831
+        }
+      ],
+      "confidence": 0.384091,
+      "source": "oshwa-hardware-registry",
+      "manufacturer": "public_dataset",
+      "sku": "US000776"
+    },
+    {
+      "record_id": "DEV-15845",
+      "text": "DEV-15845 DEV-15845 Teensy 4 Audio Shield (Rev D) The Teensy 4 Audio Shield is a feature-rich codec board for the Teensy 4.0 that provides simultaneous 16-bit, 44.1kHz stereo audio input/output, a headphone amp, and a microSD card slot. SparkFun Electronics Open Source Hardware",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.938764
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.04822
+        },
+        {
+          "category": "Tools",
+          "probability": 0.003987
+        }
+      ],
+      "confidence": 0.938764,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "DEV-15845"
+    },
+    {
+      "record_id": "DEV-15845",
+      "text": "DEV15845 DEV15845 Teensy 4 Audio Shield (Rev D) The Teensy 4 Audio Shield is a feature-rich codec board for the Teensy 4.0 that provides simultaneous 16-bit, 44.1kHz stereo audio input/output, a headphone amp, and a microSD card slot. SparkFun Electronics Open Source Hardware",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.922814
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.058143
+        },
+        {
+          "category": "Tools",
+          "probability": 0.005318
+        }
+      ],
+      "confidence": 0.922814,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "DEV-15845"
+    },
+    {
+      "record_id": "DEV-15845",
+      "text": "dev-15845 dev-15845 teensy 4 audio shield (rev d) the teensy 4 audio shield is a feature-rich codec board for the teensy 4.0 that provides simultaneous 16-bit, 44.1khz stereo audio input/output, a headphone amp, and a microsd card slot. sparkfun electronics open source hardware",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.938764
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.04822
+        },
+        {
+          "category": "Tools",
+          "probability": 0.003987
+        }
+      ],
+      "confidence": 0.938764,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "DEV-15845"
+    },
+    {
+      "record_id": "COM-26191",
+      "text": "COM26191 COM26191 Raspberry Pi RP2040 Microcontroller IC The RP2040 is the debut microcontroller from Raspberry Pi. SparkFun Electronics Open Source Hardware",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.685589
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.298518
+        },
+        {
+          "category": "Cables",
+          "probability": 0.006486
+        }
+      ],
+      "confidence": 0.685589,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "COM-26191"
+    },
+    {
+      "record_id": "735",
+      "text": "735 735 74LVC245 - Breadboard Friendly 8-bit Logic Level Shifter Most of our customers love using the Arduino for prototyping, design, and invention but find themselves stuck when trying to connect the Arduino to the latest sensors, displays, controllers, interfaces, etc. as they are almost all 3.3V logic these days. We try to solve this problem by having all our breakout boards be 5V compatible or when that's not possible, including a level shifter chip but there are still thousands of tempting devices out there.This chip solves the problem of how to interface 3.3V logic devices to a 5.0V logic chip such as the Arduino. Most 3.3V devices do not like being run with 5V signals and can be damaged or flaky. The 74LVC245 is designed so that even when it runs at 1.8V, it still happily accepts 5V signals in one pin and converts it to a lower logic level on the opposite pin. This chip is only for digital signals, it doesn't convert analog signals (you need an op-amp for that). It has 8 pipes it can convert but it won't work with bi-directional/pull-up based devices such as I2C or 1-Wire. It does work great for SPI, Serial, Parallel bus, and other logic interfaces.Using it is simple. We suggest checking out the 74LVC245 datasheet for details but essentially: connect VCC to your logic level you want to convert to (say 3.3V), Ground connects to Ground. Wire OE (output enable) to ground to enable the device and DIR (direction) to VCC. Then digital logic on the A pins up to 5V will appear on the B pins shifted down to the VCC logic. Adafruit Industries Electronics & Components",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.813132
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.060438
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.055892
+        }
+      ],
+      "confidence": 0.813132,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "735"
+    },
+    {
+      "record_id": "735",
+      "text": "735 735 74lvc245 - breadboard friendly 8-bit logic level shifter most of our customers love using the arduino for prototyping, design, and invention but find themselves stuck when trying to connect the arduino to the latest sensors, displays, controllers, interfaces, etc. as they are almost all 3.3v logic these days. we try to solve this problem by having all our breakout boards be 5v compatible or when that's not possible, including a level shifter chip but there are still thousands of tempting devices out there.this chip solves the problem of how to interface 3.3v logic devices to a 5.0v logic chip such as the arduino. most 3.3v devices do not like being run with 5v signals and can be damaged or flaky. the 74lvc245 is designed so that even when it runs at 1.8v, it still happily accepts 5v signals in one pin and converts it to a lower logic level on the opposite pin. this chip is only for digital signals, it doesn't convert analog signals (you need an op-amp for that). it has 8 pipes it can convert but it won't work with bi-directional/pull-up based devices such as i2c or 1-wire. it does work great for spi, serial, parallel bus, and other logic interfaces.using it is simple. we suggest checking out the 74lvc245 datasheet for details but essentially: connect vcc to your logic level you want to convert to (say 3.3v), ground connects to ground. wire oe (output enable) to ground to enable the device and dir (direction) to vcc. then digital logic on the a pins up to 5v will appear on the b pins shifted down to the vcc logic. adafruit industries electronics & components",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.813132
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.060438
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.055892
+        }
+      ],
+      "confidence": 0.813132,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "735"
+    },
+    {
+      "record_id": "AUTO-19fa776f",
+      "text": "AUTO-19FA776F AUTO-19fa776f Arduino Boards - Arduino - Microcontrollers - Development Boards - SparkFun Electronics SparkFun Electronics is an online retail store that sells the bits and pieces to make your electronics projects possible. SparkFun Electronics Open Source Hardware",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.989988
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.008026
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.000572
+        }
+      ],
+      "confidence": 0.989988,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "AUTO-19fa776f"
+    },
+    {
+      "record_id": "AUTO-19fa776f",
+      "text": "AUTO19FA776F AUTO-19fa776f Arduino Boards - Arduino - Microcontrollers - Development Boards - SparkFun Electronics SparkFun Electronics is an online retail store that sells the bits and pieces to make your electronics projects possible. SparkFun Electronics Open Source Hardware",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.990963
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.007358
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.000499
+        }
+      ],
+      "confidence": 0.990963,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "AUTO-19fa776f"
+    },
+    {
+      "record_id": "AUTO-19fa776f",
+      "text": "auto-19fa776f auto-19fa776f arduino boards - arduino - microcontrollers - development boards - sparkfun electronics sparkfun electronics is an online retail store that sells the bits and pieces to make your electronics projects possible. sparkfun electronics open source hardware",
+      "expected": "ICs & Semiconductors",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.989988
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.008026
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.000572
+        }
+      ],
+      "confidence": 0.989988,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "AUTO-19fa776f"
+    }
+  ]
+}

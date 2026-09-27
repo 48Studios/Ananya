@@ -1,0 +1,126 @@
+{
+  "pair": "Development Boards <-> Optoelectronics",
+  "total_errors": 5,
+  "records": [
+    {
+      "record_id": "1651",
+      "text": "1651 1651 2.8\" TFT Touch Shield for Arduino with Resistive Touch Screen v2 Spice up your Arduino project with a beautiful large touchscreen display shield with built in microSD card connection. This TFT display is big (2.8\" diagonal) bright (4 white-LED backlight) and colorful (18-bit 262,000 different shades)! 240x320 pixels with individual pixel control. It has way more resolution than a black and white 128x64 display. As a bonus, this display has a resistive touchscreen attached to it already, so you can detect finger presses anywhere on the screen. (We also have a capacitive-touch version of this shield here) Adafruit Industries Electronics & Components",
+      "expected": "Development Boards",
+      "predicted": "Optoelectronics",
+      "top3": [
+        {
+          "category": "Optoelectronics",
+          "probability": 0.878262
+        },
+        {
+          "category": "Development Boards",
+          "probability": 0.098112
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.00611
+        }
+      ],
+      "confidence": 0.878262,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "1651"
+    },
+    {
+      "record_id": "1651",
+      "text": "1651 1651 2.8\" tft touch shield for arduino with resistive touch screen v2 spice up your arduino project with a beautiful large touchscreen display shield with built in microsd card connection. this tft display is big (2.8\" diagonal) bright (4 white-led backlight) and colorful (18-bit 262,000 different shades)! 240x320 pixels with individual pixel control. it has way more resolution than a black and white 128x64 display. as a bonus, this display has a resistive touchscreen attached to it already, so you can detect finger presses anywhere on the screen. (we also have a capacitive-touch version of this shield here) adafruit industries electronics & components",
+      "expected": "Development Boards",
+      "predicted": "Optoelectronics",
+      "top3": [
+        {
+          "category": "Optoelectronics",
+          "probability": 0.878262
+        },
+        {
+          "category": "Development Boards",
+          "probability": 0.098112
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.00611
+        }
+      ],
+      "confidence": 0.878262,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "1651"
+    },
+    {
+      "record_id": "KIT-13973",
+      "text": "KIT-13973 KIT-13973 SparkFun Beginner Parts Kit The SparkFun Beginner Parts Kit is a small container of frequently used parts that gives you all of the basic components you need to get started! SparkFun Electronics Open Source Hardware",
+      "expected": "Optoelectronics",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.371589
+        },
+        {
+          "category": "Tools",
+          "probability": 0.149247
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.129602
+        }
+      ],
+      "confidence": 0.371589,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "KIT-13973"
+    },
+    {
+      "record_id": "KIT-13973",
+      "text": "KIT13973 KIT13973 SparkFun Beginner Parts Kit The SparkFun Beginner Parts Kit is a small container of frequently used parts that gives you all of the basic components you need to get started! SparkFun Electronics Open Source Hardware",
+      "expected": "Optoelectronics",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.329527
+        },
+        {
+          "category": "Tools",
+          "probability": 0.17043
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.138153
+        }
+      ],
+      "confidence": 0.329527,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "KIT-13973"
+    },
+    {
+      "record_id": "KIT-13973",
+      "text": "kit-13973 kit-13973 sparkfun beginner parts kit the sparkfun beginner parts kit is a small container of frequently used parts that gives you all of the basic components you need to get started! sparkfun electronics open source hardware",
+      "expected": "Optoelectronics",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.371589
+        },
+        {
+          "category": "Tools",
+          "probability": 0.149247
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.129602
+        }
+      ],
+      "confidence": 0.371589,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "KIT-13973"
+    }
+  ]
+}

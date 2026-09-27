@@ -1,0 +1,126 @@
+{
+  "pair": "Development Boards <-> Robotics",
+  "total_errors": 5,
+  "records": [
+    {
+      "record_id": "81",
+      "text": "81 81 Adafruit Motor/Stepper/Servo Shield for Arduino kit This kit is now discontinued. We've upgraded the Adafruit Motor Shield v1 to v2, with stacking-support and higher-current motor drivers, Please check out the v2 shield - its much better!Here is a design for a full-featured motor shield that will be able to power many simple to medium-complexity projects. Adafruit Industries Electronics & Components",
+      "expected": "Robotics",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.779666
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.19891
+        },
+        {
+          "category": "Tools",
+          "probability": 0.004771
+        }
+      ],
+      "confidence": 0.779666,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "81"
+    },
+    {
+      "record_id": "81",
+      "text": "81 81 adafruit motor/stepper/servo shield for arduino kit this kit is now discontinued. we've upgraded the adafruit motor shield v1 to v2, with stacking-support and higher-current motor drivers, please check out the v2 shield - its much better!here is a design for a full-featured motor shield that will be able to power many simple to medium-complexity projects. adafruit industries electronics & components",
+      "expected": "Robotics",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.779666
+        },
+        {
+          "category": "Robotics",
+          "probability": 0.19891
+        },
+        {
+          "category": "Tools",
+          "probability": 0.004771
+        }
+      ],
+      "confidence": 0.779666,
+      "source": "adafruit-industries",
+      "manufacturer": "distributor",
+      "sku": "81"
+    },
+    {
+      "record_id": "WRL-19032",
+      "text": "WRL-19032 WRL-19032 SiK Telemetry Radio V3 - 915MHz, 100mW The 915MHz SiK Telemetry Radio V3 is a lightweight and inexpensive open source radio platform that can allow for ranges of 300m or more out of the box. SparkFun Electronics Open Source Hardware",
+      "expected": "Robotics",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.301507
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.156716
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.150188
+        }
+      ],
+      "confidence": 0.301507,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "WRL-19032"
+    },
+    {
+      "record_id": "WRL-19032",
+      "text": "WRL19032 WRL19032 SiK Telemetry Radio V3 - 915MHz, 100mW The 915MHz SiK Telemetry Radio V3 is a lightweight and inexpensive open source radio platform that can allow for ranges of 300m or more out of the box. SparkFun Electronics Open Source Hardware",
+      "expected": "Robotics",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.280334
+        },
+        {
+          "category": "Tools",
+          "probability": 0.167552
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.146539
+        }
+      ],
+      "confidence": 0.280334,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "WRL-19032"
+    },
+    {
+      "record_id": "WRL-19032",
+      "text": "wrl-19032 wrl-19032 sik telemetry radio v3 - 915mhz, 100mw the 915mhz sik telemetry radio v3 is a lightweight and inexpensive open source radio platform that can allow for ranges of 300m or more out of the box. sparkfun electronics open source hardware",
+      "expected": "Robotics",
+      "predicted": "Development Boards",
+      "top3": [
+        {
+          "category": "Development Boards",
+          "probability": 0.301507
+        },
+        {
+          "category": "Sensors",
+          "probability": 0.156716
+        },
+        {
+          "category": "ICs & Semiconductors",
+          "probability": 0.150188
+        }
+      ],
+      "confidence": 0.301507,
+      "source": "sparkfun-electronics",
+      "manufacturer": "distributor",
+      "sku": "WRL-19032"
+    }
+  ]
+}
