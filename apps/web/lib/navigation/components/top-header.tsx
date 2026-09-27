@@ -254,12 +254,12 @@ export function TopHeader() {
                 <span>Notification Center</span>
               </Link>
               <Link
-                href="/settings/security"
+                href="/audit"
                 onClick={() => setIsUserMenuOpen(false)}
                 className="flex items-center gap-2.5 px-4 py-2 text-popover-foreground hover:bg-input text-left transition-colors"
               >
                 <ShieldCheck className="size-3.5 text-muted-foreground" />
-                <span>Security Sessions</span>
+                <span>Audit Explorer</span>
               </Link>
               <button
                 type="button"

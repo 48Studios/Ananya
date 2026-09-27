@@ -83,7 +83,6 @@ const ROUTE_ICON_MAP: Record<string, React.ReactNode> = {
   "/users": <Users className="size-4" />,
   "/roles": <ShieldCheck className="size-4" />,
   "/settings": <Settings className="size-4" />,
-  "/settings/security": <ShieldCheck className="size-4" />,
   "/data-operations": <RotateCcw className="size-4" />,
 };
 

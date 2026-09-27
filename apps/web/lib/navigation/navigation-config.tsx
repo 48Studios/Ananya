@@ -731,12 +731,6 @@ export const navigationModules: NavigationModule[] = [
             href: "/audit",
             icon: <ShieldCheck className="w-4 h-4" />,
           },
-          {
-            id: "settings-security",
-            title: "Security Audit Log",
-            href: "/settings/security",
-            icon: <ShieldAlert className="w-4 h-4" />,
-          },
         ],
       },
     ],
