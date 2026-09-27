@@ -21,6 +21,13 @@ import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
+import { RecordStatusBadge } from "@/components/ui/status-badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ManufacturerForm } from "@/components/manufacturers/manufacturer-form";
 import {
@@ -99,12 +106,25 @@ export default function ManufacturersPage() {
         accessorKey: "code",
         header: "Code",
         cell: ({ row }) => (
-          <Link
-            href={`/manufacturers/${row.original.id}`}
-            className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase"
-          >
-            {row.original.code}
-          </Link>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/manufacturers/${row.original.id}`}
+                      className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  {row.original.code}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {row.original.code}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ),
       },
       {
@@ -122,34 +142,34 @@ export default function ManufacturersPage() {
       {
         accessorKey: "isActive",
         header: "Status",
-        cell: ({ row }) => (
-          <span
-            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-              row.original.isActive
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {row.original.isActive ? "Active" : "Inactive"}
-          </span>
-        ),
+        cell: ({ row }) => <RecordStatusBadge isActive={row.original.isActive} />,
       },
       {
         accessorKey: "createdAt",
         header: "Created At",
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground font-mono">
             {new Date(row.original.createdAt).toLocaleDateString()}
           </span>
         ),
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/manufacturers/${row.original.id}`}>
-              <Button variant="ghost" size="icon-xs" title="View details">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                title="View details"
+                aria-label="View details"
+              >
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
             </Link>
@@ -157,6 +177,7 @@ export default function ManufacturersPage() {
               variant="ghost"
               size="icon-xs"
               title="Edit manufacturer"
+              aria-label="Edit manufacturer"
               onClick={() => {
                 setEditingManufacturer(row.original);
                 setIsFormOpen(true);
@@ -168,6 +189,7 @@ export default function ManufacturersPage() {
               variant="ghost"
               size="icon-xs"
               title="Delete manufacturer"
+              aria-label="Delete manufacturer"
               onClick={() => {
                 setApiAlert(null);
                 setDeletingManufacturer(row.original);

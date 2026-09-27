@@ -205,11 +205,21 @@ export default function BomsPage() {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/boms/${row.original.id}`}>
-              <Button variant="ghost" size="icon-xs" title="View details">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                title="View details"
+                aria-label="View details"
+              >
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
             </Link>
@@ -217,6 +227,7 @@ export default function BomsPage() {
               variant="ghost"
               size="icon-xs"
               title="Duplicate revision"
+              aria-label="Duplicate revision"
               onClick={() => handleDuplicate(row.original)}
             >
               <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
@@ -227,6 +238,7 @@ export default function BomsPage() {
                   variant="ghost"
                   size="icon-xs"
                   title="Edit draft"
+                  aria-label="Edit draft"
                   onClick={() => {
                     setEditingBom(row.original);
                     setIsFormOpen(true);
@@ -238,6 +250,7 @@ export default function BomsPage() {
                   variant="ghost"
                   size="icon-xs"
                   title="Delete draft"
+                  aria-label="Delete draft"
                   onClick={() => setDeletingBom(row.original)}
                 >
                   <Trash2 className="w-3.5 h-3.5 text-destructive hover:text-destructive" />

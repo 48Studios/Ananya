@@ -26,6 +26,12 @@ import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { WarehouseTransferForm } from "@/components/warehouse-transfers/warehouse-transfer-form";
 import {
@@ -155,13 +161,25 @@ export default function WarehouseTransfersPage() {
         header: "Transfer #",
         meta: { width: "16%" },
         cell: ({ row }) => (
-          <Link
-            href={`/warehouse-transfers/${row.original.id}`}
-            className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold whitespace-nowrap inline-block"
-            title={row.original.transferNumber}
-          >
-            {row.original.transferNumber}
-          </Link>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/warehouse-transfers/${row.original.id}`}
+                      className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  {row.original.transferNumber}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {row.original.transferNumber}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ),
       },
       {
@@ -251,8 +269,12 @@ export default function WarehouseTransfersPage() {
       },
       {
         id: "actions",
-        header: "Actions",
-        meta: { width: "10%", headerClassName: "text-right" },
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/warehouse-transfers/${row.original.id}`}>
@@ -260,6 +282,7 @@ export default function WarehouseTransfersPage() {
                 variant="ghost"
                 size="icon-xs"
                 title="View transfer details"
+                aria-label="View transfer details"
               >
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
@@ -270,6 +293,7 @@ export default function WarehouseTransfersPage() {
                   variant="ghost"
                   size="icon-xs"
                   title="Edit draft"
+                  aria-label="Edit draft"
                   onClick={() => {
                     setEditingTransfer(row.original);
                     setIsFormOpen(true);
@@ -281,6 +305,7 @@ export default function WarehouseTransfersPage() {
                   variant="ghost"
                   size="icon-xs"
                   title="Delete draft"
+                  aria-label="Delete draft"
                   onClick={() => setDeletingTransfer(row.original)}
                 >
                   <Trash2 className="w-3.5 h-3.5 text-destructive hover:text-destructive" />

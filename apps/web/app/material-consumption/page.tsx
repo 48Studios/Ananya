@@ -46,7 +46,7 @@ export default function MaterialConsumptionPage() {
       accessorKey: "workOrderNumber",
       header: "Work Order No.",
       cell: ({ row }) => (
-        <span className="font-mono text-xs font-bold text-primary">
+        <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase font-bold inline-block truncate max-w-full align-middle">
           {row.original.workOrderNumber || "-"}
         </span>
       ),
@@ -56,7 +56,7 @@ export default function MaterialConsumptionPage() {
       header: "Component SKU",
       cell: ({ row }) => (
         <div>
-          <p className="font-mono text-xs font-semibold text-foreground">
+          <p className="font-mono text-xs font-bold text-foreground">
             {row.original.componentSku || "-"}
           </p>
           <p className="text-[11px] text-muted-foreground">
@@ -88,7 +88,7 @@ export default function MaterialConsumptionPage() {
       accessorKey: "consumedAt",
       header: "Timestamp",
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground font-mono">
           {row.original.consumedAt ? formatDate(row.original.consumedAt) : "-"}
         </span>
       ),

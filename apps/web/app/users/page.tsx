@@ -11,6 +11,7 @@ import {
   UserX,
   ExternalLink,
   Loader2,
+  Edit3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -214,20 +215,37 @@ export default function UsersListPage() {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
-          <div className="flex items-center gap-2 justify-end">
+          <div className="flex items-center gap-1 justify-end">
             <PermissionGuard permission="Administration.Users">
               <Button
                 variant="ghost"
-                size="xs"
+                size="icon-xs"
+                title="Edit user"
+                aria-label="Edit user"
                 onClick={() => handleOpenEditModal(row.original)}
               >
-                Edit
+                <Edit3 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
               <Button
                 variant="ghost"
-                size="xs"
+                size="icon-xs"
+                title={
+                  row.original.status === "ACTIVE"
+                    ? "Disable user"
+                    : "Activate user"
+                }
+                aria-label={
+                  row.original.status === "ACTIVE"
+                    ? "Disable user"
+                    : "Activate user"
+                }
                 onClick={() => handleToggleStatus(row.original)}
                 className={
                   row.original.status === "ACTIVE"
@@ -235,7 +253,11 @@ export default function UsersListPage() {
                     : "text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
                 }
               >
-                {row.original.status === "ACTIVE" ? "Disable" : "Activate"}
+                {row.original.status === "ACTIVE" ? (
+                  <UserX className="w-3.5 h-3.5" />
+                ) : (
+                  <UserCheck className="w-3.5 h-3.5" />
+                )}
               </Button>
             </PermissionGuard>
           </div>

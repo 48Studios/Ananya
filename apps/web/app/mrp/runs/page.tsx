@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { mrpApi, type MrpRunRecordDto } from "@/lib/api/mrp-api";
 import { formatDate } from "@/lib/utils";
 
@@ -66,13 +73,28 @@ export default function MrpRunsPage() {
     {
       accessorKey: "runNumber",
       header: "MRP Run No.",
+      meta: { width: "13%" },
       cell: ({ row }) => (
-        <Link
-          href={`/mrp/runs/${row.original.id}`}
-          className="font-mono text-xs font-bold text-primary hover:underline"
-        >
-          {row.original.runNumber || "-"}
-        </Link>
+        <div className="min-w-0 max-w-[130px]">
+          <TooltipProvider delay={100}>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Link
+                    href={`/mrp/runs/${row.original.id}`}
+                    title={row.original.runNumber || "-"}
+                    className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase inline-block truncate max-w-full align-middle"
+                  />
+                }
+              >
+                {row.original.runNumber || "-"}
+              </TooltipTrigger>
+              <TooltipContent side="top" className="font-mono text-xs">
+                {row.original.runNumber || "-"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       ),
     },
     {
@@ -108,10 +130,7 @@ export default function MrpRunsPage() {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          <CheckCircle2 className="w-3 h-3 mr-1" />{" "}
-          {row.original.status || "COMPLETED"}
-        </span>
+        <StatusBadge status={row.original.status || "COMPLETED"} />
       ),
     },
     {
@@ -125,13 +144,25 @@ export default function MrpRunsPage() {
     },
     {
       id: "actions",
-      header: "Actions",
+      header: () => <span className="text-right block w-full">Actions</span>,
+      meta: {
+        width: "8%",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => (
-        <Link href={`/mrp/runs/${row.original.id}`}>
-          <Button variant="ghost" size="xs">
-            <Eye className="w-3.5 h-3.5 mr-1" /> View Log
-          </Button>
-        </Link>
+        <div className="flex items-center justify-end gap-1">
+          <Link href={`/mrp/runs/${row.original.id}`}>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              title="View execution log"
+              aria-label="View execution log"
+            >
+              <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+            </Button>
+          </Link>
+        </div>
       ),
     },
   ];

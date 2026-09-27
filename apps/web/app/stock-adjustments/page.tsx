@@ -10,7 +10,6 @@ import {
   Clock,
   XCircle,
   Wrench,
-  MapPin,
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
@@ -22,6 +21,12 @@ import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { StockAdjustmentForm } from "@/components/stock-adjustments/adjustment-form";
 import {
   stockAdjustmentsApi,
@@ -110,12 +115,25 @@ export default function StockAdjustmentsPage() {
         accessorKey: "adjustmentNumber",
         header: "Adjustment #",
         cell: ({ row }) => (
-          <Link
-            href={`/stock-adjustments/${row.original.id}`}
-            className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold"
-          >
-            {row.original.adjustmentNumber}
-          </Link>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/stock-adjustments/${row.original.id}`}
+                      className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  {row.original.adjustmentNumber}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {row.original.adjustmentNumber}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ),
       },
       {
@@ -125,13 +143,7 @@ export default function StockAdjustmentsPage() {
           const loc = locationsMap[row.original.locationId];
           return (
             <span className="text-xs font-medium text-foreground flex items-center gap-1">
-              <MapPin className="w-3 h-3 text-muted-foreground" />
-              {loc ? loc.name : row.original.locationId.slice(0, 8)}{" "}
-              {loc && (
-                <span className="font-mono text-muted-foreground text-[11px]">
-                  ({loc.code})
-                </span>
-              )}
+              {loc ? loc.name : row.original.locationId.slice(0, 8)}
             </span>
           );
         },
@@ -177,7 +189,12 @@ export default function StockAdjustmentsPage() {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/stock-adjustments/${row.original.id}`}>
@@ -185,6 +202,7 @@ export default function StockAdjustmentsPage() {
                 variant="ghost"
                 size="icon-xs"
                 title="View details & approval"
+                aria-label="View details & approval"
               >
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>

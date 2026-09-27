@@ -1,14 +1,23 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Factory, Plus, Play, Wrench, FileCode2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { workOrdersApi, type WorkOrderDto } from "@/lib/api/work-orders-api";
 import { bomsApi, type BillOfMaterialsDto } from "@/lib/api/boms-api";
+import { formatDate } from "@/lib/utils";
 
 export default function ManufacturingPage() {
   const [workOrders, setWorkOrders] = React.useState<WorkOrderDto[]>([]);
@@ -38,9 +47,25 @@ export default function ManufacturingPage() {
       accessorKey: "productionNumber",
       header: "Work Order No.",
       cell: ({ row }) => (
-        <span className="font-mono text-xs font-bold text-primary">
-          {row.original.productionNumber}
-        </span>
+        <div className="min-w-0 max-w-[130px]">
+          <TooltipProvider delay={100}>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Link
+                    href={`/work-orders/${row.original.id}`}
+                    className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
+                  />
+                }
+              >
+                {row.original.productionNumber}
+              </TooltipTrigger>
+              <TooltipContent side="top" className="font-mono text-xs">
+                {row.original.productionNumber}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       ),
     },
     {
@@ -55,18 +80,14 @@ export default function ManufacturingPage() {
     {
       accessorKey: "status",
       header: "Manufacturing Status",
-      cell: ({ row }) => (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-          <Play className="w-3 h-3 mr-1" /> {row.original.status}
-        </span>
-      ),
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
     },
     {
       accessorKey: "startDate",
       header: "Start Date",
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">
-          {row.original.startDate || "Scheduled"}
+        <span className="text-xs text-muted-foreground font-mono">
+          {row.original.startDate ? formatDate(row.original.startDate) : "Scheduled"}
         </span>
       ),
     },

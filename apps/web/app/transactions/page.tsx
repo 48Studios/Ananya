@@ -23,6 +23,12 @@ import {
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   inventoryTransactionsApi,
   type InventoryTransactionDto,
   type TransactionType,
@@ -151,13 +157,25 @@ export default function TransactionsPage() {
         header: () => <span className="whitespace-nowrap">Transaction ID</span>,
         meta: { width: "135px", minWidth: "135px" },
         cell: ({ row }) => (
-          <Link
-            href={`/transactions/${row.original.id}`}
-            className="font-mono text-xs text-foreground bg-muted/50 px-1.5 py-0.5 rounded hover:bg-muted transition-colors uppercase whitespace-nowrap inline-block"
-            title={row.original.id}
-          >
-            {row.original.id.slice(0, 8)}
-          </Link>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/transactions/${row.original.id}`}
+                      className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  {row.original.id.slice(0, 8)}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {row.original.id}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ),
       },
       {
@@ -294,6 +312,7 @@ export default function TransactionsPage() {
           width: "75px",
           minWidth: "75px",
           headerClassName: "text-right",
+          cellClassName: "text-right",
         },
         cell: ({ row }) => (
           <div className="flex items-center justify-end">
@@ -302,6 +321,7 @@ export default function TransactionsPage() {
                 variant="ghost"
                 size="icon-xs"
                 title="View transaction details"
+                aria-label="View transaction details"
               >
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>

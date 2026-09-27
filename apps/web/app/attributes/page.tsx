@@ -46,6 +46,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { RecordStatusBadge } from "@/components/ui/status-badge";
 import { attributeReviewQueueApi } from "@/lib/api/attribute-review-queue-api";
 import {
   attributesApi,
@@ -228,7 +229,7 @@ export default function AttributesPage() {
                   render={
                     <span
                       title={row.original.code}
-                      className="inline-block font-mono text-[11px] text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded truncate max-w-full align-middle cursor-default"
+                      className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase font-bold inline-block truncate max-w-full align-middle cursor-default"
                     />
                   }
                 >
@@ -377,25 +378,12 @@ export default function AttributesPage() {
         meta: { width: "8%" },
         header: "Status",
         cell: ({ row }) => (
-          <span
-            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-              row.original.isActive
-                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                : "bg-muted text-muted-foreground border-border"
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                row.original.isActive ? "bg-emerald-500" : "bg-muted-foreground"
-              }`}
-            />
-            {row.original.isActive ? "Active" : "Inactive"}
-          </span>
+          <RecordStatusBadge isActive={row.original.isActive} />
         ),
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
         meta: {
           width: "6.5rem",
           headerClassName: "text-right",
@@ -413,6 +401,7 @@ export default function AttributesPage() {
                   variant="ghost"
                   size="icon-xs"
                   title="Manage Choices & Options"
+                  aria-label="Manage Choices & Options"
                   onClick={() => setOptionsAttribute(attr)}
                   className="text-primary hover:text-primary hover:bg-primary/10"
                 >
@@ -424,6 +413,7 @@ export default function AttributesPage() {
                 variant="ghost"
                 size="icon-xs"
                 title="Manage Category Bindings"
+                aria-label="Manage Category Bindings"
                 onClick={() => setCategoriesAttribute(attr)}
                 className="text-muted-foreground hover:text-primary hover:bg-primary/10"
               >
@@ -437,6 +427,7 @@ export default function AttributesPage() {
                       variant="ghost"
                       size="icon-xs"
                       title="More actions"
+                      aria-label="More actions"
                       className="data-open:bg-muted"
                     >
                       <MoreVertical className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />

@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   Database,
+  Eye,
   Gauge,
   History,
   Info,
@@ -636,36 +637,47 @@ export function MlModelsPanel({
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => {
           const version = row.original;
           const isProduction =
             version.version === models.production.artifactVersion;
           if (version.trainingRunId && version.runDeployable) {
             return (
-              <Button
-                size="xs"
-                variant="outline"
-                disabled={busy || !canWrite}
-                onClick={() =>
-                  onDeployRun(
-                    version.trainingRunId as string,
-                    version.version,
-                  )
-                }
-              >
-                Deploy
-              </Button>
+              <div className="flex items-center justify-end">
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  disabled={busy || !canWrite}
+                  onClick={() =>
+                    onDeployRun(
+                      version.trainingRunId as string,
+                      version.version,
+                    )
+                  }
+                  title="Deploy model"
+                  aria-label="Deploy model"
+                >
+                  <Rocket className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                </Button>
+              </div>
             );
           }
           return (
-            <span className="text-xs text-muted-foreground">
-              {version.deployable
-                ? isProduction
-                  ? "In production"
-                  : "Not deployable from here"
-                : "Not deployable"}
-            </span>
+            <div className="flex items-center justify-end">
+              <span className="text-xs text-muted-foreground">
+                {version.deployable
+                  ? isProduction
+                    ? "In production"
+                    : "Not deployable"
+                  : "Not deployable"}
+              </span>
+            </div>
           );
         },
       },
@@ -989,7 +1001,7 @@ export function MlRunsPanel({
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
         meta: {
           width: "9%",
           headerClassName: "text-right",
@@ -998,23 +1010,28 @@ export function MlRunsPanel({
         cell: ({ row }) => {
           const run = row.original;
           return (
-            <div className="flex items-center justify-end gap-1.5">
+            <div className="flex items-center justify-end gap-1">
               <Button
-                size="xs"
-                variant="outline"
+                size="icon-xs"
+                variant="ghost"
                 onClick={() => onViewRun(run.id)}
+                title="View run details"
+                aria-label="View run details"
               >
-                View
+                <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
               {canDeployCandidate(run) ? (
                 <Button
-                  size="xs"
+                  size="icon-xs"
+                  variant="ghost"
                   disabled={busy || !canWrite}
                   onClick={() =>
                     onDeployRun(run.id, run.candidateModelVersion)
                   }
+                  title="Deploy candidate"
+                  aria-label="Deploy candidate"
                 >
-                  Deploy
+                  <Rocket className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                 </Button>
               ) : null}
             </div>

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { batchesApi, type BatchDto } from "@/lib/api/batches-api";
@@ -62,7 +63,7 @@ export default function BatchesPage() {
       accessorKey: "batchNumber",
       header: "Batch / Lot No.",
       cell: ({ row }) => (
-        <span className="font-mono text-xs font-semibold text-primary">
+        <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase font-bold inline-block truncate max-w-full align-middle">
           {row.original.batchNumber}
         </span>
       ),
@@ -72,7 +73,7 @@ export default function BatchesPage() {
       header: "SKU / Material",
       cell: ({ row }) => (
         <div>
-          <p className="font-mono text-xs font-semibold text-foreground">
+          <p className="font-mono text-xs font-bold text-foreground">
             {row.original.componentSku}
           </p>
           <p className="text-[11px] text-muted-foreground">
@@ -94,7 +95,7 @@ export default function BatchesPage() {
       accessorKey: "manufacturingDate",
       header: "Mfg Date",
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground font-mono">
           {row.original.manufacturingDate
             ? formatDate(row.original.manufacturingDate)
             : "Not recorded"}
@@ -105,7 +106,7 @@ export default function BatchesPage() {
       accessorKey: "expiryDate",
       header: "Expiry Date",
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground font-mono">
           {formatDate(row.original.expiryDate)}
         </span>
       ),
@@ -118,17 +119,11 @@ export default function BatchesPage() {
           row.original.expiryDate !== null &&
           row.original.expiryDate !== undefined &&
           new Date(row.original.expiryDate) < new Date();
-        if (!isExpired) {
-          return (
-            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <CheckCircle2 className="w-3 h-3 mr-1" /> Traceable
-            </span>
-          );
-        }
         return (
-          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-destructive/10 text-destructive border border-destructive/20">
-            <AlertCircle className="w-3 h-3 mr-1" /> Expired
-          </span>
+          <StatusBadge
+            status={isExpired ? "OVERDUE" : "ACTIVE"}
+            label={isExpired ? "Expired" : "Traceable"}
+          />
         );
       },
     },

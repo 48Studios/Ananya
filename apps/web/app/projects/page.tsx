@@ -25,6 +25,12 @@ import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ProjectForm } from "@/components/projects/project-form";
 import {
   projectsApi,
@@ -159,12 +165,25 @@ export default function ProjectsPage() {
         accessorKey: "projectNumber",
         header: "Project #",
         cell: ({ row }) => (
-          <Link
-            href={`/projects/${row.original.id}`}
-            className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold"
-          >
-            {row.original.projectNumber}
-          </Link>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/projects/${row.original.id}`}
+                      className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  {row.original.projectNumber}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {row.original.projectNumber}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ),
       },
       {
@@ -231,11 +250,21 @@ export default function ProjectsPage() {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/projects/${row.original.id}`}>
-              <Button variant="ghost" size="icon-xs" title="View project">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                title="View project"
+                aria-label="View project"
+              >
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
             </Link>
@@ -246,6 +275,7 @@ export default function ProjectsPage() {
                 variant="ghost"
                 size="icon-xs"
                 title="Edit project"
+                aria-label="Edit project"
                 onClick={() => {
                   setEditingProject(row.original);
                   setIsFormOpen(true);

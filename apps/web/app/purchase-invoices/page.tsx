@@ -40,6 +40,12 @@ import {
   type PurchaseOrderDto,
 } from "@/lib/api/purchase-orders-api";
 import { PurchaseInvoiceForm } from "@/components/purchase-invoices/purchase-invoice-form";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 function getPaymentBadge(status: PurchaseInvoiceStatus) {
@@ -206,13 +212,28 @@ export default function PurchaseInvoicesPage() {
     {
       accessorKey: "invoiceNumber",
       header: "Invoice No.",
+      meta: { width: "13%" },
       cell: ({ row }) => (
-        <Link
-          href={`/purchase-invoices/${row.original.id}`}
-          className="font-mono text-xs font-bold text-primary hover:underline block"
-        >
-          {row.original.invoiceNumber}
-        </Link>
+        <div className="min-w-0 max-w-[140px]">
+          <TooltipProvider delay={100}>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Link
+                    href={`/purchase-invoices/${row.original.id}`}
+                    title={row.original.invoiceNumber}
+                    className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase inline-block truncate max-w-full align-middle"
+                  />
+                }
+              >
+                {row.original.invoiceNumber}
+              </TooltipTrigger>
+              <TooltipContent side="top" className="font-mono text-xs">
+                {row.original.invoiceNumber}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       ),
     },
     {
@@ -249,12 +270,26 @@ export default function PurchaseInvoicesPage() {
           posMap[row.original.purchaseOrderId] ||
           row.original.purchaseOrderId.slice(0, 8);
         return (
-          <Link
-            href={`/purchase-orders/${row.original.purchaseOrderId}`}
-            className="font-mono text-xs text-primary hover:underline"
-          >
-            {poNumber}
-          </Link>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/purchase-orders/${row.original.purchaseOrderId}`}
+                      title={poNumber}
+                      className="font-mono text-xs text-muted-foreground hover:text-foreground bg-muted/30 px-1.5 py-0.5 rounded transition-colors uppercase inline-block truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  {poNumber}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {poNumber}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         );
       },
     },
@@ -288,15 +323,23 @@ export default function PurchaseInvoicesPage() {
     },
     {
       id: "actions",
-      header: "Actions",
+      header: () => <span className="text-right block w-full">Actions</span>,
+      meta: {
+        width: "8%",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/purchase-invoices/${row.original.id}`}
-            className={buttonVariants({ size: "xs", variant: "outline" })}
-          >
-            <Eye className="w-3.5 h-3.5 mr-1" />
-            View
+        <div className="flex items-center justify-end gap-1">
+          <Link href={`/purchase-invoices/${row.original.id}`}>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              title="View details & actions"
+              aria-label="View details & actions"
+            >
+              <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+            </Button>
           </Link>
         </div>
       ),

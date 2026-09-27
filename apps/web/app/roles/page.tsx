@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Trash2,
   Loader2,
+  Edit3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -184,21 +185,30 @@ export default function RolesListPage() {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
-          <div className="flex items-center gap-2 justify-end">
+          <div className="flex items-center gap-1 justify-end">
             <PermissionGuard permission="Administration.Roles">
               <Button
                 variant="ghost"
-                size="xs"
+                size="icon-xs"
+                title="Edit role"
+                aria-label="Edit role"
                 onClick={() => handleOpenEditModal(row.original)}
               >
-                Edit
+                <Edit3 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
               {!row.original.isSystem && (
                 <Button
                   variant="ghost"
-                  size="xs"
+                  size="icon-xs"
+                  title="Delete role"
+                  aria-label="Delete role"
                   onClick={() => handleDeleteRole(row.original.id)}
                   className="text-rose-600 dark:text-rose-400 hover:text-rose-700"
                 >

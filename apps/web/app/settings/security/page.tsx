@@ -47,7 +47,7 @@ export default function SecurityAuditPage() {
         accessorKey: "action",
         header: "Action",
         cell: ({ row }) => (
-          <span className="font-mono text-xs font-bold text-foreground">
+          <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase font-bold inline-block">
             {row.original.action}
           </span>
         ),

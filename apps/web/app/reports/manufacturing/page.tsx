@@ -10,11 +10,13 @@ import {
   FileSpreadsheet,
   ArrowLeft,
   ExternalLink,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { ChartCard } from "@/components/charts/chart-card";
 import { BarChartWidget } from "@/components/charts/bar-chart-widget";
 import { DonutChartWidget } from "@/components/charts/donut-chart-widget";
@@ -96,11 +98,7 @@ export default function ManufacturingReportsPage() {
       {
         accessorKey: "status",
         header: "Status",
-        cell: ({ row }) => (
-          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-            {row.original.status}
-          </span>
-        ),
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "quantityPlanned",
@@ -132,13 +130,25 @@ export default function ManufacturingReportsPage() {
       },
       {
         id: "actions",
-        header: "Action",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
-          <Link href={`/work-orders/${row.original.id}`}>
-            <Button variant="ghost" size="xs">
-              View Order
-            </Button>
-          </Link>
+          <div className="flex items-center justify-end">
+            <Link href={`/work-orders/${row.original.id}`}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                title="View Order"
+                aria-label="View Order"
+              >
+                <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+              </Button>
+            </Link>
+          </div>
         ),
       },
     ],

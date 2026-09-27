@@ -55,7 +55,7 @@ export default function CrmPage() {
       accessorKey: "stageName",
       header: "Pipeline Stage",
       cell: ({ row }) => (
-        <span className="font-semibold text-xs text-primary">
+        <span className="font-medium text-xs text-foreground">
           {row.original.stageName}
         </span>
       ),

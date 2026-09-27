@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   ArrowLeft,
   ExternalLink,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -157,13 +158,22 @@ export default function TransactionReportsPage() {
       },
       {
         id: "actions",
-        header: "Action",
-        meta: { width: "12%", headerClassName: "text-right" },
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
           <div className="flex items-center justify-end">
             <Link href={`/transactions/${row.original.id}`}>
-              <Button variant="ghost" size="xs">
-                View Log
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                title="View Log"
+                aria-label="View Log"
+              >
+                <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
             </Link>
           </div>

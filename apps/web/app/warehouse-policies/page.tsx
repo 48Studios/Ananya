@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { RecordStatusBadge } from "@/components/ui/status-badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { WarehousePolicyForm } from "@/components/warehouse/warehouse-policy-form";
@@ -112,7 +113,7 @@ export default function WarehousePoliciesPage() {
       accessorKey: "policyName",
       header: "Policy Rule Name",
       cell: ({ row }) => (
-        <span className="font-semibold text-xs text-primary">
+        <span className="font-medium text-xs text-foreground">
           {row.original.policyName}
         </span>
       ),
@@ -147,35 +148,33 @@ export default function WarehousePoliciesPage() {
     {
       accessorKey: "isActive",
       header: "Status",
-      cell: ({ row }) =>
-        row.original.isActive ? (
-          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            <CheckCircle2 className="w-3 h-3 mr-1" /> Active Policy
-          </span>
-        ) : (
-          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-muted text-muted-foreground border border-border">
-            Inactive
-          </span>
-        ),
+      cell: ({ row }) => <RecordStatusBadge isActive={row.original.isActive} />,
     },
     {
       id: "actions",
-      header: "Actions",
+      header: () => <span className="text-right block w-full">Actions</span>,
+      meta: {
+        width: "8%",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-end gap-1">
           <Button
             variant="ghost"
-            size="xs"
+            size="icon-xs"
             onClick={() => handleOpenEdit(row.original)}
             title="Edit policy"
+            aria-label="Edit policy"
           >
-            <Edit2 className="w-3.5 h-3.5" />
+            <Edit2 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
           </Button>
           <Button
             variant="ghost"
-            size="xs"
+            size="icon-xs"
             onClick={() => setDeletingPolicy(row.original)}
             title="Delete policy"
+            aria-label="Delete policy"
             className="text-destructive hover:text-destructive"
           >
             <Trash2 className="w-3.5 h-3.5" />

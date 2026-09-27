@@ -40,6 +40,13 @@ import {
   ComponentsFilterCard,
   type AttributeFilterCriteria,
 } from "@/components/components/components-filter-card";
+import { RecordStatusBadge } from "@/components/ui/status-badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
@@ -336,13 +343,25 @@ export default function ComponentsPage() {
         ),
         meta: { width: "12%" },
         cell: ({ row }) => (
-          <Link
-            href={`/components/${row.original.id}`}
-            className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors block truncate"
-            title={row.original.sku}
-          >
-            {row.original.sku}
-          </Link>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/components/${row.original.id}`}
+                      className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  {row.original.sku}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {row.original.sku}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ),
       },
       {
@@ -481,15 +500,7 @@ export default function ComponentsPage() {
         header: () => <span className="whitespace-nowrap">Status</span>,
         meta: { width: "9%" },
         cell: ({ row }) => (
-          <span
-            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${
-              row.original.isActive
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {row.original.isActive ? "Active" : "Inactive"}
-          </span>
+          <RecordStatusBadge isActive={row.original.isActive} />
         ),
       },
       {
@@ -512,6 +523,7 @@ export default function ComponentsPage() {
                 variant="ghost"
                 size="icon-xs"
                 title="Edit component"
+                aria-label="Edit component"
                 onClick={() => {
                   setEditingComponent(comp);
                   setIsFormOpen(true);
@@ -526,6 +538,7 @@ export default function ComponentsPage() {
                       variant="ghost"
                       size="icon-xs"
                       title="More actions"
+                      aria-label="More actions"
                       className="data-open:bg-muted"
                     >
                       <MoreVertical className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />

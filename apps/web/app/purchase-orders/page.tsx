@@ -27,6 +27,7 @@ import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Tooltip,
@@ -232,23 +233,7 @@ export default function PurchaseOrdersPage() {
         accessorKey: "status",
         header: "Status",
         meta: { width: "10%" },
-        cell: ({ row }) => (
-          <span
-            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${
-              row.original.status === "DRAFT"
-                ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
-                : row.original.status === "SUBMITTED"
-                  ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
-                  : row.original.status === "FULFILLED"
-                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                    : row.original.status === "CANCELLED"
-                      ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20"
-                      : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {row.original.status}
-          </span>
-        ),
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "grandTotal",
@@ -339,7 +324,7 @@ export default function PurchaseOrdersPage() {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
         meta: {
           width: "8%",
           headerClassName: "text-right",

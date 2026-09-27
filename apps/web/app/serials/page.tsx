@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { serialsApi, type SerialDto } from "@/lib/api/serials-api";
@@ -49,7 +50,7 @@ export default function SerialsPage() {
       accessorKey: "serialNumber",
       header: "Serial Number",
       cell: ({ row }) => (
-        <span className="font-mono text-xs font-bold text-primary">
+        <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase font-bold inline-block truncate max-w-full align-middle">
           {row.original.serialNumber}
         </span>
       ),
@@ -59,7 +60,7 @@ export default function SerialsPage() {
       header: "Item / Product SKU",
       cell: ({ row }) => (
         <div>
-          <p className="font-mono text-xs font-semibold text-foreground">
+          <p className="font-mono text-xs font-bold text-foreground">
             {row.original.componentSku}
           </p>
           <p className="text-[11px] text-muted-foreground">
@@ -80,20 +81,12 @@ export default function SerialsPage() {
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => {
-        if (row.original.locationId) {
-          return (
-            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <CheckCircle2 className="w-3 h-3 mr-1" /> Indexed
-            </span>
-          );
-        }
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-            <MapPin className="w-3 h-3 mr-1" /> Unassigned
-          </span>
-        );
-      },
+      cell: ({ row }) => (
+        <StatusBadge
+          status={row.original.locationId ? "ACTIVE" : "PENDING"}
+          label={row.original.locationId ? "Indexed" : "Unassigned"}
+        />
+      ),
     },
   ];
 

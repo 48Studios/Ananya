@@ -25,6 +25,12 @@ import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { WorkOrderForm } from "@/components/work-orders/work-order-form";
 import {
@@ -205,12 +211,25 @@ export default function WorkOrdersPage() {
         accessorKey: "productionNumber",
         header: "Work Order #",
         cell: ({ row }) => (
-          <Link
-            href={`/work-orders/${row.original.id}`}
-            className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold"
-          >
-            {row.original.productionNumber}
-          </Link>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/work-orders/${row.original.id}`}
+                      className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  {row.original.productionNumber}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {row.original.productionNumber}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ),
       },
       {
@@ -288,11 +307,21 @@ export default function WorkOrdersPage() {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/work-orders/${row.original.id}`}>
-              <Button variant="ghost" size="icon-xs" title="View order details">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                title="View order details"
+                aria-label="View order details"
+              >
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
             </Link>
@@ -302,6 +331,7 @@ export default function WorkOrdersPage() {
                   variant="ghost"
                   size="icon-xs"
                   title="Edit draft"
+                  aria-label="Edit draft"
                   onClick={() => {
                     setEditingWo(row.original);
                     setIsFormOpen(true);
@@ -313,6 +343,7 @@ export default function WorkOrdersPage() {
                   variant="ghost"
                   size="icon-xs"
                   title="Delete draft"
+                  aria-label="Delete draft"
                   onClick={() => setDeletingWo(row.original)}
                 >
                   <Trash2 className="w-3.5 h-3.5 text-destructive hover:text-destructive" />

@@ -20,6 +20,7 @@ import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { MaintenanceForm } from "@/components/maintenance/maintenance-form";
 import {
   maintenanceApi,
@@ -93,7 +94,7 @@ export default function MaintenancePage() {
       header: "Equipment Asset",
       cell: ({ row }) => (
         <div>
-          <p className="font-semibold text-xs text-primary">
+          <p className="font-medium text-xs text-foreground">
             {row.original.equipmentName || "Asset"}
           </p>
           <p className="font-mono text-[11px] text-muted-foreground">
@@ -115,7 +116,7 @@ export default function MaintenancePage() {
       accessorKey: "lastCompletedDate",
       header: "Last Service",
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground font-mono">
           {row.original.lastCompletedDate
             ? formatDate(row.original.lastCompletedDate)
             : "-"}
@@ -136,22 +137,23 @@ export default function MaintenancePage() {
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-          <Clock className="w-3 h-3 mr-1" />{" "}
-          {row.original.status || "SCHEDULED"}
-        </span>
-      ),
+      cell: ({ row }) => <StatusBadge status={row.original.status || "SCHEDULED"} />,
     },
     {
       id: "actions",
-      header: "Actions",
+      header: () => <span className="text-right block w-full">Actions</span>,
+      meta: {
+        width: "8%",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
           <Button
             variant="ghost"
             size="icon-xs"
             title="Complete Visit"
+            aria-label="Complete Visit"
             onClick={() => handleCompleteVisit(row.original.id)}
           >
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 hover:text-emerald-700" />
@@ -160,6 +162,11 @@ export default function MaintenancePage() {
             variant="ghost"
             size="icon-xs"
             title={
+              row.original.status === "PAUSED"
+                ? "Resume Schedule"
+                : "Pause Schedule"
+            }
+            aria-label={
               row.original.status === "PAUSED"
                 ? "Resume Schedule"
                 : "Pause Schedule"

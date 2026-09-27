@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface JournalVoucher {
@@ -51,7 +52,7 @@ export default function JournalEntriesPage() {
       accessorKey: "voucherNumber",
       header: "Voucher Ref",
       cell: ({ row }) => (
-        <span className="font-mono text-xs font-bold text-primary">
+        <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase font-bold inline-block truncate max-w-full align-middle">
           {row.original.voucherNumber}
         </span>
       ),
@@ -86,17 +87,18 @@ export default function JournalEntriesPage() {
     {
       accessorKey: "status",
       header: "Status",
-      cell: () => (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          <CheckCircle2 className="w-3 h-3 mr-1" /> Posted
-        </span>
+      cell: ({ row }) => (
+        <StatusBadge
+          status={row.original.status === "POSTED" ? "COMPLETED" : "DRAFT"}
+          label={row.original.status === "POSTED" ? "Posted" : "Draft"}
+        />
       ),
     },
     {
       accessorKey: "postingDate",
       header: "Posting Date",
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground font-mono">
           {formatDate(row.original.postingDate)}
         </span>
       ),

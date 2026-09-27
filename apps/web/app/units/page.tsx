@@ -19,6 +19,7 @@ import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { UnitForm } from "@/components/units/unit-form";
@@ -107,7 +108,7 @@ export default function UnitsPage() {
         accessorKey: "name",
         header: "Unit Symbol",
         cell: ({ row }) => (
-          <span className="font-mono text-xs font-bold text-primary">
+          <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase font-bold inline-block truncate max-w-full align-middle">
             {row.original.name}
           </span>
         ),
@@ -143,28 +144,27 @@ export default function UnitsPage() {
         accessorKey: "isBaseUnit",
         header: "Classification",
         cell: ({ row }) => (
-          <span
-            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-              row.original.isBaseUnit
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                : "bg-muted text-muted-foreground border border-border"
-            }`}
-          >
-            {row.original.isBaseUnit
-              ? "Primary Base Unit"
-              : "Derived Secondary"}
-          </span>
+          <StatusBadge
+            status={row.original.isBaseUnit ? "ACTIVE" : "INACTIVE"}
+            label={row.original.isBaseUnit ? "Primary Base Unit" : "Derived Secondary"}
+          />
         ),
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Button
               variant="ghost"
               size="icon-xs"
               title="Edit unit"
+              aria-label="Edit unit"
               onClick={() => {
                 setEditingUnit(row.original);
                 setIsFormOpen(true);
@@ -176,12 +176,14 @@ export default function UnitsPage() {
               variant="ghost"
               size="icon-xs"
               title="Delete unit"
+              aria-label="Delete unit"
               onClick={() => {
                 setApiAlert(null);
                 setDeletingUnit(row.original);
               }}
+              className="text-destructive hover:text-destructive"
             >
-              <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+              <Trash2 className="w-3.5 h-3.5" />
             </Button>
           </div>
         ),

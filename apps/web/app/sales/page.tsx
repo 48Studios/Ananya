@@ -58,7 +58,7 @@ export default function SalesPage() {
       accessorKey: "category",
       header: "Sales Product Category",
       cell: ({ row }) => (
-        <span className="font-semibold text-xs text-primary">
+        <span className="font-medium text-xs text-foreground">
           {row.original.category}
         </span>
       ),

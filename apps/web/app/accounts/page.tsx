@@ -11,6 +11,12 @@ import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { financeApi, type LedgerAccountDto } from "@/lib/api/finance-api";
@@ -53,13 +59,28 @@ export default function AccountsPage() {
     {
       accessorKey: "accountNumber",
       header: "GL Code",
+      meta: { width: "13%" },
       cell: ({ row }) => (
-        <Link
-          href={`/accounts/${row.original.id}`}
-          className="font-mono text-xs font-bold text-primary hover:underline"
-        >
-          {row.original.accountNumber}
-        </Link>
+        <div className="min-w-0 max-w-[130px]">
+          <TooltipProvider delay={100}>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Link
+                    href={`/accounts/${row.original.id}`}
+                    title={row.original.accountNumber}
+                    className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase inline-block truncate max-w-full align-middle"
+                  />
+                }
+              >
+                {row.original.accountNumber}
+              </TooltipTrigger>
+              <TooltipContent side="top" className="font-mono text-xs">
+                {row.original.accountNumber}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       ),
     },
     {
@@ -89,13 +110,25 @@ export default function AccountsPage() {
     },
     {
       id: "actions",
-      header: "Actions",
+      header: () => <span className="text-right block w-full">Actions</span>,
+      meta: {
+        width: "8%",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => (
-        <Link href={`/accounts/${row.original.id}`}>
-          <Button variant="ghost" size="xs">
-            <Eye className="w-3.5 h-3.5 mr-1" /> View Ledger
-          </Button>
-        </Link>
+        <div className="flex items-center justify-end gap-1">
+          <Link href={`/accounts/${row.original.id}`}>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              title="View ledger"
+              aria-label="View ledger"
+            >
+              <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+            </Button>
+          </Link>
+        </div>
       ),
     },
   ];

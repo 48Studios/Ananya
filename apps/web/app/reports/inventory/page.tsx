@@ -10,11 +10,13 @@ import {
   ArrowLeft,
   CheckCircle2,
   ExternalLink,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { RecordStatusBadge } from "@/components/ui/status-badge";
 import { ChartCard } from "@/components/charts/chart-card";
 import { BarChartWidget } from "@/components/charts/bar-chart-widget";
 import { DonutChartWidget } from "@/components/charts/donut-chart-widget";
@@ -123,17 +125,7 @@ export default function InventoryReportsPage() {
       {
         accessorKey: "isActive",
         header: "Status",
-        cell: ({ row }) => (
-          <span
-            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-              row.original.isActive
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                : "bg-muted text-muted-foreground border border-border"
-            }`}
-          >
-            {row.original.isActive ? "Active" : "Inactive"}
-          </span>
-        ),
+        cell: ({ row }) => <RecordStatusBadge isActive={row.original.isActive} />,
       },
       {
         accessorKey: "createdAt",
@@ -146,13 +138,25 @@ export default function InventoryReportsPage() {
       },
       {
         id: "actions",
-        header: "Action",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
-          <Link href={`/components/${row.original.id}`}>
-            <Button variant="ghost" size="xs">
-              View Item
-            </Button>
-          </Link>
+          <div className="flex items-center justify-end">
+            <Link href={`/components/${row.original.id}`}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                title="View Item"
+                aria-label="View Item"
+              >
+                <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+              </Button>
+            </Link>
+          </div>
         ),
       },
     ],

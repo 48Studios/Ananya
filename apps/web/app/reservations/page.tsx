@@ -26,6 +26,12 @@ import {
   EntityDataTable,
   type FilterConfig,
 } from "@/components/ui/entity-data-table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ReservationForm } from "@/components/reservations/reservation-form";
 import {
@@ -180,12 +186,25 @@ export default function ReservationsPage() {
         accessorKey: "reservationNumber",
         header: "Reservation #",
         cell: ({ row }) => (
-          <Link
-            href={`/reservations/${row.original.id}`}
-            className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold"
-          >
-            {row.original.reservationNumber}
-          </Link>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/reservations/${row.original.id}`}
+                      className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  {row.original.reservationNumber}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {row.original.reservationNumber}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ),
       },
       {
@@ -239,7 +258,12 @@ export default function ReservationsPage() {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/reservations/${row.original.id}`}>
@@ -247,6 +271,7 @@ export default function ReservationsPage() {
                 variant="ghost"
                 size="icon-xs"
                 title="View reservation details"
+                aria-label="View reservation details"
               >
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
@@ -258,6 +283,7 @@ export default function ReservationsPage() {
                   variant="ghost"
                   size="icon-xs"
                   title="Edit reservation"
+                  aria-label="Edit reservation"
                   onClick={() => {
                     setEditingReservation(row.original);
                     setIsFormOpen(true);
@@ -269,6 +295,7 @@ export default function ReservationsPage() {
                   variant="ghost"
                   size="icon-xs"
                   title="Delete reservation"
+                  aria-label="Delete reservation"
                   onClick={() => setDeletingReservation(row.original)}
                 >
                   <Trash2 className="w-3.5 h-3.5 text-destructive hover:text-destructive" />

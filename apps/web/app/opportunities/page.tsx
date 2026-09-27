@@ -69,7 +69,7 @@ export default function OpportunitiesPage() {
       cell: ({ row }) => (
         <Link
           href={`/opportunities/${row.original.id}`}
-          className="font-semibold text-xs text-primary hover:underline"
+          className="font-medium text-xs text-foreground hover:underline block truncate"
         >
           {row.original.dealName}
         </Link>
@@ -122,13 +122,25 @@ export default function OpportunitiesPage() {
     },
     {
       id: "actions",
-      header: "Actions",
+      header: () => <span className="text-right block w-full">Actions</span>,
+      meta: {
+        width: "8%",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => (
-        <Link href={`/opportunities/${row.original.id}`}>
-          <Button variant="ghost" size="xs">
-            <Eye className="w-3.5 h-3.5 mr-1" /> Deal Details
-          </Button>
-        </Link>
+        <div className="flex items-center justify-end gap-1">
+          <Link href={`/opportunities/${row.original.id}`}>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              title="View deal details"
+              aria-label="View deal details"
+            >
+              <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+            </Button>
+          </Link>
+        </div>
       ),
     },
   ];

@@ -51,7 +51,7 @@ export default function FinishedGoodsPage() {
       accessorKey: "sku",
       header: "Finished SKU",
       cell: ({ row }) => (
-        <span className="font-mono text-xs font-bold text-primary">
+        <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase font-bold inline-block truncate max-w-full align-middle">
           {row.original.sku || "-"}
         </span>
       ),

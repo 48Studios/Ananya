@@ -60,7 +60,7 @@ export default function FinancePage() {
       accessorKey: "accountType",
       header: "GL Category",
       cell: ({ row }) => (
-        <span className="font-semibold text-xs text-primary">
+        <span className="font-medium text-xs text-foreground">
           {row.original.accountType}
         </span>
       ),

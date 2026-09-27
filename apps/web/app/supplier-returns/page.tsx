@@ -94,13 +94,28 @@ export default function SupplierReturnsPage() {
     {
       accessorKey: "returnNumber",
       header: "Return No.",
+      meta: { width: "13%" },
       cell: ({ row }) => (
-        <Link
-          href={`/supplier-returns/${row.original.id}`}
-          className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold"
-        >
-          {row.original.returnNumber || "-"}
-        </Link>
+        <div className="min-w-0 max-w-[130px]">
+          <TooltipProvider delay={100}>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Link
+                    href={`/supplier-returns/${row.original.id}`}
+                    title={row.original.returnNumber || "-"}
+                    className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
+                  />
+                }
+              >
+                {row.original.returnNumber || "-"}
+              </TooltipTrigger>
+              <TooltipContent side="top" className="font-mono text-xs">
+                {row.original.returnNumber || "-"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       ),
     },
     {
@@ -214,18 +229,22 @@ export default function SupplierReturnsPage() {
     },
     {
       id: "actions",
-      header: () => <div className="text-right">Actions</div>,
+      header: () => <span className="text-right block w-full">Actions</span>,
+      meta: {
+        width: "8%",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
           <Link href={`/supplier-returns/${row.original.id}`}>
             <Button
               variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
+              size="icon-xs"
               title="View details & status"
+              aria-label="View details & status"
             >
-              <Eye className="w-3.5 h-3.5 mr-1" />
-              View
+              <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
             </Button>
           </Link>
         </div>

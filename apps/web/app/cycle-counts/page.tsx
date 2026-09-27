@@ -7,8 +7,6 @@ import {
   Plus,
   Eye,
   CheckCircle2,
-  Clock,
-  XCircle,
   ClipboardCheck,
   User,
   MapPin,
@@ -28,59 +26,18 @@ import {
 } from "@/components/ui/entity-data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CycleCountForm } from "@/components/cycle-counts/cycle-count-form";
+import { StatusBadge } from "@/components/ui/status-badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   cycleCountsApi,
   type CycleCountDto,
-  type CycleCountStatus,
 } from "@/lib/api/cycle-counts-api";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
-
-function getStatusBadge(status: CycleCountStatus) {
-  switch (status) {
-    case "APPROVED":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-          <CheckCircle2 className="w-3 h-3 mr-1" />
-          Approved & Reconciled
-        </span>
-      );
-    case "REVIEW":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
-          <FileCheck className="w-3 h-3 mr-1" />
-          Under Review
-        </span>
-      );
-    case "COUNTING":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
-          <ClipboardCheck className="w-3 h-3 mr-1" />
-          Counting
-        </span>
-      );
-    case "ASSIGNED":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-          <User className="w-3 h-3 mr-1" />
-          Assigned
-        </span>
-      );
-    case "DRAFT":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-slate-500/10 text-slate-700 dark:text-slate-400 border border-slate-500/20">
-          <Clock className="w-3 h-3 mr-1" />
-          Draft
-        </span>
-      );
-    case "CANCELLED":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-muted text-muted-foreground border border-border">
-          <XCircle className="w-3 h-3 mr-1" />
-          Cancelled
-        </span>
-      );
-  }
-}
 
 export default function CycleCountsPage() {
   const [cycleCounts, setCycleCounts] = React.useState<CycleCountDto[]>([]);
@@ -164,13 +121,27 @@ export default function CycleCountsPage() {
       {
         accessorKey: "countNumber",
         header: "Count #",
+        meta: { width: "12%" },
         cell: ({ row }) => (
-          <Link
-            href={`/cycle-counts/${row.original.id}`}
-            className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold"
-          >
-            {row.original.countNumber}
-          </Link>
+          <div className="min-w-0 max-w-[130px]">
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/cycle-counts/${row.original.id}`}
+                      className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
+                    />
+                  }
+                >
+                  {row.original.countNumber}
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-mono text-xs">
+                  {row.original.countNumber}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         ),
       },
       {
@@ -213,7 +184,7 @@ export default function CycleCountsPage() {
       {
         accessorKey: "status",
         header: "Status",
-        cell: ({ row }) => getStatusBadge(row.original.status),
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "scheduledDate",
@@ -228,7 +199,12 @@ export default function CycleCountsPage() {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
+        meta: {
+          width: "8%",
+          headerClassName: "text-right",
+          cellClassName: "text-right",
+        },
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Link href={`/cycle-counts/${row.original.id}`}>
@@ -236,6 +212,7 @@ export default function CycleCountsPage() {
                 variant="ghost"
                 size="icon-xs"
                 title="View details and review"
+                aria-label="View details and review"
               >
                 <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
@@ -246,6 +223,7 @@ export default function CycleCountsPage() {
                   variant="ghost"
                   size="icon-xs"
                   title="Edit draft scope"
+                  aria-label="Edit draft scope"
                   onClick={() => {
                     setEditingCount(row.original);
                     setIsFormOpen(true);
@@ -257,6 +235,7 @@ export default function CycleCountsPage() {
                   variant="ghost"
                   size="icon-xs"
                   title="Delete draft"
+                  aria-label="Delete draft"
                   onClick={() => setDeletingCount(row.original)}
                 >
                   <Trash2 className="w-3.5 h-3.5 text-destructive hover:text-destructive" />

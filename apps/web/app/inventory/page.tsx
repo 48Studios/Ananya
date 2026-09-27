@@ -101,7 +101,7 @@ export default function InventoryPage() {
         cell: ({ row }) => (
           <Link
             href={`/components/${row.original.id}`}
-            className="font-mono text-xs text-primary font-semibold hover:underline block truncate"
+            className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors block truncate"
             title={row.original.sku}
           >
             {row.original.sku}
@@ -232,7 +232,7 @@ export default function InventoryPage() {
       },
       {
         id: "actions",
-        header: "Actions",
+        header: () => <span className="text-right block w-full">Actions</span>,
         meta: {
           width: "7%",
           minWidth: "85px",
@@ -240,11 +240,15 @@ export default function InventoryPage() {
           cellClassName: "text-right",
         },
         cell: ({ row }) => (
-          <div className="flex justify-end pr-1">
+          <div className="flex items-center justify-end pr-1">
             <Link href={`/components/${row.original.id}`}>
-              <Button size="sm" variant="ghost" className="h-7 px-2.5 text-xs gap-1">
-                <Eye className="size-3.5" />
-                View
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                title="View component inventory"
+                aria-label="View component inventory"
+              >
+                <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
             </Link>
           </div>

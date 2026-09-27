@@ -6,6 +6,7 @@ import { Landmark, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { financeApi, type BankAccountSummaryDto } from "@/lib/api/finance-api";
@@ -41,7 +42,7 @@ export default function BankAccountsPage() {
       accessorKey: "bankName",
       header: "Banking Institution",
       cell: ({ row }) => (
-        <span className="font-semibold text-xs text-primary">
+        <span className="font-medium text-xs text-foreground">
           {row.original.bankName}
         </span>
       ),
@@ -50,7 +51,7 @@ export default function BankAccountsPage() {
       accessorKey: "accountNumberMasked",
       header: "Account Number",
       cell: ({ row }) => (
-        <span className="font-mono text-xs text-foreground font-semibold">
+        <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-0.5 rounded uppercase font-bold">
           {row.original.accountNumberMasked}
         </span>
       ),
@@ -79,10 +80,10 @@ export default function BankAccountsPage() {
       accessorKey: "latestReconciliationStatus",
       header: "Reconciliation",
       cell: ({ row }) => (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          <CheckCircle2 className="w-3 h-3 mr-1" />{" "}
-          {row.original.latestReconciliationStatus || "No statements"}
-        </span>
+        <StatusBadge
+          status={row.original.latestReconciliationStatus === "COMPLETED" ? "COMPLETED" : "PENDING"}
+          label={row.original.latestReconciliationStatus || "No statements"}
+        />
       ),
     },
   ];

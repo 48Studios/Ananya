@@ -45,7 +45,7 @@ export default function TimePage() {
       accessorKey: "employeeName",
       header: "Employee Name",
       cell: ({ row }) => (
-        <span className="font-semibold text-xs text-primary">
+        <span className="font-medium text-xs text-foreground">
           {row.original.employeeName || "Staff"}
         </span>
       ),
@@ -54,7 +54,7 @@ export default function TimePage() {
       accessorKey: "workOrderRef",
       header: "Ref Order / Ticket",
       cell: ({ row }) => (
-        <span className="font-mono text-xs text-foreground font-medium">
+        <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-0.5 rounded uppercase font-bold">
           {row.original.workOrderRef || "-"}
         </span>
       ),
@@ -81,7 +81,7 @@ export default function TimePage() {
       accessorKey: "workDate",
       header: "Date",
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground font-mono">
           {row.original.workDate ? formatDate(row.original.workDate) : "-"}
         </span>
       ),

@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface CustomerRecord {
   id: string;
@@ -56,20 +63,35 @@ export default function CustomersPage() {
     {
       accessorKey: "code",
       header: "Customer Code",
+      meta: { width: "13%" },
       cell: ({ row }) => (
-        <Link
-          href={`/customers/${row.original.id}`}
-          className="font-mono text-xs font-bold text-primary hover:underline"
-        >
-          {row.original.code}
-        </Link>
+        <div className="min-w-0 max-w-[130px]">
+          <TooltipProvider delay={100}>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Link
+                    href={`/customers/${row.original.id}`}
+                    title={row.original.code}
+                    className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase inline-block truncate max-w-full align-middle"
+                  />
+                }
+              >
+                {row.original.code}
+              </TooltipTrigger>
+              <TooltipContent side="top" className="font-mono text-xs">
+                {row.original.code}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       ),
     },
     {
       accessorKey: "name",
       header: "Company Account",
       cell: ({ row }) => (
-        <span className="font-semibold text-xs text-foreground">
+        <span className="font-medium text-xs text-foreground">
           {row.original.name}
         </span>
       ),
@@ -95,21 +117,29 @@ export default function CustomersPage() {
     {
       accessorKey: "status",
       header: "Status",
-      cell: () => (
-        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          <CheckCircle2 className="w-3 h-3 mr-1" /> Active Account
-        </span>
-      ),
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
     },
     {
       id: "actions",
-      header: "Actions",
+      header: () => <span className="text-right block w-full">Actions</span>,
+      meta: {
+        width: "8%",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => (
-        <Link href={`/customers/${row.original.id}`}>
-          <Button variant="ghost" size="xs">
-            <Eye className="w-3.5 h-3.5 mr-1" /> View Profile
-          </Button>
-        </Link>
+        <div className="flex items-center justify-end gap-1">
+          <Link href={`/customers/${row.original.id}`}>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              title="View profile"
+              aria-label="View profile"
+            >
+              <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+            </Button>
+          </Link>
+        </div>
       ),
     },
   ];

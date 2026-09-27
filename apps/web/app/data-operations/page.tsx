@@ -316,34 +316,34 @@ export default function DataOperationsPage() {
           const isReversed = job.status === "REVERSED";
 
           return (
-            <div className="flex items-center justify-end space-x-1.5 whitespace-nowrap">
+            <div className="flex items-center justify-end gap-1 whitespace-nowrap">
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon-xs"
                 onClick={() => setInspectingJob(job)}
-                className="h-7 px-2 text-xs"
                 title="Inspect details and logs"
+                aria-label="Inspect details and logs"
               >
-                <Eye className="w-3.5 h-3.5 mr-1" />
-                Inspect
+                <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
               </Button>
 
               {isReversible && (
                 <Button
-                  variant="destructive"
-                  size="sm"
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => {
                     setRevertError(null);
                     setRevertingJob(job);
                   }}
-                  className="h-7 px-2.5 text-xs shadow-none"
+                  title="Undo / Revert job"
+                  aria-label="Undo / Revert job"
+                  className="text-destructive hover:text-destructive"
                 >
-                  <RotateCcw className="w-3 h-3 mr-1" />
-                  Undo / Revert
+                  <RotateCcw className="w-3.5 h-3.5" />
                 </Button>
               )}
               {isReversed && (
-                <span className="text-[11px] text-muted-foreground italic px-2">
+                <span className="text-[11px] text-muted-foreground italic px-1">
                   Undone
                 </span>
               )}
