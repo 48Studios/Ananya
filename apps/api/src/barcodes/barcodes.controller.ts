@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
 import {
   IsString,
   IsNotEmpty,
@@ -11,6 +11,7 @@ import {
   type EntityType,
   ENTITY_TYPES,
 } from './barcodes.service';
+import { createPermissionGuard } from '../auth/permission.guard';
 
 export class GenerateBarcodeDto {
   @IsIn(ENTITY_TYPES, {
@@ -50,11 +51,13 @@ export class BarcodesController {
   constructor(private readonly barcodesService: BarcodesService) {}
 
   @Get('lookup')
+  @UseGuards(createPermissionGuard('Inventory.Read'))
   lookup(@Query() query: BarcodeLookupQueryDto) {
     return this.barcodesService.lookup(query.code);
   }
 
   @Post('generate')
+  @UseGuards(createPermissionGuard('Inventory.Update'))
   generate(@Body() dto: GenerateBarcodeDto) {
     return this.barcodesService.generateBarcodePayload(
       dto.entityType,
@@ -63,6 +66,7 @@ export class BarcodesController {
   }
 
   @Post('batch-labels')
+  @UseGuards(createPermissionGuard('Inventory.Update'))
   getBatchLabels(@Body() dto: BatchLabelsDto) {
     return this.barcodesService.getBatchLabels(dto.entityType, dto.ids);
   }

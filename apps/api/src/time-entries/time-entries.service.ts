@@ -30,8 +30,13 @@ export class TimeEntriesService {
       );
     }
 
+    const userId = dto.userId;
+    if (!userId) {
+      throw new BadRequestException('User ID is required for time entry creation.');
+    }
+
     const timeEntry = TimeEntry.create({
-      userId: dto.userId,
+      userId,
       taskId: dto.taskId,
       date: new Date(dto.date),
       hours: dto.hours,
@@ -66,8 +71,12 @@ export class TimeEntriesService {
   }
 
   async approve(id: string, dto: ApproveTimeEntryDto): Promise<TimeEntry> {
+    const approverId = dto.approverId;
+    if (!approverId) {
+      throw new BadRequestException('Approver ID is required.');
+    }
     const timeEntry = await this.findOne(id);
-    timeEntry.approve(dto.approverId);
+    timeEntry.approve(approverId);
     await this.tasksService.addActualHours(timeEntry.taskId, timeEntry.hours);
     await this.timeEntryRepository.save(timeEntry);
     return timeEntry;

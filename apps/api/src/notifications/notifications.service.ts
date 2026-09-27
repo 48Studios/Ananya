@@ -1,9 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { db } from '@ananya/database';
 import {
   notifications,
   notificationPreferences,
-  users,
 } from '@ananya/database/schema';
 import { eq, and, desc, count } from '@ananya/database/query';
 import { ActivityService } from '../activity/activity.service';
@@ -19,25 +23,28 @@ const UUID_REGEX =
 export class NotificationsService {
   constructor(private readonly activityService: ActivityService) {}
 
-  private async resolveUserId(userId?: string): Promise<string | null> {
-    if (userId && UUID_REGEX.test(userId)) {
-      return userId;
+  private validateUserId(userId: string): string {
+    if (!userId || typeof userId !== 'string' || !UUID_REGEX.test(userId)) {
+      throw new UnauthorizedException(
+        'A valid authenticated user ID is required.',
+      );
     }
-    try {
-      const [firstUser] = await db.select().from(users).limit(1);
-      return firstUser ? firstUser.id : null;
-    } catch {
-      return null;
-    }
+    return userId;
   }
 
   async createNotification(dto: CreateNotificationDto) {
-    const validUserId = await this.resolveUserId(dto.userId);
+    let targetUserId: string | null = null;
+    if (dto.userId) {
+      if (!UUID_REGEX.test(dto.userId)) {
+        throw new BadRequestException('Target recipient userId is not a valid UUID.');
+      }
+      targetUserId = dto.userId;
+    }
 
     const [notif] = await db
       .insert(notifications)
       .values({
-        userId: validUserId,
+        userId: targetUserId,
         module: dto.module,
         type: dto.type,
         title: dto.title,
@@ -65,83 +72,76 @@ export class NotificationsService {
         dto.priority === 'URGENT' || dto.priority === 'HIGH' ? 'WARN' : 'INFO',
       status: 'COMPLETED',
       metadata: { notificationId: notif.id, type: dto.type },
-      userId: validUserId || undefined,
+      userId: targetUserId || undefined,
     });
 
     return notif;
   }
 
-  async getUserNotifications(userId?: string, limit = 50) {
-    const validUserId = await this.resolveUserId(userId);
+  async getUserNotifications(userId: string, limit = 50) {
+    const validUserId = this.validateUserId(userId);
 
     return db
       .select()
       .from(notifications)
-      .where(validUserId ? eq(notifications.userId, validUserId) : undefined)
+      .where(eq(notifications.userId, validUserId))
       .orderBy(desc(notifications.createdAt))
       .limit(limit);
   }
 
-  async getUnreadCount(userId?: string) {
-    const validUserId = await this.resolveUserId(userId);
+  async getUnreadCount(userId: string) {
+    const validUserId = this.validateUserId(userId);
 
     const [res] = await db
       .select({ unread: count() })
       .from(notifications)
       .where(
-        validUserId
-          ? and(
-              eq(notifications.userId, validUserId),
-              eq(notifications.isRead, false),
-            )
-          : eq(notifications.isRead, false),
+        and(
+          eq(notifications.userId, validUserId),
+          eq(notifications.isRead, false),
+        ),
       );
     return res ? Number(res.unread) : 0;
   }
 
-  async markAsRead(id: string) {
+  async markAsRead(id: string, userId: string) {
+    const validUserId = this.validateUserId(userId);
+
     const [updated] = await db
       .update(notifications)
       .set({ isRead: true, readAt: new Date() })
-      .where(eq(notifications.id, id))
+      .where(
+        and(
+          eq(notifications.id, id),
+          eq(notifications.userId, validUserId),
+        ),
+      )
       .returning();
 
     if (!updated) {
-      throw new NotFoundException(`Notification #${id} not found`);
+      throw new NotFoundException(`Notification #${id} not found or access denied`);
     }
     return updated;
   }
 
-  async markAllAsRead(userId?: string) {
-    const validUserId = await this.resolveUserId(userId);
+  async markAllAsRead(userId: string) {
+    const validUserId = this.validateUserId(userId);
 
     await db
       .update(notifications)
       .set({ isRead: true, readAt: new Date() })
       .where(
-        validUserId
-          ? and(
-              eq(notifications.userId, validUserId),
-              eq(notifications.isRead, false),
-            )
-          : eq(notifications.isRead, false),
+        and(
+          eq(notifications.userId, validUserId),
+          eq(notifications.isRead, false),
+        ),
       );
 
     return { success: true };
   }
 
-  async getPreferences(userId?: string) {
-    const validUserId = await this.resolveUserId(userId);
-    if (!validUserId) {
-      return {
-        id: 'default',
-        userId: '00000000-0000-0000-0000-000000000000',
-        priorityThreshold: 'LOW',
-        emailEnabled: true,
-        desktopEnabled: true,
-        quietHoursEnabled: false,
-      };
-    }
+  async getPreferences(userId: string) {
+    const validUserId = this.validateUserId(userId);
 
     const [pref] = await db
       .select()
@@ -159,27 +159,17 @@ export class NotificationsService {
           quietHoursEnabled: false,
         })
         .returning();
-      return newPref;
+      return newPref!;
     }
 
     return pref;
   }
 
   async updatePreferences(
-    userId: string | undefined,
+    userId: string,
     dto: UpdateNotificationPreferencesDto,
   ) {
-    const validUserId = await this.resolveUserId(userId);
-    if (!validUserId) {
-      return {
-        id: 'default',
-        userId: '00000000-0000-0000-0000-000000000000',
-        priorityThreshold: dto.priorityThreshold || 'LOW',
-        emailEnabled: dto.emailEnabled ?? true,
-        desktopEnabled: dto.desktopEnabled ?? true,
-        quietHoursEnabled: dto.quietHoursEnabled ?? false,
-      };
-    }
+    const validUserId = this.validateUserId(userId);
 
     let pref = await db
       .select()
@@ -232,6 +222,6 @@ export class NotificationsService {
       .where(eq(notificationPreferences.id, pref.id))
       .returning();
 
-    return updated;
+    return updated!;
   }
 }

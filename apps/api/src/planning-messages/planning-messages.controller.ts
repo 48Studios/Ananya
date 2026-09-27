@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { PlanningMessagesService } from './planning-messages.service';
 import { CreatePlanningMessageDto } from './dtos';
 import { MessageSeverity } from '@ananya/mrp';
+import { createPermissionGuard } from '../auth/permission.guard';
 
 @Controller('planning-messages')
 export class PlanningMessagesController {
@@ -10,11 +11,13 @@ export class PlanningMessagesController {
   ) {}
 
   @Post()
+  @UseGuards(createPermissionGuard('WorkOrders.Manage'))
   create(@Body() dto: CreatePlanningMessageDto) {
     return this.planningMessagesService.create(dto);
   }
 
   @Get()
+  @UseGuards(createPermissionGuard('WorkOrders.Manage'))
   findAll(
     @Query('planningRunId') planningRunId?: string,
     @Query('severity') severity?: MessageSeverity,
@@ -23,6 +26,7 @@ export class PlanningMessagesController {
   }
 
   @Get(':id')
+  @UseGuards(createPermissionGuard('WorkOrders.Manage'))
   findOne(@Param('id') id: string) {
     return this.planningMessagesService.findOne(id);
   }

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { InvitationsService } from './invitations.service';
 import { OnboardingService } from './onboarding.service';
@@ -12,6 +12,7 @@ import { ComponentWriteGuard } from './component-write.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './auth.guard';
 
+@Global()
 @Module({
   imports: [
     UsersModule,

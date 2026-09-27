@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Query,
+  Req,
 } from '@nestjs/common';
 import { PreferencesService } from './preferences.service';
 import {
@@ -15,71 +16,72 @@ import {
   CreateFavoriteDto,
   UpdateWorkspacePreferenceDto,
 } from './dtos';
+import type { AuthenticatedRequest } from '../auth/permission.guard';
 
 @Controller('preferences')
 export class PreferencesController {
   constructor(private readonly service: PreferencesService) {}
 
   @Get('dashboard')
-  getDashboardLayout(@Query('userId') userId?: string) {
-    return this.service.getDashboardLayout(userId);
+  getDashboardLayout(@Req() req: AuthenticatedRequest) {
+    return this.service.getDashboardLayout(req.user!.id);
   }
 
   @Put('dashboard')
   updateDashboardLayout(
-    @Query('userId') userId: string | undefined,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: UpdateDashboardLayoutDto,
   ) {
-    return this.service.updateDashboardLayout(userId, dto);
+    return this.service.updateDashboardLayout(req.user!.id, dto);
   }
 
   @Get('saved-views')
   getSavedViews(
-    @Query('userId') userId?: string,
+    @Req() req: AuthenticatedRequest,
     @Query('module') module?: string,
   ) {
-    return this.service.getSavedViews(userId, module);
+    return this.service.getSavedViews(req.user!.id, module);
   }
 
   @Post('saved-views')
   createSavedView(
-    @Query('userId') userId: string | undefined,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: CreateSavedViewDto,
   ) {
-    return this.service.createSavedView(userId, dto);
+    return this.service.createSavedView(req.user!.id, dto);
   }
 
   @Get('favorites')
-  getFavorites(@Query('userId') userId?: string) {
-    return this.service.getFavorites(userId);
+  getFavorites(@Req() req: AuthenticatedRequest) {
+    return this.service.getFavorites(req.user!.id);
   }
 
   @Post('favorites')
   addFavorite(
-    @Query('userId') userId: string | undefined,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: CreateFavoriteDto,
   ) {
-    return this.service.addFavorite(userId, dto);
+    return this.service.addFavorite(req.user!.id, dto);
   }
 
   @Delete('favorites/:id')
   removeFavorite(
-    @Query('userId') userId: string | undefined,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
   ) {
-    return this.service.removeFavorite(userId, id);
+    return this.service.removeFavorite(req.user!.id, id);
   }
 
   @Get('workspace')
-  getWorkspacePreferences(@Query('userId') userId?: string) {
-    return this.service.getWorkspacePreferences(userId);
+  getWorkspacePreferences(@Req() req: AuthenticatedRequest) {
+    return this.service.getWorkspacePreferences(req.user!.id);
   }
 
   @Put('workspace')
   updateWorkspacePreferences(
-    @Query('userId') userId: string | undefined,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: UpdateWorkspacePreferenceDto,
   ) {
-    return this.service.updateWorkspacePreferences(userId, dto);
+    return this.service.updateWorkspacePreferences(req.user!.id, dto);
   }
 }

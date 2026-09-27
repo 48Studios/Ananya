@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
@@ -20,25 +21,48 @@ import {
 } from '../auth/permission.guard';
 import { PermissionsService } from '../permissions/permissions.service';
 
-function getRequiredPermissionForBulkAction(
+export function getRequiredPermissionForBulkAction(
   entityType: string,
   action: string,
 ): string {
-  switch (entityType) {
+  const normalized = (entityType || '').trim().toLowerCase();
+  switch (normalized) {
+    case 'role':
     case 'roles':
       return 'Administration.Roles';
-    case 'purchaseOrders':
+    case 'purchaseorder':
+    case 'purchaseorders':
       return 'PurchaseOrders.Update';
+    case 'bom':
     case 'boms':
       return 'BOM.Manage';
-    case 'productionOrders':
+    case 'workorder':
+    case 'workorders':
+    case 'productionorder':
+    case 'productionorders':
       return 'WorkOrders.Manage';
+    case 'component':
     case 'components':
       return action === 'DELETE' ? 'Inventory.Delete' : 'Inventory.Update';
+    case 'supplier':
     case 'suppliers':
       return 'PurchaseOrders.Update';
+    case 'attributedefinition':
+    case 'attributedefinitions':
+      return action === 'DELETE' ? 'Attributes.Delete' : 'Attributes.Update';
+    case 'category':
+    case 'categories':
+    case 'location':
+    case 'locations':
+    case 'unit':
+    case 'units':
+    case 'manufacturer':
+    case 'manufacturers':
+      return action === 'DELETE' ? 'Inventory.Delete' : 'Inventory.Update';
     default:
-      return 'Inventory.Update';
+      throw new BadRequestException(
+        `Bulk actions are not supported for unknown entity type "${entityType}".`,
+      );
   }
 }
 

@@ -1,11 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { db } from '@ananya/database';
 import {
   userDashboardLayouts,
   userSavedViews,
   userFavorites,
   userWorkspacePreferences,
-  users,
 } from '@ananya/database/schema';
 import { eq, and, desc } from '@ananya/database/query';
 import { ActivityService } from '../activity/activity.service';
@@ -60,28 +63,17 @@ export class PreferencesService {
     private readonly auditService: SecurityAuditService,
   ) {}
 
-  private async resolveUserId(userId?: string): Promise<string | null> {
-    if (userId && UUID_REGEX.test(userId)) {
-      return userId;
+  private validateUserId(userId: string): string {
+    if (!userId || typeof userId !== 'string' || !UUID_REGEX.test(userId)) {
+      throw new UnauthorizedException(
+        'A valid authenticated user ID is required.',
+      );
     }
-    try {
-      const [firstUser] = await db.select().from(users).limit(1);
-      return firstUser ? firstUser.id : null;
-    } catch {
-      return null;
-    }
+    return userId;
   }
 
-  async getDashboardLayout(userId?: string) {
-    const validUserId = await this.resolveUserId(userId);
-    if (!validUserId) {
-      return {
-        id: 'default',
-        userId: '00000000-0000-0000-0000-000000000000',
-        widgetsJson: DEFAULT_WIDGETS,
-        updatedAt: new Date(),
-      };
-    }
+  async getDashboardLayout(userId: string) {
+    const validUserId = this.validateUserId(userId);
 
     const [layout] = await db
       .select()
@@ -102,19 +94,10 @@ export class PreferencesService {
   }
 
   async updateDashboardLayout(
-    userId: string | undefined,
+    userId: string,
     dto: UpdateDashboardLayoutDto,
   ) {
-    const validUserId = await this.resolveUserId(userId);
-    if (!validUserId) {
-      return {
-        id: 'default',
-        userId: '00000000-0000-0000-0000-000000000000',
-        widgetsJson: dto.widgetsJson,
-        updatedAt: new Date(),
-      };
-    }
-
+    const validUserId = this.validateUserId(userId);
     const layout = await this.getDashboardLayout(validUserId);
 
     const [updated] = await db
@@ -138,12 +121,11 @@ export class PreferencesService {
       userId: validUserId,
     });
 
-    return updated;
+    return updated!;
   }
 
-  async getSavedViews(userId?: string, module?: string) {
-    const validUserId = await this.resolveUserId(userId);
-    if (!validUserId) return [];
+  async getSavedViews(userId: string, module?: string) {
+    const validUserId = this.validateUserId(userId);
 
     return db
       .select()
@@ -159,13 +141,8 @@ export class PreferencesService {
       .orderBy(desc(userSavedViews.createdAt));
   }
 
-  async createSavedView(userId: string | undefined, dto: CreateSavedViewDto) {
-    const validUserId = await this.resolveUserId(userId);
-    if (!validUserId) {
-      throw new NotFoundException(
-        'User account required to create saved view.',
-      );
-    }
+  async createSavedView(userId: string, dto: CreateSavedViewDto) {
+    const validUserId = this.validateUserId(userId);
 
     const [view] = await db
       .insert(userSavedViews)
@@ -191,12 +168,11 @@ export class PreferencesService {
       userId: validUserId,
     });
 
-    return view;
+    return view!;
   }
 
-  async getFavorites(userId?: string) {
-    const validUserId = await this.resolveUserId(userId);
-    if (!validUserId) return [];
+  async getFavorites(userId: string) {
+    const validUserId = this.validateUserId(userId);
 
     return db
       .select()
@@ -205,11 +181,8 @@ export class PreferencesService {
       .orderBy(desc(userFavorites.createdAt));
   }
 
-  async addFavorite(userId: string | undefined, dto: CreateFavoriteDto) {
-    const validUserId = await this.resolveUserId(userId);
-    if (!validUserId) {
-      throw new NotFoundException('User account required to add favorite.');
-    }
+  async addFavorite(userId: string, dto: CreateFavoriteDto) {
+    const validUserId = this.validateUserId(userId);
 
     const [fav] = await db
       .insert(userFavorites)
@@ -222,14 +195,11 @@ export class PreferencesService {
       })
       .returning();
 
-    return fav;
+    return fav!;
   }
 
-  async removeFavorite(userId: string | undefined, id: string) {
-    const validUserId = await this.resolveUserId(userId);
-    if (!validUserId) {
-      return { success: true };
-    }
+  async removeFavorite(userId: string, id: string) {
+    const validUserId = this.validateUserId(userId);
 
     const [existing] = await db
       .select()
@@ -246,17 +216,8 @@ export class PreferencesService {
     return { success: true };
   }
 
-  async getWorkspacePreferences(userId?: string) {
-    const validUserId = await this.resolveUserId(userId);
-    if (!validUserId) {
-      return {
-        id: 'default',
-        userId: '00000000-0000-0000-0000-000000000000',
-        defaultLandingPage: '/dashboard',
-        tableDensity: 'compact',
-        themePreference: 'system',
-      };
-    }
+  async getWorkspacePreferences(userId: string) {
+    const validUserId = this.validateUserId(userId);
 
     const [pref] = await db
       .select()
@@ -279,20 +240,10 @@ export class PreferencesService {
   }
 
   async updateWorkspacePreferences(
-    userId: string | undefined,
+    userId: string,
     dto: UpdateWorkspacePreferenceDto,
   ) {
-    const validUserId = await this.resolveUserId(userId);
-    if (!validUserId) {
-      return {
-        id: 'default',
-        userId: '00000000-0000-0000-0000-000000000000',
-        defaultLandingPage: dto.defaultLandingPage || '/dashboard',
-        tableDensity: dto.tableDensity || 'compact',
-        themePreference: dto.themePreference || 'system',
-      };
-    }
-
+    const validUserId = this.validateUserId(userId);
     const pref = await this.getWorkspacePreferences(validUserId);
 
     const [updated] = await db
@@ -306,6 +257,6 @@ export class PreferencesService {
       .where(eq(userWorkspacePreferences.id, pref.id))
       .returning();
 
-    return updated;
+    return updated!;
   }
 }

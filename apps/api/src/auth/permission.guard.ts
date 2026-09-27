@@ -66,7 +66,7 @@ export function extractBearerToken(
  */
 export function createPermissionGuard(
   permission: string,
-  subject: string,
+  subject: string = 'access this resource',
 ): Type<CanActivate> {
   @Injectable()
   class PermissionGuard implements CanActivate {

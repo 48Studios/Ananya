@@ -8,11 +8,13 @@ import {
   Param,
   Query,
   UseFilters,
+  UseGuards,
 } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto, UpdateReservationDto } from './dtos';
 import { ReservationExceptionFilter } from './reservation-exception.filter';
 import type { ReservationStatus, ReservationType } from '@ananya/inventory';
+import { createPermissionGuard } from '../auth/permission.guard';
 
 @Controller('reservations')
 @UseFilters(ReservationExceptionFilter)
@@ -20,11 +22,13 @@ export class ReservationsController {
   constructor(private readonly service: ReservationsService) {}
 
   @Post()
+  @UseGuards(createPermissionGuard('Inventory.Reserve'))
   async create(@Body() dto: CreateReservationDto) {
     return this.service.create(dto);
   }
 
   @Get()
+  @UseGuards(createPermissionGuard('Inventory.Read'))
   async findAll(
     @Query('componentId') componentId?: string,
     @Query('locationId') locationId?: string,
@@ -44,6 +48,7 @@ export class ReservationsController {
   }
 
   @Get('available')
+  @UseGuards(createPermissionGuard('Inventory.Read'))
   async getAvailable(
     @Query('componentId') componentId: string,
     @Query('locationId') locationId: string,
@@ -52,31 +57,37 @@ export class ReservationsController {
   }
 
   @Get(':id')
+  @UseGuards(createPermissionGuard('Inventory.Read'))
   async findOne(@Param('id') id: string) {
     return this.service.getById(id);
   }
 
   @Put(':id')
+  @UseGuards(createPermissionGuard('Inventory.Reserve'))
   async update(@Param('id') id: string, @Body() dto: UpdateReservationDto) {
     return this.service.update(id, dto);
   }
 
   @Post(':id/fulfill')
+  @UseGuards(createPermissionGuard('Inventory.Reserve'))
   async fulfill(@Param('id') id: string) {
     return this.service.fulfill(id);
   }
 
   @Post(':id/release')
+  @UseGuards(createPermissionGuard('Inventory.Reserve'))
   async release(@Param('id') id: string) {
     return this.service.release(id);
   }
 
   @Post(':id/cancel')
+  @UseGuards(createPermissionGuard('Inventory.Reserve'))
   async cancel(@Param('id') id: string) {
     return this.service.cancel(id);
   }
 
   @Delete(':id')
+  @UseGuards(createPermissionGuard('Inventory.Reserve'))
   async delete(@Param('id') id: string) {
     return this.service.delete(id);
   }

@@ -37,6 +37,9 @@ export class SettingsController {
   }
 
   @Put('organization')
+  @UseGuards(
+    createPermissionGuard('Administration.Settings', 'update organization profile'),
+  )
   updateOrganizationProfile(@Body() dto: UpdateOrganizationProfileDto) {
     return this.service.updateOrganizationProfile(dto);
   }
@@ -62,6 +65,9 @@ export class SettingsController {
   }
 
   @Put('system')
+  @UseGuards(
+    createPermissionGuard('Administration.Settings', 'update system settings'),
+  )
   updateSystemSettings(@Body() dto: UpdateSystemSettingsDto) {
     return this.service.updateSystemSettings(dto);
   }
@@ -72,6 +78,9 @@ export class SettingsController {
   }
 
   @Put('numbering')
+  @UseGuards(
+    createPermissionGuard('Administration.Settings', 'update numbering series'),
+  )
   updateNumberingSeries(@Body() dto: UpdateNumberingSeriesDto) {
     return this.service.updateNumberingSeries(dto);
   }
@@ -87,6 +96,9 @@ export class SettingsController {
   }
 
   @Patch('feature-flags')
+  @UseGuards(
+    createPermissionGuard('Administration.Settings', 'toggle feature flags'),
+  )
   toggleFeatureFlag(@Body() dto: ToggleFeatureFlagDto) {
     return this.service.toggleFeatureFlag(dto);
   }

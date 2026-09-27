@@ -31,6 +31,11 @@ export class CreateInventoryTransactionDto {
   @IsString()
   reason?: string;
 
+  /**
+   * Client-supplied createdBy is optional and ignored; audit attribution
+   * is authoritatively bound to req.user.id on the server.
+   */
+  @IsOptional()
   @IsString()
-  createdBy!: string;
+  createdBy?: string;
 }

@@ -415,5 +415,201 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       expect(res.status).toBe(403);
       expect(res.body.message).toMatch(/requires Inventory\.Delete/i);
     });
+
+    it('rejects bulk action on unknown entity type with 400 (fails closed)', async () => {
+      if (!hasDbUrl) return;
+
+      const res = await http()
+        .post('/import-export/bulk-action')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          entityType: 'UnknownResource',
+          action: 'DELETE',
+          ids: ['00000000-0000-0000-0000-000000000001'],
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/not supported for unknown entity/i);
+    });
+  });
+
+  describe('8. Preferences IDOR Hardening (SEC-13)', () => {
+    it('always operates on authenticated user regardless of forged userId query parameter', async () => {
+      if (!hasDbUrl) return;
+
+      const res = await http()
+        .get(`/preferences/dashboard?userId=${adminUser.id}`)
+        .set('Authorization', `Bearer ${inventoryUserToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.userId).toBe(inventoryUser.id);
+      expect(res.body.userId).not.toBe(adminUser.id);
+    });
+
+    it('rejects unauthenticated preferences access with 401', async () => {
+      if (!hasDbUrl) return;
+
+      const res = await http().get('/preferences/dashboard');
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe('9. Notifications Cross-User Isolation (SEC-14)', () => {
+    it('denies marking another user notification as read', async () => {
+      if (!hasDbUrl) return;
+
+      // Create a notification intended for admin
+      const createRes = await http()
+        .post('/notifications')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          userId: adminUser.id,
+          module: 'Administration',
+          type: 'SYSTEM_ALERT',
+          title: 'Admin secret alert',
+          message: 'Sensitive message',
+        });
+      expect(createRes.status).toBe(201);
+      const notifId = createRes.body.id;
+
+      // Inventory user tries to mark admin's notification as read
+      const markRes = await http()
+        .patch(`/notifications/${notifId}/read`)
+        .set('Authorization', `Bearer ${inventoryUserToken}`);
+
+      expect(markRes.status).toBe(404);
+      expect(markRes.body.message).toMatch(/not found or access denied/i);
+    });
+
+    it('ignores forged userId query parameter and returns only caller notifications', async () => {
+      if (!hasDbUrl) return;
+
+      const res = await http()
+        .get(`/notifications?userId=${adminUser.id}`)
+        .set('Authorization', `Bearer ${inventoryUserToken}`);
+
+      expect(res.status).toBe(200);
+      const items = res.body as Array<{ userId: string }>;
+      for (const item of items) {
+        expect(item.userId).toBe(inventoryUser.id);
+      }
+    });
+  });
+
+  describe('10. Settings Mutations RBAC (SEC-15)', () => {
+    it('denies updating organization settings to users without Administration.Settings', async () => {
+      if (!hasDbUrl) return;
+
+      const res = await http()
+        .put('/settings/organization')
+        .set('Authorization', `Bearer ${inventoryUserToken}`)
+        .send({
+          companyName: 'Hacked Corp',
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toMatch(/requires Administration\.Settings/i);
+    });
+
+    it('allows updating organization settings to Administrators', async () => {
+      if (!hasDbUrl) return;
+
+      const res = await http()
+        .put('/settings/organization')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          companyName: 'Ananya Hardware Systems',
+        });
+
+      expect(res.status).toBe(200);
+    });
+  });
+
+  describe('11. Search Privacy Boundary (SEC-16)', () => {
+    it('omits user accounts and roles from search results for ordinary users', async () => {
+      if (!hasDbUrl) return;
+
+      const res = await http()
+        .get(`/search?q=${adminUser.email}`)
+        .set('Authorization', `Bearer ${inventoryUserToken}`);
+
+      expect(res.status).toBe(200);
+      const results = res.body as Array<{ category: string }>;
+      const hasAdminItems = results.some((r) => r.category === 'Administration');
+      expect(hasAdminItems).toBe(false);
+    });
+
+    it('includes user accounts and roles in search results for Administrators', async () => {
+      if (!hasDbUrl) return;
+
+      const res = await http()
+        .get(`/search?q=${adminUser.email}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      const results = res.body as Array<{ category: string }>;
+      const hasAdminItems = results.some((r) => r.category === 'Administration');
+      expect(hasAdminItems).toBe(true);
+    });
+  });
+
+  describe('12. Complete RBAC Domain Coverage (SEC-21 / Phase 3.5)', () => {
+    it('denies sales order creation to users without Sales.Create', async () => {
+      if (!hasDbUrl) return;
+
+      const res = await http()
+        .post('/sales-orders')
+        .set('Authorization', `Bearer ${inventoryUserToken}`)
+        .send({
+          customerId: 'cust-1',
+          currency: 'USD',
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toMatch(/requires Sales\.Create/i);
+    });
+
+    it('denies journal entry creation to users without Accounting.Create', async () => {
+      if (!hasDbUrl) return;
+
+      const res = await http()
+        .post('/journal-entries')
+        .set('Authorization', `Bearer ${inventoryUserToken}`)
+        .send({
+          date: new Date().toISOString(),
+          description: 'Unauthorized Entry',
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toMatch(/requires Accounting\.Create/i);
+    });
+
+    it('denies maintenance schedule creation to users without Maintenance.Manage', async () => {
+      if (!hasDbUrl) return;
+
+      const res = await http()
+        .post('/maintenance-schedules')
+        .set('Authorization', `Bearer ${inventoryUserToken}`)
+        .send({
+          title: 'Unauthorized Maintenance',
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toMatch(/requires Maintenance\.Manage/i);
+    });
+
+    it('denies cycle count mutations to users without Inventory.Adjust', async () => {
+      if (!hasDbUrl) return;
+
+      const res = await http()
+        .post('/cycle-counts')
+        .set('Authorization', `Bearer ${auditorToken}`)
+        .send({
+          name: 'Unauthorized Count',
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toMatch(/requires Inventory\.Adjust/i);
+    });
   });
 });
+

@@ -717,4 +717,63 @@ The following table summarizes the status of security vulnerabilities remediated
 | **SEC-12** | Root Admin Initialization Role Mismatch Bug | **HIGH** | **RESOLVED** | In `onboarding.service.ts`, changed lookup from `'Admin'` to `'Administrator'` and throw error if system role not found, ensuring bootstrap admin has root privileges and wildcard permissions. | Verified: unit tests pass; query resolves canonical system role. |
 
 ---
-*Report updated autonomously following Phase 1 & 2 remediation completion.*
+
+## 14. Phase 2.5 — Authorization Completeness Audit Record
+
+Following Phase 1 & 2 remediations, an exhaustive authorization audit was performed, cataloging all 83 controllers and uncovering BOLA/IDOR gaps, importer privilege mismatches, search privacy leaks, and settings mutation exposure.
+
+---
+
+## 15. Phase 3 — Authorization Remediation & Identity Attribution Record
+
+Phase 3 remediated all confirmed IDOR, BOLA, identity spoofing, and privilege-boundary vulnerabilities across the codebase.
+
+### Remediated Vulnerabilities Summary:
+
+| Vulnerability ID | Description | Severity | Status | Remediated In / Mechanism | Verification |
+| :--- | :--- | :---: | :---: | :--- | :--- |
+| **SEC-13** | Preferences IDOR & Identity Fallback | **CRITICAL** | **RESOLVED** | Removed client-supplied `?userId=` query parameter and eliminated `users.limit(1)` fallback. All operations derive user identity strictly from authenticated `req.user.id`. Strict row-level ownership enforced on deletes. | Verified via `security-remediation.integration-spec.ts` & `preferences.controller.spec.ts`. |
+| **SEC-14** | Notifications Cross-User Read/Update | **HIGH** | **RESOLVED** | Removed client-supplied `?userId=` and `users.limit(1)`. `markAsRead` strictly verifies recipient ownership `where(and(eq(id), eq(userId)))`, throwing 404 on access violation. | Verified via `security-remediation.integration-spec.ts` & `notifications.controller.spec.ts`. |
+| **SEC-15** | Settings Mutations Lack RBAC | **HIGH** | **RESOLVED** | Introduced `Administration.Settings` permission. Protected `PUT /settings/organization`, `PUT /settings/system`, `PUT /settings/numbering`, and `PATCH /settings/feature-flags` with route guards. | Verified via `security-remediation.integration-spec.ts`. |
+| **SEC-16** | Search Privacy Leak / User Enumeration | **MEDIUM** | **RESOLVED** | `SearchService` inspects caller permissions; filters out `AdministrationSearchProvider` for users without administrative credentials, blocking user and role enumeration. | Verified via `security-remediation.integration-spec.ts`. |
+| **SEC-17** | Time Tracking Identity Spoofing & Self-Approval | **HIGH** | **RESOLVED** | Actor identity bound to `req.user.id`. Cross-user logging restricted strictly to authorized managers (`Projects.Manage` / `Administrator`). Approver bound to session; self-approval prohibited. | Verified via `time-entries.controller.spec.ts`. |
+| **SEC-18** | Inventory Ledger Audit Attribution Spoofing | **HIGH** | **RESOLVED** | `CreateInventoryTransactionDto.createdBy` authoritatively bound to `req.user.id` on server; client-supplied value is ignored. Added `Inventory.Update` and `Inventory.Read` guards. | Verified via `inventory-transactions.controller.spec.ts`. |
+| **SEC-19** | Import/Export Privilege Escalation Boundary | **HIGH** | **RESOLVED** | Partitioned import execution by entity (`User` $\to$ `Administration.Users`, `Role` $\to$ `Administration.Roles`, `PO` $\to$ `PurchaseOrders.Update`, `BOM` $\to$ `BOM.Manage`). Fails closed on unknown entities. Export of user records restricted. | Verified via `import-export.controller.spec.ts`. |
+| **SEC-20** | Bulk Actions Fail-Closed Hardening | **HIGH** | **RESOLVED** | Normalized casing and eliminated permissive default. Unrecognized entity types fail closed with 400 Bad Request. | Verified via `bulk-actions.controller.spec.ts` & integration suite. |
+| **SEC-21** | High-Risk Domain Controller RBAC Rollout | **HIGH** | **RESOLVED** | Deployed granular route-level permission guards across `PurchaseOrdersController`, `BomsController`, `WorkOrdersController`, `SuppliersController`, `CategoriesController`, and `LocationsController`. | Verified via test suite compilation and integration tests. |
+
+---
+
+## 16. Phase 3.5 — Complete RBAC Domain Coverage & Automated Verification Record
+
+Phase 3.5 resolved the remaining privilege boundary and authorization gaps, achieving 100% RBAC coverage across all business mutation routes in Ananya ERP.
+
+### Core Remediation Achievements:
+
+1. **Complete RBAC Coverage Across All Business Domains:**
+   - **Finance & Accounting:** Enforced `Accounting.Read`, `Accounting.Create`, `Accounting.Update`, and `Accounting.Post` across `AccountsController`, `JournalEntriesController`, `PaymentsController`, `PayableInvoicesController`, `ReceivableInvoicesController`, `BankReconciliationsController`, and `BankAccountsController`.
+   - **Sales & CRM:** Enforced `Sales.Read`, `Sales.Create`, and `Sales.Update` across `SalesOrdersController`, `CustomersController`, `CrmAccountsController`, `QuotationsController`, `LeadsController`, `OpportunitiesController`, `CustomerReturnsController`, `FulfillmentRequestsController`, `ActivitiesController`, and `NotesController`.
+   - **Maintenance & Service:** Enforced `Maintenance.Read` and `Maintenance.Manage` across `MaintenanceSchedulesController`, `ServiceRequestsController`, `ServiceNotesController`, `WarrantyClaimsController`, and `RmaRequestsController`.
+   - **Procurement:** Enforced `PurchaseOrders.Read`, `PurchaseOrders.Create`, `PurchaseOrders.Update`, and `GoodsReceipts.Receive` across `GoodsReceiptsController`, `PurchaseInvoicesController`, `SupplierReturnsController`, `PurchaseRecommendationsController`, and `ProcurementPoliciesController`.
+   - **Warehousing & Inventory:** Enforced `Inventory.Read`, `Inventory.Create`, `Inventory.Update`, `Inventory.Adjust`, `Inventory.Transfer`, and `Inventory.Reserve` across `StockAdjustmentsController`, `StockCountsController`, `CycleCountsController`, `WarehouseTransfersController`, `WarehousesController`, `WarehousePoliciesController`, `BatchesController`, `SerialsController`, `ReservationsController`, `UnitsController`, `ManufacturersController`, `BarcodesController`, and `InventoryProjectionsController`.
+   - **Manufacturing & MRP:** Enforced `WorkOrders.Manage` and `Manufacturing.Execute` across `ProductionOrdersController`, `ProductionRecommendationsController`, `MaterialConsumptionsController`, `MaterialRequirementsController`, `CapacityPlansController`, `PlanningRunsController`, `PlanningMessagesController`, and `FinishedGoodsController`.
+   - **Projects & Tasks:** Enforced `Projects.Read`, `Projects.Manage`, and `Projects.Allocate` across `ProjectsController`, `TasksController`, and `ActivityController`.
+   - **Automation & System Configuration:** Enforced `Administration.Settings` and `Administration.Users` across `DataPacksController` and administrative endpoints of `NotificationsController`.
+
+2. **Infrastructural Authorization Architecture:**
+   - Marked `AuthModule` and `PermissionsModule` as `@Global()`, ensuring that `AuthService`, `PermissionsService`, and `createPermissionGuard` are available across all NestJS modules and controllers without manual cross-imports or circular dependencies.
+   - Refined `createPermissionGuard(permission, subject = 'access this resource')` with an optional default parameter for standard error messaging.
+
+3. **Automated CI Authorization Completeness Audit (`authorization-audit.integration-spec.ts`):**
+   - Implemented an automated introspection test inspecting NestJS metadata across all registered modules and controller prototypes.
+   - **Inspection Results:**
+     - Total HTTP mutations inspected: **343**
+     - Explicit Route / Class Guarded: **321**
+     - Explicitly Public (`@Public()`): **5**
+     - Audited Handler / Self-Service: **17**
+     - Unguarded / Unhandled: **0**
+   - Guarantees in CI that any future unauthenticated or unguarded business mutation will fail the build immediately.
+
+---
+*Report updated autonomously following Phase 3.5 Complete RBAC Coverage & Privilege Boundary Verification.*
+

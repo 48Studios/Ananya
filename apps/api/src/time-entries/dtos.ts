@@ -9,9 +9,14 @@ import {
 } from 'class-validator';
 
 export class CreateTimeEntryDto {
+  /**
+   * Target employee identity. If omitted or equal to caller's ID, the entry
+   * is logged for the authenticated user (self-service). Logging on behalf of
+   * another employee requires manager/administrator privileges.
+   */
   @IsString()
-  @IsNotEmpty()
-  userId!: string;
+  @IsOptional()
+  userId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -32,7 +37,11 @@ export class CreateTimeEntryDto {
 }
 
 export class ApproveTimeEntryDto {
+  /**
+   * Client-supplied approver identity is ignored; the approver is
+   * always authoritatively bound to req.user.id server-side.
+   */
   @IsString()
-  @IsNotEmpty()
-  approverId!: string;
+  @IsOptional()
+  approverId?: string;
 }

@@ -26,13 +26,30 @@ export class SearchService {
     ];
   }
 
-  async search(query: string, limit = 5): Promise<SearchResultItem[]> {
+  async search(
+    query: string,
+    limit = 5,
+    userPermissions: string[] = [],
+  ): Promise<SearchResultItem[]> {
     const trimmed = query.trim();
     if (!trimmed) {
       return [];
     }
 
-    const promises = this.providers.map((p) =>
+    const canSearchAdministration =
+      userPermissions.includes('*') ||
+      userPermissions.includes('Administration.Users') ||
+      userPermissions.includes('Administration.Roles') ||
+      userPermissions.includes('Administration.Security');
+
+    const activeProviders = this.providers.filter((p) => {
+      if (p.category === 'Administration') {
+        return canSearchAdministration;
+      }
+      return true;
+    });
+
+    const promises = activeProviders.map((p) =>
       p.search(trimmed, limit).catch(() => []),
     );
 

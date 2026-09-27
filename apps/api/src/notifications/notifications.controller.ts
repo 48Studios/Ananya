@@ -6,7 +6,8 @@ import {
   Put,
   Body,
   Param,
-  Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { WorkflowEngineService } from './workflow-engine.service';
@@ -16,6 +17,8 @@ import {
   CreateWorkflowDto,
   EvaluateWorkflowDto,
 } from './dtos';
+import type { AuthenticatedRequest } from '../auth/permission.guard';
+import { createPermissionGuard } from '../auth/permission.guard';
 
 @Controller()
 export class NotificationsController {
@@ -25,55 +28,59 @@ export class NotificationsController {
   ) {}
 
   @Get('notifications')
-  getUserNotifications(@Query('userId') userId?: string) {
-    return this.notificationsService.getUserNotifications(userId);
+  getUserNotifications(@Req() req: AuthenticatedRequest) {
+    return this.notificationsService.getUserNotifications(req.user!.id);
   }
 
   @Get('notifications/unread-count')
-  getUnreadCount(@Query('userId') userId?: string) {
-    return this.notificationsService.getUnreadCount(userId);
+  getUnreadCount(@Req() req: AuthenticatedRequest) {
+    return this.notificationsService.getUnreadCount(req.user!.id);
   }
 
   @Post('notifications')
+  @UseGuards(createPermissionGuard('Administration.Users'))
   createNotification(@Body() dto: CreateNotificationDto) {
     return this.notificationsService.createNotification(dto);
   }
 
   @Patch('notifications/:id/read')
-  markAsRead(@Param('id') id: string) {
-    return this.notificationsService.markAsRead(id);
+  markAsRead(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.notificationsService.markAsRead(id, req.user!.id);
   }
 
   @Post('notifications/read-all')
-  markAllAsRead(@Query('userId') userId?: string) {
-    return this.notificationsService.markAllAsRead(userId);
+  markAllAsRead(@Req() req: AuthenticatedRequest) {
+    return this.notificationsService.markAllAsRead(req.user!.id);
   }
 
   @Get('notifications/preferences')
-  getPreferences(@Query('userId') userId?: string) {
-    return this.notificationsService.getPreferences(userId);
+  getPreferences(@Req() req: AuthenticatedRequest) {
+    return this.notificationsService.getPreferences(req.user!.id);
   }
 
   @Put('notifications/preferences')
   updatePreferences(
-    @Query('userId') userId: string | undefined,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: UpdateNotificationPreferencesDto,
   ) {
-    return this.notificationsService.updatePreferences(userId, dto);
+    return this.notificationsService.updatePreferences(req.user!.id, dto);
   }
 
   // Workflow Automation Endpoints
   @Get('workflows')
+  @UseGuards(createPermissionGuard('Administration.Settings'))
   getWorkflows() {
     return this.workflowService.getWorkflows();
   }
 
   @Post('workflows')
+  @UseGuards(createPermissionGuard('Administration.Settings'))
   createWorkflow(@Body() dto: CreateWorkflowDto) {
     return this.workflowService.createWorkflow(dto);
   }
 
   @Post('workflows/evaluate')
+  @UseGuards(createPermissionGuard('Administration.Settings'))
   evaluateTriggers(@Body() dto: EvaluateWorkflowDto) {
     return this.workflowService.evaluateTriggers(dto);
   }

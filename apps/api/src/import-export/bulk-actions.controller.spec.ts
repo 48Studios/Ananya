@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { BulkActionsController } from './bulk-actions.controller';
 import { BulkActionService } from './bulk-action.service';
 import { PermissionsService } from '../permissions/permissions.service';
@@ -30,7 +30,29 @@ describe('BulkActionsController', () => {
     );
   });
 
-  it('rejects bulk action on Role when user only has Inventory.Update permission', async () => {
+  it('rejects bulk action on unknown entity type with BadRequestException (fails closed)', () => {
+    const req = {
+      user: {
+        id: 'user-admin',
+        email: 'admin@example.com',
+        roleName: 'Administrator',
+        permissions: ['*'],
+      },
+    } as AuthenticatedRequest;
+
+    expect(() =>
+      controller.executeBulkAction(
+        {
+          entityType: 'NonExistentEntity',
+          action: BulkActionType.DELETE,
+          ids: ['id-1'],
+        },
+        req,
+      ),
+    ).toThrow(BadRequestException);
+  });
+
+  it('rejects bulk action on Role when user only has Inventory.Update permission', () => {
     const req = {
       user: {
         id: 'user-1',
@@ -91,6 +113,28 @@ describe('BulkActionsController', () => {
           entityType: 'PurchaseOrder',
           action: BulkActionType.DELETE,
           ids: ['po-1'],
+        },
+        req,
+      ),
+    ).toThrow(ForbiddenException);
+  });
+
+  it('rejects bulk delete on Component when user only has Inventory.Update (needs Inventory.Delete)', () => {
+    const req = {
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        roleName: 'Standard',
+        permissions: ['Inventory.Update'],
+      },
+    } as AuthenticatedRequest;
+
+    expect(() =>
+      controller.executeBulkAction(
+        {
+          entityType: 'Component',
+          action: BulkActionType.DELETE,
+          ids: ['comp-1'],
         },
         req,
       ),

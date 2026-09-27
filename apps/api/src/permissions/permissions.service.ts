@@ -168,6 +168,84 @@ export const ALL_PERMISSIONS: PermissionDefinition[] = [
     category: 'Administration',
     description: 'Access security audit trail and active sessions',
   },
+  {
+    code: 'Administration.Settings',
+    name: 'Manage System Settings',
+    category: 'Administration',
+    description: 'Update organization profile, system preferences, numbering series, and feature flags',
+  },
+
+  // Sales & CRM
+  {
+    code: 'Sales.Read',
+    name: 'View Sales & Customers',
+    category: 'Sales',
+    description: 'View sales orders, customers, quotations, and CRM accounts',
+  },
+  {
+    code: 'Sales.Create',
+    name: 'Create Sales Orders & Quotes',
+    category: 'Sales',
+    description: 'Create sales orders, quotes, leads, and customer accounts',
+  },
+  {
+    code: 'Sales.Update',
+    name: 'Manage Sales Orders & Quotes',
+    category: 'Sales',
+    description: 'Update sales orders, approve quotes, and manage fulfillment',
+  },
+  {
+    code: 'Sales.Delete',
+    name: 'Delete Sales Records',
+    category: 'Sales',
+    description: 'Cancel and delete sales orders and quotations',
+  },
+
+  // Finance & Accounting
+  {
+    code: 'Accounting.Read',
+    name: 'View Financial Records',
+    category: 'Accounting',
+    description: 'View chart of accounts, journal entries, invoices, and payments',
+  },
+  {
+    code: 'Accounting.Create',
+    name: 'Create Financial Transactions',
+    category: 'Accounting',
+    description: 'Create draft journal entries, invoices, and payment records',
+  },
+  {
+    code: 'Accounting.Update',
+    name: 'Edit Financial Records',
+    category: 'Accounting',
+    description: 'Update draft financial entries and bank reconciliations',
+  },
+  {
+    code: 'Accounting.Post',
+    name: 'Post Financial Ledgers',
+    category: 'Accounting',
+    description: 'Post journal entries, execute payments, and approve reconciliations',
+  },
+  {
+    code: 'Accounting.Delete',
+    name: 'Delete Financial Records',
+    category: 'Accounting',
+    description: 'Delete unposted journal entries and draft invoices',
+  },
+
+  // Maintenance & Service
+  {
+    code: 'Maintenance.Read',
+    name: 'View Maintenance & Service',
+    category: 'Maintenance',
+    description: 'View maintenance schedules, service requests, and warranty claims',
+  },
+  {
+    code: 'Maintenance.Manage',
+    name: 'Manage Maintenance & Service',
+    category: 'Maintenance',
+    description: 'Create, update, and resolve maintenance schedules and service requests',
+  },
 ];
 
 export const SYSTEM_ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -208,7 +286,32 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, string[]> = {
     'Projects.Allocate',
     'Inventory.Read',
   ],
-  Auditor: ['Reports.Read', 'Reports.Export', 'Administration.Security'],
+  Auditor: [
+    'Reports.Read',
+    'Reports.Export',
+    'Administration.Security',
+    'Accounting.Read',
+  ],
+  Accountant: [
+    'Accounting.Read',
+    'Accounting.Create',
+    'Accounting.Update',
+    'Accounting.Post',
+    'Accounting.Delete',
+    'Reports.Read',
+    'Reports.Export',
+  ],
+  'Sales Representative': [
+    'Sales.Read',
+    'Sales.Create',
+    'Sales.Update',
+    'Reports.Read',
+  ],
+  'Maintenance Technician': [
+    'Maintenance.Read',
+    'Maintenance.Manage',
+    'Inventory.Read',
+  ],
 };
 
 @Injectable()
