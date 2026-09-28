@@ -2,20 +2,20 @@
 
 ## Entry points
 
-| Workflow                      | Trigger                                                                | Purpose                                                                                                    |
-| ----------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `ci.yml`                      | `push` to `main` / `release/*`, `pull_request`                          | Pull request gate and main branch validation.                                                              |
-| `docker.yml`                  | `workflow_run` after a successful `Continuous Integration` run on `main` | Smoke tests the production compose stack, then publishes `edge` / `sha-*` images to GHCR.                   |
-| `release.yml`                 | `push` of a `v*` tag                                                    | Quality gates, smoke test, semver image publishing (`latest`, `x.y.z`, `x.y`, channels) and GitHub Release. |
+| Workflow      | Trigger                                                                  | Purpose                                                                                                     |
+| ------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `ci.yml`      | `push` to `main` / `release/*`, `pull_request`                           | Pull request gate and main branch validation.                                                               |
+| `docker.yml`  | `workflow_run` after a successful `Continuous Integration` run on `main` | Smoke tests the production compose stack, then publishes `edge` / `sha-*` images to GHCR.                   |
+| `release.yml` | `push` of a `v*` tag                                                     | Quality gates, smoke test, semver image publishing (`latest`, `x.y.z`, `x.y`, channels) and GitHub Release. |
 
 ## Reusable building blocks
 
 Files prefixed with `_` are only invoked through `workflow_call`; they never trigger on their own.
 
-| Workflow                | Called by                   | Contents                                                             |
-| ----------------------- | --------------------------- | -------------------------------------------------------------------- |
-| `_quality-gates.yml`    | `ci.yml`, `release.yml`     | install, lint, `check-types`, test, production build                  |
-| `_docker-smoke-test.yml` | `docker.yml`, `release.yml` | compose stack boot, migrations, container state and health assertions |
+| Workflow                 | Called by                   | Contents                                                             |
+| ------------------------ | --------------------------- | -------------------------------------------------------------------- |
+| `_quality-gates.yml`     | `ci.yml`, `release.yml`     | install, parallel Turbo lint/type-check and build/test tasks         |
+| `_docker-smoke-test.yml` | `docker.yml`, `release.yml` | compose stack boot, migrations, health checks and public port probes |
 
 ## Rules that keep this working
 
@@ -33,5 +33,5 @@ Add the service to the matrix in **both** `docker.yml` and `release.yml`. The tw
 ## Caching Strategy
 
 - `_quality-gates.yml` caches both `.turbo/cache` and Next.js (`apps/web/.next/cache`) via `actions/cache@v4` to achieve instantaneous incremental checks on PRs.
-- `_docker-smoke-test.yml` uses Buildx to parallelize Compose service builds and eliminate redundant compilation between migration and application startup.
+- `_docker-smoke-test.yml` uses Compose health checks and `up --wait` to avoid racing service startup. The main-branch smoke test activates only the worker and ML profiles (not the optional pgAdmin service). Private services, including ML, are checked inside Docker; runner probes are limited to published web/API ports.
 - Container publishing uses GitHub Actions layer cache (`type=gha`) scoped per service.

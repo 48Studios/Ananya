@@ -1,13 +1,12 @@
 # ==============================================================================
 # Reusable workflow: Production Stack Docker Smoke Test
 #
-# Boots the production-equivalent compose stack from source, asserts that every
-# application container stays up, probes the health endpoints and always tears
-# the stack down again.
+# Boots the production-equivalent compose stack from source, waits for its
+# configured health checks, and always tears the stack down again.
 #
 # Called by:
-#   - docker.yml  (compose profile "all", ML container verified)
-#   - release.yml (compose profile "worker")
+#   - docker.yml  (worker and ML profiles, ML container verified)
+#   - release.yml (worker profile)
 #
 # No Node/pnpm setup is required: every image is built inside Docker, so the
 # runner only needs the Docker daemon it already ships with.
@@ -24,8 +23,8 @@ on:
         required: false
         type: string
         default: ""
-      compose_profile:
-        description: Compose profile that activates the application services.
+      compose_profiles:
+        description: Comma-separated Compose profiles to activate.
         required: false
         type: string
         default: worker
@@ -43,7 +42,7 @@ jobs:
     name: Run Smoke Test
     runs-on: ubuntu-latest
     env:
-      COMPOSE_PROFILE: ${{ inputs.compose_profile }}
+      COMPOSE_PROFILES: ${{ inputs.compose_profiles }}
       VERIFY_ML: ${{ inputs.verify_ml }}
     steps:
       - name: Checkout Repository
@@ -57,111 +56,61 @@ jobs:
       - name: Boot Production Application Stack & Run Health Checks
         id: smoke_test
         run: |
+          set -euo pipefail
+
           compose() {
-            docker compose -f compose.yml -f compose.local.yml --profile "$COMPOSE_PROFILE" "$@"
+            docker compose -f compose.yml -f compose.local.yml "$@"
           }
 
-          echo "=== 1. Building container images in parallel ==="
-          compose build
+          build_services=(api migrate web worker)
+          if [ "$VERIFY_ML" = "true" ]; then
+            build_services+=(ml)
+          fi
 
-          echo "=== 2. Starting PostgreSQL ==="
+          compose build "${build_services[@]}"
           compose up -d db
-
-          echo "=== 3. Running schema migrations ==="
           compose run --rm migrate
+          compose up -d --wait --wait-timeout 240
 
-          echo "=== 4. Booting production-equivalent application stack ==="
-          compose up -d
-
-          echo "=== 5. Container Status (docker compose ps -a) ==="
-          compose ps -a
-
-          echo "=== 6. Checking Service Exit States ==="
+          # Compose health checks run inside each container/network. This is
+          # important for ML, which deliberately has no host-published port.
           containers=(ananya-db ananya-api ananya-worker ananya-web)
           if [ "$VERIFY_ML" = "true" ]; then
             containers+=(ananya-ml)
           fi
 
           for c in "${containers[@]}"; do
-            running=$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo "false")
-            exit_code=$(docker inspect -f '{{.State.ExitCode}}' "$c" 2>/dev/null || echo "1")
-            echo "Container '$c' -> Running: $running, ExitCode: $exit_code"
-
-            if [ "$running" != "true" ]; then
-              echo "❌ CONTAINER FAILURE: '$c' exited prematurely with exit code $exit_code!"
-              echo "--- Container Logs for '$c' ---"
-              docker logs "$c"
-              echo "--------------------------------"
+            health=$(docker inspect -f '{{.State.Health.Status}}' "$c")
+            if [ "$health" != "healthy" ]; then
+              echo "Container '$c' is '$health', expected 'healthy'." >&2
               exit 1
             fi
           done
 
-          echo "=== 7. Health Probes Verification ==="
-          echo "Probing Web Health (http://localhost:3000/api/health)..."
-          if ! curl --fail --retry 10 --retry-delay 3 --retry-connrefused http://localhost:3000/api/health; then
-            echo "❌ Web Health Probe Failed! Logs:"
-            docker logs ananya-web
-            exit 1
-          fi
-
-          echo "Probing API Internal Health..."
-          if ! docker exec ananya-api node -e "fetch('http://localhost:4000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"; then
-            echo "❌ API Health Probe Failed! Logs:"
-            docker logs ananya-api
-            exit 1
-          fi
-
-          echo "Probing Worker Internal Health..."
-          if ! docker exec ananya-worker node -e "fetch('http://localhost:4001/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"; then
-            echo "❌ Worker Health Probe Failed! Logs:"
-            docker logs ananya-worker
-            exit 1
-          fi
-
-          if [ "$VERIFY_ML" = "true" ]; then
-            echo "Probing ML Service Health (http://localhost:5001/health)..."
-            if ! curl --fail --retry 10 --retry-delay 3 --retry-connrefused http://localhost:5001/health; then
-              echo "❌ ML Health Probe Failed! Logs:"
-              docker logs ananya-ml
-              exit 1
-            fi
-          fi
-
-          echo "✅ Production-equivalent deployment integration smoke test passed cleanly!"
+          # Also verify the two public ports from the runner, without dumping
+          # JSON response bodies into the Actions log.
+          for url in http://localhost:3000/api/health http://localhost:4000/health; do
+            curl --silent --show-error --fail --output /dev/null \
+              --retry 10 --retry-delay 3 --retry-connrefused --retry-all-errors \
+              "$url"
+          done
 
       - name: Generate Smoke Test Summary
         if: always()
         run: |
           echo "## 🐳 Docker Smoke Test Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Check | Result |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| :--- | :--- |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Profile | \`${{ inputs.compose_profile }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Overall Smoke Test | ${{ steps.smoke_test.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| PostgreSQL Database | ${{ steps.smoke_test.outcome == 'success' && '✅ Healthy' || '⚠️ Check logs' }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Schema Migrations | ${{ steps.smoke_test.outcome == 'success' && '✅ Applied' || '⚠️ Check logs' }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| API Service Health | ${{ steps.smoke_test.outcome == 'success' && '✅ Healthy' || '⚠️ Check logs' }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Worker Service Health | ${{ steps.smoke_test.outcome == 'success' && '✅ Healthy' || '⚠️ Check logs' }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Web Service Health | ${{ steps.smoke_test.outcome == 'success' && '✅ Healthy' || '⚠️ Check logs' }} |" >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ inputs.verify_ml }}" = "true" ]; then
-            echo "| ML Service Health | ${{ steps.smoke_test.outcome == 'success' && '✅ Healthy' || '⚠️ Check logs' }} |" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "Profiles: \`${{ inputs.compose_profiles }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Result: **${{ steps.smoke_test.outcome == 'success' && 'Passed' || 'Failed' }}**" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Collect Container Diagnostic Logs on Failure
         if: failure()
         run: |
-          echo "<details><summary>🔍 Container Diagnostic Logs (Click to expand)</summary>" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          for c in ananya-api ananya-worker ananya-web ananya-ml ananya-db ananya-migrate; do
-            if docker ps -a --format '{{.Names}}' | grep -q "^${c}$"; then
-              echo "### Logs for $c" >> "$GITHUB_STEP_SUMMARY"
-              echo '```text' >> "$GITHUB_STEP_SUMMARY"
-              docker logs --tail 80 "$c" 2>&1 >> "$GITHUB_STEP_SUMMARY" || true
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
-            fi
-          done
-          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          docker compose -f compose.yml -f compose.local.yml \
+            ps -a
+          docker compose -f compose.yml -f compose.local.yml \
+            logs --no-color --tail=100 || true
 
       - name: Cleanup Production Stack
         if: always()
         run: |
-          docker compose -f compose.yml -f compose.local.yml --profile "$COMPOSE_PROFILE" down -v --remove-orphans || true
+          docker compose -f compose.yml -f compose.local.yml down -v --remove-orphans || true

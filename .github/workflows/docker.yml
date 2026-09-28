@@ -23,7 +23,7 @@ jobs:
     uses: ./.github/workflows/_docker-smoke-test.yml
     with:
       ref: ${{ github.event.workflow_run.head_sha }}
-      compose_profile: all
+      compose_profiles: worker,ml
       verify_ml: true
 
   build-and-publish:
@@ -95,14 +95,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-
-      - name: Generate Image Publish Summary
-        if: always()
-        run: |
-          echo "## 📦 Published Container Image (${{ matrix.service }})" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Image**: \`${{ matrix.image }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Platform**: \`linux/amd64\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Tags**:" >> "$GITHUB_STEP_SUMMARY"
-          echo '```text' >> "$GITHUB_STEP_SUMMARY"
-          echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
