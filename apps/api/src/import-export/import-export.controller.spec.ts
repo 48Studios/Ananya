@@ -3,7 +3,7 @@ import { ImportExportController } from './import-export.controller';
 import { ImportExportService } from './import-export.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import type { AuthenticatedRequest } from '../auth/permission.guard';
-import type { UploadedFileObj } from './dtos';
+import { ExportFormat, type UploadedFileObj } from './dtos';
 
 describe('ImportExportController', () => {
   let controller: ImportExportController;
@@ -156,7 +156,10 @@ describe('ImportExportController', () => {
     } as AuthenticatedRequest;
 
     await expect(
-      controller.executeExport({ entityType: 'User', format: 'CSV' }, req),
+      controller.executeExport(
+        { entityType: 'User', format: ExportFormat.CSV },
+        req,
+      ),
     ).rejects.toThrow(ForbiddenException);
   });
 });

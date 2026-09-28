@@ -4,6 +4,8 @@ import { DrizzleInventoryProjectionRepository } from '../infrastructure/reposito
 import { InventoryProjectionsController } from './inventory-projections.controller';
 import { InventoryProjectionsService } from './inventory-projections.service';
 import { InventoryTransactionsModule } from '../inventory-transactions/inventory-transactions.module';
+import { LOCATION_REPOSITORY } from '../locations/location.tokens';
+import { DrizzleLocationRepository } from '../infrastructure/repositories/drizzle-location.repository';
 
 @Module({
   imports: [InventoryTransactionsModule],
@@ -13,6 +15,10 @@ import { InventoryTransactionsModule } from '../inventory-transactions/inventory
     {
       provide: INVENTORY_PROJECTION_REPOSITORY,
       useClass: DrizzleInventoryProjectionRepository,
+    },
+    {
+      provide: LOCATION_REPOSITORY,
+      useClass: DrizzleLocationRepository,
     },
   ],
   exports: [InventoryProjectionsService, INVENTORY_PROJECTION_REPOSITORY],

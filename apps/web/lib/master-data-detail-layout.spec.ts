@@ -168,6 +168,19 @@ describe("Component Details remains the reference", () => {
   });
 });
 
+describe("Location Details preserves component location provenance", () => {
+  it("labels direct components and links inherited components to their relative path", () => {
+    const locationPage = FULL_PAGES.Location;
+
+    expect(locationPage).toContain("getRelativeLocationPath(");
+    expect(locationPage).toContain("projection.locationId");
+    expect(locationPage).toContain(">Direct</DetailChip>");
+    expect(locationPage).toContain("<span className=\"shrink-0\">From</span>");
+    expect(locationPage).toContain('href={`/locations/${sourceLocation.id}`}');
+    expect(locationPage).toContain("sourcePath.map((sourceLocation, index)");
+  });
+});
+
 describe.each(Object.entries(FULL_PAGES))(
   "%s Details uses the shared detail-page language",
   (label, source) => {

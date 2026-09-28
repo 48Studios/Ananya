@@ -4,7 +4,7 @@ import type {
   InventoryProjection,
   InventoryProjectionRepository,
 } from '@ananya/inventory';
-import { and, eq } from '@ananya/database/query';
+import { and, eq, inArray } from '@ananya/database/query';
 import type { InventoryProjectionRow } from '@ananya/database/schema';
 import { InventoryProjection as InventoryProjectionAggregate } from '@ananya/inventory';
 
@@ -78,6 +78,19 @@ export class DrizzleInventoryProjectionRepository implements InventoryProjection
       .select()
       .from(inventoryProjections)
       .where(eq(inventoryProjections.locationId, locationId));
+
+    return rows.map(toDomain);
+  }
+
+  async findManyByLocations(
+    locationIds: string[],
+  ): Promise<InventoryProjection[]> {
+    if (locationIds.length === 0) return [];
+
+    const rows = await this.client
+      .select()
+      .from(inventoryProjections)
+      .where(inArray(inventoryProjections.locationId, locationIds));
 
     return rows.map(toDomain);
   }

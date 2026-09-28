@@ -70,8 +70,8 @@ describe('redactSensitiveData', () => {
 
     const sanitized = redactSensitiveData(input);
     expect(sanitized.request.headers.authorization).toBe('[REDACTED]');
-    expect(sanitized.request.body[0].value).toBe(123);
-    expect(sanitized.request.body[1].password).toBe('[REDACTED]');
+    expect(sanitized.request.body[0]!.value).toBe(123);
+    expect(sanitized.request.body[1]!.password).toBe('[REDACTED]');
   });
 
   it('handles null, undefined and primitives safely', () => {

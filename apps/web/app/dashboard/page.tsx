@@ -190,7 +190,6 @@ export default function DashboardPage() {
         setRecentActivities(activityRes.value || []);
       }
 
-      setLastSyncTime(new Date());
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Failed to load operational dashboard data.",

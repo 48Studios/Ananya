@@ -45,6 +45,7 @@ import {
 } from "@/lib/api/inventory-projections-api";
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
+import { getRelativeLocationPath } from "@/lib/location-provenance";
 
 /**
  * One storage location, as a master-data record.
@@ -335,7 +336,7 @@ export default function ViewLocationPage() {
       {/* Containing Components & Stock */}
       <SectionCard
         title="Containing Components & Stock"
-        description={`Components physically stored in this ${location.kind}.`}
+        description="Components stored here and in descendant locations. Each item shows its actual location."
         icon={Package}
         contentClassName="p-0"
         actions={
@@ -359,6 +360,11 @@ export default function ViewLocationPage() {
                 className: "min-w-0",
                 render: (projection) => {
                   const component = componentMap.get(projection.componentId);
+                  const sourcePath = getRelativeLocationPath(
+                    projection.locationId,
+                    location.id,
+                    allLocations,
+                  );
                   return (
                     <>
                       <Link
@@ -371,6 +377,36 @@ export default function ViewLocationPage() {
                       <span className="text-xs text-foreground truncate block">
                         {component ? component.name : "Inventory Item"}
                       </span>
+                      {sourcePath?.length === 0 ? (
+                        <DetailChip className="mt-1">Direct</DetailChip>
+                      ) : (
+                        <span className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                          <MapPin
+                            aria-hidden="true"
+                            className="size-3.5 shrink-0"
+                          />
+                          <span className="shrink-0">From</span>
+                          {sourcePath && sourcePath.length > 0 ? (
+                            <span className="flex min-w-0 flex-wrap items-center gap-x-1">
+                              {sourcePath.map((sourceLocation, index) => (
+                                <React.Fragment key={sourceLocation.id}>
+                                  {index > 0 ? (
+                                    <span aria-hidden="true">/</span>
+                                  ) : null}
+                                  <Link
+                                    href={`/locations/${sourceLocation.id}`}
+                                    className="break-words underline-offset-2 hover:text-foreground hover:underline"
+                                  >
+                                    {sourceLocation.name}
+                                  </Link>
+                                </React.Fragment>
+                              ))}
+                            </span>
+                          ) : (
+                            <span>Location unavailable</span>
+                          )}
+                        </span>
+                      )}
                     </>
                   );
                 },

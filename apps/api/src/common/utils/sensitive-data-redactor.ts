@@ -39,7 +39,10 @@ export function redactSensitiveData<T = unknown>(data: T, depth = 0): T {
 
   // Handle strings (e.g. database URLs or auth headers)
   if (typeof data === 'string') {
-    return data.replace(URI_CREDENTIALS_REGEX, '$1[REDACTED]$3');
+    return data.replace(
+      URI_CREDENTIALS_REGEX,
+      '$1[REDACTED]$3',
+    ) as unknown as T;
   }
 
   // Handle arrays
