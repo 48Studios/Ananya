@@ -128,6 +128,7 @@ Edit `.env` **before starting the stack**. At minimum, set unique secrets and th
 ```env
 POSTGRES_PASSWORD=replace-with-a-strong-unique-password
 JWT_SECRET=replace-with-a-long-random-secret
+PGADMIN_DEFAULT_PASSWORD=replace-with-a-strong-unique-password
 CORS_ORIGIN=https://erp.example.com
 API_PUBLIC_URL=https://api.erp.example.com
 ```
@@ -195,7 +196,7 @@ Start PostgreSQL, migrate the schema, and run the apps:
 
 ```bash
 docker compose -f compose.yml -f compose.local.yml up -d db
-DATABASE_URL=postgresql://ananya:ananya_secure_password@localhost:5432/ananya pnpm db:migrate
+pnpm db:migrate
 pnpm dev
 ```
 

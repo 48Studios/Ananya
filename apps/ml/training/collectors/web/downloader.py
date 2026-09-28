@@ -50,7 +50,7 @@ class ResilientDownloader:
         timeout: float = 15.0,
         max_retries: int = 3,
         max_file_size_bytes: int = 15 * 1024 * 1024,  # 15 MB
-        user_agent: str = "AnanyaBot/1.0 (+https://ananya.48studios.internal/bot; data-training)",
+        user_agent: str = "AnanyaBot/1.0 (+https://github.com/48studios/ananya; data-training)",
     ):
         self.raw_storage_base = Path(raw_storage_base)
         self.policy_manager = policy_manager or CrawlPolicyManager(user_agent=user_agent)

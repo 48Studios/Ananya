@@ -944,7 +944,7 @@ describe('Attribute Intelligence audit persistence (Pass 2)', () => {
     const decided = await findingsService.recordDecision(
       finding.id,
       { decision: 'ACCEPTED', decisionNotes: 'Confirmed' },
-      { email: `pass2-${runTag}@ananya.local` },
+      { email: `pass2-${runTag}@example.test` },
     );
 
     expect(decided.status).toBe('ACCEPTED');

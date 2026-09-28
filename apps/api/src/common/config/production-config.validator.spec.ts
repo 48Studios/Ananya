@@ -24,7 +24,7 @@ describe('validateEnvironmentConfig', () => {
       validateEnvironmentConfig({
         NODE_ENV: 'production',
         DATABASE_URL: 'postgresql://postgres:password@localhost:5432/ananya',
-        CORS_ORIGIN: 'https://erp.48studios.com',
+        CORS_ORIGIN: 'https://erp.example.com',
       });
     }).toThrow(/default or insecure database password/);
   });
@@ -45,7 +45,7 @@ describe('validateEnvironmentConfig', () => {
       NODE_ENV: 'production',
       DATABASE_URL:
         'postgresql://ananya_user:StrongSecretPass987!@db.internal:5432/ananya',
-      CORS_ORIGIN: 'https://erp.48studios.com',
+      CORS_ORIGIN: 'https://erp.example.com',
     });
 
     expect(result.valid).toBe(true);

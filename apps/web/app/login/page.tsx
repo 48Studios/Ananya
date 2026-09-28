@@ -107,7 +107,7 @@ function LoginFormContent() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@48studios.com"
+                  placeholder="admin@example.com"
                   className="pl-9 h-10 text-sm"
                 />
               </div>

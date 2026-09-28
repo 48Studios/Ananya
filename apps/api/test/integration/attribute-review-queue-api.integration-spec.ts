@@ -229,21 +229,21 @@ describe('Attribute Intelligence review queue — API', () => {
     createdRoleIds.push(readerRole.id, writerRole.id, outsiderRole.id);
 
     const reader = await usersService.create({
-      email: `attrq-reader-${runId}@ananya.local`,
+      email: `attrq-reader-${runId}@example.test`,
       password: 'ReaderPassw0rd!',
       firstName: 'Attr',
       lastName: 'Reader',
       roleId: readerRole.id,
     });
     const writer = await usersService.create({
-      email: `attrq-writer-${runId}@ananya.local`,
+      email: `attrq-writer-${runId}@example.test`,
       password: 'WriterPassw0rd!',
       firstName: 'Attr',
       lastName: 'Writer',
       roleId: writerRole.id,
     });
     const outsider = await usersService.create({
-      email: `attrq-outsider-${runId}@ananya.local`,
+      email: `attrq-outsider-${runId}@example.test`,
       password: 'OutsiderPassw0rd!',
       firstName: 'Attr',
       lastName: 'Outsider',

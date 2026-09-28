@@ -69,7 +69,7 @@ export default function AccountDetailPage() {
               <tr>
                 <td className="p-3 font-bold text-primary">JV-2026-091</td>
                 <td className="p-3 font-sans">
-                  Customer Payment Receipt - AeroTech Systems
+                  Customer Payment Receipt - ACME Components
                 </td>
                 <td className="p-3 font-bold text-emerald-600 dark:text-emerald-400">
                   +{formatCurrency(48500)}

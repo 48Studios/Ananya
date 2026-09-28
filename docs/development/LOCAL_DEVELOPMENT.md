@@ -17,7 +17,7 @@ cd ananya
 pnpm install
 cp .env.example .env
 docker compose -f compose.yml -f compose.local.yml up -d db
-DATABASE_URL=postgresql://ananya:ananya_secure_password@localhost:5432/ananya pnpm db:migrate
+pnpm db:migrate
 pnpm dev
 ```
 
@@ -51,13 +51,13 @@ pnpm --filter @ananya/web dev
 Migrations are schema management only. They do not seed business data.
 
 ```bash
-DATABASE_URL=postgresql://ananya:ananya_secure_password@localhost:5432/ananya pnpm db:migrate
+pnpm db:migrate
 ```
 
 Generate migrations after schema changes:
 
 ```bash
-DATABASE_URL=postgresql://ananya:ananya_secure_password@localhost:5432/ananya pnpm db:generate
+pnpm db:generate
 ```
 
 Business/master data is provisioned through Data Packs in the web application, not through seed scripts.
@@ -75,6 +75,7 @@ docker compose -f compose.yml -f compose.local.yml --profile ml up -d ml
 ```
 
 Verify service:
+
 ```bash
 curl http://localhost:5001/health
 ```

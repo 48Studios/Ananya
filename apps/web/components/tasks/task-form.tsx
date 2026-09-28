@@ -103,7 +103,7 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
             <FieldLabel htmlFor="assignedUser">Assigned To</FieldLabel>
             <Input
               id="assignedUser"
-              placeholder="e.g. J. Sarath"
+              placeholder="e.g. Alex Morgan"
               {...register("assignedUser")}
             />
           </Field>

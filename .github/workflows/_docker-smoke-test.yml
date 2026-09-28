@@ -44,6 +44,9 @@ jobs:
     env:
       COMPOSE_PROFILES: ${{ inputs.compose_profiles }}
       VERIFY_ML: ${{ inputs.verify_ml }}
+      POSTGRES_PASSWORD: ci-only-${{ github.run_id }}-${{ github.run_attempt }}
+      JWT_SECRET: ci-only-${{ github.sha }}-smoke-test-secret
+      PGADMIN_DEFAULT_PASSWORD: ci-only-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4

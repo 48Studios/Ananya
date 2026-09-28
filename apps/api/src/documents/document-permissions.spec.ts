@@ -93,7 +93,7 @@ describe('documentation authorization', () => {
       getMeByToken.mockResolvedValue({
         user: {
           id: 'u2',
-          email: 'viewer@48studios.local',
+          email: 'viewer@example.test',
           status: 'ACTIVE',
           roleName: 'Viewer',
         },
@@ -108,7 +108,7 @@ describe('documentation authorization', () => {
       );
       expect(request.user).toEqual({
         id: 'u2',
-        email: 'viewer@48studios.local',
+        email: 'viewer@example.test',
         roleName: 'Viewer',
         permissions: ['Inventory.Read'],
       });
@@ -118,7 +118,7 @@ describe('documentation authorization', () => {
       getMeByToken.mockResolvedValue({
         user: {
           id: 'u3',
-          email: 'sales@48studios.local',
+          email: 'sales@example.test',
           status: 'ACTIVE',
           roleName: 'Sales',
         },
@@ -150,7 +150,7 @@ describe('documentation authorization', () => {
       getMeByToken.mockResolvedValue({
         user: {
           id: 'u4',
-          email: 'viewer@48studios.local',
+          email: 'viewer@example.test',
           status: 'ACTIVE',
           roleName: 'Viewer',
         },
@@ -168,7 +168,7 @@ describe('documentation authorization', () => {
       getMeByToken.mockResolvedValue({
         user: {
           id: 'u5',
-          email: 'engineer@48studios.local',
+          email: 'engineer@example.test',
           status: 'ACTIVE',
           roleName: 'Inventory Manager',
         },
@@ -186,7 +186,7 @@ describe('documentation authorization', () => {
       getMeByToken.mockResolvedValue({
         user: {
           id: 'u6',
-          email: 'admin@48studios.local',
+          email: 'admin@example.test',
           status: 'ACTIVE',
           roleName: 'Administrator',
         },

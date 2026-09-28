@@ -128,7 +128,7 @@ export class FixtureOwner {
 
   /** A fixture email that the owner can later match on. */
   email(prefix: string): string {
-    const address = `${prefix}-${this.runTag}@ananya.local`;
+    const address = `${prefix}-${this.runTag}@example.test`;
     this.emails.add(address);
     return address;
   }

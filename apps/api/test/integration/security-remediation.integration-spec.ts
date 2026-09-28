@@ -322,7 +322,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
 
       const res = await http()
         .post('/auth/invitations')
-        .send({ email: 'intruder@test.local', role: 'Administrator' });
+        .send({ email: 'intruder@example.test', role: 'Administrator' });
       expect(res.status).toBe(401);
     });
 
@@ -332,7 +332,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       const res = await http()
         .post('/auth/invitations')
         .set('Authorization', `Bearer ${userManagerToken}`)
-        .send({ email: 'newadmin@test.local', roleId: adminRole!.id });
+        .send({ email: 'newadmin@example.test', roleId: adminRole!.id });
       expect(res.status).toBe(403);
       expect((res.body as { message: string }).message).toMatch(
         /Only Administrators can invite users with the Administrator role/i,
@@ -1149,8 +1149,8 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       expect(resolveCorsOrigin('production', undefined)).toBe(false);
 
       // 2. Production with explicit CORS_ORIGIN allows only configured origin
-      expect(resolveCorsOrigin('production', 'https://erp.48studios.com')).toBe(
-        'https://erp.48studios.com',
+      expect(resolveCorsOrigin('production', 'https://erp.example.com')).toBe(
+        'https://erp.example.com',
       );
 
       // 3. Development environment allows localhost origins

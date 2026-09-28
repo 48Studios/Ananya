@@ -26,8 +26,8 @@ interface OpportunityRecord {
 const mockOpps: OpportunityRecord[] = [
   {
     id: "opp-1",
-    dealName: "AeroTech Spindle Supply Q3",
-    accountName: "AeroTech Systems",
+    dealName: "ACME Components Supply Q3",
+    accountName: "ACME Components",
     expectedValue: 145000,
     probability: "85%",
     stage: "NEGOTIATION",
@@ -35,8 +35,8 @@ const mockOpps: OpportunityRecord[] = [
   },
   {
     id: "opp-2",
-    dealName: "Starlight Sensor Upgrade Contract",
-    accountName: "Starlight Robotics",
+    dealName: "ACME Robotics Sensor Upgrade",
+    accountName: "ACME Robotics",
     expectedValue: 89000,
     probability: "60%",
     stage: "PROPOSAL",

@@ -127,7 +127,7 @@ class SourceConfig(BaseModel):
     default_domain: ProductDomain = ProductDomain.ELECTRONICS
     capabilities: List[str] = Field(default_factory=list, description="Categories or capabilities supported by this source")
     headers: Dict[str, str] = Field(default_factory=dict)
-    user_agent: str = "AnanyaBot/1.0 (+https://ananya.48studios.internal/bot; data-training)"
+    user_agent: str = "AnanyaBot/1.0 (+https://github.com/48studios/ananya; data-training)"
     custom_parser: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
 

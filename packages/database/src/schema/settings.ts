@@ -14,26 +14,24 @@ export const organizationProfile = pgTable("organization_profile", {
   id: uuid("id").defaultRandom().primaryKey(),
   companyName: varchar("company_name", { length: 255 })
     .notNull()
-    .default("48 Studios"),
+    .default("ACME Corporation"),
   legalName: varchar("legal_name", { length: 255 })
     .notNull()
-    .default("48 Studios Pvt Ltd"),
+    .default("ACME Corporation"),
   registrationNumber: varchar("registration_number", { length: 128 }),
-  taxId: varchar("tax_id", { length: 128 })
-    .notNull()
-    .default("GSTIN-33AAACD4848A1Z5"),
+  taxId: varchar("tax_id", { length: 128 }).notNull().default("EXAMPLE-TAX-ID"),
   email: varchar("email", { length: 255 })
     .notNull()
-    .default("ops@48studios.com"),
-  phone: varchar("phone", { length: 64 }).notNull().default("+91 44 2848 4848"),
-  website: varchar("website", { length: 255 }).default("https://48studios.com"),
-  address: text("address").default("48 Enterprise Way, Tech Park"),
-  city: varchar("city", { length: 128 }).default("Chennai"),
-  state: varchar("state", { length: 128 }).default("Tamil Nadu"),
-  country: varchar("country", { length: 128 }).default("India"),
-  postalCode: varchar("postal_code", { length: 32 }).default("600001"),
+    .default("operations@example.com"),
+  phone: varchar("phone", { length: 64 }).notNull().default("+1 202-555-0100"),
+  website: varchar("website", { length: 255 }).default("https://example.com"),
+  address: text("address").default("123 Example Street"),
+  city: varchar("city", { length: 128 }).default("Example City"),
+  state: varchar("state", { length: 128 }).default("Example Region"),
+  country: varchar("country", { length: 128 }).default("United States"),
+  postalCode: varchar("postal_code", { length: 32 }).default("00000"),
   primaryTimezone: varchar("primary_timezone", { length: 64 }).default(
-    "Asia/Kolkata",
+    "Etc/UTC",
   ),
   logoUrl: text("logo_url"),
   updatedAt: timestamp("updated_at", { withTimezone: true })

@@ -127,6 +127,13 @@
       "when": 1790188331514,
       "tag": "0017_colorful_sunset_bain",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790630293093,
+      "tag": "0018_generic_organization_profile_defaults",
+      "breakpoints": true
     }
   ]
 }

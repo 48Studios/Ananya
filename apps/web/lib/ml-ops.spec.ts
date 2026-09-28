@@ -67,7 +67,9 @@ const PAGE_SOURCE = readFileSync(
 );
 
 const PANELS_SOURCE = readFileSync(
-  fileURLToPath(new URL("../components/ml-ops/ml-ops-panels.tsx", import.meta.url)),
+  fileURLToPath(
+    new URL("../components/ml-ops/ml-ops-panels.tsx", import.meta.url),
+  ),
   "utf8",
 );
 
@@ -82,7 +84,7 @@ function runSummary(
     startedAt: "2026-09-22T09:00:00Z",
     completedAt: "2026-09-22T09:00:02Z",
     durationMs: 2000,
-    triggeredByEmail: "admin@48studios.in",
+    triggeredByEmail: "admin@example.test",
     baseModelVersion: "1.5.0",
     candidateModelVersion: "1.5.1",
     datasetVersion: "components-2026-09-22-v1.5.1",
@@ -130,7 +132,11 @@ function dataset(overrides: Partial<MlDatasetDto> = {}): MlDatasetDto {
       dataLeakageVerified: true,
       categories: ["Resistors"],
     },
-    freshness: { ageHours: 2, lastTrainingRunAt: "2026-09-22T09:00:02Z", recordsSinceLastTraining: 4 },
+    freshness: {
+      ageHours: 2,
+      lastTrainingRunAt: "2026-09-22T09:00:02Z",
+      recordsSinceLastTraining: 4,
+    },
     quality: {
       duplicatePairs: 57,
       conflictingLabels: 2,
@@ -324,12 +330,16 @@ describe("ML & Intelligence — health", () => {
 
   it("explains a disabled deployment differently from an unreachable one", () => {
     expect(
-      healthExplanation(health({ serviceReachable: false, serviceEnabled: false })),
+      healthExplanation(
+        health({ serviceReachable: false, serviceEnabled: false }),
+      ),
     ).toContain("disabled");
     expect(healthExplanation(health({ serviceReachable: false }))).toContain(
       "did not answer",
     );
-    expect(healthExplanation(health({ ready: false }))).toContain("not every model");
+    expect(healthExplanation(health({ ready: false }))).toContain(
+      "not every model",
+    );
     expect(healthExplanation(health())).toContain("every model loaded");
   });
 });
@@ -354,7 +364,12 @@ describe("ML & Intelligence — running model vs artifact", () => {
   it("reports no verdict rather than a guess when ML is unavailable", () => {
     expect(runningModelMatchesArtifact(null)).toBeNull();
     expect(
-      runningModelMatchesArtifact(models({ available: false, running: { ...models().running, checksum: null } })),
+      runningModelMatchesArtifact(
+        models({
+          available: false,
+          running: { ...models().running, checksum: null },
+        }),
+      ),
     ).toBeNull();
   });
 
@@ -364,7 +379,7 @@ describe("ML & Intelligence — running model vs artifact", () => {
         status: "DEPLOYED_PENDING_RELOAD" as const,
         modelVersion: "1.5.1",
         deployedAt: "2026-09-22T09:10:00Z",
-        deployedByEmail: "admin@48studios.in",
+        deployedByEmail: "admin@example.test",
         previousModelVersion: "1.5.0",
         runningModelVersion: "1.5.0",
         reloadPending: true,
@@ -383,7 +398,7 @@ describe("ML & Intelligence — running model vs artifact", () => {
         status: "DEPLOYED" as const,
         modelVersion: "1.5.1",
         deployedAt: "2026-09-22T09:10:00Z",
-        deployedByEmail: "admin@48studios.in",
+        deployedByEmail: "admin@example.test",
         previousModelVersion: "1.5.0",
         runningModelVersion: "1.5.1",
         reloadPending: false,
@@ -423,13 +438,17 @@ describe("ML & Intelligence — running model vs artifact", () => {
     expect(canRollback(models())).toBe(true);
     expect(
       canRollback(
-        models({ production: { ...models().production, rollbackAvailable: false } }),
+        models({
+          production: { ...models().production, rollbackAvailable: false },
+        }),
       ),
     ).toBe(false);
     expect(canRollback(null)).toBe(false);
     expect(
       rollbackUnavailableReason(
-        models({ production: { ...models().production, rollbackAvailable: false } }),
+        models({
+          production: { ...models().production, rollbackAvailable: false },
+        }),
       ),
     ).toContain("No previous production artifact");
     expect(rollbackUnavailableReason(null)).toContain("unavailable");
@@ -443,33 +462,39 @@ describe("ML & Intelligence — candidate deployment rules", () => {
 
   it("refuses every state the server would refuse", () => {
     expect(canDeployCandidate(runSummary({ status: "RUNNING" }))).toBe(false);
-    expect(canDeployCandidate(runSummary({ status: "EVALUATING" }))).toBe(false);
-    expect(canDeployCandidate(runSummary({ status: "FAILED" }))).toBe(false);
-    expect(canDeployCandidate(runSummary({ status: "REJECTED" }))).toBe(false);
-    expect(canDeployCandidate(runSummary({ promotionEligible: null }))).toBe(false);
-    expect(canDeployCandidate(runSummary({ promotionEligible: false }))).toBe(false);
-    expect(canDeployCandidate(runSummary({ deploymentStatus: "DEPLOYED" }))).toBe(
+    expect(canDeployCandidate(runSummary({ status: "EVALUATING" }))).toBe(
       false,
     );
+    expect(canDeployCandidate(runSummary({ status: "FAILED" }))).toBe(false);
+    expect(canDeployCandidate(runSummary({ status: "REJECTED" }))).toBe(false);
+    expect(canDeployCandidate(runSummary({ promotionEligible: null }))).toBe(
+      false,
+    );
+    expect(canDeployCandidate(runSummary({ promotionEligible: false }))).toBe(
+      false,
+    );
+    expect(
+      canDeployCandidate(runSummary({ deploymentStatus: "DEPLOYED" })),
+    ).toBe(false);
     expect(canDeployCandidate(null)).toBe(false);
   });
 
   it("explains each refusal in the operator's terms", () => {
-    expect(deployUnavailableReason(runSummary({ status: "REJECTED" }))).toContain(
-      "did not pass every quality gate",
-    );
+    expect(
+      deployUnavailableReason(runSummary({ status: "REJECTED" })),
+    ).toContain("did not pass every quality gate");
     expect(deployUnavailableReason(runSummary({ status: "FAILED" }))).toContain(
       "no deployable candidate",
     );
-    expect(deployUnavailableReason(runSummary({ status: "RUNNING" }))).toContain(
-      "still running",
-    );
-    expect(deployUnavailableReason(runSummary({ promotionEligible: null }))).toContain(
-      "No passing gate record",
-    );
-    expect(deployUnavailableReason(runSummary({ deploymentStatus: "DEPLOYED" }))).toContain(
-      "already been deployed",
-    );
+    expect(
+      deployUnavailableReason(runSummary({ status: "RUNNING" })),
+    ).toContain("still running");
+    expect(
+      deployUnavailableReason(runSummary({ promotionEligible: null })),
+    ).toContain("No passing gate record");
+    expect(
+      deployUnavailableReason(runSummary({ deploymentStatus: "DEPLOYED" })),
+    ).toContain("already been deployed");
     expect(deployUnavailableReason(runSummary())).toBeNull();
   });
 
@@ -506,10 +531,18 @@ describe("ML & Intelligence — candidate deployment rules", () => {
 
   it("blocks retraining without permission, during a run, or when ML is down", () => {
     expect(
-      retrainUnavailableReason({ health: health(), activeRunId: null, canWrite: false }),
+      retrainUnavailableReason({
+        health: health(),
+        activeRunId: null,
+        canWrite: false,
+      }),
     ).toContain(ML_OPS_PERMISSION);
     expect(
-      retrainUnavailableReason({ health: health(), activeRunId: "run-1", canWrite: true }),
+      retrainUnavailableReason({
+        health: health(),
+        activeRunId: "run-1",
+        canWrite: true,
+      }),
     ).toContain("already active");
     expect(
       retrainUnavailableReason({
@@ -519,7 +552,11 @@ describe("ML & Intelligence — candidate deployment rules", () => {
       }),
     ).toContain("unavailable");
     expect(
-      retrainUnavailableReason({ health: health(), activeRunId: null, canWrite: true }),
+      retrainUnavailableReason({
+        health: health(),
+        activeRunId: null,
+        canWrite: true,
+      }),
     ).toBeNull();
   });
 });
@@ -533,7 +570,11 @@ describe("ML & Intelligence — gates and evaluation", () => {
 
   it("says when no gates were recorded rather than showing an empty pass", () => {
     expect(
-      gateSummaryNote({ gates: [], promotionEligible: false, unavailable: true }),
+      gateSummaryNote({
+        gates: [],
+        promotionEligible: false,
+        unavailable: true,
+      }),
     ).toContain("No gate results were recorded");
   });
 
@@ -596,7 +637,9 @@ describe("ML & Intelligence — failure explanations", () => {
     expect(trainingErrorExplanation("EVALUATION_FAILED", null)).toContain(
       "no gate verdict",
     );
-    expect(trainingErrorExplanation("ML_JOB_LOST", null)).toContain("restarted");
+    expect(trainingErrorExplanation("ML_JOB_LOST", null)).toContain(
+      "restarted",
+    );
     expect(trainingErrorExplanation("DISPATCH_FAILED", null)).toContain(
       "could not be started",
     );
@@ -609,9 +652,9 @@ describe("ML & Intelligence — failure explanations", () => {
   });
 
   it("appends the raw message to a known explanation", () => {
-    expect(trainingErrorExplanation("TRAINING_FAILED", "index error")).toContain(
-      "index error",
-    );
+    expect(
+      trainingErrorExplanation("TRAINING_FAILED", "index error"),
+    ).toContain("index error");
   });
 });
 
@@ -656,7 +699,14 @@ describe("ML & Intelligence — datasets", () => {
     expect(datasetFreshnessNote(dataset())).toContain("4 feedback records");
     expect(
       datasetFreshnessNote(
-        dataset({ current: null, freshness: { ageHours: null, lastTrainingRunAt: null, recordsSinceLastTraining: null } }),
+        dataset({
+          current: null,
+          freshness: {
+            ageHours: null,
+            lastTrainingRunAt: null,
+            recordsSinceLastTraining: null,
+          },
+        }),
       ),
     ).toContain("No dataset snapshot");
   });
@@ -730,8 +780,12 @@ describe("ML & Intelligence — detail field layout", () => {
   it("keeps the responsive column rule in the shared grid", () => {
     // Only the shared primitive declares the 1/2/3/4 breakpoints; panels override
     // it per context instead of re-declaring a grid of their own.
-    expect(PANELS_SOURCE).toContain('className="lg:grid-cols-2 xl:grid-cols-2"');
-    expect(PANELS_SOURCE).not.toMatch(/<dl className="grid grid-cols-1 gap-x-8/);
+    expect(PANELS_SOURCE).toContain(
+      'className="lg:grid-cols-2 xl:grid-cols-2"',
+    );
+    expect(PANELS_SOURCE).not.toMatch(
+      /<dl className="grid grid-cols-1 gap-x-8/,
+    );
   });
 
   it("renders identifiers and counts with the shared value treatments", () => {
@@ -747,14 +801,18 @@ describe("ML & Intelligence — detail field layout", () => {
       /<Info className="mt-0\.5 size-3 shrink-0" \/>\s*\{TRAINING_SCOPE_NOTICE\}/,
     );
     // Both branches of the slot carry it, so the icon cannot flicker with state.
-    const infoNotes = PANELS_SOURCE.match(/<Info className="mt-0\.5 size-3 shrink-0" \/>/g);
+    const infoNotes = PANELS_SOURCE.match(
+      /<Info className="mt-0\.5 size-3 shrink-0" \/>/g,
+    );
     expect(infoNotes?.length).toBe(2);
   });
 });
 
 describe("ML & Intelligence — route", () => {
   const NAV_SOURCE = readFileSync(
-    fileURLToPath(new URL("./navigation/navigation-config.tsx", import.meta.url)),
+    fileURLToPath(
+      new URL("./navigation/navigation-config.tsx", import.meta.url),
+    ),
     "utf8",
   );
 
@@ -830,7 +888,9 @@ describe("ML & Intelligence — the page's own guarantees", () => {
   it("shows the deployed artifact and the running model side by side", () => {
     expect(PANELS_SOURCE).toContain("Deployed artifact");
     expect(PANELS_SOURCE).toContain("Running model");
-    expect(PANELS_SOURCE).toContain("Running model matches the deployed artifact");
+    expect(PANELS_SOURCE).toContain(
+      "Running model matches the deployed artifact",
+    );
     // A stored deployment names the version it produced, not the current one.
     expect(PANELS_SOURCE).toContain("Running model at deployment");
     expect(PANELS_SOURCE).toContain("Running model now");

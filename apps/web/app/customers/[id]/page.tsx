@@ -33,7 +33,7 @@ export default function CustomerDetailPage() {
             <Building className="w-3.5 h-3.5" /> Company Account
           </p>
           <p className="text-sm font-semibold text-foreground">
-            AeroTech Systems Inc.
+            ACME Components Inc.
           </p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
@@ -41,7 +41,7 @@ export default function CustomerDetailPage() {
             <Mail className="w-3.5 h-3.5" /> Primary Contact
           </p>
           <p className="text-sm font-mono text-foreground">
-            procurement@aerotech.com
+            procurement@example.com
           </p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">

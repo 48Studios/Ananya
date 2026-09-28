@@ -10,7 +10,7 @@
 
 # 1. Purpose
 
-This RFC defines the **Bill of Materials (BOM)** aggregate root and domain rules in the Manufacturing Bounded Context of Ananya ERP. A Bill of Materials defines the exact engineering recipe, component items, quantities, scrap allowances, and assembly instructions required to produce a specific finished product or sub-assembly at 48 Studios.
+This RFC defines the **Bill of Materials (BOM)** aggregate root and domain rules in the Manufacturing Bounded Context of Ananya ERP. A Bill of Materials defines the exact engineering recipe, component items, quantities, scrap allowances, and assembly instructions required to produce a specific finished product or sub-assembly at ACME Corporation.
 
 ---
 

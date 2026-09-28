@@ -328,14 +328,14 @@ describe('Datasheet Documentation Intelligence', () => {
     createdRoleIds.push(readerRole.id, writerRole.id);
 
     const reader = await usersService.create({
-      email: `di-reader-${runId}@ananya.local`,
+      email: `di-reader-${runId}@example.test`,
       password: 'ReaderPassw0rd!',
       firstName: 'DI',
       lastName: 'Reader',
       roleId: readerRole.id,
     });
     const writer = await usersService.create({
-      email: `di-writer-${runId}@ananya.local`,
+      email: `di-writer-${runId}@example.test`,
       password: 'WriterPassw0rd!',
       firstName: 'DI',
       lastName: 'Writer',
@@ -404,8 +404,8 @@ describe('Datasheet Documentation Intelligence', () => {
       .delete(securityAuditLogs)
       .where(
         inArray(securityAuditLogs.userEmail, [
-          `di-reader-${runId}@ananya.local`,
-          `di-writer-${runId}@ananya.local`,
+          `di-reader-${runId}@example.test`,
+          `di-writer-${runId}@example.test`,
         ]),
       );
     // `ROLE_CREATED` carries NO actor at all — `user_id` and `user_email` are both

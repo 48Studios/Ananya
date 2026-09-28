@@ -172,7 +172,7 @@ export default function CreateOrganizationPage() {
                   required
                   value={adminEmail}
                   onChange={(e) => setAdminEmail(e.target.value)}
-                  placeholder="owner@company.com"
+                  placeholder="owner@example.com"
                 />
               </Field>
 
@@ -218,7 +218,7 @@ export default function CreateOrganizationPage() {
                   required
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="e.g. Apex Hardware Technologies"
+                  placeholder="e.g. ACME Manufacturing"
                 />
               </Field>
 
@@ -232,7 +232,7 @@ export default function CreateOrganizationPage() {
                     type="text"
                     value={legalName}
                     onChange={(e) => setLegalName(e.target.value)}
-                    placeholder="Apex Hardware Inc."
+                    placeholder="ACME Manufacturing LLC"
                   />
                 </Field>
                 <Field>
@@ -244,7 +244,7 @@ export default function CreateOrganizationPage() {
                     type="text"
                     value={taxId}
                     onChange={(e) => setTaxId(e.target.value)}
-                    placeholder="TAX-998877"
+                    placeholder="EXAMPLE-TAX-ID"
                   />
                 </Field>
               </div>

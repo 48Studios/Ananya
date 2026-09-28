@@ -10,7 +10,7 @@
 
 # 1. Purpose
 
-This RFC defines the **Purchase Order (PO)** aggregate and domain rules in the Procurement Bounded Context of Ananya ERP. A Purchase Order represents a legally binding commercial contract issued by 48 Studios to a Supplier requesting the supply of specified components at agreed prices, quantities, and delivery schedules.
+This RFC defines the **Purchase Order (PO)** aggregate and domain rules in the Procurement Bounded Context of Ananya ERP. A Purchase Order represents a legally binding commercial contract issued by ACME Corporation to a Supplier requesting the supply of specified components at agreed prices, quantities, and delivery schedules.
 
 ---
 

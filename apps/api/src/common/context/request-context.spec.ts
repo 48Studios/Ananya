@@ -30,11 +30,11 @@ describe('RequestContext', () => {
     RequestContext.run(store, () => {
       expect(RequestContext.getUser()?.userId).toBeUndefined();
 
-      RequestContext.setUser({ id: 'usr-99', email: 'admin@test.com' });
+      RequestContext.setUser({ id: 'usr-99', email: 'admin@example.test' });
 
       expect(RequestContext.getUser()).toEqual({
         userId: 'usr-99',
-        userEmail: 'admin@test.com',
+        userEmail: 'admin@example.test',
       });
       done();
     });

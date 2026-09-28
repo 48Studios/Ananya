@@ -3,13 +3,14 @@
 > **Document Version:** 1.0.0  
 > **Date:** September 27, 2026  
 > **Audit Type:** Full Repository Security, Authentication, Authorization, Permissions & Attack Surface Review  
-> **Status:** REMEDIATION IN PROGRESS — Phase 1 & 2 Completed & Verified (Integration Tests Passing)  
+> **Status:** REMEDIATION IN PROGRESS — Phase 1 & 2 Completed & Verified (Integration Tests Passing)
 
 ---
 
 ## 1. Executive Summary
 
 A comprehensive, defense-in-depth security audit was conducted on the entire **Ananya ERP** codebase, encompassing:
+
 - The **NestJS API** (`apps/api`)
 - The **Next.js Web Frontend** (`apps/web`)
 - The **Python FastAPI ML Service** (`apps/ml`)
@@ -45,12 +46,12 @@ While certain recently developed features (specifically `components`, `attribute
 
 ### Vulnerability Count Summary
 
-| Severity | Count | Primary Impact Areas |
-|:---|:---:|:---|
-| **CRITICAL** | **7** | Global Guard Absence, Pre-Auth Password Reset, Reset Token Leakage, Unauthenticated Admin Creation, Database Wipe, Unsalted SHA-256 Passwords, Public ML Pickle Load |
-| **HIGH** | **6** | Bulk Action Guard Bypass, Unauthenticated Import/Export & Impersonation, Plaintext DB Session Tokens / Weak Cookies, System Role Privilege Tampering, Root Admin Initialization Bug, Permissive CORS Default |
-| **MEDIUM** | **5** | Unauthenticated Global Search / Barcode Leakage, Stored XSS via Inline SVG Preview, Missing Rate Limiting, Suppressed TypeScript Checks in Production Build, Known High/Critical Dependencies |
-| **LOW** | **3** | Unpinned GitHub Actions, Vestigial Dead Configurations (`JWT_SECRET`), Hardcoded Admin Email References |
+| Severity     | Count | Primary Impact Areas                                                                                                                                                                                         |
+| :----------- | :---: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CRITICAL** | **7** | Global Guard Absence, Pre-Auth Password Reset, Reset Token Leakage, Unauthenticated Admin Creation, Database Wipe, Unsalted SHA-256 Passwords, Public ML Pickle Load                                         |
+| **HIGH**     | **6** | Bulk Action Guard Bypass, Unauthenticated Import/Export & Impersonation, Plaintext DB Session Tokens / Weak Cookies, System Role Privilege Tampering, Root Admin Initialization Bug, Permissive CORS Default |
+| **MEDIUM**   | **5** | Unauthenticated Global Search / Barcode Leakage, Stored XSS via Inline SVG Preview, Missing Rate Limiting, Suppressed TypeScript Checks in Production Build, Known High/Critical Dependencies                |
+| **LOW**      | **3** | Unpinned GitHub Actions, Vestigial Dead Configurations (`JWT_SECRET`), Hardcoded Admin Email References                                                                                                      |
 
 ---
 
@@ -77,23 +78,23 @@ While certain recently developed features (specifically `components`, `attribute
 
 ### Security Boundary Analysis
 
-1. **Browser to Next.js Frontend:**  
-   - Frontend route gating in `apps/web/middleware.ts` only checks whether the cookie or header `ananya_auth_token` exists.  
+1. **Browser to Next.js Frontend:**
+   - Frontend route gating in `apps/web/middleware.ts` only checks whether the cookie or header `ananya_auth_token` exists.
    - The token is **never verified or validated cryptographically by the Next.js middleware**. A client providing an arbitrary string (e.g., `Cookie: ananya_auth_token=foo`) bypasses the middleware redirect and loads any page.
    - Frontend gating is strictly cosmetic UX.
 
-2. **Browser to NestJS API:**  
-   - The browser communicates directly with the NestJS API at `NEXT_PUBLIC_API_URL` (default `http://localhost:4000`).  
-   - The NestJS API is responsible for being the **authoritative security boundary**.  
+2. **Browser to NestJS API:**
+   - The browser communicates directly with the NestJS API at `NEXT_PUBLIC_API_URL` (default `http://localhost:4000`).
+   - The NestJS API is responsible for being the **authoritative security boundary**.
    - However, the API lacks a global guard (`APP_GUARD`) and lacks route-level guards on ~90% of its endpoints.
 
-3. **NestJS API to Python ML Service:**  
-   - Intended as an internal backend-to-backend communication channel via `ML_SERVICE_URL=http://ml:5001`.  
-   - In reality, `compose.yml` maps port 5001 directly to the host (`ports: - "5001:5001"`).  
+3. **NestJS API to Python ML Service:**
+   - Intended as an internal backend-to-backend communication channel via `ML_SERVICE_URL=http://ml:5001`.
+   - In reality, `compose.yml` maps port 5001 directly to the host (`ports: - "5001:5001"`).
    - The ML service has no API key, mutual TLS, or bearer token authentication. Any client on the network or any browser via CORS (`*`) can talk directly to the ML control plane.
 
-4. **Data Layer (PostgreSQL):**  
-   - Managed via Drizzle ORM (`packages/database`).  
+4. **Data Layer (PostgreSQL):**
+   - Managed via Drizzle ORM (`packages/database`).
    - No multi-tenant row-level security (RLS) or tenant isolation is implemented in PostgreSQL. All data resides in shared tables without organization IDs or tenant partitions.
 
 ---
@@ -101,20 +102,21 @@ While certain recently developed features (specifically `components`, `attribute
 ## 3. Authentication Model
 
 ### Identity Establishment & Propagation
-1. **Login:** Handled at `POST /auth/login`.  
+
+1. **Login:** Handled at `POST /auth/login`.
    - Takes `email`, `password`, and optional `rememberMe`.
    - Compares the unsalted SHA-256 hash of the input password against `users.password_hash`.
    - On success, creates a 32-byte hex random string (`crypto.randomBytes(32).toString('hex')`) in the `user_sessions` table.
    - Session duration: 30 days if `rememberMe: true`, 1 day (24 hours) otherwise.
 2. **Token Format:** Opaque hex random string (not a signed JWT, despite `JWT_SECRET` being defined in configuration).
-3. **Token Transmission & Storage:**  
+3. **Token Transmission & Storage:**
    - Sent to the client in the JSON response body.
    - Stored in browser `localStorage` under key `ananya_auth_token`.
    - Set in browser cookie via client-side JavaScript (`document.cookie = ananya_auth_token=...; path=/; max-age=604800; SameSite=Lax`).
    - **Flaw:** The cookie is **not HttpOnly** and **not Secure**. Storing tokens in `localStorage` and readable cookies exposes them to immediate theft via any Cross-Site Scripting (XSS) vulnerability.
-4. **Token Storage in Database:**  
+4. **Token Storage in Database:**
    - Stored as **plaintext** in `user_sessions.token`. If the database is dumped or accessed, all active user sessions are immediately compromised.
-5. **Propagation in API:**  
+5. **Propagation in API:**
    - In protected routes, `permission.guard.ts` extracts the Bearer token from the `Authorization` header, retrieves the session via `AuthService.getMeByToken()`, and attaches `request.user = { id, email, roleName, permissions }`.
    - In unprotected routes (the majority), `request.user` is undefined.
 
@@ -123,6 +125,7 @@ While certain recently developed features (specifically `components`, `attribute
 ## 4. Authorization / RBAC Model
 
 ### Permission Structure
+
 - System roles are defined in `apps/api/src/permissions/permissions.service.ts`:
   - `Administrator`: Wildcard permission `['*']`.
   - `Inventory Manager`: `Inventory.Read`, `Inventory.Create`, `Inventory.Update`, `Inventory.Adjust`, `Inventory.Transfer`, `Inventory.Reserve`, `GoodsReceipts.Receive`, `Reports.Read`.
@@ -133,13 +136,17 @@ While certain recently developed features (specifically `components`, `attribute
   - `Auditor`: `Reports.Read`, `Reports.Export`, `Administration.Security`.
 
 ### Permission Evaluation Logic
+
 In `PermissionsService.hasPermission(userPermissions, requiredPermission)`:
+
 - Returns `true` if `userPermissions` includes `'*'`.
 - Returns `true` if `userPermissions` includes the exact string (e.g. `'Inventory.Read'`).
 - Supports domain wildcards (e.g. `'Inventory.*'`).
 
 ### Implementation Reality
+
 Although the RBAC vocabulary and evaluation methods are well-crafted, **they are scarcely applied**:
+
 - `PermissionsService` is only called by `permission.guard.ts`.
 - `permission.guard.ts` is only instantiated by `components.controller.ts`, `attributes.controller.ts`, `documents.controller.ts`, and `ml.controller.ts`.
 - **None of the remaining 60+ controllers check permissions at all.**
@@ -150,22 +157,22 @@ Although the RBAC vocabulary and evaluation methods are well-crafted, **they are
 
 The table below reflects the **actual enforcement in code today** versus the intended policy:
 
-| Operation / Area | Intended Role | Actual Code Enforcement | Vulnerability Status |
-|:---|:---|:---|:---|
-| **View Catalog Components** | `Inventory.Read` | Enforced via `ComponentReadGuard` | PROTECTED |
-| **Edit Catalog Components** | `Inventory.Update` | Enforced via `ComponentWriteGuard` | PROTECTED |
-| **Delete Components (Single)** | `Inventory.Delete` | Enforced via `ComponentDeleteGuard` | PROTECTED |
-| **Delete Components (Bulk)** | `Inventory.Delete` | **None** (`BulkActionsController`) | **BYPASS (CRITICAL)** |
-| **Manage Users** | `Administration.Users` | **None** (`UsersController`) | **EXPOSED (CRITICAL)** |
-| **Reset User Passwords** | `Administration.Users` | **None** (`UsersController`) | **EXPOSED (CRITICAL)** |
-| **Manage Roles & Permissions** | `Administration.Roles` | **None** (`RolesController`) | **EXPOSED (CRITICAL)** |
-| **Read Security Audit Logs** | `Administration.Security` | **None** (`SecurityAuditController`)| **EXPOSED (CRITICAL)** |
-| **Truncate ERP Tables** | Root Admin Only | **None** (`SettingsController`) | **EXPOSED (CRITICAL)** |
-| **Create/Approve Purchase Orders**| `PurchaseOrders.Approve`| **None** (`PurchaseOrdersController`) | **EXPOSED (HIGH)** |
-| **Post/Cancel Payments** | Finance Lead | **None** (`PaymentsController`) | **EXPOSED (HIGH)** |
-| **Execute Stock Adjustments** | `Inventory.Adjust` | **None** (`StockAdjustmentsController`)| **EXPOSED (HIGH)** |
-| **Import / Export Business Data**| `Administration.*` | **None** (`ImportExportController`) | **EXPOSED (HIGH)** |
-| **Trigger ML Training / Deploy**| `Administration.Roles` | API has guard; **ML port 5001 is open**| **BYPASS (CRITICAL)** |
+| Operation / Area                   | Intended Role             | Actual Code Enforcement                 | Vulnerability Status   |
+| :--------------------------------- | :------------------------ | :-------------------------------------- | :--------------------- |
+| **View Catalog Components**        | `Inventory.Read`          | Enforced via `ComponentReadGuard`       | PROTECTED              |
+| **Edit Catalog Components**        | `Inventory.Update`        | Enforced via `ComponentWriteGuard`      | PROTECTED              |
+| **Delete Components (Single)**     | `Inventory.Delete`        | Enforced via `ComponentDeleteGuard`     | PROTECTED              |
+| **Delete Components (Bulk)**       | `Inventory.Delete`        | **None** (`BulkActionsController`)      | **BYPASS (CRITICAL)**  |
+| **Manage Users**                   | `Administration.Users`    | **None** (`UsersController`)            | **EXPOSED (CRITICAL)** |
+| **Reset User Passwords**           | `Administration.Users`    | **None** (`UsersController`)            | **EXPOSED (CRITICAL)** |
+| **Manage Roles & Permissions**     | `Administration.Roles`    | **None** (`RolesController`)            | **EXPOSED (CRITICAL)** |
+| **Read Security Audit Logs**       | `Administration.Security` | **None** (`SecurityAuditController`)    | **EXPOSED (CRITICAL)** |
+| **Truncate ERP Tables**            | Root Admin Only           | **None** (`SettingsController`)         | **EXPOSED (CRITICAL)** |
+| **Create/Approve Purchase Orders** | `PurchaseOrders.Approve`  | **None** (`PurchaseOrdersController`)   | **EXPOSED (HIGH)**     |
+| **Post/Cancel Payments**           | Finance Lead              | **None** (`PaymentsController`)         | **EXPOSED (HIGH)**     |
+| **Execute Stock Adjustments**      | `Inventory.Adjust`        | **None** (`StockAdjustmentsController`) | **EXPOSED (HIGH)**     |
+| **Import / Export Business Data**  | `Administration.*`        | **None** (`ImportExportController`)     | **EXPOSED (HIGH)**     |
+| **Trigger ML Training / Deploy**   | `Administration.Roles`    | API has guard; **ML port 5001 is open** | **BYPASS (CRITICAL)**  |
 
 ---
 
@@ -174,12 +181,14 @@ The table below reflects the **actual enforcement in code today** versus the int
 An exhaustive scan of all controller files in `apps/api/src` revealed 84 controller endpoints classes. The audit categorization:
 
 ### Guarded Controllers (Only 4 Modules)
+
 1. `AttributesController` (`src/attributes/attributes.controller.ts`) — Uses `AttributeReadGuard`, `AttributeWriteGuard`, `AttributeDeleteGuard`.
 2. `ComponentsController` (`src/components/components.controller.ts`) — Uses `ComponentReadGuard`, `ComponentWriteGuard`, `ComponentDeleteGuard`.
 3. `DocumentsController` (`src/documents/documents.controller.ts`) — Uses `DocumentReadGuard`, `DocumentWriteGuard`.
 4. `MlController` & Review Queues (`src/ml/*`) — Uses `MlReadGuard`, `MlWriteGuard`, `MlAdminGuard`.
 
 ### Completely Unguarded Controllers (Exposed to Anonymous Callers)
+
 - **Identity & Access Management:** `UsersController`, `RolesController`, `SecurityAuditController`.
 - **System Administration & Settings:** `SettingsController`, `PreferencesController`, `DataPacksController`.
 - **Data Transfer & Bulk Execution:** `ImportExportController`, `BulkActionsController`.
@@ -209,6 +218,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-01: Global Absence of Authentication & Authorization Guards
+
 - **ID:** SEC-01
 - **Severity:** CRITICAL
 - **Area:** Authorization / Architecture
@@ -229,6 +239,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-02: Unauthenticated Password Reset for Any User Account
+
 - **ID:** SEC-02
 - **Severity:** CRITICAL
 - **Area:** Authentication / Account Takeover
@@ -236,7 +247,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 - **Affected Endpoint:** `POST /users/:id/reset-password`
 - **Description:**  
   The `UsersController.adminResetPassword` route accepts a target user ID in the path and `{ "newPassword": "..." }` in the body. It contains no `@UseGuards` decorator, performs no caller verification, and directly updates the user's password in the database.
-- **Attack Scenario:**  
+- **Attack Scenario:**
   1. Attacker calls `GET /users` (also unauthenticated) to list all users and copies the administrator's UUID.
   2. Attacker sends `POST /users/<admin-uuid>/reset-password` with `{"newPassword": "AttackerPassword123!"}`.
   3. Attacker logs in as the administrator with full privileges.
@@ -251,6 +262,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-03: Password Reset Token Leakage via Security Audit Log
+
 - **ID:** SEC-03
 - **Severity:** CRITICAL
 - **Area:** Authentication / Information Disclosure
@@ -258,15 +270,15 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 - **Affected Endpoints:** `POST /auth/reset-password-request`, `GET /security/audit`, `POST /auth/reset-password`
 - **Description:**  
   When requesting a password reset, `AuthService.requestPasswordReset` writes the generated reset token directly into the `security_audit_logs` table (`details: { resetToken }`). Meanwhile, `SecurityAuditController.getAuditLogs` (`GET /security/audit`) is completely unauthenticated and returns the full JSON details of all audit logs.
-- **Attack Scenario:**  
-  1. Attacker calls `POST /auth/reset-password-request` with `{"email": "admin@company.com"}`.
+- **Attack Scenario:**
+  1. Attacker calls `POST /auth/reset-password-request` with `{"email": "admin@example.com"}`.
   2. Attacker calls `GET /security/audit?category=SECURITY`.
   3. Attacker extracts `resetToken` from the most recent `PASSWORD_RESET_REQUESTED` log entry.
   4. Attacker calls `POST /auth/reset-password` with the stolen token and sets a new password.
 - **Impact:** Unauthenticated remote account takeover of any user whose email is known.
 - **Evidence:**  
   `apps/api/src/auth/auth.service.ts:231-237`, `apps/api/src/security-audit/security-audit.controller.ts:8-14`.
-- **Recommended Fix:**  
+- **Recommended Fix:**
   1. Never log secrets, reset tokens, or passwords to audit logs or console logs.
   2. Guard `SecurityAuditController` with `Administration.Security` permission.
   3. Hash reset tokens before storing them in `password_reset_tokens`.
@@ -276,6 +288,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-04: Unauthenticated Admin Creation via Flawed Invitations Flow
+
 - **ID:** SEC-04
 - **Severity:** CRITICAL
 - **Area:** Authentication / Privilege Escalation
@@ -283,16 +296,16 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 - **Affected Endpoints:** `POST /auth/invitations`, `POST /auth/invitations/accept`
 - **Description:**  
   `AuthController.createInvitation` wraps the caller identity lookup in a `try/catch` block that swallows any authentication error (`// optional`), allowing unauthenticated requests. It accepts `roleId` directly from the request body. Furthermore, `createInvitation` returns the complete invitation record—including the plaintext invitation `token`—in the HTTP response. The token generation also uses insecure `Math.random()`.
-- **Attack Scenario:**  
+- **Attack Scenario:**
   1. Attacker calls `GET /roles` (unauthenticated) to get the Administrator `roleId`.
-  2. Attacker sends `POST /auth/invitations` with `{"email": "evil@attacker.com", "roleId": "<admin-role-id>"}`.
+  2. Attacker sends `POST /auth/invitations` with `{"email": "evil@example.test", "roleId": "<admin-role-id>"}`.
   3. The API responds with the created invitation including `"token": "..."`.
   4. Attacker sends `POST /auth/invitations/accept` with the token, names, and password.
   5. The API creates an active Administrator account and returns a valid session token.
 - **Impact:** Unauthenticated remote creation of active Administrator accounts.
 - **Evidence:**  
   `apps/api/src/auth/auth.controller.ts:73-87`, `apps/api/src/auth/invitations.service.ts:42-68, 90-138`.
-- **Recommended Fix:**  
+- **Recommended Fix:**
   1. Require `Administration.Users` permission on `POST /auth/invitations`.
   2. Never return the token in the API response (send it only via out-of-band email).
   3. Generate tokens using `crypto.randomBytes(32).toString('hex')`.
@@ -302,6 +315,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-05: Unauthenticated Organization & Complete Database Truncation
+
 - **ID:** SEC-05
 - **Severity:** CRITICAL
 - **Area:** Authorization / Disaster Recovery
@@ -309,14 +323,14 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 - **Affected Endpoint:** `POST /settings/organization/reset`
 - **Description:**  
   The endpoint `POST /settings/organization/reset` has no guards. `req.user?.id` resolves to `undefined`, defaulting to `'system'`. In `organization-reset.service.ts`, if `userId` is not a valid UUID, the code falls back to `db.select().from(users).limit(1)` (the first user in the database). An attacker who resets the first user's password (via SEC-02) or knows any credentials can supply `passwordConfirm` and `"confirmText": "RESET MY ORGANIZATION"`. This executes `TRUNCATE TABLE ... RESTART IDENTITY CASCADE` across all 40 core business tables.
-- **Attack Scenario:**  
+- **Attack Scenario:**
   1. Attacker resets user 1's password via `POST /users/<user1-id>/reset-password`.
   2. Attacker calls `POST /settings/organization/reset` with the new password and confirmation string.
   3. All inventory, procurement, manufacturing, accounting, CRM, and project data is permanently erased.
 - **Impact:** Complete irreversible data destruction and permanent denial of service.
 - **Evidence:**  
   `apps/api/src/settings/settings.controller.ts:38-45`, `apps/api/src/settings/organization-reset.service.ts:33-53, 104-112`.
-- **Recommended Fix:**  
+- **Recommended Fix:**
   1. Protect the route with strict Administrator-only guard.
   2. Remove the fallback to `users.limit(1)`.
   3. Implement multi-party confirmation or dual-custody authorization for destructive operations.
@@ -326,6 +340,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-06: Insecure Password Hashing (Unsalted Single-Round SHA-256)
+
 - **ID:** SEC-06
 - **Severity:** CRITICAL
 - **Area:** Cryptography / Authentication
@@ -346,6 +361,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-07: Unauthenticated Public Exposure of ML Service & Pickle Loading
+
 - **ID:** SEC-07
 - **Severity:** CRITICAL
 - **Area:** Infrastructure / ML Service / Arbitrary Code Execution
@@ -358,7 +374,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 - **Impact:** Remote Code Execution (RCE) inside the ML container, model poisoning, unauthorized access to training datasets.
 - **Evidence:**  
   `compose.yml:156-157`, `apps/ml/app/main.py:74-80`, `apps/ml/app/services/category_classifier.py:117-119`.
-- **Recommended Fix:**  
+- **Recommended Fix:**
   1. Remove host port binding `5001:5001` in `compose.yml`; keep `ml` purely internal on the Docker `internal` network.
   2. Implement shared service-to-service secret token authentication between NestJS API and FastAPI.
   3. Replace Python `pickle` with safe serialization formats such as ONNX, safetensors, or JSON weight dictionaries.
@@ -368,6 +384,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-08: Authorization Bypass on Protected Operations via Unprotected Bulk Actions
+
 - **ID:** SEC-08
 - **Severity:** HIGH
 - **Area:** Authorization / IDOR
@@ -388,6 +405,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-09: Unauthenticated Import/Export Data Exfiltration and Injection
+
 - **ID:** SEC-09
 - **Severity:** HIGH
 - **Area:** Data Access / Authorization
@@ -408,6 +426,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-10: Plaintext Database Session Tokens & Insecure Cookie Handling
+
 - **ID:** SEC-10
 - **Severity:** HIGH
 - **Area:** Session Management / Browser Security
@@ -420,7 +439,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 - **Impact:** Session hijacking, lateral movement, persistent account takeover.
 - **Evidence:**  
   `packages/database/src/schema/auth.ts:69`, `apps/api/src/auth/auth.service.ts:108-117`, `apps/web/lib/auth/auth-context.tsx:140`.
-- **Recommended Fix:**  
+- **Recommended Fix:**
   1. Store SHA-256 hashes of tokens in `user_sessions.token_hash`.
   2. Set session cookies server-side using `Set-Cookie` with `HttpOnly; Secure; SameSite=Strict`.
   3. Cease storing auth tokens in `localStorage`.
@@ -430,6 +449,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-11: System Role Tampering & Privilege Escalation
+
 - **ID:** SEC-11
 - **Severity:** HIGH
 - **Area:** Authorization / Role Management
@@ -442,7 +462,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 - **Impact:** System-wide privilege escalation and irreversible administrative lockout.
 - **Evidence:**  
   `apps/api/src/roles/roles.controller.ts:32-35`, `apps/api/src/roles/roles.service.ts:102-117`.
-- **Recommended Fix:**  
+- **Recommended Fix:**
   1. Protect `RolesController` with `Administration.Roles` permission.
   2. Disallow updating permissions of `isSystem: true` roles, or restrict updates strictly to verified root administrators.
 - **Regression Test:**  
@@ -451,6 +471,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-12: Root Administrator Created Without Role on Initial Setup
+
 - **ID:** SEC-12
 - **Severity:** HIGH
 - **Area:** Authorization / Onboarding Logic
@@ -471,6 +492,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-13: Insecure CORS Default & Missing Web Security Headers
+
 - **ID:** SEC-13
 - **Severity:** HIGH
 - **Area:** Browser Security / CORS
@@ -483,7 +505,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 - **Impact:** Cross-Origin data exfiltration and Cross-Site Request Forgery.
 - **Evidence:**  
   `apps/api/src/main.ts:18-26`, `apps/web/next.config.mjs:10-26`.
-- **Recommended Fix:**  
+- **Recommended Fix:**
   1. Disallow `origin: true` when `credentials: true`. Require explicit, valid origin lists.
   2. Add strict security headers and CSP in `next.config.mjs`.
 - **Regression Test:**  
@@ -492,6 +514,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-14: Unauthenticated Information Disclosure in Search & Barcodes
+
 - **ID:** SEC-14
 - **Severity:** MEDIUM
 - **Area:** Information Disclosure
@@ -512,6 +535,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-15: Potential Stored XSS via Inline SVG Document Previews
+
 - **ID:** SEC-15
 - **Severity:** MEDIUM
 - **Area:** Browser Security / XSS
@@ -532,6 +556,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-16: Missing Rate Limiting Across Entire API
+
 - **ID:** SEC-16
 - **Severity:** MEDIUM
 - **Area:** Network & API Security
@@ -552,6 +577,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-17: Ignored TypeScript Build Errors in Production
+
 - **ID:** SEC-17
 - **Severity:** MEDIUM
 - **Area:** Build & Code Quality
@@ -572,6 +598,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 ---
 
 ### Finding SEC-18: Known Critical Vulnerabilities in Next.js Dependency
+
 - **ID:** SEC-18
 - **Severity:** MEDIUM
 - **Area:** Dependencies / Supply Chain
@@ -593,30 +620,31 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 
 ## 9. Security Test Matrix
 
-| Area / Operation | Anonymous | Normal User (Viewer) | Elevated (Manager) | Administrator |
-|:---|:---:|:---:|:---:|:---:|
-| **Read Own Profile (`/auth/me`)** | ❌ (401) | ✅ | ✅ | ✅ |
-| **Read Other Users (`GET /users`)** | ⚠️ ALLOWED (VULN) | ⚠️ ALLOWED | ⚠️ ALLOWED | ✅ |
-| **Reset Any Password (`/users/:id/reset`)**| ⚠️ ALLOWED (CRIT) | ⚠️ ALLOWED | ⚠️ ALLOWED | ✅ |
-| **Create Roles (`POST /roles`)** | ⚠️ ALLOWED (CRIT) | ⚠️ ALLOWED | ⚠️ ALLOWED | ✅ |
-| **Tamper System Roles (`PUT /roles/:id`)** | ⚠️ ALLOWED (CRIT) | ⚠️ ALLOWED | ⚠️ ALLOWED | ⚠️ SHOULD RESTRICT |
-| **Truncate Database (`/settings/reset`)** | ⚠️ ALLOWED (CRIT) | ⚠️ ALLOWED | ⚠️ ALLOWED | ⚠️ SHOULD RESTRICT |
-| **Read Catalog Components** | ❌ (401) | ✅ | ✅ | ✅ |
-| **Delete Catalog Components (Single)** | ❌ (401) | ❌ (403) | ❌ (403) | ✅ |
-| **Delete Components (Bulk Action)** | ⚠️ ALLOWED (CRIT) | ⚠️ ALLOWED | ⚠️ ALLOWED | ✅ |
-| **Create Purchase Order** | ⚠️ ALLOWED (VULN) | ⚠️ ALLOWED | ✅ | ✅ |
-| **Approve Purchase Order** | ⚠️ ALLOWED (VULN) | ⚠️ ALLOWED | ✅ | ✅ |
-| **Post Financial Payments** | ⚠️ ALLOWED (VULN) | ⚠️ ALLOWED | ✅ | ✅ |
-| **Execute Stock Adjustment** | ⚠️ ALLOWED (VULN) | ⚠️ ALLOWED | ✅ | ✅ |
-| **Data Export (`POST /import-export/export`)**| ⚠️ ALLOWED (VULN) | ⚠️ ALLOWED | ⚠️ ALLOWED | ✅ |
-| **ML Inference (`/v1/predict/*` via 5001)**| ⚠️ ALLOWED (CRIT) | ⚠️ ALLOWED | ⚠️ ALLOWED | ✅ |
-| **ML Model Reload / Deploy (via 5001)**| ⚠️ ALLOWED (CRIT) | ⚠️ ALLOWED | ⚠️ ALLOWED | ✅ |
+| Area / Operation                               |     Anonymous     | Normal User (Viewer) | Elevated (Manager) |   Administrator    |
+| :--------------------------------------------- | :---------------: | :------------------: | :----------------: | :----------------: |
+| **Read Own Profile (`/auth/me`)**              |     ❌ (401)      |          ✅          |         ✅         |         ✅         |
+| **Read Other Users (`GET /users`)**            | ⚠️ ALLOWED (VULN) |      ⚠️ ALLOWED      |     ⚠️ ALLOWED     |         ✅         |
+| **Reset Any Password (`/users/:id/reset`)**    | ⚠️ ALLOWED (CRIT) |      ⚠️ ALLOWED      |     ⚠️ ALLOWED     |         ✅         |
+| **Create Roles (`POST /roles`)**               | ⚠️ ALLOWED (CRIT) |      ⚠️ ALLOWED      |     ⚠️ ALLOWED     |         ✅         |
+| **Tamper System Roles (`PUT /roles/:id`)**     | ⚠️ ALLOWED (CRIT) |      ⚠️ ALLOWED      |     ⚠️ ALLOWED     | ⚠️ SHOULD RESTRICT |
+| **Truncate Database (`/settings/reset`)**      | ⚠️ ALLOWED (CRIT) |      ⚠️ ALLOWED      |     ⚠️ ALLOWED     | ⚠️ SHOULD RESTRICT |
+| **Read Catalog Components**                    |     ❌ (401)      |          ✅          |         ✅         |         ✅         |
+| **Delete Catalog Components (Single)**         |     ❌ (401)      |       ❌ (403)       |      ❌ (403)      |         ✅         |
+| **Delete Components (Bulk Action)**            | ⚠️ ALLOWED (CRIT) |      ⚠️ ALLOWED      |     ⚠️ ALLOWED     |         ✅         |
+| **Create Purchase Order**                      | ⚠️ ALLOWED (VULN) |      ⚠️ ALLOWED      |         ✅         |         ✅         |
+| **Approve Purchase Order**                     | ⚠️ ALLOWED (VULN) |      ⚠️ ALLOWED      |         ✅         |         ✅         |
+| **Post Financial Payments**                    | ⚠️ ALLOWED (VULN) |      ⚠️ ALLOWED      |         ✅         |         ✅         |
+| **Execute Stock Adjustment**                   | ⚠️ ALLOWED (VULN) |      ⚠️ ALLOWED      |         ✅         |         ✅         |
+| **Data Export (`POST /import-export/export`)** | ⚠️ ALLOWED (VULN) |      ⚠️ ALLOWED      |     ⚠️ ALLOWED     |         ✅         |
+| **ML Inference (`/v1/predict/*` via 5001)**    | ⚠️ ALLOWED (CRIT) |      ⚠️ ALLOWED      |     ⚠️ ALLOWED     |         ✅         |
+| **ML Model Reload / Deploy (via 5001)**        | ⚠️ ALLOWED (CRIT) |      ⚠️ ALLOWED      |     ⚠️ ALLOWED     |         ✅         |
 
 ---
 
 ## 10. Attack Scenarios & Exploit Chains
 
 ### Scenario 1: Zero-Authentication Full ERP Takeover & Destruction (Kill Chain)
+
 1. **Reconnaissance:** Attacker queries `GET /search?q=admin` or `GET /users` without authentication. Learns the administrator's UUID and email.
 2. **Account Takeover (Method A):** Attacker sends `POST /users/<admin-uuid>/reset-password` with `{"newPassword": "HackedPassword123!"}`.
 3. **Account Takeover (Method B):** Attacker sends `POST /auth/reset-password-request` with the admin's email, queries `GET /security/audit`, grabs the plaintext `resetToken`, and submits `POST /auth/reset-password`.
@@ -624,13 +652,15 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 5. **Complete Data Destruction:** Attacker calls `POST /settings/organization/reset` with `"confirmText": "RESET MY ORGANIZATION"` and the new password, wiping all 40 business tables in PostgreSQL.
 
 ### Scenario 2: Unauthenticated Shadow Administrator Creation
+
 1. Attacker calls `GET /roles` (unauthenticated) to get the UUID of the `'Administrator'` role.
-2. Attacker calls `POST /auth/invitations` with `{"email": "shadow@attacker.com", "roleId": "<admin-uuid>"}`.
+2. Attacker calls `POST /auth/invitations` with `{"email": "shadow@example.test", "roleId": "<admin-uuid>"}`.
 3. The API catches the missing authorization header, proceeds anonymously, creates the invitation, and returns the secret token in the response body.
 4. Attacker calls `POST /auth/invitations/accept` with the token.
 5. Attacker now possesses a legitimate, active Administrator user session.
 
 ### Scenario 3: Bypassing Deletion Controls via Bulk Actions
+
 1. A disgruntled employee with a read-only `Viewer` account attempts to delete critical components via `DELETE /components/:id`. The API blocks the request with `403 Forbidden` (`ComponentDeleteGuard`).
 2. The employee instead issues `POST /import-export/bulk-action` with:
    ```json
@@ -649,6 +679,7 @@ An exhaustive scan of all controller files in `apps/api/src` revealed 84 control
 To systematically resolve these vulnerabilities without destabilizing operational workflows, remediation should proceed in four strictly ordered phases:
 
 ### Phase 1: Immediate Critical Containment (Stop the Bleeding)
+
 1. **Bind ML to Internal Docker Network Only:**  
    In `compose.yml`, remove host port binding `"${ML_PORT:-5001}:5001"`. Ensure the ML service is strictly internal.
 2. **Remove Token from Audit Logs:**  
@@ -659,6 +690,7 @@ To systematically resolve these vulnerabilities without destabilizing operationa
    Remove the error swallowing in `AuthController.createInvitation` and ensure only administrators can issue invitations or reset organizations.
 
 ### Phase 2: Global API Authentication & Defensive Perimeter
+
 1. **Implement Global Auth Guard:**  
    Register a global authentication guard in `AppModule` using `APP_GUARD`. Require all routes to be authenticated by default; introduce a `@Public()` decorator for `/auth/login`, `/auth/reset-password`, and `/health`.
 2. **Implement Route-Level RBAC across all Controllers:**  
@@ -669,6 +701,7 @@ To systematically resolve these vulnerabilities without destabilizing operationa
    Change `'Admin'` to `'Administrator'` in `onboarding.service.ts:70`.
 
 ### Phase 3: Cryptographic & Session Hardening
+
 1. **Upgrade Password Hashing:**  
    Replace unsalted SHA-256 with `argon2id` (or `bcrypt`). Add dual-hash verification during the transition period so existing passwords seamlessly upgrade upon login.
 2. **Hash Stored Session Tokens:**  
@@ -679,6 +712,7 @@ To systematically resolve these vulnerabilities without destabilizing operationa
    Configure strict whitelist origins in `main.ts`. Add CSP, HSTS, and frame protection in `next.config.mjs`.
 
 ### Phase 4: Dependency, CI/CD & Defense-in-Depth Hardening
+
 1. **Dependency Upgrades:**  
    Upgrade `next` to `>=16.3.3` to resolve critical RCE advisories.
 2. **Rate Limiting:**  
@@ -693,28 +727,30 @@ To systematically resolve these vulnerabilities without destabilizing operationa
 ## 12. Open Questions & Accepted Risks
 
 ### Open Questions
+
 1. **Multi-Tenancy Intent:** Does Ananya ERP plan to remain single-tenant per deployment (one company per instance), or is multi-tenant logical partitioning required in the future?
 2. **Worker & Background Jobs:** Does the background worker (`apps/api/src/worker.ts`) require elevated administrative access, and how will internal job authentication be passed?
 
 ### Accepted Risks / Intentional Behavior
+
 ---
 
 ## 13. Remediation Status Record — Phases 1 & 2 Completed
 
 The following table summarizes the status of security vulnerabilities remediated during Phase 1 (Critical Containment) and Phase 2 (Defensive Perimeter & Authorization):
 
-| Vulnerability ID | Description | Severity | Status | Remediated In / Mechanism | Verification |
-| :--- | :--- | :---: | :---: | :--- | :--- |
-| **SEC-01** | Global API Fail-Closed Authentication | **CRITICAL** | **RESOLVED** | Registered `AuthGuard` via `APP_GUARD` in `AuthModule`. Every endpoint requires authentication by default; only handlers decorated with `@Public()` opt out. Public endpoint inventory created at `docs/security/public-endpoints.md`. | Verified via `test/integration/security-remediation.integration-spec.ts` (401 on unauthenticated access across all modules). |
-| **SEC-02** | Unauthenticated Pre-Auth Password Reset | **CRITICAL** | **RESOLVED** | `POST /users/:id/reset-password` guarded by `Administration.Users`. Non-admins prevented from resetting Administrator accounts. All active sessions invalidated upon password reset. Self-service reset strictly requires cryptographic token. | Verified: unauthenticated reset denied (401), non-admin denied (403), active sessions revoked. |
-| **SEC-03** | Reset Token Leak in Audit Logs & Open Audit API | **CRITICAL** | **RESOLVED** | Removed plaintext `resetToken` from audit details; now records only 8-character `tokenFingerprint`. Plaintext tokens hashed with SHA-256 before storage. Guarded `GET /security/audit` with `createPermissionGuard('Administration.Security')`. | Verified: non-auditors denied (403), auditors allowed (200), zero plaintext tokens logged. |
-| **SEC-04** | Unauthenticated Admin Account Creation via Invitations | **CRITICAL** | **RESOLVED** | `POST /auth/invitations` guarded with `createPermissionGuard('Administration.Users')`. Removed error-swallowing. Enforced that non-Administrators cannot invite users with the `'Administrator'` role. Token generated via `crypto.randomBytes(32)`. | Verified: anonymous calls rejected (401), non-admin cannot invite admin (403). |
-| **SEC-05** | Unauthenticated Database Wipe via Organization Reset | **CRITICAL** | **RESOLVED** | `POST /settings/organization/reset` guarded with `createPermissionGuard('Administration.Roles')`. Caller ID derived strictly from `req.user.id`. Removed fallback to `users.limit(1)`. Service verifies caller role is `'Administrator'`. | Verified: anonymous denied (401), non-admin denied (403), auditor denied (403). |
-| **SEC-07** | ML Service Host Port Exposure | **CRITICAL** | **RESOLVED** | Removed host port mapping `"${ML_PORT:-5001}:5001"` in `compose.yml`. ML service is strictly private to the `internal` Docker network; access mediated exclusively by authenticated API proxy. | Verified: port removed from base stack; proxy configuration confirmed. |
-| **SEC-08** | Unauthenticated Import/Export & Identity Spoofing | **HIGH** | **RESOLVED** | Guarded `ImportExportController` endpoints with `Inventory.Read`, `Inventory.Update`, and `Reports.Export`. Removed `@Body('userId')` and `x-user-id` header spoofing; caller identity taken strictly from `req.user.id`. | Verified: anonymous requests rejected (401); caller ID bound to verified session. |
-| **SEC-09** | Bulk Actions Authorization Bypass | **HIGH** | **RESOLVED** | `BulkActionsController` checks entity-level permissions before execution (`Administration.Roles` for roles, `PurchaseOrders.Update` for purchase orders, `Inventory.Delete`/`Update` for components). | Verified: non-admin bulk delete on roles and components rejected (403). |
-| **SEC-11** | System Role Privilege Escalation & Wildcard Permissions | **HIGH** | **RESOLVED** | `RolesController` guarded with `createPermissionGuard('Administration.Roles')`. `RolesService` rejects modifying permissions on system roles (`isSystem: true`) and prevents non-Administrators from granting wildcard (`*`) permissions. | Verified: system role permissions immutable (400), wildcard escalation denied (403). |
-| **SEC-12** | Root Admin Initialization Role Mismatch Bug | **HIGH** | **RESOLVED** | In `onboarding.service.ts`, changed lookup from `'Admin'` to `'Administrator'` and throw error if system role not found, ensuring bootstrap admin has root privileges and wildcard permissions. | Verified: unit tests pass; query resolves canonical system role. |
+| Vulnerability ID | Description                                             |   Severity   |    Status    | Remediated In / Mechanism                                                                                                                                                                                                                            | Verification                                                                                                                 |
+| :--------------- | :------------------------------------------------------ | :----------: | :----------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
+| **SEC-01**       | Global API Fail-Closed Authentication                   | **CRITICAL** | **RESOLVED** | Registered `AuthGuard` via `APP_GUARD` in `AuthModule`. Every endpoint requires authentication by default; only handlers decorated with `@Public()` opt out. Public endpoint inventory created at `docs/security/public-endpoints.md`.               | Verified via `test/integration/security-remediation.integration-spec.ts` (401 on unauthenticated access across all modules). |
+| **SEC-02**       | Unauthenticated Pre-Auth Password Reset                 | **CRITICAL** | **RESOLVED** | `POST /users/:id/reset-password` guarded by `Administration.Users`. Non-admins prevented from resetting Administrator accounts. All active sessions invalidated upon password reset. Self-service reset strictly requires cryptographic token.       | Verified: unauthenticated reset denied (401), non-admin denied (403), active sessions revoked.                               |
+| **SEC-03**       | Reset Token Leak in Audit Logs & Open Audit API         | **CRITICAL** | **RESOLVED** | Removed plaintext `resetToken` from audit details; now records only 8-character `tokenFingerprint`. Plaintext tokens hashed with SHA-256 before storage. Guarded `GET /security/audit` with `createPermissionGuard('Administration.Security')`.      | Verified: non-auditors denied (403), auditors allowed (200), zero plaintext tokens logged.                                   |
+| **SEC-04**       | Unauthenticated Admin Account Creation via Invitations  | **CRITICAL** | **RESOLVED** | `POST /auth/invitations` guarded with `createPermissionGuard('Administration.Users')`. Removed error-swallowing. Enforced that non-Administrators cannot invite users with the `'Administrator'` role. Token generated via `crypto.randomBytes(32)`. | Verified: anonymous calls rejected (401), non-admin cannot invite admin (403).                                               |
+| **SEC-05**       | Unauthenticated Database Wipe via Organization Reset    | **CRITICAL** | **RESOLVED** | `POST /settings/organization/reset` guarded with `createPermissionGuard('Administration.Roles')`. Caller ID derived strictly from `req.user.id`. Removed fallback to `users.limit(1)`. Service verifies caller role is `'Administrator'`.            | Verified: anonymous denied (401), non-admin denied (403), auditor denied (403).                                              |
+| **SEC-07**       | ML Service Host Port Exposure                           | **CRITICAL** | **RESOLVED** | Removed host port mapping `"${ML_PORT:-5001}:5001"` in `compose.yml`. ML service is strictly private to the `internal` Docker network; access mediated exclusively by authenticated API proxy.                                                       | Verified: port removed from base stack; proxy configuration confirmed.                                                       |
+| **SEC-08**       | Unauthenticated Import/Export & Identity Spoofing       |   **HIGH**   | **RESOLVED** | Guarded `ImportExportController` endpoints with `Inventory.Read`, `Inventory.Update`, and `Reports.Export`. Removed `@Body('userId')` and `x-user-id` header spoofing; caller identity taken strictly from `req.user.id`.                            | Verified: anonymous requests rejected (401); caller ID bound to verified session.                                            |
+| **SEC-09**       | Bulk Actions Authorization Bypass                       |   **HIGH**   | **RESOLVED** | `BulkActionsController` checks entity-level permissions before execution (`Administration.Roles` for roles, `PurchaseOrders.Update` for purchase orders, `Inventory.Delete`/`Update` for components).                                                | Verified: non-admin bulk delete on roles and components rejected (403).                                                      |
+| **SEC-11**       | System Role Privilege Escalation & Wildcard Permissions |   **HIGH**   | **RESOLVED** | `RolesController` guarded with `createPermissionGuard('Administration.Roles')`. `RolesService` rejects modifying permissions on system roles (`isSystem: true`) and prevents non-Administrators from granting wildcard (`*`) permissions.            | Verified: system role permissions immutable (400), wildcard escalation denied (403).                                         |
+| **SEC-12**       | Root Admin Initialization Role Mismatch Bug             |   **HIGH**   | **RESOLVED** | In `onboarding.service.ts`, changed lookup from `'Admin'` to `'Administrator'` and throw error if system role not found, ensuring bootstrap admin has root privileges and wildcard permissions.                                                      | Verified: unit tests pass; query resolves canonical system role.                                                             |
 
 ---
 
@@ -730,17 +766,17 @@ Phase 3 remediated all confirmed IDOR, BOLA, identity spoofing, and privilege-bo
 
 ### Remediated Vulnerabilities Summary:
 
-| Vulnerability ID | Description | Severity | Status | Remediated In / Mechanism | Verification |
-| :--- | :--- | :---: | :---: | :--- | :--- |
-| **SEC-13** | Preferences IDOR & Identity Fallback | **CRITICAL** | **RESOLVED** | Removed client-supplied `?userId=` query parameter and eliminated `users.limit(1)` fallback. All operations derive user identity strictly from authenticated `req.user.id`. Strict row-level ownership enforced on deletes. | Verified via `security-remediation.integration-spec.ts` & `preferences.controller.spec.ts`. |
-| **SEC-14** | Notifications Cross-User Read/Update | **HIGH** | **RESOLVED** | Removed client-supplied `?userId=` and `users.limit(1)`. `markAsRead` strictly verifies recipient ownership `where(and(eq(id), eq(userId)))`, throwing 404 on access violation. | Verified via `security-remediation.integration-spec.ts` & `notifications.controller.spec.ts`. |
-| **SEC-15** | Settings Mutations Lack RBAC | **HIGH** | **RESOLVED** | Introduced `Administration.Settings` permission. Protected `PUT /settings/organization`, `PUT /settings/system`, `PUT /settings/numbering`, and `PATCH /settings/feature-flags` with route guards. | Verified via `security-remediation.integration-spec.ts`. |
-| **SEC-16** | Search Privacy Leak / User Enumeration | **MEDIUM** | **RESOLVED** | `SearchService` inspects caller permissions; filters out `AdministrationSearchProvider` for users without administrative credentials, blocking user and role enumeration. | Verified via `security-remediation.integration-spec.ts`. |
-| **SEC-17** | Time Tracking Identity Spoofing & Self-Approval | **HIGH** | **RESOLVED** | Actor identity bound to `req.user.id`. Cross-user logging restricted strictly to authorized managers (`Projects.Manage` / `Administrator`). Approver bound to session; self-approval prohibited. | Verified via `time-entries.controller.spec.ts`. |
-| **SEC-18** | Inventory Ledger Audit Attribution Spoofing | **HIGH** | **RESOLVED** | `CreateInventoryTransactionDto.createdBy` authoritatively bound to `req.user.id` on server; client-supplied value is ignored. Added `Inventory.Update` and `Inventory.Read` guards. | Verified via `inventory-transactions.controller.spec.ts`. |
-| **SEC-19** | Import/Export Privilege Escalation Boundary | **HIGH** | **RESOLVED** | Partitioned import execution by entity (`User` $\to$ `Administration.Users`, `Role` $\to$ `Administration.Roles`, `PO` $\to$ `PurchaseOrders.Update`, `BOM` $\to$ `BOM.Manage`). Fails closed on unknown entities. Export of user records restricted. | Verified via `import-export.controller.spec.ts`. |
-| **SEC-20** | Bulk Actions Fail-Closed Hardening | **HIGH** | **RESOLVED** | Normalized casing and eliminated permissive default. Unrecognized entity types fail closed with 400 Bad Request. | Verified via `bulk-actions.controller.spec.ts` & integration suite. |
-| **SEC-21** | High-Risk Domain Controller RBAC Rollout | **HIGH** | **RESOLVED** | Deployed granular route-level permission guards across `PurchaseOrdersController`, `BomsController`, `WorkOrdersController`, `SuppliersController`, `CategoriesController`, and `LocationsController`. | Verified via test suite compilation and integration tests. |
+| Vulnerability ID | Description                                     |   Severity   |    Status    | Remediated In / Mechanism                                                                                                                                                                                                                             | Verification                                                                                  |
+| :--------------- | :---------------------------------------------- | :----------: | :----------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------- |
+| **SEC-13**       | Preferences IDOR & Identity Fallback            | **CRITICAL** | **RESOLVED** | Removed client-supplied `?userId=` query parameter and eliminated `users.limit(1)` fallback. All operations derive user identity strictly from authenticated `req.user.id`. Strict row-level ownership enforced on deletes.                           | Verified via `security-remediation.integration-spec.ts` & `preferences.controller.spec.ts`.   |
+| **SEC-14**       | Notifications Cross-User Read/Update            |   **HIGH**   | **RESOLVED** | Removed client-supplied `?userId=` and `users.limit(1)`. `markAsRead` strictly verifies recipient ownership `where(and(eq(id), eq(userId)))`, throwing 404 on access violation.                                                                       | Verified via `security-remediation.integration-spec.ts` & `notifications.controller.spec.ts`. |
+| **SEC-15**       | Settings Mutations Lack RBAC                    |   **HIGH**   | **RESOLVED** | Introduced `Administration.Settings` permission. Protected `PUT /settings/organization`, `PUT /settings/system`, `PUT /settings/numbering`, and `PATCH /settings/feature-flags` with route guards.                                                    | Verified via `security-remediation.integration-spec.ts`.                                      |
+| **SEC-16**       | Search Privacy Leak / User Enumeration          |  **MEDIUM**  | **RESOLVED** | `SearchService` inspects caller permissions; filters out `AdministrationSearchProvider` for users without administrative credentials, blocking user and role enumeration.                                                                             | Verified via `security-remediation.integration-spec.ts`.                                      |
+| **SEC-17**       | Time Tracking Identity Spoofing & Self-Approval |   **HIGH**   | **RESOLVED** | Actor identity bound to `req.user.id`. Cross-user logging restricted strictly to authorized managers (`Projects.Manage` / `Administrator`). Approver bound to session; self-approval prohibited.                                                      | Verified via `time-entries.controller.spec.ts`.                                               |
+| **SEC-18**       | Inventory Ledger Audit Attribution Spoofing     |   **HIGH**   | **RESOLVED** | `CreateInventoryTransactionDto.createdBy` authoritatively bound to `req.user.id` on server; client-supplied value is ignored. Added `Inventory.Update` and `Inventory.Read` guards.                                                                   | Verified via `inventory-transactions.controller.spec.ts`.                                     |
+| **SEC-19**       | Import/Export Privilege Escalation Boundary     |   **HIGH**   | **RESOLVED** | Partitioned import execution by entity (`User` $\to$ `Administration.Users`, `Role` $\to$ `Administration.Roles`, `PO` $\to$ `PurchaseOrders.Update`, `BOM` $\to$ `BOM.Manage`). Fails closed on unknown entities. Export of user records restricted. | Verified via `import-export.controller.spec.ts`.                                              |
+| **SEC-20**       | Bulk Actions Fail-Closed Hardening              |   **HIGH**   | **RESOLVED** | Normalized casing and eliminated permissive default. Unrecognized entity types fail closed with 400 Bad Request.                                                                                                                                      | Verified via `bulk-actions.controller.spec.ts` & integration suite.                           |
+| **SEC-21**       | High-Risk Domain Controller RBAC Rollout        |   **HIGH**   | **RESOLVED** | Deployed granular route-level permission guards across `PurchaseOrdersController`, `BomsController`, `WorkOrdersController`, `SuppliersController`, `CategoriesController`, and `LocationsController`.                                                | Verified via test suite compilation and integration tests.                                    |
 
 ---
 
@@ -874,21 +910,21 @@ Phase 5 implemented comprehensive operational security controls, background main
      - Critical: 2
    - **Key Findings & Risk Assessment:**
      - **Critical (2) & High (MCP/Hono):** Located in `apps/web > shadcn > @modelcontextprotocol/sdk > hono` (CVE-2026-39873 / GHSA-4v5x-x89w-g785: SSRF via unparsed URL hostnames, and regex DoS in header parsing).
-       - *Context:* Originates from the Model Context Protocol experimental UI module in `apps/web`. The core ERP API (`apps/api`) does not import or execute Hono or MCP in its production path.
+       - _Context:_ Originates from the Model Context Protocol experimental UI module in `apps/web`. The core ERP API (`apps/api`) does not import or execute Hono or MCP in its production path.
      - **High (Multer DoS):** Located in `@nestjs/platform-express@11.1.28 > multer@2.2.0` (CVE-2026-77037: file descriptor leak on aborted uploads, and CVE-2026-82333: sparse array DoS via crafted bracket notation).
-       - *Context:* Upstream transitive dependency bundled with NestJS Express platform. Document upload routes in Ananya ERP enforce strict authentication and file-size constraints. Upgrading to `@nestjs/platform-express` incorporating `multer@2.3.0` is recommended in the next scheduled framework upgrade cycle.
+       - _Context:_ Upstream transitive dependency bundled with NestJS Express platform. Document upload routes in Ananya ERP enforce strict authentication and file-size constraints. Upgrading to `@nestjs/platform-express` incorporating `multer@2.3.0` is recommended in the next scheduled framework upgrade cycle.
 
 ---
 
 ## 19. Final Verification & Security Regression Baseline
 
-| Verification Suite | Target | Status | Passing Tests / Checks |
-| :--- | :--- | :---: | :---: |
-| **TypeScript Monorepo Typecheck** | All 18 packages/apps | **PASS** | 0 errors (`pnpm -r check-types`) |
-| **API Unit Test Suite** | `apps/api` | **PASS** | **1,134 / 1,134 passed** (64 test suites) |
-| **Authorization Completeness Audit** | `apps/api` | **PASS** | **343 mutations checked: 321 guarded, 5 public, 17 self-service, 0 unguarded** |
-| **Security Remediation Integration Tests** | `apps/api` | **PASS** | **43 / 43 passed** (Sections 1 through 14) |
+| Verification Suite                         | Target               |  Status  |                             Passing Tests / Checks                             |
+| :----------------------------------------- | :------------------- | :------: | :----------------------------------------------------------------------------: |
+| **TypeScript Monorepo Typecheck**          | All 18 packages/apps | **PASS** |                        0 errors (`pnpm -r check-types`)                        |
+| **API Unit Test Suite**                    | `apps/api`           | **PASS** |                   **1,134 / 1,134 passed** (64 test suites)                    |
+| **Authorization Completeness Audit**       | `apps/api`           | **PASS** | **343 mutations checked: 321 guarded, 5 public, 17 self-service, 0 unguarded** |
+| **Security Remediation Integration Tests** | `apps/api`           | **PASS** |                   **43 / 43 passed** (Sections 1 through 14)                   |
 
 ---
-*Report updated autonomously following Phase 4 Cryptographic, Session & Password Hardening and Phase 5 Operational Security Hardening.*
 
+_Report updated autonomously following Phase 4 Cryptographic, Session & Password Hardening and Phase 5 Operational Security Hardening._

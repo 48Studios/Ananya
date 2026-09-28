@@ -1,4 +1,5 @@
 import { test, expect } from "../../fixtures/test.fixture";
+import { e2eAdminCredentials } from "../auth-credentials";
 
 test.describe("Authentication & Security Bounds", () => {
   test("should render login page correctly without any ERP chrome", async ({
@@ -18,7 +19,7 @@ test.describe("Authentication & Security Bounds", () => {
 
   test("should show error on invalid credentials", async ({ loginPage }) => {
     await loginPage.goto();
-    await loginPage.login("invalid@48studios.com", "wrongpassword");
+    await loginPage.login("invalid@example.test", "wrongpassword");
     await loginPage.expectError();
   });
 
@@ -49,8 +50,17 @@ test.describe("Authentication & Security Bounds", () => {
     loginPage,
     page,
   }) => {
+    test.skip(
+      !e2eAdminCredentials,
+      "Set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD to run authenticated login checks.",
+    );
+    if (!e2eAdminCredentials) return;
+
     await loginPage.goto();
-    await loginPage.login("jrsarath@48studios.internal", "Admin123!");
+    await loginPage.login(
+      e2eAdminCredentials.email,
+      e2eAdminCredentials.password,
+    );
     await expect(page).toHaveURL(/\/(dashboard)?/);
 
     // Perform full browser page refresh

@@ -10,7 +10,7 @@
 
 # 1. Purpose
 
-This RFC defines the **Supplier Management** aggregate and domain services in the Procurement Bounded Context of Ananya ERP. Suppliers represent external vendors, component distributors, original equipment manufacturers (OEMs), and fabricators that provide physical components, raw materials, or assembly services to 48 Studios.
+This RFC defines the **Supplier Management** aggregate and domain services in the Procurement Bounded Context of Ananya ERP. Suppliers represent external vendors, component distributors, original equipment manufacturers (OEMs), and fabricators that provide physical components, raw materials, or assembly services to ACME Corporation.
 
 ---
 

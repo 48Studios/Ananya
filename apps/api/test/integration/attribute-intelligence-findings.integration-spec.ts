@@ -33,7 +33,7 @@ import { and, eq, inArray } from '@ananya/database/query';
 describe('Attribute Intelligence findings (persistence + lifecycle)', () => {
   const hasDbUrl = Boolean(process.env.DATABASE_URL);
   const runTag = `af-${Math.random().toString(36).slice(2, 10)}`;
-  const reviewer = { email: `attribute-findings-${runTag}@ananya.local` };
+  const reviewer = { email: `attribute-findings-${runTag}@example.test` };
 
   let app: INestApplicationContext;
   let attributesService: AttributesService;

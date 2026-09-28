@@ -60,7 +60,7 @@ The user's data should always be the primary focus.
 
 # Canonical Status System & Indicators
 
-Every status badge in Ananya ERP must use the shared `<StatusBadge />` primitive ([status-badge.tsx](file:///Users/jrsarath/Documents/GitHub/ananya/apps/web/components/ui/status-badge.tsx)) with standard `w-3 h-3` icons, semantic HSL colors, and font-mono styling:
+Every status badge in Ananya ERP must use the shared `<StatusBadge />` primitive ([status-badge.tsx](apps/web/components/ui/status-badge.tsx)) with standard `w-3 h-3` icons, semantic HSL colors, and font-mono styling:
 
 - **Success (`ACTIVE`, `COMPLETED`, `SUCCESS`, `FULFILLED`, `APPROVED`, `RESOLVED`, `CREDITED`)**: Emerald background (`bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20`), `<CheckCircle2 className="w-3 h-3" />`.
 - **Warning (`PENDING`, `IN_REVIEW`, `ON_HOLD`, `PAUSED`, `OVERDUE`, `SHORTAGE`)**: Amber background (`bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20`), `<Clock className="w-3 h-3" />` / `<Pause className="w-3 h-3" />`.

@@ -38,7 +38,7 @@ export default function OpportunityDetailPage() {
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Account Customer</p>
           <p className="text-sm font-semibold text-foreground">
-            AeroTech Systems
+            ACME Components
           </p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">

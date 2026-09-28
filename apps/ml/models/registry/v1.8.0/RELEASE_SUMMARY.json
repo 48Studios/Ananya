@@ -19,16 +19,16 @@
     "provenance_gate": "PASS (0 unverified records)"
   },
   "model_artifacts": {
-    "pickle_path": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/models/registry/v1.8.0/category_classifier.pkl",
-    "metadata_path": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/models/registry/v1.8.0/metadata.json",
+    "pickle_path": "apps/ml/models/registry/v1.8.0/category_classifier.pkl",
+    "metadata_path": "apps/ml/models/registry/v1.8.0/metadata.json",
     "pickle_size_mb": "determined at runtime",
     "memory_footprint_mb": "316.3 MB at inference time"
   },
   "splits": {
-    "train": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/models/registry/v1.8.0/splits/train.json",
-    "val": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/models/registry/v1.8.0/splits/val.json",
-    "test": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/models/registry/v1.8.0/splits/test.json",
-    "manifest": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/models/registry/v1.8.0/splits/manifest.json"
+    "train": "apps/ml/models/registry/v1.8.0/splits/train.json",
+    "val": "apps/ml/models/registry/v1.8.0/splits/val.json",
+    "test": "apps/ml/models/registry/v1.8.0/splits/test.json",
+    "manifest": "apps/ml/models/registry/v1.8.0/splits/manifest.json"
   },
   "categories": [
     "3D Printing Materials",

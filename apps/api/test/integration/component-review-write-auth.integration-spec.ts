@@ -113,14 +113,14 @@ describe('Component Review Queue — write authorization', () => {
     createdRoleIds.push(readerRole.id, writerRole.id);
 
     const reader = await usersService.create({
-      email: `apply-reader-${runId}@ananya.local`,
+      email: `apply-reader-${runId}@example.test`,
       password: 'ReaderPassw0rd!',
       firstName: 'Apply',
       lastName: 'Reader',
       roleId: readerRole.id,
     });
     const writer = await usersService.create({
-      email: `apply-writer-${runId}@ananya.local`,
+      email: `apply-writer-${runId}@example.test`,
       password: 'WriterPassw0rd!',
       firstName: 'Apply',
       lastName: 'Writer',
@@ -149,7 +149,7 @@ describe('Component Review Queue — write authorization', () => {
     }
 
     // Applied-application audit rows name the fixture user by EMAIL with `user_id`
-    // NULL, so the email is the deterministic handle. `%apply-%@ananya.local` would
+    // NULL, so the email is the deterministic handle. `%apply-%@example.test` would
     // be too broad; the two addresses are the ones this suite actually issues.
     await db
       .delete(securityAuditLogs)
@@ -157,11 +157,11 @@ describe('Component Review Queue — write authorization', () => {
         or(
           ilike(
             securityAuditLogs.userEmail,
-            `apply-reader-${runId}@ananya.local`,
+            `apply-reader-${runId}@example.test`,
           ),
           ilike(
             securityAuditLogs.userEmail,
-            `apply-writer-${runId}@ananya.local`,
+            `apply-writer-${runId}@example.test`,
           ),
         ),
       );

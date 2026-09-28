@@ -122,7 +122,7 @@ export function WarrantyClaimForm({
           <FieldLabel htmlFor="customerName">Customer Name</FieldLabel>
           <Input
             id="customerName"
-            placeholder="e.g. AeroTech Systems"
+            placeholder="e.g. ACME Components"
             {...register("customerName")}
           />
         </Field>

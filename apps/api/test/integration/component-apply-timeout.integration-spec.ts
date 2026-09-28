@@ -32,7 +32,7 @@ import { FixtureOwner } from '../fixtures/fixture-owner';
  */
 describe('Component apply — bounded transaction', () => {
   const hasDbUrl = Boolean(process.env.DATABASE_URL);
-  const reviewer = { email: 'component-timeout@ananya.local' };
+  const reviewer = { email: 'component-timeout@example.test' };
 
   let app: INestApplicationContext;
   let componentsService: ComponentsService;

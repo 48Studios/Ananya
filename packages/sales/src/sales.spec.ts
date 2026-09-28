@@ -11,7 +11,7 @@ describe("Sales Bounded Context Aggregates", () => {
       const customer = Customer.create({
         customerNumber: "CUST-2026-0001",
         name: "Acme Electronics Ltd",
-        email: "billing@acme.com",
+        email: "billing@example.test",
       });
       expect(customer.customerNumber).toBe("CUST-2026-0001");
       expect(customer.status).toBe("DRAFT");
@@ -21,26 +21,26 @@ describe("Sales Bounded Context Aggregates", () => {
     it("should add contacts and addresses", () => {
       const customer = Customer.create({
         customerNumber: "CUST-2026-0002",
-        name: "Stark Industries",
-        email: "pepper@stark.com",
+        name: "ACME Manufacturing",
+        email: "billing@example.test",
       });
       customer.addContact({
-        name: "Pepper Potts",
-        email: "pepper@stark.com",
+        name: "Alex Morgan",
+        email: "billing@example.test",
         isPrimary: true,
       });
       customer.addAddress({
         addressType: "BILLING",
-        street1: "10880 Wilshire Blvd",
-        city: "Los Angeles",
-        postalCode: "90024",
+        street1: "123 Example Street",
+        city: "Example City",
+        postalCode: "00000",
         country: "US",
       });
 
       expect(customer.contacts).toHaveLength(1);
-      expect(customer.contacts[0]!.name).toBe("Pepper Potts");
+      expect(customer.contacts[0]!.name).toBe("Alex Morgan");
       expect(customer.addresses).toHaveLength(1);
-      expect(customer.addresses[0]!.city).toBe("Los Angeles");
+      expect(customer.addresses[0]!.city).toBe("Example City");
     });
   });
 

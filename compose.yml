@@ -23,7 +23,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ananya}
       POSTGRES_USER: ${POSTGRES_USER:-ananya}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ananya_secure_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - ananya_db:/var/lib/postgresql/data
     networks:
@@ -46,9 +46,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@db:5432/${POSTGRES_DB:-ananya}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-ananya}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      JWT_SECRET: ${JWT_SECRET:-ananya_jwt_production_secret_change_me}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       ML_SERVICE_URL: ${ML_SERVICE_URL:-http://ml:5001}
       ML_SERVICE_ENABLED: ${ML_SERVICE_ENABLED:-true}
     volumes:
@@ -77,7 +77,7 @@ services:
     command: ["node", "packages/database/dist/setup/migrate.js"]
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@db:5432/${POSTGRES_DB:-ananya}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-ananya}
     networks:
       - internal
     depends_on:
@@ -95,7 +95,7 @@ services:
     environment:
       NODE_ENV: production
       WORKER_PORT: 4001
-      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:-ananya_secure_password}@db:5432/${POSTGRES_DB:-ananya}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ananya}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-ananya}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
     volumes:
       - ananya_app:/app/uploads
@@ -181,8 +181,8 @@ services:
       - admin
       - all
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@ananya.internal}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin_password}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?Set PGADMIN_DEFAULT_PASSWORD in .env}
     ports:
       - "${PGADMIN_PORT:-5050}:80"
     volumes:

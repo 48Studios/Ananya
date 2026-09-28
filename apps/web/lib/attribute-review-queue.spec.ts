@@ -123,7 +123,7 @@ const counts = (
 });
 
 describe("Attribute review queue — taxonomy mapping", () => {
-  it('maps each persisted issue type onto an existing tab', () => {
+  it("maps each persisted issue type onto an existing tab", () => {
     expect(
       findingMatchesTab({ issueType: "POSSIBLE_DUPLICATE" }, "DUPLICATES"),
     ).toBe(true);
@@ -131,7 +131,10 @@ describe("Attribute review queue — taxonomy mapping", () => {
       findingMatchesTab({ issueType: "DUPLICATE_ATTRIBUTE" }, "DUPLICATES"),
     ).toBe(true);
     expect(
-      findingMatchesTab({ issueType: "MISSING_EXPECTED_ATTRIBUTE" }, "BINDINGS"),
+      findingMatchesTab(
+        { issueType: "MISSING_EXPECTED_ATTRIBUTE" },
+        "BINDINGS",
+      ),
     ).toBe(true);
     expect(
       findingMatchesTab({ issueType: "SUGGESTED_BINDING" }, "BINDINGS"),
@@ -142,17 +145,17 @@ describe("Attribute review queue — taxonomy mapping", () => {
     expect(findingMatchesTab({ issueType: "UNUSED_ATTRIBUTE" }, "UNUSED")).toBe(
       true,
     );
-    expect(findingMatchesTab({ issueType: "SUGGESTED_ENUM_VALUE" }, "ENUMS")).toBe(
-      true,
-    );
+    expect(
+      findingMatchesTab({ issueType: "SUGGESTED_ENUM_VALUE" }, "ENUMS"),
+    ).toBe(true);
   });
 
-  it('places every taxonomy type in exactly one tab', () => {
+  it("places every taxonomy type in exactly one tab", () => {
     const allTypes = Object.values(ATTRIBUTE_ISSUE_TYPES_BY_TAB).flat();
     expect(new Set(allTypes).size).toBe(allTypes.length);
   });
 
-  it('treats ALL as unfiltered and rejects cross-tab membership', () => {
+  it("treats ALL as unfiltered and rejects cross-tab membership", () => {
     expect(findingMatchesTab({ issueType: "UNUSED_ATTRIBUTE" }, "ALL")).toBe(
       true,
     );
@@ -164,7 +167,7 @@ describe("Attribute review queue — taxonomy mapping", () => {
     ).toBe(false);
   });
 
-  it('builds a comma-separated server filter per tab and none for ALL', () => {
+  it("builds a comma-separated server filter per tab and none for ALL", () => {
     expect(tabIssueTypeFilter("ALL")).toBeUndefined();
     expect(tabIssueTypeFilter("BINDINGS")).toBe(
       "MISSING_EXPECTED_ATTRIBUTE,SUGGESTED_BINDING",
@@ -172,7 +175,7 @@ describe("Attribute review queue — taxonomy mapping", () => {
     expect(tabIssueTypeFilter("UNUSED")).toBe("UNUSED_ATTRIBUTE");
   });
 
-  it('exposes the queue tabs in the order the UI renders them', () => {
+  it("exposes the queue tabs in the order the UI renders them", () => {
     expect(ATTRIBUTE_QUEUE_TABS.map((tab) => tab.id)).toEqual([
       "ALL",
       "BINDINGS",
@@ -185,7 +188,7 @@ describe("Attribute review queue — taxonomy mapping", () => {
 });
 
 describe("Attribute review queue — counts", () => {
-  it('derives every tab count from persisted grouped counts', () => {
+  it("derives every tab count from persisted grouped counts", () => {
     const tabCounts = buildAttributeTabCounts(
       counts({
         total: 9,
@@ -208,14 +211,14 @@ describe("Attribute review queue — counts", () => {
     expect(tabCounts.ENUMS).toBe(0);
   });
 
-  it('reports zeroes when counts are unavailable rather than NaN', () => {
+  it("reports zeroes when counts are unavailable rather than NaN", () => {
     const tabCounts = buildAttributeTabCounts(null);
     expect(Object.values(tabCounts).every((value) => value === 0)).toBe(true);
   });
 });
 
 describe("Attribute review queue — lifecycle presentation", () => {
-  it('labels and badges every lifecycle status', () => {
+  it("labels and badges every lifecycle status", () => {
     for (const status of [
       "PENDING",
       "ACCEPTED",
@@ -225,29 +228,35 @@ describe("Attribute review queue — lifecycle presentation", () => {
     ] as const) {
       expect(ATTRIBUTE_STATUS_LABELS[status]).toBeTruthy();
       expect(ATTRIBUTE_STATUS_BADGES[status]).toBeTruthy();
-      expect(attributeStatusLabel(status)).toBe(ATTRIBUTE_STATUS_LABELS[status]);
-      expect(attributeStatusBadge(status)).toBe(ATTRIBUTE_STATUS_BADGES[status]);
+      expect(attributeStatusLabel(status)).toBe(
+        ATTRIBUTE_STATUS_LABELS[status],
+      );
+      expect(attributeStatusBadge(status)).toBe(
+        ATTRIBUTE_STATUS_BADGES[status],
+      );
     }
   });
 
-  it('falls back to the raw value for an unknown status', () => {
+  it("falls back to the raw value for an unknown status", () => {
     expect(attributeStatusLabel("SOMETHING_NEW")).toBe("SOMETHING_NEW");
     expect(attributeStatusBadge("SOMETHING_NEW")).toBe("DRAFT");
   });
 
-  it('maps confidence levels onto badge tones', () => {
+  it("maps confidence levels onto badge tones", () => {
     expect(confidenceBadgeStatus("HIGH")).toBe("SUCCESS");
     expect(confidenceBadgeStatus("MEDIUM")).toBe("IN_REVIEW");
     expect(confidenceBadgeStatus("LOW")).toBe("DRAFT");
     expect(confidenceBadgeStatus(null)).toBe("DRAFT");
   });
 
-  it('labels persisted issue types, falling back to the raw value', () => {
-    expect(attributeIssueTypeLabel("UNUSED_ATTRIBUTE")).toBe("Unused attribute");
+  it("labels persisted issue types, falling back to the raw value", () => {
+    expect(attributeIssueTypeLabel("UNUSED_ATTRIBUTE")).toBe(
+      "Unused attribute",
+    );
     expect(attributeIssueTypeLabel("NOT_A_TYPE")).toBe("NOT_A_TYPE");
   });
 
-  it('mirrors the backend decision transitions', () => {
+  it("mirrors the backend decision transitions", () => {
     // ACCEPTED is impossible from STALE: the backend refuses it, so the UI must
     // not offer it.
     expect(canDecideAttributeFinding({ status: "PENDING" }, "ACCEPTED")).toBe(
@@ -277,12 +286,12 @@ describe("Attribute review queue — lifecycle presentation", () => {
 });
 
 describe("Attribute review queue — permissions", () => {
-  it('uses the existing inventory vocabulary', () => {
+  it("uses the existing inventory vocabulary", () => {
     expect(ATTRIBUTE_WRITE_PERMISSION).toBe("Inventory.Update");
     expect(ATTRIBUTE_READ_PERMISSION).toBe("Inventory.Read");
   });
 
-  it('grants decide, audit and apply together, and marks read-only otherwise', () => {
+  it("grants decide, audit and apply together, and marks read-only otherwise", () => {
     const writer = deriveAttributeReviewPermissions(true);
     expect(writer.canDecide).toBe(true);
     expect(writer.canAudit).toBe(true);
@@ -296,7 +305,7 @@ describe("Attribute review queue — permissions", () => {
     expect(reader.isReadOnly).toBe(true);
   });
 
-  it('derives apply from the same write permission as every other mutation', () => {
+  it("derives apply from the same write permission as every other mutation", () => {
     // Applying changes the attribute library, so it may not be granted by any
     // other condition. The capability list is pinned so a future permission
     // cannot be added without deciding whether it mutates.
@@ -310,7 +319,7 @@ describe("Attribute review queue — permissions", () => {
     expect(deriveAttributeReviewPermissions(false).canApply).toBe(false);
   });
 
-  it('explains read-only and audit unavailability, naming the permission', () => {
+  it("explains read-only and audit unavailability, naming the permission", () => {
     expect(attributeReviewReadOnlyNotice()).toContain("Inventory.Update");
     expect(attributeAuditUnavailableReason(false)).toContain(
       "Inventory.Update",
@@ -318,7 +327,7 @@ describe("Attribute review queue — permissions", () => {
     expect(attributeAuditUnavailableReason(true)).toBeNull();
   });
 
-  it('states explicitly that accepting does not change the library', () => {
+  it("states explicitly that accepting does not change the library", () => {
     const notice = attributeAcceptNotice();
     expect(notice).toMatch(/no binding|nothing/i);
     expect(notice.toLowerCase()).toContain("no binding");
@@ -336,13 +345,13 @@ describe("Attribute review queue — permissions", () => {
 });
 
 describe("Attribute review queue — conflict messaging", () => {
-  it('passes the backend message through on 409', () => {
+  it("passes the backend message through on 409", () => {
     expect(
       attributeDecisionConflictMessage(409, "This finding is stale."),
     ).toBe("This finding is stale.");
   });
 
-  it('explains 403 and 404 in the queue’s own terms', () => {
+  it("explains 403 and 404 in the queue’s own terms", () => {
     expect(attributeDecisionConflictMessage(403, "")).toContain(
       "Inventory.Update",
     );
@@ -352,14 +361,14 @@ describe("Attribute review queue — conflict messaging", () => {
     expect(attributeDecisionConflictMessage(500, "boom")).toBeNull();
   });
 
-  it('explains an in-flight audit conflict', () => {
+  it("explains an in-flight audit conflict", () => {
     expect(attributeAuditConflictMessage(409)).toMatch(/already running/i);
     expect(attributeAuditConflictMessage(500)).toBeNull();
   });
 });
 
 describe("Attribute review queue — audit summary", () => {
-  it('reports the counts the backend returned, including warnings', () => {
+  it("reports the counts the backend returned, including warnings", () => {
     const summary = summarizeAttributeAudit({
       persistedCount: 5,
       createdCount: 3,
@@ -378,7 +387,7 @@ describe("Attribute review queue — audit summary", () => {
     expect(summary).toContain("Deterministic audit");
   });
 
-  it('names the model-backed producer when it answered', () => {
+  it("names the model-backed producer when it answered", () => {
     expect(
       summarizeAttributeAudit({
         persistedCount: 1,
@@ -392,7 +401,7 @@ describe("Attribute review queue — audit summary", () => {
     ).toContain("Model-backed audit");
   });
 
-  it('omits zero-valued clauses instead of padding the sentence', () => {
+  it("omits zero-valued clauses instead of padding the sentence", () => {
     const summary = summarizeAttributeAudit({
       persistedCount: 1,
       createdCount: 1,
@@ -409,7 +418,7 @@ describe("Attribute review queue — audit summary", () => {
 });
 
 describe("Attribute review queue — subject presentation", () => {
-  it('reports the producer’s own type name when the finding records one', () => {
+  it("reports the producer’s own type name when the finding records one", () => {
     expect(
       producerIssueTypeLabel(
         finding({ metadata: { producerIssueType: "DUPLICATE_ATTRIBUTE" } }),
@@ -427,25 +436,27 @@ describe("Attribute review queue — subject presentation", () => {
     ).toBe("DUPLICATE_ATTRIBUTE");
   });
 
-  it('falls back to the persisted type when no producer name exists', () => {
+  it("falls back to the persisted type when no producer name exists", () => {
     expect(producerIssueTypeLabel(finding({ metadata: {} }))).toBe(
       "UNUSED_ATTRIBUTE",
     );
   });
 
-  it('reads the declared canonical code from the suggestion or metadata', () => {
+  it("reads the declared canonical code from the suggestion or metadata", () => {
     expect(
       suggestedCanonicalCode(
         finding({ suggestedValue: { canonicalCode: "voltage_rating" } }),
       ),
     ).toBe("voltage_rating");
     expect(
-      suggestedCanonicalCode(finding({ metadata: { attributeCode: "dielectric" } })),
+      suggestedCanonicalCode(
+        finding({ metadata: { attributeCode: "dielectric" } }),
+      ),
     ).toBe("dielectric");
     expect(suggestedCanonicalCode(finding())).toBeNull();
   });
 
-  it('detects a category-first expectation with no definition to point at', () => {
+  it("detects a category-first expectation with no definition to point at", () => {
     expect(
       isExpectationForUndefinedAttribute(
         finding({
@@ -470,7 +481,7 @@ describe("Attribute review queue — subject presentation", () => {
     ).toBe(false);
   });
 
-  it('reads producer usage observations defensively', () => {
+  it("reads producer usage observations defensively", () => {
     expect(
       producerUsageEvidence(
         finding({
@@ -491,19 +502,21 @@ describe("Attribute review queue — subject presentation", () => {
     // A non-numeric observation is reported as absent rather than rendered raw.
     expect(
       producerUsageEvidence(
-        finding({ metadata: { producerObservations: { componentValueCount: "x" } } }),
+        finding({
+          metadata: { producerObservations: { componentValueCount: "x" } },
+        }),
       ),
     ).toEqual({ componentValueCount: null, bindingCount: null });
   });
 
-  it('headlines a finding with its title, then description, then type', () => {
+  it("headlines a finding with its title, then description, then type", () => {
     expect(findingHeadline(finding({ title: "Custom" }))).toBe("Custom");
-    expect(findingHeadline(finding({ title: "", description: "Fallback" }))).toBe(
-      "Fallback",
-    );
     expect(
-      findingHeadline(finding({ title: "", description: "" })),
-    ).toBe("Unused attribute");
+      findingHeadline(finding({ title: "", description: "Fallback" })),
+    ).toBe("Fallback");
+    expect(findingHeadline(finding({ title: "", description: "" }))).toBe(
+      "Unused attribute",
+    );
   });
 });
 
@@ -524,7 +537,7 @@ describe("Attribute review queue — subject labels", () => {
     ...overrides,
   });
 
-  it('names the attribute and the category instead of showing their ids', () => {
+  it("names the attribute and the category instead of showing their ids", () => {
     // The persisted expected-state snapshot carries both names, so the row never
     // needs a second request — nor a uuid.
     const labels = findingSubjectLabels(
@@ -546,7 +559,7 @@ describe("Attribute review queue — subject labels", () => {
     expect(labels.category).not.toBe(CATEGORY_ID);
   });
 
-  it('names an unused attribute from its own snapshot', () => {
+  it("names an unused attribute from its own snapshot", () => {
     const labels = findingSubjectLabels(
       finding({
         issueType: "UNUSED_ATTRIBUTE",
@@ -561,7 +574,7 @@ describe("Attribute review queue — subject labels", () => {
     expect(labels.relatedAttribute).toBeNull();
   });
 
-  it('names the expected attribute of a category-first expectation', () => {
+  it("names the expected attribute of a category-first expectation", () => {
     // No definition exists yet, so there is no attribute row to name: the
     // producer's proposed name is the only human-readable identity available.
     const labels = findingSubjectLabels(
@@ -582,7 +595,7 @@ describe("Attribute review queue — subject labels", () => {
     expect(labels.category).toBe("Capacitors");
   });
 
-  it('names a resolved expectation from the definition it resolved to', () => {
+  it("names a resolved expectation from the definition it resolved to", () => {
     const labels = findingSubjectLabels(
       finding({
         issueType: "MISSING_EXPECTED_ATTRIBUTE",
@@ -601,7 +614,7 @@ describe("Attribute review queue — subject labels", () => {
     expect(labels.category).toBe("Capacitors");
   });
 
-  it('separates the two sides of a duplicate pair by id', () => {
+  it("separates the two sides of a duplicate pair by id", () => {
     // The pair is canonicalized, so position is not the finding's own subject: the
     // side carrying the finding's id is the attribute, the other is the match.
     const labels = findingSubjectLabels(
@@ -611,7 +624,11 @@ describe("Attribute review queue — subject labels", () => {
         relatedAttributeDefinitionId: "other-id",
         currentValue: {
           attributeA: attributeSnapshot(),
-          attributeB: { id: "other-id", code: "resistivity", name: "Resistivity" },
+          attributeB: {
+            id: "other-id",
+            code: "resistivity",
+            name: "Resistivity",
+          },
           rule: "LEXICAL_SIMILARITY",
         },
       }),
@@ -621,7 +638,7 @@ describe("Attribute review queue — subject labels", () => {
     expect(labels.relatedAttribute).toBe("Resistivity");
   });
 
-  it('reads the pair by id even when the order is reversed', () => {
+  it("reads the pair by id even when the order is reversed", () => {
     const labels = findingSubjectLabels(
       finding({
         issueType: "POSSIBLE_DUPLICATE",
@@ -629,7 +646,11 @@ describe("Attribute review queue — subject labels", () => {
         relatedAttributeDefinitionId: ATTRIBUTE_ID,
         currentValue: {
           attributeA: attributeSnapshot(),
-          attributeB: { id: "other-id", code: "resistivity", name: "Resistivity" },
+          attributeB: {
+            id: "other-id",
+            code: "resistivity",
+            name: "Resistivity",
+          },
         },
       }),
     );
@@ -638,7 +659,7 @@ describe("Attribute review queue — subject labels", () => {
     expect(labels.relatedAttribute).toBe("Resistance");
   });
 
-  it('falls back to the code, then to the id, rather than rendering nothing', () => {
+  it("falls back to the code, then to the id, rather than rendering nothing", () => {
     const byCode = findingSubjectLabels(
       finding({
         issueType: "UNUSED_ATTRIBUTE",
@@ -659,7 +680,7 @@ describe("Attribute review queue — subject labels", () => {
     expect(byId.attribute).toBe(ATTRIBUTE_ID);
   });
 
-  it('reads the snapshot from metadata.expectedState when currentValue is absent', () => {
+  it("reads the snapshot from metadata.expectedState when currentValue is absent", () => {
     // The two hold the same object by construction and the API's staleness check
     // falls back from one to the other, so a reader does too.
     const labels = findingSubjectLabels(
@@ -668,7 +689,9 @@ describe("Attribute review queue — subject labels", () => {
         attributeDefinitionId: ATTRIBUTE_ID,
         currentValue: null,
         metadata: {
-          expectedState: { attribute: attributeSnapshot({ name: "Voltage Rating" }) },
+          expectedState: {
+            attribute: attributeSnapshot({ name: "Voltage Rating" }),
+          },
         },
       }),
     );
@@ -676,7 +699,7 @@ describe("Attribute review queue — subject labels", () => {
     expect(labels.attribute).toBe("Voltage Rating");
   });
 
-  it('reports an empty subject for a finding that names nothing', () => {
+  it("reports an empty subject for a finding that names nothing", () => {
     const labels = findingSubjectLabels(
       finding({
         attributeDefinitionId: null,
@@ -696,7 +719,7 @@ describe("Attribute review queue — subject labels", () => {
 });
 
 describe("Attribute review queue — decision payload", () => {
-  it('sends only lifecycle fields, so no mutation can be expressed', () => {
+  it("sends only lifecycle fields, so no mutation can be expressed", () => {
     const payload = buildAttributeDecisionPayload(
       finding(),
       "ACCEPTED",
@@ -721,8 +744,12 @@ describe("Attribute review queue — decision payload", () => {
     }
   });
 
-  it('omits blank notes and carries the fingerprint for revision proof', () => {
-    const payload = buildAttributeDecisionPayload(finding(), "DISMISSED", "   ");
+  it("omits blank notes and carries the fingerprint for revision proof", () => {
+    const payload = buildAttributeDecisionPayload(
+      finding(),
+      "DISMISSED",
+      "   ",
+    );
     expect(payload.decisionNotes).toBeUndefined();
     expect(payload.expectedFingerprint).toHaveLength(64);
   });
@@ -734,15 +761,17 @@ describe("Attribute review queue API client", () => {
     "utf8",
   );
 
-  it('targets the persisted review-queue routes', () => {
+  it("targets the persisted review-queue routes", () => {
     expect(source).toContain('"/ml/attributes/review-queue"');
-    expect(source).toContain("`${BASE_PATH}/${encodeURIComponent(id)}/decision`");
+    expect(source).toContain(
+      "`${BASE_PATH}/${encodeURIComponent(id)}/decision`",
+    );
     expect(source).toContain("`${BASE_PATH}/audit`");
     expect(source).toContain("`${BASE_PATH}/mark-stale`");
     expect(source).toContain("`${BASE_PATH}/${encodeURIComponent(id)}/apply`");
   });
 
-  it('exposes exactly one mutation, and only the review-queue apply route', () => {
+  it("exposes exactly one mutation, and only the review-queue apply route", () => {
     // Applying a finding is the queue's only write beyond the lifecycle decision.
     // It may not grow into a general attribute-library client: the legacy
     // bulk-apply endpoint must never be reachable from here.
@@ -754,7 +783,7 @@ describe("Attribute review queue API client", () => {
     expect(source).not.toContain("unbindCategory");
   });
 
-  it('bounds an explicitly requested page size, and omits it otherwise', () => {
+  it("bounds an explicitly requested page size, and omits it otherwise", () => {
     // Omitting `pageSize` is what makes the listing return the whole filtered
     // list; the ceiling only applies to a caller that asks for a page.
     expect(source).toContain("MAX_ATTRIBUTE_QUEUE_PAGE_SIZE");
@@ -766,11 +795,17 @@ describe("Attribute review queue API client", () => {
 
 describe("Attribute review queue dialog — data source", () => {
   const dialog = readFileSync(
-    join(__dirname, "..", "components", "attributes", "attribute-review-queue-dialog.tsx"),
+    join(
+      __dirname,
+      "..",
+      "components",
+      "attributes",
+      "attribute-review-queue-dialog.tsx",
+    ),
     "utf8",
   );
 
-  it('reads the persisted queue and never the legacy recomputing endpoint', () => {
+  it("reads the persisted queue and never the legacy recomputing endpoint", () => {
     expect(dialog).toContain("attributeReviewQueueApi.listFindings");
     expect(dialog).toContain("attributeReviewQueueApi.recordDecision");
     expect(dialog).toContain("attributeReviewQueueApi.runAudit");
@@ -785,7 +820,7 @@ describe("Attribute review queue dialog — data source", () => {
     expect(dialog).not.toContain("recordFeedback");
   });
 
-  it('uses stable persisted finding ids as React keys and decision targets', () => {
+  it("uses stable persisted finding ids as React keys and decision targets", () => {
     expect(dialog).toContain("key={finding.id}");
     // Every decision is recorded against the persisted finding id.
     expect(dialog).toContain('recordDecision(finding, "ACCEPTED")');
@@ -796,7 +831,7 @@ describe("Attribute review queue dialog — data source", () => {
     expect(dialog).not.toContain('"audit-1"');
   });
 
-  it('loads the queue without running the producer on ordinary open', () => {
+  it("loads the queue without running the producer on ordinary open", () => {
     // The open effect calls only the read path; the audit is behind its own handler.
     const openEffect = dialog.slice(
       dialog.indexOf("if (isOpen) {"),
@@ -806,7 +841,7 @@ describe("Attribute review queue dialog — data source", () => {
     expect(openEffect).not.toContain("runAudit");
   });
 
-  it('applies filters and the sort server-side, and asks for the whole list', () => {
+  it("applies filters and the sort server-side, and asks for the whole list", () => {
     expect(dialog).toContain('sortBy: "createdAt"');
     expect(dialog).toContain("tabIssueTypeFilter(tab)");
     expect(dialog).toContain("confidenceLevel:");
@@ -819,16 +854,18 @@ describe("Attribute review queue dialog — data source", () => {
     expect(dialog).not.toContain("pageSize:");
   });
 
-  it('renders server-provided counts rather than counting loaded rows', () => {
+  it("renders server-provided counts rather than counting loaded rows", () => {
     expect(dialog).toContain("buildAttributeTabCounts(page?.counts ?? null)");
     expect(dialog).not.toMatch(/items\.filter\(.*\)\.length/);
   });
 
-  it('identifies each finding by name, never by uuid', () => {
+  it("identifies each finding by name, never by uuid", () => {
     // The card's subject row names the attribute and the category. Rendering the raw
     // ids — `{attributeSubjectId ?? "—"}` or `{finding.categoryId}` — would tell the
     // reviewer nothing, and the names are already persisted with the finding.
-    expect(dialog).toContain("const subjectLabels = findingSubjectLabels(finding)");
+    expect(dialog).toContain(
+      "const subjectLabels = findingSubjectLabels(finding)",
+    );
     expect(dialog).toContain("subjectLabels.attribute");
     expect(dialog).toContain("subjectLabels.category");
     expect(dialog).toContain("subjectLabels.relatedAttribute");
@@ -837,7 +874,7 @@ describe("Attribute review queue dialog — data source", () => {
     expect(dialog).not.toMatch(/\{finding\.relatedAttributeDefinitionId\}/);
   });
 
-  it('offers all three decisions and an action-specific apply control', () => {
+  it("offers all three decisions and an action-specific apply control", () => {
     expect(dialog).toContain('"ACCEPTED"');
     expect(dialog).toContain('"REJECTED"');
     expect(dialog).toContain('"DISMISSED"');
@@ -846,10 +883,12 @@ describe("Attribute review queue dialog — data source", () => {
     // button would not tell the reviewer what it does, so it must not appear.
     expect(dialog).not.toMatch(/>\s*Apply\s*</);
     expect(dialog).toContain("attributeApplyLabel(applyAction)");
-    expect(dialog).toContain("canApplyAttributeFinding(finding, permissions.canApply)");
+    expect(dialog).toContain(
+      "canApplyAttributeFinding(finding, permissions.canApply)",
+    );
   });
 
-  it('gates every write control on the write permission', () => {
+  it("gates every write control on the write permission", () => {
     expect(dialog).toContain("deriveAttributeReviewPermissions");
     expect(dialog).toContain("permissions.canAudit");
     expect(dialog).toContain("permissions.canDecide");
@@ -858,7 +897,7 @@ describe("Attribute review queue dialog — data source", () => {
     expect(dialog).toContain("attributeReviewReadOnlyNotice()");
   });
 
-  it('conveys that a decision does not change attribute data', () => {
+  it("conveys that a decision does not change attribute data", () => {
     // The dialog states it in the body copy and in the audit action's tooltip, and
     // the acceptance copy says it too — the three places a reviewer looks.
     expect(dialog).toContain("Decisions record a review outcome only");
@@ -870,27 +909,29 @@ describe("Attribute review queue dialog — data source", () => {
     expect(dialog).toContain("Accept &amp; Apply does both");
   });
 
-  it('preserves the existing dialog structure and tabs', () => {
+  it("preserves the existing dialog structure and tabs", () => {
     expect(dialog).toContain("DialogShell");
     expect(dialog).toContain("ATTRIBUTE_QUEUE_TABS");
     expect(dialog).toContain("Reasoning Evidence");
     expect(dialog).toContain("Run Library Audit");
   });
 
-  it('refreshes in place without a page reload', () => {
+  it("refreshes in place without a page reload", () => {
     expect(dialog).not.toContain("window.location");
     expect(dialog).not.toContain("location.reload");
     expect(dialog).not.toContain("setInterval");
   });
 
-  it('renders the creation action through the same apply control', () => {
+  it("renders the creation action through the same apply control", () => {
     // Pass 7 did not add a second control: the creation action flows through the
     // existing action-specific apply button, which is what keeps creation gated by
     // `canApplyAttributeFinding` and confirmed by `attributeApplyConfirmation`
     // exactly like the binding actions.
     expect(dialog).toContain("attributeApplyLabel(applyAction)");
     expect(dialog).toContain("attributeApplyActionTitle(applyAction)");
-    expect(dialog).toContain("canApplyAttributeFinding(finding, permissions.canApply)");
+    expect(dialog).toContain(
+      "canApplyAttributeFinding(finding, permissions.canApply)",
+    );
     expect(dialog).toContain("attributeApplyConfirmation(");
 
     // The button's icon is action-specific, so a creation cannot be drawn with the
@@ -908,11 +949,17 @@ describe("Attribute review queue dialog — data source", () => {
 
 describe("Attribute categories dialog — guarded apply", () => {
   const dialog = readFileSync(
-    join(__dirname, "..", "components", "attributes", "attribute-categories-dialog.tsx"),
+    join(
+      __dirname,
+      "..",
+      "components",
+      "attributes",
+      "attribute-categories-dialog.tsx",
+    ),
     "utf8",
   );
 
-  it('hides the AI-suggestion apply actions from read-only users', () => {
+  it("hides the AI-suggestion apply actions from read-only users", () => {
     // The endpoint behind those actions (`/ml/attributes/apply-bindings`) is now
     // guarded, so the UI must not offer a control the API would refuse.
     expect(dialog).toContain("hasPermission(ATTRIBUTE_WRITE_PERMISSION)");
@@ -925,9 +972,7 @@ describe("Attribute categories dialog — guarded apply", () => {
     );
     expect(bulkGuardIndex).toBeGreaterThan(-1);
     expect(
-      lines
-        .slice(bulkGuardIndex, bulkGuardIndex + 20)
-        .join("\n"),
+      lines.slice(bulkGuardIndex, bulkGuardIndex + 20).join("\n"),
     ).toContain("onClick={handleAcceptAllHighConfidence}");
 
     // The per-suggestion action shares the same gate.
@@ -940,7 +985,9 @@ describe("Attribute categories dialog — guarded apply", () => {
     ).toContain("onClick={() => handleAcceptAiSuggestion(sug)}");
 
     // Both explain why they are unavailable.
-    expect(dialog).toContain("requires the ${ATTRIBUTE_WRITE_PERMISSION} permission");
+    expect(dialog).toContain(
+      "requires the ${ATTRIBUTE_WRITE_PERMISSION} permission",
+    );
   });
 });
 
@@ -970,7 +1017,12 @@ describe("Attribute review queue — apply eligibility", () => {
       status: "ACCEPTED",
       title: 'Expect "Termination Style" for "Resistors"',
       currentValue: {
-        category: { id: "cat-1", code: "RESISTORS", name: "Resistors", isActive: true },
+        category: {
+          id: "cat-1",
+          code: "RESISTORS",
+          name: "Resistors",
+          isActive: true,
+        },
         expectedAttributeCode: "termination",
         expectedAttributeName: "Termination Style",
         existingAttribute: null,
@@ -991,7 +1043,7 @@ describe("Attribute review queue — apply eligibility", () => {
       ...overrides,
     });
 
-  it('maps only the two binding families onto an action', () => {
+  it("maps only the two binding families onto an action", () => {
     expect(attributeApplyAction(bindable())).toBe("ADD_BINDING");
     expect(
       attributeApplyAction(
@@ -1013,7 +1065,7 @@ describe("Attribute review queue — apply eligibility", () => {
     }
   });
 
-  it('offers Create Attribute only for an expectation with no definition', () => {
+  it("offers Create Attribute only for an expectation with no definition", () => {
     expect(attributeApplyAction(creatable())).toBe("CREATE_DEFINITION");
 
     // The same family with a resolved definition stays a binding.
@@ -1040,14 +1092,14 @@ describe("Attribute review queue — apply eligibility", () => {
         creatable({ suggestedValue: { canonicalCode: "termination" } }),
       ),
     ).toBeNull();
-    expect(attributeApplyAction(creatable({ suggestedValue: null }))).toBeNull();
+    expect(
+      attributeApplyAction(creatable({ suggestedValue: null })),
+    ).toBeNull();
   });
 
-  it('labels creation as creating, never as a generic apply', () => {
+  it("labels creation as creating, never as a generic apply", () => {
     expect(attributeApplyLabel("CREATE_DEFINITION")).toBe("Create Attribute");
-    expect(
-      canApplyAttributeFinding(creatable(), true),
-    ).toBe(true);
+    expect(canApplyAttributeFinding(creatable(), true)).toBe(true);
     // Read-only users can inspect the finding but cannot create.
     expect(canApplyAttributeFinding(creatable(), false)).toBe(false);
     expect(attributeApplyUnavailableReason(creatable(), false)).toContain(
@@ -1055,14 +1107,17 @@ describe("Attribute review queue — apply eligibility", () => {
     );
     // Already applied, or not yet accepted, offers nothing.
     expect(
-      canApplyAttributeFinding(creatable({ applicationResult: "APPLIED" }), true),
+      canApplyAttributeFinding(
+        creatable({ applicationResult: "APPLIED" }),
+        true,
+      ),
     ).toBe(false);
-    expect(canApplyAttributeFinding(creatable({ status: "PENDING" }), true)).toBe(
-      false,
-    );
+    expect(
+      canApplyAttributeFinding(creatable({ status: "PENDING" }), true),
+    ).toBe(false);
   });
 
-  it('reads the proposal from the finding, with nothing defaulted', () => {
+  it("reads the proposal from the finding, with nothing defaulted", () => {
     const proposal = attributeDefinitionProposal(creatable());
     expect(proposal).toMatchObject({
       code: "termination",
@@ -1092,7 +1147,7 @@ describe("Attribute review queue — apply eligibility", () => {
     expect(incomplete.missing).toEqual(["data type"]);
   });
 
-  it('falls back to the expected-state snapshot for the proposal', () => {
+  it("falls back to the expected-state snapshot for the proposal", () => {
     const proposal = attributeDefinitionProposal(
       creatable({ suggestedValue: { isExisting: false } }),
     );
@@ -1102,7 +1157,7 @@ describe("Attribute review queue — apply eligibility", () => {
     expect(proposal.complete).toBe(false);
   });
 
-  it('lists option labels from either accepted option shape', () => {
+  it("lists option labels from either accepted option shape", () => {
     const proposal = attributeDefinitionProposal(
       creatable({
         suggestedValue: {
@@ -1117,7 +1172,7 @@ describe("Attribute review queue — apply eligibility", () => {
     expect(proposal.optionLabels).toEqual(["SMD / SMT", "Through Hole"]);
   });
 
-  it('confirms creation with the definition it will create', () => {
+  it("confirms creation with the definition it will create", () => {
     const confirmation = attributeApplyConfirmation({
       finding: creatable(),
       action: "CREATE_DEFINITION",
@@ -1143,7 +1198,7 @@ describe("Attribute review queue — apply eligibility", () => {
     expect(rows.Options).toMatch(/add them after/i);
   });
 
-  it('warns in the confirmation when the proposal cannot be created', () => {
+  it("warns in the confirmation when the proposal cannot be created", () => {
     const confirmation = attributeApplyConfirmation({
       finding: creatable({
         suggestedValue: {
@@ -1158,7 +1213,7 @@ describe("Attribute review queue — apply eligibility", () => {
     expect(confirmation.description).toMatch(/refuse/i);
   });
 
-  it('reports what a completed creation produced', () => {
+  it("reports what a completed creation produced", () => {
     const message = attributeApplySuccessMessage({
       action: "CREATE_DEFINITION",
       attributeName: "Termination Style",
@@ -1172,13 +1227,15 @@ describe("Attribute review queue — apply eligibility", () => {
         optionCount: 2,
       },
     });
-    expect(message).toMatch(/Created "Termination Style" \(termination, SELECT\)/);
+    expect(message).toMatch(
+      /Created "Termination Style" \(termination, SELECT\)/,
+    );
     expect(message).toMatch(/bound it to "Resistors"/);
     expect(message).toMatch(/2 options were created with it/);
     expect(message).toContain("Recorded state:");
   });
 
-  it('offers apply only for an accepted, unapplied, writable finding', () => {
+  it("offers apply only for an accepted, unapplied, writable finding", () => {
     expect(canApplyAttributeFinding(bindable(), true)).toBe(true);
     expect(canApplyAttributeFinding(bindable(), false)).toBe(false);
     expect(
@@ -1188,22 +1245,30 @@ describe("Attribute review queue — apply eligibility", () => {
       ),
     ).toBe(false);
     expect(
-      canApplyAttributeFinding(finding({ issueType: "UNUSED_ATTRIBUTE", status: "ACCEPTED" }), true),
+      canApplyAttributeFinding(
+        finding({ issueType: "UNUSED_ATTRIBUTE", status: "ACCEPTED" }),
+        true,
+      ),
     ).toBe(false);
   });
 
-  it('requires ACCEPTED: accepting and applying are separate acts', () => {
+  it("requires ACCEPTED: accepting and applying are separate acts", () => {
     // Every non-accepted status is refused, including PENDING — the reviewer must
     // approve first, so apply is never an implicit acceptance.
-    for (const status of ["PENDING", "REJECTED", "DISMISSED", "STALE"] as const) {
+    for (const status of [
+      "PENDING",
+      "REJECTED",
+      "DISMISSED",
+      "STALE",
+    ] as const) {
       expect(canApplyAttributeFinding(bindable({ status }), true)).toBe(false);
     }
-    expect(canApplyAttributeFinding(bindable({ status: "ACCEPTED" }), true)).toBe(
-      true,
-    );
+    expect(
+      canApplyAttributeFinding(bindable({ status: "ACCEPTED" }), true),
+    ).toBe(true);
   });
 
-  it('labels each action with the mutation it performs', () => {
+  it("labels each action with the mutation it performs", () => {
     expect(attributeApplyLabel("ADD_BINDING")).toBe("Add Binding");
     expect(attributeApplyLabel("REMOVE_BINDING")).toBe("Remove Binding");
     for (const label of Object.values(ATTRIBUTE_APPLY_LABELS)) {
@@ -1211,10 +1276,10 @@ describe("Attribute review queue — apply eligibility", () => {
     }
   });
 
-  it('detects application separately from review status', () => {
-    expect(isAttributeFindingApplied(finding({ applicationResult: "APPLIED" }))).toBe(
-      true,
-    );
+  it("detects application separately from review status", () => {
+    expect(
+      isAttributeFindingApplied(finding({ applicationResult: "APPLIED" })),
+    ).toBe(true);
     expect(
       isAttributeFindingApplied(
         finding({ status: "ACCEPTED", applicationResult: "NOT_APPLIED" }),
@@ -1222,16 +1287,22 @@ describe("Attribute review queue — apply eligibility", () => {
     ).toBe(false);
   });
 
-  it('explains every reason apply is unavailable', () => {
+  it("explains every reason apply is unavailable", () => {
     expect(
-      attributeApplyUnavailableReason(finding({ applicationResult: "APPLIED" }), true),
+      attributeApplyUnavailableReason(
+        finding({ applicationResult: "APPLIED" }),
+        true,
+      ),
     ).toMatch(/already applied/i);
     expect(
-      attributeApplyUnavailableReason(finding({ issueType: "UNUSED_ATTRIBUTE" }), true),
+      attributeApplyUnavailableReason(
+        finding({ issueType: "UNUSED_ATTRIBUTE" }),
+        true,
+      ),
     ).toMatch(/review-only/i);
-    expect(
-      attributeApplyUnavailableReason(bindable(), false),
-    ).toContain("Inventory.Update");
+    expect(attributeApplyUnavailableReason(bindable(), false)).toContain(
+      "Inventory.Update",
+    );
     // A pending finding is offered through the combined "Accept & Apply" control,
     // so it is not a dead end and has no reason to report.
     expect(
@@ -1260,7 +1331,7 @@ describe("Attribute review queue — apply eligibility", () => {
     expect(attributeApplyUnavailableReason(creatable(), true)).toBeNull();
   });
 
-  it('offers the combined control only for a pending, applicable, unapplied, writable finding', () => {
+  it("offers the combined control only for a pending, applicable, unapplied, writable finding", () => {
     // The Component queue's primary card action is the model: a pending finding
     // whose family has an implemented mutation is approved and carried out as one
     // act, so the reviewer does not have to hunt for a second button afterwards.
@@ -1293,14 +1364,19 @@ describe("Attribute review queue — apply eligibility", () => {
         true,
       ),
     ).toBe(false);
-    for (const status of ["ACCEPTED", "REJECTED", "DISMISSED", "STALE"] as const) {
-      expect(canAcceptAndApplyAttributeFinding(bindable({ status }), true)).toBe(
-        false,
-      );
+    for (const status of [
+      "ACCEPTED",
+      "REJECTED",
+      "DISMISSED",
+      "STALE",
+    ] as const) {
+      expect(
+        canAcceptAndApplyAttributeFinding(bindable({ status }), true),
+      ).toBe(false);
     }
   });
 
-  it('labels the combined act the way the Component queue does', () => {
+  it("labels the combined act the way the Component queue does", () => {
     // Parity by wording: one act must not have two names across the two
     // intelligence queues.
     expect(ATTRIBUTE_ACCEPT_AND_APPLY_LABEL).toBe("Accept & Apply");
@@ -1317,7 +1393,7 @@ describe("Attribute review queue — apply eligibility", () => {
     }
   });
 
-  it('never claims a decision mutates, but may claim apply does', () => {
+  it("never claims a decision mutates, but may claim apply does", () => {
     // Accepting still changes nothing, and it no longer reads as a step on the way
     // to an apply either.
     expect(ATTRIBUTE_DECISION_COPY.ACCEPTED.summary).not.toMatch(/later step/i);
@@ -1343,7 +1419,10 @@ describe("Attribute review queue — apply confirmation", () => {
         existingAttribute: null,
         attributeExists: false,
       },
-      suggestedValue: { canonicalCode: "voltage_rating", canonicalName: "Voltage Rating" },
+      suggestedValue: {
+        canonicalCode: "voltage_rating",
+        canonicalName: "Voltage Rating",
+      },
     });
 
   const suspicious = () =>
@@ -1353,13 +1432,17 @@ describe("Attribute review queue — apply confirmation", () => {
       categoryId: "cat-1",
       title: 'Unbind suspicious "Voltage Rating" from "Electrical"',
       currentValue: {
-        attribute: { id: "attr-1", code: "voltage_rating", name: "Voltage Rating" },
+        attribute: {
+          id: "attr-1",
+          code: "voltage_rating",
+          name: "Voltage Rating",
+        },
         category: { id: "cat-1", code: "ELEC", name: "Electrical" },
         bindingExists: true,
       },
     });
 
-  it('names the attribute and the category from the finding’s own snapshot', () => {
+  it("names the attribute and the category from the finding’s own snapshot", () => {
     expect(attributeApplySubject(expectation())).toEqual({
       attributeName: "Voltage Rating",
       categoryName: "Electrical",
@@ -1370,7 +1453,7 @@ describe("Attribute review queue — apply confirmation", () => {
     });
   });
 
-  it('falls back to the ids rather than showing nothing', () => {
+  it("falls back to the ids rather than showing nothing", () => {
     const bare = finding({
       issueType: "SUSPICIOUS_BINDING",
       attributeDefinitionId: "attr-9",
@@ -1384,7 +1467,7 @@ describe("Attribute review queue — apply confirmation", () => {
     });
   });
 
-  it('states the consequence of adding a binding, non-destructively', () => {
+  it("states the consequence of adding a binding, non-destructively", () => {
     const confirmation = attributeApplyConfirmation({
       finding: expectation(),
       action: "ADD_BINDING",
@@ -1403,7 +1486,7 @@ describe("Attribute review queue — apply confirmation", () => {
     expect(confirmation.description).not.toMatch(/creates? the attribute\b/i);
   });
 
-  it('states the consequence of removing a binding, destructively', () => {
+  it("states the consequence of removing a binding, destructively", () => {
     const confirmation = attributeApplyConfirmation({
       finding: suspicious(),
       action: "REMOVE_BINDING",
@@ -1418,7 +1501,7 @@ describe("Attribute review queue — apply confirmation", () => {
     expect(confirmation.description).toMatch(/kept/i);
   });
 
-  it('records the decision in the confirmation only when the action accepts first', () => {
+  it("records the decision in the confirmation only when the action accepts first", () => {
     const combined = attributeApplyConfirmation({
       finding: expectation(),
       action: "ADD_BINDING",
@@ -1434,15 +1517,17 @@ describe("Attribute review queue — apply confirmation", () => {
 
     // The apply-only path records no decision, so it must not claim one.
     expect(
-      attributeApplyConfirmation({ finding: expectation(), action: "ADD_BINDING" })
-        .subject,
+      attributeApplyConfirmation({
+        finding: expectation(),
+        action: "ADD_BINDING",
+      }).subject,
     ).toEqual([
       { label: "Attribute", value: "Voltage Rating" },
       { label: "Category", value: "Electrical" },
     ]);
   });
 
-  it('summarises a completed application with the states the backend reported', () => {
+  it("summarises a completed application with the states the backend reported", () => {
     const message = attributeApplySuccessMessage({
       action: "ADD_BINDING",
       attributeName: "Voltage Rating",
@@ -1463,7 +1548,7 @@ describe("Attribute review queue — apply confirmation", () => {
     ).toMatch(/no longer available/i);
   });
 
-  it('describes applied state, and stays silent when not applied', () => {
+  it("describes applied state, and stays silent when not applied", () => {
     expect(
       attributeAppliedSummary(
         finding({ applicationResult: "NOT_APPLIED", status: "ACCEPTED" }),
@@ -1475,16 +1560,16 @@ describe("Attribute review queue — apply confirmation", () => {
         applicationResult: "APPLIED",
         status: "ACCEPTED",
         updatedAt: "2026-09-21T10:00:00.000Z",
-        reviewerEmail: "reviewer@48studios.test",
+        reviewerEmail: "reviewer@example.test",
       }),
     );
     expect(summary).toContain("Applied to the attribute library");
-    expect(summary).toContain("reviewer@48studios.test");
+    expect(summary).toContain("reviewer@example.test");
   });
 });
 
 describe("Attribute review queue — apply payload", () => {
-  it('sends the action and the revision proof only', () => {
+  it("sends the action and the revision proof only", () => {
     const payload = buildAttributeApplyPayload(finding(), "ADD_BINDING");
 
     expect(payload).toEqual({
@@ -1509,7 +1594,7 @@ describe("Attribute review queue — apply payload", () => {
     }
   });
 
-  it('omits blank notes and keeps the action verbatim', () => {
+  it("omits blank notes and keeps the action verbatim", () => {
     const payload = buildAttributeApplyPayload(
       finding(),
       "REMOVE_BINDING",
@@ -1521,7 +1606,7 @@ describe("Attribute review queue — apply payload", () => {
 });
 
 describe("Attribute review queue — apply conflict messaging", () => {
-  it('passes the backend message through, which names the state that changed', () => {
+  it("passes the backend message through, which names the state that changed", () => {
     expect(
       attributeApplyConflictMessage(409, {
         message: "The binding no longer exists, so there is nothing to remove.",
@@ -1530,16 +1615,20 @@ describe("Attribute review queue — apply conflict messaging", () => {
     ).toBe("The binding no longer exists, so there is nothing to remove.");
   });
 
-  it('explains permission, missing and conflict outcomes in its own terms', () => {
-    expect(attributeApplyConflictMessage(403, {})).toContain("Inventory.Update");
+  it("explains permission, missing and conflict outcomes in its own terms", () => {
+    expect(attributeApplyConflictMessage(403, {})).toContain(
+      "Inventory.Update",
+    );
     expect(attributeApplyConflictMessage(404, {})).toMatch(/no longer exists/i);
     expect(attributeApplyConflictMessage(409, {})).toMatch(
       /library changed|refresh/i,
     );
-    expect(attributeApplyConflictMessage(500, {})).toMatch(/could not be applied/i);
+    expect(attributeApplyConflictMessage(500, {})).toMatch(
+      /could not be applied/i,
+    );
   });
 
-  it('recognises every reason the backend can return', () => {
+  it("recognises every reason the backend can return", () => {
     for (const reason of ATTRIBUTE_APPLY_CONFLICT_REASONS) {
       expect(isAttributeApplyConflictReason(reason)).toBe(true);
     }
@@ -1553,25 +1642,31 @@ describe("Attribute review queue — apply conflict messaging", () => {
 
 describe("Attribute review queue dialog — apply flow", () => {
   const dialog = readFileSync(
-    join(__dirname, "..", "components", "attributes", "attribute-review-queue-dialog.tsx"),
+    join(
+      __dirname,
+      "..",
+      "components",
+      "attributes",
+      "attribute-review-queue-dialog.tsx",
+    ),
     "utf8",
   );
 
-  it('calls the apply route and re-reads the queue instead of patching it', () => {
+  it("calls the apply route and re-reads the queue instead of patching it", () => {
     expect(dialog).toContain("attributeReviewQueueApi.applyFinding(");
     expect(dialog).toContain("buildAttributeApplyPayload(finding, action)");
     // The counts and the row come from the server after an apply.
     expect(dialog).toContain("await loadQueue();");
   });
 
-  it('never reloads the page and never polls', () => {
+  it("never reloads the page and never polls", () => {
     expect(dialog).not.toContain("window.location");
     expect(dialog).not.toContain("location.reload");
     expect(dialog).not.toContain("setInterval");
     expect(dialog).not.toContain("router.refresh");
   });
 
-  it('requires a confirmation before mutating', () => {
+  it("requires a confirmation before mutating", () => {
     // The buttons only stage the intent; the mutation happens on confirm.
     expect(dialog).toContain("setPendingApply({");
     expect(dialog).toContain("onClick={() => void confirmApply()}");
@@ -1581,7 +1676,7 @@ describe("Attribute review queue dialog — apply flow", () => {
     expect(dialog).toContain("No attribute definition,");
   });
 
-  it('offers the combined Accept & Apply control as the primary action', () => {
+  it("offers the combined Accept & Apply control as the primary action", () => {
     // Same act, same words, same icon as the Component queue's primary card action:
     // a reviewer must not have to learn two vocabularies for one act.
     expect(dialog).toContain("canAcceptAndApplyAttributeFinding(");
@@ -1596,7 +1691,7 @@ describe("Attribute review queue dialog — apply flow", () => {
     expect(dialog).toContain("canAccept && !showAcceptAndApply");
   });
 
-  it('records the approval before the library changes, inside the confirmed handler', () => {
+  it("records the approval before the library changes, inside the confirmed handler", () => {
     const lines = dialog.split("\n");
     const start = lines.findIndex((line) =>
       line.includes("const confirmApply = async"),
@@ -1622,29 +1717,31 @@ describe("Attribute review queue dialog — apply flow", () => {
     ).toHaveLength(1);
   });
 
-  it('offers the action-specific label on both the trigger and the confirm button', () => {
+  it("offers the action-specific label on both the trigger and the confirm button", () => {
     expect(dialog).toContain("{attributeApplyLabel(applyAction)}");
     expect(dialog).toContain("{applyConfirmation.confirmLabel}");
   });
 
-  it('hides apply for review-only families and for read-only users', () => {
+  it("hides apply for review-only families and for read-only users", () => {
     // `showApplyButton` is false whenever the family resolves to no action, which
     // is the only way the button is rendered.
     expect(dialog).toContain("const showApplyButton =");
     expect(dialog).toContain("applyAction !== null &&");
-    expect(dialog).toContain("canApplyAttributeFinding(finding, permissions.canApply)");
+    expect(dialog).toContain(
+      "canApplyAttributeFinding(finding, permissions.canApply)",
+    );
 
     // A read-only reviewer is told why, and the tree carries no apply affordance.
     expect(dialog).toContain("attributeApplyUnavailableReason(");
   });
 
-  it('reports acceptance and application as separate facts', () => {
+  it("reports acceptance and application as separate facts", () => {
     expect(dialog).toContain("APPLIED");
     expect(dialog).toContain("REVIEW ONLY");
     expect(dialog).toContain("attributeAppliedSummary(finding)");
   });
 
-  it('re-reads after a refusal so a dead action is not offered again', () => {
+  it("re-reads after a refusal so a dead action is not offered again", () => {
     expect(dialog).toContain("attributeApplyConflictMessage(statusCode, err)");
     const lines = dialog.split("\n");
     const conflictIndex = lines.findIndex((line) =>
@@ -1660,7 +1757,7 @@ describe("Attribute review queue dialog — apply flow", () => {
     ).toHaveLength(2);
   });
 
-  it('keeps the decision-only Accept non-mutating: it never calls apply', () => {
+  it("keeps the decision-only Accept non-mutating: it never calls apply", () => {
     const lines = dialog.split("\n");
     const acceptIndex = lines.findIndex((line) =>
       line.includes('recordDecision(finding, "ACCEPTED")'),
@@ -1671,9 +1768,14 @@ describe("Attribute review queue dialog — apply flow", () => {
     // The decision handler is the only caller of recordDecision, and it must not
     // have grown an apply call. The combined control is the one that mutates, and
     // it does so through the confirmed apply handler instead.
-    const recordStart = decisionHandler.lastIndexOf("const recordDecision = async");
+    const recordStart = decisionHandler.lastIndexOf(
+      "const recordDecision = async",
+    );
     const recordBody = lines
-      .slice(recordStart, lines.findIndex((line) => line.includes("const confirmApply = async")))
+      .slice(
+        recordStart,
+        lines.findIndex((line) => line.includes("const confirmApply = async")),
+      )
       .join("\n");
     expect(recordBody).not.toContain("applyFinding");
     expect(recordBody).not.toContain("apply-bindings");
@@ -1689,7 +1791,7 @@ describe("Attribute review queue dialog — apply flow", () => {
     );
   });
 
-  it('never routes apply through the legacy bulk endpoint', () => {
+  it("never routes apply through the legacy bulk endpoint", () => {
     expect(dialog).not.toContain("apply-bindings");
     // The dialog reaches apply only through the persisted review-queue client.
     expect(dialog).toContain("attributeReviewQueueApi.applyFinding(");
@@ -1697,7 +1799,7 @@ describe("Attribute review queue dialog — apply flow", () => {
 });
 
 describe("Attribute review queue — application state", () => {
-  it('labels application state separately from review status', () => {
+  it("labels application state separately from review status", () => {
     expect(
       attributeApplicationLabel(finding({ applicationResult: "NOT_APPLIED" })),
     ).toBe("Not applied");
@@ -1718,11 +1820,17 @@ describe("Attribute review queue — application state", () => {
 
 describe("Attribute review queue dialog — application state", () => {
   const dialog = readFileSync(
-    join(__dirname, "..", "components", "attributes", "attribute-review-queue-dialog.tsx"),
+    join(
+      __dirname,
+      "..",
+      "components",
+      "attributes",
+      "attribute-review-queue-dialog.tsx",
+    ),
     "utf8",
   );
 
-  it('keeps application state out of the queue filter controls', () => {
+  it("keeps application state out of the queue filter controls", () => {
     // The worklist selector was removed, and its server-side filter went with it:
     // an invisible application-state filter would show fewer findings than the
     // controls on screen account for. The remaining filters are untouched.
@@ -1734,29 +1842,33 @@ describe("Attribute review queue dialog — application state", () => {
     expect(dialog).toContain("confidenceLevel:");
   });
 
-  it('shows acceptance and application as two separate facts per row', () => {
+  it("shows acceptance and application as two separate facts per row", () => {
     expect(dialog).toContain("attributeApplicationLabel(finding)");
     expect(dialog).toContain("attributeAppliedSummary(finding)");
     expect(dialog).toContain("APPLIED");
     expect(dialog).toContain("REVIEW ONLY");
   });
 
-  it('still hides Apply for review-only families and for read-only users', () => {
+  it("still hides Apply for review-only families and for read-only users", () => {
     // Pass 4's eligibility rule is unchanged: appearing in the list is not
     // permission to apply.
-    expect(dialog).toContain("canApplyAttributeFinding(finding, permissions.canApply)");
+    expect(dialog).toContain(
+      "canApplyAttributeFinding(finding, permissions.canApply)",
+    );
     expect(dialog).toContain("attributeApplyAction(finding)");
     expect(dialog).toContain("attributeApplyUnavailableReason(");
   });
 
-  it('never rewrites the status filter from the apply handler', () => {
+  it("never rewrites the status filter from the apply handler", () => {
     // The reviewer's filter selection survives an apply untouched — the handler may
     // re-read the queue, but it must not change what the queue is filtered to.
     const lines = dialog.split("\n");
     const handler = lines
       .slice(
         lines.findIndex((line) => line.includes("const confirmApply = async")),
-        lines.findIndex((line) => line.includes("const applyConfirmation = React.useMemo")),
+        lines.findIndex((line) =>
+          line.includes("const applyConfirmation = React.useMemo"),
+        ),
       )
       .join("\n");
 
@@ -1767,7 +1879,7 @@ describe("Attribute review queue dialog — application state", () => {
     expect(handler).toContain("await loadQueue()");
   });
 
-  it('re-reads the queue so counts and state come from the server after an apply', () => {
+  it("re-reads the queue so counts and state come from the server after an apply", () => {
     expect(dialog).toContain("await loadQueue()");
     expect(dialog).toContain("onActionComplete?.()");
   });

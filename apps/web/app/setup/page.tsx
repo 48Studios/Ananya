@@ -104,7 +104,7 @@ export default function OrganizationSetupPage() {
                 required
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="e.g. Acme Corporation"
+                placeholder="e.g. ACME Corporation"
               />
             </Field>
 
@@ -118,7 +118,7 @@ export default function OrganizationSetupPage() {
                   type="text"
                   value={legalName}
                   onChange={(e) => setLegalName(e.target.value)}
-                  placeholder="e.g. Acme Corp Pvt Ltd"
+                  placeholder="e.g. ACME Corporation LLC"
                 />
               </Field>
               <Field>
@@ -130,7 +130,7 @@ export default function OrganizationSetupPage() {
                   type="text"
                   value={taxId}
                   onChange={(e) => setTaxId(e.target.value)}
-                  placeholder="e.g. GSTIN-12345"
+                  placeholder="e.g. EXAMPLE-TAX-ID"
                 />
               </Field>
             </div>
@@ -171,7 +171,7 @@ export default function OrganizationSetupPage() {
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="e.g. 100 Technology Parkway, Suite 400"
+                placeholder="e.g. 123 Example Street, Suite 100"
               />
             </Field>
 
@@ -269,7 +269,7 @@ export default function OrganizationSetupPage() {
                   required
                   value={adminFirstName}
                   onChange={(e) => setAdminFirstName(e.target.value)}
-                  placeholder="System"
+                  placeholder="Alex"
                 />
               </Field>
               <Field>
@@ -280,7 +280,7 @@ export default function OrganizationSetupPage() {
                   required
                   value={adminLastName}
                   onChange={(e) => setAdminLastName(e.target.value)}
-                  placeholder="Administrator"
+                  placeholder="Morgan"
                 />
               </Field>
             </div>
@@ -293,7 +293,7 @@ export default function OrganizationSetupPage() {
                 required
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
-                placeholder="admin@company.com"
+                placeholder="admin@example.com"
               />
             </Field>
 

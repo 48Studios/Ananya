@@ -34,7 +34,7 @@ const mockQuotations: QuotationRecord[] = [
   {
     id: "q-1",
     quoteNumber: "QUO-2026-901",
-    customerName: "AeroTech Systems",
+    customerName: "ACME Components",
     totalAmount: 52000,
     validUntil: "2026-03-01",
     status: "ACCEPTED",
@@ -43,7 +43,7 @@ const mockQuotations: QuotationRecord[] = [
   {
     id: "q-2",
     quoteNumber: "QUO-2026-902",
-    customerName: "Starlight Robotics",
+    customerName: "ACME Robotics",
     totalAmount: 24500,
     validUntil: "2026-03-15",
     status: "SENT",

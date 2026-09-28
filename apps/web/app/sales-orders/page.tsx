@@ -3,13 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  ShoppingBag,
-  Plus,
-  Clock,
-  DollarSign,
-  Eye,
-} from "lucide-react";
+import { ShoppingBag, Plus, Clock, DollarSign, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -40,7 +34,7 @@ const mockSalesOrders: SalesOrderRecord[] = [
   {
     id: "so-101",
     soNumber: "SO-2026-0881",
-    customerName: "AeroTech Systems",
+    customerName: "ACME Components",
     itemCount: 4,
     totalAmount: 48500,
     status: "CONFIRMED",
@@ -49,7 +43,7 @@ const mockSalesOrders: SalesOrderRecord[] = [
   {
     id: "so-102",
     soNumber: "SO-2026-0882",
-    customerName: "Starlight Robotics",
+    customerName: "ACME Robotics",
     itemCount: 2,
     totalAmount: 19800,
     status: "SHIPPED",
@@ -58,7 +52,7 @@ const mockSalesOrders: SalesOrderRecord[] = [
   {
     id: "so-103",
     soNumber: "SO-2026-0883",
-    customerName: "NexGen Automation",
+    customerName: "ACME Automation",
     itemCount: 8,
     totalAmount: 94200,
     status: "FULFILLED",

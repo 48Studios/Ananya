@@ -172,14 +172,14 @@ describe('Attribute Intelligence apply — API', () => {
     createdRoleIds.push(readerRole.id, writerRole.id);
 
     const reader = await usersService.create({
-      email: `attrapply-reader-${runId}@ananya.local`,
+      email: `attrapply-reader-${runId}@example.test`,
       password: 'ReaderPassw0rd!',
       firstName: 'Apply',
       lastName: 'Reader',
       roleId: readerRole.id,
     });
     const writer = await usersService.create({
-      email: `attrapply-writer-${runId}@ananya.local`,
+      email: `attrapply-writer-${runId}@example.test`,
       password: 'WriterPassw0rd!',
       firstName: 'Apply',
       lastName: 'Writer',

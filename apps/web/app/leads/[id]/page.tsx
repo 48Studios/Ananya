@@ -38,9 +38,7 @@ export default function LeadDetailPage() {
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             <Building className="w-3.5 h-3.5" /> Company Name
           </p>
-          <p className="text-sm font-semibold text-foreground">
-            Nexus Defense Industries
-          </p>
+          <p className="text-sm font-semibold text-foreground">ACME Robotics</p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -55,7 +53,7 @@ export default function LeadDetailPage() {
             <Mail className="w-3.5 h-3.5" /> Email
           </p>
           <p className="text-sm font-mono text-foreground">
-            s.jenkins@nexusdefense.com
+            sam.jenkins@example.com
           </p>
         </div>
       </div>

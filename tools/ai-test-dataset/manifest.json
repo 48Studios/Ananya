@@ -1275,7 +1275,7 @@
           "notActionable": 0,
           "alreadyCurrent": 3,
           "analyzedAt": "2026-09-21T21:31:07.089Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 164
         },
         "specifications": 5,
@@ -1300,7 +1300,7 @@
           "notActionable": 0,
           "alreadyCurrent": 3,
           "analyzedAt": "2026-09-21T21:31:07.184Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 169
         },
         "specifications": 6,
@@ -1325,7 +1325,7 @@
           "notActionable": 0,
           "alreadyCurrent": 3,
           "analyzedAt": "2026-09-21T21:31:07.245Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 174
         },
         "specifications": 6,
@@ -1350,7 +1350,7 @@
           "notActionable": 0,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.270Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 172
         },
         "specifications": 3,
@@ -1375,7 +1375,7 @@
           "notActionable": 0,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.290Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 172
         },
         "specifications": 3,
@@ -1400,7 +1400,7 @@
           "notActionable": 0,
           "alreadyCurrent": 1,
           "analyzedAt": "2026-09-21T21:31:07.317Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 169
         },
         "specifications": 5,
@@ -1425,7 +1425,7 @@
           "notActionable": 1,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.330Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 172
         },
         "specifications": 3,
@@ -1450,7 +1450,7 @@
           "notActionable": 0,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.358Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 175
         },
         "specifications": 5,
@@ -1475,7 +1475,7 @@
           "notActionable": 0,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.367Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 174
         },
         "specifications": 3,
@@ -1500,7 +1500,7 @@
           "notActionable": 0,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.375Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 185
         },
         "specifications": 4,
@@ -1525,7 +1525,7 @@
           "notActionable": 0,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.384Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 171
         },
         "specifications": 4,
@@ -1550,7 +1550,7 @@
           "notActionable": 0,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.445Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 175
         },
         "specifications": 3,
@@ -1575,7 +1575,7 @@
           "notActionable": 0,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.309Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 342
         },
         "specifications": 5,
@@ -1600,7 +1600,7 @@
           "notActionable": 0,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.628Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 176
         },
         "specifications": 3,
@@ -1625,7 +1625,7 @@
           "notActionable": 0,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.644Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 172
         },
         "specifications": 2,
@@ -1650,7 +1650,7 @@
           "notActionable": 0,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.655Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 166
         },
         "specifications": 2,
@@ -1675,7 +1675,7 @@
           "notActionable": 0,
           "alreadyCurrent": 0,
           "analyzedAt": "2026-09-21T21:31:07.664Z",
-          "analyzedByEmail": "admin@48studios.in",
+          "analyzedByEmail": "admin@example.test",
           "durationMs": 170
         },
         "specifications": 2,

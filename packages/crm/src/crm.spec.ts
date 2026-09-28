@@ -10,14 +10,14 @@ describe("CRM Bounded Context Aggregates", () => {
     it("should create a NEW lead and transition to QUALIFIED and CONVERTED", () => {
       const lead = Lead.create({
         leadNumber: "LEAD-2026-0001",
-        name: "Sarah Connor",
-        company: "Cyberdyne Systems",
-        email: "sarah@cyberdyne.io",
+        name: "Alex Morgan",
+        company: "ACME Robotics",
+        email: "alex@example.test",
         owner: "rep-1",
       });
 
       expect(lead.status).toBe("NEW");
-      expect(lead.company).toBe("Cyberdyne Systems");
+      expect(lead.company).toBe("ACME Robotics");
 
       lead.qualify();
       expect(lead.status).toBe("QUALIFIED");
@@ -42,16 +42,16 @@ describe("CRM Bounded Context Aggregates", () => {
   describe("CrmAccount & Contact Aggregate", () => {
     it("should create CrmAccount and attach primary Contact", () => {
       const account = CrmAccount.create({
-        companyName: "Stark Industries",
+        companyName: "ACME Manufacturing",
         industry: "Defense & Energy",
       });
 
       expect(account.isArchived).toBe(false);
 
       const contact = account.addContact({
-        firstName: "Tony",
-        lastName: "Stark",
-        email: "tony@stark.com",
+        firstName: "Alex",
+        lastName: "Morgan",
+        email: "alex@example.test",
         role: "EXECUTIVE",
       });
 

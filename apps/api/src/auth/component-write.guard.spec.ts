@@ -27,7 +27,7 @@ describe('ComponentWriteGuard', () => {
 
   const activeUser = {
     id: 'user-1',
-    email: 'engineer@48studios.local',
+    email: 'engineer@example.test',
     status: 'ACTIVE',
     roleName: 'Inventory Manager',
   };
@@ -163,7 +163,7 @@ describe('ComponentWriteGuard', () => {
       );
       expect(request.user).toEqual({
         id: 'user-1',
-        email: 'engineer@48studios.local',
+        email: 'engineer@example.test',
         roleName: 'Inventory Manager',
         permissions: ['Inventory.Read', 'Inventory.Update'],
       });

@@ -6,6 +6,8 @@ test.describe("Organization Setup Wizard", () => {
     await expect(
       page.locator('h2:has-text("Organization Setup Wizard")'),
     ).toBeVisible();
-    await expect(page.locator('input[placeholder="48 Studios"]')).toBeVisible();
+    await expect(
+      page.locator('input[placeholder="e.g. ACME Corporation"]'),
+    ).toBeVisible();
   });
 });

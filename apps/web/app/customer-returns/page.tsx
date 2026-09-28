@@ -30,7 +30,7 @@ const mockReturns: CustomerReturnRecord[] = [
   {
     id: "cret-1",
     returnNumber: "CR-2026-011",
-    customerName: "AeroTech Systems",
+    customerName: "ACME Components",
     reason: "Packaging damaged during transit",
     status: "INSPECTED",
     returnDate: "2026-02-02",

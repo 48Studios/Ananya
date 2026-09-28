@@ -705,7 +705,7 @@ describe('MlService', () => {
           },
         ],
       },
-      { id: 'usr-1', email: 'engineer@48studios.com' },
+      { id: 'usr-1', email: 'engineer@example.test' },
     );
 
     expect(feedbackResult.success).toBe(true);
@@ -804,7 +804,7 @@ describe('MlService', () => {
           },
         ],
       },
-      { id: 'usr-1', email: 'engineer@48studios.com' },
+      { id: 'usr-1', email: 'engineer@example.test' },
     );
 
     expect(result.success).toBe(true);

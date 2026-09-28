@@ -24,7 +24,7 @@ import { and, eq, inArray } from '@ananya/database/query';
  */
 describe('Component Intelligence Review Queue (persistence + lifecycle)', () => {
   const hasDbUrl = Boolean(process.env.DATABASE_URL);
-  const reviewer = { email: 'component-review-integration@ananya.local' };
+  const reviewer = { email: 'component-review-integration@example.test' };
 
   let app: INestApplicationContext;
   let componentsService: ComponentsService;

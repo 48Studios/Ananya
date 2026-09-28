@@ -1192,7 +1192,7 @@ export class ImportExportService {
           } else if (canonicalEntity === 'User') {
             const emailVal =
               this.getRowFieldValue(row, 'email', columnMapping) ||
-              `user${i}@48studios.com`;
+              `user${i}@example.test`;
             const fnameVal =
               this.getRowFieldValue(row, 'firstName', columnMapping) || 'User';
             const lnameVal =

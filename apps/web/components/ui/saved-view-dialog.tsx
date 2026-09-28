@@ -79,7 +79,7 @@ export function SavedViewDialog({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Critical Low Stock (Chennai Warehouse)"
+              placeholder="e.g. Critical Low Stock (Main Warehouse)"
               className="w-full px-3 py-1.5 mt-1 bg-input border border-border rounded-md text-xs outline-none text-foreground focus:ring-1 focus:ring-primary"
             />
           </div>

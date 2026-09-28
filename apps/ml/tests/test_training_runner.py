@@ -129,7 +129,7 @@ def production_checksum():
 
 
 def test_run_reaches_passed_and_never_deploys(runner, stub_pipeline, production_checksum):
-    run = runner.start_run("run-passed", "operator@ananya.local")
+    run = runner.start_run("run-passed", "operator@example.test")
     # The run is driven on a background thread, so asserting one exact status
     # here is a race: by the time the assertion is evaluated the thread may
     # legitimately have advanced to a later active phase (EVALUATING). What the

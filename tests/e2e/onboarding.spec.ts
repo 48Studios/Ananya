@@ -19,16 +19,16 @@ test.describe("Authentication & Organization Onboarding Suite", () => {
     await page.fill('input[placeholder="Jane"]', "OwnerFirst");
     await page.fill('input[placeholder="Smith"]', "OwnerLast");
     await page.fill(
-      'input[placeholder="owner@company.com"]',
-      `owner-${Date.now()}@acme.internal`,
+      'input[placeholder="owner@example.com"]',
+      `owner-${Date.now()}@example.test`,
     );
     await page.fill('input[placeholder="••••••••••••"]', "OwnerPass123!");
     await page.click('button:has-text("Next: Organization Details")');
 
     // Step 2: Organization Details
     await page.fill(
-      'input[placeholder="e.g. Apex Hardware Technologies"]',
-      "Apex Hardware Ltd",
+      'input[placeholder="e.g. ACME Manufacturing"]',
+      "ACME Manufacturing",
     );
     await page.click('button:has-text("Create Organization & Launch")');
 

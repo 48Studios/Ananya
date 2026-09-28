@@ -187,14 +187,14 @@ describe('Attribute definition creation — apply', () => {
     createdRoleIds.push(readerRole.id, writerRole.id);
 
     const reader = await usersService.create({
-      email: `attrcreate-reader-${runId}@ananya.local`,
+      email: `attrcreate-reader-${runId}@example.test`,
       password: 'ReaderPassw0rd!',
       firstName: 'Create',
       lastName: 'Reader',
       roleId: readerRole.id,
     });
     const writer = await usersService.create({
-      email: `attrcreate-writer-${runId}@ananya.local`,
+      email: `attrcreate-writer-${runId}@example.test`,
       password: 'WriterPassw0rd!',
       firstName: 'Create',
       lastName: 'Writer',
@@ -1476,7 +1476,7 @@ describe('Attribute definition creation — apply', () => {
         action: 'CREATE_DEFINITION',
         expectedFingerprint: finding.fingerprint,
         reviewerId: '00000000-0000-4000-8000-000000000001',
-        reviewerEmail: 'spoofed@ananya.local',
+        reviewerEmail: 'spoofed@example.test',
         appliedBy: 'someone-else',
         createdBy: 'someone-else',
       });

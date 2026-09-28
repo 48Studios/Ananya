@@ -10,7 +10,7 @@
 
 # 1. Purpose
 
-This RFC defines the **Warehouse Structure & Bin Locations** aggregate in the Warehouse Bounded Context. It models the physical storage hierarchy of 48 Studios (Warehouse → Zone → Aisle → Rack → Shelf → Bin). Bins are the smallest physical storage unit, owning capacity, utilization, and default operational purposes (e.g., default receiving bin, default production bin, default shipping bin).
+This RFC defines the **Warehouse Structure & Bin Locations** aggregate in the Warehouse Bounded Context. It models the physical storage hierarchy of ACME Corporation (Warehouse → Zone → Aisle → Rack → Shelf → Bin). Bins are the smallest physical storage unit, owning capacity, utilization, and default operational purposes (e.g., default receiving bin, default production bin, default shipping bin).
 
 ---
 

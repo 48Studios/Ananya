@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { e2eAdminCredentials } from "./auth-credentials";
 
 test.describe("Authentication & Session Security Suite", () => {
   test("unauthenticated users accessing protected routes are redirected to login", async ({
@@ -23,9 +24,15 @@ test.describe("Authentication & Session Security Suite", () => {
   test("successful login sets session token and renders ERP dashboard", async ({
     page,
   }) => {
+    test.skip(
+      !e2eAdminCredentials,
+      "Set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD to run authenticated login checks.",
+    );
+    if (!e2eAdminCredentials) return;
+
     await page.goto("/login");
-    await page.fill('input[type="email"]', "jrsarath@48studios.internal");
-    await page.fill('input[type="password"]', "AdminPass123!");
+    await page.fill('input[type="email"]', e2eAdminCredentials.email);
+    await page.fill('input[type="password"]', e2eAdminCredentials.password);
     await page.click('button[type="submit"]');
 
     // Should redirect to dashboard and show user profile

@@ -263,13 +263,11 @@ export default function BarcodesHubPage() {
     qrPayload: sampleQr || "ANANYA:V1:COMPONENT:demo-id-123",
     title: "Custom Preview Label",
     subtitle: sampleCode || "ANANYA-INV-2026",
-    attribute1: "48 STUDIOS / CENTRAL WAREHOUSE",
+    attribute1: "ACME MANUFACTURING / MAIN WAREHOUSE",
   };
 
   const previewLabel =
-    studioMode === "SPECIFIC_ENTITY" && activeLabel
-      ? activeLabel
-      : customLabel;
+    studioMode === "SPECIFIC_ENTITY" && activeLabel ? activeLabel : customLabel;
 
   /**
    * Measure the label's natural (unzoomed) size, which is what the scaler
@@ -396,7 +394,8 @@ export default function BarcodesHubPage() {
                 Label Generation & Printing
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Select a specific location or component to generate its print-ready label.
+                Select a specific location or component to generate its
+                print-ready label.
               </p>
             </div>
           </div>
@@ -433,7 +432,9 @@ export default function BarcodesHubPage() {
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
-                  variant={selectedEntityType === "LOCATION" ? "default" : "outline"}
+                  variant={
+                    selectedEntityType === "LOCATION" ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() => handleEntityTypeChange("LOCATION")}
                   className="justify-center"
@@ -443,7 +444,9 @@ export default function BarcodesHubPage() {
                 </Button>
                 <Button
                   type="button"
-                  variant={selectedEntityType === "COMPONENT" ? "default" : "outline"}
+                  variant={
+                    selectedEntityType === "COMPONENT" ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() => handleEntityTypeChange("COMPONENT")}
                   className="justify-center"
@@ -457,7 +460,10 @@ export default function BarcodesHubPage() {
               <div className="space-y-1.5 relative">
                 <label className="text-xs font-medium text-foreground flex items-center justify-between">
                   <span>
-                    Select {selectedEntityType === "LOCATION" ? "Location (Shelf, Bin, Rack)" : "Component"}
+                    Select{" "}
+                    {selectedEntityType === "LOCATION"
+                      ? "Location (Shelf, Bin, Rack)"
+                      : "Component"}
                   </span>
                   <span className="text-[11px] text-muted-foreground">
                     {filteredEntities.length} available
@@ -480,7 +486,11 @@ export default function BarcodesHubPage() {
                         </span>
                       ) : (
                         <span className="text-muted-foreground">
-                          Choose {selectedEntityType === "LOCATION" ? "location" : "component"}...
+                          Choose{" "}
+                          {selectedEntityType === "LOCATION"
+                            ? "location"
+                            : "component"}
+                          ...
                         </span>
                       )}
                     </div>
@@ -517,7 +527,9 @@ export default function BarcodesHubPage() {
                                   setIsDropdownOpen(false);
                                 }}
                                 className={`w-full p-2.5 text-left text-xs flex items-center justify-between hover:bg-muted/40 transition-colors ${
-                                  isSelected ? "bg-primary/10 text-primary font-semibold" : "text-foreground"
+                                  isSelected
+                                    ? "bg-primary/10 text-primary font-semibold"
+                                    : "text-foreground"
                                 }`}
                               >
                                 <div className="truncate pr-2">
@@ -535,13 +547,16 @@ export default function BarcodesHubPage() {
                                     {ent.name}
                                   </div>
                                 </div>
-                                {isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+                                {isSelected && (
+                                  <Check className="size-3.5 text-primary shrink-0" />
+                                )}
                               </button>
                             );
                           })
                         ) : (
                           <div className="p-4 text-center text-xs text-muted-foreground">
-                            No matching {selectedEntityType.toLowerCase()}s found.
+                            No matching {selectedEntityType.toLowerCase()}s
+                            found.
                           </div>
                         )}
                       </div>
@@ -609,7 +624,9 @@ export default function BarcodesHubPage() {
             /* Custom Raw Inputs Mode */
             <div className="space-y-3">
               <Field>
-                <FieldLabel className="text-xs">Primary Barcode Text</FieldLabel>
+                <FieldLabel className="text-xs">
+                  Primary Barcode Text
+                </FieldLabel>
                 <Input
                   type="text"
                   value={sampleCode}
@@ -712,7 +729,10 @@ export default function BarcodesHubPage() {
                 title="Printed footprint of the label"
               >
                 {labelFootprint
-                  ? labelFootprintMm(labelFootprint.width, labelFootprint.height)
+                  ? labelFootprintMm(
+                      labelFootprint.width,
+                      labelFootprint.height,
+                    )
                   : TEMPLATE_OPTIONS[template]}
               </span>
               <Select
@@ -802,7 +822,8 @@ export default function BarcodesHubPage() {
               Batch Label Printing Studio
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Generate printable barcode label queues for entire catalog sections or storage racks.
+              Generate printable barcode label queues for entire catalog
+              sections or storage racks.
             </p>
           </div>
         </div>
@@ -816,7 +837,8 @@ export default function BarcodesHubPage() {
               </h4>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Batch print shelf, bin, and drawer tags for all facility storage locations.
+              Batch print shelf, bin, and drawer tags for all facility storage
+              locations.
             </p>
             <Button
               variant="outline"
@@ -837,7 +859,8 @@ export default function BarcodesHubPage() {
               </h4>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Batch print barcodes and QR tags for all registered components in inventory.
+              Batch print barcodes and QR tags for all registered components in
+              inventory.
             </p>
             <Button
               variant="outline"

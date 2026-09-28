@@ -43,7 +43,10 @@ import {
  * the real files (this workspace has no DOM testing library).
  */
 
-const webRoot = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
+const webRoot = path.resolve(
+  fileURLToPath(new URL(".", import.meta.url)),
+  "..",
+);
 const repoRoot = path.resolve(webRoot, "../..");
 const read = (absolutePath: string) => fs.readFileSync(absolutePath, "utf8");
 
@@ -59,10 +62,7 @@ const panelPath = path.join(
   webRoot,
   "components/documentation/documentation-panel.tsx",
 );
-const apiPath = path.join(
-  webRoot,
-  "lib/api/documentation-intelligence-api.ts",
-);
+const apiPath = path.join(webRoot, "lib/api/documentation-intelligence-api.ts");
 const apiDtosPath = path.join(
   repoRoot,
   "apps/api/src/ml/documentation-intelligence.dtos.ts",
@@ -75,7 +75,9 @@ const HTTPS_CONTEXT = {
   contentHash: "a".repeat(64),
 };
 
-function evidence(overrides: Partial<DocumentEvidenceDto> = {}): DocumentEvidenceDto {
+function evidence(
+  overrides: Partial<DocumentEvidenceDto> = {},
+): DocumentEvidenceDto {
   return {
     type: "datasheet_param",
     description: "Extracted resistance rating 300Ω",
@@ -204,7 +206,7 @@ function analysis(
       },
     ],
     analyzedAt: "2026-09-20T10:00:00.000Z",
-    analyzedByEmail: "engineer@48studios.local",
+    analyzedByEmail: "engineer@example.test",
     ...overrides,
   };
 }
@@ -254,7 +256,7 @@ function state(
 // ---------------------------------------------------------------------------
 
 describe("Analyze with AI availability", () => {
-  it('offers the action for an uploaded datasheet when the user can write', () => {
+  it("offers the action for an uploaded datasheet when the user can write", () => {
     expect(
       deriveAnalyzeAction({
         document: documentDto(),
@@ -265,7 +267,7 @@ describe("Analyze with AI availability", () => {
     ).toEqual({ visible: true, enabled: true, reason: null });
   });
 
-  it('hides the action for external references', () => {
+  it("hides the action for external references", () => {
     const action = deriveAnalyzeAction({
       document: documentDto({ sourceType: "EXTERNAL_URL" }),
       eligibility: {
@@ -281,7 +283,7 @@ describe("Analyze with AI availability", () => {
     expect(action.reason).toMatch(/external links/i);
   });
 
-  it('hides the action for non-datasheet documents', () => {
+  it("hides the action for non-datasheet documents", () => {
     expect(
       deriveAnalyzeAction({
         document: documentDto({ documentType: "CAD_DRAWING" }),
@@ -296,7 +298,7 @@ describe("Analyze with AI availability", () => {
     ).toBe(false);
   });
 
-  it('hides the action for an image datasheet', () => {
+  it("hides the action for an image datasheet", () => {
     expect(
       deriveAnalyzeAction({
         document: documentDto({ mimeType: "image/png", fileName: "scan.png" }),
@@ -311,7 +313,7 @@ describe("Analyze with AI availability", () => {
     ).toBe(false);
   });
 
-  it('disables the action while a request is in flight', () => {
+  it("disables the action while a request is in flight", () => {
     const action = deriveAnalyzeAction({
       document: documentDto(),
       eligibility: { available: true },
@@ -323,7 +325,7 @@ describe("Analyze with AI availability", () => {
     expect(action.reason).toMatch(/running/i);
   });
 
-  it('keeps the action visible but disabled without the write permission', () => {
+  it("keeps the action visible but disabled without the write permission", () => {
     const action = deriveAnalyzeAction({
       document: documentDto(),
       eligibility: { available: true },
@@ -336,7 +338,7 @@ describe("Analyze with AI availability", () => {
     expect(action.reason).toContain(COMPONENT_WRITE_PERMISSION);
   });
 
-  it('never offers the action for a non-datasheet upload', () => {
+  it("never offers the action for a non-datasheet upload", () => {
     for (const documentType of ["USER_MANUAL", "PHOTOGRAPH", "OTHER"]) {
       const action = deriveAnalyzeAction({
         document: documentDto({ documentType }),
@@ -348,7 +350,7 @@ describe("Analyze with AI availability", () => {
     }
   });
 
-  it('reuses the existing component-write permission', () => {
+  it("reuses the existing component-write permission", () => {
     expect(COMPONENT_WRITE_PERMISSION).toBe("Inventory.Update");
   });
 });
@@ -358,7 +360,7 @@ describe("Analyze with AI availability", () => {
 // ---------------------------------------------------------------------------
 
 describe("analysis status", () => {
-  it('labels every lifecycle state', () => {
+  it("labels every lifecycle state", () => {
     for (const status of [
       "ANALYZING",
       "ANALYZED",
@@ -372,11 +374,11 @@ describe("analysis status", () => {
     );
   });
 
-  it('reports pending suggestions as work awaiting review', () => {
+  it("reports pending suggestions as work awaiting review", () => {
     expect(describeAnalysisStatus(analysis())).toContain("awaiting review");
   });
 
-  it('reports extraction counts when nothing is pending', () => {
+  it("reports extraction counts when nothing is pending", () => {
     expect(
       describeAnalysisStatus(
         analysis({
@@ -395,7 +397,7 @@ describe("analysis status", () => {
     ).toBe("4 specifications extracted");
   });
 
-  it('says so plainly when nothing reviewable was found', () => {
+  it("says so plainly when nothing reviewable was found", () => {
     expect(
       describeAnalysisStatus(
         analysis({
@@ -414,7 +416,7 @@ describe("analysis status", () => {
     ).toMatch(/nothing reviewable/i);
   });
 
-  it('flags an analysis of an older revision and never claims it is current', () => {
+  it("flags an analysis of an older revision and never claims it is current", () => {
     const stale = analysis({ isCurrent: false, supersededByVersion: 3 });
     expect(describeAnalysisStatus(stale)).toMatch(/re-run/i);
 
@@ -424,10 +426,13 @@ describe("analysis status", () => {
     expect(supersededAnalysisNotice(analysis())).toBeNull();
   });
 
-  it('surfaces failures explicitly', () => {
+  it("surfaces failures explicitly", () => {
     expect(
       describeAnalysisStatus(
-        analysis({ status: "ANALYSIS_FAILED", failureReason: "ML unavailable" }),
+        analysis({
+          status: "ANALYSIS_FAILED",
+          failureReason: "ML unavailable",
+        }),
       ),
     ).toBe("Analysis failed");
   });
@@ -438,9 +443,11 @@ describe("analysis status", () => {
 // ---------------------------------------------------------------------------
 
 describe("analysis summary", () => {
-  it('builds rows from the reported counts only', () => {
+  it("builds rows from the reported counts only", () => {
     const rows = buildAnalysisSummaryRows(analysis());
-    const byLabel = Object.fromEntries(rows.map((row) => [row.label, row.value]));
+    const byLabel = Object.fromEntries(
+      rows.map((row) => [row.label, row.value]),
+    );
 
     expect(byLabel.Manufacturer).toBe("Yageo");
     expect(byLabel["Manufacturer part number"]).toBe("MC0805S8F3000T5E");
@@ -453,7 +460,7 @@ describe("analysis summary", () => {
     expect(rows.every((row) => row.hint.length > 0)).toBe(true);
   });
 
-  it('omits rows that have nothing to report instead of showing zeros', () => {
+  it("omits rows that have nothing to report instead of showing zeros", () => {
     const rows = buildAnalysisSummaryRows(
       analysis({
         identity: {
@@ -477,7 +484,7 @@ describe("analysis summary", () => {
     expect(rows).toEqual([]);
   });
 
-  it('distinguishes where the part number came from', () => {
+  it("distinguishes where the part number came from", () => {
     const fromFile = buildAnalysisSummaryRows(
       analysis({
         identity: {
@@ -500,7 +507,7 @@ describe("analysis summary", () => {
 // ---------------------------------------------------------------------------
 
 describe("attribute candidates", () => {
-  it('labels each resolution state in the reviewer’s terms', () => {
+  it("labels each resolution state in the reviewer’s terms", () => {
     expect(candidateResolutionLabel("DEFINITION_MATCHED")).toMatch(/matched/i);
     expect(candidateResolutionLabel("NO_DEFINITION")).toBe(
       "Attribute definition not found",
@@ -508,7 +515,7 @@ describe("attribute candidates", () => {
     expect(candidateResolutionLabel("UNRESOLVED_VALUE")).toMatch(/not/i);
   });
 
-  it('separates applicable candidates from unresolved properties', () => {
+  it("separates applicable candidates from unresolved properties", () => {
     const matched = candidate();
     const noDefinition = candidate({
       extractedCode: "thermal_resistance",
@@ -527,7 +534,7 @@ describe("attribute candidates", () => {
     expect(unresolvedCandidates(all)).toEqual([noDefinition, unresolvedValue]);
   });
 
-  it('prefers the ERP attribute name for a resolved candidate', () => {
+  it("prefers the ERP attribute name for a resolved candidate", () => {
     expect(candidateHeading(candidate())).toBe("Resistance");
     expect(
       candidateHeading(
@@ -542,28 +549,28 @@ describe("attribute candidates", () => {
   it("does not duplicate the unit when it is already in the value", () => {
     // The extractor renders the unit symbolically, so the unit name is not
     // appended after it: the reviewer must never read "300Ω ohm".
-    expect(candidateValueText(candidate({ formatted: "300Ω", unit: "ohm" }))).toBe(
-      "300Ω",
-    );
+    expect(
+      candidateValueText(candidate({ formatted: "300Ω", unit: "ohm" })),
+    ).toBe("300Ω");
     expect(candidateValueText(candidate({ formatted: "1%", unit: "%" }))).toBe(
       "1%",
     );
-    expect(candidateValueText(candidate({ formatted: "0.125W", unit: "W" }))).toBe(
-      "0.125W",
-    );
-    expect(candidateValueText(candidate({ formatted: "300 ohm", unit: "ohm" }))).toBe(
-      "300 ohm",
-    );
-    expect(candidateValueText(candidate({ formatted: "0805", unit: null }))).toBe(
-      "0805",
-    );
+    expect(
+      candidateValueText(candidate({ formatted: "0.125W", unit: "W" })),
+    ).toBe("0.125W");
+    expect(
+      candidateValueText(candidate({ formatted: "300 ohm", unit: "ohm" })),
+    ).toBe("300 ohm");
+    expect(
+      candidateValueText(candidate({ formatted: "0805", unit: null })),
+    ).toBe("0805");
     // A bare number still gets the definition's unit.
-    expect(candidateValueText(candidate({ formatted: "300", unit: "ohm" }))).toBe(
-      "300 ohm",
-    );
+    expect(
+      candidateValueText(candidate({ formatted: "300", unit: "ohm" })),
+    ).toBe("300 ohm");
   });
 
-  it('offers review only when there is something to review', () => {
+  it("offers review only when there is something to review", () => {
     expect(hasReviewableOutput(analysis())).toBe(true);
     expect(
       hasReviewableOutput(analysis({ findings: [], attributes: [] })),
@@ -585,7 +592,7 @@ describe("attribute candidates", () => {
     ).toBe(false);
   });
 
-  it('points at the existing review queue', () => {
+  it("points at the existing review queue", () => {
     expect(COMPONENT_REVIEW_QUEUE_ROUTE).toBe("/components/review-queue");
   });
 });
@@ -595,25 +602,25 @@ describe("attribute candidates", () => {
 // ---------------------------------------------------------------------------
 
 describe("evidence display", () => {
-  it('names the document, version, and page when the page is known', () => {
+  it("names the document, version, and page when the page is known", () => {
     expect(describeEvidenceSource(evidence())).toBe(
       "MC0805S8F3000T5E.pdf • v2 • Page 3",
     );
   });
 
-  it('claims no page when the extractor could not locate the value', () => {
+  it("claims no page when the extractor could not locate the value", () => {
     const source = describeEvidenceSource(evidence({ page: null }));
     expect(source).toBe("MC0805S8F3000T5E.pdf • v2");
     expect(source).not.toMatch(/page/i);
   });
 
-  it('degrades gracefully without a file name', () => {
+  it("degrades gracefully without a file name", () => {
     expect(
       describeEvidenceSource(evidence({ documentFileName: null, page: 1 })),
     ).toBe("Datasheet • v2 • Page 1");
   });
 
-  it('builds a view model carrying the excerpt and method', () => {
+  it("builds a view model carrying the excerpt and method", () => {
     const [item] = buildEvidenceViewModel([evidence()]);
     expect(item!.source).toContain("Page 3");
     expect(item!.excerpt).toContain("300 ohm");
@@ -621,8 +628,10 @@ describe("evidence display", () => {
     expect(item!.weight).toBe(0.95);
   });
 
-  it('shows the description when there is no excerpt to quote', () => {
-    const [item] = buildEvidenceViewModel([evidence({ text: null, page: null })]);
+  it("shows the description when there is no excerpt to quote", () => {
+    const [item] = buildEvidenceViewModel([
+      evidence({ text: null, page: null }),
+    ]);
     expect(item!.excerpt).toBeNull();
     expect(item!.description).toContain("resistance");
     expect(hasDocumentExcerpt({ text: null })).toBe(false);
@@ -630,11 +639,8 @@ describe("evidence display", () => {
     expect(hasDocumentExcerpt({ text: "300 ohm" })).toBe(true);
   });
 
-  it('keeps a stable identity per evidence item', () => {
-    const items = buildEvidenceViewModel([
-      evidence(),
-      evidence({ page: 4 }),
-    ]);
+  it("keeps a stable identity per evidence item", () => {
+    const items = buildEvidenceViewModel([evidence(), evidence({ page: 4 })]);
     expect(items[0]!.id).not.toBe(items[1]!.id);
   });
 });
@@ -644,7 +650,7 @@ describe("evidence display", () => {
 // ---------------------------------------------------------------------------
 
 describe("finding presentation", () => {
-  it('names the document that produced the finding', () => {
+  it("names the document that produced the finding", () => {
     const text = describeFindingForDocument(
       {
         issueType: "MPN_MISSING",
@@ -658,7 +664,7 @@ describe("finding presentation", () => {
     expect(text).toContain("v2");
   });
 
-  it('marks superseded findings as such', () => {
+  it("marks superseded findings as such", () => {
     expect(
       describeFindingForDocument(
         { issueType: "MPN_MISSING", title: "Title", status: "STALE" },
@@ -675,13 +681,17 @@ describe("finding presentation", () => {
 describe("analysis state updates", () => {
   const initial: AnalysisStateMap = { "doc-1": state() };
 
-  it('stores state per document without touching others', () => {
-    const next = applyAnalysisState(initial, "doc-2", state({ documentId: "doc-2" }));
+  it("stores state per document without touching others", () => {
+    const next = applyAnalysisState(
+      initial,
+      "doc-2",
+      state({ documentId: "doc-2" }),
+    );
     expect(Object.keys(next).sort()).toEqual(["doc-1", "doc-2"]);
     expect(next["doc-1"]!.analysis).toBeNull();
   });
 
-  it('merges a completed run so the card updates without a refetch', () => {
+  it("merges a completed run so the card updates without a refetch", () => {
     const next = applyAnalysisResult(initial, { analysis: analysis() });
     expect(next["doc-1"]!.analysis?.id).toBe("analysis-1");
     expect(next["doc-1"]!.latestAnalysis?.id).toBe("analysis-1");
@@ -690,7 +700,7 @@ describe("analysis state updates", () => {
     expect(next["doc-1"]!.eligibility).toEqual({ available: true });
   });
 
-  it('merges a completed run into a single document state', () => {
+  it("merges a completed run into a single document state", () => {
     const merged = mergeAnalysisResult(null, { analysis: analysis() });
     expect(merged.documentId).toBe("doc-1");
     expect(merged.analysis?.id).toBe("analysis-1");
@@ -700,7 +710,7 @@ describe("analysis state updates", () => {
     expect(retained.eligibility).toEqual({ available: true });
   });
 
-  it('tracks the in-flight flag and clears it', () => {
+  it("tracks the in-flight flag and clears it", () => {
     const running = markAnalysisInProgress(initial, "doc-1", true);
     expect(running["doc-1"]!.inProgress).toBe(true);
 
@@ -708,11 +718,11 @@ describe("analysis state updates", () => {
     expect(done["doc-1"]!.inProgress).toBe(false);
   });
 
-  it('ignores a flag change for an unknown document instead of inventing state', () => {
+  it("ignores a flag change for an unknown document instead of inventing state", () => {
     expect(markAnalysisInProgress(initial, "doc-unknown", true)).toBe(initial);
   });
 
-  it('does not mutate the previous map', () => {
+  it("does not mutate the previous map", () => {
     const before = JSON.stringify(initial);
     applyAnalysisResult(initial, { analysis: analysis() });
     expect(JSON.stringify(initial)).toBe(before);
@@ -724,24 +734,28 @@ describe("analysis state updates", () => {
 // ---------------------------------------------------------------------------
 
 describe("analysis failure copy", () => {
-  it('uses the API message, which explains the specific case', () => {
+  it("uses the API message, which explains the specific case", () => {
     expect(
-      analysisFailureMessage(new Error("Document is too large for datasheet analysis.")),
+      analysisFailureMessage(
+        new Error("Document is too large for datasheet analysis."),
+      ),
     ).toBe("Document is too large for datasheet analysis.");
     expect(
       analysisFailureMessage(
-        new Error("Datasheet extraction did not complete. The ML service may be unavailable."),
+        new Error(
+          "Datasheet extraction did not complete. The ML service may be unavailable.",
+        ),
       ),
     ).toMatch(/ML service/i);
   });
 
-  it('states that nothing changed when there is no detail', () => {
+  it("states that nothing changed when there is no detail", () => {
     expect(analysisFailureMessage(undefined)).toMatch(
       /nothing on the component was changed/i,
     );
   });
 
-  it('explains what is happening while running', () => {
+  it("explains what is happening while running", () => {
     expect(ANALYSIS_RUNNING_COPY).toMatch(/extracting/i);
   });
 });
@@ -751,7 +765,7 @@ describe("analysis failure copy", () => {
 // ---------------------------------------------------------------------------
 
 describe("documentation intelligence UI wiring", () => {
-  it('offers the Analyze with AI action on the document card', () => {
+  it("offers the Analyze with AI action on the document card", () => {
     const card = read(cardPath);
     expect(card).toContain("Analyze with AI");
     expect(card).toContain("deriveAnalyzeAction");
@@ -759,13 +773,13 @@ describe("documentation intelligence UI wiring", () => {
     expect(card).toContain("View AI Analysis");
   });
 
-  it('shows a loading state while analyzing', () => {
+  it("shows a loading state while analyzing", () => {
     const card = read(cardPath);
     expect(card).toContain("Analyzing…");
     expect(card).toContain("animate-spin");
   });
 
-  it('shows the analysis summary and evidence in the dialog', () => {
+  it("shows the analysis summary and evidence in the dialog", () => {
     const dialog = read(dialogPath);
     expect(dialog).toContain("buildAnalysisSummaryRows");
     expect(dialog).toContain("buildEvidenceViewModel");
@@ -774,13 +788,13 @@ describe("documentation intelligence UI wiring", () => {
     expect(dialog).toContain("Summary");
   });
 
-  it('states that analysis is advisory and never applied automatically', () => {
+  it("states that analysis is advisory and never applied automatically", () => {
     const dialog = read(dialogPath);
     expect(dialog).toMatch(/suggestions only/i);
     expect(dialog).toMatch(/Nothing on the component changes/i);
   });
 
-  it('hands review to the existing Component Review Queue', () => {
+  it("hands review to the existing Component Review Queue", () => {
     const dialog = read(dialogPath);
     const panel = read(panelPath);
     expect(dialog).toContain("Review suggestions");
@@ -797,16 +811,16 @@ describe("documentation intelligence UI wiring", () => {
     }
   });
 
-  it('explains unavailable analysis in the UI', () => {
+  it("explains unavailable analysis in the UI", () => {
     expect(read(dialogPath)).toContain("Analysis unavailable");
     expect(read(cardPath)).toContain("analyzeAction.reason");
   });
 
-  it('warns when the analysis belongs to an older revision', () => {
+  it("warns when the analysis belongs to an older revision", () => {
     expect(read(dialogPath)).toContain("supersededAnalysisNotice");
   });
 
-  it('updates the UI from the response without reloading', () => {
+  it("updates the UI from the response without reloading", () => {
     const dialog = read(dialogPath);
     expect(dialog).toContain("mergeAnalysisResult");
     expect(dialog).not.toContain("window.location.reload");
@@ -815,19 +829,19 @@ describe("documentation intelligence UI wiring", () => {
     expect(read(panelPath)).not.toContain("window.location.reload");
   });
 
-  it('gates analysis on the component-write permission', () => {
+  it("gates analysis on the component-write permission", () => {
     const panel = read(panelPath);
     expect(panel).toContain("hasPermission(COMPONENT_WRITE_PERMISSION)");
     expect(panel).toContain("canWrite={canWrite}");
   });
 
-  it('queries analysis state only for eligible documents', () => {
+  it("queries analysis state only for eligible documents", () => {
     const panel = read(panelPath);
     expect(panel).toContain('document.documentType === "DATASHEET"');
     expect(panel).toContain('document.sourceType === "UPLOADED_FILE"');
   });
 
-  it('never calls a mutation endpoint for component data', () => {
+  it("never calls a mutation endpoint for component data", () => {
     const api = read(apiPath);
     // Only analysis endpoints exist in this client. Pass 4 adds the
     // component-level pair (state + analyze), which still analyses and persists
@@ -849,12 +863,12 @@ describe("documentation intelligence UI wiring", () => {
           endpoint.endsWith("/documentation"),
       ).toBe(true);
     }
-    expect(calledEndpoints.some((endpoint) => endpoint.endsWith("/analysis"))).toBe(
-      true,
-    );
-    expect(calledEndpoints.some((endpoint) => endpoint.endsWith("/analyze"))).toBe(
-      true,
-    );
+    expect(
+      calledEndpoints.some((endpoint) => endpoint.endsWith("/analysis")),
+    ).toBe(true);
+    expect(
+      calledEndpoints.some((endpoint) => endpoint.endsWith("/analyze")),
+    ).toBe(true);
 
     // No component, attribute or manufacturer mutation path is reachable.
     expect(api).not.toContain("/attributes");
@@ -864,9 +878,11 @@ describe("documentation intelligence UI wiring", () => {
     expect(api).not.toContain("apiClient.delete");
   });
 
-  it('mirrors the API contract version rather than inventing one', () => {
+  it("mirrors the API contract version rather than inventing one", () => {
     const apiDtos = read(apiDtosPath);
-    const web = read(path.join(webRoot, "lib/api/documentation-intelligence-api.ts"));
+    const web = read(
+      path.join(webRoot, "lib/api/documentation-intelligence-api.ts"),
+    );
     expect(apiDtos).toContain("datasheet-extract-v2");
     // The web client consumes the version from the payload, never hardcoding a
     // second copy of it.
@@ -882,7 +898,7 @@ describe("documentation intelligence UI wiring", () => {
     }
   });
 
-  it('reuses the existing evidence conventions instead of a new framework', () => {
+  it("reuses the existing evidence conventions instead of a new framework", () => {
     const lib = read(path.join(webRoot, "lib/document-intelligence.ts"));
     // Evidence keeps the established type/description/weight/source shape.
     expect(lib).toContain("extractionMethod");

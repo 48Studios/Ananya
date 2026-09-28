@@ -27,7 +27,7 @@ import { and, eq, ilike, inArray } from '@ananya/database/query';
 describe('Component Review Apply (finding application)', () => {
   const hasDbUrl = Boolean(process.env.DATABASE_URL);
   const runId = Date.now();
-  const reviewer = { email: 'apply-integration@ananya.local' };
+  const reviewer = { email: 'apply-integration@example.test' };
 
   let app: INestApplicationContext;
   let componentsService: ComponentsService;

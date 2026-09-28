@@ -40,7 +40,7 @@ export function LabelPreview({
   className = "",
 }: LabelPreviewProps) {
   const [orgName, setOrgName] = React.useState<string>(
-    organizationName || "48 Studios",
+    organizationName || "ACME Corporation",
   );
 
   React.useEffect(() => {
@@ -55,15 +55,27 @@ export function LabelPreview({
           setOrgName(profile.companyName);
         }
       })
-      .catch(() => { });
+      .catch(() => {});
   }, [organizationName]);
 
   if (template === "COMPACT") {
-    return <CompactLabel label={label} className={className} organizationName={orgName} />;
+    return (
+      <CompactLabel
+        label={label}
+        className={className}
+        organizationName={orgName}
+      />
+    );
   }
 
   if (template === "COMPACT_HALF_INCH") {
-    return <CompactHalfInchLabel label={label} className={className} organizationName={orgName} />;
+    return (
+      <CompactHalfInchLabel
+        label={label}
+        className={className}
+        organizationName={orgName}
+      />
+    );
   }
 
   if (template === "SHELF_BIN") {

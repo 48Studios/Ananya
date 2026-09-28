@@ -147,28 +147,28 @@ describe('Legacy ML surface — authorization', () => {
     );
 
     const noInventory = await usersService.create({
-      email: `ml-noinv-${runId}@ananya.local`,
+      email: `ml-noinv-${runId}@example.test`,
       password: 'NoInventoryPassw0rd!',
       firstName: 'ML',
       lastName: 'NoInventory',
       roleId: noInventoryRole.id,
     });
     const reader = await usersService.create({
-      email: `ml-reader-${runId}@ananya.local`,
+      email: `ml-reader-${runId}@example.test`,
       password: 'ReaderPassw0rd!',
       firstName: 'ML',
       lastName: 'Reader',
       roleId: readerRole.id,
     });
     const writer = await usersService.create({
-      email: `ml-writer-${runId}@ananya.local`,
+      email: `ml-writer-${runId}@example.test`,
       password: 'WriterPassw0rd!',
       firstName: 'ML',
       lastName: 'Writer',
       roleId: writerRole.id,
     });
     const admin = await usersService.create({
-      email: `ml-admin-${runId}@ananya.local`,
+      email: `ml-admin-${runId}@example.test`,
       password: 'AdminPassw0rd!',
       firstName: 'ML',
       lastName: 'Admin',
@@ -510,7 +510,7 @@ describe('Legacy ML surface — authorization', () => {
           .send({
             ...feedbackPayload(),
             reviewerId: '00000000-0000-4000-8000-000000000000',
-            reviewerEmail: 'spoofed@ananya.local',
+            reviewerEmail: 'spoofed@example.test',
           });
 
         expect(response.status).toBe(400);

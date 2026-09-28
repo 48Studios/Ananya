@@ -164,14 +164,14 @@ describe('Component Documentation', () => {
     createdRoleIds.push(readerRole.id, writerRole.id);
 
     const reader = await usersService.create({
-      email: `docs-reader-${runId}@ananya.local`,
+      email: `docs-reader-${runId}@example.test`,
       password: 'ReaderPassw0rd!',
       firstName: 'Docs',
       lastName: 'Reader',
       roleId: readerRole.id,
     });
     const writer = await usersService.create({
-      email: `docs-writer-${runId}@ananya.local`,
+      email: `docs-writer-${runId}@example.test`,
       password: 'WriterPassw0rd!',
       firstName: 'Docs',
       lastName: 'Writer',
@@ -243,11 +243,11 @@ describe('Component Documentation', () => {
         or(
           ilike(
             securityAuditLogs.userEmail,
-            `docs-reader-${runId}@ananya.local`,
+            `docs-reader-${runId}@example.test`,
           ),
           ilike(
             securityAuditLogs.userEmail,
-            `docs-writer-${runId}@ananya.local`,
+            `docs-writer-${runId}@example.test`,
           ),
         ),
       );

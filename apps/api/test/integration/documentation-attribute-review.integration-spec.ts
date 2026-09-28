@@ -519,14 +519,14 @@ describe('Attribute Value Review and Apply', () => {
     createdRoleIds.push(readerRole.id, writerRole.id);
 
     const reader = await usersService.create({
-      email: `avr-reader-${runId}@ananya.local`,
+      email: `avr-reader-${runId}@example.test`,
       password: 'ReaderPassw0rd!',
       firstName: 'AVR',
       lastName: 'Reader',
       roleId: readerRole.id,
     });
     const writer = await usersService.create({
-      email: `avr-writer-${runId}@ananya.local`,
+      email: `avr-writer-${runId}@example.test`,
       password: 'WriterPassw0rd!',
       firstName: 'AVR',
       lastName: 'Writer',
@@ -591,11 +591,11 @@ describe('Attribute Value Review and Apply', () => {
         or(
           ilike(
             securityAuditLogs.userEmail,
-            `avr-reader-${runId}@ananya.local`,
+            `avr-reader-${runId}@example.test`,
           ),
           ilike(
             securityAuditLogs.userEmail,
-            `avr-writer-${runId}@ananya.local`,
+            `avr-writer-${runId}@example.test`,
           ),
         ),
       );

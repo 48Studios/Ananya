@@ -510,14 +510,14 @@ describe('Specification Intelligence (component level)', () => {
     createdRoleIds.push(readerRole.id, writerRole.id);
 
     const reader = await usersService.create({
-      email: `p4-reader-${runId}@ananya.local`,
+      email: `p4-reader-${runId}@example.test`,
       password: 'ReaderPassw0rd!',
       firstName: 'P4',
       lastName: 'Reader',
       roleId: readerRole.id,
     });
     const writer = await usersService.create({
-      email: `p4-writer-${runId}@ananya.local`,
+      email: `p4-writer-${runId}@example.test`,
       password: 'WriterPassw0rd!',
       firstName: 'P4',
       lastName: 'Writer',
@@ -591,8 +591,8 @@ describe('Specification Intelligence (component level)', () => {
       .delete(securityAuditLogs)
       .where(
         inArray(securityAuditLogs.userEmail, [
-          `p4-reader-${runId}@ananya.local`,
-          `p4-writer-${runId}@ananya.local`,
+          `p4-reader-${runId}@example.test`,
+          `p4-writer-${runId}@example.test`,
         ]),
       );
     // `ROLE_CREATED` is the second audit shape: `user_id` AND `user_email` are both
@@ -608,7 +608,7 @@ describe('Specification Intelligence (component level)', () => {
     }
     // The third shape: the analysis path writes its own `DOCUMENT_ANALYZED` rows
     // under the actor it is handed, and this suite invokes it directly with a
-    // synthetic one (`{ email: 'service@ananya.local' }`) instead of a fixture
+    // synthetic one (`{ email: 'service@example.test' }`) instead of a fixture
     // account. The component id in the details blob is the deterministic handle.
     if (createdComponentIds.length > 0) {
       await db.delete(securityAuditLogs).where(
@@ -1642,7 +1642,7 @@ describe('Specification Intelligence (component level)', () => {
 
       const result = await intelligence.analyzeComponent(componentId, {
         id: undefined,
-        email: 'service@ananya.local',
+        email: 'service@example.test',
       });
 
       expect(result.summary.documentsAnalyzed).toBeGreaterThan(0);

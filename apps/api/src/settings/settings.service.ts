@@ -29,17 +29,17 @@ export class SettingsService {
       const [newProfile] = await db
         .insert(organizationProfile)
         .values({
-          companyName: '48 Studios',
-          legalName: '48 Studios Pvt Ltd',
-          taxId: 'GSTIN-33AAACD4848A1Z5',
-          email: 'ops@48studios.com',
-          phone: '+91 44 2848 4848',
-          address: '48 Enterprise Way, Tech Park',
-          city: 'Chennai',
-          state: 'Tamil Nadu',
-          country: 'India',
-          postalCode: '600001',
-          primaryTimezone: 'Asia/Kolkata',
+          companyName: 'ACME Corporation',
+          legalName: 'ACME Corporation',
+          taxId: 'EXAMPLE-TAX-ID',
+          email: 'operations@example.com',
+          phone: '+1 202-555-0100',
+          address: '123 Example Street',
+          city: 'Example City',
+          state: 'Example Region',
+          country: 'United States',
+          postalCode: '00000',
+          primaryTimezone: 'Etc/UTC',
         })
         .returning();
       return newProfile;

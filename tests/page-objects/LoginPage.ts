@@ -21,10 +21,7 @@ export class LoginPage {
     await this.page.goto("/login");
   }
 
-  async login(
-    email: string = "admin@48studios.com",
-    password: string = "Admin@123456",
-  ) {
+  async login(email: string, password: string) {
     await this.emailInput.fill(email);
     await this.passwordInput.fill(password);
     await this.submitButton.click();

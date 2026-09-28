@@ -451,9 +451,9 @@ describe('Component catalog — authorization', () => {
         .send({
           ...feedbackPayload(),
           reviewerId: '00000000-0000-4000-8000-000000000000',
-          reviewerEmail: 'spoofed@ananya.local',
+          reviewerEmail: 'spoofed@example.test',
           userId: '00000000-0000-4000-8000-000000000000',
-          appliedBy: 'spoofed@ananya.local',
+          appliedBy: 'spoofed@example.test',
         });
 
       expect(response.status).toBe(400);

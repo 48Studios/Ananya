@@ -6,7 +6,11 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { db } from '@ananya/database';
-import { users, userSessions } from '@ananya/database/schema';
+import {
+  organizationSetupStatus,
+  users,
+  userSessions,
+} from '@ananya/database/schema';
 import { eq, or, ilike } from '@ananya/database/query';
 import { CreateUserDto, UpdateUserDto, AdminResetPasswordDto } from './dtos';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
@@ -256,7 +260,11 @@ export class UsersService implements OnModuleInit {
 
   async disableUser(id: string, caller?: AuthenticatedRequestUser) {
     const u = await this.findById(id);
-    if (u.email === 'jrsarath@48studios.internal') {
+    const [setupStatus] = await db
+      .select({ completedById: organizationSetupStatus.completedById })
+      .from(organizationSetupStatus)
+      .limit(1);
+    if (setupStatus?.completedById === u.id) {
       throw new BadRequestException(
         'Primary system administrator cannot be disabled.',
       );

@@ -22,6 +22,11 @@ These verify:
 
 Automated testing is being introduced incrementally.
 
+End-to-end checks that require an existing administrator account read credentials
+from `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD`. Those authenticated checks are
+skipped when the variables are not configured; they do not rely on a repository
+account or a hard-coded password.
+
 Until the testing infrastructure is established, the quality gates above are required for every change.
 
 ## Future Direction

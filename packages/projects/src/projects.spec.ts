@@ -129,27 +129,27 @@ describe("Projects Bounded Context Aggregates", () => {
         projectNumber: "PRJ-2026-0003",
         name: "Solar Farm Substation Control",
         projectManager: "Arun K",
-        owner: "Sarath JR",
+        owner: "Alex Morgan",
         startDate: new Date("2026-09-01"),
         targetCompletionDate: new Date("2026-12-01"),
-        performedBy: "Sarath JR",
+        performedBy: "Alex Morgan",
       });
 
-      expect(project.activities[0]?.performedBy).toBe("Sarath JR");
+      expect(project.activities[0]?.performedBy).toBe("Alex Morgan");
       expect(project.activities[0]?.activityType).toBe("CREATED");
 
       project.update(
         { description: "High-priority installation" },
-        "Sarath JR",
+        "Alex Morgan",
       );
       expect(
         project.activities[project.activities.length - 1]?.performedBy,
-      ).toBe("Sarath JR");
+      ).toBe("Alex Morgan");
 
-      project.start("Sarath JR");
+      project.start("Alex Morgan");
       expect(
         project.activities[project.activities.length - 1]?.performedBy,
-      ).toBe("Sarath JR");
+      ).toBe("Alex Morgan");
 
       project.allocateMaterial(
         "comp-1",
@@ -157,20 +157,20 @@ describe("Projects Bounded Context Aggregates", () => {
         50,
         "pcs",
         "Initial reserve",
-        "Sarath JR",
+        "Alex Morgan",
       );
       const allocActivity = project.activities[project.activities.length - 1];
-      expect(allocActivity?.performedBy).toBe("Sarath JR");
+      expect(allocActivity?.performedBy).toBe("Alex Morgan");
       expect(allocActivity?.activityType).toBe("MATERIAL_ALLOCATED");
 
-      project.issueMaterial("comp-1", "loc-bin-1", 30, "Sarath JR");
+      project.issueMaterial("comp-1", "loc-bin-1", 30, "Alex Morgan");
       const issueActivity = project.activities[project.activities.length - 1];
-      expect(issueActivity?.performedBy).toBe("Sarath JR");
+      expect(issueActivity?.performedBy).toBe("Alex Morgan");
       expect(issueActivity?.activityType).toBe("MATERIAL_ISSUED");
 
-      project.returnMaterial("comp-1", "loc-bin-1", 10, "Sarath JR");
+      project.returnMaterial("comp-1", "loc-bin-1", 10, "Alex Morgan");
       const returnActivity = project.activities[project.activities.length - 1];
-      expect(returnActivity?.performedBy).toBe("Sarath JR");
+      expect(returnActivity?.performedBy).toBe("Alex Morgan");
       expect(returnActivity?.activityType).toBe("MATERIAL_RETURNED");
 
       const mat = project.materials[0];
@@ -192,22 +192,30 @@ describe("Projects Bounded Context Aggregates", () => {
       project.allocateMaterial("comp-1", "loc-1", 20, "pcs", undefined, "User");
 
       // Cannot issue more than allocated (20)
-      expect(() => project.issueMaterial("comp-1", "loc-1", 25, "User")).toThrow();
+      expect(() =>
+        project.issueMaterial("comp-1", "loc-1", 25, "User"),
+      ).toThrow();
 
       // Issue 15
       project.issueMaterial("comp-1", "loc-1", 15, "User");
 
       // Cannot issue more than remaining unissued (20 - 15 = 5)
-      expect(() => project.issueMaterial("comp-1", "loc-1", 10, "User")).toThrow();
+      expect(() =>
+        project.issueMaterial("comp-1", "loc-1", 10, "User"),
+      ).toThrow();
 
       // Cannot return more than net issued (15)
-      expect(() => project.returnMaterial("comp-1", "loc-1", 20, "User")).toThrow();
+      expect(() =>
+        project.returnMaterial("comp-1", "loc-1", 20, "User"),
+      ).toThrow();
 
       // Return 5
       project.returnMaterial("comp-1", "loc-1", 5, "User");
 
       // Net issued is now 10, remaining unissued is now 20 - 10 = 10
-      expect(() => project.issueMaterial("comp-1", "loc-1", 10, "User")).not.toThrow();
+      expect(() =>
+        project.issueMaterial("comp-1", "loc-1", 10, "User"),
+      ).not.toThrow();
     });
   });
 });

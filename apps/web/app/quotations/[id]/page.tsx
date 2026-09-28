@@ -43,7 +43,7 @@ export default function QuotationDetailPage() {
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Prospect / Client</p>
           <p className="text-sm font-semibold text-foreground">
-            AeroTech Systems
+            ACME Components
           </p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">

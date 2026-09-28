@@ -60,8 +60,9 @@ Configure `.env` first:
 ANANYA_VERSION=0.1.0
 POSTGRES_DB=ananya
 POSTGRES_USER=ananya
-POSTGRES_PASSWORD=change-me
-JWT_SECRET=change-me
+POSTGRES_PASSWORD=replace-before-use-with-a-unique-password
+JWT_SECRET=replace-before-use-with-a-random-secret-at-least-32-characters-long
+PGADMIN_DEFAULT_PASSWORD=replace-before-use-with-a-unique-password
 CORS_ORIGIN=https://erp.example.com
 API_PUBLIC_URL=https://api.erp.example.com
 COMPOSE_PROFILES=all
@@ -80,13 +81,13 @@ docker compose -f compose.yml -f compose.prod.yml --profile all up -d
 
 Ananya uses Compose profiles to let you tailor service footprints:
 
-| Profile / Flag | Services Started | Use Case |
-| :--- | :--- | :--- |
-| `--profile all` (or `COMPOSE_PROFILES=all`) | `db`, `api`, `web`, `worker`, `ml` | **Recommended**: Complete turnkey production deployment. |
-| `--profile worker` | `db`, `api`, `web`, `worker` | Standard production without ML (API uses graceful fallback). |
-| `--profile ml` | `db`, `api`, `web`, `ml` | Standard deployment with ML, without background worker. |
-| *(no profile)* | `db`, `api`, `web` | Minimal core deployment (`docker compose ... up -d api web`). |
-| `--profile tools` | adds `pgadmin` (port `5050`) | Database administration tools. |
+| Profile / Flag                              | Services Started                   | Use Case                                                      |
+| :------------------------------------------ | :--------------------------------- | :------------------------------------------------------------ |
+| `--profile all` (or `COMPOSE_PROFILES=all`) | `db`, `api`, `web`, `worker`, `ml` | **Recommended**: Complete turnkey production deployment.      |
+| `--profile worker`                          | `db`, `api`, `web`, `worker`       | Standard production without ML (API uses graceful fallback).  |
+| `--profile ml`                              | `db`, `api`, `web`, `ml`           | Standard deployment with ML, without background worker.       |
+| _(no profile)_                              | `db`, `api`, `web`                 | Minimal core deployment (`docker compose ... up -d api web`). |
+| `--profile tools`                           | adds `pgadmin` (port `5050`)       | Database administration tools.                                |
 
 ## Upgrades
 
