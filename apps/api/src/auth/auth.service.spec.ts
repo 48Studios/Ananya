@@ -6,7 +6,6 @@ import { UsersService } from '../users/users.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { ActivityService } from '../activity/activity.service';
-import { LoginThrottlerService } from './login-throttler.service';
 import { SessionCleanupService } from './session-cleanup.service';
 
 describe('AuthService Suite', () => {

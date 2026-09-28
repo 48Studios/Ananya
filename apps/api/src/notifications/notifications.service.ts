@@ -36,7 +36,9 @@ export class NotificationsService {
     let targetUserId: string | null = null;
     if (dto.userId) {
       if (!UUID_REGEX.test(dto.userId)) {
-        throw new BadRequestException('Target recipient userId is not a valid UUID.');
+        throw new BadRequestException(
+          'Target recipient userId is not a valid UUID.',
+        );
       }
       targetUserId = dto.userId;
     }
@@ -111,15 +113,14 @@ export class NotificationsService {
       .update(notifications)
       .set({ isRead: true, readAt: new Date() })
       .where(
-        and(
-          eq(notifications.id, id),
-          eq(notifications.userId, validUserId),
-        ),
+        and(eq(notifications.id, id), eq(notifications.userId, validUserId)),
       )
       .returning();
 
     if (!updated) {
-      throw new NotFoundException(`Notification #${id} not found or access denied`);
+      throw new NotFoundException(
+        `Notification #${id} not found or access denied`,
+      );
     }
     return updated;
   }

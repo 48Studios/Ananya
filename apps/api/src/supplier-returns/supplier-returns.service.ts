@@ -4,11 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import {
-  SupplierReturn,
-  SupplierReturnRepository,
-  SupplierReturnStatus,
-} from '@ananya/procurement';
+import { SupplierReturn, SupplierReturnRepository } from '@ananya/procurement';
 import {
   CreateSupplierReturnDto,
   UpdateSupplierReturnDto,
@@ -241,7 +237,7 @@ export class SupplierReturnsService {
             'Cannot revert dispatched or completed return to draft.',
           );
         }
-        returnDoc.status = 'DRAFT' as SupplierReturnStatus;
+        returnDoc.status = 'DRAFT';
         await this.returnRepository.save(returnDoc);
         return returnDoc;
       }

@@ -45,7 +45,9 @@ export class WorkOrdersController {
   }
 
   @Get(':id')
-  @UseGuards(createPermissionGuard('WorkOrders.Manage', 'view work order by id'))
+  @UseGuards(
+    createPermissionGuard('WorkOrders.Manage', 'view work order by id'),
+  )
   findOne(@Param('id') id: string) {
     return this.workOrdersService.findOne(id);
   }

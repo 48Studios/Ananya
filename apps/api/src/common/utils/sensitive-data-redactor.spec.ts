@@ -45,7 +45,8 @@ describe('redactSensitiveData', () => {
 
   it('redacts database URI connection credentials in string fields', () => {
     const input = {
-      connectionUrl: 'postgresql://postgres:myDbPassword123@localhost:5432/ananya_db',
+      connectionUrl:
+        'postgresql://postgres:myDbPassword123@localhost:5432/ananya_db',
     };
 
     const sanitized = redactSensitiveData(input);
@@ -67,7 +68,7 @@ describe('redactSensitiveData', () => {
       },
     };
 
-    const sanitized = redactSensitiveData(input) as any;
+    const sanitized = redactSensitiveData(input);
     expect(sanitized.request.headers.authorization).toBe('[REDACTED]');
     expect(sanitized.request.body[0].value).toBe(123);
     expect(sanitized.request.body[1].password).toBe('[REDACTED]');

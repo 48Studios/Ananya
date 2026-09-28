@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { FinishedGoodsService } from './finished-goods.service';
 import { CreateFinishedGoodsDto, AddFgrLineDto } from './dtos';
 import { createPermissionGuard } from '../auth/permission.guard';

@@ -32,7 +32,9 @@ export class TimeEntriesService {
 
     const userId = dto.userId;
     if (!userId) {
-      throw new BadRequestException('User ID is required for time entry creation.');
+      throw new BadRequestException(
+        'User ID is required for time entry creation.',
+      );
     }
 
     const timeEntry = TimeEntry.create({

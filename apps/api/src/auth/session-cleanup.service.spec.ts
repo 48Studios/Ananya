@@ -21,7 +21,9 @@ describe('SessionCleanupService', () => {
 
   it('successfully cleans up expired sessions and reports count', async () => {
     const mockWhere = jest.fn().mockReturnValue({
-      returning: jest.fn().mockResolvedValue([{ id: 'sess-1' }, { id: 'sess-2' }]),
+      returning: jest
+        .fn()
+        .mockResolvedValue([{ id: 'sess-1' }, { id: 'sess-2' }]),
     });
     (db.delete as jest.Mock).mockReturnValue({
       where: mockWhere,
@@ -37,7 +39,9 @@ describe('SessionCleanupService', () => {
 
   it('prevents overlapping executions via internal mutual exclusion', async () => {
     let resolveFirstCall: (val: any) => void;
-    const slowPromise = new Promise((resolve) => {
+    const slowPromise = new Promise<{
+      then: (fn: (val: void) => void) => void;
+    }>((resolve) => {
       resolveFirstCall = resolve;
     });
 
@@ -67,7 +71,9 @@ describe('SessionCleanupService', () => {
   it('fails safely and catches database errors without crashing process', async () => {
     (db.delete as jest.Mock).mockReturnValue({
       where: jest.fn().mockReturnValue({
-        returning: jest.fn().mockRejectedValue(new Error('Connection lost to database')),
+        returning: jest
+          .fn()
+          .mockRejectedValue(new Error('Connection lost to database')),
       }),
     });
 

@@ -32,7 +32,6 @@ import {
   type TrainingRunStatus,
 } from "@/lib/api/ml-ops-api";
 import {
-  ML_OPS_HISTORY_PAGE_SIZE,
   ML_OPS_PERMISSION,
   ML_OPS_POLL_INTERVAL_MS,
   ML_OPS_TABS,

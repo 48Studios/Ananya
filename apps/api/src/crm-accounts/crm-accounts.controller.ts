@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CrmAccountsService } from './crm-accounts.service';
 import { CreateCrmAccountDto, AddContactDto } from './dtos';
 import { createPermissionGuard } from '../auth/permission.guard';

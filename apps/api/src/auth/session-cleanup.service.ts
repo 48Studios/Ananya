@@ -23,15 +23,22 @@ export class SessionCleanupService {
    */
   async cleanupExpiredSessions(): Promise<CleanupResult> {
     if (this.isCleaningUp) {
-      this.logger.debug('[SessionCleanup] Cleanup cycle skipped: previous execution still in progress.');
+      this.logger.debug(
+        '[SessionCleanup] Cleanup cycle skipped: previous execution still in progress.',
+      );
       return { deletedCount: 0, skipped: true, success: true };
     }
 
     this.isCleaningUp = true;
     try {
       const now = new Date();
-      const retentionDays = parseInt(process.env.SESSION_REVOKED_RETENTION_DAYS || '30', 10);
-      const retentionThreshold = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+      const retentionDays = parseInt(
+        process.env.SESSION_REVOKED_RETENTION_DAYS || '30',
+        10,
+      );
+      const retentionThreshold = new Date(
+        Date.now() - retentionDays * 24 * 60 * 60 * 1000,
+      );
 
       // Delete sessions that are expired OR (revoked AND older than retention threshold)
       const deletedRows = await db
@@ -49,14 +56,24 @@ export class SessionCleanupService {
 
       const count = deletedRows?.length ?? 0;
       if (count > 0) {
-        this.logger.log(`[SessionCleanup] Successfully purged ${count} expired or stale revoked sessions.`);
+        this.logger.log(
+          `[SessionCleanup] Successfully purged ${count} expired or stale revoked sessions.`,
+        );
       }
 
       return { deletedCount: count, skipped: false, success: true };
     } catch (err: any) {
       const errorMessage = err?.message || 'Unknown database error';
-      this.logger.error(`[SessionCleanup] Cleanup cycle failed safely: ${errorMessage}`, err?.stack);
-      return { deletedCount: 0, skipped: false, success: false, error: errorMessage };
+      this.logger.error(
+        `[SessionCleanup] Cleanup cycle failed safely: ${errorMessage}`,
+        err?.stack,
+      );
+      return {
+        deletedCount: 0,
+        skipped: false,
+        success: false,
+        error: errorMessage,
+      };
     } finally {
       this.isCleaningUp = false;
     }

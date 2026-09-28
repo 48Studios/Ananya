@@ -4,7 +4,6 @@ import type { LocationDto } from "@/lib/api/locations-api";
 import type { PurchaseOrderDto } from "@/lib/api/purchase-orders-api";
 import {
   filterComponentsForSupplierReturn,
-  findPoLineForComponent,
   buildReturnComponentOptions,
   filterLocationsHoldingComponent,
   buildReturnLocationOptions,

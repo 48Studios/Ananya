@@ -40,7 +40,9 @@ export class SuppliersController {
   }
 
   @Get(':id')
-  @UseGuards(createPermissionGuard('PurchaseOrders.Read', 'view supplier by id'))
+  @UseGuards(
+    createPermissionGuard('PurchaseOrders.Read', 'view supplier by id'),
+  )
   findOne(@Param('id') id: string) {
     return this.suppliersService.findOne(id);
   }
@@ -59,14 +61,18 @@ export class SuppliersController {
   }
 
   @Post(':id/contacts')
-  @UseGuards(createPermissionGuard('PurchaseOrders.Update', 'add supplier contact'))
+  @UseGuards(
+    createPermissionGuard('PurchaseOrders.Update', 'add supplier contact'),
+  )
   addContact(@Param('id') supplierId: string, @Body() dto: AddContactDto) {
     return this.suppliersService.addContact(supplierId, dto);
   }
 
   @Delete(':id/contacts/:contactId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(createPermissionGuard('PurchaseOrders.Update', 'remove supplier contact'))
+  @UseGuards(
+    createPermissionGuard('PurchaseOrders.Update', 'remove supplier contact'),
+  )
   removeContact(
     @Param('id') supplierId: string,
     @Param('contactId') contactId: string,
@@ -75,14 +81,21 @@ export class SuppliersController {
   }
 
   @Post(':id/components')
-  @UseGuards(createPermissionGuard('PurchaseOrders.Update', 'map supplier component'))
+  @UseGuards(
+    createPermissionGuard('PurchaseOrders.Update', 'map supplier component'),
+  )
   mapComponent(@Param('id') supplierId: string, @Body() dto: MapComponentDto) {
     return this.suppliersService.mapComponent(supplierId, dto);
   }
 
   @Delete(':id/components/:mappingId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(createPermissionGuard('PurchaseOrders.Update', 'remove supplier component mapping'))
+  @UseGuards(
+    createPermissionGuard(
+      'PurchaseOrders.Update',
+      'remove supplier component mapping',
+    ),
+  )
   removeComponentMapping(
     @Param('id') supplierId: string,
     @Param('mappingId') mappingId: string,

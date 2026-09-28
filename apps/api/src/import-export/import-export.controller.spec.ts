@@ -32,7 +32,9 @@ describe('ImportExportController', () => {
         headers: ['id', 'name'],
         previewRows: [],
       } as any),
-      getTemplate: jest.fn().mockReturnValue({ entityType: 'Component', headers: [] } as any),
+      getTemplate: jest
+        .fn()
+        .mockReturnValue({ entityType: 'Component', headers: [] } as any),
       executeExport: jest.fn().mockResolvedValue({
         fileContent: 'csv-data',
         fileName: 'export.csv',
@@ -133,7 +135,12 @@ describe('ImportExportController', () => {
       },
     } as AuthenticatedRequest;
 
-    const result = await controller.executeImport(mockFile, 'Component', '{}', req);
+    const result = await controller.executeImport(
+      mockFile,
+      'Component',
+      '{}',
+      req,
+    );
     expect(result).toBeDefined();
     expect(service.executeImport).toHaveBeenCalled();
   });
@@ -149,7 +156,7 @@ describe('ImportExportController', () => {
     } as AuthenticatedRequest;
 
     await expect(
-      controller.executeExport({ entityType: 'User', format: 'CSV' as any }, req),
+      controller.executeExport({ entityType: 'User', format: 'CSV' }, req),
     ).rejects.toThrow(ForbiddenException);
   });
 });

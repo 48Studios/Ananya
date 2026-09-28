@@ -70,8 +70,10 @@ describe('Automated Authorization Completeness Audit (Phase 3.5)', () => {
         const controllerClass = controller.metatype;
         if (!controllerClass || !controllerClass.prototype) continue;
 
-        const classGuards = Reflect.getMetadata('__guards__', controllerClass) || [];
-        const classIsPublic = Reflect.getMetadata('isPublic', controllerClass) === true;
+        const classGuards =
+          Reflect.getMetadata('__guards__', controllerClass) || [];
+        const classIsPublic =
+          Reflect.getMetadata('isPublic', controllerClass) === true;
 
         const prototype = controllerClass.prototype;
         const methodNames = Object.getOwnPropertyNames(prototype).filter(
@@ -93,7 +95,8 @@ describe('Automated Authorization Completeness Audit (Phase 3.5)', () => {
           totalMutationsChecked++;
           const methodPath = Reflect.getMetadata('path', handler);
           const methodGuards = Reflect.getMetadata('__guards__', handler) || [];
-          const methodIsPublic = Reflect.getMetadata('isPublic', handler) === true;
+          const methodIsPublic =
+            Reflect.getMetadata('isPublic', handler) === true;
 
           const hasGuard = classGuards.length > 0 || methodGuards.length > 0;
           const isPublic = classIsPublic || methodIsPublic;

@@ -8,15 +8,27 @@ describe('PreferencesController', () => {
 
   beforeEach(() => {
     service = {
-      getDashboardLayout: jest.fn().mockResolvedValue({ id: 'layout-1', userId: 'user-auth' } as any),
-      updateDashboardLayout: jest.fn().mockResolvedValue({ id: 'layout-1', userId: 'user-auth' } as any),
+      getDashboardLayout: jest
+        .fn()
+        .mockResolvedValue({ id: 'layout-1', userId: 'user-auth' } as any),
+      updateDashboardLayout: jest
+        .fn()
+        .mockResolvedValue({ id: 'layout-1', userId: 'user-auth' } as any),
       getSavedViews: jest.fn().mockResolvedValue([]),
-      createSavedView: jest.fn().mockResolvedValue({ id: 'view-1', userId: 'user-auth' } as any),
+      createSavedView: jest
+        .fn()
+        .mockResolvedValue({ id: 'view-1', userId: 'user-auth' } as any),
       getFavorites: jest.fn().mockResolvedValue([]),
-      addFavorite: jest.fn().mockResolvedValue({ id: 'fav-1', userId: 'user-auth' } as any),
+      addFavorite: jest
+        .fn()
+        .mockResolvedValue({ id: 'fav-1', userId: 'user-auth' } as any),
       removeFavorite: jest.fn().mockResolvedValue({ success: true }),
-      getWorkspacePreferences: jest.fn().mockResolvedValue({ id: 'ws-1', userId: 'user-auth' } as any),
-      updateWorkspacePreferences: jest.fn().mockResolvedValue({ id: 'ws-1', userId: 'user-auth' } as any),
+      getWorkspacePreferences: jest
+        .fn()
+        .mockResolvedValue({ id: 'ws-1', userId: 'user-auth' } as any),
+      updateWorkspacePreferences: jest
+        .fn()
+        .mockResolvedValue({ id: 'ws-1', userId: 'user-auth' } as any),
     };
     controller = new PreferencesController(
       service as unknown as PreferencesService,
@@ -48,7 +60,10 @@ describe('PreferencesController', () => {
     } as AuthenticatedRequest;
 
     await controller.updateDashboardLayout(req, { widgetsJson: [] });
-    expect(service.updateDashboardLayout).toHaveBeenCalledWith('user-auth-uuid', { widgetsJson: [] });
+    expect(service.updateDashboardLayout).toHaveBeenCalledWith(
+      'user-auth-uuid',
+      { widgetsJson: [] },
+    );
   });
 
   it('passes authenticated req.user.id to removeFavorite', async () => {
@@ -62,6 +77,9 @@ describe('PreferencesController', () => {
     } as AuthenticatedRequest;
 
     await controller.removeFavorite(req, 'fav-123');
-    expect(service.removeFavorite).toHaveBeenCalledWith('user-auth-uuid', 'fav-123');
+    expect(service.removeFavorite).toHaveBeenCalledWith(
+      'user-auth-uuid',
+      'fav-123',
+    );
   });
 });

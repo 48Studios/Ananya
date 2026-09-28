@@ -65,10 +65,7 @@ export class PreferencesController {
   }
 
   @Delete('favorites/:id')
-  removeFavorite(
-    @Req() req: AuthenticatedRequest,
-    @Param('id') id: string,
-  ) {
+  removeFavorite(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.service.removeFavorite(req.user!.id, id);
   }
 

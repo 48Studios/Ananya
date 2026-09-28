@@ -27,7 +27,8 @@ export class RequestContext {
     return asyncLocalStorage.getStore()?.clientIp || '127.0.0.1';
   }
 
-  static getUser(): { userId?: string | null; userEmail?: string | null } | undefined {
+  static getUser():
+    { userId?: string | null; userEmail?: string | null } | undefined {
     const store = asyncLocalStorage.getStore();
     if (!store) return undefined;
     return {
@@ -56,7 +57,9 @@ export class RequestContextMiddleware implements NestMiddleware {
         ? forwardedRequestId.trim()
         : randomUUID();
 
-    const userObj = (req as Request & { user?: { id?: string; email?: string } }).user;
+    const userObj = (
+      req as Request & { user?: { id?: string; email?: string } }
+    ).user;
 
     const store: RequestStore = {
       clientIp,

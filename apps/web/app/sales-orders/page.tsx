@@ -6,7 +6,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import {
   ShoppingBag,
   Plus,
-  CheckCircle2,
   Clock,
   DollarSign,
   Eye,

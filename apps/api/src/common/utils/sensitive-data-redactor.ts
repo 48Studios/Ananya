@@ -39,20 +39,26 @@ export function redactSensitiveData<T = unknown>(data: T, depth = 0): T {
 
   // Handle strings (e.g. database URLs or auth headers)
   if (typeof data === 'string') {
-    return data.replace(URI_CREDENTIALS_REGEX, '$1[REDACTED]$3') as unknown as T;
+    return data.replace(URI_CREDENTIALS_REGEX, '$1[REDACTED]$3');
   }
 
   // Handle arrays
   if (Array.isArray(data)) {
-    return data.map((item) => redactSensitiveData(item, depth + 1)) as unknown as T;
+    return data.map((item) =>
+      redactSensitiveData(item, depth + 1),
+    ) as unknown as T;
   }
 
   // Handle plain objects
   if (typeof data === 'object') {
     const sanitized: Record<string, unknown> = {};
 
-    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
-      const isSensitiveKey = SENSITIVE_KEY_PATTERNS.some((pattern) => pattern.test(key));
+    for (const [key, value] of Object.entries(
+      data as Record<string, unknown>,
+    )) {
+      const isSensitiveKey = SENSITIVE_KEY_PATTERNS.some((pattern) =>
+        pattern.test(key),
+      );
 
       // Exception: tokenFingerprint is an explicitly truncated, non-secret diagnostic prefix (e.g. 8 chars)
       if (key === 'tokenFingerprint') {

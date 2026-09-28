@@ -1,10 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
-  ArrowLeft,
   Undo2,
   Building2,
   FileText,
@@ -120,7 +118,6 @@ function getStatusBadge(status: SupplierReturnStatus) {
 
 export default function SupplierReturnDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params?.id as string;
 
   const [returnDoc, setReturnDoc] = React.useState<SupplierReturnDto | null>(null);

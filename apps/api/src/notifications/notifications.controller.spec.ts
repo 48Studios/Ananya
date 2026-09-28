@@ -13,7 +13,9 @@ describe('NotificationsController', () => {
       getUserNotifications: jest.fn().mockResolvedValue([]),
       getUnreadCount: jest.fn().mockResolvedValue(0),
       createNotification: jest.fn().mockResolvedValue({ id: 'notif-1' } as any),
-      markAsRead: jest.fn().mockResolvedValue({ id: 'notif-1', isRead: true } as any),
+      markAsRead: jest
+        .fn()
+        .mockResolvedValue({ id: 'notif-1', isRead: true } as any),
       markAllAsRead: jest.fn().mockResolvedValue({ success: true }),
       getPreferences: jest.fn().mockResolvedValue({ id: 'pref-1' } as any),
       updatePreferences: jest.fn().mockResolvedValue({ id: 'pref-1' } as any),
@@ -40,7 +42,9 @@ describe('NotificationsController', () => {
     } as AuthenticatedRequest;
 
     await controller.getUserNotifications(req);
-    expect(service.getUserNotifications).toHaveBeenCalledWith('user-notif-uuid');
+    expect(service.getUserNotifications).toHaveBeenCalledWith(
+      'user-notif-uuid',
+    );
   });
 
   it('passes authenticated req.user.id to markAsRead', async () => {
@@ -54,7 +58,10 @@ describe('NotificationsController', () => {
     } as AuthenticatedRequest;
 
     await controller.markAsRead('notif-123', req);
-    expect(service.markAsRead).toHaveBeenCalledWith('notif-123', 'user-notif-uuid');
+    expect(service.markAsRead).toHaveBeenCalledWith(
+      'notif-123',
+      'user-notif-uuid',
+    );
   });
 
   it('passes authenticated req.user.id to markAllAsRead', async () => {

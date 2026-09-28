@@ -107,7 +107,8 @@ export function PurchaseInvoiceForm({
 
   const selectedSupplierId = watch("supplierId");
   const selectedPoId = watch("purchaseOrderId");
-  const lines = watch("lines") || [];
+  const watchedLines = watch("lines");
+  const lines = React.useMemo(() => watchedLines || [], [watchedLines]);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -201,12 +202,6 @@ export function PurchaseInvoiceForm({
       })),
     ];
   }, [filteredGoodsReceipts]);
-
-  const componentMap = React.useMemo(() => {
-    const map = new Map<string, ComponentDto>();
-    for (const c of components) map.set(c.id, c);
-    return map;
-  }, [components]);
 
   const componentOptions = React.useMemo<SearchableSelectOption[]>(() => {
     return components.map((c) => ({

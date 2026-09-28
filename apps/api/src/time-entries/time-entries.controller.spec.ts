@@ -9,7 +9,7 @@ describe('TimeEntriesController', () => {
 
   beforeEach(() => {
     service = {
-      create: jest.fn().mockImplementation((dto) => Promise.resolve(dto as any)),
+      create: jest.fn().mockImplementation((dto) => Promise.resolve(dto)),
       findAll: jest.fn().mockResolvedValue([]),
       findOne: jest.fn().mockImplementation((id) =>
         Promise.resolve({
@@ -18,16 +18,16 @@ describe('TimeEntriesController', () => {
           taskId: 'task-1',
           hours: 4,
           status: 'PENDING',
-        } as any),
-      ),
+        }),
+      },
       approve: jest.fn().mockImplementation((id, dto) =>
         Promise.resolve({
           id,
           status: 'APPROVED',
           approverId: dto.approverId,
-        } as any),
+        }),
       ),
-      reject: jest.fn().mockResolvedValue({ status: 'REJECTED' } as any),
+      reject: jest.fn().mockResolvedValue({ status: 'REJECTED' }),
     };
     controller = new TimeEntriesController(
       service as unknown as TimeEntriesService,

@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { PurchaseRecommendationsService } from './purchase-recommendations.service';
 import { CreatePurchaseRecommendationDto } from './dtos';
 import { PurchaseRecommendationStatus } from '@ananya/mrp';

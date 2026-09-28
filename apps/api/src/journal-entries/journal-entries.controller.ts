@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JournalEntriesService } from './journal-entries.service';
 import { CreateJournalEntryDto, AddJournalLineDto } from './dtos';
 import { JournalStatus } from '@ananya/finance';

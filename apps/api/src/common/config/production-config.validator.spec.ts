@@ -33,7 +33,8 @@ describe('validateEnvironmentConfig', () => {
     expect(() => {
       validateEnvironmentConfig({
         NODE_ENV: 'production',
-        DATABASE_URL: 'postgresql://user:dTd1Ii43r9Q9@db.prod.internal:5432/ananya',
+        DATABASE_URL:
+          'postgresql://user:dTd1Ii43r9Q9@db.prod.internal:5432/ananya',
         CORS_ORIGIN: '*',
       });
     }).toThrow(/CORS_ORIGIN cannot be wildcard/);
@@ -42,7 +43,8 @@ describe('validateEnvironmentConfig', () => {
   it('passes in production with valid non-default credentials and explicit CORS_ORIGIN', () => {
     const result = validateEnvironmentConfig({
       NODE_ENV: 'production',
-      DATABASE_URL: 'postgresql://ananya_user:StrongSecretPass987!@db.internal:5432/ananya',
+      DATABASE_URL:
+        'postgresql://ananya_user:StrongSecretPass987!@db.internal:5432/ananya',
       CORS_ORIGIN: 'https://erp.48studios.com',
     });
 
@@ -59,7 +61,8 @@ describe('validateEnvironmentConfig', () => {
       });
       fail('Expected validation error');
     } catch (err: any) {
-      expect(err.message).not.toContain(secretPassword);
+      const message = err.message;
+      expect(message).not.toContain(secretPassword);
     }
   });
 });

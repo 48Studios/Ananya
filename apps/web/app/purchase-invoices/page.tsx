@@ -18,7 +18,7 @@ import {
   FileCheck,
   XCircle,
 } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -34,10 +34,9 @@ import {
   type PurchaseInvoiceStatus,
   type ThreeWayMatchStatus,
 } from "@/lib/api/purchase-invoices-api";
-import { suppliersApi, type SupplierDto } from "@/lib/api/suppliers-api";
+import { suppliersApi } from "@/lib/api/suppliers-api";
 import {
   purchaseOrdersApi,
-  type PurchaseOrderDto,
 } from "@/lib/api/purchase-orders-api";
 import { PurchaseInvoiceForm } from "@/components/purchase-invoices/purchase-invoice-form";
 import {

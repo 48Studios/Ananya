@@ -9,7 +9,7 @@ describe('InventoryTransactionsController', () => {
 
   beforeEach(() => {
     service = {
-      create: jest.fn().mockImplementation((dto) => Promise.resolve(dto as any)),
+      create: jest.fn().mockImplementation((dto) => Promise.resolve(dto)),
       getAll: jest.fn().mockResolvedValue([]),
       getById: jest.fn().mockResolvedValue({ id: 'tx-1' } as any),
     };

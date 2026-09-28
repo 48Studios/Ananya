@@ -18,10 +18,7 @@ export class TimeEntriesController {
   constructor(private readonly timeEntriesService: TimeEntriesService) {}
 
   @Post()
-  create(
-    @Body() dto: CreateTimeEntryDto,
-    @Req() req: AuthenticatedRequest,
-  ) {
+  create(@Body() dto: CreateTimeEntryDto, @Req() req: AuthenticatedRequest) {
     const actorId = req.user!.id;
     const permissions = req.user?.permissions ?? [];
     const isManager =
@@ -78,10 +75,7 @@ export class TimeEntriesController {
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
+  async findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const entry = await this.timeEntriesService.findOne(id);
     const actorId = req.user!.id;
     const permissions = req.user?.permissions ?? [];
@@ -134,10 +128,7 @@ export class TimeEntriesController {
   }
 
   @Post(':id/reject')
-  async reject(
-    @Param('id') id: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
+  async reject(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const permissions = req.user?.permissions ?? [];
     const isManager =
       permissions.includes('*') ||

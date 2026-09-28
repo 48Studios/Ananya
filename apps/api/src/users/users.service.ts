@@ -5,7 +5,6 @@ import {
   ForbiddenException,
   OnModuleInit,
 } from '@nestjs/common';
-import * as crypto from 'crypto';
 import { db } from '@ananya/database';
 import { users, userSessions } from '@ananya/database/schema';
 import { eq, or, ilike } from '@ananya/database/query';

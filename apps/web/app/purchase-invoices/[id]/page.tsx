@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -18,8 +18,6 @@ import {
   Building2,
   Package,
   Layers,
-  ExternalLink,
-  Plus,
   Loader2,
   Receipt,
   FileCheck,
@@ -141,7 +139,6 @@ function getMatchStatusBadge(matchStatus: ThreeWayMatchStatus) {
 
 export default function PurchaseInvoiceDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params?.id as string;
 
   const [invoice, setInvoice] = React.useState<PurchaseInvoiceDto | null>(null);

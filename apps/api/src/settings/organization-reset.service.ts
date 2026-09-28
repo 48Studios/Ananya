@@ -4,7 +4,6 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
-import * as crypto from 'crypto';
 import { db, pool } from '@ananya/database';
 import { users, roles } from '@ananya/database/schema';
 import { eq } from '@ananya/database/query';
@@ -12,10 +11,6 @@ import { ActivityService } from '../activity/activity.service';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { ResetOrganizationDto } from './dtos';
 import { PasswordHasher } from '../auth/password-hasher';
-
-function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
 
 @Injectable()
 export class OrganizationResetService {

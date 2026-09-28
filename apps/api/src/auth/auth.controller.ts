@@ -74,7 +74,11 @@ export class AuthController {
   ) {
     return this.authService.changePassword(req.user!.id, dto);
     const token = extractBearerToken(req);
-    return this.authService.changePassword(req.user!.id, dto, token || undefined);
+    return this.authService.changePassword(
+      req.user!.id,
+      dto,
+      token || undefined,
+    );
   }
 
   @Public()

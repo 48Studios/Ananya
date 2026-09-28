@@ -32,7 +32,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import {
   EntityDataTable,
-  type FilterConfig,
 } from "@/components/ui/entity-data-table";
 import {
   Select,
@@ -857,15 +856,12 @@ export function MlModelsPanel({
 
 export function MlRunsPanel({
   runs,
-  page,
-  totalPages,
   total,
   statusFilter,
   loading,
   busy,
   canWrite,
   onStatusFilter,
-  onPage,
   onViewRun,
   onDeployRun,
 }: {

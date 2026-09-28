@@ -29,13 +29,6 @@ import {
   DialogShellFooter,
 } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
@@ -138,7 +131,7 @@ export default function ViewProjectPage() {
   const [locationsMap, setLocationsMap] = React.useState<
     Record<string, LocationDto>
   >({});
-  const [locationsList, setLocationsList] = React.useState<LocationDto[]>([]);
+  const [, setLocationsList] = React.useState<LocationDto[]>([]);
 
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);

@@ -1,4 +1,12 @@
-import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, HttpException, HttpStatus, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  NotFoundException,
+  HttpException,
+  HttpStatus,
+  Inject,
+} from '@nestjs/common';
 import * as crypto from 'crypto';
 import { db } from '@ananya/database';
 import {
@@ -6,7 +14,7 @@ import {
   userSessions,
   passwordResetTokens,
 } from '@ananya/database/schema';
-import { eq, and, or, gt, lt } from '@ananya/database/query';
+import { eq, and, or, gt } from '@ananya/database/query';
 import {
   LoginDto,
   ChangePasswordDto,
@@ -41,9 +49,11 @@ export class AuthService {
         ipAddress,
         details: { reason: 'Rate limit threshold exceeded' },
       });
-      throw new HttpException('Too many login attempts.', HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        'Too many login attempts.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
-
 
     const userRecord = await this.usersService.findByEmail(dto.email);
     if (!userRecord) {

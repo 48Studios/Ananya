@@ -27,7 +27,10 @@ async function bootstrap() {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader(
+      'Permissions-Policy',
+      'camera=(), microphone=(), geolocation=()',
+    );
 
     // Enable HSTS conditionally when running over HTTPS or when explicitly enabled
     const isHttps =
@@ -45,7 +48,10 @@ async function bootstrap() {
     next();
   });
 
-  const corsOrigin = resolveCorsOrigin(process.env.NODE_ENV, process.env.CORS_ORIGIN);
+  const corsOrigin = resolveCorsOrigin(
+    process.env.NODE_ENV,
+    process.env.CORS_ORIGIN,
+  );
 
   app.enableCors({
     origin: corsOrigin,

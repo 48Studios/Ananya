@@ -38,7 +38,10 @@ export class SettingsController {
 
   @Put('organization')
   @UseGuards(
-    createPermissionGuard('Administration.Settings', 'update organization profile'),
+    createPermissionGuard(
+      'Administration.Settings',
+      'update organization profile',
+    ),
   )
   updateOrganizationProfile(@Body() dto: UpdateOrganizationProfileDto) {
     return this.service.updateOrganizationProfile(dto);

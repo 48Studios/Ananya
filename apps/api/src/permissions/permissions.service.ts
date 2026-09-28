@@ -172,7 +172,8 @@ export const ALL_PERMISSIONS: PermissionDefinition[] = [
     code: 'Administration.Settings',
     name: 'Manage System Settings',
     category: 'Administration',
-    description: 'Update organization profile, system preferences, numbering series, and feature flags',
+    description:
+      'Update organization profile, system preferences, numbering series, and feature flags',
   },
 
   // Sales & CRM
@@ -206,7 +207,8 @@ export const ALL_PERMISSIONS: PermissionDefinition[] = [
     code: 'Accounting.Read',
     name: 'View Financial Records',
     category: 'Accounting',
-    description: 'View chart of accounts, journal entries, invoices, and payments',
+    description:
+      'View chart of accounts, journal entries, invoices, and payments',
   },
   {
     code: 'Accounting.Create',
@@ -224,7 +226,8 @@ export const ALL_PERMISSIONS: PermissionDefinition[] = [
     code: 'Accounting.Post',
     name: 'Post Financial Ledgers',
     category: 'Accounting',
-    description: 'Post journal entries, execute payments, and approve reconciliations',
+    description:
+      'Post journal entries, execute payments, and approve reconciliations',
   },
   {
     code: 'Accounting.Delete',
@@ -238,13 +241,15 @@ export const ALL_PERMISSIONS: PermissionDefinition[] = [
     code: 'Maintenance.Read',
     name: 'View Maintenance & Service',
     category: 'Maintenance',
-    description: 'View maintenance schedules, service requests, and warranty claims',
+    description:
+      'View maintenance schedules, service requests, and warranty claims',
   },
   {
     code: 'Maintenance.Manage',
     name: 'Manage Maintenance & Service',
     category: 'Maintenance',
-    description: 'Create, update, and resolve maintenance schedules and service requests',
+    description:
+      'Create, update, and resolve maintenance schedules and service requests',
   },
 ];
 

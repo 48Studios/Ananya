@@ -50,7 +50,9 @@ export class InvitationsService {
         .limit(1);
 
       if (!targetRole) {
-        throw new BadRequestException(`Role with ID "${dto.roleId}" not found.`);
+        throw new BadRequestException(
+          `Role with ID "${dto.roleId}" not found.`,
+        );
       }
 
       const isTargetAdmin =

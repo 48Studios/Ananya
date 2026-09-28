@@ -53,11 +53,17 @@ export class PasswordHasher {
 
     // 2. Legacy SHA-256 64-character hex format
     if (/^[0-9a-f]{64}$/i.test(storedHash)) {
-      const inputHash = crypto.createHash('sha256').update(password).digest('hex');
+      const inputHash = crypto
+        .createHash('sha256')
+        .update(password)
+        .digest('hex');
       try {
         const inputBuf = Buffer.from(inputHash, 'hex');
         const storedBuf = Buffer.from(storedHash, 'hex');
-        if (inputBuf.length === storedBuf.length && crypto.timingSafeEqual(inputBuf, storedBuf)) {
+        if (
+          inputBuf.length === storedBuf.length &&
+          crypto.timingSafeEqual(inputBuf, storedBuf)
+        ) {
           return { valid: true, needsRehash: true };
         }
       } catch {

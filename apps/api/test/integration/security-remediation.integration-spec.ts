@@ -54,11 +54,14 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
-    app.use((_req: any, res: any, next: any) => {
+    app.use((_req: Request, res: Response, next: NextFunction) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('X-Frame-Options', 'DENY');
       res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-      res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+      res.setHeader(
+        'Permissions-Policy',
+        'camera=(), microphone=(), geolocation=()',
+      );
       next();
     });
     app.useGlobalPipes(
@@ -97,7 +100,11 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
     ]);
 
     // 2. Users
-    adminUser = await owner.createUser(usersService, adminRole!.id, 'sec-admin');
+    adminUser = await owner.createUser(
+      usersService,
+      adminRole!.id,
+      'sec-admin',
+    );
     auditorUser = await owner.createUser(
       usersService,
       auditorRole.id,
@@ -116,7 +123,8 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
 
     // 3. Sessions
     adminToken = (await authService.createSessionForUser(adminUser.id)).token;
-    auditorToken = (await authService.createSessionForUser(auditorUser.id)).token;
+    auditorToken = (await authService.createSessionForUser(auditorUser.id))
+      .token;
     inventoryUserToken = (
       await authService.createSessionForUser(inventoryUser.id)
     ).token;
@@ -150,7 +158,26 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       ];
 
       for (const ep of endpoints) {
-        const res = await (http() as any)[ep.method](ep.path);
+        let res;
+        switch (ep.method) {
+          case 'get':
+            res = await http().get(ep.path);
+            break;
+          case 'post':
+            res = await http().post(ep.path);
+            break;
+          case 'put':
+            res = await http().put(ep.path);
+            break;
+          case 'delete':
+            res = await http().delete(ep.path);
+            break;
+          case 'patch':
+            res = await http().patch(ep.path);
+            break;
+          default:
+            throw new Error(`Unsupported method ${ep.method}`);
+        }
         expect(res.status).toBe(401);
         expect(res.body.message).toMatch(
           /Authentication is required|invalid or has expired/i,
@@ -204,7 +231,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         .limit(1);
 
       expect(latestAudit).toBeDefined();
-      const details = latestAudit!.details as Record<string, any>;
+      const details = latestAudit!.details as Record<string, unknown>;
       expect(details).toBeDefined();
       // Must NOT contain resetToken
       expect(details.resetToken).toBeUndefined();
@@ -312,12 +339,10 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
     it('denies unauthenticated reset requests', async () => {
       if (!hasDbUrl) return;
 
-      const res = await http()
-        .post('/settings/organization/reset')
-        .send({
-          confirmText: 'RESET MY ORGANIZATION',
-          passwordConfirm: 'wrong',
-        });
+      const res = await http().post('/settings/organization/reset').send({
+        confirmText: 'RESET MY ORGANIZATION',
+        passwordConfirm: 'wrong',
+      });
       expect(res.status).toBe(401);
     });
 
@@ -548,7 +573,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
 
       expect(res.status).toBe(200);
       const results = res.body as Array<{ category: string }>;
-      const hasAdminItems = results.some((r) => r.category === 'Administration');
+      const hasAdminItems = results.some(
+        (r) => r.category === 'Administration',
+      );
       expect(hasAdminItems).toBe(false);
     });
 
@@ -561,7 +588,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
 
       expect(res.status).toBe(200);
       const results = res.body as Array<{ category: string }>;
-      const hasAdminItems = results.some((r) => r.category === 'Administration');
+      const hasAdminItems = results.some(
+        (r) => r.category === 'Administration',
+      );
       expect(hasAdminItems).toBe(true);
     });
   });
@@ -633,7 +662,10 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       const crypto = await import('crypto');
       const legacyEmail = owner.email('legacy-user');
       const legacyPassword = 'LegacyPassword123!';
-      const sha256Hash = crypto.createHash('sha256').update(legacyPassword).digest('hex');
+      const sha256Hash = crypto
+        .createHash('sha256')
+        .update(legacyPassword)
+        .digest('hex');
 
       // 1. Insert user with raw legacy SHA-256 hash
       const [legacyUser] = await db
@@ -652,12 +684,10 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       expect(legacyUser!.passwordHash.startsWith('$argon2id$')).toBe(false);
 
       // 2. Perform login
-      const loginRes = await http()
-        .post('/auth/login')
-        .send({
-          email: legacyEmail,
-          password: legacyPassword,
-        });
+      const loginRes = await http().post('/auth/login').send({
+        email: legacyEmail,
+        password: legacyPassword,
+      });
 
       expect(loginRes.status).toBe(201);
       expect(loginRes.body.token).toBeDefined();
@@ -673,18 +703,18 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       expect(updatedUser!.passwordHash.startsWith('$argon2id$')).toBe(true);
 
       // 4. Verify subsequent login succeeds against the new Argon2id hash
-      const secondLoginRes = await http()
-        .post('/auth/login')
-        .send({
-          email: legacyEmail,
-          password: legacyPassword,
-        });
+      const secondLoginRes = await http().post('/auth/login').send({
+        email: legacyEmail,
+        password: legacyPassword,
+      });
 
       expect(secondLoginRes.status).toBe(201);
       expect(secondLoginRes.body.token).toBeDefined();
 
       // Clean up
-      await db.delete(userSessions).where(eq(userSessions.userId, legacyUser!.id));
+      await db
+        .delete(userSessions)
+        .where(eq(userSessions.userId, legacyUser!.id));
       await db.delete(users).where(eq(users.id, legacyUser!.id));
     });
 
@@ -715,7 +745,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       expect(storedUser!.passwordHash.startsWith('$argon2id$')).toBe(true);
 
       // Clean up
-      await db.delete(userSessions).where(eq(userSessions.userId, createdUserId));
+      await db
+        .delete(userSessions)
+        .where(eq(userSessions.userId, createdUserId));
       await db.delete(users).where(eq(users.id, createdUserId));
     });
 
@@ -833,12 +865,10 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         })
         .returning();
 
-      const res = await http()
-        .post('/auth/login')
-        .send({
-          email: disabledEmail,
-          password: 'SomePassword123!',
-        });
+      const res = await http().post('/auth/login').send({
+        email: disabledEmail,
+        password: 'SomePassword123!',
+      });
 
       // Must return generic Invalid credentials, NOT "Account disabled"
       expect(res.status).toBe(401);
@@ -1029,7 +1059,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
 
       // Clean up remaining test sessions
       await db.delete(userSessions).where(eq(userSessions.token, activeToken));
-      await db.delete(userSessions).where(eq(userSessions.token, recentRevokedToken));
+      await db
+        .delete(userSessions)
+        .where(eq(userSessions.token, recentRevokedToken));
     });
 
     it('redacts sensitive credentials before storing in security audit logs', async () => {
@@ -1058,11 +1090,13 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         .limit(1);
 
       expect(logEntry).toBeDefined();
-      const details = logEntry!.details as Record<string, any>;
+      const details = logEntry!.details as Record<string, unknown>;
       expect(details.password).toBe('[REDACTED]');
       expect(details.token).toBe('[REDACTED]');
       expect(details.authorization).toBe('[REDACTED]');
-      expect(details.connectionUri).toBe('postgres://user:[REDACTED]@db:5432/ananya');
+      expect(details.connectionUri).toBe(
+        'postgres://user:[REDACTED]@db:5432/ananya',
+      );
       expect(details.safeField).toBe('diagnostic_info');
     });
 
@@ -1072,8 +1106,12 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       const res = await http().get('/health');
       expect(res.headers['x-content-type-options']).toBe('nosniff');
       expect(res.headers['x-frame-options']).toBe('DENY');
-      expect(res.headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
-      expect(res.headers['permissions-policy']).toBe('camera=(), microphone=(), geolocation=()');
+      expect(res.headers['referrer-policy']).toBe(
+        'strict-origin-when-cross-origin',
+      );
+      expect(res.headers['permissions-policy']).toBe(
+        'camera=(), microphone=(), geolocation=()',
+      );
     });
 
     it('enforces secure CORS resolution policy', () => {
@@ -1119,4 +1157,3 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
     });
   });
 });
-

@@ -12,7 +12,9 @@ export interface EnvironmentValidationResult {
  * Validates critical environment variables and configuration for production security.
  * Fails fast on missing or insecure configurations in production without leaking secrets.
  */
-export function validateEnvironmentConfig(env: NodeJS.ProcessEnv = process.env): EnvironmentValidationResult {
+export function validateEnvironmentConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): EnvironmentValidationResult {
   const isProduction = env.NODE_ENV === 'production';
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -22,7 +24,9 @@ export function validateEnvironmentConfig(env: NodeJS.ProcessEnv = process.env):
     if (isProduction) {
       errors.push('DATABASE_URL is not set or is empty.');
     } else {
-      warnings.push('DATABASE_URL is not configured (non-production environment).');
+      warnings.push(
+        'DATABASE_URL is not configured (non-production environment).',
+      );
     }
   } else if (isProduction) {
     // Check for common default placeholder passwords in production
@@ -34,7 +38,9 @@ export function validateEnvironmentConfig(env: NodeJS.ProcessEnv = process.env):
       lowerDbUrl.includes(':admin@') ||
       lowerDbUrl.includes(':secret@')
     ) {
-      errors.push('DATABASE_URL appears to contain a default or insecure database password in production.');
+      errors.push(
+        'DATABASE_URL appears to contain a default or insecure database password in production.',
+      );
     }
   }
 
@@ -45,7 +51,9 @@ export function validateEnvironmentConfig(env: NodeJS.ProcessEnv = process.env):
         'CORS_ORIGIN is not configured in production. Defaulting to strict fail-closed (reject cross-origin requests).',
       );
     } else if (env.CORS_ORIGIN.trim() === '*') {
-      errors.push('CORS_ORIGIN cannot be wildcard "*" when credentials are enabled in production.');
+      errors.push(
+        'CORS_ORIGIN cannot be wildcard "*" when credentials are enabled in production.',
+      );
     }
   }
 
@@ -54,7 +62,9 @@ export function validateEnvironmentConfig(env: NodeJS.ProcessEnv = process.env):
       logger.error(`[CONFIG_ERROR] ${err}`);
     }
     if (isProduction) {
-      throw new Error(`Production environment configuration validation failed: ${errors.join('; ')}`);
+      throw new Error(
+        `Production environment configuration validation failed: ${errors.join('; ')}`,
+      );
     }
   }
 

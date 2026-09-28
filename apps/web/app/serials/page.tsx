@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { QrCode, RefreshCw, CheckCircle2, MapPin, Tag } from "lucide-react";
+import { QrCode, RefreshCw, CheckCircle2, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";

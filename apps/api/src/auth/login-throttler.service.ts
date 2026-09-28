@@ -53,7 +53,11 @@ export class LoginThrottlerService implements ILoginThrottler {
       cleaned = cleaned.slice(7);
     }
     // Filter out localhost variations from IP-specific lockout so local dev/tests aren't locked out entirely
-    if (cleaned === '127.0.0.1' || cleaned === '::1' || cleaned === 'localhost') {
+    if (
+      cleaned === '127.0.0.1' ||
+      cleaned === '::1' ||
+      cleaned === 'localhost'
+    ) {
       return null;
     }
     return cleaned;
@@ -65,7 +69,9 @@ export class LoginThrottlerService implements ILoginThrottler {
   public pruneStaleRecords(): void {
     const now = Date.now();
     for (const [key, timestamps] of this.failureRecords.entries()) {
-      const activeTimestamps = timestamps.filter((t) => now - t < this.config.windowMs);
+      const activeTimestamps = timestamps.filter(
+        (t) => now - t < this.config.windowMs,
+      );
       if (activeTimestamps.length === 0) {
         this.failureRecords.delete(key);
       } else {
@@ -80,7 +86,10 @@ export class LoginThrottlerService implements ILoginThrottler {
    * Throws HTTP 429 Too Many Requests with retryAfter if throttled.
    */
   checkRateLimit(identifier: string, ipAddress?: string): void {
-    if (process.env.NODE_ENV === 'test' && process.env.ENABLE_TEST_RATE_LIMIT !== 'true') {
+    if (
+      process.env.NODE_ENV === 'test' &&
+      process.env.ENABLE_TEST_RATE_LIMIT !== 'true'
+    ) {
       return;
     }
 
@@ -139,7 +148,11 @@ export class LoginThrottlerService implements ILoginThrottler {
       this.checkRateLimit(identifier, ipAddress);
       return false;
     } catch (e) {
-      if (e instanceof HttpException && e.getStatus && e.getStatus() === HttpStatus.TOO_MANY_REQUESTS) {
+      if (
+        e instanceof HttpException &&
+        e.getStatus &&
+        e.getStatus() === HttpStatus.TOO_MANY_REQUESTS
+      ) {
         return true;
       }
       throw e;

@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Query, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { ActivityService } from './activity.service';
 import { CreateActivityEventDto, QueryActivityEventsDto } from './dtos';
 import { createPermissionGuard } from '../auth/permission.guard';

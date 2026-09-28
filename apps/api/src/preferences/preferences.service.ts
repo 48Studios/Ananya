@@ -93,10 +93,7 @@ export class PreferencesService {
     return layout;
   }
 
-  async updateDashboardLayout(
-    userId: string,
-    dto: UpdateDashboardLayoutDto,
-  ) {
+  async updateDashboardLayout(userId: string, dto: UpdateDashboardLayoutDto) {
     const validUserId = this.validateUserId(userId);
     const layout = await this.getDashboardLayout(validUserId);
 

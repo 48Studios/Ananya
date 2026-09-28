@@ -84,14 +84,16 @@ describe('ProjectsService Material Stock Integration', () => {
     });
 
     it('rejects allocation when requested quantity > available stock at location', async () => {
-      mockInventoryProjectionsService.getByComponentAndLocation.mockResolvedValueOnce({
-        id: 'proj-1',
-        componentId: 'comp-1',
-        locationId: 'loc-1',
-        quantity: 10,
-        unitOfMeasure: 'pcs',
-        lastUpdated: new Date(),
-      } as any);
+      mockInventoryProjectionsService.getByComponentAndLocation.mockResolvedValueOnce(
+        {
+          id: 'proj-1',
+          componentId: 'comp-1',
+          locationId: 'loc-1',
+          quantity: 10,
+          unitOfMeasure: 'pcs',
+          lastUpdated: new Date(),
+        } as any,
+      );
 
       await expect(
         service.allocateMaterial(dummyProject.id, {
@@ -145,14 +147,16 @@ describe('ProjectsService Material Stock Integration', () => {
 
     it('rejects issuing when location physical stock has dropped below issue quantity', async () => {
       // Stock dropped to 15 on hand
-      mockInventoryProjectionsService.getByComponentAndLocation.mockResolvedValueOnce({
-        id: 'proj-1',
-        componentId: 'comp-1',
-        locationId: 'loc-1',
-        quantity: 15,
-        unitOfMeasure: 'pcs',
-        lastUpdated: new Date(),
-      } as any);
+      mockInventoryProjectionsService.getByComponentAndLocation.mockResolvedValueOnce(
+        {
+          id: 'proj-1',
+          componentId: 'comp-1',
+          locationId: 'loc-1',
+          quantity: 15,
+          unitOfMeasure: 'pcs',
+          lastUpdated: new Date(),
+        } as any,
+      );
 
       await expect(
         service.issueMaterial(dummyProject.id, {

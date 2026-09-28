@@ -38,7 +38,10 @@ describe('LoginThrottlerService', () => {
       expect(error).toBeInstanceOf(HttpException);
       const httpErr = error as HttpException;
       expect(httpErr.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
-      const response = httpErr.getResponse() as any;
+      const response = httpErr.getResponse() as {
+        message: string;
+        retryAfter: number;
+      };
       expect(response.message).toMatch(/Too many failed login attempts/i);
       expect(response.retryAfter).toBeGreaterThan(0);
     }

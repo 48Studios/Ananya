@@ -43,7 +43,10 @@ describe('PasswordHasher', () => {
       .update(plainPassword)
       .digest('hex');
 
-    const result = await PasswordHasher.verify('WrongPassword999!', legacySha256);
+    const result = await PasswordHasher.verify(
+      'WrongPassword999!',
+      legacySha256,
+    );
     expect(result.valid).toBe(false);
     expect(result.needsRehash).toBe(false);
   });
@@ -57,7 +60,9 @@ describe('PasswordHasher', () => {
       valid: false,
       needsRehash: false,
     });
-    expect(await PasswordHasher.verify(plainPassword, 'not-a-valid-hash')).toEqual({
+    expect(
+      await PasswordHasher.verify(plainPassword, 'not-a-valid-hash'),
+    ).toEqual({
       valid: false,
       needsRehash: false,
     });

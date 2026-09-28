@@ -112,7 +112,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [lastSyncTime, setLastSyncTime] = React.useState<Date | null>(null);
+
 
   const loadData = React.useCallback(async (isRefresh = false) => {
     if (isRefresh) {

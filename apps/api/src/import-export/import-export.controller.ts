@@ -23,7 +23,9 @@ import {
 } from '../auth/permission.guard';
 import { PermissionsService } from '../permissions/permissions.service';
 
-export function getRequiredPermissionForEntityImport(entityType: string): string {
+export function getRequiredPermissionForEntityImport(
+  entityType: string,
+): string {
   const norm = (entityType || '').trim().toLowerCase();
   switch (norm) {
     case 'user':

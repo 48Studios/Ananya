@@ -6,7 +6,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import {
   ShoppingCart,
   Plus,
-  CheckCircle2,
   DollarSign,
   FileText,
 } from "lucide-react";

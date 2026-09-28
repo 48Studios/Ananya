@@ -84,8 +84,12 @@ export class HttpLoggingInterceptor implements NestInterceptor {
     const details = this.toErrorLike(error);
     const statusCode = this.getStatusCode(error, details);
 
-    const sanitizedMessage = redactSensitiveData(details.message || String(error));
-    const sanitizedStack = details.stack ? redactSensitiveData(details.stack) : undefined;
+    const sanitizedMessage = redactSensitiveData(
+      details.message || String(error),
+    );
+    const sanitizedStack = details.stack
+      ? redactSensitiveData(details.stack)
+      : undefined;
 
     this.logger.error(
       this.serialize({

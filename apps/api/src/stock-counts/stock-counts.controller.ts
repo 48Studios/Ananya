@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { StockCountsService } from './stock-counts.service';
 import { CreateStockCountDto, AddCountLineDto, AssignCounterDto } from './dtos';
 import { StockCountStatus } from '@ananya/warehouse';
