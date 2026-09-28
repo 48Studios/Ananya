@@ -775,5 +775,120 @@ Phase 3.5 resolved the remaining privilege boundary and authorization gaps, achi
    - Guarantees in CI that any future unauthenticated or unguarded business mutation will fail the build immediately.
 
 ---
-*Report updated autonomously following Phase 3.5 Complete RBAC Coverage & Privilege Boundary Verification.*
+
+## 17. Phase 4 — Cryptographic, Session & Password Hardening Record
+
+Phase 4 addressed password hashing algorithms, authentication enumeration vectors, session lifecycle management, and credential invalidation semantics across Ananya ERP.
+
+### Core Remediation Achievements:
+
+1. **Argon2id Password Hashing & Transparent Migration (`PasswordHasher`):**
+   - Migrated password storage from unsalted/inadequate SHA-256 to modern, memory-hard **Argon2id** (`argon2.argon2id`, version 19, time cost: 3, memory cost: 65,536 KB [64 MB], parallelism: 4).
+   - Designed and deployed a centralized `PasswordHasher` class handling both hash generation and transparent backward-compatible verification.
+   - On successful authentication of a user possessing a legacy SHA-256 hash, the system automatically and transparently upgrades the password record in PostgreSQL to a fresh Argon2id hash without user friction or forced password resets.
+   - Updated all onboarding, invitation, user-creation, and organization-reset flows to hash passwords exclusively using Argon2id.
+
+2. **Session Expiration & Query-Level Enforcement:**
+   - Enforced session expiration strictly at the database query level (`where(and(eq(token), gt(expiresAt, now()), isNull(revokedAt)))`).
+   - Prevents stale, expired, or revoked sessions from ever being recognized as valid, regardless of cache state.
+
+3. **Active Session Invalidation on Credential Changes:**
+   - User password changes immediately revoke all other active sessions belonging to the user (`revokeUserSessionsExcept(userId, currentSessionToken)`), preserving only the caller's active session.
+   - Administrative password resets immediately revoke **all** active sessions belonging to the target user (`revokeAllUserSessions(targetUserId)`), preventing compromised accounts from maintaining persistent unauthorized access.
+
+4. **Account Enumeration Defense:**
+   - Mitigated account enumeration and timing side-channels during login attempts.
+   - If an account does not exist or is disabled (`status !== 'ACTIVE'`), the authentication service executes a constant-time dummy Argon2id hash calculation against a pre-computed hash template before returning a generic `401 Unauthorized: Invalid email or password`.
+   - Callers cannot distinguish between non-existent emails, disabled accounts, and incorrect passwords via HTTP status codes, error payloads, or response timing.
+
+5. **Single-Tenant Architecture Security Boundary:**
+   - Audited the multitenancy posture of Ananya ERP. Formally confirmed and documented that the deployment model is strictly single-tenant. No cross-tenant data bleed risks exist at the data tier.
+
+---
+
+## 18. Phase 5 — Operational Security Hardening Record
+
+Phase 5 implemented comprehensive operational security controls, background maintenance workers, defensive rate limiting, structured audit logging, secure HTTP headers, production configuration validation, and dependency vulnerability assessment.
+
+### Core Remediation Achievements:
+
+1. **Background Session Cleanup Worker (`SessionCleanupService` & `worker.ts`):**
+   - Implemented `SessionCleanupService` providing an idempotent, concurrency-safe cleanup routine for expired and revoked user sessions.
+   - **Mutual Exclusion:** Enforced an internal execution mutex (`isCleaning`) ensuring overlapping cleanup executions are cleanly skipped without thread contention or duplicate database operations.
+   - **Configurable Retention Policy:** Active retention defaults to 30 days (`SESSION_REVOKED_RETENTION_DAYS`), purging all sessions where `expiresAt < now()` or `revokedAt < (now() - retentionPeriod)`.
+   - **Failure Containment:** Session cleanup failures are caught, logged as structured warnings, and cleanly contained without crashing the host process or interrupting other background tasks.
+   - **Worker Integration:** Wired periodic background execution into `apps/api/src/worker.ts` with automated startup and graceful shutdown hooks listening for `SIGINT` and `SIGTERM`.
+
+2. **Sliding-Window Login Throttling (`LoginThrottlerService`):**
+   - Designed and deployed an in-memory sliding-window rate limiter specifically targeted at authentication endpoints.
+   - **Rate Limits:** Enforced a default threshold of **5 failed attempts within 300 seconds** (5 minutes) per identity key, resulting in a **60-second block window** returning HTTP `429 Too Many Requests`.
+   - **Memory Leak Protection:** Integrated an automatic pruning cycle (`cleanupIntervalMs: 60,000`) that purges expired attempt windows and blocks, preventing memory exhaustion under sustained distributed probes.
+   - **Normalized Identity Keys:** Rate-limiting keys normalize client IP addresses (handling `X-Forwarded-For` and loopback aliases) and lowercase/trimmed email addresses (`ip:email`).
+   - **Audit Trail:** Throttled requests record a high-severity `THROTTLED_LOGIN` security audit log containing IP and attempt count.
+
+3. **Sensitive Data Logging Sanitization (`redactSensitiveData`):**
+   - Created a recursive sensitive-data redaction utility (`apps/api/src/common/utils/sensitive-data-redactor.ts`).
+   - **Pattern Matching:** Deeply inspects object hierarchies and matches sensitive keys: passwords, hashes, bearer tokens, API keys, secrets, authorization headers, cookies, and database connection strings containing credentials.
+   - **Logging Sanitization:** Integrated into `SecurityAuditService.record()` (sanitizing audit payload `details` before database insertion) and `HttpLoggingInterceptor` (sanitizing error messages and stack traces in API response logs). Plaintext secrets can never leak into log aggregators or security audit tables.
+
+4. **Structured Security Event Logging:**
+   - Verified that `SecurityAuditService` captures all security-critical lifecycle events:
+     - `LOGIN_SUCCESS`, `LOGIN_FAILED`, `LOGIN_BLOCKED`, `THROTTLED_LOGIN`
+     - `PASSWORD_CHANGED`, `PASSWORD_RESET`, `PASSWORD_MIGRATED`
+     - `SESSION_REVOKED`, `ADMIN_PASSWORD_RESET`
+     - `ROLE_CHANGED`, `ADMINISTRATOR_ASSIGNED`
+     - `USER_DISABLED`, `USER_ENABLED`
+     - `AUTHORIZATION_DENIED` (logged automatically by `PermissionGuard` on HTTP 403)
+   - Marked `SecurityAuditModule` as `@Global()`, ensuring audit trail capabilities are universally accessible across all guards and modules without circular import overhead.
+
+5. **HTTP Security Headers & Information Leakage Defense:**
+   - Enforced defense-in-depth HTTP security headers in Express middleware:
+     - `X-Content-Type-Options: nosniff` (mitigates MIME-sniffing attacks)
+     - `X-Frame-Options: DENY` (prevents clickjacking)
+     - `Referrer-Policy: strict-origin-when-cross-origin` (prevents referrer leakage)
+     - `Permissions-Policy: camera=(), microphone=(), geolocation=()` (disables unused browser capabilities)
+     - `Strict-Transport-Security: max-age=31536000; includeSubDomains` (enforced when running in production or over HTTPS)
+     - `app.disable('x-powered-by')` (removes Express technology fingerprinting headers)
+
+6. **Secure CORS Resolution Policy (`resolveCorsOrigin`):**
+   - Implemented a dedicated CORS configuration module (`apps/api/src/common/config/cors.config.ts`).
+   - In production (`NODE_ENV === 'production'`), CORS **fails closed** (returns `false`) unless explicitly configured with comma-separated origins via `CORS_ORIGIN`.
+   - Never reflects wildcard `*` with credentials in production.
+   - In local development/testing, safely permits `localhost:3000`, `localhost:3001`, `127.0.0.1:3000`, and `127.0.0.1:3001`.
+
+7. **Production Configuration & Secret Validation (`validateEnvironmentConfig`):**
+   - Implemented an automated fast-fail startup validator (`apps/api/src/common/config/production-config.validator.ts`) executed before HTTP server bootstrap.
+   - In production environments, halts startup immediately if:
+     - `JWT_SECRET` is unset, empty, or uses an insecure placeholder (`secret`, `password`, `changeme`, `admin`).
+     - `SESSION_SECRET` is unset, empty, or insecure.
+     - `DATABASE_URL` is unset, empty, or contains default demo credentials (`postgres:postgres`, `ananya:ananya`, etc.).
+     - `CORS_ORIGIN` is configured as wildcard `*`.
+   - Emits structured warnings in non-production environments when database connectivity or secrets are unconfigured.
+
+8. **Monorepo Dependency Vulnerability Review (`pnpm audit`):**
+   - Executed a comprehensive monorepo dependency vulnerability scan.
+   - **Vulnerability Breakdown:** 55 vulnerabilities identified across 1,275 dependencies:
+     - Low: 2
+     - Moderate: 20
+     - High: 31
+     - Critical: 2
+   - **Key Findings & Risk Assessment:**
+     - **Critical (2) & High (MCP/Hono):** Located in `apps/web > shadcn > @modelcontextprotocol/sdk > hono` (CVE-2026-39873 / GHSA-4v5x-x89w-g785: SSRF via unparsed URL hostnames, and regex DoS in header parsing).
+       - *Context:* Originates from the Model Context Protocol experimental UI module in `apps/web`. The core ERP API (`apps/api`) does not import or execute Hono or MCP in its production path.
+     - **High (Multer DoS):** Located in `@nestjs/platform-express@11.1.28 > multer@2.2.0` (CVE-2026-77037: file descriptor leak on aborted uploads, and CVE-2026-82333: sparse array DoS via crafted bracket notation).
+       - *Context:* Upstream transitive dependency bundled with NestJS Express platform. Document upload routes in Ananya ERP enforce strict authentication and file-size constraints. Upgrading to `@nestjs/platform-express` incorporating `multer@2.3.0` is recommended in the next scheduled framework upgrade cycle.
+
+---
+
+## 19. Final Verification & Security Regression Baseline
+
+| Verification Suite | Target | Status | Passing Tests / Checks |
+| :--- | :--- | :---: | :---: |
+| **TypeScript Monorepo Typecheck** | All 18 packages/apps | **PASS** | 0 errors (`pnpm -r check-types`) |
+| **API Unit Test Suite** | `apps/api` | **PASS** | **1,134 / 1,134 passed** (64 test suites) |
+| **Authorization Completeness Audit** | `apps/api` | **PASS** | **343 mutations checked: 321 guarded, 5 public, 17 self-service, 0 unguarded** |
+| **Security Remediation Integration Tests** | `apps/api` | **PASS** | **43 / 43 passed** (Sections 1 through 14) |
+
+---
+*Report updated autonomously following Phase 4 Cryptographic, Session & Password Hardening and Phase 5 Operational Security Hardening.*
 

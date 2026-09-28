@@ -11,6 +11,7 @@ import { eq } from '@ananya/database/query';
 import { ActivityService } from '../activity/activity.service';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { ResetOrganizationDto } from './dtos';
+import { PasswordHasher } from '../auth/password-hasher';
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -65,9 +66,22 @@ export class OrganizationResetService {
 
     const inputHash = hashPassword(dto.passwordConfirm);
     if (user.passwordHash !== inputHash) {
+    const verification = await PasswordHasher.verify(
+      dto.passwordConfirm,
+      user.passwordHash,
+    );
+    if (!verification.valid) {
       throw new UnauthorizedException(
         'Password verification failed. Incorrect password.',
       );
+    }
+
+    if (verification.needsRehash) {
+      const newHash = await PasswordHasher.hash(dto.passwordConfirm);
+      await db
+        .update(users)
+        .set({ passwordHash: newHash, updatedAt: new Date() })
+        .where(eq(users.id, userId));
     }
 
     console.log(

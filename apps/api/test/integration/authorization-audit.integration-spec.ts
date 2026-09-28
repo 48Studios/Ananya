@@ -113,6 +113,7 @@ describe('Automated Authorization Completeness Audit (Phase 3.5)', () => {
               controller: controllerClass.name,
               method: methodName,
               httpMethod: RequestMethod[requestMethod],
+              httpMethod: RequestMethod[requestMethod] ?? 'UNKNOWN',
               path: methodPath,
             });
           }

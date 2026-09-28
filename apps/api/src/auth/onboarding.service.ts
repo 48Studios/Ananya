@@ -18,6 +18,7 @@ import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { ActivityService } from '../activity/activity.service';
 import { AuthService } from './auth.service';
 import { SetupOrganizationDto } from './dtos';
+import { PasswordHasher } from './password-hasher';
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -61,6 +62,8 @@ export class OnboardingService {
 
     // Hash admin password
     const passwordHash = hashPassword(dto.adminPassword);
+    // Hash admin password using Argon2id
+    const passwordHash = await PasswordHasher.hash(dto.adminPassword);
 
     try {
       // Fetch system Administrator Role

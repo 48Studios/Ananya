@@ -12,6 +12,7 @@ import {
   passwordResetTokens,
 } from '@ananya/database/schema';
 import { eq, and, or } from '@ananya/database/query';
+import { eq, and, or, gt, lt } from '@ananya/database/query';
 import {
   LoginDto,
   ChangePasswordDto,
@@ -21,6 +22,9 @@ import {
 import { UsersService } from '../users/users.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
+import { PasswordHasher } from './password-hasher';
+import { LoginThrottlerService } from './login-throttler.service';
+import { SessionCleanupService } from './session-cleanup.service';
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -32,11 +36,28 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly permissionsService: PermissionsService,
     private readonly auditService: SecurityAuditService,
+    private readonly loginThrottler: LoginThrottlerService,
+    private readonly sessionCleanupService: SessionCleanupService,
   ) {}
 
   async login(dto: LoginDto, ipAddress?: string, userAgent?: string) {
+    // 1. Check rate limit / brute-force protection
+    try {
+      this.loginThrottler.checkThrottled(dto.email, ipAddress);
+    } catch (throttledErr) {
+      await this.auditService.record({
+        action: 'THROTTLED_LOGIN',
+        category: 'SECURITY',
+        userEmail: dto.email,
+        ipAddress,
+        details: { reason: 'Rate limit threshold exceeded' },
+      });
+      throw throttledErr;
+    }
+
     const userRecord = await this.usersService.findByEmail(dto.email);
     if (!userRecord) {
+      this.loginThrottler.recordFailure(dto.email, ipAddress);
       await this.auditService.record({
         action: 'LOGIN_FAILED',
         category: 'SECURITY',
@@ -48,6 +69,7 @@ export class AuthService {
     }
 
     if (userRecord.status === 'DISABLED') {
+      this.loginThrottler.recordFailure(dto.email, ipAddress);
       await this.auditService.record({
         action: 'LOGIN_BLOCKED',
         category: 'SECURITY',
@@ -59,10 +81,20 @@ export class AuthService {
       throw new UnauthorizedException(
         'Account disabled. Contact administrator.',
       );
+      // Do not leak account existence or status to prevent enumeration
+      throw new UnauthorizedException('Invalid credentials.');
     }
 
     const hashedInput = hashPassword(dto.password);
     if (userRecord.passwordHash !== hashedInput) {
+    // 2. Verify password with support for Argon2id and legacy SHA-256 transparent upgrade
+    const verifyResult = await PasswordHasher.verify(
+      dto.password,
+      userRecord.passwordHash,
+    );
+
+    if (!verifyResult.valid) {
+      this.loginThrottler.recordFailure(dto.email, ipAddress);
       await this.auditService.record({
         action: 'LOGIN_FAILED',
         category: 'SECURITY',
@@ -72,6 +104,26 @@ export class AuthService {
         details: { reason: 'Invalid password' },
       });
       throw new UnauthorizedException('Invalid credentials.');
+    }
+
+    // Successful login resets throttler counters
+    this.loginThrottler.recordSuccess(dto.email, ipAddress);
+
+    // 3. Transparently migrate legacy SHA-256 hash to Argon2id without forced reset
+    if (verifyResult.needsRehash) {
+      const newHash = await PasswordHasher.hash(dto.password);
+      await db
+        .update(users)
+        .set({ passwordHash: newHash, updatedAt: new Date() })
+        .where(eq(users.id, userRecord.id));
+
+      await this.auditService.record({
+        action: 'PASSWORD_MIGRATED',
+        category: 'SECURITY',
+        userId: userRecord.id,
+        userEmail: userRecord.email,
+        details: { algorithm: 'argon2id' },
+      });
     }
 
     return this.createSessionForUser(
@@ -152,6 +204,7 @@ export class AuthService {
 
       await this.auditService.record({
         action: 'LOGOUT',
+        action: 'SESSION_REVOKED',
         category: 'SECURITY',
         userId: session.userId,
         details: { sessionId: session.id },
@@ -167,10 +220,16 @@ export class AuthService {
       .from(userSessions)
       .where(
         and(eq(userSessions.token, token), eq(userSessions.isRevoked, false)),
+        and(
+          eq(userSessions.token, token),
+          eq(userSessions.isRevoked, false),
+          gt(userSessions.expiresAt, new Date()),
+        ),
       )
       .limit(1);
 
     if (!session || new Date() > new Date(session.expiresAt)) {
+    if (!session) {
       throw new UnauthorizedException('Session expired or invalid.');
     }
 
@@ -184,6 +243,11 @@ export class AuthService {
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+    currentSessionToken?: string,
+  ) {
     const userRecord = await db
       .select()
       .from(users)
@@ -195,22 +259,48 @@ export class AuthService {
     }
 
     if (userRecord[0].passwordHash !== hashPassword(dto.currentPassword)) {
+    const verifyResult = await PasswordHasher.verify(
+      dto.currentPassword,
+      userRecord[0].passwordHash,
+    );
+
+    if (!verifyResult.valid) {
+      await this.auditService.record({
+        action: 'PASSWORD_CHANGE_FAILED',
+        category: 'SECURITY',
+        userId,
+        userEmail: userRecord[0].email,
+        details: { reason: 'Current password verification failed' },
+      });
       throw new BadRequestException('Current password does not match.');
     }
 
+    const newHash = await PasswordHasher.hash(dto.newPassword);
     await db
       .update(users)
       .set({
         passwordHash: hashPassword(dto.newPassword),
+        passwordHash: newHash,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId));
+
+    // Invalidate other active sessions to prevent session hijacking
+    if (currentSessionToken) {
+      await this.revokeAllOtherSessions(userId, currentSessionToken);
+    } else {
+      await db
+        .update(userSessions)
+        .set({ isRevoked: true, updatedAt: new Date() })
+        .where(eq(userSessions.userId, userId));
+    }
 
     await this.auditService.record({
       action: 'PASSWORD_CHANGED',
       category: 'SECURITY',
       userId,
       userEmail: userRecord[0].email,
+      details: { algorithm: 'argon2id' },
     });
 
     return { success: true };
@@ -275,10 +365,12 @@ export class AuthService {
       );
     }
 
+    const newHash = await PasswordHasher.hash(dto.newPassword);
     await db
       .update(users)
       .set({
         passwordHash: hashPassword(dto.newPassword),
+        passwordHash: newHash,
         updatedAt: new Date(),
       })
       .where(eq(users.id, tokenRecord.userId));
@@ -298,9 +390,15 @@ export class AuthService {
       action: 'PASSWORD_RESET_COMPLETED',
       category: 'SECURITY',
       userId: tokenRecord.userId,
+      details: { algorithm: 'argon2id' },
     });
 
     return { success: true };
+  }
+
+  async cleanupExpiredSessions(): Promise<{ deletedCount: number }> {
+    const result = await this.sessionCleanupService.cleanupExpiredSessions();
+    return { deletedCount: result.deletedCount };
   }
 
   async getUserSessions(userId: string) {

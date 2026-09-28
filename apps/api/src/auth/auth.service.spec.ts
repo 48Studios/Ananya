@@ -6,6 +6,8 @@ import { UsersService } from '../users/users.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { ActivityService } from '../activity/activity.service';
+import { LoginThrottlerService } from './login-throttler.service';
+import { SessionCleanupService } from './session-cleanup.service';
 
 describe('AuthService Suite', () => {
   let authService: AuthService;
@@ -35,6 +37,8 @@ describe('AuthService Suite', () => {
         AuthService,
         InvitationsService,
         OnboardingService,
+        LoginThrottlerService,
+        SessionCleanupService,
         { provide: UsersService, useValue: mockUsersService },
         { provide: PermissionsService, useValue: mockPermissionsService },
         { provide: SecurityAuditService, useValue: mockAuditService },

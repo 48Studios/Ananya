@@ -13,6 +13,7 @@ import { CreateUserDto, UpdateUserDto, AdminResetPasswordDto } from './dtos';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { RolesService } from '../roles/roles.service';
 import type { AuthenticatedRequestUser } from '../auth/permission.guard';
+import { PasswordHasher } from '../auth/password-hasher';
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -145,6 +146,7 @@ export class UsersService implements OnModuleInit {
       .values({
         email: dto.email.toLowerCase(),
         passwordHash: hashPassword(dto.password),
+        passwordHash: await PasswordHasher.hash(dto.password),
         firstName: dto.firstName,
         lastName: dto.lastName,
         department: dto.department || null,
@@ -225,6 +227,35 @@ export class UsersService implements OnModuleInit {
         fields: Object.keys(dto),
       },
     });
+
+    if (dto.roleId !== undefined && dto.roleId !== target.roleId) {
+      await this.auditService.record({
+        action: 'ROLE_CHANGED',
+        category: 'SECURITY',
+        userId: id,
+        userEmail: updated.email,
+        details: {
+          previousRoleId: target.roleId,
+          newRoleId: dto.roleId,
+          changedBy: caller?.email || 'system',
+        },
+      });
+
+      if (dto.roleId) {
+        const newRole = await this.rolesService.findById(dto.roleId);
+        if (newRole && newRole.name === 'Administrator') {
+          await this.auditService.record({
+            action: 'ADMINISTRATOR_ASSIGNED',
+            category: 'SECURITY',
+            userId: id,
+            userEmail: updated.email,
+            details: {
+              assignedBy: caller?.email || 'system',
+            },
+          });
+        }
+      }
+    }
 
     return this.findById(id);
   }
@@ -310,6 +341,7 @@ export class UsersService implements OnModuleInit {
       .update(users)
       .set({
         passwordHash: hashPassword(dto.newPassword),
+        passwordHash: await PasswordHasher.hash(dto.newPassword),
         updatedAt: new Date(),
       })
       .where(eq(users.id, id));

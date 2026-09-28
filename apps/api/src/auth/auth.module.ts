@@ -8,6 +8,8 @@ import { PermissionsModule } from '../permissions/permissions.module';
 import { SecurityAuditModule } from '../security-audit/security-audit.module';
 import { ActivityModule } from '../activity/activity.module';
 import { ComponentWriteGuard } from './component-write.guard';
+import { LoginThrottlerService } from './login-throttler.service';
+import { SessionCleanupService } from './session-cleanup.service';
 
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './auth.guard';
@@ -26,6 +28,8 @@ import { AuthGuard } from './auth.guard';
     InvitationsService,
     OnboardingService,
     ComponentWriteGuard,
+    LoginThrottlerService,
+    SessionCleanupService,
     AuthGuard,
     {
       provide: APP_GUARD,
@@ -37,6 +41,8 @@ import { AuthGuard } from './auth.guard';
     InvitationsService,
     OnboardingService,
     ComponentWriteGuard,
+    LoginThrottlerService,
+    SessionCleanupService,
     AuthGuard,
   ],
 })

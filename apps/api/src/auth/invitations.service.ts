@@ -14,6 +14,7 @@ import { ActivityService } from '../activity/activity.service';
 import { AuthService } from './auth.service';
 import { CreateInvitationDto, AcceptInvitationDto } from './dtos';
 import type { AuthenticatedRequestUser } from './permission.guard';
+import { PasswordHasher } from './password-hasher';
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -125,6 +126,8 @@ export class InvitationsService {
 
     // Hash password
     const passwordHash = hashPassword(dto.password);
+    // Hash password using Argon2id
+    const passwordHash = await PasswordHasher.hash(dto.password);
 
     const [user] = await db
       .insert(users)

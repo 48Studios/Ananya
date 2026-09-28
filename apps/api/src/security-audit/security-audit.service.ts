@@ -3,6 +3,7 @@ import { db } from '@ananya/database';
 import { securityAuditLogs } from '@ananya/database/schema';
 import { desc, eq } from '@ananya/database/query';
 import { RequestContext } from '../common/context/request-context';
+import { redactSensitiveData } from '../common/utils/sensitive-data-redactor';
 
 export interface RecordAuditPayload {
   userId?: string | null;
@@ -20,6 +21,9 @@ export class SecurityAuditService {
     const resolvedIp = payload.ipAddress || ctx?.clientIp || null;
     const resolvedUserId = payload.userId || ctx?.userId || null;
     const resolvedUserEmail = payload.userEmail || ctx?.userEmail || null;
+    const sanitizedDetails = payload.details
+      ? redactSensitiveData(payload.details)
+      : null;
 
     const [entry] = await db
       .insert(securityAuditLogs)
@@ -30,6 +34,7 @@ export class SecurityAuditService {
         category: payload.category,
         ipAddress: resolvedIp,
         details: payload.details || null,
+        details: sanitizedDetails,
       })
       .returning();
     return entry;

@@ -5,6 +5,7 @@ dotenv.config();
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { SessionCleanupService } from './auth/session-cleanup.service';
 
 async function bootstrapWorker() {
   console.log('⚙️ Starting Ananya ERP Background Worker Service...');
@@ -14,6 +15,12 @@ async function bootstrapWorker() {
   console.log(
     '✅ NestJS application context initialized for background worker.',
   );
+
+  // Initialize and start periodic session cleanup task (Phase 5)
+  const sessionCleanup = appContext.get(SessionCleanupService);
+  sessionCleanup.startPeriodicCleanup();
+  // Trigger initial cleanup cycle asynchronously
+  void sessionCleanup.cleanupExpiredSessions();
 
   const workerPort = parseInt(process.env.WORKER_PORT ?? '4001', 10);
 
@@ -58,6 +65,7 @@ async function bootstrapWorker() {
     console.log(
       `\n🛑 Received ${signal}. Shutting down Ananya Worker gracefully...`,
     );
+    sessionCleanup.stopPeriodicCleanup();
     clearInterval(intervalId);
     server.close();
     await appContext.close();

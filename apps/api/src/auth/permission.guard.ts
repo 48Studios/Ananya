@@ -4,11 +4,13 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
   Type,
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PermissionsService } from '../permissions/permissions.service';
+import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { RequestContext } from '../common/context/request-context';
 
 /**
@@ -27,6 +29,9 @@ export interface AuthenticatedRequestUser {
 export interface AuthenticatedRequest {
   headers?: Record<string, string | string[] | undefined>;
   user?: AuthenticatedRequestUser;
+  method?: string;
+  url?: string;
+  path?: string;
 }
 
 export function extractBearerToken(
@@ -73,6 +78,7 @@ export function createPermissionGuard(
     constructor(
       private readonly authService: AuthService,
       private readonly permissionsService: PermissionsService,
+      @Optional() private readonly auditService?: SecurityAuditService,
     ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -83,6 +89,20 @@ export function createPermissionGuard(
       if (request.user) {
         const permissions = request.user.permissions ?? [];
         if (!this.permissionsService.hasPermission(permissions, permission)) {
+          if (this.auditService) {
+            void this.auditService.record({
+              action: 'AUTHORIZATION_DENIED',
+              category: 'SECURITY',
+              userId: request.user.id,
+              userEmail: request.user.email,
+              details: {
+                requiredPermission: permission,
+                subject,
+                method: request.method,
+                path: request.url || request.path,
+              },
+            });
+          }
           throw new ForbiddenException(
             `You do not have permission to ${subject} (requires ${permission}).`,
           );
@@ -134,6 +154,20 @@ export function createPermissionGuard(
 
       const permissions = me.permissions ?? [];
       if (!this.permissionsService.hasPermission(permissions, permission)) {
+        if (this.auditService) {
+          void this.auditService.record({
+            action: 'AUTHORIZATION_DENIED',
+            category: 'SECURITY',
+            userId: user.id,
+            userEmail: user.email,
+            details: {
+              requiredPermission: permission,
+              subject,
+              method: request.method,
+              path: request.url || request.path,
+            },
+          });
+        }
         throw new ForbiddenException(
           `You do not have permission to ${subject} (requires ${permission}).`,
         );

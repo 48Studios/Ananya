@@ -11,6 +11,8 @@ import { randomUUID } from 'node:crypto';
 import { Observable, catchError, throwError } from 'rxjs';
 import { getClientIp } from '../utils/client-ip.util';
 
+import { redactSensitiveData } from '../utils/sensitive-data-redactor';
+
 interface HttpErrorLike {
   name?: string;
   message?: string;
@@ -82,6 +84,9 @@ export class HttpLoggingInterceptor implements NestInterceptor {
     const details = this.toErrorLike(error);
     const statusCode = this.getStatusCode(error, details);
 
+    const sanitizedMessage = redactSensitiveData(details.message || String(error));
+    const sanitizedStack = details.stack ? redactSensitiveData(details.stack) : undefined;
+
     this.logger.error(
       this.serialize({
         event: 'http.error',
@@ -93,8 +98,11 @@ export class HttpLoggingInterceptor implements NestInterceptor {
         errorName: details.name,
         errorMessage: details.message || String(error),
         stack: details.stack,
+        errorMessage: sanitizedMessage,
+        stack: sanitizedStack,
       }),
       details.stack,
+      sanitizedStack,
     );
   }
 
