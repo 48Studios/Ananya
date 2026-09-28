@@ -28,7 +28,7 @@ Files prefixed with `_` are only invoked through `workflow_call`; they never tri
 
 ## Adding a new image service
 
-Add the service to the matrix in **both** `docker.yml` and `release.yml`. The two matrices are intentionally not shared: continuous integration builds use rolling `edge` tags on native `linux/amd64` for maximum delivery speed, while releases use explicit version tags across multi-architecture (`linux/amd64,linux/arm64`).
+Add the service to the matrix in **both** `docker.yml` and `release.yml`. The two matrices are intentionally not shared: continuous integration publishes rolling `edge` and `sha-*` tags for `linux/amd64` and `linux/arm64`; release workflows publish version tags for the same architectures.
 
 ## Caching Strategy
 
