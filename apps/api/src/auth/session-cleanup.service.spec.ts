@@ -34,6 +34,7 @@ describe('SessionCleanupService', () => {
     expect(result.success).toBe(true);
     expect(result.skipped).toBe(false);
     expect(result.deletedCount).toBe(2);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(db.delete).toHaveBeenCalled();
   });
 

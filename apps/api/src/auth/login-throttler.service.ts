@@ -150,8 +150,7 @@ export class LoginThrottlerService implements ILoginThrottler {
     } catch (e) {
       if (
         e instanceof HttpException &&
-        e.getStatus &&
-        e.getStatus() === HttpStatus.TOO_MANY_REQUESTS
+        e.getStatus() === 429 // HttpStatus.TOO_MANY_REQUESTS
       ) {
         return true;
       }

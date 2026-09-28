@@ -9,9 +9,13 @@ describe('TimeEntriesController', () => {
 
   beforeEach(() => {
     service = {
-      create: jest.fn().mockImplementation((dto) => Promise.resolve(dto)),
+      create: jest
+        .fn()
+        .mockImplementation((dto: Record<string, unknown>) =>
+          Promise.resolve(dto),
+        ),
       findAll: jest.fn().mockResolvedValue([]),
-      findOne: jest.fn().mockImplementation((id) =>
+      findOne: jest.fn().mockImplementation((id: string) =>
         Promise.resolve({
           id,
           userId: 'user-worker',
@@ -19,14 +23,16 @@ describe('TimeEntriesController', () => {
           hours: 4,
           status: 'PENDING',
         }),
-      },
-      approve: jest.fn().mockImplementation((id, dto) =>
-        Promise.resolve({
-          id,
-          status: 'APPROVED',
-          approverId: dto.approverId,
-        }),
       ),
+      approve: jest
+        .fn()
+        .mockImplementation((id: string, dto: { approverId: string }) =>
+          Promise.resolve({
+            id,
+            status: 'APPROVED',
+            approverId: dto.approverId,
+          }),
+        ),
       reject: jest.fn().mockResolvedValue({ status: 'REJECTED' }),
     };
     controller = new TimeEntriesController(

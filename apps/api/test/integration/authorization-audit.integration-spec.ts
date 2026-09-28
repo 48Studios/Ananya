@@ -70,12 +70,14 @@ describe('Automated Authorization Completeness Audit (Phase 3.5)', () => {
         const controllerClass = controller.metatype;
         if (!controllerClass || !controllerClass.prototype) continue;
 
-        const classGuards =
-          Reflect.getMetadata('__guards__', controllerClass) || [];
+        const classGuards: unknown[] =
+          (Reflect.getMetadata('__guards__', controllerClass) as
+            unknown[] | undefined) ?? [];
         const classIsPublic =
-          Reflect.getMetadata('isPublic', controllerClass) === true;
+          (Reflect.getMetadata('isPublic', controllerClass) as
+            boolean | undefined) === true;
 
-        const prototype = controllerClass.prototype;
+        const prototype = controllerClass.prototype as Record<string, unknown>;
         const methodNames = Object.getOwnPropertyNames(prototype).filter(
           (m) => m !== 'constructor',
         );
@@ -83,8 +85,10 @@ describe('Automated Authorization Completeness Audit (Phase 3.5)', () => {
         for (const methodName of methodNames) {
           const handler = prototype[methodName];
           if (typeof handler !== 'function') continue;
+          const handlerFn = handler as (...args: unknown[]) => unknown;
 
-          const requestMethod = Reflect.getMetadata('method', handler);
+          const requestMethod = Reflect.getMetadata('method', handlerFn) as
+            RequestMethod | undefined;
           if (
             requestMethod === undefined ||
             !mutationMethods.includes(requestMethod)
@@ -93,10 +97,14 @@ describe('Automated Authorization Completeness Audit (Phase 3.5)', () => {
           }
 
           totalMutationsChecked++;
-          const methodPath = Reflect.getMetadata('path', handler);
-          const methodGuards = Reflect.getMetadata('__guards__', handler) || [];
+          const methodPath = Reflect.getMetadata('path', handlerFn) as
+            string | undefined;
+          const methodGuards: unknown[] =
+            (Reflect.getMetadata('__guards__', handlerFn) as
+              unknown[] | undefined) ?? [];
           const methodIsPublic =
-            Reflect.getMetadata('isPublic', handler) === true;
+            (Reflect.getMetadata('isPublic', handlerFn) as
+              boolean | undefined) === true;
 
           const hasGuard = classGuards.length > 0 || methodGuards.length > 0;
           const isPublic = classIsPublic || methodIsPublic;
@@ -115,8 +123,11 @@ describe('Automated Authorization Completeness Audit (Phase 3.5)', () => {
             unhandledMutations.push({
               controller: controllerClass.name,
               method: methodName,
-              httpMethod: RequestMethod[requestMethod] ?? 'UNKNOWN',
-              path: methodPath,
+              httpMethod:
+                requestMethod !== undefined
+                  ? (RequestMethod[requestMethod] ?? 'UNKNOWN')
+                  : 'UNKNOWN',
+              path: methodPath ?? '',
             });
           }
         }

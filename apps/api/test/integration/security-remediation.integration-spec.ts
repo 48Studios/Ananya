@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
+import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from '../../src/app.module';
 import { AuthService } from '../../src/auth/auth.service';
 import { RolesService } from '../../src/roles/roles.service';
@@ -54,7 +55,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
-    app.use((_req: Request, res: Response, next: NextFunction) => {
+    app.use((_req: Request, res: Response, next: NextFunction): void => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('X-Frame-Options', 'DENY');
       res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -179,7 +180,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
             throw new Error(`Unsupported method ${ep.method}`);
         }
         expect(res.status).toBe(401);
-        expect(res.body.message).toMatch(
+        expect((res.body as { message: string }).message).toMatch(
           /Authentication is required|invalid or has expired/i,
         );
       }
@@ -190,11 +191,13 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
 
       const healthRes = await http().get('/health');
       expect(healthRes.status).toBe(200);
-      expect(healthRes.body.status).toBe('ok');
+      expect((healthRes.body as { status: string }).status).toBe('ok');
 
       const setupRes = await http().get('/auth/setup-status');
       expect(setupRes.status).toBe(200);
-      expect(typeof setupRes.body.isCompleted).toBe('boolean');
+      expect(
+        typeof (setupRes.body as { isCompleted: boolean }).isCompleted,
+      ).toBe('boolean');
     });
   });
 
@@ -238,7 +241,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       // Must contain safe tokenFingerprint
       expect(details.tokenFingerprint).toBeDefined();
       expect(typeof details.tokenFingerprint).toBe('string');
-      expect(details.tokenFingerprint.length).toBe(8);
+      expect((details.tokenFingerprint as string).length).toBe(8);
     });
   });
 
@@ -278,7 +281,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ newPassword: 'BrandNewPassword123!' });
       expect(res.status).toBe(201);
-      expect(res.body.success).toBe(true);
+      expect((res.body as { success: boolean }).success).toBe(true);
 
       // Verify sessions are invalidated
       const sessionsAfter = await db
@@ -307,7 +310,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         .set('Authorization', `Bearer ${userManagerToken}`)
         .send({ newPassword: 'MaliciousReset123!' });
       expect(res.status).toBe(403);
-      expect(res.body.message).toMatch(/Only Administrators/i);
+      expect((res.body as { message: string }).message).toMatch(
+        /Only Administrators/i,
+      );
     });
   });
 
@@ -329,7 +334,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         .set('Authorization', `Bearer ${userManagerToken}`)
         .send({ email: 'newadmin@test.local', roleId: adminRole!.id });
       expect(res.status).toBe(403);
-      expect(res.body.message).toMatch(
+      expect((res.body as { message: string }).message).toMatch(
         /Only Administrators can invite users with the Administrator role/i,
       );
     });
@@ -389,7 +394,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ permissions: ['Inventory.Read'] });
       expect(res.status).toBe(400);
-      expect(res.body.message).toMatch(
+      expect((res.body as { message: string }).message).toMatch(
         /System role permissions cannot be modified/i,
       );
     });
@@ -418,7 +423,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
           permissions: ['*'],
         });
       expect(res.status).toBe(403);
-      expect(res.body.message).toMatch(
+      expect((res.body as { message: string }).message).toMatch(
         /Only Administrators can grant wildcard/i,
       );
     });
@@ -437,7 +442,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
           ids: ['00000000-0000-0000-0000-000000000001'],
         });
       expect(res.status).toBe(403);
-      expect(res.body.message).toMatch(/requires Administration\.Roles/i);
+      expect((res.body as { message: string }).message).toMatch(
+        /requires Administration\.Roles/i,
+      );
     });
 
     it('denies bulk delete on components to users without Inventory.Delete', async () => {
@@ -452,7 +459,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
           ids: ['00000000-0000-0000-0000-000000000001'],
         });
       expect(res.status).toBe(403);
-      expect(res.body.message).toMatch(/requires Inventory\.Delete/i);
+      expect((res.body as { message: string }).message).toMatch(
+        /requires Inventory\.Delete/i,
+      );
     });
 
     it('rejects bulk action on unknown entity type with 400 (fails closed)', async () => {
@@ -467,7 +476,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
           ids: ['00000000-0000-0000-0000-000000000001'],
         });
       expect(res.status).toBe(400);
-      expect(res.body.message).toMatch(/not supported for unknown entity/i);
+      expect((res.body as { message: string }).message).toMatch(
+        /not supported for unknown entity/i,
+      );
     });
   });
 
@@ -480,8 +491,8 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         .set('Authorization', `Bearer ${inventoryUserToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.userId).toBe(inventoryUser.id);
-      expect(res.body.userId).not.toBe(adminUser.id);
+      expect((res.body as { userId: string }).userId).toBe(inventoryUser.id);
+      expect((res.body as { userId: string }).userId).not.toBe(adminUser.id);
     });
 
     it('rejects unauthenticated preferences access with 401', async () => {
@@ -508,7 +519,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
           message: 'Sensitive message',
         });
       expect(createRes.status).toBe(201);
-      const notifId = createRes.body.id;
+      const notifId = (createRes.body as { id: string }).id;
 
       // Inventory user tries to mark admin's notification as read
       const markRes = await http()
@@ -516,7 +527,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         .set('Authorization', `Bearer ${inventoryUserToken}`);
 
       expect(markRes.status).toBe(404);
-      expect(markRes.body.message).toMatch(/not found or access denied/i);
+      expect((markRes.body as { message: string }).message).toMatch(
+        /not found or access denied/i,
+      );
     });
 
     it('ignores forged userId query parameter and returns only caller notifications', async () => {
@@ -546,7 +559,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toMatch(/requires Administration\.Settings/i);
+      expect((res.body as { message: string }).message).toMatch(
+        /requires Administration\.Settings/i,
+      );
     });
 
     it('allows updating organization settings to Administrators', async () => {
@@ -608,7 +623,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toMatch(/requires Sales\.Create/i);
+      expect((res.body as { message: string }).message).toMatch(
+        /requires Sales\.Create/i,
+      );
     });
 
     it('denies journal entry creation to users without Accounting.Create', async () => {
@@ -623,7 +640,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toMatch(/requires Accounting\.Create/i);
+      expect((res.body as { message: string }).message).toMatch(
+        /requires Accounting\.Create/i,
+      );
     });
 
     it('denies maintenance schedule creation to users without Maintenance.Manage', async () => {
@@ -637,7 +656,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toMatch(/requires Maintenance\.Manage/i);
+      expect((res.body as { message: string }).message).toMatch(
+        /requires Maintenance\.Manage/i,
+      );
     });
 
     it('denies cycle count mutations to users without Inventory.Adjust', async () => {
@@ -651,7 +672,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toMatch(/requires Inventory\.Adjust/i);
+      expect((res.body as { message: string }).message).toMatch(
+        /requires Inventory\.Adjust/i,
+      );
     });
   });
 
@@ -690,7 +713,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       });
 
       expect(loginRes.status).toBe(201);
-      expect(loginRes.body.token).toBeDefined();
+      expect((loginRes.body as { token: string }).token).toBeDefined();
 
       // 3. Verify user's hash in database was transparently upgraded to Argon2id
       const [updatedUser] = await db
@@ -709,7 +732,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       });
 
       expect(secondLoginRes.status).toBe(201);
-      expect(secondLoginRes.body.token).toBeDefined();
+      expect((secondLoginRes.body as { token: string }).token).toBeDefined();
 
       // Clean up
       await db
@@ -733,7 +756,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         });
 
       expect(createRes.status).toBe(201);
-      const createdUserId = createRes.body.id;
+      const createdUserId = (createRes.body as { id: string }).id;
 
       const [storedUser] = await db
         .select()
@@ -768,19 +791,19 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
           firstName: 'Session',
           lastName: 'Test',
         });
-      const testUserId = createRes.body.id;
+      const testUserId = (createRes.body as { id: string }).id;
 
       // Establish Session 1
       const session1Res = await http()
         .post('/auth/login')
         .send({ email: userEmail, password: originalPassword });
-      const token1 = session1Res.body.token;
+      const token1 = (session1Res.body as { token: string }).token;
 
       // Establish Session 2
       const session2Res = await http()
         .post('/auth/login')
         .send({ email: userEmail, password: originalPassword });
-      const token2 = session2Res.body.token;
+      const token2 = (session2Res.body as { token: string }).token;
 
       expect(token1).toBeDefined();
       expect(token2).toBeDefined();
@@ -872,7 +895,9 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
 
       // Must return generic Invalid credentials, NOT "Account disabled"
       expect(res.status).toBe(401);
-      expect(res.body.message).toBe('Invalid credentials.');
+      expect((res.body as { message: string }).message).toBe(
+        'Invalid credentials.',
+      );
 
       // Clean up
       await db.delete(users).where(eq(users.id, disUser!.id));
@@ -910,8 +935,12 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
           });
 
         expect(throttledRes.status).toBe(429);
-        expect(throttledRes.body.error).toBe('Too Many Requests');
-        expect(throttledRes.body.retryAfter).toBeGreaterThan(0);
+        expect((throttledRes.body as { error: string }).error).toBe(
+          'Too Many Requests',
+        );
+        expect(
+          (throttledRes.body as { retryAfter: number }).retryAfter,
+        ).toBeGreaterThan(0);
 
         // Verify THROTTLED_LOGIN audit log entry
         const [auditLog] = await db

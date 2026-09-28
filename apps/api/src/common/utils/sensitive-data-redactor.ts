@@ -44,7 +44,7 @@ export function redactSensitiveData<T = unknown>(data: T, depth = 0): T {
 
   // Handle arrays
   if (Array.isArray(data)) {
-    return data.map((item) =>
+    return data.map((item: unknown) =>
       redactSensitiveData(item, depth + 1),
     ) as unknown as T;
   }

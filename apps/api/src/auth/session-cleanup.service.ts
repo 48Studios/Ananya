@@ -62,11 +62,12 @@ export class SessionCleanupService {
       }
 
       return { deletedCount: count, skipped: false, success: true };
-    } catch (err: any) {
-      const errorMessage = err?.message || 'Unknown database error';
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Unknown database error';
       this.logger.error(
         `[SessionCleanup] Cleanup cycle failed safely: ${errorMessage}`,
-        err?.stack,
+        err instanceof Error ? err.stack : undefined,
       );
       return {
         deletedCount: 0,

@@ -1,5 +1,6 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { Project, ProjectRepository } from '@ananya/projects';
+import { InventoryProjection } from '@ananya/inventory';
 import { ProjectsService } from './projects.service';
 import { CustomersService } from '../customers/customers.service';
 import { SalesOrdersService } from '../sales-orders/sales-orders.service';
@@ -28,7 +29,7 @@ describe('ProjectsService Material Stock Integration', () => {
 
     mockProjectRepo = {
       findById: jest.fn().mockResolvedValue(dummyProject),
-      save: jest.fn().mockImplementation(async (p) => p),
+      save: jest.fn().mockImplementation((p: Project) => Promise.resolve(p)),
       findMany: jest.fn().mockResolvedValue([dummyProject]),
       generateNextProjectNumber: jest.fn().mockResolvedValue('PRJ-2026-0002'),
       delete: jest.fn().mockResolvedValue(undefined),
@@ -80,6 +81,7 @@ describe('ProjectsService Material Stock Integration', () => {
 
       expect(result.materials).toHaveLength(1);
       expect(result.materials[0]?.allocatedQuantity).toBe(40);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockProjectRepo.save).toHaveBeenCalled();
     });
 
@@ -92,7 +94,7 @@ describe('ProjectsService Material Stock Integration', () => {
           quantity: 10,
           unitOfMeasure: 'pcs',
           lastUpdated: new Date(),
-        } as any,
+        } as InventoryProjection,
       );
 
       await expect(
@@ -129,6 +131,7 @@ describe('ProjectsService Material Stock Integration', () => {
       expect(result.materials[0]?.issuedQuantity).toBe(30);
 
       // Verifies inventory transaction is logged
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockInventoryTransactionsService.create).toHaveBeenCalledWith({
         transactionType: 'Issue',
         componentId: 'comp-1',
@@ -141,7 +144,9 @@ describe('ProjectsService Material Stock Integration', () => {
       });
 
       // Verifies stock projection rebuild is triggered
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockInventoryProjectionsService.rebuild).toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockProjectRepo.save).toHaveBeenCalled();
     });
 
@@ -155,7 +160,7 @@ describe('ProjectsService Material Stock Integration', () => {
           quantity: 15,
           unitOfMeasure: 'pcs',
           lastUpdated: new Date(),
-        } as any,
+        } as InventoryProjection,
       );
 
       await expect(
@@ -198,6 +203,7 @@ describe('ProjectsService Material Stock Integration', () => {
       expect(result.materials[0]?.returnedQuantity).toBe(15);
 
       // Verifies inventory transaction is logged
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockInventoryTransactionsService.create).toHaveBeenCalledWith({
         transactionType: 'Return',
         componentId: 'comp-1',
@@ -210,7 +216,9 @@ describe('ProjectsService Material Stock Integration', () => {
       });
 
       // Verifies stock projection rebuild is triggered
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockInventoryProjectionsService.rebuild).toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockProjectRepo.save).toHaveBeenCalled();
     });
   });

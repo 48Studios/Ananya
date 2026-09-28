@@ -71,7 +71,8 @@ describe('AuthService throttler integration', () => {
     await expect(authService.login(dto, '1.2.3.4')).rejects.toMatchObject({
       status: HttpStatus.TOO_MANY_REQUESTS,
     });
-    expect(mockAuditService).toHaveBeenCalledWith(
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(mockAuditService.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'THROTTLED_LOGIN' }),
     );
   });

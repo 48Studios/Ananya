@@ -60,8 +60,8 @@ describe('validateEnvironmentConfig', () => {
         DATABASE_URL: `postgresql://postgres:password@localhost:5432/${secretPassword}`,
       });
       fail('Expected validation error');
-    } catch (err: any) {
-      const message = err.message;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       expect(message).not.toContain(secretPassword);
     }
   });
