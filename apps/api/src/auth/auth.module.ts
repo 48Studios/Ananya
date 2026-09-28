@@ -28,20 +28,21 @@ import { AuthGuard } from './auth.guard';
     InvitationsService,
     OnboardingService,
     ComponentWriteGuard,
-    LoginThrottlerService,
+    { provide: 'ILoginThrottler', useClass: LoginThrottlerService },
     SessionCleanupService,
     AuthGuard,
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
     },
+
   ],
   exports: [
     AuthService,
     InvitationsService,
     OnboardingService,
     ComponentWriteGuard,
-    LoginThrottlerService,
+    'ILoginThrottler',
     SessionCleanupService,
     AuthGuard,
   ],

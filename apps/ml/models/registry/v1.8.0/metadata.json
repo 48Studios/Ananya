@@ -1,0 +1,53 @@
+{
+  "version": "1.8.0",
+  "created_at": "2026-09-28T08:56:57.567193+00:00",
+  "champion_model": "hybrid_union_model",
+  "all_candidates": {
+    "char_ngram_model": {
+      "train_accuracy": 0.9999,
+      "val_accuracy": 0.9922,
+      "top3_accuracy": 0.9979,
+      "training_time_ms": 20532.3
+    },
+    "word_ngram_model": "skipped",
+    "hybrid_union_model": {
+      "train_accuracy": 0.9999,
+      "val_accuracy": 0.9922,
+      "top3_accuracy": 0.9979,
+      "training_time_ms": 20532.3
+    }
+  },
+  "sample_counts": {
+    "train": 11264,
+    "val": 1408
+  },
+  "categories": [
+    "3D Printing Materials",
+    "Cables",
+    "Capacitors",
+    "Connectors",
+    "Consumables",
+    "Development Boards",
+    "Fasteners",
+    "ICs & Semiconductors",
+    "Inductors",
+    "Mechanical Parts",
+    "Optoelectronics",
+    "Passive Components",
+    "Raw Materials",
+    "Relays",
+    "Resistors",
+    "Robotics",
+    "Sensors",
+    "Switches",
+    "Tools",
+    "Transistors",
+    "Valves & Pneumatics"
+  ],
+  "metrics": {
+    "train_accuracy": 0.9999,
+    "val_accuracy": 0.9922,
+    "val_top3_accuracy": 0.9979
+  },
+  "per_category_report": {}
+}

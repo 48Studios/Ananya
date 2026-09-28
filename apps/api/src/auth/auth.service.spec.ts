@@ -37,7 +37,14 @@ describe('AuthService Suite', () => {
         AuthService,
         InvitationsService,
         OnboardingService,
-        LoginThrottlerService,
+        {
+          provide: 'ILoginThrottler',
+          useValue: {
+            isBlocked: jest.fn().mockReturnValue(false),
+            recordFailure: jest.fn(),
+            recordSuccess: jest.fn(),
+          },
+        },
         SessionCleanupService,
         { provide: UsersService, useValue: mockUsersService },
         { provide: PermissionsService, useValue: mockPermissionsService },

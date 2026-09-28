@@ -12,12 +12,7 @@ export interface ThrottlerConfig {
   maxTrackedKeys?: number;
 }
 
-export interface ILoginThrottler {
-  checkRateLimit(identifier: string, ipAddress?: string): void;
-  recordFailure(identifier: string, ipAddress?: string): void;
-  recordSuccess(identifier: string, ipAddress?: string): void;
-  reset(): void;
-}
+import { ILoginThrottler } from './login-throttler.interface';
 
 @Injectable()
 export class LoginThrottlerService implements ILoginThrottler {
@@ -135,6 +130,20 @@ export class LoginThrottlerService implements ILoginThrottler {
    */
   checkThrottled(identifier: string, ipAddress?: string): void {
     this.checkRateLimit(identifier, ipAddress);
+  }
+  /**
+   * Returns true if the identifier/IP is blocked (rate limit exceeded).
+   */
+  isBlocked(identifier: string, ipAddress?: string): boolean {
+    try {
+      this.checkRateLimit(identifier, ipAddress);
+      return false;
+    } catch (e) {
+      if (e instanceof HttpException && e.getStatus && e.getStatus() === HttpStatus.TOO_MANY_REQUESTS) {
+        return true;
+      }
+      throw e;
+    }
   }
 
   /**

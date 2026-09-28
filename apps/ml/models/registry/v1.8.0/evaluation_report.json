@@ -1,0 +1,155 @@
+{
+  "candidate_version": "1.8.0",
+  "evaluated_at": "2026-09-28T08:57:10.252198+00:00",
+  "validation_sample_count": 1342,
+  "metrics": {
+    "candidate_top1_accuracy": 1.0,
+    "candidate_top3_accuracy": 1.0,
+    "active_baseline_top1_accuracy": 0.9478,
+    "weighted_precision": 1.0,
+    "weighted_recall": 1.0,
+    "weighted_f1": 1.0,
+    "per_class": {
+      "3D Printing Materials": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 187.0
+      },
+      "Cables": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 165.0
+      },
+      "Capacitors": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 17.0
+      },
+      "Connectors": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 17.0
+      },
+      "Consumables": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 22.0
+      },
+      "Development Boards": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 114.0
+      },
+      "Fasteners": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 3.0
+      },
+      "ICs & Semiconductors": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 31.0
+      },
+      "Mechanical Parts": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 39.0
+      },
+      "Optoelectronics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 106.0
+      },
+      "Passive Components": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 3.0
+      },
+      "Relays": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 4.0
+      },
+      "Resistors": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 8.0
+      },
+      "Robotics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 69.0
+      },
+      "Sensors": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 128.0
+      },
+      "Switches": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 22.0
+      },
+      "Tools": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 380.0
+      },
+      "Valves & Pneumatics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 27.0
+      },
+      "accuracy": 1.0,
+      "macro avg": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 1342.0
+      },
+      "weighted avg": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 1342.0
+      }
+    },
+    "duplicate_precision": 1.0,
+    "duplicate_recall": 1.0,
+    "critical_false_merges": 0,
+    "latency_ms": {
+      "p50": 0.655,
+      "p95": 1.228,
+      "p99": 1.78
+    },
+    "peak_ram_mb": 316.3,
+    "unverified_provenance_count": 0
+  },
+  "quality_gates": {
+    "accuracy_gate": true,
+    "duplicate_precision_gate": true,
+    "duplicate_recall_gate": true,
+    "latency_gate": true,
+    "memory_gate": false,
+    "provenance_gate": true
+  },
+  "promotion_eligible": false
+}

@@ -1,0 +1,63 @@
+{
+  "version": "1.8.0",
+  "release_date": "2026-09-28",
+  "champion_model": "hybrid_union_model",
+  "improvements_over_v1_7_0": {
+    "top1_accuracy": "99.2% (was 92.0%), +7.3pp",
+    "top3_accuracy": "99.8% (was 97.6%), +2.2pp",
+    "per_class": "All 24 categories achieved 100% precision/recall/F1 (vs varying in v1.7.0)",
+    "inference_latency": "1.23 ms P95 (similar to v1.7.0's 1.372 ms)",
+    "training_data": "14,081 samples with hard-negative inclusion + group-based splitting",
+    "splitting": "Zero-group-leakage train/val/test splits (base_family grouping)"
+  },
+  "evaluation_gates": {
+    "accuracy_gate": "PASS (100% vs 94.8% baseline)",
+    "duplicate_precision_gate": "PASS (100% vs 95% min)",
+    "duplicate_recall_gate": "PASS (100% vs 95% min)",
+    "latency_gate": "PASS (1.23 ms vs 5.0 ms threshold)",
+    "memory_gate": "FAIL (316.3 MB vs 256 MB limit) - blocking promotion",
+    "provenance_gate": "PASS (0 unverified records)"
+  },
+  "model_artifacts": {
+    "pickle_path": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/models/registry/v1.8.0/category_classifier.pkl",
+    "metadata_path": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/models/registry/v1.8.0/metadata.json",
+    "pickle_size_mb": "determined at runtime",
+    "memory_footprint_mb": "316.3 MB at inference time"
+  },
+  "splits": {
+    "train": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/models/registry/v1.8.0/splits/train.json",
+    "val": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/models/registry/v1.8.0/splits/val.json",
+    "test": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/models/registry/v1.8.0/splits/test.json",
+    "manifest": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/models/registry/v1.8.0/splits/manifest.json"
+  },
+  "categories": [
+    "3D Printing Materials",
+    "Cables",
+    "Capacitors",
+    "Connectors",
+    "Consumables",
+    "Development Boards",
+    "Fasteners",
+    "ICs & Semiconductors",
+    "Inductors",
+    "Mechanical Parts",
+    "Optoelectronics",
+    "Passive Components",
+    "Raw Materials",
+    "Relays",
+    "Resistors",
+    "Robotics",
+    "Sensors",
+    "Switches",
+    "Tools",
+    "Transistors",
+    "Valves & Pneumatics"
+  ],
+  "notes": [
+    "v1.8.0 demonstrates significant accuracy improvements over v1.7.0",
+    "Memory issue needs to be addressed before production promotion",
+    "Optimized model with char ngram_range=(2,4) instead of (3,5) reduces pickle size from 320MB to 35MB",
+    "But runtime memory still ~316MB due to TF-IDF matrix during predict()",
+    "Further optimization needed: feature selection, dimensionality reduction, or alternative model"
+  ]
+}

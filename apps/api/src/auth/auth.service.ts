@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, HttpException, HttpStatus, Inject } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { db } from '@ananya/database';
 import {
@@ -22,7 +17,8 @@ import { UsersService } from '../users/users.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { PasswordHasher } from './password-hasher';
-import { LoginThrottlerService } from './login-throttler.service';
+import { ILoginThrottler } from './login-throttler.interface';
+
 import { SessionCleanupService } from './session-cleanup.service';
 
 @Injectable()
@@ -31,15 +27,13 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly permissionsService: PermissionsService,
     private readonly auditService: SecurityAuditService,
-    private readonly loginThrottler: LoginThrottlerService,
+    @Inject('ILoginThrottler') private readonly loginThrottler: ILoginThrottler,
     private readonly sessionCleanupService: SessionCleanupService,
   ) {}
 
   async login(dto: LoginDto, ipAddress?: string, userAgent?: string) {
     // 1. Check rate limit / brute-force protection
-    try {
-      this.loginThrottler.checkThrottled(dto.email, ipAddress);
-    } catch (throttledErr) {
+    if (this.loginThrottler.isBlocked(dto.email, ipAddress)) {
       await this.auditService.record({
         action: 'THROTTLED_LOGIN',
         category: 'SECURITY',
@@ -47,8 +41,9 @@ export class AuthService {
         ipAddress,
         details: { reason: 'Rate limit threshold exceeded' },
       });
-      throw throttledErr;
+      throw new HttpException('Too many login attempts.', HttpStatus.TOO_MANY_REQUESTS);
     }
+
 
     const userRecord = await this.usersService.findByEmail(dto.email);
     if (!userRecord) {
