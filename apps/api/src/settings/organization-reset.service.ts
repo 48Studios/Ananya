@@ -64,8 +64,6 @@ export class OrganizationResetService {
       );
     }
 
-    const inputHash = hashPassword(dto.passwordConfirm);
-    if (user.passwordHash !== inputHash) {
     const verification = await PasswordHasher.verify(
       dto.passwordConfirm,
       user.passwordHash,

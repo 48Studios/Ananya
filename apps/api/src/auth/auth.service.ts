@@ -11,7 +11,6 @@ import {
   userSessions,
   passwordResetTokens,
 } from '@ananya/database/schema';
-import { eq, and, or } from '@ananya/database/query';
 import { eq, and, or, gt, lt } from '@ananya/database/query';
 import {
   LoginDto,
@@ -25,10 +24,6 @@ import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { PasswordHasher } from './password-hasher';
 import { LoginThrottlerService } from './login-throttler.service';
 import { SessionCleanupService } from './session-cleanup.service';
-
-function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
 
 @Injectable()
 export class AuthService {
@@ -84,9 +79,6 @@ export class AuthService {
       // Do not leak account existence or status to prevent enumeration
       throw new UnauthorizedException('Invalid credentials.');
     }
-
-    const hashedInput = hashPassword(dto.password);
-    if (userRecord.passwordHash !== hashedInput) {
     // 2. Verify password with support for Argon2id and legacy SHA-256 transparent upgrade
     const verifyResult = await PasswordHasher.verify(
       dto.password,
@@ -203,7 +195,6 @@ export class AuthService {
         .where(eq(userSessions.id, session.id));
 
       await this.auditService.record({
-        action: 'LOGOUT',
         action: 'SESSION_REVOKED',
         category: 'SECURITY',
         userId: session.userId,
@@ -219,7 +210,6 @@ export class AuthService {
       .select()
       .from(userSessions)
       .where(
-        and(eq(userSessions.token, token), eq(userSessions.isRevoked, false)),
         and(
           eq(userSessions.token, token),
           eq(userSessions.isRevoked, false),
@@ -228,7 +218,6 @@ export class AuthService {
       )
       .limit(1);
 
-    if (!session || new Date() > new Date(session.expiresAt)) {
     if (!session) {
       throw new UnauthorizedException('Session expired or invalid.');
     }
@@ -242,7 +231,6 @@ export class AuthService {
     };
   }
 
-  async changePassword(userId: string, dto: ChangePasswordDto) {
   async changePassword(
     userId: string,
     dto: ChangePasswordDto,
@@ -258,7 +246,6 @@ export class AuthService {
       throw new NotFoundException('User not found.');
     }
 
-    if (userRecord[0].passwordHash !== hashPassword(dto.currentPassword)) {
     const verifyResult = await PasswordHasher.verify(
       dto.currentPassword,
       userRecord[0].passwordHash,
@@ -279,7 +266,6 @@ export class AuthService {
     await db
       .update(users)
       .set({
-        passwordHash: hashPassword(dto.newPassword),
         passwordHash: newHash,
         updatedAt: new Date(),
       })
@@ -369,7 +355,6 @@ export class AuthService {
     await db
       .update(users)
       .set({
-        passwordHash: hashPassword(dto.newPassword),
         passwordHash: newHash,
         updatedAt: new Date(),
       })

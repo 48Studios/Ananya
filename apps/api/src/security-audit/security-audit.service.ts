@@ -33,7 +33,6 @@ export class SecurityAuditService {
         action: payload.action,
         category: payload.category,
         ipAddress: resolvedIp,
-        details: payload.details || null,
         details: sanitizedDetails,
       })
       .returning();

@@ -96,12 +96,9 @@ export class HttpLoggingInterceptor implements NestInterceptor {
         statusCode,
         durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
         errorName: details.name,
-        errorMessage: details.message || String(error),
-        stack: details.stack,
         errorMessage: sanitizedMessage,
         stack: sanitizedStack,
       }),
-      details.stack,
       sanitizedStack,
     );
   }

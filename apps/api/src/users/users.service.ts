@@ -15,10 +15,6 @@ import { RolesService } from '../roles/roles.service';
 import type { AuthenticatedRequestUser } from '../auth/permission.guard';
 import { PasswordHasher } from '../auth/password-hasher';
 
-function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
-
 @Injectable()
 export class UsersService implements OnModuleInit {
   constructor(
@@ -145,7 +141,6 @@ export class UsersService implements OnModuleInit {
       .insert(users)
       .values({
         email: dto.email.toLowerCase(),
-        passwordHash: hashPassword(dto.password),
         passwordHash: await PasswordHasher.hash(dto.password),
         firstName: dto.firstName,
         lastName: dto.lastName,
@@ -340,7 +335,6 @@ export class UsersService implements OnModuleInit {
     await db
       .update(users)
       .set({
-        passwordHash: hashPassword(dto.newPassword),
         passwordHash: await PasswordHasher.hash(dto.newPassword),
         updatedAt: new Date(),
       })

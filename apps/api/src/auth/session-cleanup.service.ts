@@ -30,7 +30,7 @@ export class SessionCleanupService {
     this.isCleaningUp = true;
     try {
       const now = new Date();
-      const retentionDays = parseInt(process.env.SESSION_REVOKED_RETENTION_DAYS || '7', 10);
+      const retentionDays = parseInt(process.env.SESSION_REVOKED_RETENTION_DAYS || '30', 10);
       const retentionThreshold = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
       // Delete sessions that are expired OR (revoked AND older than retention threshold)
@@ -71,9 +71,12 @@ export class SessionCleanupService {
       return this.timer;
     }
 
-    const interval =
-      intervalMs ??
-      (parseInt(process.env.SESSION_CLEANUP_INTERVAL_SECONDS || '3600', 10) * 1000);
+    const intervalSec = process.env.SESSION_CLEANUP_INTERVAL_SECONDS
+      ? parseInt(process.env.SESSION_CLEANUP_INTERVAL_SECONDS, 10)
+      : process.env.SESSION_CLEANUP_INTERVAL_MINUTES
+        ? parseInt(process.env.SESSION_CLEANUP_INTERVAL_MINUTES, 10) * 60
+        : 3600;
+    const interval = intervalMs ?? intervalSec * 1000;
 
     this.logger.log(
       `[SessionCleanup] Periodic session cleanup scheduled every ${interval / 1000} seconds.`,
