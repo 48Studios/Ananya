@@ -1,0 +1,18 @@
+{
+  "dataset_version": "dataset-crawl-1790343594-reprocessed",
+  "training_source": {
+    "path": "apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/train.json",
+    "sha256": "fdbb86f81a3ff8e275d8f025efd2c6985e6ce1fd2dd11657f0ec806765ba680d",
+    "record_count": 11319
+  },
+  "frozen_test_source": {
+    "path": "apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/test.json",
+    "sha256": "0804a284ad6a01c7cb32c0950a0e5740a4e46bed1892af2e2ebbb01123125498",
+    "record_count": 1342
+  },
+  "created_at": "2026-09-29T00:00:00Z",
+  "provenance_policy": "Historical labels are immutable curated source labels. Production feedback is eligible only with reviewer identity, an explicit finalValue category, and an ACCEPTED or EDITED action; predictedValue is never used as a label.",
+  "test_policy": "frozen_never_train",
+  "excluded_hard_negative_source": "apps/ml/training/evaluation/hard_negative_*.json",
+  "excluded_test_derived_count": 66
+}

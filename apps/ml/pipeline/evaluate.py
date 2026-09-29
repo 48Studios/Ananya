@@ -29,6 +29,7 @@ def evaluate_model(
     registry_dir: str = "apps/ml/models/registry",
     val_data_path: str = "",
     active_model_path: str = "apps/ml/models/category_classifier.pkl",
+    test_data_path: str = "",
 ) -> Dict[str, Any]:
     version_dir = os.path.join(registry_dir, f"v{version}")
     candidate_model_path = os.path.join(version_dir, "category_classifier.pkl")
@@ -39,8 +40,11 @@ def evaluate_model(
     with open(candidate_model_path, "rb") as f:
         candidate_model = pickle.load(f)
 
-    # Determine validation data path
-    if not val_data_path:
+    # Production retraining supplies the frozen test path explicitly. Legacy
+    # callers retain the existing validation-path behavior.
+    evaluation_data_path = test_data_path or val_data_path
+    evaluation_role = "frozen_test" if test_data_path else "validation"
+    if not evaluation_data_path:
         # Check if snapshot val exists
         candidates = [
             f"apps/ml/data/datasets/components-*-v{version}/val.json",
@@ -48,17 +52,17 @@ def evaluate_model(
         ]
         import glob
         matches = glob.glob(candidates[0])
-        val_data_path = matches[0] if matches else candidates[1]
+        evaluation_data_path = matches[0] if matches else candidates[1]
 
-    if not os.path.exists(val_data_path):
-        raise FileNotFoundError(f"Validation dataset not found at {val_data_path}")
+    if not os.path.exists(evaluation_data_path):
+        raise FileNotFoundError(f"Evaluation dataset not found at {evaluation_data_path}")
 
-    with open(val_data_path, "r") as f:
+    with open(evaluation_data_path, "r") as f:
         val_samples = json.load(f)
 
     print("=" * 60)
     print(f" EVALUATING CANDIDATE MODEL v{version} ON {len(val_samples)} SAMPLES")
-    print(f" Validation Source: {val_data_path}")
+    print(f" Evaluation Source ({evaluation_role}): {evaluation_data_path}")
     print("=" * 60)
 
     # 1. Candidate Category Classification Evaluation
@@ -194,7 +198,9 @@ def evaluate_model(
         "candidateVersion": version,
         "evaluatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "validationSamplesCount": len(val_samples),
-        "validationSource": val_data_path,
+        "validationSource": evaluation_data_path,
+        "evaluationDatasetRole": evaluation_role,
+        "testSamplesCount": len(val_samples) if evaluation_role == "frozen_test" else None,
         "metrics": {
             "candidateTop1Accuracy": round(cand_top1_acc, 4),
             "candidateTop3Accuracy": round(cand_top3_acc, 4),

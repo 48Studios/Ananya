@@ -978,6 +978,7 @@ export class MlClientService {
   mlOpsStartTrainingRun(payload: {
     runId: string;
     requestedBy?: string | null;
+    feedbackRecords?: Array<Record<string, unknown>>;
   }): Promise<MlOpsCallOutcome<MlTrainingRunPayload>> {
     return this.callMlOps<MlTrainingRunPayload>(
       '/v1/training/runs',

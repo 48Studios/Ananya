@@ -58,6 +58,11 @@ apps/ml/training/datasets/normalized/*
 !apps/ml/training/datasets/normalized/.gitkeep
 apps/ml/training/datasets/training/*
 !apps/ml/training/datasets/training/.gitkeep
+!apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/
+apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/*
+!apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/train.json
+!apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/test.json
+!apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/manifest.json
 apps/ml/training/datasets/evaluation/*
 !apps/ml/training/datasets/evaluation/.gitkeep
 apps/ml/training/experiments/*

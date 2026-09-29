@@ -63,31 +63,25 @@ def stub_pipeline(monkeypatch):
     """
     calls = {}
 
-    def fake_collect():
-        calls["collect"] = True
-        return [
-            {
-                "mpn": "RC0805FR-0710KL",
-                "category": "Resistors",
-                "manufacturer": "Yageo",
-                "provenance": {"sourceType": "human_reviewed_feedback"},
-            },
-            {
-                "mpn": "GRM188R71C104KA01D",
-                "category": "Capacitors",
-                "manufacturer": "Murata",
-                "provenance": {"sourceType": "manufacturer_datasheet"},
-            },
-        ]
-
-    def fake_validate():
-        calls["validate"] = True
-        return ([{"mpn": "RC0805FR-0710KL"}], [{"mpn": "BAD", "status": "PENDING"}])
-
-    def fake_build_dataset(version: str = "1.3.0", **kwargs):
-        calls["build"] = version
+    def fake_build_dataset(run_id: str = "", feedback_records=None, **kwargs):
+        calls["build"] = {"run_id": run_id, "feedback_records": feedback_records or []}
+        manifest = {
+            "historical_record_count": 11319,
+            "feedback_record_count": len(feedback_records or []),
+            "feedback_training_records": 0,
+            "feedback_rejected_count": len(feedback_records or []),
+            "benchmark_records": 25,
+            "combined_record_count": 11319,
+            "frozen_test_count": 1342,
+            "train_hash": "train-hash",
+        }
         return {
-            "datasetVersion": f"components-2099-01-01-v{version}",
+            "datasetVersion": f"production-retraining-{run_id}",
+            "trainPath": "fixture/train.json",
+            "validationPath": "fixture/val.json",
+            "frozenTestPath": "fixture/test.json",
+            "manifestPath": "fixture/manifest.json",
+            "manifest": manifest,
             "trainSize": 30,
             "valSize": 7,
         }
@@ -96,18 +90,16 @@ def stub_pipeline(monkeypatch):
         calls["train"] = {"version": version, "train_path": train_path}
         return {"championModel": "char_ngram_model"}
 
-    def fake_evaluate(version: str = "", val_data_path: str = "", **kwargs):
-        calls["evaluate"] = {"version": version, "val_data_path": val_data_path}
+    def fake_evaluate(version: str = "", test_data_path: str = "", **kwargs):
+        calls["evaluate"] = {"version": version, "test_data_path": test_data_path}
         return {
             "metrics": {"candidateTop1Accuracy": 0.71},
             "qualityGates": {"accuracy_gate": True},
             "promotionEligible": True,
         }
 
-    monkeypatch.setattr("apps.ml.pipeline.collect.collect_records", fake_collect)
-    monkeypatch.setattr("apps.ml.pipeline.validate.run_validation", fake_validate)
     monkeypatch.setattr(
-        "apps.ml.pipeline.build_dataset.build_dataset_snapshot", fake_build_dataset
+        "apps.ml.pipeline.dataset_lifecycle.build_candidate_dataset", fake_build_dataset
     )
     monkeypatch.setattr("apps.ml.pipeline.train.train_model", fake_train)
     monkeypatch.setattr("apps.ml.pipeline.evaluate.evaluate_model", fake_evaluate)
@@ -142,11 +134,14 @@ def test_run_reaches_passed_and_never_deploys(runner, stub_pipeline, production_
     assert finished["artifactReference"].startswith("registry/v")
     assert finished["evaluationSummary"] == {"candidateTop1Accuracy": 0.71}
     assert finished["gateSummary"]["promotionEligible"] is True
-    assert finished["datasetVersion"].startswith("components-2099-01-01-v")
+    assert finished["datasetVersion"].startswith("production-retraining-run-passed")
     assert finished["trainingRecordCount"] == 30
     assert finished["validationRecordCount"] == 7
-    assert finished["quarantineRecordCount"] == 1
-    assert finished["feedbackRecordCount"] == 1
+    assert finished["quarantineRecordCount"] == 0
+    assert finished["feedbackRecordCount"] == 0
+    assert finished["historicalTrainingRecordCount"] == 11319
+    assert finished["benchmarkRecordCount"] == 25
+    assert stub_pipeline["evaluate"]["test_data_path"] == "fixture/test.json"
     assert finished["durationMs"] is not None
 
     # The whole point: a passing candidate is NOT promoted by the run.
@@ -207,8 +202,6 @@ def test_cancellation_is_not_claimed(runner, stub_pipeline):
 @pytest.mark.parametrize(
     "stage,expected_code",
     [
-        ("collect", training_runner.ERROR_DATASET_BUILD_FAILED),
-        ("validate", training_runner.ERROR_DATASET_BUILD_FAILED),
         ("build", training_runner.ERROR_DATASET_BUILD_FAILED),
         ("train", training_runner.ERROR_TRAINING_FAILED),
         ("evaluate", training_runner.ERROR_EVALUATION_FAILED),
@@ -221,9 +214,7 @@ def test_failure_is_classified_and_leaves_production_untouched(
         raise RuntimeError(f"{stage} exploded")
 
     targets = {
-        "collect": "apps.ml.pipeline.collect.collect_records",
-        "validate": "apps.ml.pipeline.validate.run_validation",
-        "build": "apps.ml.pipeline.build_dataset.build_dataset_snapshot",
+        "build": "apps.ml.pipeline.dataset_lifecycle.build_candidate_dataset",
         "train": "apps.ml.pipeline.train.train_model",
         "evaluate": "apps.ml.pipeline.evaluate.evaluate_model",
     }

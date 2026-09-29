@@ -245,6 +245,7 @@ class TrainingRunRequest(BaseModel):
 
     runId: Optional[str] = Field(default=None, max_length=128)
     requestedBy: Optional[str] = Field(default=None, max_length=255)
+    feedbackRecords: List[Dict[str, Any]] = Field(default_factory=list)
 
 class TrainingRunResponse(BaseModel):
     runId: str
@@ -266,6 +267,11 @@ class TrainingRunResponse(BaseModel):
     trainingRecordCount: Optional[int] = None
     validationRecordCount: Optional[int] = None
     quarantineRecordCount: Optional[int] = None
+    historicalTrainingRecordCount: Optional[int] = None
+    feedbackTrainingRecordCount: Optional[int] = None
+    feedbackRejectedRecordCount: Optional[int] = None
+    benchmarkRecordCount: Optional[int] = None
+    frozenTestRecordCount: Optional[int] = None
     evaluationSummary: Optional[Dict[str, Any]] = None
     gateSummary: Optional[Dict[str, Any]] = None
     errorCode: Optional[str] = None
@@ -578,4 +584,3 @@ class ComponentAttributeSuggestion(BaseModel):
 class SuggestComponentAttributesResponse(BaseModel):
     suggestions: List[ComponentAttributeSuggestion]
     modelVersion: str = "1.0.0"
-

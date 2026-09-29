@@ -45,9 +45,27 @@ COPY apps/ml/models /app/apps/ml/models
 COPY apps/ml/pipeline /app/apps/ml/pipeline
 COPY apps/ml/benchmarks /app/apps/ml/benchmarks
 COPY apps/ml/data /app/apps/ml/data
+# The pinned, read-only historical training source and frozen evaluation set are
+# required by production retraining. Other training workspace data stays out of
+# the runtime image.
+COPY apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/train.json /app/apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/train.json
+COPY apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/test.json /app/apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/test.json
 
 # Set permissions
 RUN chown -R ananya:ananya /app /opt/venv
+# Baseline inputs are immutable runtime inputs. Candidate snapshots are written
+# only under apps/ml/data/datasets/retraining.
+RUN chown root:root \
+      /app/apps/ml/data/canonical_training_baseline.json \
+      /app/apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed \
+      /app/apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/train.json \
+      /app/apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/test.json && \
+    chmod 0444 \
+      /app/apps/ml/data/canonical_training_baseline.json \
+      /app/apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/train.json \
+      /app/apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed/test.json && \
+    chmod 0555 \
+      /app/apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed
 
 USER ananya
 

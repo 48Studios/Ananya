@@ -1,20 +1,18 @@
 """
 Operator-triggered training runner (ML & Intelligence control plane).
 
-Runs the EXISTING authoritative pipeline (`apps/ml/pipeline/*`) on demand and
-reports what happened. It does not reimplement training, does not change the
-evaluation rules, and cannot promote a model.
+Runs the pinned-baseline retraining pipeline (`apps/ml/pipeline/*`) on demand
+and reports what happened. It does not change the classifier or quality gates,
+and cannot promote a model.
 
 Why the runner lives here and not in NestJS
 -------------------------------------------
-Training reads `apps/ml/data/*`, writes `apps/ml/data/datasets/*`, and writes
-`apps/ml/models/registry/v{version}/*`. Those directories exist in this
-container — and only here. The API container (built from the `@ananya/api` turbo
-scope) does not contain them, and executing Python from an HTTP handler would
-also mean executing in the request path. So the API owns authorisation, the
-durable run record and the audit trail, and forwards the start/deploy request to
-this process over the internal ML HTTP API; the job itself runs on a background
-thread here.
+Training reads the pinned historical corpus and frozen test under
+`apps/ml/training/datasets/training/`, writes candidate splits under
+`apps/ml/data/datasets/retraining/`, and writes model candidates under the
+versioned registry. The API owns authorisation, feedback database access, the
+durable run record and audit trail; it sends a run-scoped feedback snapshot over
+the internal ML HTTP API. The job runs on a background thread here.
 
 Why a thread rather than a child process
 ----------------------------------------
@@ -155,6 +153,7 @@ class TrainingRunner:
         self,
         run_id: Optional[str] = None,
         requested_by: Optional[str] = None,
+        feedback_records: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Starts a training run and returns immediately.
@@ -208,7 +207,7 @@ class TrainingRunner:
 
         thread = threading.Thread(
             target=self._execute,
-            args=(resolved_id, candidate_version),
+            args=(resolved_id, candidate_version, feedback_records or []),
             name=f"ml-training-{resolved_id}",
             daemon=True,
         )
@@ -250,7 +249,12 @@ class TrainingRunner:
 
     # -------------------------------------------------------------- execution
 
-    def _execute(self, run_id: str, candidate_version: str) -> None:
+    def _execute(
+        self,
+        run_id: str,
+        candidate_version: str,
+        feedback_records: List[Dict[str, Any]],
+    ) -> None:
         """
         Runs the authoritative pipeline for one candidate version.
 
@@ -260,9 +264,7 @@ class TrainingRunner:
         training dependencies are present; see `docker/Dockerfile.ml`.
         """
         try:
-            from apps.ml.pipeline.collect import collect_records
-            from apps.ml.pipeline.validate import run_validation
-            from apps.ml.pipeline.build_dataset import build_dataset_snapshot
+            from apps.ml.pipeline.dataset_lifecycle import build_candidate_dataset
             from apps.ml.pipeline.train import train_model
             from apps.ml.pipeline.evaluate import evaluate_model
         except Exception as error:  # pragma: no cover - dependency failure
@@ -273,37 +275,41 @@ class TrainingRunner:
         try:
             # 1 / 5 — dataset. The API cannot do this step: it owns no ML data.
             self._update(run_id, phase=PHASE_PREPARING_DATASET)
-            self._log(run_id, "Collecting authoritative records")
-            collected = collect_records()
-            validated, quarantined = run_validation()
-            dataset_meta = build_dataset_snapshot(version=candidate_version)
-            snapshot = model_registry.dataset_snapshot(
-                dataset_meta["datasetVersion"]
-            ) or {}
+            self._log(run_id, "Loading pinned historical corpus and validating feedback")
+            dataset_meta = build_candidate_dataset(
+                run_id=run_id,
+                feedback_records=feedback_records,
+            )
+            manifest = dataset_meta["manifest"]
             self._log(
                 run_id,
                 f"Dataset {dataset_meta['datasetVersion']} built: "
-                f"{len(collected)} collected, {len(validated)} validated, "
-                f"{len(quarantined)} quarantined",
+                f"{manifest['historical_record_count']} historical, "
+                f"{manifest['feedback_training_records']} feedback training, "
+                f"{manifest['feedback_rejected_count']} feedback rejected",
             )
             self._update(
                 run_id,
                 datasetVersion=dataset_meta["datasetVersion"],
-                datasetFingerprint=snapshot.get("fingerprint"),
-                datasetRecordCount=len(collected),
-                feedbackRecordCount=_feedback_record_count(collected),
+                datasetFingerprint=manifest["train_hash"],
+                datasetRecordCount=manifest["combined_record_count"],
+                feedbackRecordCount=manifest["feedback_training_records"],
                 trainingRecordCount=dataset_meta.get("trainSize"),
                 validationRecordCount=dataset_meta.get("valSize"),
-                quarantineRecordCount=len(quarantined),
+                quarantineRecordCount=manifest["feedback_rejected_count"],
+                historicalTrainingRecordCount=manifest["historical_record_count"],
+                feedbackTrainingRecordCount=manifest["feedback_training_records"],
+                feedbackRejectedRecordCount=manifest["feedback_rejected_count"],
+                benchmarkRecordCount=manifest["benchmark_records"],
+                frozenTestRecordCount=manifest["frozen_test_count"],
             )
 
             # 2 / 5 — train candidates into the registry (never into production).
             self._update(run_id, phase=PHASE_TRAINING)
             self._log(run_id, "Training candidate architectures")
-            dataset_dir = f"apps/ml/data/datasets/{dataset_meta['datasetVersion']}"
             train_meta = train_model(
-                train_path=f"{dataset_dir}/train.json",
-                val_path=f"{dataset_dir}/val.json",
+                train_path=dataset_meta["trainPath"],
+                val_path=dataset_meta["validationPath"],
                 version=candidate_version,
             )
             self._log(
@@ -316,7 +322,7 @@ class TrainingRunner:
             self._log(run_id, "Running quality gates against the active model")
             eval_report = evaluate_model(
                 version=candidate_version,
-                val_data_path=f"{dataset_dir}/val.json",
+                test_data_path=dataset_meta["frozenTestPath"],
             )
 
             # 4 / 5 — package: the registry directory IS the package.
@@ -339,7 +345,7 @@ class TrainingRunner:
                 },
                 artifactReference=f"registry/v{candidate_version}",
                 datasetFingerprint=artifact.get("datasetFingerprint")
-                or snapshot.get("fingerprint"),
+                or manifest["train_hash"],
             )
 
             # 5 / 5 — stop. Promotion is a separate, explicit operator action.
@@ -532,29 +538,6 @@ class TrainingRunner:
                 and after.get("deployedVersion") != artifact_version
             ),
         }
-
-
-def _feedback_record_count(collected: List[Dict[str, Any]]) -> Optional[int]:
-    """
-    How many collected records came from human-reviewed feedback.
-
-    Counted from the provenance `sourceType` the collector wrote, so this is the
-    pipeline's own classification of its inputs rather than a second guess made
-    from the database. Returns None when the collector reported nothing, which the
-    dashboard renders as "Not available".
-    """
-    if not isinstance(collected, list):
-        return None
-    count = 0
-    for record in collected:
-        if not isinstance(record, dict):
-            continue
-        provenance = record.get("provenance")
-        if isinstance(provenance, dict) and "feedback" in str(
-            provenance.get("sourceType", "")
-        ):
-            count += 1
-    return count
 
 
 # The gate thresholds exactly as `evaluate.py` implements them. Recorded so the

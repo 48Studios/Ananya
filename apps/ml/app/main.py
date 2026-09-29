@@ -383,7 +383,11 @@ def audit_attribute_library(req: AuditAttributeLibraryRequest):
 @app.post("/v1/training/runs", response_model=TrainingRunResponse, status_code=201)
 def start_training_run(req: TrainingRunRequest):
     try:
-        return TrainingRunResponse(**training_runner.start_run(req.runId, req.requestedBy))
+        return TrainingRunResponse(
+            **training_runner.start_run(
+                req.runId, req.requestedBy, req.feedbackRecords
+            )
+        )
     except TrainingRunConflictError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
 
@@ -484,4 +488,3 @@ def get_current_dataset():
         quarantine=model_registry.quarantine_summary(),
         distribution=model_registry.validated_record_distribution(),
     )
-

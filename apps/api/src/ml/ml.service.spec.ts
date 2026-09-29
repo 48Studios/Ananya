@@ -20,6 +20,7 @@ import { attributeDefinitions as mockAttributeDefinitionsTable } from '@ananya/d
 import { attributeOptions as mockAttributeOptionsTable } from '@ananya/database/schema';
 import { categoryAttributes as mockCategoryAttributesTable } from '@ananya/database/schema';
 import { componentAttributeValues as mockComponentAttributeValuesTable } from '@ananya/database/schema';
+import { aiSuggestionFeedback as mockAiSuggestionFeedbackTable } from '@ananya/database/schema';
 
 /**
  * Category rows the mocked `categories` select returns.
@@ -41,6 +42,9 @@ let attributeDefinitionRows: Array<Record<string, unknown>> = [];
 let attributeOptionRows: Array<Record<string, unknown>> = [];
 let categoryAttributeRows: Array<Record<string, unknown>> = [];
 let componentAttributeValueRows: Array<Record<string, unknown>> = [];
+let feedbackRows: Array<Record<string, unknown>> = [];
+let feedbackLimitMock: jest.Mock | null = null;
+let feedbackSelection: Record<string, unknown> | null = null;
 
 jest.mock('@ananya/database', () => {
   interface QueryMock {
@@ -69,31 +73,39 @@ jest.mock('@ananya/database', () => {
 
   return {
     db: {
-      select: jest.fn().mockImplementation(() => ({
-        from: jest.fn().mockImplementation((table: unknown) => {
-          // Rows by table, never by query shape: the service's selects project a
-          // subset of columns, and the mocked rows carry them all.
-          if (table === mockCategoriesTable) {
-            return makeQueryMock(() => categoryRows);
-          }
-          if (table === mockComponentsTable) {
-            return makeQueryMock(() => componentRows);
-          }
-          if (table === mockAttributeDefinitionsTable) {
-            return makeQueryMock(() => attributeDefinitionRows);
-          }
-          if (table === mockAttributeOptionsTable) {
-            return makeQueryMock(() => attributeOptionRows);
-          }
-          if (table === mockCategoryAttributesTable) {
-            return makeQueryMock(() => categoryAttributeRows);
-          }
-          if (table === mockComponentAttributeValuesTable) {
-            return makeQueryMock(() => componentAttributeValueRows);
-          }
-          return makeQueryMock();
-        }),
-      })),
+      select: jest
+        .fn()
+        .mockImplementation((selection?: Record<string, unknown>) => ({
+          from: jest.fn().mockImplementation((table: unknown) => {
+            // Rows by table, never by query shape: the service's selects project a
+            // subset of columns, and the mocked rows carry them all.
+            if (table === mockCategoriesTable) {
+              return makeQueryMock(() => categoryRows);
+            }
+            if (table === mockComponentsTable) {
+              return makeQueryMock(() => componentRows);
+            }
+            if (table === mockAttributeDefinitionsTable) {
+              return makeQueryMock(() => attributeDefinitionRows);
+            }
+            if (table === mockAttributeOptionsTable) {
+              return makeQueryMock(() => attributeOptionRows);
+            }
+            if (table === mockCategoryAttributesTable) {
+              return makeQueryMock(() => categoryAttributeRows);
+            }
+            if (table === mockComponentAttributeValuesTable) {
+              return makeQueryMock(() => componentAttributeValueRows);
+            }
+            if (table === mockAiSuggestionFeedbackTable) {
+              feedbackSelection = selection ?? null;
+              const query = makeQueryMock(() => feedbackRows);
+              feedbackLimitMock = query.limit;
+              return query;
+            }
+            return makeQueryMock();
+          }),
+        })),
       insert: jest.fn().mockImplementation(() => ({
         values: jest.fn().mockResolvedValue({ rowCount: 1 }),
       })),
@@ -222,6 +234,9 @@ describe('MlService', () => {
     withAttributeOptions([]);
     withCategoryBindings([]);
     withComponentAttributeValues([]);
+    feedbackRows = [];
+    feedbackLimitMock = null;
+    feedbackSelection = null;
     clientMock = {
       enabled: true,
       suggest: jest.fn(),
@@ -721,6 +736,101 @@ describe('MlService', () => {
     expect(exportResult).toBeDefined();
     expect(exportResult.dataset).toBeInstanceOf(Array);
     expect(typeof exportResult.count).toBe('number');
+  });
+
+  it('exports reviewer and model provenance with the existing feedback fields', async () => {
+    const feedback = {
+      id: 'feedback-1',
+      suggestionType: 'CATEGORY',
+      field: 'category',
+      creationContext: { sku: 'SKU-1', name: 'Test component' },
+      predictedValue: 'Sensors',
+      userAction: 'EDITED',
+      finalValue: 'Resistors',
+      evidence: [{ source: 'review' }],
+      reviewerId: 'reviewer-1',
+      reviewerEmail: 'reviewer@example.test',
+      modelVersion: '1.8.1',
+      createdAt: new Date('2026-09-29T10:00:00.000Z'),
+    };
+    feedbackRows = [feedback];
+
+    const result = await service.exportFeedbackDataset({
+      suggestionType: 'CATEGORY',
+    });
+
+    expect(result.count).toBe(1);
+    expect(result.dataset[0]).toEqual(feedback);
+    expect(feedbackSelection).toEqual(
+      expect.objectContaining({
+        id: mockAiSuggestionFeedbackTable.id,
+        suggestionType: mockAiSuggestionFeedbackTable.suggestionType,
+        field: mockAiSuggestionFeedbackTable.field,
+        creationContext: mockAiSuggestionFeedbackTable.creationContext,
+        predictedValue: mockAiSuggestionFeedbackTable.predictedValue,
+        userAction: mockAiSuggestionFeedbackTable.userAction,
+        finalValue: mockAiSuggestionFeedbackTable.finalValue,
+        evidence: mockAiSuggestionFeedbackTable.evidence,
+        reviewerId: mockAiSuggestionFeedbackTable.reviewerId,
+        reviewerEmail: mockAiSuggestionFeedbackTable.reviewerEmail,
+        modelVersion: mockAiSuggestionFeedbackTable.modelVersion,
+        createdAt: mockAiSuggestionFeedbackTable.createdAt,
+      }),
+    );
+    expect(feedbackLimitMock).toHaveBeenCalledWith(1000);
+  });
+
+  it('preserves null reviewer and model provenance without substituting values', async () => {
+    feedbackRows = [
+      {
+        id: 'feedback-null-provenance',
+        suggestionType: 'CATEGORY',
+        field: 'category',
+        creationContext: {},
+        predictedValue: 'Sensors',
+        userAction: 'ACCEPTED',
+        finalValue: 'Sensors',
+        evidence: [],
+        reviewerId: null,
+        reviewerEmail: null,
+        modelVersion: null,
+        createdAt: new Date('2026-09-29T10:00:00.000Z'),
+      },
+    ];
+
+    const result = await service.exportFeedbackDataset({});
+
+    expect(result.dataset[0]).toMatchObject({
+      reviewerId: null,
+      reviewerEmail: null,
+      modelVersion: null,
+    });
+  });
+
+  it('keeps export count aligned with returned rows and the existing limit', async () => {
+    feedbackRows = [
+      {
+        id: 'feedback-1',
+        reviewerId: null,
+        reviewerEmail: null,
+        modelVersion: null,
+      },
+      {
+        id: 'feedback-2',
+        reviewerId: null,
+        reviewerEmail: null,
+        modelVersion: null,
+      },
+    ];
+
+    const result = await service.exportFeedbackDataset({
+      startDate: '2026-09-01T00:00:00.000Z',
+      endDate: '2026-09-30T23:59:59.999Z',
+    });
+
+    expect(result.count).toBe(2);
+    expect(result.dataset).toHaveLength(2);
+    expect(feedbackLimitMock).toHaveBeenCalledWith(1000);
   });
 
   it('should suggest attribute bindings via deterministic fallback', async () => {

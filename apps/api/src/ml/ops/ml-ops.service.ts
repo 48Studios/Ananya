@@ -6,6 +6,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { MlClientService } from '../ml-client.service';
+import { MlService } from '../ml.service';
 import type {
   MlDatasetOverview,
   MlModelDeploymentPayload,
@@ -87,6 +88,7 @@ export class MlOpsService {
     private readonly repository: MlOpsRepository,
     private readonly mlClient: MlClientService,
     private readonly securityAudit: SecurityAuditService,
+    private readonly mlService: MlService,
   ) {}
 
   // ------------------------------------------------------------------ health
@@ -540,6 +542,11 @@ export class MlOpsService {
       });
     }
 
+    // Feedback is snapshotted in the API, which owns database access. The ML
+    // process receives data only; it never connects to the application DB.
+    const feedbackRecords =
+      await this.mlService.getCategoryTrainingFeedbackSnapshot();
+
     let created: MlTrainingRun;
     try {
       const inserted = await this.repository.insertTrainingRun({
@@ -570,6 +577,7 @@ export class MlOpsService {
     const dispatched = await this.mlClient.mlOpsStartTrainingRun({
       runId: created.id,
       requestedBy: actor.email,
+      feedbackRecords,
     });
 
     if (!dispatched.ok) {

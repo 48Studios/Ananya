@@ -1502,6 +1502,9 @@ export class MlService {
       userAction: string;
       finalValue: unknown;
       evidence: unknown;
+      reviewerId: string | null;
+      reviewerEmail: string | null;
+      modelVersion: string | null;
       createdAt: Date;
     }>;
     count: number;
@@ -1537,6 +1540,9 @@ export class MlService {
         userAction: aiSuggestionFeedback.userAction,
         finalValue: aiSuggestionFeedback.finalValue,
         evidence: aiSuggestionFeedback.evidence,
+        reviewerId: aiSuggestionFeedback.reviewerId,
+        reviewerEmail: aiSuggestionFeedback.reviewerEmail,
+        modelVersion: aiSuggestionFeedback.modelVersion,
         createdAt: aiSuggestionFeedback.createdAt,
       })
       .from(aiSuggestionFeedback)
@@ -1548,6 +1554,47 @@ export class MlService {
       dataset: rows,
       count: rows.length,
     };
+  }
+
+  /** Complete, run-scoped category feedback snapshot for the ML training runner. */
+  async getCategoryTrainingFeedbackSnapshot(): Promise<
+    Array<Record<string, unknown>>
+  > {
+    const pageSize = 1000;
+    const snapshot: Array<Record<string, unknown>> = [];
+    let offset = 0;
+
+    while (true) {
+      const page = await db
+        .select({
+          id: aiSuggestionFeedback.id,
+          suggestionType: aiSuggestionFeedback.suggestionType,
+          field: aiSuggestionFeedback.field,
+          creationContext: aiSuggestionFeedback.creationContext,
+          confidence: aiSuggestionFeedback.confidence,
+          confidenceLevel: aiSuggestionFeedback.confidenceLevel,
+          modelVersion: aiSuggestionFeedback.modelVersion,
+          userAction: aiSuggestionFeedback.userAction,
+          finalValue: aiSuggestionFeedback.finalValue,
+          reviewerId: aiSuggestionFeedback.reviewerId,
+          reviewerEmail: aiSuggestionFeedback.reviewerEmail,
+          createdAt: aiSuggestionFeedback.createdAt,
+        })
+        .from(aiSuggestionFeedback)
+        .where(eq(aiSuggestionFeedback.suggestionType, 'CATEGORY'))
+        .orderBy(
+          asc(aiSuggestionFeedback.createdAt),
+          asc(aiSuggestionFeedback.id),
+        )
+        .limit(pageSize)
+        .offset(offset);
+
+      snapshot.push(...page);
+      if (page.length < pageSize) break;
+      offset += pageSize;
+    }
+
+    return snapshot;
   }
 
   /**

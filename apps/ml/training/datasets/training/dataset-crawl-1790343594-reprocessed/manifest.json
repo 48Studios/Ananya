@@ -1,0 +1,51 @@
+{
+  "dataset_name": "reprocessed_dataset-crawl-1790343594-reprocessed",
+  "dataset_version": "dataset-crawl-1790343594-reprocessed",
+  "created_at": "2026-09-25T14:38:54.393997+00:00",
+  "processing_version": "split_v1",
+  "checksum_sha256": "2fe5cce330df39ed4ee7750904a77bf76c992d2aee0610ca7ad20b4b9d336608",
+  "total_raw_records": 14040,
+  "total_processed_records": 14040,
+  "source_counts": {},
+  "domain_counts": {},
+  "category_counts": {
+    "3D Printing Materials": 1863,
+    "Tools": 3831,
+    "Sensors": 1621,
+    "Development Boards": 1417,
+    "ICs & Semiconductors": 390,
+    "Robotics": 627,
+    "Transistors": 31,
+    "Relays": 54,
+    "Cables": 1562,
+    "Resistors": 108,
+    "Capacitors": 115,
+    "Connectors": 308,
+    "Switches": 282,
+    "Optoelectronics": 914,
+    "Mechanical Parts": 380,
+    "Fasteners": 95,
+    "Inductors": 3,
+    "Passive Components": 32,
+    "Valves & Pneumatics": 244,
+    "Consumables": 160,
+    "Raw Materials": 3
+  },
+  "split_counts": {
+    "train": 11319,
+    "validation": 1379,
+    "test": 1342,
+    "total": 14040
+  },
+  "zero_leakage_verified": true,
+  "group_key": "base_family",
+  "distinct_groups_count": 5287,
+  "unverified_provenance_count": 0,
+  "metadata": {
+    "seed": 42,
+    "train_ratio": 0.8,
+    "val_ratio": 0.1,
+    "test_ratio": 0.1,
+    "output_dir": "/Users/jrsarath/Documents/GitHub/ananya/apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed"
+  }
+}

@@ -50,7 +50,12 @@ class DeterministicDatasetSplitter:
         # Map examples to their group
         group_to_indices: Dict[str, List[int]] = {}
         for idx, ex in enumerate(examples):
-            grp = str(ex.get(group_key) or ex.get("mpn") or ex.get("sku") or idx)
+            raw_group = ex.get(group_key)
+            if raw_group is None or not str(raw_group).strip():
+                raise ValueError(
+                    f"Missing populated group key '{group_key}' at example index {idx}"
+                )
+            grp = str(raw_group).strip()
             group_to_indices.setdefault(grp, []).append(idx)
 
         unique_groups = sorted(list(group_to_indices.keys()))
@@ -63,6 +68,8 @@ class DeterministicDatasetSplitter:
         n_groups = len(shuffled_groups)
         train_end = int(n_groups * self.train_ratio)
         val_end = train_end + int(n_groups * self.val_ratio)
+        if self.test_ratio == 0:
+            val_end = n_groups
 
         train_groups = set(shuffled_groups[:train_end])
         val_groups = set(shuffled_groups[train_end:val_end])
@@ -73,9 +80,17 @@ class DeterministicDatasetSplitter:
         assert len(train_groups.intersection(test_groups)) == 0, "Leakage between train and test!"
         assert len(val_groups.intersection(test_groups)) == 0, "Leakage between val and test!"
 
-        train_examples = [examples[i] for grp in train_groups for i in group_to_indices[grp]]
-        val_examples = [examples[i] for grp in val_groups for i in group_to_indices[grp]]
-        test_examples = [examples[i] for grp in test_groups for i in group_to_indices[grp]]
+        # Preserve source ordering so identical inputs and seed produce identical
+        # serialized split hashes across Python processes.
+        train_examples = [
+            ex for ex in examples if str(ex[group_key]).strip() in train_groups
+        ]
+        val_examples = [
+            ex for ex in examples if str(ex[group_key]).strip() in val_groups
+        ]
+        test_examples = [
+            ex for ex in examples if str(ex[group_key]).strip() in test_groups
+        ]
 
         return train_examples, val_examples, test_examples
 
@@ -107,6 +122,17 @@ class DeterministicDatasetSplitter:
             cat = ex.get("category", "Unknown")
             cat_counts[cat] = cat_counts.get(cat, 0) + 1
 
+        train_groups = {str(ex[group_key]).strip() for ex in train_set}
+        val_groups = {str(ex[group_key]).strip() for ex in val_set}
+        test_groups = {str(ex[group_key]).strip() for ex in test_set}
+        zero_group_leakage = not (
+            train_groups.intersection(val_groups)
+            or train_groups.intersection(test_groups)
+            or val_groups.intersection(test_groups)
+        )
+        if not zero_group_leakage:
+            raise ValueError("Group leakage detected after dataset split")
+
         manifest = DatasetManifest(
             dataset_name=dataset_name,
             dataset_version=version,
@@ -122,9 +148,9 @@ class DeterministicDatasetSplitter:
                 total=len(examples),
             ),
             category_counts=cat_counts,
-            zero_leakage_verified=True,
+            zero_leakage_verified=zero_group_leakage,
             group_key=group_key,
-            distinct_groups_count=len(set(ex.get(group_key, "") for ex in examples)),
+            distinct_groups_count=len({str(ex[group_key]).strip() for ex in examples}),
             metadata={
                 "seed": self.random_seed,
                 "train_ratio": self.train_ratio,
