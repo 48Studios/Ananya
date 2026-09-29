@@ -45,6 +45,16 @@ COPY apps/ml/models /app/apps/ml/models
 COPY apps/ml/pipeline /app/apps/ml/pipeline
 COPY apps/ml/benchmarks /app/apps/ml/benchmarks
 COPY apps/ml/data /app/apps/ml/data
+# The production dataset lifecycle reuses these existing training workspace
+# packages for group-aware splitting and normalization. Copy the import-time
+# package dependencies only; dataset corpora and other training tools stay out
+# of the runtime image.
+COPY apps/ml/training/__init__.py /app/apps/ml/training/__init__.py
+COPY apps/ml/training/config /app/apps/ml/training/config
+COPY apps/ml/training/schemas /app/apps/ml/training/schemas
+COPY apps/ml/training/datasets/__init__.py /app/apps/ml/training/datasets/__init__.py
+COPY apps/ml/training/datasets/splitter.py /app/apps/ml/training/datasets/splitter.py
+COPY apps/ml/training/processors /app/apps/ml/training/processors
 # The pinned, read-only historical training source and frozen evaluation set are
 # required by production retraining. Other training workspace data stays out of
 # the runtime image.
