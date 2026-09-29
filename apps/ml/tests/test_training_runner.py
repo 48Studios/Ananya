@@ -98,11 +98,50 @@ def stub_pipeline(monkeypatch):
             "promotionEligible": True,
         }
 
+    def fake_register_artifacts(
+        run_id: str,
+        candidate_version: str,
+        dataset_version: str,
+        base_model_version=None,
+    ):
+        calls["artifacts"] = (run_id, candidate_version, dataset_version)
+        return {
+            "run_id": run_id,
+            "candidate_version": candidate_version,
+            "dataset_version": dataset_version,
+            "base_model_version": base_model_version,
+            "artifacts": {
+                "candidate_model": {
+                    "sha256": "a" * 64,
+                    "size_bytes": 10,
+                }
+            },
+        }
+
+    def fake_public_artifacts(manifest):
+        return [
+            {
+                "key": key,
+                "available": True,
+                "sha256": value["sha256"],
+                "sizeBytes": value["size_bytes"],
+            }
+            for key, value in manifest["artifacts"].items()
+        ]
+
     monkeypatch.setattr(
         "apps.ml.pipeline.dataset_lifecycle.build_candidate_dataset", fake_build_dataset
     )
     monkeypatch.setattr("apps.ml.pipeline.train.train_model", fake_train)
     monkeypatch.setattr("apps.ml.pipeline.evaluate.evaluate_model", fake_evaluate)
+    monkeypatch.setattr(
+        "apps.ml.app.services.run_artifacts.register_run_artifacts",
+        fake_register_artifacts,
+    )
+    monkeypatch.setattr(
+        "apps.ml.app.services.run_artifacts.public_artifact_metadata",
+        fake_public_artifacts,
+    )
     return calls
 
 
@@ -132,7 +171,17 @@ def test_run_reaches_passed_and_never_deploys(runner, stub_pipeline, production_
     assert finished["status"] == training_runner.STATUS_PASSED
     assert finished["phase"] == training_runner.PHASE_COMPLETED
     assert finished["artifactReference"].startswith("registry/v")
-    assert finished["evaluationSummary"] == {"candidateTop1Accuracy": 0.71}
+    assert finished["evaluationSummary"] == {
+        "candidateTop1Accuracy": 0.71,
+        "forensicArtifacts": [
+            {
+                "key": "candidate_model",
+                "available": True,
+                "sha256": "a" * 64,
+                "sizeBytes": 10,
+            }
+        ],
+    }
     assert finished["gateSummary"]["promotionEligible"] is True
     assert finished["datasetVersion"].startswith("production-retraining-run-passed")
     assert finished["trainingRecordCount"] == 30
@@ -142,6 +191,7 @@ def test_run_reaches_passed_and_never_deploys(runner, stub_pipeline, production_
     assert finished["historicalTrainingRecordCount"] == 11319
     assert finished["benchmarkRecordCount"] == 25
     assert stub_pipeline["evaluate"]["test_data_path"] == "fixture/test.json"
+    assert stub_pipeline["artifacts"][0] == "run-passed"
     assert finished["durationMs"] is not None
 
     # The whole point: a passing candidate is NOT promoted by the run.
@@ -164,6 +214,8 @@ def test_run_reports_rejected_when_gates_fail(
 
     assert finished["status"] == training_runner.STATUS_REJECTED
     assert finished["errorCode"] is None
+    assert finished["forensicArtifacts"][0]["key"] == "candidate_model"
+    assert stub_pipeline["artifacts"][0] == "run-rejected"
     assert sha256_of(PRODUCTION_MODEL) == production_checksum
 
 

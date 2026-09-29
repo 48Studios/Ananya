@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   Req,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { MlAdminGuard } from '../../auth/ml-permissions';
@@ -124,6 +125,23 @@ export class MlOpsController {
   @UseGuards(MlAdminGuard)
   getTrainingRun(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.mlOpsService.getTrainingRun(id);
+  }
+
+  /** Downloads one allowlisted forensic artifact for an authorised ML operator. */
+  @Get('training-runs/:id/artifacts/:artifactKey')
+  @UseGuards(MlAdminGuard)
+  async downloadTrainingRunArtifact(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('artifactKey') artifactKey: string,
+  ) {
+    const artifact = await this.mlOpsService.downloadTrainingRunArtifact(
+      id,
+      artifactKey,
+    );
+    return new StreamableFile(artifact.bytes, {
+      type: artifact.contentType,
+      disposition: `attachment; filename="${artifact.filename}"`,
+    });
   }
 
   /**

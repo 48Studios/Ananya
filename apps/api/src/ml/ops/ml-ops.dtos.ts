@@ -187,6 +187,7 @@ export interface MlEvaluationMetricsDto {
   candidateTop3Accuracy?: number;
   activeModelTop1Accuracy?: number;
   activeModelTop3Accuracy?: number;
+  accuracyDelta?: number;
   manufacturerAccuracy?: number;
   duplicatePrecision?: number;
   duplicateRecall?: number;
@@ -203,6 +204,17 @@ export interface MlGateResultDto {
   /** What the gate means, from the runner's own threshold table. */
   description?: string;
   threshold?: number;
+  thresholdDetails?: unknown;
+  actualValue?: unknown;
+  failureReason?: string | null;
+}
+
+export interface MlForensicArtifactDto {
+  key: string;
+  available: boolean;
+  sha256: string;
+  sizeBytes: number;
+  downloadUrl: string;
 }
 
 export interface MlGateSummaryDto {
@@ -243,6 +255,7 @@ export interface MlTrainingRunDetailDto extends MlTrainingRunSummaryDto {
   };
   evaluation: MlEvaluationMetricsDto | null;
   gates: MlGateSummaryDto;
+  forensicArtifacts: MlForensicArtifactDto[];
   artifact: {
     reference: string | null;
     checksum: string | null;

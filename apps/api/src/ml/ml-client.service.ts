@@ -231,6 +231,12 @@ export interface MlTrainingRunPayload {
   quarantineRecordCount?: number | null;
   evaluationSummary?: Record<string, unknown> | null;
   gateSummary?: Record<string, unknown> | null;
+  forensicArtifacts?: Array<{
+    key: string;
+    available: boolean;
+    sha256: string;
+    sizeBytes: number;
+  }>;
   errorCode?: string | null;
   errorMessage?: string | null;
   artifactReference?: string | null;
@@ -999,6 +1005,59 @@ export class MlClientService {
       { method: 'GET' },
       this.timeoutMs,
     );
+  }
+
+  /** Retrieves one allowlisted, run-bound forensic artifact from the ML service. */
+  async mlOpsRunArtifact(
+    runId: string,
+    candidateVersion: string,
+    artifactKey: string,
+  ): Promise<
+    MlOpsCallOutcome<{
+      bytes: Uint8Array;
+      filename: string;
+      contentType: string;
+    }>
+  > {
+    if (!this.isEnabled) {
+      return {
+        ok: false,
+        kind: 'DISABLED',
+        message: 'The ML service is disabled in this deployment.',
+      };
+    }
+    const path = `/v1/training/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(candidateVersion)}/${encodeURIComponent(artifactKey)}`;
+    try {
+      const res = await fetch(`${this.baseUrl}${path}`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(this.timeoutMs * 4),
+      });
+      if (!res.ok) {
+        const body = await readMlErrorBody(res);
+        return {
+          ok: false,
+          kind: res.status === 404 ? 'NOT_FOUND' : 'ERROR',
+          status: res.status,
+          reason: body.reason,
+          message: body.message,
+        };
+      }
+      const disposition = res.headers.get('content-disposition') ?? '';
+      const filename = /filename="([A-Za-z0-9_.-]+)"/.exec(disposition)?.[1];
+      return {
+        ok: true,
+        data: {
+          bytes: new Uint8Array(await res.arrayBuffer()),
+          filename: filename ?? 'training-artifact.bin',
+          contentType:
+            res.headers.get('content-type') ?? 'application/octet-stream',
+        },
+      };
+    } catch (err: unknown) {
+      const errMsg = formatFetchError(err);
+      this.logger.warn(`ML operations artifact retrieval failed: ${errMsg}`);
+      return { ok: false, kind: 'UNREACHABLE', message: errMsg };
+    }
   }
 
   /** Promotes a PASSED candidate through the existing `deploy.py` tool. */

@@ -1,7 +1,7 @@
 import time
 from contextlib import asynccontextmanager
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .schemas import (
@@ -50,6 +50,7 @@ from .services.duplicate_detector import duplicate_detector
 from .services.datasheet_extractor import datasheet_extractor
 from .services.attribute_intelligence import attribute_intelligence_service
 from .services import model_registry
+from .services.run_artifacts import read_run_artifact
 from .services.training_runner import (
     DeploymentRefusedError,
     TrainingRunConflictError,
@@ -413,6 +414,20 @@ def get_training_run(run_id: str):
         # active: this process restarted, so nothing is progressing any more.
         raise HTTPException(status_code=404, detail="Unknown training run")
     return TrainingRunResponse(**run)
+
+
+@app.get("/v1/training/runs/{run_id}/artifacts/{candidate_version}/{artifact_key}")
+def get_training_run_artifact(run_id: str, candidate_version: str, artifact_key: str):
+    """Internal ML-operator artifact retrieval; only fixed, indexed artifacts."""
+    artifact = read_run_artifact(run_id, candidate_version, artifact_key)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="Training run artifact not found")
+    content, filename, media_type = artifact
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/v1/models", response_model=ModelRegistryResponse)

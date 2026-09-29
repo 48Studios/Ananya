@@ -274,6 +274,7 @@ class TrainingRunResponse(BaseModel):
     frozenTestRecordCount: Optional[int] = None
     evaluationSummary: Optional[Dict[str, Any]] = None
     gateSummary: Optional[Dict[str, Any]] = None
+    forensicArtifacts: List[Dict[str, Any]] = Field(default_factory=list)
     errorCode: Optional[str] = None
     errorMessage: Optional[str] = None
     artifactReference: Optional[str] = None

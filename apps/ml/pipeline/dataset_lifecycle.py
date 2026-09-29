@@ -160,6 +160,33 @@ def _feedback_example(item: Dict[str, Any], category: str) -> Optional[Dict[str,
     }
 
 
+def _feedback_audit_record(
+    item: Dict[str, Any], eligible: bool, rejection_reason: Optional[str]
+) -> Dict[str, Any]:
+    """Retain only the feedback fields permitted for the training audit."""
+    action = item.get("userAction")
+    final_value = item.get("finalValue")
+    label_origin = None
+    if eligible:
+        label_origin = (
+            "human_confirmed_final_value"
+            if action == "ACCEPTED"
+            else "human_correction_final_value"
+        )
+    return {
+        "feedback_id": item.get("id"),
+        "action": action,
+        "label_origin": label_origin,
+        "finalValue": final_value,
+        "eligibility": "TRAINING_ELIGIBLE" if eligible else "REJECTED",
+        "rejection_reason": rejection_reason,
+        "reviewer_id": item.get("reviewerId"),
+        "reviewer_email": item.get("reviewerEmail"),
+        "model_version": item.get("modelVersion"),
+        "timestamp": item.get("createdAt"),
+    }
+
+
 def _validate_partition_leakage(
     train: List[Dict[str, Any]],
     validation: List[Dict[str, Any]],
@@ -224,6 +251,7 @@ def build_candidate_dataset(
     seen_feedback_identities: set[str] = set()
     rejection_reasons: Counter[str] = Counter()
     feedback_rejections: List[Dict[str, Any]] = []
+    feedback_audit: List[Dict[str, Any]] = []
     accepted_feedback: List[Dict[str, Any]] = []
     corrected_historical_count = 0
     feedback_category_counts: Counter[str] = Counter()
@@ -316,6 +344,9 @@ def build_candidate_dataset(
             feedback_rejections.append(
                 {"feedback_id": item.get("id"), "reason": reason}
             )
+            feedback_audit.append(_feedback_audit_record(item, False, reason))
+        else:
+            feedback_audit.append(_feedback_audit_record(item, True, None))
 
     examples = historical + accepted_feedback
     for row in examples:
@@ -387,13 +418,28 @@ def build_candidate_dataset(
         "historical_record_count": len(historical),
         "historical_training_records": len(historical),
         "feedback_record_count": len(feedback_records),
+        "feedback_snapshot_hash": hashlib.sha256(
+            json.dumps(
+                feedback_records,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                default=str,
+            ).encode("utf-8")
+        ).hexdigest(),
         "feedback_training_records": len(accepted_feedback) + corrected_historical_count,
         "feedback_eligible_count": len(accepted_feedback) + corrected_historical_count,
+        "feedback_deduplicated_count": sum(
+            count
+            for reason, count in rejection_reasons.items()
+            if reason.startswith("duplicate_") or reason == "repeated_feedback_event"
+        ),
         "feedback_corrected_historical_records": corrected_historical_count,
         "feedback_appended_records": len(accepted_feedback),
         "feedback_rejected_count": sum(rejection_reasons.values()),
         "feedback_rejection_reasons": dict(sorted(rejection_reasons.items())),
         "feedback_rejections": feedback_rejections,
+        "feedback_audit_file": "feedback_audit.json",
         "excluded_test_derived_count": baseline_manifest["excluded_test_derived_count"],
         "excluded_data_sources": [
             {
@@ -404,6 +450,7 @@ def build_candidate_dataset(
         ],
         "benchmark_records": HARDCODED_BENCHMARK_RECORDS,
         "combined_record_count": len(examples),
+        "candidate_record_count": len(examples),
         "category_counts": dict(sorted(category_counts.items())),
         "category_coverage": category_coverage,
         "train_count": len(train),
@@ -418,6 +465,7 @@ def build_candidate_dataset(
         "train_hash": _sha256(train_path),
         "validation_hash": _sha256(validation_path),
         "test_hash": baseline_manifest["frozen_test_source"]["sha256"],
+        "frozen_test_hash": baseline_manifest["frozen_test_source"]["sha256"],
         "checksums": {
             "train": _sha256(train_path),
             "validation": _sha256(validation_path),
@@ -426,8 +474,16 @@ def build_candidate_dataset(
         "leakage_verified": True,
         "leakage_collisions": {},
     }
+    feedback_audit_json = json.dumps(feedback_audit, ensure_ascii=False, indent=2) + "\n"
+    manifest["feedback_audit_hash"] = hashlib.sha256(
+        feedback_audit_json.encode("utf-8")
+    ).hexdigest()
     (destination / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    (destination / "feedback_audit.json").write_text(
+        feedback_audit_json,
+        encoding="utf-8",
     )
     return {
         "datasetVersion": version,

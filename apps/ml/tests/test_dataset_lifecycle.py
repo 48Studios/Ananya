@@ -77,6 +77,10 @@ def test_canonical_baseline_is_pinned_and_default_without_feedback(tmp_path):
     assert manifest["train_count"] + manifest["validation_count"] == 11319
     assert manifest["historical_dataset_hash"] == EXPECTED_TRAIN_HASH
     assert manifest["test_hash"] == EXPECTED_TEST_HASH
+    assert manifest["candidate_record_count"] == 11319
+    assert manifest["feedback_snapshot_hash"]
+    assert manifest["feedback_audit_hash"]
+    assert manifest["feedback_deduplicated_count"] == 0
     assert _sha(ROOT / BASELINE_DIR / "train.json") == EXPECTED_TRAIN_HASH
     assert _sha(ROOT / BASELINE_DIR / "test.json") == EXPECTED_TEST_HASH
     assert _sha(active_model) == active_hash_before
@@ -143,6 +147,24 @@ def test_explicit_final_value_requires_reviewer_and_is_the_training_label(tmp_pa
     assert accepted[0]["provenance"]["model_version"] == "1.8.1"
     assert accepted[0]["category"] != accepted[0].get("predictedValue")
 
+    manifest = result["manifest"]
+    audit = json.loads((Path(result["manifestPath"]).parent / "feedback_audit.json").read_text())
+    assert manifest["feedback_eligible_count"] == 1
+    assert audit == [
+        {
+            "feedback_id": "fb-1",
+            "action": "EDITED",
+            "label_origin": "human_correction_final_value",
+            "finalValue": "Resistors",
+            "eligibility": "TRAINING_ELIGIBLE",
+            "rejection_reason": None,
+            "reviewer_id": "user-1",
+            "reviewer_email": "reviewer@example.test",
+            "model_version": "1.8.1",
+            "timestamp": "2026-09-29T00:00:00Z",
+        }
+    ]
+
 
 def test_explicit_correction_updates_matching_historical_example_once(tmp_path):
     historical = json.loads((ROOT / BASELINE_DIR / "train.json").read_text())[0]
@@ -171,6 +193,9 @@ def test_missing_reviewer_keeps_feedback_out_of_training(tmp_path):
     assert result["manifest"]["feedback_rejection_reasons"][
         "missing_reviewer_identity"
     ] == 1
+    audit = json.loads((Path(result["manifestPath"]).parent / "feedback_audit.json").read_text())
+    assert audit[0]["eligibility"] == "REJECTED"
+    assert audit[0]["rejection_reason"] == "missing_reviewer_identity"
 
 
 @pytest.mark.parametrize(

@@ -274,6 +274,7 @@ describe('ML operations — training control plane', () => {
       'mlOpsDataset',
       'mlOpsStartTrainingRun',
       'mlOpsTrainingRun',
+      'mlOpsRunArtifact',
       'mlOpsDeployCandidate',
       'mlOpsRollback',
       'mlOpsReloadModel',
@@ -375,6 +376,12 @@ describe('ML operations — training control plane', () => {
         statusCalls += 1;
         return ok(runnerPayload());
       },
+      mlOpsRunArtifact: async () =>
+        ok({
+          bytes: new Uint8Array([123, 125]),
+          filename: 'evaluation_summary.json',
+          contentType: 'application/json',
+        }),
       mlOpsDeployCandidate: async () => {
         deployCalls += 1;
         return ok({
@@ -745,7 +752,17 @@ describe('ML operations — training control plane', () => {
         trainingRecordCount: 30,
         validationRecordCount: 7,
         quarantineRecordCount: 0,
-        evaluationSummary: { candidateTop1Accuracy: 0.6 },
+        evaluationSummary: {
+          candidateTop1Accuracy: 0.6,
+          forensicArtifacts: [
+            {
+              key: 'evaluation_summary',
+              available: true,
+              sha256: 'd'.repeat(64),
+              sizeBytes: 128,
+            },
+          ],
+        },
         gateSummary: {
           gates: { accuracy_gate: false },
           thresholds: { accuracy_gate: { minimum: 0.7 } },
@@ -775,6 +792,12 @@ describe('ML operations — training control plane', () => {
         failure: { errorCode: string; logExcerpt: string };
         cancellable: boolean;
         deployment: { status: string };
+        forensicArtifacts: Array<{
+          key: string;
+          sha256: string;
+          sizeBytes: number;
+          downloadUrl: string;
+        }>;
       }>(response);
 
       expect(detail.dataset.recordCount).toBe(25);
@@ -786,14 +809,57 @@ describe('ML operations — training control plane', () => {
           passed: false,
           description: undefined,
           threshold: 0.7,
+          thresholdDetails: undefined,
+          actualValue: undefined,
+          failureReason: undefined,
         },
       ]);
       expect(detail.gates.promotionEligible).toBe(false);
       expect(detail.artifact.deployable).toBe(false);
+      expect(detail.forensicArtifacts).toEqual([
+        {
+          key: 'evaluation_summary',
+          available: true,
+          sha256: 'd'.repeat(64),
+          sizeBytes: 128,
+          downloadUrl: `/ml/ops/training-runs/${run.id}/artifacts/evaluation_summary`,
+        },
+      ]);
       expect(detail.failure.errorCode).toBe('EVALUATION_FAILED');
       expect(detail.failure.logExcerpt).toContain('line one');
       expect(detail.cancellable).toBe(false);
       expect(detail.deployment.status).toBe('NOT_DEPLOYED');
+    });
+
+    it('allows only ML administrators to download indexed run artifacts', async () => {
+      const run = await seedRun({
+        status: 'REJECTED',
+        candidateModelVersion: '1.5.1',
+        evaluationSummary: {
+          forensicArtifacts: [
+            {
+              key: 'evaluation_summary',
+              available: true,
+              sha256: 'd'.repeat(64),
+              sizeBytes: 2,
+            },
+          ],
+        },
+      });
+
+      const denied = await http()
+        .get(`/ml/ops/training-runs/${run.id}/artifacts/evaluation_summary`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(denied.status).toBe(403);
+
+      const downloaded = await http()
+        .get(`/ml/ops/training-runs/${run.id}/artifacts/evaluation_summary`)
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(downloaded.status).toBe(200);
+      expect(downloaded.headers['content-disposition']).toContain(
+        'evaluation_summary.json',
+      );
+      expect(downloaded.text).toBe('{}');
     });
   });
 

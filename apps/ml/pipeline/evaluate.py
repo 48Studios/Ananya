@@ -18,11 +18,41 @@ import time
 import pickle
 import resource
 import argparse
+import hashlib
 from typing import Dict, Any, List
 import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix
 from apps.ml.benchmarks.duplicate_benchmark import BENCHMARK_CASES, run_domain_aware_model
 from apps.ml.app.services.manufacturer_resolver import manufacturer_resolver
+
+
+def _count_unverified_provenance(samples: List[Dict[str, Any]]) -> int:
+    """Count records without explicitly verified provenance."""
+    return sum(
+        1
+        for item in samples
+        if not isinstance(item.get("provenance"), dict)
+        or item["provenance"].get("verification_status") != "VERIFIED"
+    )
+
+
+def _record_fingerprint(item: Dict[str, Any], index: int) -> str:
+    """Stable, non-PII identifier for one evaluation row."""
+    identity = "|".join(
+        str(item.get(key) or "").strip().upper() for key in ("id", "sku", "mpn")
+    )
+    text = " ".join(str(item.get("text") or "").lower().split())
+    return hashlib.sha256(f"{index}\0{identity}\0{text}".encode("utf-8")).hexdigest()
+
+
+def _write_json(path: str, payload: Any) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    temporary_path = f"{path}.tmp"
+    with open(temporary_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
+    os.replace(temporary_path, path)
+
 
 def evaluate_model(
     version: str = "1.3.0",
@@ -30,6 +60,9 @@ def evaluate_model(
     val_data_path: str = "",
     active_model_path: str = "apps/ml/models/category_classifier.pkl",
     test_data_path: str = "",
+    run_id: str = "",
+    dataset_version: str = "",
+    active_model_version: str = "",
 ) -> Dict[str, Any]:
     version_dir = os.path.join(registry_dir, f"v{version}")
     candidate_model_path = os.path.join(version_dir, "category_classifier.pkl")
@@ -71,8 +104,10 @@ def evaluate_model(
     latencies = []
     y_true = []
     y_pred = []
+    prediction_records: List[Dict[str, Any]] = []
+    active_prediction_records: List[Dict[str, Any]] = []
 
-    for item in val_samples:
+    for index, item in enumerate(val_samples):
         text = item["text"].lower()
         true_cat = item["category"]
         y_true.append(true_cat)
@@ -85,8 +120,23 @@ def evaluate_model(
         classes = candidate_model.classes_
         top_indices = np.argsort(probs)[::-1][:3]
         top_classes = [classes[i] for i in top_indices]
+        top_predictions = [
+            {"label": str(classes[class_index]), "probability": float(probs[class_index])}
+            for class_index in top_indices
+        ]
 
         y_pred.append(top_classes[0])
+        prediction_records.append(
+            {
+                "record_index": index,
+                "record_sha256": _record_fingerprint(item, index),
+                "actual": true_cat,
+                "predicted": str(top_classes[0]),
+                "top1_confidence": top_predictions[0]["probability"],
+                "top3": top_predictions,
+                "correct": str(top_classes[0]).lower() == true_cat.lower(),
+            }
+        )
         if top_classes[0].lower() == true_cat.lower():
             cand_top1_correct += 1
         if any(c.lower() == true_cat.lower() for c in top_classes):
@@ -105,13 +155,29 @@ def evaluate_model(
                 active_model = pickle.load(f)
             act_top1 = 0
             act_top3 = 0
-            for item in val_samples:
+            for index, item in enumerate(val_samples):
                 text = item["text"].lower()
                 true_cat = item["category"]
                 probs = active_model.predict_proba([text])[0]
                 classes = active_model.classes_
                 top_indices = np.argsort(probs)[::-1][:3]
                 top_classes = [classes[i] for i in top_indices]
+                active_top = [
+                    {
+                        "label": str(classes[class_index]),
+                        "probability": float(probs[class_index]),
+                    }
+                    for class_index in top_indices
+                ]
+                active_prediction_records.append(
+                    {
+                        "record_index": index,
+                        "predicted": str(top_classes[0]),
+                        "top1_confidence": active_top[0]["probability"],
+                        "top3": active_top,
+                        "correct": str(top_classes[0]).lower() == true_cat.lower(),
+                    }
+                )
                 if top_classes[0].lower() == true_cat.lower():
                     act_top1 += 1
                 if any(c.lower() == true_cat.lower() for c in top_classes):
@@ -119,7 +185,15 @@ def evaluate_model(
             active_top1_acc = act_top1 / total_samples
             active_top3_acc = act_top3 / total_samples
         except Exception as e:
+            active_prediction_records = []
             print(f"Warning: active model baseline evaluation encountered error: {e}")
+
+    for prediction in prediction_records:
+        prediction["active_model"] = (
+            active_prediction_records[prediction["record_index"]]
+            if "record_index" in prediction
+            else None
+        )
 
     # 3. Manufacturer Resolution Accuracy
     mfg_test_cases = [
@@ -165,11 +239,7 @@ def evaluate_model(
     dup_rec = dup_tp / (dup_tp + dup_fn) if (dup_tp + dup_fn) > 0 else 0.0
 
     # 5. Provenance & Leakage Verification
-    unverified_count = 0
-    for item in val_samples:
-        prov = item.get("provenance", {})
-        if prov and prov.get("verificationStatus") != "VERIFIED":
-            unverified_count += 1
+    unverified_count = _count_unverified_provenance(val_samples)
 
     # 6. Latency & Resource Consumption
     p50_latency = float(np.percentile(latencies, 50))
@@ -194,6 +264,107 @@ def evaluate_model(
 
     all_gates_passed = all(gates.values())
 
+    gate_details = {
+        "accuracy_gate": {
+            "actual_value": cand_top1_acc,
+            "threshold": {"minimum": 0.70, "maximum_regression": 0.05},
+            "passed": gates["accuracy_gate"],
+            "failure_reason": None if gates["accuracy_gate"] else (
+                f"Top-1 regressed by {active_top1_acc - cand_top1_acc:.6f}; "
+                "maximum allowed regression is 0.05"
+                if accuracy_regression else "Top-1 is below the 0.70 minimum"
+            ),
+        },
+        "duplicate_precision_gate": {
+            "actual_value": {"precision": dup_prec, "critical_false_positives": critical_false_positives},
+            "threshold": {"minimum": 0.95, "critical_false_positives": 0},
+            "passed": gates["duplicate_precision_gate"],
+            "failure_reason": None if gates["duplicate_precision_gate"] else (
+                "Precision is below 0.95 or critical false merges are nonzero"
+            ),
+        },
+        "duplicate_recall_gate": {
+            "actual_value": dup_rec,
+            "threshold": {"minimum": 0.95},
+            "passed": gates["duplicate_recall_gate"],
+            "failure_reason": None if gates["duplicate_recall_gate"] else "Recall is below 0.95",
+        },
+        "latency_gate": {
+            "actual_value": p95_latency,
+            "threshold": {"maximum_ms": 5.0},
+            "passed": gates["latency_gate"],
+            "failure_reason": None if gates["latency_gate"] else "P95 latency exceeds 5.0 ms",
+        },
+        "memory_gate": {
+            "actual_value": ram_mb,
+            "threshold": {"maximum_mb": 256.0},
+            "passed": gates["memory_gate"],
+            "failure_reason": None if gates["memory_gate"] else "Peak memory exceeds 256 MB",
+        },
+        "provenance_gate": {
+            "actual_value": unverified_count,
+            "threshold": {"maximum_unverified": 0},
+            "passed": gates["provenance_gate"],
+            "failure_reason": None if gates["provenance_gate"] else "Unverified provenance records are present",
+        },
+    }
+
+    evaluation_labels = sorted(
+        {str(label) for label in y_true}.union(
+            str(label) for label in candidate_model.classes_
+        )
+    )
+    matrix = confusion_matrix(y_true, y_pred, labels=evaluation_labels)
+    class_report = classification_report(
+        y_true,
+        y_pred,
+        labels=evaluation_labels,
+        target_names=evaluation_labels,
+        output_dict=True,
+        zero_division=0,
+    )
+    per_class_metrics = {
+        label: {
+            "support": int(class_report[label]["support"]),
+            "precision": float(class_report[label]["precision"]),
+            "recall": float(class_report[label]["recall"]),
+            "f1": float(class_report[label]["f1-score"]),
+        }
+        for label in evaluation_labels
+    }
+    forensic_dir = os.path.join(version_dir, "forensics")
+    artifact_paths = {
+        "test_predictions": os.path.join(forensic_dir, "test_predictions.json"),
+        "confusion_matrix": os.path.join(forensic_dir, "confusion_matrix.json"),
+        "per_class_metrics": os.path.join(forensic_dir, "per_class_metrics.json"),
+    }
+    _write_json(
+        artifact_paths["test_predictions"],
+        {
+            "run_id": run_id or None,
+            "candidate_version": version,
+            "dataset_version": dataset_version or None,
+            "active_model_version": active_model_version or None,
+            "evaluation_dataset_role": evaluation_role,
+            "total_samples": len(val_samples),
+            "predictions": prediction_records,
+        },
+    )
+    _write_json(
+        artifact_paths["confusion_matrix"],
+        {
+            "class_labels": evaluation_labels,
+            "row_order": "actual",
+            "column_order": "predicted",
+            "counts": matrix.tolist(),
+            "total_samples": len(val_samples),
+        },
+    )
+    _write_json(
+        artifact_paths["per_class_metrics"],
+        {"total_samples": len(val_samples), "classes": per_class_metrics},
+    )
+
     report = {
         "candidateVersion": version,
         "evaluatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -206,6 +377,7 @@ def evaluate_model(
             "candidateTop3Accuracy": round(cand_top3_acc, 4),
             "activeModelTop1Accuracy": round(active_top1_acc, 4),
             "activeModelTop3Accuracy": round(active_top3_acc, 4),
+            "accuracyDelta": round(cand_top1_acc - active_top1_acc, 4),
             "manufacturerAccuracy": round(mfg_acc, 4),
             "duplicatePrecision": round(dup_prec, 4),
             "duplicateRecall": round(dup_rec, 4),
@@ -220,12 +392,26 @@ def evaluate_model(
             "unverifiedProvenanceCount": unverified_count,
         },
         "qualityGates": gates,
+        "gateDetails": gate_details,
+        "forensicArtifactKeys": list(artifact_paths),
         "promotionEligible": all_gates_passed,
     }
 
+    _write_json(
+        os.path.join(forensic_dir, "evaluation_summary.json"),
+        {
+            "run_id": run_id or None,
+            "candidate_version": version,
+            "dataset_version": dataset_version or None,
+            "active_model_version": active_model_version or None,
+            "metrics": report["metrics"],
+            "quality_gates": gates,
+            "gate_details": gate_details,
+            "promotion_eligible": all_gates_passed,
+        },
+    )
     report_path = os.path.join(version_dir, "evaluation_report.json")
-    with open(report_path, "w") as f:
-        json.dump(report, f, indent=2)
+    _write_json(report_path, report)
 
     print("=" * 60)
     print(f" QUALITY GATES REPORT FOR MODEL v{version}")

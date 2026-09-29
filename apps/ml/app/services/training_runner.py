@@ -323,10 +323,30 @@ class TrainingRunner:
             eval_report = evaluate_model(
                 version=candidate_version,
                 test_data_path=dataset_meta["frozenTestPath"],
+                run_id=run_id,
+                dataset_version=dataset_meta["datasetVersion"],
+                active_model_version=(self.get_run(run_id) or {}).get(
+                    "baseModelVersion"
+                )
+                or "",
             )
 
             # 4 / 5 — package: the registry directory IS the package.
             self._update(run_id, phase=PHASE_PACKAGING)
+            from .run_artifacts import (
+                public_artifact_metadata,
+                register_run_artifacts,
+            )
+
+            run_artifact_manifest = register_run_artifacts(
+                run_id=run_id,
+                candidate_version=candidate_version,
+                dataset_version=dataset_meta["datasetVersion"],
+                base_model_version=(self.get_run(run_id) or {}).get(
+                    "baseModelVersion"
+                ),
+            )
+            forensic_artifacts = public_artifact_metadata(run_artifact_manifest)
             artifact = model_registry.version_detail(candidate_version) or {}
             self._log(
                 run_id,
@@ -337,12 +357,17 @@ class TrainingRunner:
             eligible = bool(eval_report.get("promotionEligible"))
             self._update(
                 run_id,
-                evaluationSummary=eval_report.get("metrics"),
+                evaluationSummary={
+                    **(eval_report.get("metrics") or {}),
+                    "forensicArtifacts": forensic_artifacts,
+                },
                 gateSummary={
                     "gates": eval_report.get("qualityGates"),
+                    "details": eval_report.get("gateDetails"),
                     "thresholds": GATE_THRESHOLDS,
                     "promotionEligible": eligible,
                 },
+                forensicArtifacts=forensic_artifacts,
                 artifactReference=f"registry/v{candidate_version}",
                 datasetFingerprint=artifact.get("datasetFingerprint")
                 or manifest["train_hash"],

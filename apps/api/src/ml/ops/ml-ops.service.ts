@@ -511,6 +511,36 @@ export class MlOpsService {
     return this.toDetail(run);
   }
 
+  async downloadTrainingRunArtifact(
+    runId: string,
+    artifactKey: string,
+  ): Promise<{ bytes: Uint8Array; filename: string; contentType: string }> {
+    const run = await this.repository.findTrainingRun(runId);
+    if (!run) throw new NotFoundException('Training run not found');
+    const candidateVersion = run.candidateModelVersion;
+    const artifacts = readForensicArtifactEntries(
+      run.evaluationSummary?.forensicArtifacts,
+    );
+    if (
+      !candidateVersion ||
+      !artifacts.some((artifact) => artifact.key === artifactKey)
+    ) {
+      throw new NotFoundException('Training run artifact not found');
+    }
+    const outcome = await this.mlClient.mlOpsRunArtifact(
+      runId,
+      candidateVersion,
+      artifactKey,
+    );
+    if (!outcome.ok) {
+      if (outcome.kind === 'NOT_FOUND') {
+        throw new NotFoundException('Training run artifact not found');
+      }
+      throw new ServiceUnavailableException(outcome.message);
+    }
+    return outcome.data;
+  }
+
   /**
    * Triggers a training run.
    *
@@ -1003,6 +1033,10 @@ export class MlOpsService {
       },
       evaluation: readMetrics(run.evaluationSummary),
       gates: readGates(run.gateSummary),
+      forensicArtifacts: readForensicArtifacts(
+        run.evaluationSummary?.forensicArtifacts,
+        run.id,
+      ),
       artifact: {
         reference: run.artifactReference,
         // The checksum comes from the registry listing, so it is the artifact's real
@@ -1159,6 +1193,10 @@ function readGates(summary: Record<string, unknown> | null): MlGateSummaryDto {
     summary?.thresholds && typeof summary.thresholds === 'object'
       ? (summary.thresholds as Record<string, unknown>)
       : {};
+  const details =
+    summary?.details && typeof summary.details === 'object'
+      ? (summary.details as Record<string, unknown>)
+      : {};
   const results: MlGateResultDto[] = Object.entries(
     gates as Record<string, unknown>,
   ).map(([gate, passed]) => {
@@ -1166,12 +1204,23 @@ function readGates(summary: Record<string, unknown> | null): MlGateSummaryDto {
       thresholds[gate] && typeof thresholds[gate] === 'object'
         ? (thresholds[gate] as Record<string, unknown>)
         : null;
-    const value =
-      typeof threshold?.minimum === 'number'
-        ? threshold.minimum
-        : typeof threshold?.maximum === 'number'
-          ? threshold.maximum
-          : undefined;
+    const gateDetail =
+      details[gate] && typeof details[gate] === 'object'
+        ? (details[gate] as Record<string, unknown>)
+        : null;
+    const exactThreshold =
+      gateDetail?.threshold && typeof gateDetail.threshold === 'object'
+        ? (gateDetail.threshold as Record<string, unknown>)
+        : null;
+    const value = [
+      exactThreshold?.minimum,
+      exactThreshold?.maximum,
+      exactThreshold?.maximum_ms,
+      exactThreshold?.maximum_mb,
+      exactThreshold?.maximum_unverified,
+      threshold?.minimum,
+      threshold?.maximum,
+    ].find((candidate): candidate is number => typeof candidate === 'number');
     return {
       gate,
       passed: passed === true,
@@ -1180,6 +1229,14 @@ function readGates(summary: Record<string, unknown> | null): MlGateSummaryDto {
           ? threshold.description
           : undefined,
       threshold: value,
+      thresholdDetails: exactThreshold ?? threshold ?? undefined,
+      actualValue: gateDetail?.actual_value,
+      failureReason:
+        typeof gateDetail?.failure_reason === 'string'
+          ? gateDetail.failure_reason
+          : gateDetail?.failure_reason === null
+            ? null
+            : undefined,
     };
   });
   return {
@@ -1187,6 +1244,56 @@ function readGates(summary: Record<string, unknown> | null): MlGateSummaryDto {
     promotionEligible: readGateEligibility(summary) ?? false,
     unavailable: results.length === 0,
   };
+}
+
+const FORENSIC_ARTIFACT_KEYS = new Set([
+  'candidate_model',
+  'test_predictions',
+  'confusion_matrix',
+  'per_class_metrics',
+  'evaluation_summary',
+  'dataset_manifest',
+  'feedback_audit',
+]);
+
+function readForensicArtifactEntries(value: unknown): Array<{
+  key: string;
+  available: boolean;
+  sha256: string;
+  sizeBytes: number;
+}> {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry: unknown) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const artifact = entry as Record<string, unknown>;
+    if (
+      typeof artifact.key !== 'string' ||
+      !FORENSIC_ARTIFACT_KEYS.has(artifact.key) ||
+      artifact.available !== true ||
+      typeof artifact.sha256 !== 'string' ||
+      !/^[a-f0-9]{64}$/i.test(artifact.sha256) ||
+      typeof artifact.sizeBytes !== 'number' ||
+      !Number.isFinite(artifact.sizeBytes) ||
+      artifact.sizeBytes < 0
+    ) {
+      return [];
+    }
+    return [
+      {
+        key: artifact.key,
+        available: true,
+        sha256: artifact.sha256,
+        sizeBytes: artifact.sizeBytes,
+      },
+    ];
+  });
+}
+
+function readForensicArtifacts(value: unknown, runId: string) {
+  return readForensicArtifactEntries(value).map((artifact) => ({
+    ...artifact,
+    downloadUrl: `/ml/ops/training-runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifact.key)}`,
+  }));
 }
 
 /**
@@ -1212,6 +1319,7 @@ function readMetrics(value: unknown): MlEvaluationMetricsDto | null {
       readNumber(metrics.activeModelTop1Accuracy) ?? undefined,
     activeModelTop3Accuracy:
       readNumber(metrics.activeModelTop3Accuracy) ?? undefined,
+    accuracyDelta: readNumber(metrics.accuracyDelta) ?? undefined,
     manufacturerAccuracy: readNumber(metrics.manufacturerAccuracy) ?? undefined,
     duplicatePrecision: readNumber(metrics.duplicatePrecision) ?? undefined,
     duplicateRecall: readNumber(metrics.duplicateRecall) ?? undefined,
