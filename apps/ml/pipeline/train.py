@@ -63,6 +63,7 @@ def _build_classification_report(
         zero_division=0,
     )
 
+
 def load_data(
     data_path: str,
     val_path: str = "",
