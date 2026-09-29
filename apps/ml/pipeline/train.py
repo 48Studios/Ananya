@@ -19,6 +19,49 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.metrics import classification_report, accuracy_score
+from apps.ml.training.processors.normalization import CANONICAL_CATEGORIES
+
+
+def _validated_class_labels(class_labels: List[str]) -> List[str]:
+    """Validates and preserves the classifier's complete canonical vocabulary."""
+    labels = [str(label) for label in class_labels]
+    if not labels:
+        raise ValueError("Training data contains no category labels")
+    if len(labels) != len(set(labels)):
+        raise ValueError("Classifier category labels must be unique")
+
+    invalid_labels = sorted(set(labels) - CANONICAL_CATEGORIES)
+    if invalid_labels:
+        raise ValueError(
+            "Training data contains categories outside the canonical taxonomy: "
+            f"{invalid_labels}"
+        )
+    return labels
+
+
+def _build_classification_report(
+    y_true: List[str],
+    y_pred: List[str],
+    class_labels: List[str],
+) -> Dict[str, Any]:
+    """Builds per-class metrics against the model's complete class vocabulary."""
+    labels = _validated_class_labels(class_labels)
+    observed_labels = set(y_true) | set(y_pred)
+    missing_labels = sorted(observed_labels - set(labels))
+    if missing_labels:
+        raise ValueError(
+            "Evaluation data or predictions contain categories outside the "
+            f"classifier vocabulary: {missing_labels}"
+        )
+
+    return classification_report(
+        y_true,
+        y_pred,
+        labels=labels,
+        target_names=labels,
+        output_dict=True,
+        zero_division=0,
+    )
 
 def load_data(
     data_path: str,
@@ -107,6 +150,17 @@ def train_model(
     print("=" * 60)
 
     X_train, y_train, X_val, y_val = load_data(train_path, val_path)
+    training_classes = _validated_class_labels(sorted(set(y_train)))
+    if y_val:
+        validation_classes = _validated_class_labels(sorted(set(y_val)))
+        missing_training_classes = sorted(
+            set(validation_classes) - set(training_classes)
+        )
+        if missing_training_classes:
+            raise ValueError(
+                "Validation categories are absent from the training vocabulary: "
+                f"{missing_training_classes}"
+            )
     print(f"Train Samples: {len(X_train)} | Validation Samples: {len(X_val)}")
     print(f"Unique Categories: {len(set(y_train))}")
 
@@ -154,13 +208,10 @@ def train_model(
 
     # Detailed classification report on validation set
     y_pred = best_pipeline.predict(X_val) if len(X_val) > 0 else best_pipeline.predict(X_train)
-    target_names = sorted(list(set(y_val if len(X_val) > 0 else y_train)))
-    report = classification_report(
+    report = _build_classification_report(
         y_val if len(X_val) > 0 else y_train,
         y_pred,
-        target_names=target_names,
-        output_dict=True,
-        zero_division=0,
+        list(best_pipeline.classes_),
     )
 
     metadata = {
