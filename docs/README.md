@@ -8,26 +8,17 @@ Documentation is organized by domain and topic rather than by technology.
 
 ## Architecture
 
-High-level system design, DDD boundaries, and repository organization.
+High-level system design, DDD boundaries, data lifecycle, and navigation architecture.
 
 - [Architecture Overview](architecture/README.md)
 - [System Architecture](architecture/ARCHITECTURE.md) — Core principles, dependency rules, and production data lifecycle
 - [Project Structure](architecture/PROJECT_STRUCTURE.md) — Monorepo layout, applications, and bounded context packages
 - [Domain-Driven Design Standard](architecture/DDD.md) — Layer responsibilities, aggregate invariants, and ubiquitous language
-- [AI Agent Guide](architecture/AI_AGENT_GUIDE.md) — Guidelines for autonomous coding agents
+- [Production Data Lifecycle](architecture/DATA_LIFECYCLE.md) — Operational data management, zero CLI scripts, data packs, and import framework
+- [Information Architecture](architecture/INFORMATION_ARCHITECTURE.md) — 7-module navigation architecture, rails, and routing layout
 - [Component Consolidation](architecture/COMPONENT_CONSOLIDATION.md) — Duplicate component retirement & consolidation lifecycle
-- [Architectural Review Checklist](architecture/REVIEW_CHECKLIST.md)
-
----
-
-## Operations
-
-How the running system behaves in production, and what an operator controls.
-
-- [ML Operations](ML_OPERATIONS.md) — Training, evaluation, deployment, and rollback control plane
-- [Scanner App](SCANNER_APP.md) — Installable `/scan` PWA surface, camera constraints, and scan lifecycle
-- [Data Lifecycle](DATA_LIFECYCLE.md) — Production data management (zero CLI scripts, data packs, migration framework)
-- [Information Architecture](INFORMATION_ARCHITECTURE.md) — 7-module navigation specification
+- [AI Agent Guide](architecture/AI_AGENT_GUIDE.md) — Collaborative architecture rules for autonomous AI coding agents
+- [Architectural Review Checklist](architecture/REVIEW_CHECKLIST.md) — In-depth architectural review checklist
 
 ---
 
@@ -35,20 +26,22 @@ How the running system behaves in production, and what an operator controls.
 
 Authentication models, RBAC authorization matrices, and endpoint threat boundaries.
 
-- [Public Endpoints Inventory](security/public-endpoints.md) — Authoritative inventory of `@Public()` opt-outs and defense-in-depth controls
 - [Authorization & Access Matrix](security/authorization-matrix.md) — Complete controller permissions, system roles, and ownership checks
-- [Authentication & Onboarding](AUTHENTICATION.md) — Multi-tenant organization creation, invitation mechanics, and session model
+- [Public Endpoints Inventory](security/public-endpoints.md) — Authoritative inventory of `@Public()` opt-outs and defense-in-depth controls
+- [Authentication & Onboarding](security/AUTHENTICATION.md) — Multi-tenant organization creation, invitation mechanics, and session model
 
 ---
 
-## Development
+## Development & Operations
 
-Guides for setting up, developing, and validating changes in the repository.
+Guides for setting up, developing, testing, and operating Ananya services.
 
 - [Development Guide](development/README.md)
 - [Setup](development/SETUP.md) — Prerequisites and environment configuration
 - [Local Development](development/LOCAL_DEVELOPMENT.md) — Compose workflows, pnpm dev, and database tasks
 - [Testing Guide](development/TESTING.md) — Quality gates, unit tests, and Playwright E2E testing platform
+- [ML Operations](development/ML_OPERATIONS.md) — Training, evaluation, deployment, and rollback control plane
+- [Scanner App](development/SCANNER_APP.md) — Standalone `/scan` PWA surface, camera constraints, and scan lifecycle
 
 ---
 
@@ -87,6 +80,6 @@ Sequential architectural decision records (RFC-0001 through RFC-0061).
 
 ## Archive
 
-Historical artifacts and superseded audits preserved for audit trails.
+Historical artifacts, past audits, and superseded architectural analyses.
 
 - [Archive Index](archive/README.md)

@@ -129,7 +129,7 @@ Organization Reset replaces "clear database" CLI scripts with a secure administr
 
 - [Domain-Driven Design Standard](DDD.md)
 - [Project Structure](PROJECT_STRUCTURE.md)
-- [Production Data Lifecycle](../DATA_LIFECYCLE.md)
-- [Information Architecture](../INFORMATION_ARCHITECTURE.md)
+- [Production Data Lifecycle](DATA_LIFECYCLE.md)
+- [Information Architecture](INFORMATION_ARCHITECTURE.md)
 - [RFC Index](../rfcs/README.md)
 - [Code Review Checklist](REVIEW_CHECKLIST.md)

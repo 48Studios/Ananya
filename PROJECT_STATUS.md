@@ -70,7 +70,7 @@ Ananya is self-hosted. The repository includes setup and container configuration
 
 The application includes an import workflow for CSV, Excel (`.xlsx`), and JSON data, with templates, column mapping, validation, duplicate checks, and relationship resolution. Data Packs provide starter reference data such as units, categories, logistics locations, and demo inventory. Database migrations create schema; they do not populate an organization's operational catalog or balances. Start with a small import and verify the result before loading a full dataset.
 
-See [Data Lifecycle](docs/DATA_LIFECYCLE.md) for supported import behavior and [Docker guide](docker/README.md) for deployment.
+See [Data Lifecycle](docs/architecture/DATA_LIFECYCLE.md) for supported import behavior and [Docker guide](docker/README.md) for deployment.
 
 ## Verification snapshot
 
@@ -111,4 +111,4 @@ The following repository-wide commands completed successfully on 2026-09-29:
 - [Design system](DESIGN.md)
 - [Contributor guide](CONTRIBUTING.md)
 - [Local development](docs/development/LOCAL_DEVELOPMENT.md)
-- [Testing guide](docs/TESTING.md)
+- [Testing guide](docs/development/TESTING.md)

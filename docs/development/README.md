@@ -1,6 +1,6 @@
 # Development
 
-This section contains documentation for contributors developing Ananya.
+This section contains documentation for contributors developing and operating Ananya.
 
 ## Documents
 
@@ -20,11 +20,27 @@ Run the applications and supporting infrastructure locally.
 
 ---
 
-### Testing
+### Testing Guide
 
-Quality gates, validation commands, and testing practices.
+Quality gates, validation commands, unit testing, and Playwright E2E suites.
 
 → [TESTING.md](TESTING.md)
+
+---
+
+### ML Operations
+
+Operator control plane for model training, candidate evaluation, deployment, and rollback.
+
+→ [ML_OPERATIONS.md](ML_OPERATIONS.md)
+
+---
+
+### Scanner App
+
+Setup and testing guide for the standalone camera scanner PWA (`/scan`) and iOS requirements.
+
+→ [SCANNER_APP.md](SCANNER_APP.md)
 
 ---
 
@@ -35,6 +51,7 @@ Before opening a pull request, ensure the repository passes all engineering qual
 ```bash
 pnpm check-types
 pnpm lint
+pnpm test
 pnpm build
 ```
 
