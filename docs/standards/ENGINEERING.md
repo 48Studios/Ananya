@@ -31,6 +31,22 @@ Prefer explicit typing over inference where it improves readability. Use interfa
 - `@ananya/inventory`: Inventory domain logic
 - `@ananya/shared`: Shared contracts and utilities
 
+### Domain Packages
+
+- `@ananya/procurement`: Procurement bounded context (suppliers, purchase orders, goods receipts)
+- `@ananya/manufacturing`: Manufacturing bounded context (BOMs, production orders, material consumption)
+- `@ananya/warehouse`: Warehouse bounded context (bins, transfers, stock counts)
+- `@ananya/sales`: Sales bounded context (customers, quotations, sales orders, shipping)
+- `@ananya/finance`: Finance bounded context (chart of accounts, GL, AR, AP, payments)
+- `@ananya/crm`: CRM bounded context (leads, accounts, opportunities)
+- `@ananya/projects`: Projects bounded context (tasks, milestones, time tracking)
+- `@ananya/service`: Field service bounded context (service requests, repairs, warranty)
+- `@ananya/mrp`: Material Requirements Planning bounded context (gross/net calculations, supply planning)
+
+### Workspace Package Boundaries
+
+Every internal workspace package must be explicitly declared as a dependency by any workspace that consumes it, including tooling packages used via `extends`. Never rely on implicit transitive hoisting.
+
 ## Code Organization
 
 ### Modules

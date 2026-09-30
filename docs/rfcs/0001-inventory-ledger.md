@@ -1,6 +1,8 @@
 # RFC-0001: Inventory Ledger
 
-**Status:** Accepted
+**Status:** Superseded  
+**Superseded by:** [RFC-0003: Inventory Ledger](0003-inventory-ledger.md)  
+**Reason:** Refined and formalized in RFC-0003 to include dual-location movement semantics (`sourceLocationId`, `destinationLocationId`), positive quantity constraints, projection separation, and domain invariants matching `@ananya/inventory`.
 
 **Author:** Ananya Contributors
 

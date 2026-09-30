@@ -1,9 +1,13 @@
 # Comprehensive Security & Permissions Audit — Ananya ERP
 
-> **Document Version:** 1.0.0  
-> **Date:** September 27, 2026  
-> **Audit Type:** Full Repository Security, Authentication, Authorization, Permissions & Attack Surface Review  
-> **Status:** REMEDIATION IN PROGRESS — Phase 1 & 2 Completed & Verified (Integration Tests Passing)
+> **Status:** Archived Historical Report  
+> **Active Specifications:** [`docs/security/authorization-matrix.md`](../security/authorization-matrix.md) and [`docs/security/public-endpoints.md`](../security/public-endpoints.md)  
+> **Historical Context:** Point-in-time security audit conducted in September 2026. All identified vulnerabilities have been remediated in subsequent phases.
+
+**Document Version:** 1.0.0  
+**Date:** September 27, 2026  
+**Audit Type:** Full Repository Security, Authentication, Authorization, Permissions & Attack Surface Review  
+**Status:** REMEDIATED & ARCHIVED
 
 ---
 

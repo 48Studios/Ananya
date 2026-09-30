@@ -1,5 +1,9 @@
 # Ananya ERP — Authorization Completeness & Remediation Audit
 
+> **Status:** Archived Historical Report  
+> **Active Specifications:** [`docs/security/authorization-matrix.md`](../security/authorization-matrix.md) and [`docs/security/public-endpoints.md`](../security/public-endpoints.md)  
+> **Historical Context:** Phase 3 remediation verification audit confirming fail-closed auth perimeter, `@Public()` handler bounds, and IDOR defense.
+
 **Document Version:** 2.0  
 **Phase:** Phase 3 Authorization Completeness, IDOR/BOLA & Identity Attribution  
 **Date:** September 2026  

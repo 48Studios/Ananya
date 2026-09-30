@@ -1,9 +1,13 @@
 # Navigation Architecture Audit
 
+> **Status:** Archived / Superseded  
+> **Superseded by:** [`docs/INFORMATION_ARCHITECTURE.md`](../INFORMATION_ARCHITECTURE.md)  
+> **Historical Context:** This audit analyzed the 13-module navigation rail prior to the RC1 stabilization sprint, which consolidated navigation down to 7 primary modules.
+
 **Target Platform**: Ananya ERP (`@ananya/web` & `@ananya/api`)  
 **Sprint**: Release Candidate 1 (RC1) Stabilization Sprint  
 **Document Purpose**: Comprehensive Navigation Summary & Information Architecture (IA) Audit  
-**Status**: Complete Architectural Analysis (Documentation & Basis for Future IA Redesign)
+**Status**: Historical Architectural Analysis (Pre-Redesign)
 
 ---
 
