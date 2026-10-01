@@ -216,3 +216,71 @@ export function calculateHierarchyStats(
     partialCount,
   };
 }
+
+export interface SpatialBreadcrumbEntry {
+  id: string;
+  code: string;
+  name: string;
+  kind?: string;
+  isCurrent: boolean;
+}
+
+/**
+ * Builds an ordered array of breadcrumb items from root ancestor to target location.
+ * Guards against cyclic references and missing ancestor records.
+ */
+export function buildSpatialBreadcrumbs(
+  currentLocationId: string,
+  locations: Array<{
+    id: string;
+    code: string;
+    name: string;
+    kind?: string;
+    parentId?: string | null;
+  }>,
+): SpatialBreadcrumbEntry[] {
+  if (!currentLocationId || !locations || locations.length === 0) {
+    return [];
+  }
+
+  const locMap = new Map<string, (typeof locations)[0]>();
+  for (const loc of locations) {
+    locMap.set(loc.id, loc);
+  }
+
+  const current = locMap.get(currentLocationId);
+  if (!current) {
+    return [];
+  }
+
+  const entries: SpatialBreadcrumbEntry[] = [
+    {
+      id: current.id,
+      code: current.code,
+      name: current.name,
+      kind: current.kind,
+      isCurrent: true,
+    },
+  ];
+
+  const visited = new Set<string>([current.id]);
+  let currParentId = current.parentId;
+
+  while (currParentId && !visited.has(currParentId)) {
+    visited.add(currParentId);
+    const parent = locMap.get(currParentId);
+    if (!parent) break;
+
+    entries.unshift({
+      id: parent.id,
+      code: parent.code,
+      name: parent.name,
+      kind: parent.kind,
+      isCurrent: false,
+    });
+
+    currParentId = parent.parentId;
+  }
+
+  return entries;
+}

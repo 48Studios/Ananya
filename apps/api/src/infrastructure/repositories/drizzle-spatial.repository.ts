@@ -334,6 +334,15 @@ export class DrizzleSpatialNodeRepository implements SpatialNodeRepository {
     return rows.map(nodeToDomain);
   }
 
+  async findByAnchorId(anchorId: string): Promise<SpatialNode[]> {
+    const rows = await this.client
+      .select()
+      .from(spatialNodes)
+      .where(eq(spatialNodes.anchorId, anchorId));
+
+    return rows.map(nodeToDomain);
+  }
+
   async findMany(): Promise<SpatialNode[]> {
     const rows = await this.client.select().from(spatialNodes);
     return rows.map(nodeToDomain);

@@ -34,6 +34,7 @@ import {
   UpdateSpatialAnchorDto,
   CreateSpatialNodeDto,
   UpdateSpatialNodeDto,
+  BulkSaveSpatialAnchorsDto,
 } from './dtos';
 
 @Controller('spatial')
@@ -126,6 +127,18 @@ export class SpatialController {
   @UseGuards(createPermissionGuard('Inventory.Update', 'delete spatial anchor'))
   deleteAnchor(@Param('id') id: string): Promise<void> {
     return this.spatialService.deleteAnchor(id);
+  }
+
+  @Post('models/:modelId/anchors/bulk-save')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(
+    createPermissionGuard('Inventory.Update', 'bulk save anchors on model'),
+  )
+  bulkSaveAnchors(
+    @Param('modelId') modelId: string,
+    @Body() dto: BulkSaveSpatialAnchorsDto,
+  ): Promise<{ anchors: SpatialAnchor[]; modelUpdatedAt: string }> {
+    return this.spatialService.bulkSaveAnchors(modelId, dto);
   }
 
   // ==========================================

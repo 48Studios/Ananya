@@ -9,4 +9,7 @@ export * from "./spatial-model-dialog";
 export * from "./spatial-anchors-dialog";
 export * from "./spatial-tree";
 export * from "./spatial-mapping-workspace";
-
+export * from "./spatial-3d-viewport";
+export * from "./spatial-3d-view";
+export * from "./spatial-breadcrumbs";
+export * from "./spatial-anchor-editor";

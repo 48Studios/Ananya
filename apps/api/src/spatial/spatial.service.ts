@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
   SpatialModel,
   SpatialAnchor,
@@ -19,8 +19,17 @@ import {
   LocationNotFoundError,
   SpatialAnchorAlreadyOccupiedError,
   SpatialNodeHasChildrenError,
+  SpatialModelConflictError,
+  SpatialAnchorConflictError,
+  InvalidSpatialAnchorCodeError,
   type InventoryProjection,
 } from '@ananya/inventory';
+import { db, type DbExecutor } from '@ananya/database';
+import {
+  DrizzleSpatialModelRepository,
+  DrizzleSpatialAnchorRepository,
+  DrizzleSpatialNodeRepository,
+} from '../infrastructure/repositories/drizzle-spatial.repository';
 import {
   SPATIAL_MODEL_REPOSITORY,
   SPATIAL_ANCHOR_REPOSITORY,
@@ -35,7 +44,16 @@ import type {
   UpdateSpatialAnchorDto,
   CreateSpatialNodeDto,
   UpdateSpatialNodeDto,
+  BulkSaveSpatialAnchorsDto,
 } from './dtos';
+
+export type SpatialTransactionRunner = <T>(
+  operation: (repos: {
+    modelRepo: SpatialModelRepository;
+    anchorRepo: SpatialAnchorRepository;
+    nodeRepo: SpatialNodeRepository;
+  }) => Promise<T>,
+) => Promise<T>;
 
 export interface LocationSpatialContext {
   location: {
@@ -59,6 +77,7 @@ export interface LocationOperationalViewChild {
     kind: string;
     parentId: string | null;
     isActive: boolean;
+    metadata?: Record<string, unknown> | null;
   };
   node: SpatialNode | null;
   model: SpatialModel | null;
@@ -74,6 +93,7 @@ export interface LocationOperationalView {
       kind: string;
       parentId: string | null;
       isActive: boolean;
+      metadata?: Record<string, unknown> | null;
     };
     node: SpatialNode | null;
     model: SpatialModel | null;
@@ -174,7 +194,32 @@ export class SpatialService {
     @Inject(LOCATION_REPOSITORY)
     private readonly locationRepo: LocationRepository,
     private readonly inventoryProjectionsService: InventoryProjectionsService,
+    @Optional()
+    private readonly customTransactionRunner?: SpatialTransactionRunner,
   ) {}
+
+  private async executeInTransaction<T>(
+    operation: (repos: {
+      modelRepo: SpatialModelRepository;
+      anchorRepo: SpatialAnchorRepository;
+      nodeRepo: SpatialNodeRepository;
+    }) => Promise<T>,
+  ): Promise<T> {
+    if (this.customTransactionRunner) {
+      return this.customTransactionRunner(operation);
+    }
+    return db.transaction(async (tx) => {
+      const txExecutor = tx as unknown as DbExecutor;
+      const txModelRepo = new DrizzleSpatialModelRepository(txExecutor);
+      const txAnchorRepo = new DrizzleSpatialAnchorRepository(txExecutor);
+      const txNodeRepo = new DrizzleSpatialNodeRepository(txExecutor);
+      return operation({
+        modelRepo: txModelRepo,
+        anchorRepo: txAnchorRepo,
+        nodeRepo: txNodeRepo,
+      });
+    });
+  }
 
   // ==========================================
   // Spatial Models
@@ -259,6 +304,149 @@ export class SpatialService {
   async deleteAnchor(id: string): Promise<void> {
     await this.getAnchor(id);
     await this.anchorRepo.delete(id);
+  }
+
+  async bulkSaveAnchors(
+    modelId: string,
+    dto: BulkSaveSpatialAnchorsDto,
+  ): Promise<{ anchors: SpatialAnchor[]; modelUpdatedAt: string }> {
+    return this.executeInTransaction(async (repos) => {
+      // 1. Fetch parent model and verify existence
+      const existingModel = await repos.modelRepo.findById(modelId);
+      if (!existingModel) {
+        throw new SpatialModelNotFoundError(modelId);
+      }
+
+      // 2. Optimistic Concurrency Check on Model
+      if (dto.expectedModelUpdatedAt) {
+        const expectedTime = new Date(dto.expectedModelUpdatedAt).getTime();
+        const actualTime = existingModel.updatedAt.getTime();
+        if (
+          !isNaN(expectedTime) &&
+          Math.abs(expectedTime - actualTime) > 1000
+        ) {
+          throw new SpatialModelConflictError(
+            `Spatial model '${existingModel.code}' has been modified by another operation. Please reload before saving.`,
+          );
+        }
+      }
+
+      // 3. Load all existing anchors belonging to this model
+      const currentAnchors = await repos.anchorRepo.findByModelId(modelId);
+      const currentAnchorMap = new Map(currentAnchors.map((a) => [a.id, a]));
+
+      // 4. Validate delete targets
+      const deleteIds = dto.deleteIds || [];
+      const deleteIdSet = new Set(deleteIds);
+      for (const delId of deleteIds) {
+        const existing = currentAnchorMap.get(delId);
+        if (!existing) {
+          const other = await repos.anchorRepo.findById(delId);
+          if (other) {
+            throw new SpatialAnchorDoesNotBelongToModelError(delId, modelId);
+          }
+          throw new SpatialAnchorNotFoundError(delId);
+        }
+      }
+
+      // 5. Validate update targets & anchor optimistic concurrency
+      const updates = dto.updates || [];
+      for (const upd of updates) {
+        if (deleteIdSet.has(upd.id)) {
+          throw new Error(
+            `Anchor '${upd.id}' cannot be both updated and deleted in the same transaction.`,
+          );
+        }
+        const existing = currentAnchorMap.get(upd.id);
+        if (!existing) {
+          const other = await repos.anchorRepo.findById(upd.id);
+          if (other) {
+            throw new SpatialAnchorDoesNotBelongToModelError(upd.id, modelId);
+          }
+          throw new SpatialAnchorNotFoundError(upd.id);
+        }
+
+        if (upd.expectedUpdatedAt) {
+          const expectedUpdTime = new Date(upd.expectedUpdatedAt).getTime();
+          const actualUpdTime = existing.updatedAt.getTime();
+          if (
+            !isNaN(expectedUpdTime) &&
+            Math.abs(expectedUpdTime - actualUpdTime) > 1000
+          ) {
+            throw new SpatialAnchorConflictError(
+              existing.id,
+              `Spatial anchor '${existing.code}' has been modified by another operation. Please reload before saving.`,
+            );
+          }
+        }
+      }
+
+      // 6. Check anchor code uniqueness across the resulting batch
+      const creates = dto.creates || [];
+      const finalAnchorCodes: string[] = [];
+      const updatedMap = new Map(updates.map((u) => [u.id, u]));
+
+      for (const existing of currentAnchors) {
+        if (deleteIdSet.has(existing.id)) continue;
+        const upd = updatedMap.get(existing.id);
+        if (upd && upd.code) {
+          finalAnchorCodes.push(upd.code.trim().toUpperCase());
+        } else {
+          finalAnchorCodes.push(existing.code.toUpperCase());
+        }
+      }
+
+      for (const cr of creates) {
+        finalAnchorCodes.push(cr.code.trim().toUpperCase());
+      }
+
+      const seenCodes = new Set<string>();
+      for (const code of finalAnchorCodes) {
+        if (seenCodes.has(code)) {
+          throw new InvalidSpatialAnchorCodeError(
+            `Duplicate anchor code '${code}' on spatial model '${existingModel.code}'.`,
+          );
+        }
+        seenCodes.add(code);
+      }
+
+      // 7. Perform Deletions (and safely unassign referencing spatial nodes)
+      for (const delId of deleteIds) {
+        const referencingNodes = await repos.nodeRepo.findByAnchorId(delId);
+        for (const node of referencingNodes) {
+          const unassigned = node.update({ anchorId: null });
+          await repos.nodeRepo.update(unassigned);
+        }
+        await repos.anchorRepo.delete(delId);
+      }
+
+      // 8. Perform Updates
+      for (const upd of updates) {
+        const existing = currentAnchorMap.get(upd.id)!;
+        const updatedAnchor = existing.update(upd);
+        await repos.anchorRepo.update(updatedAnchor);
+      }
+
+      // 9. Perform Insertions
+      for (const cr of creates) {
+        const newAnchor = SpatialAnchor.create({
+          ...cr,
+          modelId,
+        });
+        await repos.anchorRepo.save(newAnchor);
+      }
+
+      // 10. Update parent model's updatedAt timestamp
+      const updatedModel = existingModel.update({});
+      await repos.modelRepo.update(updatedModel);
+
+      // 11. Retrieve final anchor set and return
+      const finalAnchors = await repos.anchorRepo.findByModelId(modelId);
+      return {
+        anchors: finalAnchors,
+        modelUpdatedAt: updatedModel.updatedAt.toISOString(),
+      };
+    });
   }
 
   // ==========================================
@@ -706,6 +894,7 @@ export class SpatialService {
           kind: childLoc.kind,
           parentId: childLoc.parentId,
           isActive: childLoc.isActive,
+          metadata: childLoc.metadata,
         },
         node: childNode,
         model: childModel,
@@ -726,6 +915,7 @@ export class SpatialService {
           kind: location.kind,
           parentId: location.parentId,
           isActive: location.isActive,
+          metadata: location.metadata,
         },
         node: parentNode,
         model: parentModel,

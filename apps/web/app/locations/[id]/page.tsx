@@ -68,13 +68,56 @@ export default function ViewLocationPage() {
 
   const focusLocationId = searchParams?.get("focusLocation") || undefined;
   const focusComponentId = searchParams?.get("focusComponent") || undefined;
-  const initialView = searchParams?.get("view") === "list" ? "list" : "spatial";
-  const [subLocationView, setSubLocationView] = React.useState<"spatial" | "list">(initialView);
+  const initialView =
+    searchParams?.get("view") === "list"
+      ? "list"
+      : searchParams?.get("view") === "spatial3d" || searchParams?.get("view") === "3d"
+        ? "spatial3d"
+        : "spatial";
+  const [subLocationView, setSubLocationView] = React.useState<
+    "spatial" | "spatial3d" | "list"
+  >(initialView);
+
+  const handleViewChange = React.useCallback(
+    (newView: "spatial" | "spatial3d" | "list") => {
+      setSubLocationView(newView);
+      const params = new URLSearchParams(searchParams?.toString() || "");
+      if (newView === "spatial3d") {
+        params.set("view", "spatial3d");
+      } else if (newView === "list") {
+        params.set("view", "list");
+      } else {
+        params.delete("view");
+      }
+      const qs = params.toString();
+      router.replace(qs ? `?${qs}` : window.location.pathname, { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  const handleNavigateLocation = React.useCallback(
+    (targetLocationId: string) => {
+      const params = new URLSearchParams();
+      if (subLocationView === "spatial3d") {
+        params.set("view", "spatial3d");
+      } else if (subLocationView === "list") {
+        params.set("view", "list");
+      }
+      if (focusComponentId) {
+        params.set("focusComponent", focusComponentId);
+      }
+      const qs = params.toString();
+      router.push(`/locations/${targetLocationId}${qs ? `?${qs}` : ""}`);
+    },
+    [router, subLocationView, focusComponentId],
+  );
 
   // Synchronize view mode with query parameters (e.g. from QR scan deep links)
   React.useEffect(() => {
     const viewParam = searchParams?.get("view");
-    if (viewParam === "spatial" || focusLocationId || focusComponentId) {
+    if (viewParam === "spatial3d" || viewParam === "3d") {
+      setSubLocationView("spatial3d");
+    } else if (viewParam === "spatial" || focusLocationId || focusComponentId) {
       setSubLocationView("spatial");
     } else if (viewParam === "list") {
       setSubLocationView("list");
@@ -525,7 +568,7 @@ export default function ViewLocationPage() {
         title="Sub-Locations & Spatial Layout"
         description="Physical storage compartments and nested zones under this location."
         icon={Layers}
-        contentClassName={subLocationView === "spatial" && childLocations.length > 0 ? "p-4" : "p-0"}
+        contentClassName={subLocationView !== "list" && childLocations.length > 0 ? "p-4" : "p-0"}
         actions={
           childLocations.length > 0 ? (
             <div className="flex items-center gap-2">
@@ -547,16 +590,25 @@ export default function ViewLocationPage() {
                 <Button
                   variant={subLocationView === "spatial" ? "secondary" : "ghost"}
                   size="xs"
-                  onClick={() => setSubLocationView("spatial")}
+                  onClick={() => handleViewChange("spatial")}
                   className="h-6 px-2 text-xs font-medium gap-1"
                 >
                   <LayoutGrid className="size-3.5" />
                   <span>2D Spatial</span>
                 </Button>
                 <Button
+                  variant={subLocationView === "spatial3d" ? "secondary" : "ghost"}
+                  size="xs"
+                  onClick={() => handleViewChange("spatial3d")}
+                  className="h-6 px-2 text-xs font-medium gap-1"
+                >
+                  <Box className="size-3.5" />
+                  <span>3D Scene</span>
+                </Button>
+                <Button
                   variant={subLocationView === "list" ? "secondary" : "ghost"}
                   size="xs"
-                  onClick={() => setSubLocationView("list")}
+                  onClick={() => handleViewChange("list")}
                   className="h-6 px-2 text-xs font-medium gap-1"
                 >
                   <List className="size-3.5" />
@@ -568,12 +620,19 @@ export default function ViewLocationPage() {
         }
       >
         {childLocations.length > 0 ? (
-          subLocationView === "spatial" ? (
+          subLocationView === "spatial" || subLocationView === "spatial3d" ? (
             <SpatialView
               key={`${location.id}-${spatialViewVersion}`}
               locationId={location.id}
+              allLocations={allLocations}
               focusLocationId={focusLocationId}
               focusComponentId={focusComponentId}
+              viewMode={subLocationView === "spatial3d" ? "3d" : "2d"}
+              onViewModeChange={(m) => {
+                handleViewChange(m === "3d" ? "spatial3d" : "spatial");
+              }}
+              onNavigateLocation={handleNavigateLocation}
+              onOpenMapping={() => setIsSpatialMappingOpen(true)}
             />
           ) : (
             <DetailTable

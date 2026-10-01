@@ -6,7 +6,9 @@ export interface SpatialModelDto {
   code: string;
   name: string;
   format: string;
-  assetReference: string | null;
+  assetUri?: string | null;
+  assetReference?: string | null;
+  thumbnailUri?: string | null;
   widthMm: number | null;
   heightMm: number | null;
   depthMm: number | null;
@@ -80,6 +82,7 @@ export interface LocationOperationalViewChildDto {
     kind: string;
     parentId: string | null;
     isActive: boolean;
+    metadata?: Record<string, unknown>;
   };
   node: SpatialNodeDto | null;
   model: SpatialModelDto | null;
@@ -95,6 +98,7 @@ export interface LocationOperationalViewDto {
       kind: string;
       parentId: string | null;
       isActive: boolean;
+      metadata?: Record<string, unknown>;
     };
     node: SpatialNodeDto | null;
     model: SpatialModelDto | null;
@@ -217,6 +221,23 @@ export interface CreateSpatialAnchorDto {
 
 export type UpdateSpatialAnchorDto = Partial<CreateSpatialAnchorDto>;
 
+export interface UpdateSpatialAnchorItemPayload extends UpdateSpatialAnchorDto {
+  id: string;
+  expectedUpdatedAt?: string;
+}
+
+export interface BulkSaveSpatialAnchorsPayload {
+  expectedModelUpdatedAt?: string;
+  creates?: CreateSpatialAnchorDto[];
+  updates?: UpdateSpatialAnchorItemPayload[];
+  deleteIds?: string[];
+}
+
+export interface BulkSaveSpatialAnchorsResult {
+  anchors: SpatialAnchorDto[];
+  modelUpdatedAt: string;
+}
+
 export interface CreateSpatialNodeDto {
   locationId: string;
   modelId?: string | null;
@@ -305,6 +326,15 @@ export const spatialApi = {
 
   deleteAnchor: (id: string): Promise<void> =>
     apiClient.delete<void>(`/spatial/anchors/${id}`),
+
+  bulkSaveAnchors: (
+    modelId: string,
+    payload: BulkSaveSpatialAnchorsPayload,
+  ): Promise<BulkSaveSpatialAnchorsResult> =>
+    apiClient.post<BulkSaveSpatialAnchorsResult>(
+      `/spatial/models/${modelId}/anchors/bulk-save`,
+      payload,
+    ),
 
   // Nodes
   getAllNodes: (): Promise<SpatialNodeDto[]> =>

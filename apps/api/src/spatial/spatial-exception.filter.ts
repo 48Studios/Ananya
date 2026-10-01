@@ -22,6 +22,8 @@ import {
   LocationNotFoundError,
   SpatialAnchorAlreadyOccupiedError,
   SpatialNodeHasChildrenError,
+  SpatialModelConflictError,
+  SpatialAnchorConflictError,
 } from '@ananya/inventory';
 import type { Response } from 'express';
 import {
@@ -63,7 +65,9 @@ export class SpatialExceptionFilter implements ExceptionFilter {
     } else if (
       exception instanceof SpatialModelInUseError ||
       exception instanceof SpatialAnchorAlreadyOccupiedError ||
-      exception instanceof SpatialNodeHasChildrenError
+      exception instanceof SpatialNodeHasChildrenError ||
+      exception instanceof SpatialModelConflictError ||
+      exception instanceof SpatialAnchorConflictError
     ) {
       status = HttpStatus.CONFLICT;
       message = exception.message;

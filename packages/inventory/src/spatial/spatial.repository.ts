@@ -32,6 +32,7 @@ export interface SpatialNodeRepository {
   findById(id: string): Promise<SpatialNode | null>;
   findByLocationId(locationId: string): Promise<SpatialNode | null>;
   findByParentId(parentId: string): Promise<SpatialNode[]>;
+  findByAnchorId(anchorId: string): Promise<SpatialNode[]>;
   findMany(): Promise<SpatialNode[]>;
   save(node: SpatialNode): Promise<SpatialNode>;
   update(node: SpatialNode): Promise<SpatialNode>;

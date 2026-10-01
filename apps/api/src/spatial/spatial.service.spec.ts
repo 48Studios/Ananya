@@ -18,6 +18,9 @@ import {
   LocationNotFoundError,
   SpatialAnchorAlreadyOccupiedError,
   SpatialNodeHasChildrenError,
+  SpatialModelConflictError,
+  SpatialAnchorConflictError,
+  InvalidSpatialAnchorCodeError,
 } from '@ananya/inventory';
 import type { InventoryProjectionsService } from '../inventory-projections/inventory-projections.service';
 
@@ -74,6 +77,7 @@ describe('SpatialService', () => {
       findById: jest.fn(),
       findByLocationId: jest.fn(),
       findByParentId: jest.fn(),
+      findByAnchorId: jest.fn().mockResolvedValue([]),
       findMany: jest.fn(),
       save: jest.fn().mockImplementation((n) => Promise.resolve(n)),
       update: jest.fn().mockImplementation((n) => Promise.resolve(n)),
@@ -102,6 +106,7 @@ describe('SpatialService', () => {
       nodeRepo,
       locationRepo,
       mockProjectionsService as unknown as InventoryProjectionsService,
+      (op) => op({ modelRepo, anchorRepo, nodeRepo }),
     );
   });
 
@@ -852,6 +857,197 @@ describe('SpatialService', () => {
       expect(result).toHaveLength(2);
       expect(result).toEqual([node1, node2]);
       expect(nodeRepo.findMany).toHaveBeenCalled();
+    });
+  });
+
+  describe('bulkSaveAnchors', () => {
+    let testModel: SpatialModel;
+    let anchor1: SpatialAnchor;
+    let anchor2: SpatialAnchor;
+
+    beforeEach(() => {
+      testModel = SpatialModel.create({
+        code: 'CAB-MODEL-1',
+        name: 'Cabinet Model',
+        widthMm: 1000,
+        heightMm: 2000,
+        depthMm: 500,
+      });
+
+      anchor1 = SpatialAnchor.create({
+        modelId: testModel.id,
+        code: 'A01',
+        name: 'Anchor 1',
+        localPositionX: 100,
+        localPositionY: 200,
+        localPositionZ: 0,
+      });
+
+      anchor2 = SpatialAnchor.create({
+        modelId: testModel.id,
+        code: 'A02',
+        name: 'Anchor 2',
+        localPositionX: 300,
+        localPositionY: 200,
+        localPositionZ: 0,
+      });
+
+      modelRepo.findById.mockResolvedValue(testModel);
+      anchorRepo.findByModelId.mockResolvedValue([anchor1, anchor2]);
+    });
+
+    it('performs atomic bulk save with creates, updates, and deletes', async () => {
+      const createdAnchor = SpatialAnchor.create({
+        modelId: testModel.id,
+        code: 'A03',
+        name: 'Anchor 3',
+        localPositionX: 500,
+        localPositionY: 200,
+        localPositionZ: 0,
+      });
+      const updatedAnchor = anchor1.update({ name: 'Anchor 1 Renamed' });
+
+      anchorRepo.findByModelId
+        .mockResolvedValueOnce([anchor1, anchor2]) // initial load
+        .mockResolvedValueOnce([updatedAnchor, createdAnchor]); // after mutations
+
+      const result = await service.bulkSaveAnchors(testModel.id, {
+        expectedModelUpdatedAt: testModel.updatedAt.toISOString(),
+        creates: [
+          {
+            code: 'A03',
+            name: 'Anchor 3',
+            localPositionX: 500,
+            localPositionY: 200,
+            localPositionZ: 0,
+          },
+        ],
+        updates: [
+          {
+            id: anchor1.id,
+            name: 'Anchor 1 Renamed',
+            expectedUpdatedAt: anchor1.updatedAt.toISOString(),
+          },
+        ],
+        deleteIds: [anchor2.id],
+      });
+
+      expect(anchorRepo.delete).toHaveBeenCalledWith(anchor2.id);
+      expect(anchorRepo.update).toHaveBeenCalled();
+      expect(anchorRepo.save).toHaveBeenCalled();
+      expect(modelRepo.update).toHaveBeenCalled();
+      expect(result.anchors).toHaveLength(2);
+      expect(result.modelUpdatedAt).toBeDefined();
+    });
+
+    it('throws SpatialModelConflictError when expectedModelUpdatedAt is stale', async () => {
+      const staleTimestamp = new Date(
+        testModel.updatedAt.getTime() - 60000,
+      ).toISOString();
+
+      await expect(
+        service.bulkSaveAnchors(testModel.id, {
+          expectedModelUpdatedAt: staleTimestamp,
+          creates: [],
+        }),
+      ).rejects.toThrow(SpatialModelConflictError);
+
+      expect(anchorRepo.delete).not.toHaveBeenCalled();
+      expect(anchorRepo.update).not.toHaveBeenCalled();
+      expect(anchorRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('throws SpatialAnchorConflictError when an anchor expectedUpdatedAt is stale', async () => {
+      const staleTimestamp = new Date(
+        anchor1.updatedAt.getTime() - 60000,
+      ).toISOString();
+
+      await expect(
+        service.bulkSaveAnchors(testModel.id, {
+          updates: [
+            {
+              id: anchor1.id,
+              name: 'Updated Name',
+              expectedUpdatedAt: staleTimestamp,
+            },
+          ],
+        }),
+      ).rejects.toThrow(SpatialAnchorConflictError);
+
+      expect(anchorRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects duplicate anchor codes within creates and updates', async () => {
+      await expect(
+        service.bulkSaveAnchors(testModel.id, {
+          creates: [
+            { code: 'A01', name: 'Duplicate A01' }, // A01 already exists on model!
+          ],
+        }),
+      ).rejects.toThrow(InvalidSpatialAnchorCodeError);
+
+      await expect(
+        service.bulkSaveAnchors(testModel.id, {
+          creates: [
+            { code: 'NEW-01', name: 'First' },
+            { code: 'NEW-01', name: 'Second' },
+          ],
+        }),
+      ).rejects.toThrow(InvalidSpatialAnchorCodeError);
+    });
+
+    it('safely unassigns referencing child spatial nodes when an anchor is deleted', async () => {
+      const referencingNode = SpatialNode.create({
+        locationId: 'loc-child-drawer',
+        parentSpatialNodeId: 'loc-parent-cabinet',
+        anchorId: anchor2.id,
+      });
+
+      nodeRepo.findByAnchorId.mockResolvedValue([referencingNode]);
+
+      await service.bulkSaveAnchors(testModel.id, {
+        deleteIds: [anchor2.id],
+      });
+
+      // Verify child node was unassigned (anchorId set to null)
+      expect(nodeRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: referencingNode.id,
+          anchorId: null,
+          locationId: 'loc-child-drawer',
+          parentSpatialNodeId: 'loc-parent-cabinet',
+        }),
+      );
+      expect(anchorRepo.delete).toHaveBeenCalledWith(anchor2.id);
+    });
+
+    it('rejects modifying an anchor that belongs to a different model', async () => {
+      const otherModelAnchor = SpatialAnchor.create({
+        modelId: 'other-model-id',
+        code: 'OTHER-01',
+        name: 'Other Model Anchor',
+      });
+      anchorRepo.findById.mockResolvedValue(otherModelAnchor);
+
+      await expect(
+        service.bulkSaveAnchors(testModel.id, {
+          updates: [
+            {
+              id: otherModelAnchor.id,
+              name: 'Hijacked',
+            },
+          ],
+        }),
+      ).rejects.toThrow(SpatialAnchorDoesNotBelongToModelError);
+    });
+
+    it('rejects updating and deleting the same anchor in the same batch', async () => {
+      await expect(
+        service.bulkSaveAnchors(testModel.id, {
+          updates: [{ id: anchor1.id, name: 'Renamed' }],
+          deleteIds: [anchor1.id],
+        }),
+      ).rejects.toThrow(/cannot be both updated and deleted/);
     });
   });
 });

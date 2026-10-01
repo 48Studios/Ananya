@@ -96,3 +96,20 @@ export class SpatialNodeHasChildrenError extends DomainError {
   }
 }
 
+export class SpatialModelConflictError extends DomainError {
+  constructor(
+    message = "Spatial model has been modified by another operation. Please reload the latest state.",
+  ) {
+    super(message);
+  }
+}
+
+export class SpatialAnchorConflictError extends DomainError {
+  constructor(
+    anchorId: string,
+    message = `Spatial anchor '${anchorId}' has been modified by another operation. Please reload the latest state.`,
+  ) {
+    super(message);
+  }
+}
+
