@@ -248,4 +248,215 @@ describe("Spatial Inventory Provenance & Unit-Safe Aggregation", () => {
       capacityUnit: "reels",
     });
   });
+
+  it("6. Multi-tier nested hierarchy (A -> B -> C): preserves strict provenance separation and prevents double-counting", () => {
+    const rootA = "loc-room-a";
+    const childB = createChild("loc-rack-b", "RACK-B", rootA);
+
+    const hierarchy = [
+      { id: "loc-room-a", parentId: null, name: "Room A", code: "ROOM-A" },
+      { id: "loc-rack-b", parentId: "loc-room-a", name: "Rack B", code: "RACK-B" },
+      { id: "loc-shelf-c", parentId: "loc-rack-b", name: "Shelf C", code: "SHELF-C" },
+      { id: "loc-bin-d", parentId: "loc-shelf-c", name: "Bin D", code: "BIN-D" },
+    ];
+
+    const projections: InventoryProjectionDto[] = [
+      // Direct at Root A
+      {
+        id: "p-a",
+        locationId: "loc-room-a",
+        componentId: "comp-resistor",
+        quantity: 100,
+        unitOfMeasure: "pcs",
+        lastUpdated: "",
+      },
+      // Direct at Child B
+      {
+        id: "p-b",
+        locationId: "loc-rack-b",
+        componentId: "comp-resistor",
+        quantity: 50,
+        unitOfMeasure: "pcs",
+        lastUpdated: "",
+      },
+      // Direct at Grandchild C
+      {
+        id: "p-c",
+        locationId: "loc-shelf-c",
+        componentId: "comp-resistor",
+        quantity: 25,
+        unitOfMeasure: "pcs",
+        lastUpdated: "",
+      },
+      // Direct at Great-grandchild D
+      {
+        id: "p-d",
+        locationId: "loc-bin-d",
+        componentId: "comp-resistor",
+        quantity: 10,
+        unitOfMeasure: "pcs",
+        lastUpdated: "",
+      },
+    ];
+
+    const mapped = mapSpatialInventory(
+      rootA,
+      [childB],
+      hierarchy,
+      projections,
+      componentMap,
+    );
+
+    // Root A direct assertions
+    expect(mapped.parentDirectQuantity).toBe(100);
+    expect(mapped.parentDirectUnitsByMeasure).toEqual({ pcs: 100 });
+
+    // Child B assertions
+    const bSummary = mapped.cellStockMap.get("loc-rack-b")!;
+    expect(bSummary.directUnitsByMeasure).toEqual({ pcs: 50 });
+    // Descendants under B are C (25) + D (10) = 35 pcs
+    expect(bSummary.descendantUnitsByMeasure).toEqual({ pcs: 35 });
+    expect(bSummary.totalUnitsByMeasure).toEqual({ pcs: 85 });
+    expect(bSummary.totalQuantity).toBe(85);
+    expect(bSummary.provenanceStatus).toBe("mixed");
+
+    // Total scene units = 100 (direct at A) + 85 (total in B subtree) = 185
+    // CRITICAL: Descendants are counted exactly once with zero double-counting
+    expect(mapped.stats.totalUnits).toBe(185);
+    expect(mapped.stats.totalUnitsBreakdown).toBe("185 pcs");
+  });
+
+  it("7. Incompatible or unknown capacity units: reports presence without implying false percentage", () => {
+    const parentId = "loc-warehouse";
+    const children = [
+      // Capacity configured in kg, but stored stock is in pcs
+      createChild("loc-incompatible", "INCOMPAT", parentId, {
+        capacity: 100,
+        capacityUnit: "kg",
+      }),
+      // Capacity numeric configured, but unit is unknown (null)
+      createChild("loc-no-unit", "NO-UNIT", parentId, {
+        capacity: 500,
+      }),
+      // Capacity in pcs, but compartment contains mixed incompatible units (pcs + reels)
+      createChild("loc-mixed-units", "MIXED", parentId, {
+        capacity: 1000,
+        capacityUnit: "pcs",
+      }),
+    ];
+
+    const projections: InventoryProjectionDto[] = [
+      {
+        id: "p1",
+        locationId: "loc-incompatible",
+        componentId: "comp-resistor",
+        quantity: 200,
+        unitOfMeasure: "pcs",
+        lastUpdated: "",
+      },
+      {
+        id: "p2",
+        locationId: "loc-no-unit",
+        componentId: "comp-resistor",
+        quantity: 250,
+        unitOfMeasure: "pcs",
+        lastUpdated: "",
+      },
+      {
+        id: "p3",
+        locationId: "loc-mixed-units",
+        componentId: "comp-resistor",
+        quantity: 500,
+        unitOfMeasure: "pcs",
+        lastUpdated: "",
+      },
+      {
+        id: "p4",
+        locationId: "loc-mixed-units",
+        componentId: "comp-reel",
+        quantity: 3,
+        unitOfMeasure: "reels",
+        lastUpdated: "",
+      },
+    ];
+
+    const mapped = mapSpatialInventory(
+      parentId,
+      children,
+      children.map((c) => ({ id: c.location.id, parentId, name: c.location.name, code: c.location.code })),
+      projections,
+      componentMap,
+    );
+
+    // Incompatible unit (kg vs pcs)
+    const incomp = mapped.cellStockMap.get("loc-incompatible")!;
+    expect(incomp.hasStock).toBe(true);
+    expect(incomp.fillRatio).toBeNull();
+    expect(incomp.occupancyLevel).toBe("unspecified");
+
+    // Unknown capacity unit
+    const noUnit = mapped.cellStockMap.get("loc-no-unit")!;
+    expect(noUnit.hasStock).toBe(true);
+    expect(noUnit.fillRatio).toBeNull();
+    expect(noUnit.occupancyLevel).toBe("unspecified");
+
+    // Mixed incompatible units
+    const mixed = mapped.cellStockMap.get("loc-mixed-units")!;
+    expect(mixed.hasStock).toBe(true);
+    expect(mixed.fillRatio).toBeNull();
+    expect(mixed.occupancyLevel).toBe("unspecified");
+  });
+
+  it("8. Strict occupancy boundary tests (empty, low, moderate, high, exact 100%, and over-capacity)", () => {
+    const parentId = "loc-warehouse";
+    const children = [
+      createChild("loc-b-49", "B49", parentId, { capacity: 1000, capacityUnit: "pcs" }),
+      createChild("loc-b-50", "B50", parentId, { capacity: 1000, capacityUnit: "pcs" }),
+      createChild("loc-b-79", "B79", parentId, { capacity: 1000, capacityUnit: "pcs" }),
+      createChild("loc-b-80", "B80", parentId, { capacity: 1000, capacityUnit: "pcs" }),
+      createChild("loc-b-100", "B100", parentId, { capacity: 1000, capacityUnit: "pcs" }),
+      createChild("loc-b-101", "B101", parentId, { capacity: 1000, capacityUnit: "pcs" }),
+    ];
+
+    const projections: InventoryProjectionDto[] = [
+      { id: "1", locationId: "loc-b-49", componentId: "comp-resistor", quantity: 490, unitOfMeasure: "pcs", lastUpdated: "" },
+      { id: "2", locationId: "loc-b-50", componentId: "comp-resistor", quantity: 500, unitOfMeasure: "pcs", lastUpdated: "" },
+      { id: "3", locationId: "loc-b-79", componentId: "comp-resistor", quantity: 790, unitOfMeasure: "pcs", lastUpdated: "" },
+      { id: "4", locationId: "loc-b-80", componentId: "comp-resistor", quantity: 800, unitOfMeasure: "pcs", lastUpdated: "" },
+      { id: "5", locationId: "loc-b-100", componentId: "comp-resistor", quantity: 1000, unitOfMeasure: "pcs", lastUpdated: "" },
+      { id: "6", locationId: "loc-b-101", componentId: "comp-resistor", quantity: 1010, unitOfMeasure: "pcs", lastUpdated: "" },
+    ];
+
+    const mapped = mapSpatialInventory(
+      parentId,
+      children,
+      children.map((c) => ({ id: c.location.id, parentId, name: c.location.name, code: c.location.code })),
+      projections,
+      componentMap,
+    );
+
+    // 49% -> Low (<50%)
+    expect(mapped.cellStockMap.get("loc-b-49")!.fillRatio).toBe(0.49);
+    expect(mapped.cellStockMap.get("loc-b-49")!.occupancyLevel).toBe("low");
+
+    // 50% -> Moderate (50–79%)
+    expect(mapped.cellStockMap.get("loc-b-50")!.fillRatio).toBe(0.5);
+    expect(mapped.cellStockMap.get("loc-b-50")!.occupancyLevel).toBe("moderate");
+
+    // 79% -> Moderate (50–79%)
+    expect(mapped.cellStockMap.get("loc-b-79")!.fillRatio).toBe(0.79);
+    expect(mapped.cellStockMap.get("loc-b-79")!.occupancyLevel).toBe("moderate");
+
+    // 80% -> High (80–100%)
+    expect(mapped.cellStockMap.get("loc-b-80")!.fillRatio).toBe(0.8);
+    expect(mapped.cellStockMap.get("loc-b-80")!.occupancyLevel).toBe("high");
+
+    // 100% -> High (Exact 100%)
+    expect(mapped.cellStockMap.get("loc-b-100")!.fillRatio).toBe(1.0);
+    expect(mapped.cellStockMap.get("loc-b-100")!.occupancyLevel).toBe("high");
+
+    // 101% -> Over-capacity (>100%)
+    expect(mapped.cellStockMap.get("loc-b-101")!.fillRatio).toBe(1.01);
+    expect(mapped.cellStockMap.get("loc-b-101")!.occupancyLevel).toBe("over-capacity");
+  });
 });

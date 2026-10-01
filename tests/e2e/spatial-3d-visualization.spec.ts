@@ -252,4 +252,103 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
       }
     }
   });
+
+  test("6. Server-side permissions: rejects unauthorized callers with 403/401 and prevents quantity exposure", async ({
+    playwright,
+  }) => {
+    // 1. Create a user session with Auditor role (lacks Inventory.Read)
+    const roleRes = await pool.query("SELECT id FROM roles WHERE name = 'Auditor';");
+    const auditorRoleId = roleRes.rows[0].id;
+
+    const unauthUserId = crypto.randomUUID();
+    const unauthToken = "playwright-unauth-" + crypto.randomBytes(16).toString("hex");
+
+    await pool.query(
+      "INSERT INTO users (id, email, password_hash, first_name, last_name, role_id) VALUES ($1, $2, $3, $4, $5, $6);",
+      [unauthUserId, `unauth-${Date.now()}@test.com`, "hash", "Unauth", "Auditor", auditorRoleId],
+    );
+
+    await pool.query(
+      "INSERT INTO user_sessions (user_id, token, ip_address, user_agent, device_info, expires_at) VALUES ($1, $2, $3, $4, $5, $6);",
+      [unauthUserId, unauthToken, "127.0.0.1", "Playwright", "Headless", new Date(Date.now() + 60000)],
+    );
+
+    try {
+      const apiContext = await playwright.request.newContext({
+        baseURL: "http://localhost:4000",
+      });
+
+      // A. Authorized request (with admin token) -> 200 OK with projections
+      const authRes = await apiContext.get(
+        `/spatial/locations/${CABINET_LOCATION_ID}/operational-view`,
+        { headers: { Authorization: `Bearer ${testToken}` } },
+      );
+      expect(authRes.status()).toBe(200);
+      const authData = await authRes.json();
+      expect(authData.projections).toBeDefined();
+      expect(Array.isArray(authData.projections)).toBe(true);
+
+      // B. Unauthorized request without Inventory.Read -> 403 Forbidden
+      const unauthRes = await apiContext.get(
+        `/spatial/locations/${CABINET_LOCATION_ID}/operational-view`,
+        { headers: { Authorization: `Bearer ${unauthToken}` } },
+      );
+      expect(unauthRes.status()).toBe(403);
+      const unauthData = await unauthRes.json();
+      expect(unauthData.statusCode).toBe(403);
+      expect(unauthData.message).toContain("Inventory.Read");
+      // Confirm sensitive quantities/projections are NOT exposed in the payload
+      expect(unauthData.projections).toBeUndefined();
+      expect(unauthData.children).toBeUndefined();
+
+      // C. Unauthenticated request without token -> 401 Unauthorized
+      const anonRes = await apiContext.get(
+        `/spatial/locations/${CABINET_LOCATION_ID}/operational-view`,
+      );
+      expect(anonRes.status()).toBe(401);
+
+      // D. Direct inventory projections endpoint -> 403 Forbidden
+      const projRes = await apiContext.get(
+        `/inventory-projections/location/${CABINET_LOCATION_ID}`,
+        { headers: { Authorization: `Bearer ${unauthToken}` } },
+      );
+      expect(projRes.status()).toBe(403);
+    } finally {
+      await pool.query("DELETE FROM user_sessions WHERE user_id = $1;", [unauthUserId]);
+      await pool.query("DELETE FROM users WHERE id = $1;", [unauthUserId]);
+    }
+  });
+
+  test("7. Freshness and invalidation: preserves view state, supports navigation and breadcrumb reload", async ({
+    page,
+  }) => {
+    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    const canvas = page.locator("div.relative canvas").first();
+    await expect(canvas).toBeVisible({ timeout: 10000 });
+
+    // Verify operational metrics are present
+    const operationalBar = page.locator("[data-testid='spatial-operational-bar']");
+    await expect(operationalBar).toBeVisible();
+    await expect(operationalBar).toContainText("Total Stock:");
+
+    // Switch to Provenance mode
+    const provenanceBtn = page.getByRole("button", { name: "Provenance", exact: false });
+    await provenanceBtn.click();
+    await expect(page.locator("div.absolute.bottom-3.left-3")).toContainText("Direct Stock");
+
+    // Test 1: Page refresh preserves canvas and operational state
+    await page.reload();
+    await expect(canvas).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("[data-testid='spatial-operational-bar']")).toBeVisible();
+
+    // Test 2: Navigate away to another location (drawer)
+    const drawerLocationId = "cc6e8839-2d94-48c2-9710-04be238a3c32"; // DEMO-SPATIAL-DRAWER-A06
+    await page.goto(`/locations/${drawerLocationId}`);
+    await expect(page.getByText("DEMO-SPATIAL-DRAWER-A06").first()).toBeVisible({ timeout: 10000 });
+
+    // Test 3: Return to the existing 3D view of the cabinet
+    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await expect(canvas).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("[data-testid='spatial-operational-bar']")).toContainText("Total Stock:");
+  });
 });

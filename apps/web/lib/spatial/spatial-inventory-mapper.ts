@@ -316,34 +316,51 @@ export function mapSpatialInventory(
       summary.provenanceStatus = "empty";
     }
 
-    // Classify Occupancy Level without guessing unspecified capacities
+    // Classify Occupancy Level without guessing unspecified or incompatible capacities
     if (!summary.hasStock) {
-      summary.fillRatio = summary.capacity !== null ? 0 : null;
+      // Empty location
+      summary.fillRatio =
+        summary.capacity !== null && summary.capacityUnit ? 0 : null;
       summary.occupancyLevel = "empty";
-    } else if (summary.capacity === null) {
-      // Capacity is unknown: report presence without false percentage
+    } else if (summary.capacity === null || !summary.capacityUnit) {
+      // Capacity or capacity unit is unknown: report presence without false percentage
       summary.fillRatio = null;
       summary.occupancyLevel = "unspecified";
     } else {
-      // Capacity is explicitly configured: compute fillRatio safely
-      let relevantQty = summary.totalQuantity;
-      if (
-        summary.capacityUnit &&
-        summary.totalUnitsByMeasure[summary.capacityUnit] !== undefined
-      ) {
-        relevantQty = summary.totalUnitsByMeasure[summary.capacityUnit] ?? summary.totalQuantity;
-      }
-      summary.fillRatio =
-        Math.round((relevantQty / summary.capacity) * 1000) / 1000;
+      // Capacity and capacityUnit are both explicitly configured.
+      // Confirm measures are compatible: all stock units must match capacityUnit.
+      const targetUnit = summary.capacityUnit.trim().toLowerCase();
+      const stockUnitEntries = Object.entries(
+        summary.totalUnitsByMeasure,
+      ).filter(([, qty]) => qty > 0);
 
-      if (summary.fillRatio > 1.0) {
-        summary.occupancyLevel = "over-capacity";
-      } else if (summary.fillRatio >= 0.9) {
-        summary.occupancyLevel = "high";
-      } else if (summary.fillRatio >= 0.5) {
-        summary.occupancyLevel = "moderate";
+      const hasIncompatibleUnit = stockUnitEntries.some(
+        ([unit]) => unit.trim().toLowerCase() !== targetUnit,
+      );
+      const matchingEntry = stockUnitEntries.find(
+        ([unit]) => unit.trim().toLowerCase() === targetUnit,
+      );
+
+      if (hasIncompatibleUnit || !matchingEntry) {
+        // Incompatible measures or mixed incompatible units:
+        // Show presence without implying a false capacity percentage
+        summary.fillRatio = null;
+        summary.occupancyLevel = "unspecified";
       } else {
-        summary.occupancyLevel = "low";
+        // Stock measure is 100% compatible with configured capacity unit
+        const relevantQty = matchingEntry[1];
+        summary.fillRatio =
+          Math.round((relevantQty / summary.capacity) * 1000) / 1000;
+
+        if (summary.fillRatio > 1.0) {
+          summary.occupancyLevel = "over-capacity";
+        } else if (summary.fillRatio >= 0.8) {
+          summary.occupancyLevel = "high";
+        } else if (summary.fillRatio >= 0.5) {
+          summary.occupancyLevel = "moderate";
+        } else {
+          summary.occupancyLevel = "low";
+        }
       }
     }
 

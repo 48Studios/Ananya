@@ -234,6 +234,14 @@ export function SpatialInspector({
               <span className="capitalize">{occupancyLevel?.replace("-", " ")}</span>
             </div>
           </div>
+        ) : capacity !== null && capacity !== undefined && !capacityUnit ? (
+          <div className="text-[10px] text-amber-700 dark:text-amber-400/90 italic">
+            Capacity unit is not configured. Displaying inventory presence without percentage.
+          </div>
+        ) : capacity !== null && capacity !== undefined && summary.hasStock ? (
+          <div className="text-[10px] text-amber-700 dark:text-amber-400/90 italic">
+            Stock measure is incompatible with configured capacity unit ({capacityUnit}). Displaying presence without percentage.
+          </div>
         ) : (
           <div className="text-[10px] text-muted-foreground/80 italic">
             Physical capacity is not inferred from 3D model dimensions without explicit location configuration.
