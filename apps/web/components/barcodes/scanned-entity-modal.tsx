@@ -22,6 +22,12 @@ import {
   DialogShellFooter,
 } from "@/components/ui/dialog-shell";
 import { BarcodeLookupResult } from "@/lib/api/barcodes-api";
+import {
+  spatialApi,
+  type LocationLocateTargetDto,
+  type ComponentLocateResolutionDto,
+} from "@/lib/api/spatial-api";
+import { LocateDialog } from "@/components/spatial/locate-dialog";
 import { PrintLabelDialog } from "./print-label-dialog";
 
 export interface ScannedEntityModalProps {
@@ -60,21 +66,75 @@ export function ScannedEntityModal({
   const [isPrintModalOpen, setIsPrintModalOpen] = React.useState(false);
   const [componentFilter, setComponentFilter] = React.useState("");
 
+  // Spatial locate resolution state
+  const [spatialLocate, setSpatialLocate] =
+    React.useState<LocationLocateTargetDto | null>(null);
+  const [componentLocateResolution, setComponentLocateResolution] =
+    React.useState<ComponentLocateResolutionDto | null>(null);
+  const [isLocateChooserOpen, setIsLocateChooserOpen] = React.useState(false);
+
   // Sub-component print label trigger
   const [subPrintTarget, setSubPrintTarget] = React.useState<{
     id: string;
     type: "COMPONENT";
   } | null>(null);
 
+  React.useEffect(() => {
+    if (!isOpen || !result) {
+      setSpatialLocate(null);
+      setComponentLocateResolution(null);
+      setIsLocateChooserOpen(false);
+      return;
+    }
+
+    if (result.entityType === "LOCATION") {
+      spatialApi
+        .resolveLocationLocate(result.entityId)
+        .then((res) => setSpatialLocate(res))
+        .catch(() => setSpatialLocate(null));
+    } else if (result.entityType === "COMPONENT") {
+      spatialApi
+        .resolveComponentLocate(result.entityId)
+        .then((res) => setComponentLocateResolution(res))
+        .catch(() => setComponentLocateResolution(null));
+    }
+  }, [isOpen, result]);
+
   if (!result) return null;
 
-  const handleNavigate = () => {
+  const handleNavigate = (url?: string) => {
     // Belt and braces: the scanner surface has no navigation to fall back on,
     // so the guard lives here as well as on the buttons that call it.
     if (!allowNavigation) return;
     onClose();
-    if (result.targetUrl) {
-      router.push(result.targetUrl);
+    const destination = url || result.targetUrl;
+    if (destination) {
+      router.push(destination);
+    }
+  };
+
+  const handleLocateSpatial = () => {
+    if (!allowNavigation) return;
+    if (spatialLocate?.locateUrl) {
+      handleNavigate(spatialLocate.locateUrl);
+    }
+  };
+
+  const handleLocateComponentStock = () => {
+    if (!allowNavigation) return;
+    if (
+      !componentLocateResolution ||
+      componentLocateResolution.targets.length === 0
+    ) {
+      return;
+    }
+    if (
+      componentLocateResolution.targets.length === 1 &&
+      componentLocateResolution.targets[0]
+    ) {
+      handleNavigate(componentLocateResolution.targets[0].locateUrl);
+    } else {
+      setIsLocateChooserOpen(true);
     }
   };
 
@@ -165,7 +225,7 @@ export function ScannedEntityModal({
               )}
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               <Button
                 variant="outline"
                 size="sm"
@@ -174,14 +234,84 @@ export function ScannedEntityModal({
                 <Printer className="size-3.5 mr-1.5" />
                 Print Label
               </Button>
+
+              {allowNavigation &&
+                result.entityType === "LOCATION" &&
+                spatialLocate?.hasSpatialView && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={handleLocateSpatial}
+                    className="gap-1.5 font-medium"
+                    title="Locate in 2D Spatial View"
+                  >
+                    <MapPin className="size-3.5" />
+                    <span>Locate in Spatial</span>
+                  </Button>
+                )}
+
+              {allowNavigation &&
+                result.entityType === "COMPONENT" &&
+                componentLocateResolution &&
+                componentLocateResolution.targets.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={handleLocateComponentStock}
+                    className="gap-1.5 font-medium"
+                    title="Locate physical stock in storage"
+                  >
+                    <MapPin className="size-3.5" />
+                    <span>Locate Stock</span>
+                  </Button>
+                )}
+
               {allowNavigation ? (
-                <Button size="sm" onClick={handleNavigate}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleNavigate()}
+                >
                   <ExternalLink className="size-3.5 mr-1.5" />
-                  Open Full Page
+                  {result.entityType === "LOCATION"
+                    ? "Open Location"
+                    : result.entityType === "COMPONENT"
+                    ? "Open Component"
+                    : "Open Full Page"}
                 </Button>
               ) : null}
             </div>
           </div>
+
+          {/* Location View: Spatial Layout Banner */}
+          {result.entityType === "LOCATION" && spatialLocate?.hasSpatialView && (
+            <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <div>
+                  <span className="font-semibold text-foreground">
+                    Spatial 2D Layout Available
+                  </span>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Spatial Root: <strong className="font-mono text-foreground">{spatialLocate.spatialRootLocationCode}</strong>
+                    {spatialLocate.focusLocationCode !== spatialLocate.spatialRootLocationCode && (
+                      <> • Target Compartment: <strong className="font-mono text-foreground">{spatialLocate.focusLocationCode}</strong></>
+                    )}
+                  </p>
+                </div>
+              </div>
+              {allowNavigation && (
+                <Button
+                  size="xs"
+                  onClick={handleLocateSpatial}
+                  className="gap-1 text-[11px]"
+                >
+                  <span>Open Spatial</span>
+                  <ExternalLink className="size-3" />
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* Location View: Containing Components */}
           {result.entityType === "LOCATION" && (
@@ -290,47 +420,120 @@ export function ScannedEntityModal({
 
           {/* Component View: Stock & Storage Location Details */}
           {result.entityType === "COMPONENT" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3.5 bg-background border border-border rounded-lg space-y-1">
-                <span className="text-xs text-muted-foreground block font-medium">
-                  Total On-Hand Stock
-                </span>
-                <span className="text-lg font-mono font-bold text-emerald-600 dark:text-emerald-400 block">
-                  {String(result.details?.totalStock ?? 0)}{" "}
-                  {String(result.details?.unit ?? "")}
-                </span>
-                <span className="text-[11px] text-muted-foreground block">
-                  Aggregated across all inventory locations
-                </span>
-              </div>
-
-              <div className="p-3.5 bg-background border border-border rounded-lg space-y-1">
-                <span className="text-xs text-muted-foreground block font-medium">
-                  Default Storage Location
-                </span>
-                <span className="text-sm font-mono text-foreground font-semibold flex items-center gap-1.5 pt-0.5">
-                  <MapPin className="size-3.5 text-primary shrink-0" />
-                  <span className="truncate">
-                    {String(
-                      result.details?.defaultLocationPath || "Unassigned",
-                    )}
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3.5 bg-background border border-border rounded-lg space-y-1">
+                  <span className="text-xs text-muted-foreground block font-medium">
+                    Total On-Hand Stock
                   </span>
-                </span>
-                <span className="text-[11px] text-muted-foreground block">
-                  Primary assigned bin / shelf
-                </span>
-              </div>
-
-              {Boolean(result.details?.description) && (
-                <div className="sm:col-span-2 p-3 bg-muted/20 border border-border rounded-lg">
-                  <span className="text-xs font-medium text-muted-foreground block mb-1">
-                    Description
+                  <span className="text-lg font-mono font-bold text-emerald-600 dark:text-emerald-400 block">
+                    {String(result.details?.totalStock ?? 0)}{" "}
+                    {String(result.details?.unit ?? "")}
                   </span>
-                  <p className="text-xs text-foreground leading-relaxed">
-                    {String(result.details?.description)}
-                  </p>
+                  <span className="text-[11px] text-muted-foreground block">
+                    Aggregated across all inventory locations
+                  </span>
                 </div>
-              )}
+
+                <div className="p-3.5 bg-background border border-border rounded-lg space-y-1">
+                  <span className="text-xs text-muted-foreground block font-medium">
+                    Default Storage Location
+                  </span>
+                  <span className="text-sm font-mono text-foreground font-semibold flex items-center gap-1.5 pt-0.5">
+                    <MapPin className="size-3.5 text-primary shrink-0" />
+                    <span className="truncate">
+                      {String(
+                        result.details?.defaultLocationPath || "Unassigned",
+                      )}
+                    </span>
+                  </span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    Primary assigned bin / shelf
+                  </span>
+                </div>
+
+                {Boolean(result.details?.description) && (
+                  <div className="sm:col-span-2 p-3 bg-muted/20 border border-border rounded-lg">
+                    <span className="text-xs font-medium text-muted-foreground block mb-1">
+                      Description
+                    </span>
+                    <p className="text-xs text-foreground leading-relaxed">
+                      {String(result.details?.description)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Physical Stock Locations with Spatial Deep Links */}
+              {componentLocateResolution &&
+                componentLocateResolution.targets.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <MapPin className="size-3.5 text-primary" />
+                        Physical Stock Locations ({componentLocateResolution.targets.length})
+                      </span>
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        Total Stock: {componentLocateResolution.totalOnHand.toLocaleString()}{" "}
+                        {String(result.details?.unit ?? "units")}
+                      </span>
+                    </div>
+
+                    <div className="rounded-lg border border-border divide-y divide-border overflow-hidden bg-card text-xs">
+                      {componentLocateResolution.targets.map((tgt) => (
+                        <div
+                          key={tgt.locationId}
+                          className="flex items-center justify-between p-2.5 hover:bg-muted/30 transition-colors gap-3"
+                        >
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-foreground">
+                                {tgt.locationCode}
+                              </span>
+                              <span className="text-muted-foreground truncate">
+                                {tgt.locationName}
+                              </span>
+                              {tgt.hasSpatialView ? (
+                                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                  2D View
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-muted text-muted-foreground border border-border">
+                                  Standard
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] font-mono text-muted-foreground truncate">
+                              {tgt.path}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0">
+                            <div className="text-right">
+                              <span className="font-mono text-xs font-semibold text-foreground block">
+                                {tgt.onHand.toLocaleString()}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {tgt.available.toLocaleString()} avail
+                              </span>
+                            </div>
+                            {allowNavigation && (
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={() => handleNavigate(tgt.locateUrl)}
+                                className="h-6 px-2 text-[11px] gap-1"
+                              >
+                                <span>Locate</span>
+                                <ExternalLink className="size-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
             </div>
           )}
 
@@ -372,7 +575,7 @@ export function ScannedEntityModal({
               <div />
             )}
 
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
               <Button
                 variant="outline"
                 size="sm"
@@ -381,12 +584,52 @@ export function ScannedEntityModal({
               >
                 Close
               </Button>
+
+              {result.entityType === "LOCATION" &&
+                spatialLocate?.hasSpatialView && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={handleLocateSpatial}
+                    className="w-full sm:w-auto gap-1.5 font-medium"
+                  >
+                    <MapPin className="size-3.5" />
+                    Locate in Spatial
+                  </Button>
+                )}
+
+              {result.entityType === "COMPONENT" &&
+                componentLocateResolution &&
+                componentLocateResolution.targets.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={handleLocateComponentStock}
+                    className="w-full sm:w-auto gap-1.5 font-medium"
+                  >
+                    <MapPin className="size-3.5" />
+                    Locate Stock
+                  </Button>
+                )}
+
               <Button
+                variant={
+                  (result.entityType === "LOCATION" && spatialLocate?.hasSpatialView) ||
+                  (result.entityType === "COMPONENT" &&
+                    componentLocateResolution &&
+                    componentLocateResolution.targets.length > 0)
+                    ? "outline"
+                    : "default"
+                }
                 size="sm"
-                onClick={handleNavigate}
+                onClick={() => handleNavigate()}
                 className="w-full sm:w-auto"
               >
-                Open Full Page
+                {result.entityType === "LOCATION"
+                  ? "Open Location"
+                  : result.entityType === "COMPONENT"
+                  ? "Open Component"
+                  : "Open Full Page"}
                 <ExternalLink className="size-3.5 ml-1.5" />
               </Button>
             </div>
@@ -400,6 +643,18 @@ export function ScannedEntityModal({
           </DialogShellFooter>
         )}
       </DialogShell>
+
+      {/* Multi-location Component Locate Chooser Dialog */}
+      {isLocateChooserOpen && componentLocateResolution && (
+        <LocateDialog
+          open={isLocateChooserOpen}
+          onOpenChange={setIsLocateChooserOpen}
+          componentSku={result.code}
+          componentName={result.name}
+          targets={componentLocateResolution.targets}
+          unit={String(result.details?.unit ?? "units")}
+        />
+      )}
 
       {/* Main Print Label Dialog for this entity */}
       <PrintLabelDialog

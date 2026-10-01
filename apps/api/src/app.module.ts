@@ -84,11 +84,13 @@ import { DataPacksModule } from './data-packs/data-packs.module';
 import { AttributesModule } from './attributes/attributes.module';
 import { MlModule } from './ml/ml.module';
 import { DatabaseModule } from './database/database.module';
+import { SpatialModule } from './spatial/spatial.module';
 
 @Module({
   imports: [
     MlModule,
     DatabaseModule,
+    SpatialModule,
     LocationsModule,
     ComponentsModule,
     ManufacturersModule,

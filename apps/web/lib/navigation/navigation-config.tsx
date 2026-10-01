@@ -218,6 +218,18 @@ export const navigationModules: NavigationModule[] = [
                 icon: <MapPin className="w-4 h-4" />,
               },
               {
+                id: "inv-spatial-inventory",
+                title: "Spatial Inventory",
+                href: "/spatial",
+                icon: <Layers className="w-4 h-4" />,
+              },
+              {
+                id: "inv-spatial-models",
+                title: "Spatial Models & Anchors",
+                href: "/spatial-models",
+                icon: <Box className="w-4 h-4" />,
+              },
+              {
                 id: "inv-storage-policies",
                 title: "Storage Policies",
                 href: "/warehouse-policies",

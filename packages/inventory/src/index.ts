@@ -10,3 +10,4 @@ export * from "./reservations";
 export * from "./batches";
 export * from "./serials";
 export * from "./attributes";
+export * from "./spatial";

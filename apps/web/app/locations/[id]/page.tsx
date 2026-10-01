@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Edit3,
@@ -13,6 +13,10 @@ import {
   Package,
   ExternalLink,
   Info,
+  LayoutGrid,
+  List,
+  Box,
+  Sliders,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +50,7 @@ import {
 import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
 import { getRelativeLocationPath } from "@/lib/location-provenance";
+import { SpatialView, SpatialMappingDialog } from "@/components/spatial";
 
 /**
  * One storage location, as a master-data record.
@@ -58,7 +63,23 @@ import { getRelativeLocationPath } from "@/lib/location-provenance";
 export default function ViewLocationPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params?.id as string;
+
+  const focusLocationId = searchParams?.get("focusLocation") || undefined;
+  const focusComponentId = searchParams?.get("focusComponent") || undefined;
+  const initialView = searchParams?.get("view") === "list" ? "list" : "spatial";
+  const [subLocationView, setSubLocationView] = React.useState<"spatial" | "list">(initialView);
+
+  // Synchronize view mode with query parameters (e.g. from QR scan deep links)
+  React.useEffect(() => {
+    const viewParam = searchParams?.get("view");
+    if (viewParam === "spatial" || focusLocationId || focusComponentId) {
+      setSubLocationView("spatial");
+    } else if (viewParam === "list") {
+      setSubLocationView("list");
+    }
+  }, [searchParams, focusLocationId, focusComponentId]);
 
   const [location, setLocation] = React.useState<LocationDto | null>(null);
   const [allLocations, setAllLocations] = React.useState<LocationDto[]>([]);
@@ -74,6 +95,10 @@ export default function ViewLocationPage() {
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
+
+  // Spatial Mapping state
+  const [isSpatialMappingOpen, setIsSpatialMappingOpen] = React.useState(false);
+  const [spatialViewVersion, setSpatialViewVersion] = React.useState(0);
 
   // Label Printing states
   const [isPrintLocationOpen, setIsPrintLocationOpen] = React.useState(false);
@@ -217,6 +242,14 @@ export default function ViewLocationPage() {
             >
               <Printer className="w-4 h-4 mr-1.5" />
               Print Label
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSpatialMappingOpen(true)}
+            >
+              <Box className="w-4 h-4 mr-1.5" />
+              Spatial Mapping
             </Button>
             <Button
               variant="outline"
@@ -489,77 +522,118 @@ export default function ViewLocationPage() {
 
       {/* Sub-Locations */}
       <SectionCard
-        title="Sub-Locations"
-        description="Storage zones nested directly under this location."
+        title="Sub-Locations & Spatial Layout"
+        description="Physical storage compartments and nested zones under this location."
         icon={Layers}
-        contentClassName="p-0"
+        contentClassName={subLocationView === "spatial" && childLocations.length > 0 ? "p-4" : "p-0"}
         actions={
           childLocations.length > 0 ? (
-            <span className="rounded bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-muted-foreground">
-              {childLocations.length}{" "}
-              {childLocations.length === 1 ? "location" : "locations"}
-            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={() => setIsSpatialMappingOpen(true)}
+                className="h-6 px-2 text-xs font-medium gap-1"
+                title="Configure spatial model and anchors for this location and sub-locations"
+              >
+                <Sliders className="size-3.5" />
+                <span>Map Spatial</span>
+              </Button>
+              <span className="rounded bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-muted-foreground">
+                {childLocations.length}{" "}
+                {childLocations.length === 1 ? "compartment" : "compartments"}
+              </span>
+              <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border/40">
+                <Button
+                  variant={subLocationView === "spatial" ? "secondary" : "ghost"}
+                  size="xs"
+                  onClick={() => setSubLocationView("spatial")}
+                  className="h-6 px-2 text-xs font-medium gap-1"
+                >
+                  <LayoutGrid className="size-3.5" />
+                  <span>2D Spatial</span>
+                </Button>
+                <Button
+                  variant={subLocationView === "list" ? "secondary" : "ghost"}
+                  size="xs"
+                  onClick={() => setSubLocationView("list")}
+                  className="h-6 px-2 text-xs font-medium gap-1"
+                >
+                  <List className="size-3.5" />
+                  <span>List</span>
+                </Button>
+              </div>
+            </div>
           ) : null
         }
       >
         {childLocations.length > 0 ? (
-          <DetailTable
-            rows={childLocations}
-            rowKey={(child) => child.id}
-            columns={[
-              {
-                key: "code",
-                header: "Code",
-                width: "20%",
-                render: (child) => (
-                  <DetailChip mono className="uppercase">
-                    {child.code}
-                  </DetailChip>
-                ),
-              },
-              {
-                key: "name",
-                header: "Name",
-                width: "38%",
-                className: "min-w-0",
-                render: (child) => (
-                  <span className="text-sm text-foreground truncate block">
-                    {child.name}
-                  </span>
-                ),
-              },
-              {
-                key: "kind",
-                header: "Kind",
-                width: "16%",
-                render: (child) => (
-                  <DetailChip className="capitalize">{child.kind}</DetailChip>
-                ),
-              },
-              {
-                key: "status",
-                header: "Status",
-                width: "14%",
-                className: "whitespace-nowrap",
-                render: (child) => (
-                  <RecordStatusBadge isActive={child.isActive} />
-                ),
-              },
-              {
-                key: "actions",
-                header: "",
-                align: "right",
-                width: "12%",
-                render: (child) => (
-                  <Link href={`/locations/${child.id}`}>
-                    <Button variant="ghost" size="xs">
-                      View
-                    </Button>
-                  </Link>
-                ),
-              },
-            ]}
-          />
+          subLocationView === "spatial" ? (
+            <SpatialView
+              key={`${location.id}-${spatialViewVersion}`}
+              locationId={location.id}
+              focusLocationId={focusLocationId}
+              focusComponentId={focusComponentId}
+            />
+          ) : (
+            <DetailTable
+              rows={childLocations}
+              rowKey={(child) => child.id}
+              columns={[
+                {
+                  key: "code",
+                  header: "Code",
+                  width: "20%",
+                  render: (child) => (
+                    <DetailChip mono className="uppercase">
+                      {child.code}
+                    </DetailChip>
+                  ),
+                },
+                {
+                  key: "name",
+                  header: "Name",
+                  width: "38%",
+                  className: "min-w-0",
+                  render: (child) => (
+                    <span className="text-sm text-foreground truncate block">
+                      {child.name}
+                    </span>
+                  ),
+                },
+                {
+                  key: "kind",
+                  header: "Kind",
+                  width: "16%",
+                  render: (child) => (
+                    <DetailChip className="capitalize">{child.kind}</DetailChip>
+                  ),
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  width: "14%",
+                  className: "whitespace-nowrap",
+                  render: (child) => (
+                    <RecordStatusBadge isActive={child.isActive} />
+                  ),
+                },
+                {
+                  key: "actions",
+                  header: "",
+                  align: "right",
+                  width: "12%",
+                  render: (child) => (
+                    <Link href={`/locations/${child.id}`}>
+                      <Button variant="ghost" size="xs">
+                        View
+                      </Button>
+                    </Link>
+                  ),
+                },
+              ]}
+            />
+          )
         ) : (
           <p className="px-6 py-5 text-xs text-muted-foreground">
             No sub-locations are nested under this location yet.
@@ -597,6 +671,19 @@ export default function ViewLocationPage() {
         onConfirm={handleDelete}
         onCancel={() => setIsDeleteOpen(false)}
       />
+
+      {/* Spatial Mapping Modal */}
+      {location && (
+        <SpatialMappingDialog
+          locationId={location.id}
+          open={isSpatialMappingOpen}
+          onOpenChange={setIsSpatialMappingOpen}
+          onSuccess={() => {
+            fetchData();
+            setSpatialViewVersion((v) => v + 1);
+          }}
+        />
+      )}
 
       {/* Print Location Tag Modal */}
       <PrintLabelDialog
