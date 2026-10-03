@@ -67,9 +67,9 @@ export function DashboardAttentionQueue({
               : ""
           }`,
           status: po.status,
-          href: `/purchase-orders/${po.id}`,
+          href: `/procurement/purchase-orders/${po.id}`,
           actionLabel: "Receive Stock",
-          actionHref: `/goods-receipts/new?poId=${po.id}`,
+          actionHref: `/procurement/goods-receipts/new?poId=${po.id}`,
           timestamp: po.updatedAt,
         });
       });
@@ -86,9 +86,9 @@ export function DashboardAttentionQueue({
           subtitle: `Progress: ${wo.quantityCompleted}/${wo.quantityPlanned} units completed (${wo.priority} Priority)`,
           status: wo.status,
           priority: wo.priority,
-          href: `/work-orders/${wo.id}`,
+          href: `/manufacturing/work-orders/${wo.id}`,
           actionLabel: "View Order",
-          actionHref: `/work-orders/${wo.id}`,
+          actionHref: `/manufacturing/work-orders/${wo.id}`,
           timestamp: wo.updatedAt,
         });
       });
@@ -104,9 +104,9 @@ export function DashboardAttentionQueue({
           title: `Stock Adjustment ${adj.adjustmentNumber}`,
           subtitle: `Reason: ${adj.reason || "Discrepancy reconciliation"} • ${adj.lines.length} lines`,
           status: adj.status,
-          href: `/stock-adjustments/${adj.id}`,
+          href: `/inventory/stock-counts/adjustments/${adj.id}`,
           actionLabel: "Review",
-          actionHref: `/stock-adjustments/${adj.id}`,
+          actionHref: `/inventory/stock-counts/adjustments/${adj.id}`,
           timestamp: adj.updatedAt,
         });
       });

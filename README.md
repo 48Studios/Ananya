@@ -85,7 +85,7 @@ Ananya includes finance, sales, CRM, and service areas, but that does not make i
 
 Ananya is at **V0.2** (`0.2.0` in the web and API package metadata). The checked-in code includes deployment automation, database migrations, tests, and Docker image/release workflows.
 
-The [project status](PROJECT_STATUS.md) distinguishes implemented areas from known gaps and screens that still use sample records. **Brands** and **Project Costing** are not present in the current source. The following routes contain in-code sample records: `/activities`, `/crm`, `/customer-returns`, `/customers`, `/fulfillment`, `/journal-entries`, `/leads`, `/opportunities`, `/quotations`, `/sales`, `/sales-orders`, and `/traceability`. Validate the screens and workflows you depend on with your own data before using them operationally.
+The [project status](PROJECT_STATUS.md) distinguishes implemented areas from known gaps and screens that still use sample records. **Brands** and **Project Costing** are not present in the current source. The following routes contain in-code sample records: `/activities`, `/sales/crm`, `/sales/customer-returns`, `/sales/customers`, `/sales/fulfillment`, `/finance/journal-entries`, `/sales/leads`, `/sales/opportunities`, `/sales/quotations`, `/sales`, `/sales/orders`, and `/manufacturing/traceability`. Validate the screens and workflows you depend on with your own data before using them operationally.
 
 Before production use, an administrator should also:
 

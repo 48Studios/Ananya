@@ -866,7 +866,7 @@ export function InventoryBuilderWorkspace({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-border">
         <div>
           <div className="flex items-center gap-2">
-            <Link href="/spatial">
+            <Link href="/inventory/locations/spatial">
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                 <ArrowLeft className="size-4" />
               </Button>

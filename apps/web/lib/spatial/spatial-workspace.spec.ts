@@ -28,10 +28,10 @@ describe("Phase 4.5: Centralized Spatial Inventory Workspace", () => {
       const navConfig = read("lib/navigation/navigation-config.tsx");
       expect(navConfig).toContain('id: "inv-spatial-inventory"');
       expect(navConfig).toContain('title: "Spatial Inventory"');
-      expect(navConfig).toContain('href: "/spatial"');
+      expect(navConfig).toContain('href: "/inventory/locations/spatial"');
       expect(navConfig).toContain('id: "inv-spatial-models"');
       expect(navConfig).toContain('title: "Spatial Models & Anchors"');
-      expect(navConfig).toContain('href: "/spatial-models"');
+      expect(navConfig).toContain('href: "/inventory/locations/spatial-models"');
       expect(navConfig).toContain('id: "inv-warehouses-group"');
     });
   });
@@ -226,23 +226,23 @@ describe("Phase 4.5: Centralized Spatial Inventory Workspace", () => {
   describe("Deep-Link & URL Contract", () => {
     it("constructs standard location detail URL", () => {
       const locationId = "loc-shelf-99";
-      const targetUrl = `/locations/${locationId}`;
-      expect(targetUrl).toBe("/locations/loc-shelf-99");
+      const targetUrl = `/inventory/locations/${locationId}`;
+      expect(targetUrl).toBe("/inventory/locations/loc-shelf-99");
     });
 
     it("constructs spatial 2D view deep link with focusLocation parameter", () => {
       const rootId = "loc-cabinet-01";
       const focusId = "loc-drawer-a02";
-      const deepLink = `/locations/${rootId}?view=spatial&focusLocation=${focusId}`;
+      const deepLink = `/inventory/locations/${rootId}?view=spatial&focusLocation=${focusId}`;
       expect(deepLink).toBe(
-        "/locations/loc-cabinet-01?view=spatial&focusLocation=loc-drawer-a02",
+        "/inventory/locations/loc-cabinet-01?view=spatial&focusLocation=loc-drawer-a02",
       );
     });
 
     it("constructs workspace query parameter for shareable URL", () => {
       const selectedId = "loc-cab-01";
-      const workspaceUrl = `/spatial?location=${selectedId}`;
-      expect(workspaceUrl).toBe("/spatial?location=loc-cab-01");
+      const workspaceUrl = `/inventory/locations/spatial?location=${selectedId}`;
+      expect(workspaceUrl).toBe("/inventory/locations/spatial?location=loc-cab-01");
     });
   });
 });

@@ -14,7 +14,7 @@ export class ComponentsPage {
   }
 
   async goto() {
-    await this.page.goto("/components");
+    await this.page.goto("/inventory/components");
   }
 
   async expectLoaded() {

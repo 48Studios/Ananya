@@ -24,14 +24,15 @@ export function SidebarItem({
   level = 1,
   onItemClick,
 }: SidebarItemProps) {
-  const { activePath, isItemPinned, togglePinnedItem } = useNavigation();
+  const { activePath, activeHref, isItemPinned, togglePinnedItem } =
+    useNavigation();
   const { hasPermission } = useAuth();
 
-  const isExactRoute =
-    item.exact || item.href === "/reports" || item.href === "/";
-  const isActive = isExactRoute
+  // Longest match wins, so a parent entry such as the module Overview is not
+  // highlighted while a more specific page inside the module is open.
+  const isActive = item.exact
     ? activePath === item.href
-    : activePath === item.href || activePath.startsWith(item.href + "/");
+    : item.href === activeHref;
   const pinned = isItemPinned(item.href);
 
   const [isHovered, setIsHovered] = useState(false);

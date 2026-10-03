@@ -346,7 +346,7 @@ export default function DashboardPage() {
             Recent Operational Activity
           </h3>
         </div>
-        <Link href="/activity">
+        <Link href="/dashboard/activity">
           <Button variant="ghost" size="xs" className="h-7 text-xs text-muted-foreground gap-1">
             View All
             <ArrowRight className="w-3 h-3" />

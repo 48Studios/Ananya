@@ -60,7 +60,7 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
   test("1. Edit Anchors toggle opens authoring workspace with 3D markers and panel", async ({
     page,
   }) => {
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
       waitUntil: "networkidle",
     });
 
@@ -97,7 +97,7 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
   test("2. Select anchor, inspect coordinates, verify live preview and occupancy", async ({
     page,
   }) => {
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
       waitUntil: "networkidle",
     });
 
@@ -124,7 +124,7 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
   test("3. Edit coordinates, verify dirty diff state, and guard cancel via ConfirmDialog", async ({
     page,
   }) => {
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
       waitUntil: "networkidle",
     });
 
@@ -164,7 +164,7 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
   test("4. Add new anchor and detect envelope boundary warnings", async ({
     page,
   }) => {
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
       waitUntil: "networkidle",
     });
 
@@ -196,7 +196,7 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
   test("5. Atomic multi-anchor bulk save persists to database and survives reload", async ({
     page,
   }) => {
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
       waitUntil: "networkidle",
     });
 
@@ -250,7 +250,7 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
   test("6. Concurrent conflict error preserves user draft and shows conflict message", async ({
     page,
   }) => {
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
       waitUntil: "networkidle",
     });
 
@@ -316,7 +316,7 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
       });
     });
 
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
       waitUntil: "networkidle",
     });
 

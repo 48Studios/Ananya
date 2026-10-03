@@ -177,7 +177,7 @@ describe("sheet contents", () => {
 describe("print pipeline wiring", () => {
   const printDialog = read("components/barcodes/print-label-dialog.tsx");
   const batchDialog = read("components/barcodes/batch-print-dialog.tsx");
-  const studioPage = read("app/barcodes/page.tsx");
+  const studioPage = read("app/inventory/barcodes/page.tsx");
 
   it("prints the main window, not a separate frame or popup", () => {
     // A frame's own print() fails silently in real browsers: no dialog, no

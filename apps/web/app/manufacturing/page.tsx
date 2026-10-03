@@ -53,7 +53,7 @@ export default function ManufacturingPage() {
               <TooltipTrigger
                 render={
                   <Link
-                    href={`/work-orders/${row.original.id}`}
+                    href={`/manufacturing/work-orders/${row.original.id}`}
                     className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
                   />
                 }

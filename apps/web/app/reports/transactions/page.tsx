@@ -90,7 +90,7 @@ export default function TransactionReportsPage() {
         meta: { width: "16%" },
         cell: ({ row }) => (
           <Link
-            href={`/transactions/${row.original.id}`}
+            href={`/inventory/transactions/${row.original.id}`}
             className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted font-bold inline-flex items-center gap-1 uppercase whitespace-nowrap"
             title={row.original.id}
           >
@@ -165,7 +165,7 @@ export default function TransactionReportsPage() {
         },
         cell: ({ row }) => (
           <div className="flex items-center justify-end">
-            <Link href={`/transactions/${row.original.id}`}>
+            <Link href={`/inventory/transactions/${row.original.id}`}>
               <Button
                 variant="ghost"
                 size="icon-xs"

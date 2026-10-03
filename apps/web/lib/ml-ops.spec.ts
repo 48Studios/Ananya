@@ -62,7 +62,7 @@ import {
  */
 
 const PAGE_SOURCE = readFileSync(
-  fileURLToPath(new URL("../app/intelligence/page.tsx", import.meta.url)),
+  fileURLToPath(new URL("../app/settings/intelligence/page.tsx", import.meta.url)),
   "utf8",
 );
 
@@ -816,8 +816,8 @@ describe("ML & Intelligence — route", () => {
     "utf8",
   );
 
-  it("lives at /intelligence, not under /settings", () => {
-    expect(NAV_SOURCE).toContain('href: "/intelligence"');
+  it("lives at /settings/intelligence inside the Administration namespace", () => {
+    expect(NAV_SOURCE).toContain('href: "/settings/intelligence"');
     expect(NAV_SOURCE).not.toContain('"/settings/ml"');
     // The page itself must exist at that path for the nav entry to resolve.
     expect(PAGE_SOURCE.length).toBeGreaterThan(0);
@@ -826,7 +826,7 @@ describe("ML & Intelligence — route", () => {
   it("stays reachable from the Administration module, administrator-only", () => {
     expect(NAV_SOURCE).toContain('title: "ML & Intelligence"');
     expect(NAV_SOURCE).toMatch(
-      /href: "\/intelligence",[\s\S]{0,200}permissions: \["Administration\.Roles"\]/,
+      /href: "\/settings\/intelligence",[\s\S]{0,200}permissions: \["Administration\.Roles"\]/,
     );
   });
 });

@@ -390,7 +390,7 @@ export function ScannedEntityModal({
                                     size="xs"
                                     onClick={() => {
                                       onClose();
-                                      router.push(`/components/${comp.componentId}`);
+                                      router.push(`/inventory/components/${comp.componentId}`);
                                     }}
                                     title="View component details"
                                   >

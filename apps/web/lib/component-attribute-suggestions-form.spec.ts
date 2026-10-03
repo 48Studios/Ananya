@@ -136,8 +136,8 @@ describe("the panel is part of the Component Intelligence surface", () => {
   it("appears for both adding and editing, from one form", () => {
     // Component Add and Component Edit mount the same form, so the panel is
     // present in both by construction.
-    const addPage = read("app/components/page.tsx");
-    const detailPage = read("app/components/[id]/page.tsx");
+    const addPage = read("app/inventory/components/page.tsx");
+    const detailPage = read("app/inventory/components/[id]/page.tsx");
     expect(addPage + detailPage).toContain("ComponentForm");
     expect(form).toContain("isEditing");
   });

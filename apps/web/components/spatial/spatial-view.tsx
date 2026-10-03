@@ -213,7 +213,7 @@ export function SpatialView({
             params.set("focusComponent", focusComponentId);
           }
           const qs = params.toString();
-          router.push(`/locations/${targetLocationId}${qs ? `?${qs}` : ""}`);
+          router.push(`/inventory/locations/${targetLocationId}${qs ? `?${qs}` : ""}`);
         }
       });
     },

@@ -4,7 +4,7 @@ test.describe("Import / Export Framework & Read Model Data Integrity", () => {
   test("should render import trigger and open unified ImportWizard with FileUploader on Components", async ({
     page,
   }) => {
-    await page.goto("/components");
+    await page.goto("/inventory/components");
     const importBtn = page.locator('button:has-text("Import")');
     await expect(importBtn).toBeVisible();
     await importBtn.click();
@@ -23,7 +23,7 @@ test.describe("Import / Export Framework & Read Model Data Integrity", () => {
   test("should import Categories via multipart file upload and verify immediate UI read-model visibility and persistence", async ({
     page,
   }) => {
-    await page.goto("/categories");
+    await page.goto("/inventory/master/categories");
     await page.locator('button:has-text("Import")').click();
 
     const mockCategoryCsv =
@@ -67,7 +67,7 @@ test.describe("Import / Export Framework & Read Model Data Integrity", () => {
   test("should import Components via multipart file upload and verify immediate UI visibility", async ({
     page,
   }) => {
-    await page.goto("/components");
+    await page.goto("/inventory/components");
     await page.locator('button:has-text("Import")').click();
 
     const mockComponentCsv =
@@ -102,7 +102,7 @@ test.describe("Import / Export Framework & Read Model Data Integrity", () => {
   test("should import Suppliers via multipart file upload and verify immediate UI visibility", async ({
     page,
   }) => {
-    await page.goto("/suppliers");
+    await page.goto("/procurement/master/suppliers");
     await page.locator('button:has-text("Import")').click();
 
     const mockSupplierCsv =
@@ -136,7 +136,7 @@ test.describe("Import / Export Framework & Read Model Data Integrity", () => {
   test("should display validation errors for CSV missing required columns", async ({
     page,
   }) => {
-    await page.goto("/components");
+    await page.goto("/inventory/components");
     await page.locator('button:has-text("Import")').click();
 
     const invalidCsvContent = "Description,Unit\nTest Description,pcs";
@@ -160,7 +160,7 @@ test.describe("Import / Export Framework & Read Model Data Integrity", () => {
   test("should open Purchase Order specific import wizard and avoid defaulting to Component", async ({
     page,
   }) => {
-    await page.goto("/purchase-orders");
+    await page.goto("/procurement/purchase-orders");
     const importBtn = page.locator('button:has-text("Import")');
     await expect(importBtn).toBeVisible();
     await importBtn.click();

@@ -294,11 +294,11 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
       const navConfig = read("lib/navigation/navigation-config.tsx");
       expect(navConfig).toContain('id: "inv-inventory-builder"');
       expect(navConfig).toContain('title: "Inventory Builder"');
-      expect(navConfig).toContain('href: "/spatial/builder"');
+      expect(navConfig).toContain('href: "/inventory/locations/spatial-builder"');
     });
 
     it("declares the builder entry route at apps/web/app/spatial/builder/page.tsx", () => {
-      const builderPage = read("app/spatial/builder/page.tsx");
+      const builderPage = read("app/inventory/locations/spatial-builder/page.tsx");
       expect(builderPage).toContain("InventoryBuilderWorkspace");
       expect(builderPage).toContain("useSearchParams");
     });

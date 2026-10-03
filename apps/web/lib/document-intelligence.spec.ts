@@ -593,7 +593,7 @@ describe("attribute candidates", () => {
   });
 
   it("points at the existing review queue", () => {
-    expect(COMPONENT_REVIEW_QUEUE_ROUTE).toBe("/components/review-queue");
+    expect(COMPONENT_REVIEW_QUEUE_ROUTE).toBe("/inventory/components/review-queue");
   });
 });
 
@@ -871,7 +871,7 @@ describe("documentation intelligence UI wiring", () => {
     ).toBe(true);
 
     // No component, attribute or manufacturer mutation path is reachable.
-    expect(api).not.toContain("/attributes");
+    expect(api).not.toContain("/inventory/master/attributes");
     expect(api).not.toContain("/review-queue");
     expect(api).not.toContain("apiClient.put");
     expect(api).not.toContain("apiClient.patch");

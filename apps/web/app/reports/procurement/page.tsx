@@ -101,7 +101,7 @@ export default function ProcurementReportsPage() {
                 <TooltipTrigger
                   render={
                     <Link
-                      href={`/purchase-orders/${row.original.id}`}
+                      href={`/procurement/purchase-orders/${row.original.id}`}
                       title={row.original.poNumber}
                       className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted font-bold inline-flex items-center gap-1 uppercase truncate max-w-full align-middle"
                     />
@@ -154,7 +154,7 @@ export default function ProcurementReportsPage() {
         },
         cell: ({ row }) => (
           <div className="flex items-center justify-end">
-            <Link href={`/purchase-orders/${row.original.id}`}>
+            <Link href={`/procurement/purchase-orders/${row.original.id}`}>
               <Button
                 variant="ghost"
                 size="icon-xs"

@@ -82,7 +82,7 @@ const ALL_QUICK_ACTIONS = [
   {
     title: "Create Component",
     icon: Plus,
-    href: "/components/new",
+    href: "/inventory/components/new",
     category: "Inventory",
     permission: "Inventory.Create",
     keywords: [
@@ -97,7 +97,7 @@ const ALL_QUICK_ACTIONS = [
   {
     title: "Receive Stock",
     icon: ArrowDownLeft,
-    href: "/goods-receipts/new",
+    href: "/procurement/goods-receipts/new",
     category: "Inventory",
     permission: "Inventory.Create",
     keywords: [
@@ -112,7 +112,7 @@ const ALL_QUICK_ACTIONS = [
   {
     title: "Create Supplier",
     icon: Plus,
-    href: "/suppliers",
+    href: "/procurement/master/suppliers",
     category: "Procurement",
     permission: "PurchaseOrders.Create",
     keywords: [
@@ -126,7 +126,7 @@ const ALL_QUICK_ACTIONS = [
   {
     title: "Create Purchase Order",
     icon: Plus,
-    href: "/purchase-orders/new",
+    href: "/procurement/purchase-orders/new",
     category: "Procurement",
     permission: "PurchaseOrders.Create",
     keywords: ["po", "new order", "buy", "procurement", "purchase order"],
@@ -134,7 +134,7 @@ const ALL_QUICK_ACTIONS = [
   {
     title: "Create Bill of Materials (BOM)",
     icon: Plus,
-    href: "/boms/new",
+    href: "/manufacturing/boms/new",
     category: "Manufacturing",
     permission: "WorkOrders.Manage",
     keywords: [
@@ -149,7 +149,7 @@ const ALL_QUICK_ACTIONS = [
   {
     title: "Create Work Order",
     icon: Plus,
-    href: "/work-orders",
+    href: "/manufacturing/work-orders",
     category: "Manufacturing",
     permission: "WorkOrders.Manage",
     keywords: [
@@ -180,7 +180,7 @@ const ALL_QUICK_ACTIONS = [
   {
     title: "Open User Directory",
     icon: UserCheck,
-    href: "/users",
+    href: "/settings/users",
     category: "Administration",
     permission: "Administration.Users",
     keywords: [
@@ -211,7 +211,7 @@ const ALL_QUICK_ACTIONS = [
   {
     title: "Data Operations & Import History",
     icon: RotateCcw,
-    href: "/data-operations",
+    href: "/settings/data-operations",
     category: "Administration",
     permission: "Administration.Security",
     keywords: [

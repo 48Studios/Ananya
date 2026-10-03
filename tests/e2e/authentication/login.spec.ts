@@ -32,10 +32,10 @@ test.describe("Authentication & Security Bounds", () => {
     await expect(page.locator("header")).not.toBeVisible();
   });
 
-  test("should redirect unauthenticated user from /components to /login", async ({
+  test("should redirect unauthenticated user from /inventory/components to /login", async ({
     page,
   }) => {
-    await page.goto("/components");
+    await page.goto("/inventory/components");
     await expect(page).toHaveURL(/\/login/);
   });
 

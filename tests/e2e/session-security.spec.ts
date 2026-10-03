@@ -8,7 +8,7 @@ test.describe("Authentication & Session Security Suite", () => {
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/login/);
 
-    await page.goto("/maintenance");
+    await page.goto("/manufacturing/maintenance");
     await expect(page).toHaveURL(/\/login/);
   });
 

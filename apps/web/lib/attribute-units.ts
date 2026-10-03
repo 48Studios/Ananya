@@ -3,7 +3,7 @@ import type { UnitDto } from "./api/units-api";
 /**
  * The units the attribute editor offers for a QUANTITY attribute.
  *
- * Sourced from the authoritative unit catalog (`GET /units`) rather than a
+ * Sourced from the authoritative unit catalog (`GET /inventory/master/units`) rather than a
  * hard-coded per-dimension list, because the catalog is what the backend
  * converts and validates against. A unit the editor offers but the catalog does
  * not know is a unit the reviewer can pick and the backend then cannot convert,

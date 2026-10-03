@@ -19,7 +19,7 @@ describe("post-login destination", () => {
     expect(postLoginDestination("/scan?code=ANANYA%3AV1%3ACOMPONENT%3Aabc")).toBe(
       "/scan?code=ANANYA%3AV1%3ACOMPONENT%3Aabc",
     );
-    expect(postLoginDestination("/components/6f1c")).toBe("/components/6f1c");
+    expect(postLoginDestination("/inventory/components/6f1c")).toBe("/inventory/components/6f1c");
   });
 
   it("falls back to the dashboard when there is nothing to return to", () => {

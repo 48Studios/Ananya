@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useNavigation } from "../navigation-context";
+import { buildBreadcrumbs } from "../breadcrumbs";
 import { ScanDialog } from "@/components/barcodes/scan-dialog";
 import { NotificationBell } from "@/components/ui/notification-bell";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -44,63 +45,7 @@ export function TopHeader() {
     setMounted(true);
   }, []);
 
-  // Build semantic business breadcrumbs hierarchy
-  const getBreadcrumbs = () => {
-    const segments = activePath.split("/").filter(Boolean);
-    if (segments.length === 0) {
-      return [{ title: "Dashboard", href: "/" }];
-    }
-
-    const items = [
-      { title: currentModule.name, href: currentModule.defaultRoute },
-    ];
-
-    // Check if activePath matches a item or child item in currentModule.sidebar
-    for (const section of currentModule.sidebar) {
-      if (!section.items) continue;
-      for (const item of section.items) {
-        if (item.children) {
-          const matchingChild = item.children.find(
-            (c) => activePath === c.href || activePath.startsWith(c.href + "/"),
-          );
-          if (matchingChild) {
-            items.push({ title: item.title, href: item.href });
-            items.push({
-              title: matchingChild.title,
-              href: matchingChild.href,
-            });
-            return items;
-          }
-        }
-        if (
-          activePath === item.href ||
-          (item.href !== "/" && activePath.startsWith(item.href + "/"))
-        ) {
-          items.push({ title: item.title, href: item.href });
-          return items;
-        }
-      }
-    }
-
-    // Fallback: URL segment formatting
-    let currentHref = "";
-    segments.forEach((seg, idx) => {
-      currentHref += `/${seg}`;
-      const formatted = seg
-        .replace(/-/g, " ")
-        .replace(/\b\w/g, (char) => char.toUpperCase());
-
-      if (idx === 0 && currentHref === currentModule.defaultRoute) {
-        return;
-      }
-
-      items.push({ title: formatted, href: currentHref });
-    });
-
-    return items;
-  };
-
-  const breadcrumbs = getBreadcrumbs();
+  const breadcrumbs = buildBreadcrumbs(activePath, currentModule);
   const currentPageTitle =
     breadcrumbs[breadcrumbs.length - 1]?.title || "Overview";
 
@@ -254,7 +199,7 @@ export function TopHeader() {
                 <span>Notification Center</span>
               </Link>
               <Link
-                href="/audit"
+                href="/settings/audit"
                 onClick={() => setIsUserMenuOpen(false)}
                 className="flex items-center gap-2.5 px-4 py-2 text-popover-foreground hover:bg-input text-left transition-colors"
               >

@@ -57,7 +57,7 @@ export default function ProcurementPage() {
               <TooltipTrigger
                 render={
                   <Link
-                    href={`/purchase-orders/${row.original.id}`}
+                    href={`/procurement/purchase-orders/${row.original.id}`}
                     className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase font-bold inline-block truncate max-w-full align-middle"
                   />
                 }

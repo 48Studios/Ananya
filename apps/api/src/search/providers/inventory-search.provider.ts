@@ -39,7 +39,7 @@ export class InventorySearchProvider implements ISearchProvider {
         title: c.name,
         subtitle: `SKU: ${c.sku} | Unit: ${c.unit}`,
         status: c.isActive ? 'ACTIVE' : 'INACTIVE',
-        href: `/components/${c.id}`,
+        href: `/inventory/components/${c.id}`,
         iconName: 'Boxes',
       });
     }
@@ -59,7 +59,7 @@ export class InventorySearchProvider implements ISearchProvider {
         title: l.name,
         subtitle: `Code: ${l.code} | Kind: ${l.kind}`,
         status: l.isActive ? 'ACTIVE' : 'INACTIVE',
-        href: `/locations/${l.id}`,
+        href: `/inventory/locations/${l.id}`,
         iconName: 'MapPin',
       });
     }
@@ -81,7 +81,7 @@ export class InventorySearchProvider implements ISearchProvider {
         title: m.name,
         subtitle: `Code: ${m.code}`,
         status: m.isActive ? 'ACTIVE' : 'INACTIVE',
-        href: `/manufacturers/${m.id}`,
+        href: `/inventory/master/manufacturers/${m.id}`,
         iconName: 'Building2',
       });
     }
@@ -100,7 +100,7 @@ export class InventorySearchProvider implements ISearchProvider {
         category: 'Inventory',
         title: cat.name,
         subtitle: cat.description || 'Component Category',
-        href: `/categories/${cat.id}`,
+        href: `/inventory/master/categories/${cat.id}`,
         iconName: 'Tag',
       });
     }
@@ -125,7 +125,7 @@ export class InventorySearchProvider implements ISearchProvider {
         title: a.adjustmentNumber,
         subtitle: `Reason: ${a.reason}`,
         status: a.status,
-        href: `/stock-adjustments/${a.id}`,
+        href: `/inventory/stock-counts/adjustments/${a.id}`,
         iconName: 'ClipboardList',
       });
     }
@@ -150,7 +150,7 @@ export class InventorySearchProvider implements ISearchProvider {
         title: r.reservationNumber,
         subtitle: `Type: ${r.reservationType} | By: ${r.reservedBy}`,
         status: r.status,
-        href: `/reservations/${r.id}`,
+        href: `/inventory/batches/reservations/${r.id}`,
         iconName: 'PackageCheck',
       });
     }
@@ -170,7 +170,7 @@ export class InventorySearchProvider implements ISearchProvider {
         title: t.transferNumber,
         subtitle: `Transfer #: ${t.transferNumber} | Status: ${t.status}`,
         status: t.status,
-        href: `/warehouse-transfers/${t.id}`,
+        href: `/inventory/warehouse-transfers/${t.id}`,
         iconName: 'ArrowRightLeft',
       });
     }

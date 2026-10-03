@@ -228,7 +228,7 @@ test.describe("Spatial Inventory 3D — Custom GLB/GLTF Runtime Verification", (
       }
     });
 
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
 
     // Verify 3D viewport canvas rendered
     const canvas = page.locator("div.relative canvas").first();
@@ -260,7 +260,7 @@ test.describe("Spatial Inventory 3D — Custom GLB/GLTF Runtime Verification", (
   test("2. Anchor positions align accurately within custom model geometry", async ({
     page,
   }) => {
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
 
     // Verify custom model loaded
     await expect(page.getByText("Custom 3D")).toBeVisible({ timeout: 10000 });
@@ -289,7 +289,7 @@ test.describe("Spatial Inventory 3D — Custom GLB/GLTF Runtime Verification", (
       }
     });
 
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
     await expect(page.getByText("Custom 3D")).toBeVisible({ timeout: 10000 });
 
     // 1. Switch to 2D Spatial view
@@ -327,7 +327,7 @@ test.describe("Spatial Inventory 3D — Custom GLB/GLTF Runtime Verification", (
       [CABINET_MODEL_ID],
     );
 
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
 
     // Verify HUD badge displays Procedural Fallback
     const fallbackBadge = page.getByText("Procedural Fallback");
@@ -351,7 +351,7 @@ test.describe("Spatial Inventory 3D — Custom GLB/GLTF Runtime Verification", (
       [CABINET_MODEL_ID],
     );
 
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
     await expect(page.getByText("Custom 3D")).toBeVisible({ timeout: 10000 });
 
     // Open unmapped drawer
@@ -369,7 +369,7 @@ test.describe("Spatial Inventory 3D — Custom GLB/GLTF Runtime Verification", (
     const enterBtn = page.getByRole("button", { name: /Enter Location|Enter DEMO-SPATIAL-DRAWER-A06/i }).first();
     if (await enterBtn.isVisible()) {
       await enterBtn.click();
-      await expect(page).toHaveURL(/locations\/cc6e8839-2d94-48c2-9710-04be238a3c32/);
+      await expect(page).toHaveURL(/inventory/locations\/cc6e8839-2d94-48c2-9710-04be238a3c32/);
 
       // Verify breadcrumbs contain ancestor cabinet
       await expect(page.getByText("DEMO-SPATIAL-CABINET-A").first()).toBeVisible();

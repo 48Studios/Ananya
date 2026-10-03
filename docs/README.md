@@ -16,6 +16,7 @@ High-level system design, DDD boundaries, data lifecycle, and navigation archite
 - [Domain-Driven Design Standard](architecture/DDD.md) — Layer responsibilities, aggregate invariants, and ubiquitous language
 - [Production Data Lifecycle](architecture/DATA_LIFECYCLE.md) — Operational data management, zero CLI scripts, data packs, and import framework
 - [Information Architecture](architecture/INFORMATION_ARCHITECTURE.md) — 7-module navigation architecture, rails, and routing layout
+- [Route & Navigation Architecture Audit](architecture/ROUTE_ARCHITECTURE_AUDIT.md) — Full route inventory, domain-prefixed hierarchy, redirect policy, and post-implementation record
 - [Component Consolidation](architecture/COMPONENT_CONSOLIDATION.md) — Duplicate component retirement & consolidation lifecycle
 - [AI Agent Guide](architecture/AI_AGENT_GUIDE.md) — Collaborative architecture rules for autonomous AI coding agents
 - [Architectural Review Checklist](architecture/REVIEW_CHECKLIST.md) — In-depth architectural review checklist

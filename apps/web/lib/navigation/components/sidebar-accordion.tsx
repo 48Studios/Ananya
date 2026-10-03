@@ -25,15 +25,14 @@ export function SidebarAccordion({
   level = 1,
   onItemClick,
 }: SidebarAccordionProps) {
-  const { expandedAccordions, toggleAccordion, activePath } = useNavigation();
+  const { expandedAccordions, toggleAccordion, activeHref } = useNavigation();
   const { hasPermission } = useAuth();
 
   const isOpen = !!expandedAccordions[item.id];
 
-  const isChildActive = item.children?.some(
-    (child) =>
-      activePath === child.href || activePath.startsWith(child.href + "/"),
-  );
+  const isChildActive =
+    item.href === activeHref ||
+    (item.children ?? []).some((child) => child.href === activeHref);
 
   const [isHovered, setIsHovered] = useState(false);
   const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null);

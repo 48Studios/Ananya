@@ -90,13 +90,13 @@ export function SpatialMappingWorkspace({
           on the left to inspect, preview, and configure its physical spatial mapping.
         </p>
         <div className="flex items-center gap-3">
-          <Link href="/spatial-models">
+          <Link href="/inventory/locations/spatial-models">
             <Button variant="outline" size="sm" className="gap-1.5 text-xs">
               <Box className="size-3.5" />
               <span>Open Spatial Models</span>
             </Button>
           </Link>
-          <Link href="/locations">
+          <Link href="/inventory/locations">
             <Button variant="ghost" size="sm" className="gap-1.5 text-xs">
               <MapPin className="size-3.5" />
               <span>Locations Directory</span>
@@ -240,7 +240,7 @@ export function SpatialMappingWorkspace({
             </Link>
           )}
 
-          <Link href={`/locations/${location.id}`}>
+          <Link href={`/inventory/locations/${location.id}`}>
             <Button size="sm" variant="outline" className="gap-1.5 text-xs">
               <span>Open Location</span>
               <ExternalLink className="size-3" />

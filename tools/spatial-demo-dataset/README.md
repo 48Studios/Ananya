@@ -43,11 +43,11 @@ pnpm seed:spatial:reset
 
 ### 1. Spatial Models & Procedural Anchors
 
-| Model Code | Name | Dimensions (W x H x D) | Anchors |
-| :--- | :--- | :--- | :--- |
-| `DEMO-SPATIAL-CABINET-6` | Demo 6 Drawer Cabinet | 600 x 900 x 400 mm | `A01`, `A02`, `A03`, `A04`, `A05`, `A06` (2 rows x 3 cols) |
-| `DEMO-SPATIAL-DRAWER` | Demo Drawer | 180 x 70 x 350 mm | `BIN01`, `BIN02` (2 side-by-side compartments) |
-| `DEMO-SPATIAL-SHELF` | Demo Shelf | 1000 x 1500 x 350 mm | `S01`, `S02`, `S03` (3 vertical tiers) |
+| Model Code               | Name                  | Dimensions (W x H x D) | Anchors                                                    |
+| :----------------------- | :-------------------- | :--------------------- | :--------------------------------------------------------- |
+| `DEMO-SPATIAL-CABINET-6` | Demo 6 Drawer Cabinet | 600 x 900 x 400 mm     | `A01`, `A02`, `A03`, `A04`, `A05`, `A06` (2 rows x 3 cols) |
+| `DEMO-SPATIAL-DRAWER`    | Demo Drawer           | 180 x 70 x 350 mm      | `BIN01`, `BIN02` (2 side-by-side compartments)             |
+| `DEMO-SPATIAL-SHELF`     | Demo Shelf            | 1000 x 1500 x 350 mm   | `S01`, `S02`, `S03` (3 vertical tiers)                     |
 
 ### 2. Location Hierarchy & Spatial Mapping States
 
@@ -81,22 +81,22 @@ DEMO-SPATIAL-WAREHOUSE (warehouse, root facility) [UNMAPPED]
 
 ### 3. Demo Components & Inventory Ledger
 
-| Component SKU | Description | Stock Location | Quantity | Test Purpose |
-| :--- | :--- | :--- | :--- | :--- |
-| `DEMO-R-10K-0805` | 10k Ohm 0805 SMD Resistor | `DEMO-SPATIAL-BIN-A01-01` | 5,000 pcs | Primary mapped bin |
-| `DEMO-R-10K-0805` | 10k Ohm 0805 SMD Resistor | `DEMO-SPATIAL-DRAWER-B01` | 2,000 pcs | **Multi-location chooser test** |
-| `DEMO-C-100N-0805` | 100nF 50V 0805 MLCC Capacitor | `DEMO-SPATIAL-BIN-A01-02` | 3,000 pcs | Single location mapped bin |
-| `DEMO-R-100K-0603` | 100k Ohm 0603 SMD Resistor | `DEMO-SPATIAL-BIN-A02-01` | 2,500 pcs | Mapped bin in Drawer A02 |
-| `DEMO-LED-GREEN-0805` | Green 0805 Indicator LED | `DEMO-SPATIAL-BIN-A02-02` | 1,000 pcs | Mapped bin in Drawer A02 |
-| `DEMO-IC-ATTINY` | ATtiny85-20SU AVR MCU | `DEMO-SPATIAL-BIN-A03-01` | 50 pcs | **Deep unmapped bin -> nearest spatial ancestor test** |
-| `DEMO-CONN-JST` | JST-XH 4-Pin 2.50mm Header | `DEMO-SPATIAL-SHELF-C01` | 500 pcs | Shelf tier storage |
+| Component SKU         | Description                   | Stock Location            | Quantity  | Test Purpose                                           |
+| :-------------------- | :---------------------------- | :------------------------ | :-------- | :----------------------------------------------------- |
+| `DEMO-R-10K-0805`     | 10k Ohm 0805 SMD Resistor     | `DEMO-SPATIAL-BIN-A01-01` | 5,000 pcs | Primary mapped bin                                     |
+| `DEMO-R-10K-0805`     | 10k Ohm 0805 SMD Resistor     | `DEMO-SPATIAL-DRAWER-B01` | 2,000 pcs | **Multi-location chooser test**                        |
+| `DEMO-C-100N-0805`    | 100nF 50V 0805 MLCC Capacitor | `DEMO-SPATIAL-BIN-A01-02` | 3,000 pcs | Single location mapped bin                             |
+| `DEMO-R-100K-0603`    | 100k Ohm 0603 SMD Resistor    | `DEMO-SPATIAL-BIN-A02-01` | 2,500 pcs | Mapped bin in Drawer A02                               |
+| `DEMO-LED-GREEN-0805` | Green 0805 Indicator LED      | `DEMO-SPATIAL-BIN-A02-02` | 1,000 pcs | Mapped bin in Drawer A02                               |
+| `DEMO-IC-ATTINY`      | ATtiny85-20SU AVR MCU         | `DEMO-SPATIAL-BIN-A03-01` | 50 pcs    | **Deep unmapped bin -> nearest spatial ancestor test** |
+| `DEMO-CONN-JST`       | JST-XH 4-Pin 2.50mm Header    | `DEMO-SPATIAL-SHELF-C01`  | 500 pcs   | Shelf tier storage                                     |
 
 ---
 
 ## Verification & Manual Testing Walkthrough
 
-1. **Spatial Tree & Coverage (`/spatial`)**:
-   - Open `/spatial` in the browser.
+1. **Spatial Tree & Coverage (`/inventory/spatial`)**:
+   - Open `/inventory/spatial` in the browser.
    - Observe the 4 root/facility locations (`DEMO-SPATIAL-WAREHOUSE`, Cabinet A, Cabinet B, Shelf C).
    - Check the mapping status badges:
      - `DEMO-SPATIAL-WAREHOUSE`: **UNMAPPED**
@@ -106,7 +106,7 @@ DEMO-SPATIAL-WAREHOUSE (warehouse, root facility) [UNMAPPED]
      - `DEMO-SPATIAL-DRAWER-A01`: **MAPPED** (both bins mapped)
      - `DEMO-SPATIAL-DRAWER-A03`: **PARTIAL** (bins unmapped)
 
-2. **Spatial Models & Anchors (`/spatial-models`)**:
+2. **Spatial Models & Anchors (`/inventory/spatial-models`)**:
    - Verify `Demo 6 Drawer Cabinet`, `Demo Drawer`, and `Demo Shelf`.
    - Inspect anchors and procedural millimeter dimensions.
 
@@ -115,7 +115,7 @@ DEMO-SPATIAL-WAREHOUSE (warehouse, root facility) [UNMAPPED]
    - Select `DEMO-SPATIAL-DRAWER-A01` to see the 2 side-by-side bins with 5,000 and 3,000 pcs.
 
 4. **Component → Locate**:
-   - Navigate to `/components` and search `DEMO-`.
+   - Navigate to `/inventory/components` and search `DEMO-`.
    - On `DEMO-R-10K-0805`: Click **Locate**. The Locate modal appears presenting two stock options (`BIN-A01-01` and `DRAWER-B01`). Selecting either navigates directly to the spatial view with the target highlighted.
    - On `DEMO-IC-ATTINY`: Click **Locate**. The component is in unmapped `BIN-A03-01`. The resolver correctly traverses up to `DEMO-SPATIAL-CABINET-A` and focuses `DEMO-SPATIAL-DRAWER-A03`.
 

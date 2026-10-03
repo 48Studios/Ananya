@@ -18,7 +18,7 @@ const webRoot = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "..")
 const read = (relativePath: string) =>
   fs.readFileSync(path.join(webRoot, relativePath), "utf8");
 
-const pagePath = "app/components/[id]/page.tsx";
+const pagePath = "app/inventory/components/[id]/page.tsx";
 const sectionCardPath = "components/ui/section-card.tsx";
 const documentationPanelPath = "components/documentation/documentation-panel.tsx";
 

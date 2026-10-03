@@ -6,10 +6,10 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
     await page.goto("/");
   });
 
-  test("1. Warehouse Bins & Storage Locations (/locations)", async ({
+  test("1. Warehouse Bins & Storage Locations (/inventory/locations)", async ({
     page,
   }) => {
-    await page.goto("/warehouse-bins");
+    await page.goto("/inventory/locations");
     await expect(page).toHaveURL(/\/locations/);
     await expect(page.locator("h1")).toContainText(
       "Storage Locations & Bins",
@@ -27,10 +27,10 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
     await expect(page.getByText("Create New Location")).toBeVisible();
   });
 
-  test("2. Warehouse Policies & Picking Rules (/warehouse-policies)", async ({
+  test("2. Warehouse Policies & Picking Rules (/inventory/locations/policies)", async ({
     page,
   }) => {
-    await page.goto("/warehouse-policies");
+    await page.goto("/inventory/locations/policies");
     await expect(page.locator("h1")).toContainText(
       "Warehouse Policies & Picking Rules",
     );
@@ -43,8 +43,8 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 
-  test("3. Physical Stock Counts (/stock-counts)", async ({ page }) => {
-    await page.goto("/stock-counts");
+  test("3. Physical Stock Counts (/inventory/stock-counts)", async ({ page }) => {
+    await page.goto("/inventory/stock-counts");
     await expect(page.locator("h1")).toContainText(
       "Stock Audits & Cycle Counting",
     );
@@ -57,8 +57,8 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 
-  test("4. Batch & Lot Management (/batches)", async ({ page }) => {
-    await page.goto("/batches");
+  test("4. Batch & Lot Management (/inventory/batches)", async ({ page }) => {
+    await page.goto("/inventory/batches");
     await expect(page.locator("h1")).toContainText("Batch & Lot Management");
 
     await expect(page.getByText("Total Registered Batches")).toBeVisible();
@@ -69,8 +69,8 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 
-  test("5. Serial Numbers (/serials)", async ({ page }) => {
-    await page.goto("/serials");
+  test("5. Serial Numbers (/inventory/batches/serials)", async ({ page }) => {
+    await page.goto("/inventory/batches/serials");
     await expect(page.locator("h1")).toContainText(
       "Serial Number Master Index",
     );
@@ -85,8 +85,8 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 
-  test("6. Demand Projection (/projections)", async ({ page }) => {
-    await page.goto("/projections");
+  test("6. Demand Projection (/inventory/batches/projections)", async ({ page }) => {
+    await page.goto("/inventory/batches/projections");
     await expect(page.locator("h1")).toContainText(
       "Financial Projections & Cash Flow Forecast",
     );
@@ -95,10 +95,10 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
     ).toBeVisible();
   });
 
-  test("7. Purchase Invoices & AP Bills (/purchase-invoices)", async ({
+  test("7. Purchase Invoices & AP Bills (/procurement/purchase-invoices)", async ({
     page,
   }) => {
-    await page.goto("/purchase-invoices");
+    await page.goto("/procurement/purchase-invoices");
     await expect(page.locator("h1")).toContainText(
       "Purchase Invoices & AP Bills",
     );
@@ -113,10 +113,10 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 
-  test("8. Material Requirements Planning Engine (/mrp & subpages)", async ({
+  test("8. Material Requirements Planning Engine (/manufacturing/mrp & subpages)", async ({
     page,
   }) => {
-    await page.goto("/mrp");
+    await page.goto("/manufacturing/mrp");
     await expect(page.locator("h1")).toContainText(
       "Material Requirements Planning (MRP) Hub",
     );
@@ -126,27 +126,27 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
     });
     await expect(runBtn).toBeVisible();
 
-    await page.goto("/mrp/materials");
+    await page.goto("/manufacturing/mrp/materials");
     await expect(page.locator("h1")).toContainText(
       "MRP Material Shortage Matrix",
     );
 
-    await page.goto("/mrp/runs");
+    await page.goto("/manufacturing/mrp/runs");
     await expect(page.locator("h1")).toContainText(
       "MRP Execution History & Logs",
     );
 
-    await page.goto("/mrp/capacity");
+    await page.goto("/manufacturing/mrp/capacity");
     await expect(page.locator("h1")).toContainText(
       "MRP Work Center Capacity Loading",
     );
 
-    await page.goto("/mrp/production");
+    await page.goto("/manufacturing/mrp/production");
     await expect(page.locator("h1")).toContainText(
       "MRP Planned Production Orders",
     );
 
-    await page.goto("/mrp/purchases");
+    await page.goto("/manufacturing/mrp/purchases");
     await expect(page.locator("h1")).toContainText(
       "MRP Planned Purchase Orders",
     );

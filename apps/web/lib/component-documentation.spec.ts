@@ -69,7 +69,7 @@ const versionDialogPath = path.join(
   "components/ui/version-history-dialog.tsx",
 );
 const documentsApiPath = path.join(webRoot, "lib/api/documents-api.ts");
-const componentPagePath = path.join(webRoot, "app/components/[id]/page.tsx");
+const componentPagePath = path.join(webRoot, "app/inventory/components/[id]/page.tsx");
 const legacyPanelPath = path.join(webRoot, "components/ui/attachment-panel.tsx");
 const apiTypesPath = path.join(
   repoRoot,

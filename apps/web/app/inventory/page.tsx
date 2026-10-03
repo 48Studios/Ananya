@@ -100,7 +100,7 @@ export default function InventoryPage() {
         },
         cell: ({ row }) => (
           <Link
-            href={`/components/${row.original.id}`}
+            href={`/inventory/components/${row.original.id}`}
             className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors block truncate"
             title={row.original.sku}
           >
@@ -241,7 +241,7 @@ export default function InventoryPage() {
         },
         cell: ({ row }) => (
           <div className="flex items-center justify-end pr-1">
-            <Link href={`/components/${row.original.id}`}>
+            <Link href={`/inventory/components/${row.original.id}`}>
               <Button
                 size="icon-xs"
                 variant="ghost"
@@ -290,7 +290,7 @@ export default function InventoryPage() {
               />
               Refresh
             </Button>
-            <Link href="/components">
+            <Link href="/inventory/components">
               <Button size="sm">
                 <Plus className="w-3.5 h-3.5 mr-1.5" />
                 Manage Components

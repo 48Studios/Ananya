@@ -66,7 +66,7 @@ const TEMPLATES = [
 
 /** Every surface that offers the template picker. */
 const TEMPLATE_SURFACES = [
-  "app/barcodes/page.tsx",
+  "app/inventory/barcodes/page.tsx",
   "components/barcodes/print-label-dialog.tsx",
   "components/barcodes/batch-print-dialog.tsx",
 ];

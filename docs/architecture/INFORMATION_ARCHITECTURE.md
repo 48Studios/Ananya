@@ -26,7 +26,7 @@ Ananya ERP is an enterprise operations system designed for high-density workflow
 +---------------------------------------------------------------------------------------+
 | Primary Module    | Default Route | Core Business Scope                              |
 +-------------------+---------------+--------------------------------------------------+
-| 🏠 Dashboard      | /             | Workspace overview, KPI stat grid, activity feed |
+| 🏠 Dashboard      | /dashboard    | Workspace overview, KPI stat grid, activity feed |
 | 📦 Inventory      | /inventory    | Components, stock, warehouses, transfers, counts |
 | 🛒 Procurement    | /procurement  | Purchase orders, receiving, invoices, suppliers  |
 | 🏭 Manufacturing  | /manufacturing| BOMs, production orders, work orders, MRP        |
@@ -42,52 +42,56 @@ Ananya ERP is an enterprise operations system designed for high-density workflow
 
 ### 3.1 🏠 Dashboard (`dashboard`)
 
-- **Route**: `/`
+- **Route**: `/dashboard` (the root `/` permanently redirects here, preserving the installed-PWA `start_url`)
 - **Scope**: Platform landing page, high-level operational metrics, activity feed, pinned shortcuts.
+- **Workspace Navigation Tree**:
+  - `Overview` (`/dashboard`)
+  - `Operational Activity` (`/dashboard/activity`)
+  - `Notification Center` (`/notifications`)
 
 ### 3.2 📦 Inventory Workspace (`inventory`)
 
 - **Default Route**: `/inventory`
 - **Permissions**: `Inventory.Read`
-- **Quick Actions**: `New Component` (`/components/new`), `Receive Stock` (`/goods-receipts/new`), `Issue Stock` (`/transactions/new`), `Transfer Stock` (`/warehouse-transfers/new`)
+- **Quick Actions**: `New Component` (`/inventory/components/new`), `Receive Stock` (`/procurement/goods-receipts/new`), `Issue Stock` (`/inventory/stock-adjustments`), `Transfer Stock` (`/inventory/warehouse-transfers/new`)
 - **Workspace Navigation Tree**:
   - `Overview` (`/inventory`)
-  - `Components Catalog` (`/components`)
-  - `Ledger & Stock Movements` (`/transactions`)
-  - `Warehouses & Storage` (`/warehouses` — Submenu: Facilities Directory, Storage Bins, Storage Policies, Locations Directory)
-  - `Internal Transfers` (`/warehouse-transfers`)
-  - `Stock Counts & Adjustments` (`/stock-counts` — Submenu: Physical Stock Counts, ABC Cycle Counts, Quantity Adjustments)
-  - `Traceability & Allocations` (`/batches` — Submenu: Batches & Lots, Serial Numbers, Stock Reservations, Demand Projections)
-  - `Barcode & QR Studio` (`/barcodes`)
-  - `Master Data` (`/categories` — Submenu: Categories, Manufacturers, Units of Measure)
+  - `Components Catalog` (`/inventory/components`)
+  - `Ledger & Stock Movements` (`/inventory/transactions`)
+  - `Warehouses & Storage` (`/inventory/locations` — Submenu: Storage Locations & Bins (`/inventory/locations`), Spatial Inventory (`/inventory/locations/spatial`), Inventory Builder (`/inventory/locations/spatial-builder`), Spatial Models & Anchors (`/inventory/locations/spatial-models`), Storage Policies (`/inventory/locations/policies`))
+  - `Internal Transfers` (`/inventory/warehouse-transfers`)
+  - `Stock Counts & Adjustments` (`/inventory/stock-counts` — Submenu: Physical Stock Counts (`/inventory/stock-counts`), ABC Cycle Counts (`/inventory/stock-counts/cycle-counts`), Quantity Adjustments (`/inventory/stock-counts/adjustments`))
+  - `Traceability & Allocations` (`/inventory/batches` — Submenu: Batches & Lots (`/inventory/batches`), Serial Numbers (`/inventory/batches/serials`), Stock Reservations (`/inventory/batches/reservations`), Demand Projections (`/inventory/batches/projections`))
+  - `Barcode & QR Studio` (`/inventory/barcodes`)
+  - `Master Data` (`/inventory/master/categories` — Submenu: Categories (`/inventory/master/categories`), Manufacturers (`/inventory/master/manufacturers`), Units of Measure (`/inventory/master/units`), Attribute Library (`/inventory/master/attributes`))
 
 ### 3.3 🛒 Procurement Workspace (`procurement`)
 
 - **Default Route**: `/procurement`
-- **Permissions**: `Procurement.Read`
-- **Quick Actions**: `Create Purchase Order` (`/purchase-orders/new`)
+- **Permissions**: `PurchaseOrders.Read`
+- **Quick Actions**: `Create Purchase Order` (`/procurement/purchase-orders/new`)
 - **Workspace Navigation Tree**:
   - `Overview` (`/procurement`)
-  - `Purchase Orders` (`/purchase-orders`)
-  - `Goods Receipts` (`/goods-receipts`)
-  - `Purchase Invoices` (`/purchase-invoices`)
-  - `Supplier Returns` (`/supplier-returns`)
-  - `Master Data` (`/suppliers` — Submenu: Suppliers Directory)
+  - `Purchase Orders` (`/procurement/purchase-orders`)
+  - `Goods Receipts` (`/procurement/goods-receipts`)
+  - `Purchase Invoices` (`/procurement/purchase-invoices`)
+  - `Supplier Returns` (`/procurement/supplier-returns`)
+  - `Master Data` (`/procurement/master/suppliers` — Submenu: Suppliers Directory)
 
 ### 3.4 🏭 Manufacturing Workspace (`manufacturing`)
 
 - **Default Route**: `/manufacturing`
-- **Permissions**: `Manufacturing.Read`
-- **Quick Actions**: `New BOM` (`/boms/new`)
+- **Permissions**: `BOM.Read`
+- **Quick Actions**: `New BOM` (`/manufacturing/boms/new`)
 - **Workspace Navigation Tree**:
   - `Overview` (`/manufacturing`)
-  - `Bills of Materials (BOM)` (`/boms`)
-  - `Production Orders` (`/production-orders`)
-  - `Work Orders` (`/work-orders`)
-  - `Material Consumption` (`/material-consumption`)
-  - `Finished Goods` (`/finished-goods`)
-  - `Equipment Maintenance` (`/maintenance`)
-  - `MRP & Material Planning` (`/mrp` — Submenu: Planning Overview, Planning Runs, Material Shortages, Purchase Recommendations, Production Recommendations, Capacity Planning)
+  - `Bills of Materials (BOM)` (`/manufacturing/boms`)
+  - `Production Orders` (`/manufacturing/production-orders`)
+  - `Work Orders` (`/manufacturing/work-orders`)
+  - `Material Consumption` (`/manufacturing/material-consumption`)
+  - `Finished Goods` (`/manufacturing/finished-goods`)
+  - `Equipment Maintenance` (`/manufacturing/maintenance`)
+  - `MRP & Material Planning` (`/manufacturing/mrp` — Submenu: Planning Overview, Planning Runs, Material Shortages, Purchase Recommendations, Production Recommendations, Capacity Planning)
 
 ### 3.5 📁 Projects & Services Workspace (`projects`)
 
@@ -95,16 +99,16 @@ Ananya ERP is an enterprise operations system designed for high-density workflow
 - **Permissions**: `Projects.Read`
 - **Workspace Navigation Tree**:
   - `Projects` (`/projects`)
-  - `Tasks` (`/tasks`)
-  - `Timesheets` (`/time`)
-  - `Service Requests` (`/service`)
-  - `Warranty Tracking` (`/warranty`)
-  - `RMA Returns` (`/rma`)
+  - `Tasks` (`/projects/tasks`)
+  - `Timesheets` (`/projects/time`)
+  - `Service Requests` (`/projects/service`)
+  - `Warranty Tracking` (`/projects/warranty`)
+  - `RMA Returns` (`/projects/rma`)
 
 ### 3.6 📊 Analytics Destination (`analytics`)
 
 - **Default Route**: `/reports`
-- **Permissions**: `Reporting.Read`
+- **Permissions**: `Reports.Read`
 - **Workspace Navigation Tree**:
   - `Reports Hub` (`/reports`)
   - `Inventory Reports` (`/reports/inventory`)
@@ -119,12 +123,13 @@ Ananya ERP is an enterprise operations system designed for high-density workflow
 - **Permissions**: `Administration.Security`
 - **Workspace Navigation Tree**:
   - `Organization Profile` (`/settings`)
-  - `Users Directory` (`/users`)
-  - `Roles & Permissions` (`/roles`)
-  - `Workflow Automation` (`/workflows`)
-  - `Activity Center` (`/activity`)
-  - `Audit Explorer` (`/audit`)
-  - `Security Audit Log` (`/settings/security`)
+  - `ML & Intelligence` (`/settings/intelligence`, requires `Administration.Roles`)
+  - `Users Directory` (`/settings/users`)
+  - `Roles & Permissions` (`/settings/roles`)
+  - `Workflow Automation` (`/settings/workflows`)
+  - `Data Operations & Imports` (`/settings/data-operations`)
+  - `Data Packs & Extensions` (`/settings/data-packs`)
+  - `Audit Explorer` (`/settings/audit`)
 
 ---
 
@@ -134,7 +139,7 @@ Personal user controls are decoupled from system administration and centralized 
 
 - **My Profile** (`/profile`): User account details, contact info, password change.
 - **Notification Center** (`/notifications`): System notifications and workflow alerts.
-- **Security Sessions** (`/settings/security`): Active user session tokens and devices.
+- **Audit Log** (`/settings/audit`): Security audit trail and session events.
 - **Appearance Mode**: Instant Light/Dark theme switcher toggle.
 - **Sign Out**: Secure session destruction and redirect to `/login`.
 
@@ -153,20 +158,50 @@ The top of the contextual sidebar features a dynamic `SidebarFavoritesRecent` wi
 
 Breadcrumbs dynamically compute semantic business hierarchy rather than URL segments:
 
-- **Example**: Visiting `/manufacturers` generates:  
+- **Example**: Visiting `/inventory/manufacturers` generates:  
   `Inventory` > `Master Data` > `Manufacturers`
-- **Example**: Visiting `/mrp/runs` generates:  
+- **Example**: Visiting `/manufacturing/mrp/runs` generates:  
   `Manufacturing` > `MRP & Material Planning` > `Planning Runs`
 
 ---
 
-## 7. Future Expansion Strategy
+## 7. Domain-Prefixed Routing & Compatibility
 
-Should future modules be introduced to Ananya ERP (e.g., Quality Management, Sales & Distribution, Field Service), they must be incorporated into the existing 7 primary module domains as sub-workspaces or accordion groups rather than expanding the left navigation rail beyond 7 items.
+Every authenticated resource page lives under a domain root that matches its module id and default route. This keeps URLs, the sidebar tree, breadcrumbs, and the API permission categories aligned.
+
+| Domain root      | Canonical resources (examples)                                                                                                                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/dashboard`     | overview, `/dashboard/activity`                                                                                                                                                                                           |
+| `/inventory`     | components, transactions, locations, spatial, transfers, stock counts, cycle counts, adjustments, batches, serials, reservations, projections, barcodes, categories, manufacturers, units, attributes, warehouse policies |
+| `/procurement`   | purchase orders, goods receipts, purchase invoices, supplier returns, suppliers                                                                                                                                           |
+| `/manufacturing` | BOMs, production orders, work orders, material consumption, finished goods, maintenance, MRP, traceability                                                                                                                |
+| `/projects`      | projects, tasks, timesheets, service requests, warranty, RMA                                                                                                                                                              |
+| `/reports`       | reports hub and the five domain report pages (Analytics)                                                                                                                                                                  |
+| `/settings`      | organization profile, ML & intelligence, users, roles, workflows, data operations, data packs, audit                                                                                                                      |
+| `/sales`         | sales dashboard, CRM, customers, leads, opportunities, quotations, orders, fulfillment, customer returns                                                                                                                  |
+| `/finance`       | finance summary, chart of accounts, journal entries, payables, receivables, payments, bank accounts, bank reconciliation                                                                                                  |
+
+Conventions:
+
+1. **Detail pages** use `/<domain>/<resource>/[id]` with opaque record ids (no slugs).
+2. **Creation pages** use a static `/new` segment, e.g. `/inventory/components/new`, `/procurement/purchase-orders/new`. Static `new` takes precedence over the sibling `[id]` route, and query prefill is preserved (`?sku=`, `?poId=`).
+3. **The stock ledger has no create route.** Movement records originate from domain operations (receipts, transfers, adjustments, work orders); `/inventory/transactions` is a read-only audit trail, and the legacy `/transactions/new` redirects to it.
+4. **Query-driven state** keeps its existing parameter names (`?location=`, `?view=`, `?from=`, `?expired=`, `?token=`); tabs and filters remain component state.
+5. **Compatibility redirects**: every previous path permanently (308) redirects to its canonical successor, preserving path parameters and query strings. The authoritative map lives in [`apps/web/lib/navigation/legacy-redirects.ts`](../../apps/web/lib/navigation/legacy-redirects.ts) and is asserted by `navigation-conventions.spec.ts`.
+6. **Nested groups nest their URLs.** An accordion group's base path is its default child, and the remaining children live one segment beneath it, exactly like `MRP & Material Planning` (`/manufacturing/mrp`, `/manufacturing/mrp/runs`): `Warehouses & Storage` → `/inventory/locations`, `/inventory/locations/spatial`, `/inventory/locations/spatial-builder`, `/inventory/locations/spatial-models`, `/inventory/locations/policies`; `Stock Counts & Adjustments` → `/inventory/stock-counts`, `/inventory/stock-counts/cycle-counts`, `/inventory/stock-counts/adjustments`; `Traceability & Allocations` → `/inventory/batches`, `/inventory/batches/serials`, `/inventory/batches/reservations`, `/inventory/batches/projections`. Compound child names use one hyphenated segment (`spatial-builder`), not extra path depth.
+7. **Master Data groups use `/module/master/<type>`.** `Master Data` is a shared namespace in every module that has one: `/inventory/master/categories`, `/inventory/master/manufacturers`, `/inventory/master/units`, `/inventory/master/attributes`, and `/procurement/master/suppliers`. `/inventory/master` and `/procurement/master` redirect to their default child.
+8. **`/activities` is intentionally retained** at its current path: the audit could not confirm it is the CRM activities page (its implementation is a fixture-backed system log), so it is not merged with `/dashboard/activity` or the reserved `/sales/activities`.
+9. **Sales and Finance are URL namespaces, not rail modules.** They stay out of the primary navigation until their functionality, permissions, and API-backed product intent justify a module.
 
 ---
 
-## 7. Layout Architecture & Single Shell Principle
+## 8. Future Expansion Strategy
+
+Should future modules be introduced to Ananya ERP (e.g., Quality Management, Sales & Distribution, Field Service), they must be incorporated into the existing 7 primary module domains as sub-workspaces or accordion groups rather than expanding the left navigation rail beyond 7 items. A domain may exist as a URL namespace (as `/sales` and `/finance` do) before it earns a rail module.
+
+---
+
+## 9. Layout Architecture & Single Shell Principle
 
 Ananya ERP strictly adheres to the **Single Shell Principle**:
 

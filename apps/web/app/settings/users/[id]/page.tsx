@@ -1,0 +1,277 @@
+"use client";
+
+import * as React from "react";
+import { useParams } from "next/navigation";
+import {
+  User,
+  Shield,
+  CheckCircle2,
+  Lock,
+  Loader2,
+  Calendar,
+  Activity,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DialogShell,
+  DialogShellBody,
+  DialogShellCancelButton,
+  DialogShellFooter,
+} from "@/components/ui/dialog-shell";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
+import { StatCard } from "@/components/ui/stat-card";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PermissionGuard } from "@/lib/auth/auth-context";
+import { usersApi } from "@/lib/api/users-api";
+import { auditApi, SecurityAuditLogDto } from "@/lib/api/audit-api";
+import { UserProfileDto } from "@/lib/api/auth-api";
+
+export default function UserDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
+
+  const [userInfo, setUserInfo] = React.useState<UserProfileDto | null>(null);
+  const [auditLogs, setAuditLogs] = React.useState<SecurityAuditLogDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // Reset Password Modal
+  const [isResetOpen, setIsResetOpen] = React.useState(false);
+  const [newPassword, setNewPassword] = React.useState("");
+  const [resetSubmitting, setResetSubmitting] = React.useState(false);
+  const [resetSuccess, setResetSuccess] = React.useState<string | null>(null);
+
+  const loadData = React.useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [uData, logs] = await Promise.all([
+        usersApi.getById(id),
+        auditApi.getLogs(undefined, id).catch(() => []),
+      ]);
+      setUserInfo(uData);
+      setAuditLogs(logs);
+    } catch (err: unknown) {
+      if (err instanceof Error) setError(err.message);
+      else setError("Failed to load user details.");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleAdminResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetSubmitting(true);
+    setResetSuccess(null);
+    try {
+      await usersApi.adminResetPassword(id, newPassword);
+      setResetSuccess("User password has been reset.");
+      setNewPassword("");
+      setTimeout(() => setIsResetOpen(false), 1500);
+    } catch {
+      // Ignore
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return <LoadingState message="Fetching user security profile..." />;
+  }
+
+  if (error || !userInfo) {
+    return (
+      <ErrorState
+        title="User Account Error"
+        message={error || "User profile not found."}
+        onRetry={loadData}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <PageHeader
+        backHref="/settings/users"
+        backLabel="Back to Users"
+        title={`${userInfo.firstName} ${userInfo.lastName}`}
+        description={`Work Email: ${userInfo.email} | Department: ${userInfo.department || "General"}`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <PermissionGuard permission="Administration.Users">
+              <Button size="sm" onClick={() => setIsResetOpen(true)}>
+                <Lock className="w-4 h-4 mr-1.5" />
+                Reset Password
+              </Button>
+            </PermissionGuard>
+          </div>
+        }
+      />
+
+      {/* Account Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+        <StatCard
+          className="p-3.5"
+          title="Account Status"
+          value={userInfo.status}
+          subtitle={userInfo.status === "ACTIVE" ? "Authenticated" : "Locked"}
+          icon={User}
+        />
+        <StatCard
+          className="p-3.5"
+          title="Assigned Role"
+          value={userInfo.roleName || "User"}
+          subtitle={`${userInfo.permissions?.length || 0} granted permissions`}
+          icon={Shield}
+        />
+        <StatCard
+          className="p-3.5"
+          title="Department"
+          value={userInfo.department || "Operations"}
+          subtitle="Organization Unit"
+          icon={User}
+        />
+        <StatCard
+          className="p-3.5"
+          title="Last Login"
+          value={
+            userInfo.lastLoginAt
+              ? new Date(userInfo.lastLoginAt).toLocaleDateString()
+              : "Never"
+          }
+          subtitle="Authentication event"
+          icon={Calendar}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Granted Permissions Matrix */}
+        <div className="lg:col-span-2">
+          <SectionCard
+            title={`Effective Permissions Matrix (${(userInfo.permissions || []).length})`}
+            description={
+              <>
+                Permissions inherited from role:{" "}
+                <span className="font-semibold text-foreground">
+                  {userInfo.roleName}
+                </span>
+              </>
+            }
+            icon={Shield}
+            className="h-full"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {!(userInfo.permissions && userInfo.permissions.length > 0) ? (
+                <p className="text-xs text-muted-foreground">
+                  No permissions are assigned to this account.
+                </p>
+              ) : (
+                (userInfo.permissions || []).map((perm: string) => (
+                  <div
+                    key={perm}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 p-2.5 text-xs"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
+                    <span className="font-mono font-semibold text-foreground">
+                      {perm}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </SectionCard>
+        </div>
+
+        {/* Security Audit History */}
+        <SectionCard
+          title="Security Log"
+          description="Audit trail for this account"
+          icon={Activity}
+          className="h-full"
+        >
+          <div className="space-y-3">
+            {auditLogs.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No security audit logs are recorded for this account yet.
+              </p>
+            ) : (
+              auditLogs.slice(0, 8).map((log) => (
+                <div
+                  key={log.id}
+                  className="space-y-1 rounded-lg border border-border bg-muted/20 p-3 text-xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono font-bold text-foreground truncate">
+                      {log.action}
+                    </span>
+                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                      {new Date(log.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    IP: {log.ipAddress || "127.0.0.1"}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </SectionCard>
+      </div>
+
+      {/* Admin Reset Password Modal */}
+      <DialogShell
+        open={isResetOpen}
+        onOpenChange={setIsResetOpen}
+        title={`Reset Password for ${userInfo.firstName}`}
+        description="Set a new temporary password for this user account."
+        size="sm"
+      >
+        <form
+          onSubmit={handleAdminResetPassword}
+          className="flex min-h-0 flex-1 flex-col text-xs"
+        >
+          <DialogShellBody className="space-y-3">
+            {resetSuccess && (
+              <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-600 dark:text-emerald-400">
+                {resetSuccess}
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="font-medium text-foreground">
+                New Temporary Password
+              </label>
+              <input
+                type="password"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full rounded-md border border-border bg-input/40 px-3 py-2 text-foreground outline-none"
+              />
+            </div>
+          </DialogShellBody>
+          <DialogShellFooter>
+            <DialogShellCancelButton
+              disabled={resetSubmitting}
+              onClick={() => setIsResetOpen(false)}
+            />
+            <Button size="sm" type="submit" disabled={resetSubmitting}>
+              {resetSubmitting && (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              )}
+              Set New Password
+            </Button>
+          </DialogShellFooter>
+        </form>
+      </DialogShell>
+    </div>
+  );
+}

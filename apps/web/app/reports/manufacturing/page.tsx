@@ -86,7 +86,7 @@ export default function ManufacturingReportsPage() {
         header: "WO #",
         cell: ({ row }) => (
           <Link
-            href={`/work-orders/${row.original.id}`}
+            href={`/manufacturing/work-orders/${row.original.id}`}
             className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted font-bold inline-flex items-center gap-1 uppercase"
           >
             {row.original.productionNumber}
@@ -137,7 +137,7 @@ export default function ManufacturingReportsPage() {
         },
         cell: ({ row }) => (
           <div className="flex items-center justify-end">
-            <Link href={`/work-orders/${row.original.id}`}>
+            <Link href={`/manufacturing/work-orders/${row.original.id}`}>
               <Button
                 variant="ghost"
                 size="icon-xs"

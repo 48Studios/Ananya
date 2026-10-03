@@ -37,7 +37,7 @@ export class AdministrationSearchProvider implements ISearchProvider {
         title: `${u.firstName} ${u.lastName}`,
         subtitle: `Email: ${u.email} | Dept: ${u.department || 'Operations'}`,
         status: u.status,
-        href: `/users/${u.id}`,
+        href: `/settings/users/${u.id}`,
         iconName: 'UserCheck',
       });
     }
@@ -57,7 +57,7 @@ export class AdministrationSearchProvider implements ISearchProvider {
         title: r.name,
         subtitle: r.description || 'Configured access policy',
         status: r.isSystem ? 'SYSTEM' : 'CUSTOM',
-        href: `/roles/${r.id}`,
+        href: `/settings/roles/${r.id}`,
         iconName: 'Shield',
       });
     }
@@ -67,7 +67,7 @@ export class AdministrationSearchProvider implements ISearchProvider {
       {
         id: 'nav-audit',
         title: 'Security Audit Log',
-        href: '/settings/security',
+        href: '/settings/audit',
         type: 'Settings',
         keywords: ['audit', 'security', 'logs'],
       },

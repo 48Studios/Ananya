@@ -63,7 +63,7 @@ const dialogPath = path.join(
   webRoot,
   "components/documentation/component-specification-intelligence-dialog.tsx",
 );
-const componentPagePath = path.join(webRoot, "app/components/[id]/page.tsx");
+const componentPagePath = path.join(webRoot, "app/inventory/components/[id]/page.tsx");
 
 function source(
   overrides: Partial<SpecificationSourceDto> = {},

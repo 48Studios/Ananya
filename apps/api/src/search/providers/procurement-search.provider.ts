@@ -36,7 +36,7 @@ export class ProcurementSearchProvider implements ISearchProvider {
         title: s.name,
         subtitle: `Code: ${s.code} | Terms: ${s.paymentTerms}`,
         status: s.isActive ? 'ACTIVE' : 'INACTIVE',
-        href: `/suppliers/${s.id}`,
+        href: `/procurement/master/suppliers/${s.id}`,
         iconName: 'Truck',
       });
     }
@@ -56,7 +56,7 @@ export class ProcurementSearchProvider implements ISearchProvider {
         title: `PO: ${po.poNumber}`,
         subtitle: `Currency: ${po.currency} | Total: ${po.grandTotal}`,
         status: po.status,
-        href: `/purchase-orders/${po.id}`,
+        href: `/procurement/purchase-orders/${po.id}`,
         iconName: 'ShoppingCart',
       });
     }
@@ -76,7 +76,7 @@ export class ProcurementSearchProvider implements ISearchProvider {
         title: `GR: ${gr.grNumber}`,
         subtitle: `Received Date: ${new Date(gr.receivedAt).toLocaleDateString()}`,
         status: gr.status,
-        href: `/goods-receipts/${gr.id}`,
+        href: `/procurement/goods-receipts/${gr.id}`,
         iconName: 'ArrowDownLeft',
       });
     }
@@ -96,7 +96,7 @@ export class ProcurementSearchProvider implements ISearchProvider {
         title: `Return: ${r.returnNumber}`,
         subtitle: `Amount: $${r.totalAmount}`,
         status: r.status,
-        href: `/supplier-returns/${r.id}`,
+        href: `/procurement/supplier-returns/${r.id}`,
         iconName: 'ArrowUpRight',
       });
     }

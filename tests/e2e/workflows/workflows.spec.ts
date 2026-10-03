@@ -5,8 +5,8 @@ test.describe("Primary Business Workflows E2E Audit", () => {
     await page.goto("/");
   });
 
-  test("1. Finished Goods (/finished-goods)", async ({ page }) => {
-    await page.goto("/finished-goods");
+  test("1. Finished Goods (/manufacturing/finished-goods)", async ({ page }) => {
+    await page.goto("/manufacturing/finished-goods");
     await expect(page.locator("h1")).toContainText(
       "Finished Goods Inventory Master",
     );
@@ -18,8 +18,8 @@ test.describe("Primary Business Workflows E2E Audit", () => {
     await expect(page.getByText("Receive Production Batch")).toBeVisible();
   });
 
-  test("2. Material Consumption (/material-consumption)", async ({ page }) => {
-    await page.goto("/material-consumption");
+  test("2. Material Consumption (/manufacturing/material-consumption)", async ({ page }) => {
+    await page.goto("/manufacturing/material-consumption");
     await expect(page.locator("h1")).toContainText(
       "Material Consumption & Issue Log",
     );
@@ -33,8 +33,8 @@ test.describe("Primary Business Workflows E2E Audit", () => {
     await expect(page.getByText("Issue Material to Work Order")).toBeVisible();
   });
 
-  test("3. Production Orders (/production-orders)", async ({ page }) => {
-    await page.goto("/production-orders");
+  test("3. Production Orders (/manufacturing/production-orders)", async ({ page }) => {
+    await page.goto("/manufacturing/production-orders");
     await expect(page.locator("h1")).toContainText(
       "Production Orders & Scheduling",
     );
@@ -48,8 +48,8 @@ test.describe("Primary Business Workflows E2E Audit", () => {
     await expect(page.getByText("Create Production Order")).toBeVisible();
   });
 
-  test("4. Operations Tasks (/tasks)", async ({ page }) => {
-    await page.goto("/tasks");
+  test("4. Operations Tasks (/projects/tasks)", async ({ page }) => {
+    await page.goto("/projects/tasks");
     await expect(page.locator("h1")).toContainText(
       "Operations Task Management",
     );
@@ -61,8 +61,8 @@ test.describe("Primary Business Workflows E2E Audit", () => {
     await expect(page.getByText("Create Operational Task")).toBeVisible();
   });
 
-  test("5. Timesheets & Labor Logs (/time)", async ({ page }) => {
-    await page.goto("/time");
+  test("5. Timesheets & Labor Logs (/projects/time)", async ({ page }) => {
+    await page.goto("/projects/time");
     await expect(page.locator("h1")).toContainText(
       "Employee Time Tracking & Labor Logs",
     );
@@ -74,8 +74,8 @@ test.describe("Primary Business Workflows E2E Audit", () => {
     await expect(page.getByText("Log Labor Hours")).toBeVisible();
   });
 
-  test("6. Field Service Tickets (/service)", async ({ page }) => {
-    await page.goto("/service");
+  test("6. Field Service Tickets (/projects/service)", async ({ page }) => {
+    await page.goto("/projects/service");
     await expect(page.locator("h1")).toContainText(
       "Field Service & Technical Support Tickets",
     );
@@ -87,8 +87,8 @@ test.describe("Primary Business Workflows E2E Audit", () => {
     await expect(page.getByText("New Field Service Ticket")).toBeVisible();
   });
 
-  test("7. Warranty Claims (/warranty)", async ({ page }) => {
-    await page.goto("/warranty");
+  test("7. Warranty Claims (/projects/warranty)", async ({ page }) => {
+    await page.goto("/projects/warranty");
     await expect(page.locator("h1")).toContainText(
       "Warranty & Serial Number Guarantees",
     );
@@ -100,8 +100,8 @@ test.describe("Primary Business Workflows E2E Audit", () => {
     await expect(page.getByText("File New Warranty Claim")).toBeVisible();
   });
 
-  test("8. RMA Returns (/rma)", async ({ page }) => {
-    await page.goto("/rma");
+  test("8. RMA Returns (/projects/rma)", async ({ page }) => {
+    await page.goto("/projects/rma");
     await expect(page.locator("h1")).toContainText(
       "Return Merchandise Authorization (RMA)",
     );
@@ -115,8 +115,8 @@ test.describe("Primary Business Workflows E2E Audit", () => {
     ).toBeVisible();
   });
 
-  test("9. Supplier Returns (/supplier-returns)", async ({ page }) => {
-    await page.goto("/supplier-returns");
+  test("9. Supplier Returns (/procurement/supplier-returns)", async ({ page }) => {
+    await page.goto("/procurement/supplier-returns");
     await expect(page.locator("h1")).toContainText(
       "Supplier Returns & Debit Memos",
     );

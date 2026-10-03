@@ -358,7 +358,7 @@ test.describe("Inventory Builder 3D — Interactive Drawer Opening", () => {
   test("1. clicking a closed drawer opens it smoothly and clicking it again returns it exactly home", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${parentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
     await waitForWorkspaceReady(page, parentCode);
     await open3DView(page);
 
@@ -425,7 +425,7 @@ test.describe("Inventory Builder 3D — Interactive Drawer Opening", () => {
   test("2. opening another drawer closes the previous one (single active drawer)", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${parentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
     await waitForWorkspaceReady(page, parentCode);
     await open3DView(page);
 
@@ -469,7 +469,7 @@ test.describe("Inventory Builder 3D — Interactive Drawer Opening", () => {
   test("3. empty-space clicks close the open drawer without disturbing selection or camera controls", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${parentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
     await waitForWorkspaceReady(page, parentCode);
     await open3DView(page);
 
@@ -533,7 +533,7 @@ test.describe("Inventory Builder 3D — Interactive Drawer Opening", () => {
       locations: await countRows(locationCountSql, []),
     };
 
-    await page.goto(`/spatial/builder?location=${parentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
     await waitForWorkspaceReady(page, parentCode);
     await open3DView(page);
 
@@ -588,7 +588,7 @@ test.describe("Inventory Builder 3D — Interactive Drawer Opening", () => {
   test("5. every parametric template opens compartments and template switches clear transient state", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${parentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
     await waitForWorkspaceReady(page, parentCode);
     await open3DView(page);
 

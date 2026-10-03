@@ -1,0 +1,111 @@
+"use client";
+
+import * as React from "react";
+import { useParams } from "next/navigation";
+import { CheckCircle2, FileText } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { mrpApi, type MrpRunRecordDto } from "@/lib/api/mrp-api";
+import {
+  planningMessagesApi,
+  type PlanningMessageDto,
+} from "@/lib/api/planning-messages-api";
+import { formatDate } from "@/lib/utils";
+
+export default function MrpRunDetailPage() {
+  const params = useParams();
+  const runId = params?.id as string;
+
+  const [run, setRun] = React.useState<MrpRunRecordDto | null>(null);
+  const [messages, setMessages] = React.useState<PlanningMessageDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!runId) return;
+    Promise.all([mrpApi.getRunById(runId), planningMessagesApi.getAll(runId)])
+      .then(([runData, messageData]) => {
+        setRun(runData);
+        setMessages(messageData);
+      })
+      .catch(() => {
+        setRun(null);
+        setMessages([]);
+      })
+      .finally(() => setLoading(false));
+  }, [runId]);
+
+  if (loading) {
+    return (
+      <div className="p-8 text-center space-y-2">
+        <p className="text-sm text-muted-foreground animate-pulse">
+          Loading MRP execution log details...
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+
+      <PageHeader
+        backHref="/manufacturing/mrp/runs"
+        backLabel="Back to MRP Runs"
+        title={`MRP Execution Run #${run?.runNumber || runId || "MRP-RUN"}`}
+        description="Detailed calculation log, gross demand processing matrix, and generated purchase/production recommendations."
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 bg-card border border-border rounded-xl space-y-1">
+          <p className="text-xs text-muted-foreground">Executed By</p>
+          <p className="text-sm font-semibold text-foreground">
+            {run?.startedBy || "System Auto-Scheduler"}
+          </p>
+        </div>
+        <div className="p-4 bg-card border border-border rounded-xl space-y-1">
+          <p className="text-xs text-muted-foreground">Execution Status</p>
+          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <CheckCircle2 className="w-3 h-3 mr-1" />{" "}
+            {run?.status || "COMPLETED"}
+          </span>
+        </div>
+        <div className="p-4 bg-card border border-border rounded-xl space-y-1">
+          <p className="text-xs text-muted-foreground">Timestamp</p>
+          <p className="text-sm font-mono text-foreground">
+            {run?.createdAt ? formatDate(run.createdAt) : "Recent"}
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+          <FileText className="w-4 h-4 text-primary" />
+          Execution Log & Summary Trace
+        </h3>
+        <EntityDataTable
+          data={messages}
+          columns={[
+            {
+              accessorKey: "severity",
+              header: "Severity",
+              cell: ({ row }) => row.original.severity,
+            },
+            {
+              accessorKey: "message",
+              header: "Message",
+              cell: ({ row }) => row.original.message,
+            },
+            {
+              accessorKey: "createdAt",
+              header: "Logged At",
+              cell: ({ row }) => formatDate(row.original.createdAt),
+            },
+          ]}
+          searchPlaceholder="Search planning messages..."
+          loading={false}
+          emptyTitle="No planning messages"
+          emptyMessage="This run has not produced any planning log messages."
+        />
+      </div>
+    </div>
+  );
+}

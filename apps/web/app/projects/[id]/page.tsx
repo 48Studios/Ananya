@@ -1525,7 +1525,7 @@ export default function ViewProjectPage() {
                       <td className="p-3 font-medium">
                         {comp ? (
                           <Link
-                            href={`/components/${comp.id}`}
+                            href={`/inventory/components/${comp.id}`}
                             className="text-foreground hover:underline"
                           >
                             {comp.name}{" "}

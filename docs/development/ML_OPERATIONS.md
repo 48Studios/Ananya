@@ -1,6 +1,6 @@
 # ML Operations — Training, Evaluation & Deployment Control Plane
 
-**ML & Intelligence** (`/intelligence`) is the operator surface for the
+**ML & Intelligence** (`/settings/intelligence`) is the operator surface for the
 machine-learning service. It reports what the existing pipeline produced and lets an
 authorised operator trigger training, inspect a candidate and promote it explicitly.
 It does not reimplement training, and it does not change any intelligence behaviour.
@@ -32,7 +32,7 @@ verified from the repository:
 2. Executing Python from a NestJS request handler would put training in the request
    path, which is exactly what the control plane must avoid.
 3. The ML process is the only thing that can hold the model in memory, so it is the
-   only place a deployment can be reflected in a *running* model.
+   only place a deployment can be reflected in a _running_ model.
 
 The API remains the authority for **who may do it** and for **what happened**: the
 run record lives in PostgreSQL, and every mutation is written to the security audit
@@ -58,15 +58,15 @@ sub-millisecond, so no control is exposed for it either.
 
 ## 2. Training lifecycle
 
-| State | Meaning |
-| --- | --- |
-| `QUEUED` | The row exists; the ML service has been asked to start the job. |
-| `RUNNING` | Collect → validate → build dataset → train. |
-| `EVALUATING` | The evaluator is running the quality gates against the active model. |
-| `PASSED` | Every mandatory gate passed. The candidate is deployable, and nothing has been deployed. |
-| `REJECTED` | A gate failed. The candidate is not deployable. |
-| `FAILED` | The run stopped with a stable `error_code`. |
-| `CANCELLED` | Reserved for a run that never started. |
+| State        | Meaning                                                                                  |
+| ------------ | ---------------------------------------------------------------------------------------- |
+| `QUEUED`     | The row exists; the ML service has been asked to start the job.                          |
+| `RUNNING`    | Collect → validate → build dataset → train.                                              |
+| `EVALUATING` | The evaluator is running the quality gates against the active model.                     |
+| `PASSED`     | Every mandatory gate passed. The candidate is deployable, and nothing has been deployed. |
+| `REJECTED`   | A gate failed. The candidate is not deployable.                                          |
+| `FAILED`     | The run stopped with a stable `error_code`.                                              |
+| `CANCELLED`  | Reserved for a run that never started.                                                   |
 
 Phases reported to the UI are the pipeline's own boundaries — `PREPARING_DATASET`,
 `TRAINING`, `EVALUATING`, `PACKAGING`, `COMPLETED`. **There is no percentage
@@ -147,8 +147,8 @@ After a deployment the ML service **reloads the classifier in place**
 reference is swapped, so a corrupt or missing file leaves the previous model serving
 traffic, and a request sees either the old pipeline or the new one — never a
 half-loaded one. If the reload fails, the deployment is recorded as
-`DEPLOYED_PENDING_RELOAD` and the dashboard says the ML service is *still serving
-vN*. `POST /ml/ops/models/reload` retries the reload without restarting the
+`DEPLOYED_PENDING_RELOAD` and the dashboard says the ML service is _still serving
+vN_. `POST /ml/ops/models/reload` retries the reload without restarting the
 container. A reload writes nothing and changes no version.
 
 ### Rollback
@@ -170,14 +170,14 @@ entry naming what was running before and after.
 
 Unchanged, from `apps/ml/pipeline/evaluate.py`:
 
-| Gate | Rule |
-| --- | --- |
-| `accuracy_gate` | Top-1 ≥ 70% and no more than 5 points below the active model |
-| `duplicate_precision_gate` | Precision ≥ 95% with zero critical false merges |
-| `duplicate_recall_gate` | Recall ≥ 95% |
-| `latency_gate` | P95 inference latency ≤ 5 ms |
-| `memory_gate` | Peak memory ≤ 256 MB |
-| `provenance_gate` | Zero records with unverified provenance |
+| Gate                       | Rule                                                         |
+| -------------------------- | ------------------------------------------------------------ |
+| `accuracy_gate`            | Top-1 ≥ 70% and no more than 5 points below the active model |
+| `duplicate_precision_gate` | Precision ≥ 95% with zero critical false merges              |
+| `duplicate_recall_gate`    | Recall ≥ 95%                                                 |
+| `latency_gate`             | P95 inference latency ≤ 5 ms                                 |
+| `memory_gate`              | Peak memory ≤ 256 MB                                         |
+| `provenance_gate`          | Zero records with unverified provenance                      |
 
 The dashboard shows each verdict with its threshold, and states plainly when a run
 produced no gate verdicts at all. There is no overall model score.
@@ -194,13 +194,13 @@ crash became reachable; no threshold and no metric definition changed.
 
 ## 6. Permissions
 
-| Operation | Route | Guard |
-| --- | --- | --- |
-| Health, overview, models, datasets, usage, run list/detail | `GET /ml/ops/*` | `MlAdminGuard` |
-| Trigger training | `POST /ml/ops/training-runs` | `MlAdminGuard` |
-| Deploy candidate | `POST /ml/ops/training-runs/:id/deploy` | `MlAdminGuard` |
-| Rollback | `POST /ml/ops/models/rollback` | `MlAdminGuard` |
-| Reload running model | `POST /ml/ops/models/reload` | `MlAdminGuard` |
+| Operation                                                  | Route                                   | Guard          |
+| ---------------------------------------------------------- | --------------------------------------- | -------------- |
+| Health, overview, models, datasets, usage, run list/detail | `GET /ml/ops/*`                         | `MlAdminGuard` |
+| Trigger training                                           | `POST /ml/ops/training-runs`            | `MlAdminGuard` |
+| Deploy candidate                                           | `POST /ml/ops/training-runs/:id/deploy` | `MlAdminGuard` |
+| Rollback                                                   | `POST /ml/ops/models/rollback`          | `MlAdminGuard` |
+| Reload running model                                       | `POST /ml/ops/models/reload`            | `MlAdminGuard` |
 
 `MlAdminGuard` = **`Administration.Roles`**, the same administrator-only boundary the
 ML training surface already uses for `GET /ml/feedback/export` and the quarantine
@@ -262,15 +262,15 @@ recorded as debt rather than papered over.
 
 ## 7. Failure behaviour
 
-| Failure | Effect on production |
-| --- | --- |
-| Dataset build fails | Unchanged. The run is `FAILED` with `DATASET_BUILD_FAILED`. |
-| Training fails | Unchanged. `TRAINING_FAILED`. |
-| Evaluation fails | Unchanged. `EVALUATION_FAILED`; no candidate is deployable. |
-| Gates reject the candidate | Unchanged. The run is `REJECTED` and the API refuses deployment on its own stored evidence. |
-| Dispatch fails | Unchanged. The row is stored as `FAILED` / `DISPATCH_FAILED` so the attempt is visible. |
-| Deployment fails | The known-good production artifact is unchanged; the run is marked `DEPLOYMENT_FAILED` and no deployment row is written. |
-| Reload fails | The artifact is deployed but the running model is not updated; the deployment is `DEPLOYED_PENDING_RELOAD` and the dashboard says so. |
+| Failure                    | Effect on production                                                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Dataset build fails        | Unchanged. The run is `FAILED` with `DATASET_BUILD_FAILED`.                                                                           |
+| Training fails             | Unchanged. `TRAINING_FAILED`.                                                                                                         |
+| Evaluation fails           | Unchanged. `EVALUATION_FAILED`; no candidate is deployable.                                                                           |
+| Gates reject the candidate | Unchanged. The run is `REJECTED` and the API refuses deployment on its own stored evidence.                                           |
+| Dispatch fails             | Unchanged. The row is stored as `FAILED` / `DISPATCH_FAILED` so the attempt is visible.                                               |
+| Deployment fails           | The known-good production artifact is unchanged; the run is marked `DEPLOYMENT_FAILED` and no deployment row is written.              |
+| Reload fails               | The artifact is deployed but the running model is not updated; the deployment is `DEPLOYED_PENDING_RELOAD` and the dashboard says so. |
 
 `auto_deploy` is `False` by construction in the runner, so a run cannot promote a
 model even if the pipeline's own default would have.
@@ -318,7 +318,7 @@ pnpm --filter @ananya/web test
 
 The integration suite proves, at the HTTP boundary: anonymous 401 on every route;
 403 for an `Inventory Manager` on reads and writes alike; 400 for a spoofed actor;
-one active run (service check *and* database index); 503 with no row created when ML
+one active run (service check _and_ database index); 503 with no row created when ML
 is unreachable; `DISPATCH_FAILED` when the job cannot start; terminal state stored on
 poll and **no further polling** afterwards; `ML_JOB_LOST` for a run the ML service
 forgot; a run left active when ML is merely unreachable; history pagination and
@@ -342,7 +342,7 @@ server-side usage aggregation; and overview composition.
   proxy is used instead (§6).
 - Training state and the model registry are container-local files. The ML container
   has no volume for `apps/ml/data` or `apps/ml/models/registry`, so candidates and
-  dataset snapshots do not survive a container replacement. The *durable* record of
+  dataset snapshots do not survive a container replacement. The _durable_ record of
   what happened is in PostgreSQL; the artifacts themselves are not.
 - The runner's in-memory job registry is per-process. An ML restart mid-run surfaces
   as `ML_JOB_LOST` rather than resuming.
@@ -354,5 +354,5 @@ server-side usage aggregation; and overview composition.
   candidates survive a redeploy.
 - Service credentials for the API → ML hop.
 - `Administration.ML` as a first-class permission once the role model is revisited.
-- Safe cancellation for a *queued* run, if a queue with a real pending state is ever
+- Safe cancellation for a _queued_ run, if a queue with a real pending state is ever
   introduced.

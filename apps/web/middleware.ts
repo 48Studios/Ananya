@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { resolveLegacyRedirect } from "./lib/navigation/legacy-redirects";
 
 const PUBLIC_ROUTES = [
   "/login",
@@ -24,6 +25,17 @@ export function middleware(request: NextRequest) {
     pathname === "/favicon.ico"
   ) {
     return NextResponse.next();
+  }
+
+  // Permanent compatibility redirects for the domain-prefixed route refactor.
+  // Cloning `nextUrl` preserves the query string (`?location=`, `?view=`, …).
+  // This runs before the auth gate so an old deep link lands on its canonical
+  // path and is then subject to the normal session rules there.
+  const legacyTarget = resolveLegacyRedirect(pathname);
+  if (legacyTarget) {
+    const url = request.nextUrl.clone();
+    url.pathname = legacyTarget;
+    return NextResponse.redirect(url, 308);
   }
 
   const token =

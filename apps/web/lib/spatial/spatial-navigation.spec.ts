@@ -140,27 +140,27 @@ describe("Spatial Navigation & Breadcrumb Engine", () => {
         params.set("focusComponent", focusComponentId);
       }
       const qs = params.toString();
-      return `/locations/${targetLocationId}${qs ? `?${qs}` : ""}`;
+      return `/inventory/locations/${targetLocationId}${qs ? `?${qs}` : ""}`;
     }
 
     it("preserves 3D view mode (?view=spatial3d) when navigating into a compartment", () => {
       const url = generateNavigationUrl("draw-1", "spatial3d");
-      expect(url).toBe("/locations/draw-1?view=spatial3d");
+      expect(url).toBe("/inventory/locations/draw-1?view=spatial3d");
     });
 
     it("preserves 2D view mode without redundant query params", () => {
       const url = generateNavigationUrl("draw-1", "spatial");
-      expect(url).toBe("/locations/draw-1");
+      expect(url).toBe("/inventory/locations/draw-1");
     });
 
     it("preserves list view mode (?view=list) when navigating", () => {
       const url = generateNavigationUrl("draw-1", "list");
-      expect(url).toBe("/locations/draw-1?view=list");
+      expect(url).toBe("/inventory/locations/draw-1?view=list");
     });
 
     it("preserves component focus deep link when drilling into child compartment", () => {
       const url = generateNavigationUrl("draw-1", "spatial3d", "comp-123");
-      expect(url).toBe("/locations/draw-1?view=spatial3d&focusComponent=comp-123");
+      expect(url).toBe("/inventory/locations/draw-1?view=spatial3d&focusComponent=comp-123");
     });
   });
 

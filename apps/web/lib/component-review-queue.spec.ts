@@ -1702,36 +1702,36 @@ describe("Component Review Queue modal consolidation", () => {
 
   it("no longer ships the standalone review queue route", () => {
     expect(
-      fs.existsSync(path.join(webRoot, "app/components/review-queue")),
+      fs.existsSync(path.join(webRoot, "app/inventory/components/review-queue")),
     ).toBe(false);
   });
 
   it("opens the queue as a modal from the Components page", () => {
-    const page = read("app/components/page.tsx");
+    const page = read("app/inventory/components/page.tsx");
 
     expect(page).toContain("ComponentReviewQueueDialog");
-    expect(page).not.toContain("/components/review-queue");
+    expect(page).not.toContain("/inventory/components/review-queue");
   });
 
   it("keeps no navigation entry pointing at the removed route", () => {
     const navigation = read("lib/navigation/navigation-config.tsx");
 
-    expect(navigation).not.toContain("/components/review-queue");
+    expect(navigation).not.toContain("/inventory/components/review-queue");
   });
 
   it("renders the same header counter chip as the Attribute Library", () => {
     const chipClass = (source: string) =>
       source.match(/ml-1 inline-flex[^"]*rounded-full[^"]*/)?.[0] ?? null;
 
-    const componentsChip = chipClass(read("app/components/page.tsx"));
-    const attributesChip = chipClass(read("app/attributes/page.tsx"));
+    const componentsChip = chipClass(read("app/inventory/components/page.tsx"));
+    const attributesChip = chipClass(read("app/inventory/master/attributes/page.tsx"));
 
     expect(componentsChip).not.toBeNull();
     expect(componentsChip).toBe(attributesChip);
   });
 
   it("reads the counter from the shared summary instead of recounting", () => {
-    const page = read("app/components/page.tsx");
+    const page = read("app/inventory/components/page.tsx");
 
     expect(page).toContain("actionableFindingCount");
     expect(page).toContain("componentReviewQueueApi");
@@ -1758,7 +1758,7 @@ describe("Component Review Queue modal consolidation", () => {
         ),
       ),
     ).toBe(true);
-    expect(read("app/attributes/page.tsx")).toContain(
+    expect(read("app/inventory/master/attributes/page.tsx")).toContain(
       "AttributeReviewQueueDialog",
     );
   });

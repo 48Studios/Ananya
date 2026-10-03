@@ -71,14 +71,14 @@ describe("Phase 5: QR -> Spatial Locate Architecture", () => {
         focusLocationId: "loc-cabinet-a",
         focusLocationCode: "CAB-A",
         hasSpatialView: true,
-        locateUrl: "/locations/loc-cabinet-a?view=spatial&focusLocation=loc-cabinet-a",
+        locateUrl: "/inventory/locations/loc-cabinet-a?view=spatial&focusLocation=loc-cabinet-a",
       };
 
       expect(target.hasSpatialView).toBe(true);
       expect(target.spatialRootLocationId).toBe("loc-cabinet-a");
       expect(target.focusLocationId).toBe("loc-cabinet-a");
       expect(target.locateUrl).toBe(
-        "/locations/loc-cabinet-a?view=spatial&focusLocation=loc-cabinet-a",
+        "/inventory/locations/loc-cabinet-a?view=spatial&focusLocation=loc-cabinet-a",
       );
     });
 
@@ -94,14 +94,14 @@ describe("Phase 5: QR -> Spatial Locate Architecture", () => {
         focusLocationId: "loc-bin-02",
         focusLocationCode: "BIN-02",
         hasSpatialView: true,
-        locateUrl: "/locations/loc-drawer-a03?view=spatial&focusLocation=loc-bin-02",
+        locateUrl: "/inventory/locations/loc-drawer-a03?view=spatial&focusLocation=loc-bin-02",
       };
 
       expect(target.hasSpatialView).toBe(true);
       expect(target.spatialRootLocationCode).toBe("DRAWER-A03");
       expect(target.focusLocationCode).toBe("BIN-02");
       expect(target.locateUrl).toBe(
-        "/locations/loc-drawer-a03?view=spatial&focusLocation=loc-bin-02",
+        "/inventory/locations/loc-drawer-a03?view=spatial&focusLocation=loc-bin-02",
       );
     });
 
@@ -117,14 +117,14 @@ describe("Phase 5: QR -> Spatial Locate Architecture", () => {
         focusLocationId: "loc-drawer-a03",
         focusLocationCode: "DRAWER-A03",
         hasSpatialView: true,
-        locateUrl: "/locations/loc-cabinet-a?view=spatial&focusLocation=loc-drawer-a03",
+        locateUrl: "/inventory/locations/loc-cabinet-a?view=spatial&focusLocation=loc-drawer-a03",
       };
 
       expect(target.hasSpatialView).toBe(true);
       expect(target.spatialRootLocationCode).toBe("CAB-A");
       expect(target.focusLocationCode).toBe("DRAWER-A03");
       expect(target.locateUrl).toBe(
-        "/locations/loc-cabinet-a?view=spatial&focusLocation=loc-drawer-a03",
+        "/inventory/locations/loc-cabinet-a?view=spatial&focusLocation=loc-drawer-a03",
       );
     });
 
@@ -139,11 +139,11 @@ describe("Phase 5: QR -> Spatial Locate Architecture", () => {
         focusLocationId: "loc-shelf-plain-4",
         focusLocationCode: "SHELF-4",
         hasSpatialView: false,
-        locateUrl: "/locations/loc-shelf-plain-4",
+        locateUrl: "/inventory/locations/loc-shelf-plain-4",
       };
 
       expect(target.hasSpatialView).toBe(false);
-      expect(target.locateUrl).toBe("/locations/loc-shelf-plain-4");
+      expect(target.locateUrl).toBe("/inventory/locations/loc-shelf-plain-4");
       expect(target.locateUrl).not.toContain("view=spatial");
     });
   });
@@ -170,7 +170,7 @@ describe("Phase 5: QR -> Spatial Locate Architecture", () => {
             focusLocationCode: "DRAWER-B02",
             hasSpatialView: true,
             locateUrl:
-              "/locations/loc-cab-01?view=spatial&focusLocation=loc-drawer-b02&focusComponent=comp-resistor-10k",
+              "/inventory/locations/loc-cab-01?view=spatial&focusLocation=loc-drawer-b02&focusComponent=comp-resistor-10k",
             onHand: 1500,
             available: 1500,
           },
@@ -207,7 +207,7 @@ describe("Phase 5: QR -> Spatial Locate Architecture", () => {
             focusLocationCode: "DRAWER-A03",
             hasSpatialView: true,
             locateUrl:
-              "/locations/loc-cab-a?view=spatial&focusLocation=loc-drw-a03&focusComponent=comp-r-100k",
+              "/inventory/locations/loc-cab-a?view=spatial&focusLocation=loc-drw-a03&focusComponent=comp-r-100k",
             onHand: 8000,
             available: 7500,
           },
@@ -223,7 +223,7 @@ describe("Phase 5: QR -> Spatial Locate Architecture", () => {
             focusLocationCode: "DRAWER-C12",
             hasSpatialView: true,
             locateUrl:
-              "/locations/loc-cab-b?view=spatial&focusLocation=loc-drw-c12&focusComponent=comp-r-100k",
+              "/inventory/locations/loc-cab-b?view=spatial&focusLocation=loc-drw-c12&focusComponent=comp-r-100k",
             onHand: 2000,
             available: 2000,
           },
@@ -263,9 +263,9 @@ describe("Phase 5: QR -> Spatial Locate Architecture", () => {
     it("formats Location scan deep link with view and focusLocation", () => {
       const rootId = "root-cab-1";
       const focusId = "child-drw-2";
-      const url = `/locations/${rootId}?view=spatial&focusLocation=${focusId}`;
+      const url = `/inventory/locations/${rootId}?view=spatial&focusLocation=${focusId}`;
 
-      expect(url).toBe("/locations/root-cab-1?view=spatial&focusLocation=child-drw-2");
+      expect(url).toBe("/inventory/locations/root-cab-1?view=spatial&focusLocation=child-drw-2");
       expect(url).not.toContain("focusComponent");
     });
 
@@ -273,10 +273,10 @@ describe("Phase 5: QR -> Spatial Locate Architecture", () => {
       const rootId = "root-cab-1";
       const focusId = "child-drw-2";
       const compId = "comp-mcu-stm32";
-      const url = `/locations/${rootId}?view=spatial&focusLocation=${focusId}&focusComponent=${compId}`;
+      const url = `/inventory/locations/${rootId}?view=spatial&focusLocation=${focusId}&focusComponent=${compId}`;
 
       expect(url).toBe(
-        "/locations/root-cab-1?view=spatial&focusLocation=child-drw-2&focusComponent=comp-mcu-stm32",
+        "/inventory/locations/root-cab-1?view=spatial&focusLocation=child-drw-2&focusComponent=comp-mcu-stm32",
       );
       expect(url).toContain("focusComponent=comp-mcu-stm32");
     });

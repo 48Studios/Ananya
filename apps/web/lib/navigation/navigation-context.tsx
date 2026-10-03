@@ -10,12 +10,15 @@ import React, {
 import { usePathname } from "next/navigation";
 import { NavigationModule } from "./types";
 import { navigationModules, getModuleForPath } from "./navigation-config";
+import { collectNavHrefs, resolveActiveHref } from "./active-route";
 
 interface NavigationContextType {
   modules: NavigationModule[];
   currentModule: NavigationModule;
   currentModuleId: string;
   activePath: string;
+  /** The one navigation entry that owns `activePath` (most specific match). */
+  activeHref: string | null;
   isSidebarCollapsed: boolean;
   sidebarWidth: number;
   expandedAccordions: Record<string, boolean>;
@@ -47,12 +50,22 @@ const NavigationContext = createContext<NavigationContextType | undefined>(
   undefined,
 );
 
+/**
+ * Collected once: the navigation tree is a module constant, and the component
+ * only needs it to decide which single entry is active for the current path.
+ */
+const NAV_HREFS = collectNavHrefs(navigationModules);
+
 export function NavigationProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const activeHref = React.useMemo(
+    () => resolveActiveHref(pathname, NAV_HREFS),
+    [pathname],
+  );
   const [currentModuleId, setCurrentModuleId] = useState<string>("dashboard");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [expandedAccordions, setExpandedAccordions] = useState<
@@ -102,7 +115,7 @@ export function NavigationProvider({
       "/reset-password",
       "/onboarding",
       "/setup",
-      "/maintenance",
+      "/manufacturing/maintenance",
     ];
     if (!EXCLUDED_ROUTES.includes(pathname)) {
       setRecentItems((prev) => {
@@ -244,6 +257,7 @@ export function NavigationProvider({
         currentModule,
         currentModuleId,
         activePath: pathname,
+        activeHref,
         isSidebarCollapsed,
         sidebarWidth,
         expandedAccordions,

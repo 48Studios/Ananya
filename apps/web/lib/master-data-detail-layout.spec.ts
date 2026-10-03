@@ -24,7 +24,7 @@ const webRoot = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "..")
 const read = (relativePath: string) =>
   fs.readFileSync(path.join(webRoot, relativePath), "utf8");
 
-const componentPage = read("app/components/[id]/page.tsx");
+const componentPage = read("app/inventory/components/[id]/page.tsx");
 const sectionCard = read("components/ui/section-card.tsx");
 const detailField = read("components/ui/detail-field.tsx");
 const detailTable = read("components/ui/detail-table.tsx");
@@ -35,10 +35,10 @@ const categoryAttributes = read(
 
 /** Pages that take the full treatment: sections, tables and field grids. */
 const FULL_PAGES: Record<string, string> = {
-  Supplier: read("app/suppliers/[id]/page.tsx"),
-  Manufacturer: read("app/manufacturers/[id]/page.tsx"),
-  Category: read("app/categories/[id]/page.tsx"),
-  Location: read("app/locations/[id]/page.tsx"),
+  Supplier: read("app/procurement/master/suppliers/[id]/page.tsx"),
+  Manufacturer: read("app/inventory/master/manufacturers/[id]/page.tsx"),
+  Category: read("app/inventory/master/categories/[id]/page.tsx"),
+  Location: read("app/inventory/locations/[id]/page.tsx"),
 };
 
 /**
@@ -46,8 +46,8 @@ const FULL_PAGES: Record<string, string> = {
  * and an audit trail) but still borrow the card, table and empty-state rules.
  */
 const PARTIAL_PAGES: Record<string, string> = {
-  User: read("app/users/[id]/page.tsx"),
-  Role: read("app/roles/[id]/page.tsx"),
+  User: read("app/settings/users/[id]/page.tsx"),
+  Role: read("app/settings/roles/[id]/page.tsx"),
 };
 
 /** The compact empty copy each page states inside its own section card. */
@@ -176,7 +176,7 @@ describe("Location Details preserves component location provenance", () => {
     expect(locationPage).toContain("projection.locationId");
     expect(locationPage).toContain(">Direct</DetailChip>");
     expect(locationPage).toContain("<span className=\"shrink-0\">From</span>");
-    expect(locationPage).toContain('href={`/locations/${sourceLocation.id}`}');
+    expect(locationPage).toContain('href={`/inventory/locations/${sourceLocation.id}`}');
     expect(locationPage).toContain("sourcePath.map((sourceLocation, index)");
   });
 });

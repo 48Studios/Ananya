@@ -643,8 +643,8 @@ describe("Pass 5C — safety, navigation and layout", () => {
     const panel = read(panelPath);
     const dialog = read(dialogPath);
 
-    expect(componentHref("comp-1")).toBe("/components/comp-1");
-    expect(componentHref("a/b")).toBe("/components/a%2Fb");
+    expect(componentHref("comp-1")).toBe("/inventory/components/comp-1");
+    expect(componentHref("a/b")).toBe("/inventory/components/a%2Fb");
     expect(panel).toContain("componentHref(side.component.id)");
     expect(dialog).toContain("View related component");
     expect(dialog).toContain("componentHref(finding.component.id)");

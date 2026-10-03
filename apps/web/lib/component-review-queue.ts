@@ -1219,7 +1219,7 @@ export function describeDuplicateRelationship(
 }
 
 export function componentHref(componentId: string): string {
-  return `/components/${encodeURIComponent(componentId)}`;
+  return `/inventory/components/${encodeURIComponent(componentId)}`;
 }
 
 // ---------------------------------------------------------------------------

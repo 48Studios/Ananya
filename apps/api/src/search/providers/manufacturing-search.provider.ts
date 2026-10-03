@@ -31,7 +31,7 @@ export class ManufacturingSearchProvider implements ISearchProvider {
         title: `BOM Specification (Rev: ${b.revision})`,
         subtitle: `Revision: ${b.revision} | Status: ${b.status}`,
         status: b.status,
-        href: `/boms/${b.id}`,
+        href: `/manufacturing/boms/${b.id}`,
         iconName: 'Factory',
       });
     }
@@ -51,7 +51,7 @@ export class ManufacturingSearchProvider implements ISearchProvider {
         title: `Work Order: ${po.productionNumber}`,
         subtitle: `Planned Qty: ${po.quantityPlanned} | Priority: ${po.priority}`,
         status: po.status,
-        href: `/work-orders/${po.id}`,
+        href: `/manufacturing/work-orders/${po.id}`,
         iconName: 'Wrench',
       });
     }

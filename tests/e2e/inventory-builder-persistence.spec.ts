@@ -135,7 +135,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
   test("1. Create a draft, configure template, map locations, save, reload, and verify state restored", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${testParentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
 
     // Wait for the workspace to finish loading. Scoped to <main> because the
     // sidebar navigation also renders an "Inventory Builder" link.
@@ -220,7 +220,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
   test("2. Update a saved draft, save again, and verify revision numbers and change descriptions", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${testParentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
     await expect(page.getByText("Revision: 1")).toBeVisible();
 
     // Switch to Map tab and map second drawer
@@ -286,7 +286,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
       },
     ]);
     const pageA = await contextA.newPage();
-    await pageA.goto(`/spatial/builder?location=${testParentId}`);
+    await pageA.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
     await expect(pageA.getByText("Revision: 2")).toBeVisible();
 
     // Session B
@@ -300,7 +300,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
       },
     ]);
     const pageB = await contextB.newPage();
-    await pageB.goto(`/spatial/builder?location=${testParentId}`);
+    await pageB.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
     await expect(pageB.getByText("Revision: 2")).toBeVisible();
 
     // In Session A: Make a change and save -> bumps to Revision 3
@@ -368,7 +368,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
   test("4. Publish a layout and verify conflict when another layout is published for parent", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${testParentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
     await expect(page.getByText("Revision: 3")).toBeVisible();
 
     // Click Publish
@@ -462,7 +462,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
   test("5. Archive a published layout and verify archived state and available actions", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${testParentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
 
     // Ensure the published layout is loaded
     const layoutSelector = page.locator(
@@ -529,7 +529,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
   test("6. Draft deletion is available only for eligible never-published drafts", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${testParentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
 
     // Select the second draft layout
     const selectTrigger = page.locator('button[title="Select spatial layout"]');
@@ -590,7 +590,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
   test("7. Change template geometry after acknowledging stale mappings and verify acknowledgment lifecycle", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${testParentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
     await expect(page.getByText("Loading layouts...")).not.toBeVisible();
 
     // Switch to clean new draft
@@ -687,7 +687,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
   test("8. Unsaved-change protection guards against accidental layout switching", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${testParentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
     await expect(page.getByText("Loading layouts...")).not.toBeVisible();
 
     // Switch to clean new draft
@@ -732,7 +732,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
 
     // Hard navigation away is guarded by the browser beforeunload prompt while dirty
     const guardPage = await page.context().newPage();
-    await guardPage.goto(`/spatial/builder?location=${testParentId}`);
+    await guardPage.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
     // Start from a clean new draft so a slot is guaranteed available
     const guardLayoutSelector = guardPage.locator(
       'button[title="Select spatial layout"]',
@@ -775,7 +775,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
   test("9. Simulated network failure shows actionable error state and retry succeeds", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${testParentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
     // Wait for layout switcher to be visible
     await expect(
       page.locator('button[title="Select spatial layout"]'),
@@ -800,7 +800,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await mapSelectTrigger.click();
     await page.getByRole("option", { name: /Slot A01/i }).click();
 
-    // Intercept POST /spatial/layouts once to simulate server error
+    // Intercept POST /inventory/locations/spatial/layouts once to simulate server error
     let failureTriggered = false;
     await page.route("**/spatial/layouts", async (route) => {
       if (route.request().method() === "POST" && !failureTriggered) {
@@ -862,7 +862,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
   test("10. Revision history inspection displays immutable timeline without mutating workspace", async ({
     page,
   }) => {
-    await page.goto(`/spatial/builder?location=${testParentId}`);
+    await page.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
     await expect(page.getByText("Loading layouts...")).not.toBeVisible();
 
     // Ensure the archived layout is selected

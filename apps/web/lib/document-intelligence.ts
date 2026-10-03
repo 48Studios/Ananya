@@ -32,7 +32,7 @@ export const COMPONENT_WRITE_PERMISSION = "Inventory.Update";
 export const DOCUMENT_READ_PERMISSION = "Inventory.Read";
 
 /** Review queue route the analysis links into (existing Component queue). */
-export const COMPONENT_REVIEW_QUEUE_ROUTE = "/components/review-queue";
+export const COMPONENT_REVIEW_QUEUE_ROUTE = "/inventory/components/review-queue";
 
 // ---------------------------------------------------------------------------
 // Analyze action availability

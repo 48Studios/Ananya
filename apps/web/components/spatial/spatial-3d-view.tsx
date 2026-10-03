@@ -198,7 +198,7 @@ export function Spatial3DView({
         if (onNavigateLocation) {
           onNavigateLocation(targetLocationId);
         } else {
-          router.push(`/locations/${targetLocationId}?view=spatial3d`);
+          router.push(`/inventory/locations/${targetLocationId}?view=spatial3d`);
         }
       });
     },

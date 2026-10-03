@@ -41,17 +41,17 @@ The workflow is assistive: users can review, edit, apply, or reject suggestions.
 Repository inspection found pages with in-code sample records at these routes:
 
 - `/activities`
-- `/crm`
-- `/customer-returns`
-- `/customers`
-- `/fulfillment`
-- `/journal-entries`
-- `/leads`
-- `/opportunities`
-- `/quotations`
+- `/sales/crm`
+- `/sales/customer-returns`
+- `/sales/customers`
+- `/sales/fulfillment`
+- `/finance/journal-entries`
+- `/sales/leads`
+- `/sales/opportunities`
+- `/sales/quotations`
 - `/sales`
-- `/sales-orders`
-- `/traceability`
+- `/sales/orders`
+- `/manufacturing/traceability`
 
 Treat these screens as illustrative until their data paths are connected to the expected live workflows. This list is based on a source-code search and may need updating as the application changes.
 

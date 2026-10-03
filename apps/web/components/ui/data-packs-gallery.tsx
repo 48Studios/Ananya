@@ -89,7 +89,7 @@ export function DataPacksGallery() {
             Engine.
           </p>
         </div>
-        <Link href="/data-packs">
+        <Link href="/settings/data-packs">
           <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
             Open Full Hub <ArrowRight className="w-3.5 h-3.5" />
           </Button>
@@ -103,12 +103,12 @@ export function DataPacksGallery() {
             <span>{msg}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/categories">
+            <Link href="/inventory/master/categories">
               <Button variant="outline" size="xs" className="h-6 text-[11px] gap-1">
                 Categories <ArrowRight className="w-3 h-3" />
               </Button>
             </Link>
-            <Link href="/components">
+            <Link href="/inventory/components">
               <Button variant="outline" size="xs" className="h-6 text-[11px] gap-1">
                 Components <ArrowRight className="w-3 h-3" />
               </Button>

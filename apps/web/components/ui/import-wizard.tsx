@@ -293,7 +293,7 @@ export function ImportWizard({
                   Sample CSV
                 </Button>
                 <Link
-                  href="/data-operations"
+                  href="/settings/data-operations"
                   onClick={() => onClose()}
                   className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                 >
@@ -565,7 +565,7 @@ export function ImportWizard({
 
             <div className="pt-2 text-center">
               <Link
-                href="/data-operations"
+                href="/settings/data-operations"
                 onClick={() => onClose()}
                 className="text-xs text-primary hover:underline inline-flex items-center gap-1 font-medium"
               >

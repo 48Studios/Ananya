@@ -19,7 +19,7 @@ describe("Search -> Locate Contract & Resolution", () => {
       focusLocationCode: "D-A4",
       hasSpatialView: true,
       locateUrl:
-        "/locations/loc-cabinet-a?view=spatial&focusLocation=loc-drawer-a04&focusComponent=comp-100nf-0603",
+        "/inventory/locations/loc-cabinet-a?view=spatial&focusLocation=loc-drawer-a04&focusComponent=comp-100nf-0603",
       onHand: 500,
       available: 500,
     };
@@ -41,11 +41,11 @@ describe("Search -> Locate Contract & Resolution", () => {
       focusLocationId: "loc-unmapped-shelf-9",
       focusLocationCode: "SHELF-9",
       hasSpatialView: false,
-      locateUrl: "/locations/loc-unmapped-shelf-9",
+      locateUrl: "/inventory/locations/loc-unmapped-shelf-9",
     };
 
     expect(target.hasSpatialView).toBe(false);
-    expect(target.locateUrl).toBe("/locations/loc-unmapped-shelf-9");
+    expect(target.locateUrl).toBe("/inventory/locations/loc-unmapped-shelf-9");
     expect(target.locateUrl).not.toContain("view=spatial");
   });
 
@@ -67,7 +67,7 @@ describe("Search -> Locate Contract & Resolution", () => {
           focusLocationCode: "D-A4",
           hasSpatialView: true,
           locateUrl:
-            "/locations/loc-cab-a?view=spatial&focusLocation=loc-drawer-a4&focusComponent=comp-grm188",
+            "/inventory/locations/loc-cab-a?view=spatial&focusLocation=loc-drawer-a4&focusComponent=comp-grm188",
           onHand: 500,
           available: 500,
         },
@@ -83,7 +83,7 @@ describe("Search -> Locate Contract & Resolution", () => {
           focusLocationCode: "D-C2",
           hasSpatialView: true,
           locateUrl:
-            "/locations/loc-cab-b?view=spatial&focusLocation=loc-drawer-c2&focusComponent=comp-grm188",
+            "/inventory/locations/loc-cab-b?view=spatial&focusLocation=loc-drawer-c2&focusComponent=comp-grm188",
           onHand: 1200,
           available: 1100,
         },
@@ -99,7 +99,7 @@ describe("Search -> Locate Contract & Resolution", () => {
           focusLocationCode: "S-B",
           hasSpatialView: true,
           locateUrl:
-            "/locations/loc-rack-02?view=spatial&focusLocation=loc-shelf-b&focusComponent=comp-grm188",
+            "/inventory/locations/loc-rack-02?view=spatial&focusLocation=loc-shelf-b&focusComponent=comp-grm188",
           onHand: 3120,
           available: 3120,
         },

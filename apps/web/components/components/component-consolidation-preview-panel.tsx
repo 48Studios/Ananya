@@ -954,7 +954,7 @@ export function ConsolidationPreviewPanel({
             {preview.history.relatedFindings.slice(0, 5).map((finding) => (
               <li key={finding.id} className="px-3 py-1.5">
                 <Link
-                  href={`/components/${finding.componentId}`}
+                  href={`/inventory/components/${finding.componentId}`}
                   className="text-primary hover:underline"
                 >
                   {finding.issueType}

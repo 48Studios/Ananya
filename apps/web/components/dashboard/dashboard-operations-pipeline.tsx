@@ -126,7 +126,7 @@ export function DashboardOperationsPipeline({
         {/* Action Link (flexibly positioned with stable slot width) */}
         <div className="flex items-center justify-end shrink-0 min-w-[145px]">
           <Link
-            href={activeTab === "production" ? "/work-orders" : "/purchase-orders"}
+            href={activeTab === "production" ? "/manufacturing/work-orders" : "/procurement/purchase-orders"}
             className="text-xs text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1 whitespace-nowrap self-center"
           >
             <span>View All {activeTab === "production" ? "Work Orders" : "Orders"}</span>
@@ -150,7 +150,7 @@ export function DashboardOperationsPipeline({
                 </p>
               </div>
               <div className="pt-1">
-                <Link href="/work-orders/new">
+                <Link href="/manufacturing/work-orders/new">
                   <Button size="sm" variant="outline" className="gap-1.5 text-xs">
                     <Plus className="size-3.5" />
                     New Work Order
@@ -176,7 +176,7 @@ export function DashboardOperationsPipeline({
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
                         <Link
-                          href={`/work-orders/${wo.id}`}
+                          href={`/manufacturing/work-orders/${wo.id}`}
                           className="text-xs font-semibold text-foreground hover:text-primary transition-colors inline-flex items-center gap-1 truncate"
                         >
                           {wo.productionNumber}
@@ -237,7 +237,7 @@ export function DashboardOperationsPipeline({
                 </p>
               </div>
               <div className="pt-1">
-                <Link href="/purchase-orders/new">
+                <Link href="/procurement/purchase-orders/new">
                   <Button size="sm" variant="outline" className="gap-1.5 text-xs">
                     <Plus className="size-3.5" />
                     Create Purchase Order
@@ -255,7 +255,7 @@ export function DashboardOperationsPipeline({
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Link
-                        href={`/purchase-orders/${po.id}`}
+                        href={`/procurement/purchase-orders/${po.id}`}
                         className="text-xs font-semibold text-foreground hover:text-primary transition-colors inline-flex items-center gap-1 truncate"
                       >
                         {po.poNumber}
@@ -269,7 +269,7 @@ export function DashboardOperationsPipeline({
                     </p>
                   </div>
 
-                  <Link href={`/goods-receipts/new?poId=${po.id}`}>
+                  <Link href={`/procurement/goods-receipts/new?poId=${po.id}`}>
                     <Button size="sm" variant="outline" className="gap-1.5 text-xs shrink-0">
                       <ArrowDownLeft className="size-3.5" />
                       Receive

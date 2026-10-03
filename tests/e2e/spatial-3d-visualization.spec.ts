@@ -71,7 +71,7 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
   test("1. Renders 3D Spatial Inventory view with mode toggles and unit-safe operational metrics", async ({
     page,
   }) => {
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
 
     // Verify 3D canvas is visible
     const canvas = page.locator("div.relative canvas").first();
@@ -99,7 +99,7 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
   test("2. Switches between Standard, Provenance, and Occupancy modes, verifying accessible legend and labels", async ({
     page,
   }) => {
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
     const canvas = page.locator("div.relative canvas").first();
     await expect(canvas).toBeVisible({ timeout: 10000 });
 
@@ -152,7 +152,7 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
       }
     });
 
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
     const canvas = page.locator("div.relative canvas").first();
     await expect(canvas).toBeVisible({ timeout: 10000 });
 
@@ -171,7 +171,7 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
   test("4. Selects a compartment and inspects unit-safe direct vs descendant stock and explicit capacity", async ({
     page,
   }) => {
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
     const canvas = page.locator("div.relative canvas").first();
     await expect(canvas).toBeVisible({ timeout: 10000 });
 
@@ -208,7 +208,7 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     const artifactDir =
       "/Users/jrsarath/.gemini/antigravity-ide/brain/982b4a48-12e8-4b31-affb-7a158555e9a0";
 
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
     const canvas = page.locator("div.relative canvas").first();
     await expect(canvas).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
@@ -280,7 +280,7 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
 
       // A. Authorized request (with admin token) -> 200 OK with projections
       const authRes = await apiContext.get(
-        `/spatial/locations/${CABINET_LOCATION_ID}/operational-view`,
+        `/inventory/locations/spatial/locations/${CABINET_LOCATION_ID}/operational-view`,
         { headers: { Authorization: `Bearer ${testToken}` } },
       );
       expect(authRes.status()).toBe(200);
@@ -290,7 +290,7 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
 
       // B. Unauthorized request without Inventory.Read -> 403 Forbidden
       const unauthRes = await apiContext.get(
-        `/spatial/locations/${CABINET_LOCATION_ID}/operational-view`,
+        `/inventory/locations/spatial/locations/${CABINET_LOCATION_ID}/operational-view`,
         { headers: { Authorization: `Bearer ${unauthToken}` } },
       );
       expect(unauthRes.status()).toBe(403);
@@ -303,7 +303,7 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
 
       // C. Unauthenticated request without token -> 401 Unauthorized
       const anonRes = await apiContext.get(
-        `/spatial/locations/${CABINET_LOCATION_ID}/operational-view`,
+        `/inventory/locations/spatial/locations/${CABINET_LOCATION_ID}/operational-view`,
       );
       expect(anonRes.status()).toBe(401);
 
@@ -322,7 +322,7 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
   test("7. Freshness and invalidation: preserves view state, supports navigation and breadcrumb reload", async ({
     page,
   }) => {
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
     const canvas = page.locator("div.relative canvas").first();
     await expect(canvas).toBeVisible({ timeout: 10000 });
 
@@ -343,11 +343,11 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
 
     // Test 2: Navigate away to another location (drawer)
     const drawerLocationId = "cc6e8839-2d94-48c2-9710-04be238a3c32"; // DEMO-SPATIAL-DRAWER-A06
-    await page.goto(`/locations/${drawerLocationId}`);
+    await page.goto(`/inventory/locations/${drawerLocationId}`);
     await expect(page.getByText("DEMO-SPATIAL-DRAWER-A06").first()).toBeVisible({ timeout: 10000 });
 
     // Test 3: Return to the existing 3D view of the cabinet
-    await page.goto(`/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
     await expect(canvas).toBeVisible({ timeout: 10000 });
     await expect(page.locator("[data-testid='spatial-operational-bar']")).toContainText("Total Stock:");
   });

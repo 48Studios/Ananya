@@ -12,7 +12,7 @@ interface SidebarPinnedItemsProps {
 }
 
 export function SidebarPinnedItems({ isCollapsed }: SidebarPinnedItemsProps) {
-  const { pinnedItems, togglePinnedItem, activePath, modules } =
+  const { pinnedItems, togglePinnedItem, activePath, activeHref, modules } =
     useNavigation();
 
   // Completely omit when collapsed or when no items are pinned
@@ -59,7 +59,7 @@ export function SidebarPinnedItems({ isCollapsed }: SidebarPinnedItemsProps) {
       <div className="space-y-0.5 px-1">
         {pinnedItems.map((href) => {
           const details = getPinnedItemDetails(href);
-          const isActive = activePath === href;
+          const isActive = href === activePath || href === activeHref;
           return (
             <div
               key={href}

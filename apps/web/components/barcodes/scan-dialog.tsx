@@ -825,7 +825,7 @@ export function ScanDialog({
                   onClick={() => {
                     handleClose();
                     router.push(
-                      `/components?search=${encodeURIComponent(inputCode)}`,
+                      `/inventory/components?search=${encodeURIComponent(inputCode)}`,
                     );
                   }}
                 >
@@ -838,7 +838,7 @@ export function ScanDialog({
                   onClick={() => {
                     handleClose();
                     router.push(
-                      `/components/new?sku=${encodeURIComponent(inputCode)}`,
+                      `/inventory/components/new?sku=${encodeURIComponent(inputCode)}`,
                     );
                   }}
                 >

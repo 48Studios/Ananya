@@ -20,7 +20,6 @@ import {
   Bell,
   QrCode,
   ArrowRightLeft,
-  Warehouse,
   ClipboardList,
   ClipboardCheck,
   Layers,
@@ -44,46 +43,45 @@ interface SidebarFavoritesRecentProps {
 // Fallback route icon map for instantaneous icon resolution
 const ROUTE_ICON_MAP: Record<string, React.ReactNode> = {
   "/dashboard": <LayoutDashboard className="size-4" />,
-  "/activity": <FileText className="size-4" />,
-  "/audit": <ShieldCheck className="size-4" />,
+  "/dashboard/activity": <FileText className="size-4" />,
+  "/settings/audit": <ShieldCheck className="size-4" />,
   "/notifications": <Bell className="size-4" />,
-  "/barcodes": <QrCode className="size-4" />,
+  "/inventory/barcodes": <QrCode className="size-4" />,
   "/inventory": <Package className="size-4" />,
-  "/components": <Archive className="size-4" />,
-  "/transactions": <ArrowRightLeft className="size-4" />,
-  "/warehouses": <Warehouse className="size-4" />,
-  "/locations": <MapPin className="size-4" />,
-  "/warehouse-transfers": <ArrowRightLeft className="size-4" />,
-  "/stock-counts": <ClipboardList className="size-4" />,
-  "/cycle-counts": <ClipboardList className="size-4" />,
-  "/stock-adjustments": <RotateCcw className="size-4" />,
-  "/batches": <Layers className="size-4" />,
-  "/serials": <Tag className="size-4" />,
-  "/categories": <Database className="size-4" />,
+  "/inventory/components": <Archive className="size-4" />,
+  "/inventory/transactions": <ArrowRightLeft className="size-4" />,
+  "/inventory/locations": <MapPin className="size-4" />,
+  "/inventory/warehouse-transfers": <ArrowRightLeft className="size-4" />,
+  "/inventory/stock-counts": <ClipboardList className="size-4" />,
+  "/inventory/stock-counts/cycle-counts": <ClipboardList className="size-4" />,
+  "/inventory/stock-counts/adjustments": <RotateCcw className="size-4" />,
+  "/inventory/batches": <Layers className="size-4" />,
+  "/inventory/batches/serials": <Tag className="size-4" />,
+  "/inventory/master/categories": <Database className="size-4" />,
   "/procurement": <ShoppingCart className="size-4" />,
-  "/purchase-orders": <ShoppingCart className="size-4" />,
-  "/goods-receipts": <ArrowDownLeft className="size-4" />,
-  "/purchase-invoices": <Receipt className="size-4" />,
-  "/supplier-returns": <RotateCcw className="size-4" />,
-  "/suppliers": <Users className="size-4" />,
+  "/procurement/purchase-orders": <ShoppingCart className="size-4" />,
+  "/procurement/goods-receipts": <ArrowDownLeft className="size-4" />,
+  "/procurement/purchase-invoices": <Receipt className="size-4" />,
+  "/procurement/supplier-returns": <RotateCcw className="size-4" />,
+  "/procurement/master/suppliers": <Users className="size-4" />,
   "/manufacturing": <Factory className="size-4" />,
-  "/boms": <Layers className="size-4" />,
-  "/production-orders": <ClipboardCheck className="size-4" />,
-  "/work-orders": <Wrench className="size-4" />,
-  "/material-consumption": <Layers className="size-4" />,
-  "/maintenance": <Wrench className="size-4" />,
+  "/manufacturing/boms": <Layers className="size-4" />,
+  "/manufacturing/production-orders": <ClipboardCheck className="size-4" />,
+  "/manufacturing/work-orders": <Wrench className="size-4" />,
+  "/manufacturing/material-consumption": <Layers className="size-4" />,
+  "/manufacturing/maintenance": <Wrench className="size-4" />,
   "/projects": <Kanban className="size-4" />,
-  "/sales-orders": <Receipt className="size-4" />,
-  "/quotations": <Receipt className="size-4" />,
-  "/customers": <Users className="size-4" />,
-  "/warranty": <BadgeCheck className="size-4" />,
-  "/rma": <RotateCcw className="size-4" />,
-  "/service": <Wrench className="size-4" />,
+  "/sales/orders": <Receipt className="size-4" />,
+  "/sales/quotations": <Receipt className="size-4" />,
+  "/sales/customers": <Users className="size-4" />,
+  "/projects/warranty": <BadgeCheck className="size-4" />,
+  "/projects/rma": <RotateCcw className="size-4" />,
+  "/projects/service": <Wrench className="size-4" />,
   "/reports": <FileText className="size-4" />,
-  "/users": <Users className="size-4" />,
-  "/roles": <ShieldCheck className="size-4" />,
+  "/settings/users": <Users className="size-4" />,
+  "/settings/roles": <ShieldCheck className="size-4" />,
   "/settings": <Settings className="size-4" />,
-  "/data-operations": <RotateCcw className="size-4" />,
+  "/settings/data-operations": <RotateCcw className="size-4" />,
 };
 
 export function SidebarFavoritesRecent({
@@ -97,6 +95,7 @@ export function SidebarFavoritesRecent({
     recentItems,
     clearRecents,
     activePath,
+    activeHref,
     modules,
   } = useNavigation();
 
@@ -255,10 +254,9 @@ export function SidebarFavoritesRecent({
         ) : (
           itemsToDisplay.map((href) => {
             const details = getItemDetails(href);
-            const isExact = href === "/" || href === "/dashboard";
-            const isActive = isExact
-              ? activePath === href
-              : activePath === href || (href !== "/" && activePath.startsWith(href + "/"));
+            // Exact page (including detail routes) or the nav entry that owns
+            // the current path — never a broader ancestor.
+            const isActive = href === activePath || href === activeHref;
             const isPinned = isItemPinned(href);
 
             return (

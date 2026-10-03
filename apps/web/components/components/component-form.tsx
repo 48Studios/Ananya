@@ -93,6 +93,8 @@ export type ComponentFormValues = z.infer<typeof componentSchema>;
 
 interface ComponentFormProps {
   initialData?: ComponentDto | null;
+  /** Prefill for a create form opened from a deep link such as `?sku=`. */
+  initialSku?: string;
   onSuccess: (savedComponent: ComponentDto) => void;
   onCancel: () => void;
 }
@@ -132,6 +134,7 @@ const CATEGORY_INTELLIGENCE_DEBOUNCE_MS = 400;
 
 export function ComponentForm({
   initialData,
+  initialSku,
   onSuccess,
   onCancel,
 }: ComponentFormProps) {
@@ -241,7 +244,7 @@ export function ComponentForm({
   } = useForm<ComponentFormValues>({
     resolver: zodResolver(componentSchema),
     defaultValues: {
-      sku: initialData?.sku ?? "",
+      sku: initialData?.sku ?? initialSku ?? "",
       manufacturerPartNumber: initialData?.manufacturerPartNumber ?? "",
       name: initialData?.name ?? "",
       description: initialData?.description ?? "",

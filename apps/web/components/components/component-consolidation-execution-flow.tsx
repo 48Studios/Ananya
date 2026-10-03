@@ -101,7 +101,7 @@ export function ConsolidationSuccessSummary({
           <dt className="text-muted-foreground">Canonical:</dt>
           <dd className="text-foreground">
             <Link
-              href={`/components/${result.canonical.id}`}
+              href={`/inventory/components/${result.canonical.id}`}
               className="text-primary hover:underline"
             >
               {result.canonical.sku}
@@ -291,7 +291,7 @@ export function ConsolidationExecutionFlow({
           <dt className="text-muted-foreground">Canonical (survives)</dt>
           <dd className="text-foreground">
             <Link
-              href={`/components/${canonicalId}`}
+              href={`/inventory/components/${canonicalId}`}
               className="text-primary hover:underline"
             >
               {preview.canonical.sku}
@@ -307,7 +307,7 @@ export function ConsolidationExecutionFlow({
             {preview.sources.map((source) => (
               <div key={source.id}>
                 <Link
-                  href={`/components/${source.id}`}
+                  href={`/inventory/components/${source.id}`}
                   className="text-primary hover:underline"
                 >
                   {source.sku}

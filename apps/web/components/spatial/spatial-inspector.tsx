@@ -133,7 +133,7 @@ export function SpatialInspector({
               <span>Enter</span>
             </Button>
           )}
-          <Link href={`/locations/${summary.locationId}`}>
+          <Link href={`/inventory/locations/${summary.locationId}`}>
             <Button
               variant="outline"
               size="xs"
@@ -280,7 +280,7 @@ export function SpatialInspector({
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <Link
-                        href={`/components/${item.componentId}`}
+                        href={`/inventory/components/${item.componentId}`}
                         className="flex items-center gap-1 font-mono text-xs font-semibold text-primary hover:underline"
                       >
                         <span className="truncate">{item.sku}</span>
