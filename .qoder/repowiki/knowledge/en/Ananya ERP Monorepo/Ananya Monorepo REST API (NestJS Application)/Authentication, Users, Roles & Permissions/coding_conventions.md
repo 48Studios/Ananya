@@ -1,6 +1,0 @@
-- Domain-specific authorization boundaries are implemented as thin bindings of `createPermissionGuard(permissionCode, subject)` rather than new guard classes, keeping auth mechanics centralized in `permission.guard.ts`.
-- Every mutating or security-sensitive service method calls `SecurityAuditService.record({ action, category: 'SECURITY', ... })` after the database write to produce an audit trail.
-- Password hashing is done locally via a module-scoped `hashPassword` helper using `crypto.createHash('sha256')` instead of a dedicated crypto library.
-- System roles are seeded declaratively through `SYSTEM_ROLE_PERMISSIONS` in `PermissionsService` and materialized at startup by `RolesService.ensureSystemRoles`, so adding a role means editing one constant rather than writing migration SQL.
-- Controllers extract the bearer token directly from the `Authorization` header with `header.replace('Bearer ', '')` and pass it to `AuthService.getMeByToken` instead of using a global Nest interceptor.
-- Each feature module follows the same shape: a slim `*.module.ts` that imports peer modules, declares its controller(s) and service(s), and re-exports services used by other features.

@@ -338,6 +338,8 @@ export default function PurchaseInvoiceDetailPage() {
 
       {/* Page Header */}
       <PageHeader
+        backHref="/purchase-invoices"
+        backLabel="Back to Purchase Invoices"
         title={invoice.invoiceNumber}
         description={`Vendor Ref: ${invoice.vendorInvoiceNumber} • Supplier: ${
           supplier?.name || invoice.supplierId

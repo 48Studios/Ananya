@@ -1,1 +1,0 @@
-FastAPI HTTP surface exposing component category classification, manufacturer resolution, duplicate detection, datasheet extraction, attribute intelligence, and in-process model training/deployment control.

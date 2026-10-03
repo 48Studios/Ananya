@@ -1,6 +1,0 @@
-- Each service Dockerfile follows the same four-stage layout (pruner → builder → prod-deps → runner) using `node:22-alpine` and `corepack enable`.
-- Images create a non-root `ananya` group/user with fixed GID/UID 10001 and set `NODE_ENV=production` before copying artifacts.
-- Build outputs are verified deterministically with explicit `test -f ... || (echo '❌ ... not found' && exit 1)` checks before switching to the `USER ananya` runtime stage.
-- Health probes are declared as `HEALTHCHECK` directives calling each service's `/health` endpoint via Node's built-in `fetch`.
-- GitHub Actions workflows declare minimal `permissions: contents: read` at the top level and only escalate `packages: write` or `contents: write` inside jobs that need them.
-- Reusable workflow logic is extracted into underscore-prefixed files (`_quality-gates.yml`, `_docker-smoke-test.yml`) and referenced via `uses: ./.github/workflows/<name>.yml`.

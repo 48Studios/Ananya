@@ -1,1 +1,0 @@
-Plain TypeScript utility modules; no React, no runtime dependencies beyond shared lib imports. Types come from generated API DTOs (`AttributeReviewFindingDto`, `AttributeSuggestionDto`, `UnitDto`).

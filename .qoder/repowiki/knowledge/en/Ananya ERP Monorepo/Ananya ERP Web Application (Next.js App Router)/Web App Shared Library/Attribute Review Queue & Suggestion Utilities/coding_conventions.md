@@ -1,6 +1,0 @@
-- Presentation logic is implemented as pure functions that take a DTO and return labels, booleans, or structured view objects — no component or global state access.
-- User-facing strings are centralized in `Record<Enum, string>` lookup tables (e.g. `ATTRIBUTE_STATUS_LABELS`, `ATTRIBUTE_ISSUE_TYPE_LABELS`, `ATTRIBUTE_DECISION_COPY`, `ATTRIBUTE_APPLY_LABELS`) with a fallback to the raw key when a label is missing.
-- Eligibility checks return a human-readable reason string (or `null` when allowed) rather than throwing, so disabled controls can explain themselves (e.g. `attributeApplyUnavailableReason`, `acceptUnavailableReason`, `bulkAcceptUnavailableReason`).
-- Backend enum-like fields are handled by casting to a known union type and falling back to the raw string, keeping the UI resilient to new backend values without crashing.
-- Subject/value extraction reads nested optional snapshots through small helpers (`readRecord`, `readString`) that coerce unknown shapes to safe nulls, applied consistently across finding subject, proposal, and evidence parsing.
-- Permission-derived capabilities are computed from a single boolean flag (`canWriteAttributes`) into a typed capability object (`AttributeReviewPermissions`) rather than scattered permission checks at call sites.

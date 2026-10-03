@@ -1,6 +1,0 @@
-- Forms are declared with a top-level `z.object` schema passed to `useForm({ resolver: zodResolver(schema) })`, and field values are bound via `register` or `Controller` rather than uncontrolled inputs.
-- AI-assisted fields trigger debounced background calls (e.g. 350ms timeout on name change, 400ms debounce on category change) that set loading flags and swallow errors so the form remains usable when the ML service is unavailable.
-- Applied vs. suggested state is derived from the current form values on every render (via `appliedSuggestionDefinitionIds` / `reconcileAttributeSuggestion`) instead of being stored as separate flags, so re-conditioning on a category change does not lose reviewer choices.
-- Long-running async operations guard against stale responses using a generation counter ref (`intelligenceRequestRef`) or an `isCurrent` flag pattern, discarding results if a newer request has already been issued.
-- User-facing feedback to the ML pipeline is recorded best-effort via `mlApi.recordFeedback` / `attributesApi.recordFeedback` inside try/catch blocks that ignore failures, keeping telemetry non-blocking.
-- Destructive write flows (consolidation, apply-all) use a two-stage confirmation: a preview/read-only stage followed by an explicit acknowledgement checkbox before the mutation button becomes enabled.

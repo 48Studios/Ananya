@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: ml_service/training_pipeline/schemas_and_config
-title: Training Schemas & Configuration Registry
-scope:
-    - apps/ml/training/schemas/
-    - apps/ml/training/config/
-source_files: []
-depends_on: []
-related_to: []

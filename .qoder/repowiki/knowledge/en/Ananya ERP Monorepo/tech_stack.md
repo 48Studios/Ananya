@@ -1,1 +1,0 @@
-pnpm 9 workspace with Turborepo 2 for cross-package build orchestration; Node ≥22.12 across all JS/TS children; PostgreSQL 16 shared via Docker Compose; Playwright for e2e/a11y/visual tests; GitHub Actions + GHCR for image publishing driven by `infra/` pipelines.

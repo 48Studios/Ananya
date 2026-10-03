@@ -1,1 +1,0 @@
-Next.js App Router client pages for the CRM pipeline dashboard, customer account directory, and sales leads management with mock data and shared table components.

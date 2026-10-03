@@ -1,1 +1,0 @@
-Promoting a new version is a file-copy operation: place a new `registry/vX.Y.Z/` directory, then update `registry/active_deployment.json` to point `productionPath` to `apps/ml/models/category_classifier.pkl` and `backupPath` to `category_classifier.pkl.backup`; the SHA256 of the `.pkl` must be updated in the manifest.

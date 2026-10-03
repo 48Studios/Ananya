@@ -1,1 +1,0 @@
-NestJS feature modules exposing REST APIs for Bill of Materials, production orders, material consumption, finished goods receipts, and manufacturing traceability backed by Drizzle repositories.

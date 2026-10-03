@@ -1,1 +1,0 @@
-Next.js App Router pages for warehouse redirects, the legacy warehouses alias, and the full create/list/detail UI for inter-facility inventory transfers.

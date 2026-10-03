@@ -1,1 +1,0 @@
-Service version and model paths are configured through environment variables (`SERVICE_VERSION`, `MODEL_DIR`, `CATEGORY_MODEL_PATH`, `CATEGORY_KNOWLEDGE_PATH`, `MANUFACTURER_KNOWLEDGE_PATH`, `ENABLE_ONNX_EMBEDDINGS`, `ONNX_MODEL_PATH`, `ONNX_TOKENIZER_PATH`, `MAX_REQUEST_SIZE_BYTES`); without `CATEGORY_MODEL_PATH` set it falls back to `<MODEL_DIR>/category_classifier.pkl`.

@@ -1,1 +1,0 @@
-Next.js App Router with React Server Components disabled per-page via the `"use client"` directive; TanStack Table column definitions via `@tanstack/react-table`; Lucide icons for visual affordances.

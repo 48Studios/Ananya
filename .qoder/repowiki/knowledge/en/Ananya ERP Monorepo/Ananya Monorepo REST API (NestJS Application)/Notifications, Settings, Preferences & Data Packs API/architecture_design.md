@@ -1,6 +1,0 @@
-Four sibling NestJS feature modules (`notifications`, `settings`, `preferences`, `data-packs`), each following the same layout: a `*.module.ts` declares the controller + service(s) and imports shared cross-cutting modules; a `*.service.ts` holds business logic against the Drizzle schema from `@ananya/database`; a `dtos.ts` file groups request DTOs; optional sub-packages (e.g. `data-packs/packs/`) hold domain-specific data definitions.
-
-- Dependency direction is one-way outward: these modules depend on `ActivityModule`, `SecurityAuditModule`, and — where relevant — `ImportExportModule` / `AttributesModule`. They never import each other.
-- `notifications.module.ts` additionally exports `WorkflowEngineService` for downstream consumers; `settings.module.ts` exposes `OrganizationResetService` as a separate provider.
-- `data-packs.module.ts` uses `forwardRef(() => ImportExportModule)` to break the Components → ML → DataPacks → ImportExport → Components cycle documented in its comment.
-- All persistence goes through the shared `db` client from `@ananya/database` using typed table references from `@ananya/database/schema` and query helpers (`eq`, `and`, `desc`, `count`) from `@ananya/database/query` — no raw SQL or ORM layer inside this module.

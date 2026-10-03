@@ -1,1 +1,0 @@
-Provides a shared authenticated fetch client and one thin wrapper module per backend domain (auth, attributes, inventory, finance, etc.) that the Next.js web app calls.

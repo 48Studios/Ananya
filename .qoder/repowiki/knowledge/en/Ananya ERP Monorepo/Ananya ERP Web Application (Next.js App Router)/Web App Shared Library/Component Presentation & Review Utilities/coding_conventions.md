@@ -1,5 +1,0 @@
-- Backend enum values are mirrored as local `Record<Enum, string>` label maps (e.g. `ISSUE_TYPE_LABELS`, `STATUS_BADGE`, `DOCUMENT_TYPE_LABELS`) with a humanize fallback for unknown keys.
-- List mutations are exposed as pure functions named `applyXxx` that take the current array/page and return a new immutable copy, instead of mutating state directly.
-- Client-side validation mirrors server rules (URL checks, name normalization) and returns a discriminated union `{ ok: true | false }` so callers can fail fast with identical wording.
-- UI affordance functions like `canDecide`, `documentCardActions`, and `queueCardActions` derive allowed actions from status + permissions while deferring enforcement to the API.
-- Shared filter vocabulary is imported from `intelligence-review-filters` and re-exported here so the Component queue cannot drift from Attribute/Documentation surfaces.

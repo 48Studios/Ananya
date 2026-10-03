@@ -1,1 +1,0 @@
-TypeScript package built with `tsc -p tsconfig.build.json`, tested with Vitest (`vitest.config.ts`), using workspace dependencies `@ananya/core` and `@ananya/inventory`.

@@ -1,1 +1,0 @@
-React client forms for cycle-count creation and physical count recording, RMA requests, and warranty claims — each a dialog-embedded form backed by zod validation and the corresponding API layer.

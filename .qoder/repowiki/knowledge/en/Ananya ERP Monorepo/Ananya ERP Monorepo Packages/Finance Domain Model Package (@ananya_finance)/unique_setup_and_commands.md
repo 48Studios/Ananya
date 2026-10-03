@@ -1,1 +1,0 @@
-Build: `pnpm build` → runs `tsc -p tsconfig.build.json`. Type-check: `pnpm check-types` → `tsc --noEmit`. Test: `pnpm test` → `vitest run --passWithNoTests`.

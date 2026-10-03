@@ -1,1 +1,0 @@
-NestJS feature module exposing REST endpoints to record user activity events and query both activity logs and security audit trails.

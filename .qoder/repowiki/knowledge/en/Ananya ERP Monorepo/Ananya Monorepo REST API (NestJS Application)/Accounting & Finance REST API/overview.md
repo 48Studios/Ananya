@@ -1,1 +1,0 @@
-NestJS feature modules exposing REST endpoints for accounts, journal entries, receivable/payable invoices, payments, bank accounts, and bank reconciliations backed by domain entities from @ananya/finance.

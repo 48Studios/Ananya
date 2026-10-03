@@ -1,1 +1,0 @@
-Next.js App Router client components, `@tanstack/react-table` column definitions, `lucide-react` icons, and shadcn-style primitive components under `@/components/ui`.

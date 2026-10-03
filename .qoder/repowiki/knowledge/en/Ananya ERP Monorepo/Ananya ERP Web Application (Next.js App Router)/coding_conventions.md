@@ -1,5 +1,0 @@
-- Each business domain gets its own `app/<domain>/` folder with list/detail pages following the Next.js App Router `[id]/page.tsx` convention.
-- Reusable UI pieces live in `components/<domain>/` and primitives in `components/ui/`, imported by pages rather than duplicated.
-- Domain logic and helpers are placed in `lib/<area>.ts` with co-located `*.spec.ts` test files using Vitest.
-- Form schemas are validated with zod and wired through react-hook-form via `@hookform/resolvers`.
-- API calls go through the typed client in `lib/api-client.ts` with per-domain wrapper functions instead of direct fetch calls.

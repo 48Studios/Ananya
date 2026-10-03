@@ -1,4 +1,0 @@
-- RFC files use zero-padded four-digit numeric prefixes (e.g., `0001-inventory-ledger.md`) that are never reused across accepted, rejected, or superseded documents.
-- Each RFC follows a standard header block containing Title, Status, Author, Created, Summary, Motivation, Design, Alternatives Considered, Trade-offs, Consequences, Future Extensions, and Non-Goals.
-- Top-level documentation is navigated via a single root `README.md` that groups links into thematic sections (Architecture, Operations, Development, API, Database, Standards, RFCs).
-- Standards and process guidance live under `docs/standards/` as separate Markdown files per concern (coding standards, new module guide, PR review checklist, workspace packages policy).

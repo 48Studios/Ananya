@@ -1,1 +1,0 @@
-End-to-end ML training workspace that orchestrates data collection, record processing, dataset generation, model training, evaluation, and deployment for Ananya ERP product intelligence.

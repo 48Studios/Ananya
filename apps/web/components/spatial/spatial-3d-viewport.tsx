@@ -69,6 +69,18 @@ export interface Spatial3DViewportProps {
   highlightedLocationId?: string | null;
   onSelectLocation?: (locationId: string) => void;
   onEnterLocation?: (locationId: string) => void;
+  /**
+   * Allows clicking the parent carcass to select the top-level container.
+   * Defaults to false so existing viewers keep ignoring parent meshes.
+   */
+  isParentSelectable?: boolean;
+  /**
+   * Parent-first workflow gate: when false, child compartments render in the
+   * disabled palette and are skipped by raycasting, so pointer and hover
+   * interactions fall through to the selectable parent carcass.
+   * Defaults to true so existing viewers are unchanged.
+   */
+  isChildInteractionEnabled?: boolean;
   onOpenMapping?: () => void;
   visualizationMode?: SpatialVisualizationMode;
   showBadges?: boolean;
@@ -95,6 +107,8 @@ export function Spatial3DViewport({
   highlightedLocationId,
   onSelectLocation,
   onEnterLocation,
+  isParentSelectable = false,
+  isChildInteractionEnabled = true,
   onOpenMapping,
   onSwitchTo2D,
   visualizationMode = "standard",
@@ -135,8 +149,12 @@ export function Spatial3DViewport({
   const [customAssetStatus, setCustomAssetStatus] = React.useState<
     "procedural" | "loading" | "loaded" | "error"
   >("procedural");
-  const [customAssetError, setCustomAssetError] = React.useState<string | null>(null);
-  const [customAssetNotice, setCustomAssetNotice] = React.useState<string | null>(null);
+  const [customAssetError, setCustomAssetError] = React.useState<string | null>(
+    null,
+  );
+  const [customAssetNotice, setCustomAssetNotice] = React.useState<
+    string | null
+  >(null);
   const customAssetLoadIdRef = React.useRef(0);
 
   // References to keep animation loop & controls active across renders
@@ -165,7 +183,10 @@ export function Spatial3DViewport({
   } | null>(null);
 
   // Track pointer movements to distinguish deliberate clicks from orbit drags
-  const pointerDownPosRef = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const pointerDownPosRef = React.useRef<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
 
   // Compute scene bounds
   const parentDimensions = React.useMemo<Vector3D>(() => {
@@ -188,7 +209,9 @@ export function Spatial3DViewport({
 
   // Motion & transition references
   const gridHelperRef = React.useRef<THREE.GridHelper | null>(null);
-  const lastTapRef = React.useRef<{ time: number; locationId: string } | null>(null);
+  const lastTapRef = React.useRef<{ time: number; locationId: string } | null>(
+    null,
+  );
   const isInitialMountRef = React.useRef(true);
   const prevParentIdRef = React.useRef<string>(parentData.location.id);
 
@@ -202,11 +225,23 @@ export function Spatial3DViewport({
     (preset: CameraOrientationPreset, smooth = true) => {
       if (!cameraRef.current || !controlsRef.current) return;
       setActiveCameraPreset(preset);
-      const fit = calculateCameraOrientationPreset(sceneBoundsRef.current, preset, 45);
+      const fit = calculateCameraOrientationPreset(
+        sceneBoundsRef.current,
+        preset,
+        45,
+      );
 
       if (!smooth || prefersReducedMotion()) {
-        cameraRef.current.position.set(fit.position.x, fit.position.y, fit.position.z);
-        controlsRef.current.target.set(fit.target.x, fit.target.y, fit.target.z);
+        cameraRef.current.position.set(
+          fit.position.x,
+          fit.position.y,
+          fit.position.z,
+        );
+        controlsRef.current.target.set(
+          fit.target.x,
+          fit.target.y,
+          fit.target.z,
+        );
         controlsRef.current.update();
         if (cameraTransitionRef.current) {
           cameraTransitionRef.current.active = false;
@@ -216,7 +251,11 @@ export function Spatial3DViewport({
 
       cameraTransitionRef.current = {
         startPos: cameraRef.current.position.clone(),
-        endPos: new THREE.Vector3(fit.position.x, fit.position.y, fit.position.z),
+        endPos: new THREE.Vector3(
+          fit.position.x,
+          fit.position.y,
+          fit.position.z,
+        ),
         startTarget: controlsRef.current.target.clone(),
         endTarget: new THREE.Vector3(fit.target.x, fit.target.y, fit.target.z),
         progress: 0,
@@ -279,7 +318,9 @@ export function Spatial3DViewport({
   const focusOnLocation = React.useCallback(
     (locationId: string) => {
       if (!cameraRef.current || !controlsRef.current) return;
-      const targetChild = childrenLayout.find((c) => c.locationId === locationId);
+      const targetChild = childrenLayout.find(
+        (c) => c.locationId === locationId,
+      );
       if (!targetChild) return;
 
       const targetPos = new THREE.Vector3(
@@ -389,7 +430,10 @@ export function Spatial3DViewport({
     controlsRef.current = controls;
 
     // 4b. TransformControls for interactive anchor authoring
-    const transformControls = new TransformControls(camera, renderer.domElement);
+    const transformControls = new TransformControls(
+      camera,
+      renderer.domElement,
+    );
     transformControls.size = 0.75;
     transformControls.addEventListener("dragging-changed", (event) => {
       if (controlsRef.current) {
@@ -443,7 +487,11 @@ export function Spatial3DViewport({
 
     // 6. Ground reference grid
     const initialBounds = sceneBoundsRef.current;
-    const gridDim = Math.max(3, initialBounds.size.x * 3, initialBounds.size.z * 3);
+    const gridDim = Math.max(
+      3,
+      initialBounds.size.x * 3,
+      initialBounds.size.z * 3,
+    );
     const gridHelper = new THREE.GridHelper(gridDim, 30, 0x334155, 0x1e293b);
     gridHelper.position.y = -0.001;
     scene.add(gridHelper);
@@ -576,7 +624,14 @@ export function Spatial3DViewport({
     carcassContainer.name = "parent-carcass-container";
 
     // Immediate synchronous procedural fallback
-    const fallbackCarcass = createParentCarcassMesh(parentData, parentDimensions);
+    const fallbackCarcass = createParentCarcassMesh(
+      parentData,
+      parentDimensions,
+      {
+        isSelected: selectedLocationId === parentData.location.id,
+        needsAttention: !isChildInteractionEnabled,
+      },
+    );
     carcassContainer.add(fallbackCarcass);
     rootGroup.add(carcassContainer);
 
@@ -589,6 +644,7 @@ export function Spatial3DViewport({
         hasStock: child.hasStock,
         isMapped: child.isMapped,
         isActive: child.rawChild.location.isActive,
+        isInteractionDisabled: !isChildInteractionEnabled,
         mode: visualizationMode,
         stockSummary: summary,
       });
@@ -703,9 +759,12 @@ export function Spatial3DViewport({
           ) {
             return;
           }
-          if (err instanceof Error && err.message === "Asset load aborted") return;
+          if (err instanceof Error && err.message === "Asset load aborted")
+            return;
           const msg =
-            err instanceof Error ? err.message : "Failed to load custom 3D model";
+            err instanceof Error
+              ? err.message
+              : "Failed to load custom 3D model";
           setCustomAssetStatus("error");
           setCustomAssetError(msg);
           // Procedural carcass remains safely in place as fallback
@@ -722,6 +781,7 @@ export function Spatial3DViewport({
   }, [
     parentData,
     parentDimensions,
+    isChildInteractionEnabled,
     sceneBounds,
     childrenLayout,
     selectedLocationId,
@@ -803,30 +863,37 @@ export function Spatial3DViewport({
       return;
     }
 
-    const intersects = raycaster.intersectObjects(sceneRef.current.children, true);
+    const intersects = raycaster.intersectObjects(
+      sceneRef.current.children,
+      true,
+    );
     for (const hit of intersects) {
       const userData = findInteractiveUserData(hit.object);
-      if (userData && !userData.isParent) {
-        // Touch double-tap detection (< 350ms on same compartment)
-        if (e.pointerType === "touch") {
-          const now = performance.now();
-          if (
-            lastTapRef.current &&
-            now - lastTapRef.current.time < 350 &&
-            lastTapRef.current.locationId === userData.locationId
-          ) {
-            lastTapRef.current = null;
-            onEnterLocation?.(userData.locationId);
-            return;
-          }
-          lastTapRef.current = { time: now, locationId: userData.locationId };
-        }
+      if (!userData) continue;
+      if (userData.isParent && !isParentSelectable) continue;
+      // Parent-first gate: gated children are transparent to clicks so the
+      // selectable outer container behind them receives the interaction.
+      if (!userData.isParent && !isChildInteractionEnabled) continue;
 
-        if (onSelectLocation) {
-          onSelectLocation(userData.locationId);
+      // Touch double-tap detection (< 350ms on same compartment)
+      if (e.pointerType === "touch") {
+        const now = performance.now();
+        if (
+          lastTapRef.current &&
+          now - lastTapRef.current.time < 350 &&
+          lastTapRef.current.locationId === userData.locationId
+        ) {
+          lastTapRef.current = null;
+          onEnterLocation?.(userData.locationId);
+          return;
         }
-        return;
+        lastTapRef.current = { time: now, locationId: userData.locationId };
       }
+
+      if (onSelectLocation) {
+        onSelectLocation(userData.locationId);
+      }
+      return;
     }
   };
 
@@ -848,7 +915,10 @@ export function Spatial3DViewport({
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, cameraRef.current);
 
-    const intersects = raycaster.intersectObjects(sceneRef.current.children, true);
+    const intersects = raycaster.intersectObjects(
+      sceneRef.current.children,
+      true,
+    );
     for (const hit of intersects) {
       const userData = findInteractiveUserData(hit.object);
       if (userData && !userData.isParent) {
@@ -893,19 +963,28 @@ export function Spatial3DViewport({
       return;
     }
 
-    const intersects = raycaster.intersectObjects(sceneRef.current.children, true);
+    const intersects = raycaster.intersectObjects(
+      sceneRef.current.children,
+      true,
+    );
     let found: MeshUserData | null = null;
 
     for (const hit of intersects) {
       const userData = findInteractiveUserData(hit.object);
-      if (userData && !userData.isParent) {
-        found = userData;
-        break;
-      }
+      if (!userData) continue;
+      if (userData.isParent && !isParentSelectable) continue;
+      if (!userData.isParent && !isChildInteractionEnabled) continue;
+      found = userData;
+      break;
     }
 
     if (found) {
       container.style.cursor = "pointer";
+      if (found.isParent) {
+        // Containers have no stock summary; hover feedback is cursor-only.
+        setHoveredLocation(null);
+        return;
+      }
       const summary = stockMap.get(found.locationId);
       setHoveredLocation({
         code: found.locationCode,
@@ -992,20 +1071,26 @@ export function Spatial3DViewport({
               {hoveredLocation.directBreakdown && (
                 <div className="flex justify-between text-sky-300">
                   <span>Direct:</span>
-                  <span className="font-mono font-semibold">{hoveredLocation.directBreakdown}</span>
+                  <span className="font-mono font-semibold">
+                    {hoveredLocation.directBreakdown}
+                  </span>
                 </div>
               )}
               {hoveredLocation.descendantBreakdown && (
                 <div className="flex justify-between text-purple-300">
                   <span>Sub-bins:</span>
-                  <span className="font-mono font-semibold">{hoveredLocation.descendantBreakdown}</span>
+                  <span className="font-mono font-semibold">
+                    {hoveredLocation.descendantBreakdown}
+                  </span>
                 </div>
               )}
-              {hoveredLocation.capacity !== null && hoveredLocation.capacity !== undefined ? (
+              {hoveredLocation.capacity !== null &&
+              hoveredLocation.capacity !== undefined ? (
                 <div className="flex justify-between text-slate-400 pt-0.5">
                   <span>Capacity:</span>
                   <span className="font-mono">
-                    {hoveredLocation.fillRatio !== null && hoveredLocation.fillRatio !== undefined
+                    {hoveredLocation.fillRatio !== null &&
+                    hoveredLocation.fillRatio !== undefined
                       ? `${Math.round(hoveredLocation.fillRatio * 100)}% (${hoveredLocation.capacity} ${hoveredLocation.capacityUnit || "units"})`
                       : `${hoveredLocation.capacity} ${hoveredLocation.capacityUnit || "units"}`}
                   </span>
@@ -1013,7 +1098,9 @@ export function Spatial3DViewport({
               ) : hoveredLocation.hasStock ? (
                 <div className="flex justify-between text-slate-400 pt-0.5">
                   <span>Capacity:</span>
-                  <span className="font-mono italic text-slate-500">Unspecified</span>
+                  <span className="font-mono italic text-slate-500">
+                    Unspecified
+                  </span>
                 </div>
               ) : null}
             </div>
@@ -1106,7 +1193,9 @@ export function Spatial3DViewport({
           <div className="flex items-center gap-0.5 bg-slate-950/60 p-0.5 rounded mr-1 border border-slate-700/60">
             <Button
               type="button"
-              variant={authoringGizmoMode === "translate" ? "secondary" : "ghost"}
+              variant={
+                authoringGizmoMode === "translate" ? "secondary" : "ghost"
+              }
               size="xs"
               onClick={() => onGizmoModeChange?.("translate")}
               className="h-6 px-2 text-[11px] text-slate-200 gap-1"
@@ -1248,7 +1337,9 @@ export function Spatial3DViewport({
             <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Compass className="size-4 text-sky-400" />
-                <span className="font-semibold text-slate-100">3D Visual Legend</span>
+                <span className="font-semibold text-slate-100">
+                  3D Visual Legend
+                </span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700/60 uppercase">
                   {activeCameraPreset} View
                 </span>
@@ -1352,7 +1443,8 @@ export function Spatial3DViewport({
             </div>
 
             <p className="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1.5 leading-normal">
-              3D envelopes represent physical storage volumes. Authoritative inventory records are verified upon selection.
+              3D envelopes represent physical storage volumes. Authoritative
+              inventory records are verified upon selection.
             </p>
           </div>
         )}
@@ -1384,7 +1476,8 @@ export function Spatial3DViewport({
             <span className="font-mono text-slate-200 font-bold">
               {parentData.location.code}
             </span>{" "}
-            lacking 3D anchor coordinates on this model. Visualized here to preserve physical integrity:
+            lacking 3D anchor coordinates on this model. Visualized here to
+            preserve physical integrity:
           </p>
 
           {onSwitchTo2D && (
@@ -1403,7 +1496,11 @@ export function Spatial3DViewport({
             </div>
           )}
 
-          <div className="space-y-1.5" role="listbox" aria-label="Unmapped staging items">
+          <div
+            className="space-y-1.5"
+            role="listbox"
+            aria-label="Unmapped staging items"
+          >
             {unmappedChildren.map((child) => {
               const stock = stockMap.get(child.location.id);
               const isSelected = selectedLocationId === child.location.id;

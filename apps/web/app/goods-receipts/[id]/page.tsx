@@ -1,18 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Printer,
-  Building2,
-  Calendar,
-  Package,
-  Layers,
-  MapPin,
-  CheckCircle2,
-} from "lucide-react";
+import { Printer, Building2, Calendar, Package, Layers, MapPin, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -32,7 +23,6 @@ import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 
 export default function ViewGoodsReceiptPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params?.id as string;
 
   const [gr, setGr] = React.useState<GoodsReceiptDto | null>(null);
@@ -126,6 +116,8 @@ export default function ViewGoodsReceiptPage() {
     <div className="space-y-6 print:space-y-4">
       {/* Header */}
       <PageHeader
+        backHref="/goods-receipts"
+        backLabel="Back to Goods Receipts"
         title={gr.grNumber}
         description={`Purchase Order: ${po?.poNumber || gr.purchaseOrderId}`}
         breadcrumbs={[
@@ -134,14 +126,6 @@ export default function ViewGoodsReceiptPage() {
         ]}
         actions={
           <div className="flex items-center gap-2 print:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/goods-receipts")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="w-4 h-4 mr-1.5" />
               Print Report

@@ -1,1 +1,0 @@
-Next.js App Router client components, TanStack Table v8 (`@tanstack/react-table`) for column definitions, Lucide icons, and a local finance API client (`@/lib/api/finance-api`) exposing typed DTOs like `PaymentDto`.

@@ -1,1 +1,0 @@
-NestJS DI + Guards for cross-cutting authorization; shared `SecurityAuditModule` for audit logging consumed by both ML features and the Activity module.

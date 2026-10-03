@@ -23,6 +23,48 @@ export type BuilderWorkspaceMode = "build" | "map";
 
 export type PreviewViewMode = "2d" | "3d";
 
+/**
+ * Synthetic interaction key for the preview's top-level container (carcass).
+ * The container is NOT a compartment mapping: its Ananya location is the
+ * layout's `parentLocationId`, so it never appears in `spatial_layout_mappings`.
+ */
+export const BUILDER_CARCASS_LOCATION_ID = "builder-carcass";
+
+/** Stale reason prefix for a compartment mapping that conflicts with the container assignment. */
+export const PARENT_CONFLICT_STALE_PREFIX = "Parent conflict";
+
+/**
+ * Single authoritative parent-first gate for the whole workspace.
+ *
+ * Child (drawer/compartment) selection and mapping are only possible once the
+ * top-level container has an assigned Ananya location. Both the 2D and 3D
+ * previews derive their enabled/disabled state from this one condition, so the
+ * views cannot drift apart.
+ */
+export function isChildInteractionEnabled(state: {
+  selectedParentLocationId: string | null;
+}): boolean {
+  return state.selectedParentLocationId !== null;
+}
+
+/**
+ * Selection normalisation for the parent-first workflow: without an assigned
+ * container the container itself is the active target, never a child slot.
+ */
+function resolveParentFirstSelection(
+  selectedParentLocationId: string | null,
+  fallbackSlotId: string | null,
+  selectedContainer: boolean,
+): { selectedContainer: boolean; selectedSlotId: string | null } {
+  if (!selectedParentLocationId) {
+    return { selectedContainer: true, selectedSlotId: null };
+  }
+  if (selectedContainer) {
+    return { selectedContainer: true, selectedSlotId: null };
+  }
+  return { selectedContainer: false, selectedSlotId: fallbackSlotId };
+}
+
 export const INCOMPATIBLE_COMPARTMENT_KINDS = new Set([
   "warehouse",
   "room",
@@ -53,6 +95,11 @@ export interface BuilderWorkspaceState {
   diff: ParametricCompartmentDiff | null;
   mappings: Map<string, SlotMappingRecord>;
   selectedSlotId: string | null;
+  /**
+   * True when the top-level container (not an individual compartment) is the
+   * active preview selection. Mutually exclusive with `selectedSlotId`.
+   */
+  selectedContainer: boolean;
   selectedParentLocationId: string | null;
 
   // Phase 3.3 Persistence Properties
@@ -143,7 +190,12 @@ export function createInitialBuilderState(
     validationErrors: [],
     diff: initialDiff,
     mappings: new Map(),
-    selectedSlotId: initialResult.compartments[0]?.slotId ?? null,
+    // Parent-first: without an assigned container, the outer container is the
+    // active target and child compartments stay non-interactive.
+    selectedContainer: initialParentLocationId === null,
+    selectedSlotId: initialParentLocationId
+      ? (initialResult.compartments[0]?.slotId ?? null)
+      : null,
     selectedParentLocationId: initialParentLocationId,
     loadedLayoutId: null,
     loadedLayoutCode: null,
@@ -182,7 +234,9 @@ export function updateParametricConfig(
   );
 
   // Preserve mappings for slots that still exist in the new result
-  const validSlotIds = new Set(generatedResult.compartments.map((c) => c.slotId));
+  const validSlotIds = new Set(
+    generatedResult.compartments.map((c) => c.slotId),
+  );
   const meaningChangedMap = new Map(
     diff.meaningChangedSlots.map((m) => [m.current.slotId, m.reason]),
   );
@@ -190,7 +244,9 @@ export function updateParametricConfig(
   const newMappings = new Map<string, SlotMappingRecord>();
   for (const [slotId, record] of state.mappings.entries()) {
     if (validSlotIds.has(slotId)) {
-      const comp = generatedResult.compartments.find((c) => c.slotId === slotId)!;
+      const comp = generatedResult.compartments.find(
+        (c) => c.slotId === slotId,
+      )!;
       const staleReason = meaningChangedMap.get(slotId);
 
       if (staleReason) {
@@ -216,8 +272,12 @@ export function updateParametricConfig(
         }
       } else {
         // No parametric meaning change relative to baseline
-        // Preserve hierarchy mismatch warning if one was active; otherwise mark non-stale
-        if (record.staleReason?.startsWith("Hierarchy mismatch") || record.staleReason?.startsWith("No parent container")) {
+        // Preserve hierarchy mismatch / parent conflict warnings if active; otherwise mark non-stale
+        if (
+          record.staleReason?.startsWith("Hierarchy mismatch") ||
+          record.staleReason?.startsWith("No parent container") ||
+          record.staleReason?.startsWith(PARENT_CONFLICT_STALE_PREFIX)
+        ) {
           newMappings.set(slotId, record);
         } else {
           newMappings.set(slotId, {
@@ -231,12 +291,19 @@ export function updateParametricConfig(
     }
   }
 
-  // Preserve selectedSlotId if still valid, or fallback to first compartment
+  // Preserve the container selection, or the selected compartment when still
+  // valid; otherwise fall back to the first compartment. Without an assigned
+  // container the parent-first gate keeps the container selected.
   const isSelectedValid =
     state.selectedSlotId !== null && validSlotIds.has(state.selectedSlotId);
-  const selectedSlotId = isSelectedValid
+  const fallbackSlotId = isSelectedValid
     ? state.selectedSlotId
-    : generatedResult.compartments[0]?.slotId ?? null;
+    : (generatedResult.compartments[0]?.slotId ?? null);
+  const selection = resolveParentFirstSelection(
+    state.selectedParentLocationId,
+    fallbackSlotId,
+    state.selectedContainer,
+  );
 
   return {
     ...state,
@@ -245,7 +312,8 @@ export function updateParametricConfig(
     validationErrors: [],
     diff,
     mappings: newMappings,
-    selectedSlotId,
+    selectedSlotId: selection.selectedSlotId,
+    selectedContainer: selection.selectedContainer,
   };
 }
 
@@ -324,7 +392,22 @@ export function setSelectedParentLocation(
       newMappings.set(slotId, {
         ...record,
         isStale: true,
-        staleReason: "No parent container selected; mapping hierarchy unverified",
+        staleReason:
+          "No parent container selected; mapping hierarchy unverified",
+      });
+    } else if (record.locationId === newParentId) {
+      // The container itself can never also be a compartment slot. The API
+      // rejects this pairing (ParentCannotBeSlotError), so surface it as an
+      // explicit parent conflict for resolution instead of a generic mismatch.
+      const parentObj = locations.find((l) => l.id === newParentId);
+      const parentLabel = parentObj
+        ? `"${parentObj.name}" (${parentObj.code})`
+        : `'${newParentId}'`;
+
+      newMappings.set(slotId, {
+        ...record,
+        isStale: true,
+        staleReason: `${PARENT_CONFLICT_STALE_PREFIX}: location ${parentLabel} is assigned as the top-level container and cannot also be a compartment slot.`,
       });
     } else if (validDescendantIds.has(record.locationId)) {
       // Retain or restore compatible mapping
@@ -355,10 +438,22 @@ export function setSelectedParentLocation(
     }
   }
 
+  // Parent-first: without a container the container itself becomes the active
+  // target, and child selection is cleared (interaction is gated downstream).
+  const selection =
+    newParentId === null
+      ? { selectedContainer: true, selectedSlotId: null }
+      : {
+          selectedContainer: state.selectedContainer,
+          selectedSlotId: state.selectedSlotId,
+        };
+
   return {
     ...state,
     selectedParentLocationId: newParentId,
     mappings: newMappings,
+    selectedContainer: selection.selectedContainer,
+    selectedSlotId: selection.selectedSlotId,
   };
 }
 
@@ -410,6 +505,12 @@ export function mapSlotToLocation(
   location: LocationDto,
   locations?: LocationDto[],
 ): BuilderWorkspaceState {
+  // Parent-first gate: no compartment mapping is possible until the top-level
+  // container location is assigned.
+  if (!isChildInteractionEnabled(state)) {
+    return state;
+  }
+
   // Reject mapping the selected parent itself
   if (
     state.selectedParentLocationId &&
@@ -473,7 +574,9 @@ export function acknowledgeStaleMapping(
   const existing = state.mappings.get(slotId);
   if (!existing) return state;
 
-  const comp = state.generatedResult?.compartments.find((c) => c.slotId === slotId);
+  const comp = state.generatedResult?.compartments.find(
+    (c) => c.slotId === slotId,
+  );
   const sig =
     comp && existing.staleReason
       ? computeSlotMeaningSignature(comp, existing.staleReason)
@@ -519,6 +622,46 @@ export function switchWorkspaceMode(
   return {
     ...state,
     mode: newMode,
+  };
+}
+
+/**
+ * Selects the top-level container (carcass) in the preview.
+ * Container selection is distinct from compartment selection: the parent
+ * location assignment lives on `parentLocationId`, never in slot mappings.
+ */
+export function selectContainer(
+  state: BuilderWorkspaceState,
+): BuilderWorkspaceState {
+  if (state.selectedContainer && state.selectedSlotId === null) {
+    return state;
+  }
+  return {
+    ...state,
+    selectedContainer: true,
+    selectedSlotId: null,
+  };
+}
+
+/**
+ * Selects an individual compartment in the preview, clearing any container selection.
+ */
+export function selectCompartment(
+  state: BuilderWorkspaceState,
+  slotId: string,
+): BuilderWorkspaceState {
+  // Parent-first gate: child compartments are not selectable until the
+  // top-level container has an assigned Ananya location.
+  if (!isChildInteractionEnabled(state)) {
+    return state;
+  }
+  if (state.selectedSlotId === slotId && !state.selectedContainer) {
+    return state;
+  }
+  return {
+    ...state,
+    selectedSlotId: slotId,
+    selectedContainer: false,
   };
 }
 
@@ -597,7 +740,19 @@ export function syncStateFromUrl(
     if (locations && locations.length > 0) {
       nextState = setSelectedParentLocation(nextState, locationId, locations);
     } else {
-      nextState = { ...nextState, selectedParentLocationId: locationId };
+      // Locations are not loaded yet: apply the parent-first selection rule so
+      // the preview cannot keep a child selected without a container.
+      const selection = resolveParentFirstSelection(
+        locationId,
+        nextState.selectedSlotId,
+        nextState.selectedContainer,
+      );
+      nextState = {
+        ...nextState,
+        selectedParentLocationId: locationId,
+        selectedContainer: selection.selectedContainer,
+        selectedSlotId: selection.selectedSlotId,
+      };
     }
     changed = true;
   }
@@ -667,7 +822,9 @@ export function convertGeneratedToSceneLayout(
     return {
       locationId: comp.slotId, // Use slotId as unique interactive key
       locationCode: comp.code,
-      locationName: mapping ? `${comp.name} → ${mapping.locationName}` : comp.name,
+      locationName: mapping
+        ? `${comp.name} → ${mapping.locationName}`
+        : comp.name,
       kind: comp.kind,
       isMapped,
       hasStock: false,
@@ -732,12 +889,16 @@ export function loadLayoutIntoWorkspace(
         : new Date().toISOString(),
       isStale: item.isStale ?? false,
       staleReason: item.staleReason ?? undefined,
-      acknowledgedChangeSignature: item.acknowledgedChangeSignature ?? undefined,
+      acknowledgedChangeSignature:
+        item.acknowledgedChangeSignature ?? undefined,
     });
   }
 
   const initialDiff = generatedResult
-    ? diffParametricCompartments(baselineCompartments, generatedResult.compartments)
+    ? diffParametricCompartments(
+        baselineCompartments,
+        generatedResult.compartments,
+      )
     : null;
 
   return {
@@ -749,6 +910,7 @@ export function loadLayoutIntoWorkspace(
     diff: initialDiff,
     mappings,
     selectedSlotId: generatedResult?.compartments[0]?.slotId ?? null,
+    selectedContainer: false,
     selectedParentLocationId: layout.parentLocationId,
     loadedLayoutId: layout.id,
     loadedLayoutCode: layout.code,
@@ -766,6 +928,10 @@ export function resetWorkspaceToDraft(
   state: BuilderWorkspaceState,
   parentLocationId?: string | null,
 ): BuilderWorkspaceState {
+  const nextParentLocationId =
+    parentLocationId !== undefined
+      ? parentLocationId
+      : state.selectedParentLocationId;
   const defaultConfig = createDefaultSmdCabinetConfig();
   const initialResult = generateStorageCompartments(defaultConfig);
   const initialDiff = diffParametricCompartments(
@@ -781,11 +947,11 @@ export function resetWorkspaceToDraft(
     validationErrors: [],
     diff: initialDiff,
     mappings: new Map(),
-    selectedSlotId: initialResult.compartments[0]?.slotId ?? null,
-    selectedParentLocationId:
-      parentLocationId !== undefined
-        ? parentLocationId
-        : state.selectedParentLocationId,
+    selectedSlotId: nextParentLocationId
+      ? (initialResult.compartments[0]?.slotId ?? null)
+      : null,
+    selectedContainer: nextParentLocationId === null,
+    selectedParentLocationId: nextParentLocationId,
     loadedLayoutId: null,
     loadedLayoutCode: null,
     loadedLayoutName: null,
@@ -858,4 +1024,3 @@ export function computeIsWorkspaceDirty(
 
   return false;
 }
-

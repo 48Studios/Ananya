@@ -1,1 +1,0 @@
-Next.js App Router client pages for the procurement domain, providing list and detail views for purchase orders and purchase invoices with CRUD, status workflows, and three-way matching.

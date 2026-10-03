@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: api/ml_attributes/ml_ops
-title: ML Operations Operator Control Plane
-scope:
-    - apps/api/src/ml/ops/
-source_files: []
-depends_on: []
-related_to:
-    - path: web_app/reports_intelligence

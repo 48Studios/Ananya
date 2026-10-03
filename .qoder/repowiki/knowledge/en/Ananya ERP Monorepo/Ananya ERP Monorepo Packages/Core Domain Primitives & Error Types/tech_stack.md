@@ -1,1 +1,0 @@
-TypeScript 5.9.2 with `@ananya/typescript-config`; unit tests run via Vitest; build driven by `tsc` using a separate `tsconfig.build.json`.

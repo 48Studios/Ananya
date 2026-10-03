@@ -11,7 +11,9 @@ function resolveDatabaseUrl(): string {
   // Playwright runs from the repository root; reuse the local .env when present.
   const envPath = path.resolve(process.cwd(), ".env");
   if (fs.existsSync(envPath)) {
-    const match = fs.readFileSync(envPath, "utf8").match(/^DATABASE_URL=(.+)$/m);
+    const match = fs
+      .readFileSync(envPath, "utf8")
+      .match(/^DATABASE_URL=(.+)$/m);
     if (match?.[1]) return match[1].trim();
   }
   throw new Error(
@@ -118,17 +120,25 @@ test.describe.configure({ mode: "serial" });
  * pass, so interactions do not race with the first URL synchronization.
  */
 async function waitForWorkspaceReady(page: Page): Promise<void> {
-  await expect(page.getByText("Inventory Builder")).toBeVisible();
+  // Scoped to <main>: the sidebar navigation also renders "Inventory Builder".
+  await expect(
+    page.getByRole("main").getByText("Inventory Builder"),
+  ).toBeVisible();
   await expect(page.getByText("Mapped: 0 /")).toBeVisible();
-  await expect(page.getByText(/600 × 900 × 300 mm/)).toBeVisible();
+  // Scoped to the header "Outer:" stat: the container inspector also shows the envelope.
+  await expect(page.getByText(/Outer: 600 × 900 × 300 mm/)).toBeVisible();
   await expect(page.getByTestId("front-elevation-viewport")).toBeVisible();
 }
 
-test.describe("Inventory Builder 2D Front Elevation", () => {
+test.describe("Inventory Builder Preview: Front Elevation & Container Assignment", () => {
   let pool: Pool;
   let sessionToken: string;
   let parentId: string;
   let parentCode: string;
+  let childDrawerId: string;
+  let childDrawerCode: string;
+  let secondParentId: string;
+  let secondParentCode: string;
 
   test.beforeAll(async () => {
     pool = new Pool({ connectionString: resolveDatabaseUrl() });
@@ -150,26 +160,67 @@ test.describe("Inventory Builder 2D Front Elevation", () => {
     const runSuffix = crypto.randomBytes(3).toString("hex");
     parentId = crypto.randomUUID();
     parentCode = `E2E-ELEV-${runSuffix}`;
+    childDrawerId = crypto.randomUUID();
+    childDrawerCode = `E2E-ELEV-DRW-${runSuffix}`;
+    secondParentId = crypto.randomUUID();
+    secondParentCode = `E2E-ELEV-ALT-${runSuffix}`;
+
     await pool.query(
       "INSERT INTO locations (id, code, name, kind, parent_id, is_active) VALUES ($1, $2, $3, $4, $5, $6);",
-      [parentId, parentCode, `E2E Elevation Cabinet ${runSuffix}`, "cabinet", null, true],
+      [
+        parentId,
+        parentCode,
+        `E2E Elevation Cabinet ${runSuffix}`,
+        "cabinet",
+        null,
+        true,
+      ],
+    );
+    await pool.query(
+      "INSERT INTO locations (id, code, name, kind, parent_id, is_active) VALUES ($1, $2, $3, $4, $5, $6);",
+      [
+        childDrawerId,
+        childDrawerCode,
+        `E2E Elevation Drawer ${runSuffix}`,
+        "drawer",
+        parentId,
+        true,
+      ],
+    );
+    await pool.query(
+      "INSERT INTO locations (id, code, name, kind, parent_id, is_active) VALUES ($1, $2, $3, $4, $5, $6);",
+      [
+        secondParentId,
+        secondParentCode,
+        `E2E Elevation Cabinet Alt ${runSuffix}`,
+        "cabinet",
+        null,
+        true,
+      ],
     );
   });
 
   test.afterAll(async () => {
     if (pool) {
-      await pool.query(
-        "DELETE FROM spatial_layout_revisions WHERE layout_id IN (SELECT id FROM spatial_layouts WHERE parent_location_id = $1);",
-        [parentId],
-      );
-      await pool.query(
-        "DELETE FROM spatial_layout_mappings WHERE layout_id IN (SELECT id FROM spatial_layouts WHERE parent_location_id = $1);",
-        [parentId],
-      );
-      await pool.query("DELETE FROM spatial_layouts WHERE parent_location_id = $1;", [
-        parentId,
-      ]);
+      for (const containerId of [parentId, secondParentId]) {
+        await pool.query(
+          "DELETE FROM spatial_layout_revisions WHERE layout_id IN (SELECT id FROM spatial_layouts WHERE parent_location_id = $1);",
+          [containerId],
+        );
+        await pool.query(
+          "DELETE FROM spatial_layout_mappings WHERE layout_id IN (SELECT id FROM spatial_layouts WHERE parent_location_id = $1);",
+          [containerId],
+        );
+        await pool.query(
+          "DELETE FROM spatial_layouts WHERE parent_location_id = $1;",
+          [containerId],
+        );
+      }
+      await pool.query("DELETE FROM locations WHERE id = $1;", [childDrawerId]);
       await pool.query("DELETE FROM locations WHERE id = $1;", [parentId]);
+      await pool.query("DELETE FROM locations WHERE id = $1;", [
+        secondParentId,
+      ]);
       await pool.query(
         "DELETE FROM user_sessions WHERE user_agent = 'playwright-builder-elevation';",
       );
@@ -328,17 +379,18 @@ test.describe("Inventory Builder 2D Front Elevation", () => {
 
     const a01 = page.locator('[data-slot-id="drawer_slot_r0_c0"] rect').first();
     const expectedCellWidth =
-      (720 - 2 * GRID.wallThicknessMm - (GRID.columns - 1) * GRID.dividerThicknessMm) /
+      (720 -
+        2 * GRID.wallThicknessMm -
+        (GRID.columns - 1) * GRID.dividerThicknessMm) /
       GRID.columns;
-    expect(Number(await a01.getAttribute("width"))).toBeCloseTo(
-      expectedCellWidth,
-      1,
-    );
+    // Polled reads: the DOM can settle a frame after the container width lands.
+    await expect
+      .poll(async () => Number(await a01.getAttribute("width")))
+      .toBeCloseTo(expectedCellWidth, 1);
     // Slot IDs and the wall offset are preserved across the geometry change
-    expect(Number(await a01.getAttribute("x"))).toBeCloseTo(
-      GRID.wallThicknessMm,
-      1,
-    );
+    await expect
+      .poll(async () => Number(await a01.getAttribute("x")))
+      .toBeCloseTo(GRID.wallThicknessMm, 1);
     await expect(page.getByTestId("front-elevation-slot")).toHaveCount(
       GRID.rows * GRID.columns,
     );
@@ -366,5 +418,366 @@ test.describe("Inventory Builder 2D Front Elevation", () => {
       heightMm: CONTAINER.heightMm,
     });
     expect(fitted.slotWidthPx).toBeCloseTo(before.slotWidthPx, 0);
+  });
+
+  test("4. selects the top-level container independently of compartments in 2D and 3D", async ({
+    page,
+  }) => {
+    await page.goto(`/spatial/builder?location=${parentId}`);
+    await waitForWorkspaceReady(page);
+
+    const container = page.getByTestId("front-elevation-container");
+    const a01 = page.locator('[data-slot-id="drawer_slot_r0_c0"]');
+
+    // Default selection is the first compartment, not the container
+    await expect(a01).toHaveAttribute("aria-pressed", "true");
+    await expect(container).toHaveAttribute("aria-pressed", "false");
+
+    // Clicking empty structural space inside the container boundary selects it
+    await container.click({ position: { x: 2, y: 2 } });
+    await expect(container).toHaveAttribute("aria-pressed", "true");
+    await expect(a01).toHaveAttribute("aria-pressed", "false");
+    const inspector = page.getByTestId("container-inspector");
+    await expect(inspector).toBeVisible();
+    await expect(inspector).toContainText("Top-Level Container");
+    await expect(inspector).toContainText(parentCode);
+    await expect(inspector).toContainText("Assigned");
+
+    // Clicking an inner compartment selects that compartment, not the container
+    await a01.click();
+    await expect(a01).toHaveAttribute("aria-pressed", "true");
+    await expect(container).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByText("Slot ID:")).toBeVisible();
+
+    // Explicit container-selection control
+    await page.getByTestId("container-selection-chip").click();
+    await expect(container).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("header-container-chip")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    // Container selection is shared with the 3D view
+    await page.getByRole("button", { name: "3D View" }).click();
+    await expect(page.getByTestId("container-selection-badge")).toBeVisible();
+
+    // Compartment selection clears the container selection in both views
+    await page.getByRole("button", { name: "2D Grid" }).click();
+    await a01.click();
+    await expect(page.getByTestId("header-container-chip")).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    await page.getByRole("button", { name: "3D View" }).click();
+    await expect(page.getByTestId("container-selection-badge")).toHaveCount(0);
+
+    // Clicking the carcass selects the top-level container in 3D. The Top camera
+    // preset places the carcass top wall between the camera and the compartments.
+    const canvas = page.locator("canvas").first();
+    await expect(canvas).toBeVisible();
+    await page.waitForTimeout(1000); // WebGL scene initialization
+    await page.getByRole("button", { name: "Top plan camera view" }).click();
+    await page.waitForTimeout(1000); // camera preset animation (0.4s) + settle
+    const canvasBox = await canvas.boundingBox();
+    await canvas.click({
+      position: {
+        x: Math.round((canvasBox?.width ?? 640) / 2),
+        y: Math.round((canvasBox?.height ?? 480) / 2),
+      },
+    });
+    await expect(page.getByTestId("container-selection-badge")).toBeVisible();
+    await expect(page.getByTestId("header-container-chip")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  test("5. assigns a parent to a new unsaved layout and preserves it across save/reload", async ({
+    page,
+  }) => {
+    await page.goto("/spatial/builder");
+    await waitForWorkspaceReady(page);
+
+    // A brand-new draft starts with no container assignment
+    const headerChip = page.getByTestId("header-container-chip");
+    await expect(headerChip).toContainText("Unassigned");
+    await expect(page.getByText("Mapped: 0 /")).toBeVisible();
+
+    // Select the container and assign the parent through the existing picker
+    await headerChip.click();
+    await expect(page.getByTestId("container-inspector")).toBeVisible();
+    await page
+      .getByRole("button", { name: /Search and select warehouse/ })
+      .click();
+    await page.getByPlaceholder("Search storage locations...").fill(parentCode);
+    await page.getByRole("button", { name: new RegExp(parentCode) }).click();
+
+    await expect(headerChip).toContainText(parentCode);
+    await expect(page.getByTestId("container-inspector")).toContainText(
+      "Assigned",
+    );
+    await expect.poll(() => page.url()).toContain(`location=${parentId}`);
+
+    // Save the draft: the container assignment is persisted as parentLocationId
+    await page.getByRole("button", { name: "Save as Draft" }).click();
+    await page.getByLabel("Layout Code *").fill(`LAYOUT-CONT-${parentCode}`);
+    await page.getByLabel("Layout Name *").fill("Container Assignment Draft");
+    await page.getByRole("button", { name: "Create Draft" }).click();
+    await expect(page.getByText(/created successfully/i)).toBeVisible();
+
+    // The container assignment did not create a compartment mapping
+    await expect(page.getByText("Mapped: 0 /")).toBeVisible();
+
+    // Reload: the parent assignment is restored from the persisted layout
+    await page.reload();
+    await expect(page.getByTestId("header-container-chip")).toContainText(
+      parentCode,
+    );
+    await expect(page.getByText("Mapped: 0 /")).toBeVisible();
+  });
+
+  test("6. prevents a compartment-mapped location from also being the container", async ({
+    page,
+  }) => {
+    await page.goto(`/spatial/builder?location=${parentId}`);
+    await waitForWorkspaceReady(page);
+
+    // Map the child drawer to the default-selected compartment A01
+    await page
+      .getByRole("button", { name: /Search and select location to map/ })
+      .click();
+    await page
+      .getByPlaceholder("Search by name, code, or kind...")
+      .fill(childDrawerCode);
+    await page
+      .getByRole("button", { name: new RegExp(childDrawerCode) })
+      .click();
+    await expect(page.getByText("Mapped: 1 /")).toBeVisible();
+
+    // The container picker disables that location instead of allowing a dual assignment
+    await page
+      .getByTestId("front-elevation-container")
+      .click({ position: { x: 2, y: 2 } });
+    await page.locator("#container-parent-location-select").click();
+    await page
+      .getByPlaceholder("Search storage locations...")
+      .fill(childDrawerCode);
+
+    const disabledOption = page.getByRole("button", {
+      name: new RegExp(childDrawerCode),
+    });
+    await expect(disabledOption).toBeDisabled();
+    await expect(disabledOption).toContainText("mapped to a compartment");
+  });
+
+  test("7. parent-first gate locks children and emphasises the container in 2D and 3D", async ({
+    page,
+  }) => {
+    await page.goto("/spatial/builder");
+    await waitForWorkspaceReady(page);
+
+    // The shared parent-first instruction is shown in 2D
+    const callout2d = page.getByTestId("parent-first-callout-2d");
+    await expect(callout2d).toBeVisible();
+    await expect(callout2d).toContainText(
+      "Step 1: Select the parent container",
+    );
+    await expect(callout2d).toContainText(
+      "Assign an Ananya location to the outer container to enable drawer and compartment mapping.",
+    );
+
+    // The outer container is the active, visually emphasised target
+    const container = page.getByTestId("front-elevation-container");
+    await expect(container).toHaveAttribute("aria-pressed", "true");
+    await expect(container).toHaveAttribute("stroke-dasharray", /\d/);
+    await expect(page.getByTestId("container-inspector")).toBeVisible();
+
+    // Children keep their geometry and labels but are visibly and accessibly locked
+    await expect(page.getByTestId("front-elevation-slot")).toHaveCount(60);
+    const a01 = page.locator('[data-slot-id="drawer_slot_r0_c0"]');
+    await expect(a01).toHaveAttribute("data-disabled", "true");
+    await expect(a01).toHaveAttribute("aria-disabled", "true");
+    await expect(a01).toHaveAttribute("tabindex", "-1");
+    await expect(a01.locator("rect").first()).toHaveAttribute("width", "55.2");
+
+    // Clicking a child compartment cannot select it or open its mapping picker
+    const slotBox = await a01.boundingBox();
+    await page.mouse.click(
+      (slotBox?.x ?? 0) + (slotBox?.width ?? 0) / 2,
+      (slotBox?.y ?? 0) + (slotBox?.height ?? 0) / 2,
+    );
+    await expect(a01).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByText("Slot ID:")).toHaveCount(0);
+    await expect(page.getByTestId("container-inspector")).toBeVisible();
+
+    // 3D shows the same instruction and the same container target
+    await page.getByRole("button", { name: "3D View" }).click();
+    const callout3d = page.getByTestId("parent-first-callout-3d");
+    await expect(callout3d).toBeVisible();
+    await expect(callout3d).toContainText(
+      "Step 1: Select the parent container",
+    );
+    await expect(page.getByTestId("container-selection-badge")).toBeVisible();
+
+    // Gated children are transparent to 3D clicks: the carcass receives them
+    const canvas = page.locator("canvas").first();
+    await expect(canvas).toBeVisible();
+    await page.waitForTimeout(1000);
+    await page.getByRole("button", { name: "Top plan camera view" }).click();
+    await page.waitForTimeout(1000);
+    const canvasBox = await canvas.boundingBox();
+    await canvas.click({
+      position: {
+        x: Math.round((canvasBox?.width ?? 640) / 2),
+        y: Math.round((canvasBox?.height ?? 480) / 2),
+      },
+    });
+    await expect(page.getByTestId("container-selection-badge")).toBeVisible();
+    await expect(page.getByTestId("header-container-chip")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  test("8. assigning a parent enables child interaction immediately in both views", async ({
+    page,
+  }) => {
+    await page.goto("/spatial/builder");
+    await waitForWorkspaceReady(page);
+
+    const a01 = page.locator('[data-slot-id="drawer_slot_r0_c0"]');
+    await expect(a01).toHaveAttribute("aria-disabled", "true");
+
+    // Assign the container location through the existing picker
+    await page.getByTestId("header-container-chip").click();
+    await page
+      .getByRole("button", { name: /Search and select warehouse/ })
+      .click();
+    await page.getByPlaceholder("Search storage locations...").fill(parentCode);
+    await page.getByRole("button", { name: new RegExp(parentCode) }).click();
+
+    // Completion state replaces the instruction and children unlock immediately
+    const complete2d = page.getByTestId("parent-first-callout-2d-complete");
+    await expect(complete2d).toBeVisible();
+    await expect(complete2d).toContainText("Step 1 complete");
+    await expect(complete2d).toContainText(
+      "Drawer and compartment selection and mapping are enabled.",
+    );
+    await expect(a01).not.toHaveAttribute("aria-disabled", "true");
+    await expect(a01).not.toHaveAttribute("data-disabled", "true");
+
+    // Child selection and mapping become available
+    await a01.click();
+    await expect(a01).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("Slot ID:")).toBeVisible();
+
+    // The same selection state survives a 2D -> 3D -> 2D round trip
+    await page.getByRole("button", { name: "3D View" }).click();
+    await expect(
+      page.getByTestId("parent-first-callout-3d-complete"),
+    ).toBeVisible();
+    await expect(page.getByTestId("container-selection-badge")).toHaveCount(0);
+    await page.getByRole("button", { name: "2D Grid" }).click();
+    await expect(a01).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      page.getByTestId("parent-first-callout-2d-complete"),
+    ).toBeVisible();
+  });
+
+  test("9. clearing the parent re-locks children without discarding mappings", async ({
+    page,
+  }) => {
+    await page.goto(`/spatial/builder?location=${parentId}`);
+    await waitForWorkspaceReady(page);
+
+    // Map the child drawer to the default-selected compartment A01
+    await page
+      .getByRole("button", { name: /Search and select location to map/ })
+      .click();
+    await page
+      .getByPlaceholder("Search by name, code, or kind...")
+      .fill(childDrawerCode);
+    await page
+      .getByRole("button", { name: new RegExp(childDrawerCode) })
+      .click();
+    await expect(page.getByText("Mapped: 1 /")).toBeVisible();
+    await expect(
+      page.getByTestId("parent-first-callout-2d-complete"),
+    ).toBeVisible();
+
+    // Clear the container assignment (dirty workspace -> confirmation)
+    await page
+      .getByTestId("front-elevation-container")
+      .click({ position: { x: 2, y: 2 } });
+    await page.getByTestId("container-clear-assignment").click();
+    await expect(page.getByText("Discard Unsaved Changes?")).toBeVisible();
+    await page.getByRole("button", { name: "Discard & Switch" }).click();
+
+    // Step 1 returns and children lock again
+    await expect(page.getByTestId("parent-first-callout-2d")).toBeVisible();
+    const a01 = page.locator('[data-slot-id="drawer_slot_r0_c0"]');
+    await expect(a01).toHaveAttribute("aria-disabled", "true");
+    const slotBox = await a01.boundingBox();
+    await page.mouse.click(
+      (slotBox?.x ?? 0) + (slotBox?.width ?? 0) / 2,
+      (slotBox?.y ?? 0) + (slotBox?.height ?? 0) / 2,
+    );
+    await expect(a01).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByTestId("container-inspector")).toBeVisible();
+
+    // The existing mapping is preserved and explicitly flagged for review
+    await expect(page.getByText("Mapped: 1 /")).toBeVisible();
+    await expect(
+      page.getByText(/Hierarchy Mismatch: 1 mapped slot/),
+    ).toBeVisible();
+
+    // 3D applies the same gate and keeps the container as the target
+    await page.getByRole("button", { name: "3D View" }).click();
+    await expect(page.getByTestId("parent-first-callout-3d")).toBeVisible();
+    await expect(page.getByTestId("container-selection-badge")).toBeVisible();
+  });
+
+  test("10. naming dropdowns fill the panel column and truncate long values", async ({
+    page,
+  }) => {
+    await page.goto(`/spatial/builder?location=${parentId}`);
+    await waitForWorkspaceReady(page);
+
+    const rowOrderTrigger = page
+      .locator('[data-slot="select-trigger"]')
+      .filter({ hasText: "Top-to-Bottom" })
+      .first();
+    await expect(rowOrderTrigger).toBeVisible();
+
+    const metrics = await rowOrderTrigger.evaluate((trigger) => {
+      const value = trigger.querySelector<HTMLElement>(
+        '[data-slot="select-value"]',
+      );
+      const chevron = trigger.querySelector("svg");
+      const parent = trigger.parentElement;
+      if (!value || !chevron || !parent) {
+        throw new Error("Select trigger internals not found");
+      }
+      return {
+        triggerWidth: trigger.getBoundingClientRect().width,
+        parentWidth: parent.getBoundingClientRect().width,
+        valueScrollWidth: value.scrollWidth,
+        valueClientWidth: value.clientWidth,
+        textOverflow: getComputedStyle(value).textOverflow,
+        valueRight: value.getBoundingClientRect().right,
+        chevronLeft: chevron.getBoundingClientRect().left,
+        title: trigger.getAttribute("title"),
+      };
+    });
+
+    // The trigger fills the panel column exactly (no overflow past the padding)
+    expect(metrics.triggerWidth).toBeCloseTo(metrics.parentWidth, 0);
+    // The long selected label truncates with an ellipsis instead of running
+    // underneath the chevron
+    expect(metrics.valueScrollWidth).toBeGreaterThan(metrics.valueClientWidth);
+    expect(metrics.textOverflow).toBe("ellipsis");
+    expect(metrics.valueRight).toBeLessThanOrEqual(metrics.chevronLeft);
+    // The full label stays discoverable via the trigger tooltip
+    expect(metrics.title).toContain("Top-to-Bottom");
   });
 });

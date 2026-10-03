@@ -7,7 +7,7 @@ import {
   type ParametricStorageConfig,
   type ParametricTemplateType,
 } from "@ananya/inventory";
-import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
+import { Box, Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SlotMappingRecord } from "@/lib/spatial/inventory-builder-state";
 import {
@@ -22,6 +22,14 @@ import {
   type FrontElevationViewTransform,
 } from "@/lib/spatial/spatial-front-elevation";
 import { cn } from "@/lib/utils";
+import { ParentFirstCallout } from "./parent-first-callout";
+
+export interface ContainerIdentity {
+  code: string;
+  name: string;
+  kind: string;
+  isActive: boolean;
+}
 
 export interface ParametricPreview2DProps {
   config: ParametricStorageConfig;
@@ -30,6 +38,11 @@ export interface ParametricPreview2DProps {
   mappings: Map<string, SlotMappingRecord>;
   selectedSlotId: string | null;
   onSelectSlot: (slotId: string) => void;
+  isContainerSelected: boolean;
+  onSelectContainer: () => void;
+  /** Shared parent-first gate: child slots are locked until a container is assigned. */
+  childInteractionEnabled: boolean;
+  containerIdentity?: ContainerIdentity | null;
   className?: string;
 }
 
@@ -68,6 +81,10 @@ export function ParametricPreview2D({
   mappings,
   selectedSlotId,
   onSelectSlot,
+  isContainerSelected,
+  onSelectContainer,
+  childInteractionEnabled,
+  containerIdentity,
   className,
 }: ParametricPreview2DProps) {
   const [viewportElement, setViewportElement] =
@@ -85,6 +102,7 @@ export function ParametricPreview2D({
     createFrontElevationViewTransform,
   );
   const [focusedSlotId, setFocusedSlotId] = React.useState<string | null>(null);
+  const [isContainerFocused, setIsContainerFocused] = React.useState(false);
 
   const containerDimensions = config.dimensions;
 
@@ -107,6 +125,13 @@ export function ParametricPreview2D({
   React.useEffect(() => {
     setView(createFrontElevationViewTransform());
   }, [widthMm, heightMm, depthMm]);
+
+  // Locking child interaction must not leave a focus ring on a disabled slot.
+  React.useEffect(() => {
+    if (!childInteractionEnabled) {
+      setFocusedSlotId(null);
+    }
+  }, [childInteractionEnabled]);
 
   React.useEffect(() => {
     if (!viewportElement || typeof ResizeObserver === "undefined") return;
@@ -277,6 +302,11 @@ export function ParametricPreview2D({
     onSelectSlot(slotId);
   };
 
+  const handleContainerClick = () => {
+    if (suppressClickRef.current) return;
+    onSelectContainer();
+  };
+
   const modifiedSlotIds = React.useMemo(() => {
     if (!diff) return new Set<string>();
     return new Set(diff.modified.map((entry) => entry.current.slotId));
@@ -324,6 +354,37 @@ export function ParametricPreview2D({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {/* Explicit top-level container selection control */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-muted-foreground hidden sm:inline">
+              Container:
+            </span>
+            <button
+              type="button"
+              onClick={onSelectContainer}
+              aria-pressed={isContainerSelected}
+              data-testid="container-selection-chip"
+              title={
+                containerIdentity
+                  ? `Top-level container: ${containerIdentity.name} (${containerIdentity.code})`
+                  : "No Ananya location assigned to the top-level container"
+              }
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[10px] transition-colors cursor-pointer",
+                isContainerSelected
+                  ? "border-primary bg-primary/10 text-primary"
+                  : !containerIdentity || !containerIdentity.isActive
+                    ? "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:border-amber-500"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground",
+              )}
+            >
+              <Box className="size-3" />
+              <span className="truncate max-w-28">
+                {containerIdentity ? containerIdentity.code : "Unassigned"}
+              </span>
+            </button>
+          </div>
+
           <div
             className="hidden md:flex items-center gap-2 text-[10px] text-muted-foreground"
             aria-hidden="true"
@@ -387,6 +448,14 @@ export function ParametricPreview2D({
         </div>
       </div>
 
+      {/* Parent-first instruction, shared verbatim with the 3D view */}
+      <ParentFirstCallout
+        isParentAssigned={childInteractionEnabled}
+        containerIdentity={containerIdentity}
+        onSelectContainer={onSelectContainer}
+        testId="parent-first-callout-2d"
+      />
+
       {/* Front orthographic viewport */}
       <div
         ref={setViewportElement}
@@ -409,16 +478,65 @@ export function ParametricPreview2D({
           }}
         >
           {/* Structural envelope. Dividers, rack posts, beams and lips are the
-              physical gaps left between the projected compartment envelopes. */}
+              physical gaps left between the projected compartment envelopes.
+              The frame itself is the top-level container selection target. */}
           <rect
             x={0}
             y={0}
             width={outerWidthMm}
             height={outerHeightMm}
-            className="fill-muted/40 stroke-border"
-            strokeWidth={baseStrokeMm}
+            data-testid="front-elevation-container"
+            role="button"
+            tabIndex={0}
+            aria-pressed={isContainerSelected}
+            aria-label={`Top-level container, ${TEMPLATE_LABELS[config.templateType]}, ${outerWidthMm} by ${outerHeightMm} millimetres, ${
+              containerIdentity
+                ? `assigned to ${containerIdentity.name} (${containerIdentity.code})${containerIdentity.isActive ? "" : ", inactive"}`
+                : "no Ananya location assigned"
+            }${
+              childInteractionEnabled
+                ? ""
+                : ", compartment interaction locked until a location is assigned"
+            }`}
+            onClick={handleContainerClick}
+            onFocus={() => setIsContainerFocused(true)}
+            onBlur={() => setIsContainerFocused(false)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleContainerClick();
+              }
+            }}
+            className={cn(
+              "cursor-pointer transition-colors outline-none",
+              isContainerSelected
+                ? "fill-primary/5 stroke-primary"
+                : !childInteractionEnabled
+                  ? "fill-amber-500/5 stroke-amber-500/80 hover:stroke-amber-500"
+                  : "fill-muted/40 stroke-border hover:stroke-primary/60",
+            )}
+            strokeDasharray={
+              childInteractionEnabled
+                ? undefined
+                : `${baseStrokeMm * 4} ${baseStrokeMm * 2}`
+            }
+            strokeWidth={isContainerSelected ? selectedStrokeMm : baseStrokeMm}
             rx={pxPerMm > 0 ? 3 / pxPerMm : 0}
           />
+
+          {isContainerFocused && !isContainerSelected && (
+            <rect
+              x={baseStrokeMm * 3}
+              y={baseStrokeMm * 3}
+              width={Math.max(0, outerWidthMm - baseStrokeMm * 6)}
+              height={Math.max(0, outerHeightMm - baseStrokeMm * 6)}
+              fill="none"
+              strokeWidth={selectedStrokeMm}
+              strokeDasharray={`${baseStrokeMm * 3} ${baseStrokeMm * 2}`}
+              className="stroke-primary"
+              pointerEvents="none"
+            />
+          )}
 
           {projection.slots.map((slot) => {
             const mapping = mappings.get(slot.slotId);
@@ -462,24 +580,50 @@ export function ParametricPreview2D({
                 key={slot.slotId}
                 data-slot-id={slot.slotId}
                 data-testid="front-elevation-slot"
+                data-disabled={childInteractionEnabled ? undefined : "true"}
                 role="button"
-                tabIndex={0}
+                tabIndex={childInteractionEnabled ? 0 : -1}
+                aria-disabled={!childInteractionEnabled}
                 aria-pressed={isSelected}
                 aria-label={`Compartment ${slot.code}, ${slot.name}, ${slot.widthMm} by ${slot.heightMm} millimetres, ${statusLabel}${
                   mapping ? `, mapped to ${mapping.locationName}` : ""
+                }${
+                  childInteractionEnabled
+                    ? ""
+                    : ", locked until a parent container is assigned"
                 }`}
                 onFocus={() => setFocusedSlotId(slot.slotId)}
                 onBlur={() => setFocusedSlotId(null)}
-                onClick={() => handleSlotClick(slot.slotId)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    handleSlotClick(slot.slotId);
-                  }
-                }}
-                className="group cursor-pointer outline-none"
+                onClick={
+                  childInteractionEnabled
+                    ? () => handleSlotClick(slot.slotId)
+                    : undefined
+                }
+                onKeyDown={
+                  childInteractionEnabled
+                    ? (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleSlotClick(slot.slotId);
+                        }
+                      }
+                    : undefined
+                }
+                className={cn(
+                  "group outline-none",
+                  childInteractionEnabled
+                    ? "cursor-pointer"
+                    : // Gated children stay visually present (geometry, gaps and
+                      // labels intact) but are transparent to pointer events so
+                      // the container frame behind them stays the target.
+                      "pointer-events-none opacity-55",
+                )}
               >
-                <title>{tooltipParts.join(" · ")}</title>
+                <title>
+                  {childInteractionEnabled
+                    ? tooltipParts.join(" · ")
+                    : `${tooltipParts.join(" · ")} · Locked until a parent container is assigned`}
+                </title>
 
                 <rect
                   x={slot.xMm}
@@ -488,7 +632,11 @@ export function ParametricPreview2D({
                   height={slot.heightMm}
                   rx={
                     pxPerMm > 0
-                      ? Math.min(2 / pxPerMm, slot.widthMm / 2, slot.heightMm / 2)
+                      ? Math.min(
+                          2 / pxPerMm,
+                          slot.widthMm / 2,
+                          slot.heightMm / 2,
+                        )
                       : 0
                   }
                   strokeWidth={isSelected ? selectedStrokeMm : baseStrokeMm}
@@ -532,7 +680,12 @@ export function ParametricPreview2D({
                       }
                       textAnchor="middle"
                       dominantBaseline="central"
-                      className="font-mono font-bold fill-foreground"
+                      className={cn(
+                        "font-mono font-bold",
+                        childInteractionEnabled
+                          ? "fill-foreground"
+                          : "fill-muted-foreground",
+                      )}
                       fontSize={label.fontSizePx / pxPerMm}
                     >
                       {label.codeText}
@@ -541,8 +694,7 @@ export function ParametricPreview2D({
                       <text
                         x={slot.centerXMm}
                         y={
-                          centerScreenYMm +
-                          (label.fontSizePx / pxPerMm) * 0.85
+                          centerScreenYMm + (label.fontSizePx / pxPerMm) * 0.85
                         }
                         textAnchor="middle"
                         dominantBaseline="central"
@@ -564,7 +716,9 @@ export function ParametricPreview2D({
       <div className="flex items-center justify-between gap-2 px-3 py-1 border-t border-border bg-muted/20 text-[10px] text-muted-foreground">
         <span className="font-mono">{projection.slots.length} slots</span>
         <span className="hidden sm:inline">
-          Scroll to zoom · Drag to pan · Tab and Enter to select
+          {childInteractionEnabled
+            ? "Click a compartment to select it · Click the container frame for the top-level container · Scroll to zoom"
+            : "Compartments are locked until the parent container is assigned · Click the container frame or “Select outer container” · Scroll to zoom"}
         </span>
       </div>
     </div>
@@ -594,10 +748,18 @@ function capturePointer(element: HTMLElement, pointerId: number): void {
   }
 }
 
-function LegendSwatch({ className, label }: { className: string; label: string }) {
+function LegendSwatch({
+  className,
+  label,
+}: {
+  className: string;
+  label: string;
+}) {
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">
-      <span className={cn("inline-block size-2 rounded-[2px] border", className)} />
+      <span
+        className={cn("inline-block size-2 rounded-[2px] border", className)}
+      />
       {label}
     </span>
   );

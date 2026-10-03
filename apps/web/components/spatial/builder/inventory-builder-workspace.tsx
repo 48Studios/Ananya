@@ -48,6 +48,10 @@ import {
   acknowledgeStaleMapping,
   setSelectedParentLocation,
   unmapIncompatibleHierarchySlots,
+  selectContainer,
+  selectCompartment,
+  PARENT_CONFLICT_STALE_PREFIX,
+  isChildInteractionEnabled,
   buildBuilderUrlSearchParams,
   syncStateFromUrl,
   loadLayoutIntoWorkspace,
@@ -68,6 +72,7 @@ import { ParametricDiffPanel } from "./parametric-diff-panel";
 import { ParametricPreview2D } from "./parametric-preview-2d";
 import { ParametricPreview3D } from "./parametric-preview-3d";
 import { CompartmentInspector } from "./compartment-inspector";
+import { ContainerInspector } from "./container-inspector";
 import { LocationMappingPanel } from "./location-mapping-panel";
 import { LayoutSaveDialog } from "./layout-save-dialog";
 import {
@@ -82,6 +87,12 @@ export interface InventoryBuilderWorkspaceProps {
   initialParentLocationId?: string | null;
   className?: string;
 }
+
+/**
+ * Sentinel stored in `pendingParentSwitchId` when the pending action is
+ * clearing the container assignment (a real location id is never empty).
+ */
+const CLEAR_PARENT_SENTINEL = "";
 
 export function InventoryBuilderWorkspace({
   initialMode = "build",
@@ -99,7 +110,9 @@ export function InventoryBuilderWorkspace({
   // 2. Master-data locations for mapping
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
   const [loadingLocations, setLoadingLocations] = React.useState(true);
-  const [locationsError, setLocationsError] = React.useState<string | null>(null);
+  const [locationsError, setLocationsError] = React.useState<string | null>(
+    null,
+  );
 
   // 3. Persisted layouts for the selected parent container
   const [layouts, setLayouts] = React.useState<SpatialLayoutWithMappings[]>([]);
@@ -137,8 +150,9 @@ export function InventoryBuilderWorkspace({
     React.useState<ParametricTemplateType | null>(null);
 
   // 8. Invalid deep-link parent location warning & loop prevention ref
-  const [invalidParentWarning, setInvalidParentWarning] =
-    React.useState<string | null>(null);
+  const [invalidParentWarning, setInvalidParentWarning] = React.useState<
+    string | null
+  >(null);
   const checkedInvalidParentRef = React.useRef<string | null>(null);
 
   // 9. Success banner / status feedback
@@ -219,8 +233,11 @@ export function InventoryBuilderWorkspace({
 
         // If a specific layout was loaded, URL specified layout, or keepCurrentLoadedId specified
         const urlLayoutId = searchParams ? searchParams.get("layout") : null;
-        const targetId = keepCurrentLoadedId ?? loadedLayoutIdRef.current ?? urlLayoutId;
-        let matching = targetId ? data.find((l) => l.id === targetId) : undefined;
+        const targetId =
+          keepCurrentLoadedId ?? loadedLayoutIdRef.current ?? urlLayoutId;
+        let matching = targetId
+          ? data.find((l) => l.id === targetId)
+          : undefined;
 
         // If no targetId specified and this container was not previously auto-loaded on mount,
         // default to PUBLISHED layout or first layout if available
@@ -362,7 +379,15 @@ export function InventoryBuilderWorkspace({
         }
       }
     },
-    [isDirty, state.loadedLayoutId, layouts, locations, state.mode, state.selectedParentLocationId, updateUrl],
+    [
+      isDirty,
+      state.loadedLayoutId,
+      layouts,
+      locations,
+      state.mode,
+      state.selectedParentLocationId,
+      updateUrl,
+    ],
   );
 
   const handleConfirmDiscardAndSwitch = React.useCallback(() => {
@@ -380,10 +405,14 @@ export function InventoryBuilderWorkspace({
       }
       setPendingLayoutSwitchId(null);
     } else if (pendingParentSwitchId !== null) {
+      const targetParentId =
+        pendingParentSwitchId === CLEAR_PARENT_SENTINEL
+          ? null
+          : pendingParentSwitchId;
       setState((prev) =>
-        setSelectedParentLocation(prev, pendingParentSwitchId, locations),
+        setSelectedParentLocation(prev, targetParentId, locations),
       );
-      updateUrl(state.mode, pendingParentSwitchId, null);
+      updateUrl(state.mode, targetParentId, null);
       setPendingParentSwitchId(null);
     }
   }, [
@@ -717,10 +746,11 @@ export function InventoryBuilderWorkspace({
   }, []);
 
   const handleSelectSlot = React.useCallback((slotId: string) => {
-    setState((prev) => ({
-      ...prev,
-      selectedSlotId: slotId,
-    }));
+    setState((prev) => selectCompartment(prev, slotId));
+  }, []);
+
+  const handleSelectContainer = React.useCallback(() => {
+    setState((prev) => selectContainer(prev));
   }, []);
 
   const handleMapToLocation = React.useCallback(
@@ -754,11 +784,13 @@ export function InventoryBuilderWorkspace({
   );
 
   const handleSelectParentLocation = React.useCallback(
-    (parentId: string) => {
+    (parentId: string | null) => {
       if (parentId === state.selectedParentLocationId) return;
 
       if (isDirty) {
-        setPendingParentSwitchId(parentId);
+        setPendingParentSwitchId(
+          parentId === null ? CLEAR_PARENT_SENTINEL : parentId,
+        );
         setIsUnsavedConfirmOpen(true);
         return;
       }
@@ -768,6 +800,10 @@ export function InventoryBuilderWorkspace({
     },
     [isDirty, state.selectedParentLocationId, state.mode, locations, updateUrl],
   );
+
+  const handleClearParentLocation = React.useCallback(() => {
+    handleSelectParentLocation(null);
+  }, [handleSelectParentLocation]);
 
   const handleUnlinkIncompatible = React.useCallback(() => {
     setState((prev) => unmapIncompatibleHierarchySlots(prev, locations));
@@ -780,7 +816,8 @@ export function InventoryBuilderWorkspace({
       if (
         record.isStale &&
         (record.staleReason?.startsWith("Hierarchy mismatch") ||
-          record.staleReason?.startsWith("No parent container"))
+          record.staleReason?.startsWith("No parent container") ||
+          record.staleReason?.startsWith(PARENT_CONFLICT_STALE_PREFIX))
       ) {
         list.push(record);
       }
@@ -801,6 +838,24 @@ export function InventoryBuilderWorkspace({
   const selectedMapping = state.selectedSlotId
     ? state.mappings.get(state.selectedSlotId)
     : undefined;
+
+  // Single authoritative parent-first gate shared by the 2D and 3D previews.
+  const childInteractionEnabled = isChildInteractionEnabled(state);
+
+  // Identity of the top-level container's assigned Ananya location, if any.
+  const containerIdentity = React.useMemo(() => {
+    if (!state.selectedParentLocationId) return null;
+    const parent = locations.find(
+      (loc) => loc.id === state.selectedParentLocationId,
+    );
+    if (!parent) return null;
+    return {
+      code: parent.code,
+      name: parent.name,
+      kind: parent.kind,
+      isActive: parent.isActive,
+    };
+  }, [locations, state.selectedParentLocationId]);
 
   const totalSlots = state.generatedResult?.totalCompartments ?? 0;
   const mappedCount = state.mappings.size;
@@ -838,7 +893,8 @@ export function InventoryBuilderWorkspace({
                 )}
               </h1>
               <p className="text-xs text-muted-foreground">
-                Parametric storage configuration and physical spatial location mapping.
+                Parametric storage configuration and physical spatial location
+                mapping.
               </p>
             </div>
           </div>
@@ -1078,8 +1134,8 @@ export function InventoryBuilderWorkspace({
             <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <span>
               Hierarchy Mismatch: {incompatibleMappings.length} mapped{" "}
-              {incompatibleMappings.length === 1 ? "slot does" : "slots do"} not belong
-              to the selected parent container hierarchy.
+              {incompatibleMappings.length === 1 ? "slot does" : "slots do"} not
+              belong to the selected parent container hierarchy.
             </span>
           </div>
           <Button
@@ -1113,7 +1169,10 @@ export function InventoryBuilderWorkspace({
                     className="w-full h-8 text-xs bg-card truncate"
                     title="Select spatial layout"
                   >
-                    <SelectValue placeholder="Select layout..." className="truncate" />
+                    <SelectValue
+                      placeholder="Select layout..."
+                      className="truncate"
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="NEW">+ New Layout Draft</SelectItem>
@@ -1148,6 +1207,29 @@ export function InventoryBuilderWorkspace({
 
         {/* Status / Topology Stats */}
         <div className="flex flex-wrap items-center gap-3 text-muted-foreground">
+          <button
+            type="button"
+            onClick={handleSelectContainer}
+            aria-pressed={state.selectedContainer}
+            data-testid="header-container-chip"
+            title={
+              containerIdentity
+                ? `Top-level container: ${containerIdentity.name} (${containerIdentity.code})`
+                : "No Ananya location assigned to the top-level container"
+            }
+            className={cn(
+              "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-md border transition-colors cursor-pointer",
+              state.selectedContainer
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground",
+            )}
+          >
+            <Box className="size-3" />
+            <span>Container:</span>
+            <strong className="font-mono text-foreground">
+              {containerIdentity ? containerIdentity.code : "Unassigned"}
+            </strong>
+          </button>
           <span>
             Slots:{" "}
             <strong className="text-foreground font-mono">{totalSlots}</strong>
@@ -1226,6 +1308,10 @@ export function InventoryBuilderWorkspace({
                 mappings={state.mappings}
                 selectedSlotId={state.selectedSlotId}
                 onSelectSlot={handleSelectSlot}
+                isContainerSelected={state.selectedContainer}
+                onSelectContainer={handleSelectContainer}
+                childInteractionEnabled={childInteractionEnabled}
+                containerIdentity={containerIdentity}
                 className="h-full"
               />
             ) : (
@@ -1235,6 +1321,10 @@ export function InventoryBuilderWorkspace({
                 mappings={state.mappings}
                 selectedSlotId={state.selectedSlotId}
                 onSelectSlot={handleSelectSlot}
+                isContainerSelected={state.selectedContainer}
+                onSelectContainer={handleSelectContainer}
+                childInteractionEnabled={childInteractionEnabled}
+                containerIdentity={containerIdentity}
                 onSwitchTo2D={() => handleViewModeChange("2d")}
                 className="h-full"
               />
@@ -1242,16 +1332,29 @@ export function InventoryBuilderWorkspace({
           </div>
 
           {/* Bottom: Compartment Inspector & Location Mapper */}
-          <CompartmentInspector
-            compartment={selectedCompartment}
-            mapping={selectedMapping}
-            mappings={state.mappings}
-            availableLocations={locations}
-            selectedParentId={state.selectedParentLocationId}
-            onMapToLocation={handleMapToLocation}
-            onUnmap={handleUnmap}
-            onAcknowledgeStale={handleAcknowledgeStale}
-          />
+          {state.selectedContainer && state.generatedResult ? (
+            <ContainerInspector
+              templateType={state.config.templateType}
+              outerDimensions={state.generatedResult.outerDimensions}
+              totalCompartments={totalSlots}
+              locations={locations}
+              selectedParentId={state.selectedParentLocationId}
+              mappings={state.mappings}
+              onSelectParentId={handleSelectParentLocation}
+              onClearParent={handleClearParentLocation}
+            />
+          ) : (
+            <CompartmentInspector
+              compartment={selectedCompartment}
+              mapping={selectedMapping}
+              mappings={state.mappings}
+              availableLocations={locations}
+              selectedParentId={state.selectedParentLocationId}
+              onMapToLocation={handleMapToLocation}
+              onUnmap={handleUnmap}
+              onAcknowledgeStale={handleAcknowledgeStale}
+            />
+          )}
         </div>
       </div>
 

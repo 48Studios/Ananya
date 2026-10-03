@@ -1,1 +1,0 @@
-Run via `PYTHONPATH=. python -m apps.ml.training.cli <command>` (see README for full command set). Device acceleration is controlled by the `ANANYA_ML_DEVICE` environment variable (`mps`, `cuda`, or `cpu`). Continuous collection runs with `collect --continuous --interval <seconds>` and can be scheduled via cron or macOS launchd as documented in the README.

@@ -1,4 +1,0 @@
-- Each benchmark script is a standalone CLI entry point using `argparse` with descriptive `--help` flags and prints `[bench]`-prefixed status lines for human-readable progress.
-- Per-stage performance is instrumented by monkey-patching target methods at import time, wrapping the original function in a `try/finally` block that calls `profiler.record(...)` with a semantic stage name.
-- Deterministic test data is generated in-process (inline PDF bytes or `TestCase` dataclasses) rather than fetched from external services, ensuring reproducible before/after measurements.
-- Benchmark outputs are emitted both as formatted console tables and as structured JSON artifacts (`benchmark_results.json` or a user-specified `--json-out` path) for automated reporting.

@@ -1,1 +1,0 @@
-Pure, React-free presentation logic that derives UI state, labels, filters, and review actions from backend Document Intelligence and Specification Intelligence payloads.

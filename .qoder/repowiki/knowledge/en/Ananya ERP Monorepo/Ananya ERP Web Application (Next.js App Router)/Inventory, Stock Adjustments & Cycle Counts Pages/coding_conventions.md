@@ -1,8 +1,0 @@
-- Each page is a default-exported client component declared with the `"use client"` directive at the top of the file.
-- Data loading uses a `fetchXxx` function wrapped in `React.useCallback` and invoked from a `React.useEffect` dependency array, with `loading` and optional `error` state toggled around the try/finally block.
-- Concurrent related data is fetched in parallel with `Promise.all([...].catch(() => []))` so missing references degrade gracefully to empty arrays or nulls.
-- Cross-entity identifiers (category, location, component) are resolved into lookup maps (`Map` or `Record<string, T>`) via `useMemo` and consumed inside cell renderers.
-- List tables are defined as `ColumnDef[]` arrays passed to the shared `EntityDataTable`, with an `actions` column using icon buttons wrapped in `Link` to detail routes.
-- Status values are rendered as colored badges via a small local helper (e.g. `getStatusBadge`) that switches on string literal union types like `StockAdjustmentStatus`.
-- Destructive or mutating actions are gated by a `ConfirmDialog` whose `isOpen` flag is driven by local state and whose `onConfirm` handler calls the API and updates the row in place.
-- User feedback after mutations is shown via a transient banner/toast state cleared with `setTimeout`, then followed by a refresh fetch.

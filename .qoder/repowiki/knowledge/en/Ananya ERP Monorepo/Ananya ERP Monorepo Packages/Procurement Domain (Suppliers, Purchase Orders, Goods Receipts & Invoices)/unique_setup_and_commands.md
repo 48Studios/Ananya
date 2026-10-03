@@ -1,1 +1,0 @@
-Build with `npm run build` (runs `tsc -p tsconfig.build.json`), type-check with `npm run check-types`, and test with `npm run test` (Vitest).

@@ -1,1 +1,0 @@
-None — pure directory placeholders using `.gitkeep` to ensure empty directories are tracked by Git.

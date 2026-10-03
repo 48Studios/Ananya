@@ -1,1 +1,0 @@
-Node 22 Alpine base images, pnpm + Turbo monorepo builds, Docker Buildx with GHA cache scopes, docker/metadata-action v5 for OCI labels, docker/build-push-action v6, softprops/action-gh-release v2, and QEMU for linux/amd64 + linux/arm64 release images published to GHCR (`ghcr.io/48studios/ananya-*`).

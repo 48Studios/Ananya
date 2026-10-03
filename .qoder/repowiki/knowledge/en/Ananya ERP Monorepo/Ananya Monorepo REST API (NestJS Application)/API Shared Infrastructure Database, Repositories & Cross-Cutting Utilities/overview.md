@@ -1,1 +1,0 @@
-Cross-cutting infrastructure for the NestJS API: a global Drizzle database module, per-domain Drizzle-backed repositories implementing domain interfaces, and shared HTTP logging plus Postgres error utilities.

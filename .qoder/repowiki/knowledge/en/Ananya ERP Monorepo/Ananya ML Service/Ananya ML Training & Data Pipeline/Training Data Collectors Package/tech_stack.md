@@ -1,1 +1,0 @@
-httpx for HTTP, pypdf for PDF parsing, concurrent.futures.ThreadPoolExecutor + threading queues for decoupled download/parse concurrency, YAML-driven source registry, Pydantic `ProductRecord` schema as the canonical output contract across all collectors.

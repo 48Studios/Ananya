@@ -1,1 +1,0 @@
-NestJS controllers/services with class-validator DTOs; Drizzle ORM used both via typed repositories and direct `db.select`/`sql` queries against inventory tables; domain models and repository contracts provided by the `@ananya/mrp` package.

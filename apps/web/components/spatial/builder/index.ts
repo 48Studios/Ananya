@@ -4,6 +4,8 @@ export * from "./parametric-diff-panel";
 export * from "./parametric-preview-2d";
 export * from "./parametric-preview-3d";
 export * from "./compartment-inspector";
+export * from "./container-inspector";
+export * from "./parent-first-callout";
 export * from "./location-mapping-panel";
 export * from "./layout-save-dialog";
 export * from "./layout-conflict-dialog";

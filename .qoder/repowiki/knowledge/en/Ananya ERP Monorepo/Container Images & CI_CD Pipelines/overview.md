@@ -1,1 +1,0 @@
-Docker multi-stage build definitions for the four Ananya services and GitHub Actions workflows that run quality gates, smoke tests, image publishing, and tagged releases to GHCR.

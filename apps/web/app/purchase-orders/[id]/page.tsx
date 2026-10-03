@@ -3,23 +3,7 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  Edit3,
-  Trash2,
-  ArrowLeft,
-  Send,
-  Printer,
-  Ban,
-  Building2,
-  Calendar,
-  DollarSign,
-  FileText,
-  CheckCircle2,
-  Package,
-  Truck,
-  ExternalLink,
-  PackageCheck,
-} from "lucide-react";
+import { Edit3, Trash2, Send, Printer, Ban, Building2, Calendar, DollarSign, FileText, CheckCircle2, Package, Truck, ExternalLink, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
@@ -226,6 +210,8 @@ export default function ViewPurchaseOrderPage() {
     <div className="space-y-6 print:space-y-4">
       {/* Header */}
       <PageHeader
+        backHref="/purchase-orders"
+        backLabel="Back to Purchase Orders"
         title={po.poNumber}
         description={`Supplier: ${supplier?.name || po.supplierId}`}
         breadcrumbs={[
@@ -234,14 +220,6 @@ export default function ViewPurchaseOrderPage() {
         ]}
         actions={
           <div className="flex items-center gap-2 print:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/purchase-orders")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
 
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="w-4 h-4 mr-1.5" />

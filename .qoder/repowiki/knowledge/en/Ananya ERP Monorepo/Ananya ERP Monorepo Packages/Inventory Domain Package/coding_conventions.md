@@ -1,6 +1,0 @@
-- Each sub-domain exposes a barrel `index.ts` that re-exports its aggregate, repository interface, use-case classes, errors, and related types.
-- Repositories are defined as TypeScript interfaces (e.g. `LocationRepository`, `ComponentRepository`) declared next to their aggregate and imported by use-case classes via constructor injection.
-- Use-case classes encapsulate multi-step workflows in an `execute(input)` method, validate inputs against the repository, and throw domain-specific errors from a local `*.errors.ts` module.
-- Domain errors are modeled as distinct classes exported from a per-subdomain `*.errors.ts` file rather than generic strings or exceptions.
-- Aggregate entities expose static factory methods (e.g. `Location.create`, `Component.create`) used by use cases instead of direct constructors.
-- Cross-subdomain dependencies flow one-way: higher-level domains like `projection` consume lower-level domains like `ledger` but not vice versa.

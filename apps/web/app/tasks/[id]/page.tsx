@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { tasksApi, type TaskDto } from "@/lib/api/tasks-api";
@@ -36,16 +35,10 @@ export default function TaskDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Link href="/tasks">
-          <Button variant="ghost" size="xs">
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Tasks
-          </Button>
-        </Link>
-      </div>
 
       <PageHeader
+        backHref="/tasks"
+        backLabel="Back to Tasks"
         title={`Task #${task?.taskNumber || taskId || "TSK-1"}`}
         description="Inspect operational task details, assignment, and completion checklist."
         actions={

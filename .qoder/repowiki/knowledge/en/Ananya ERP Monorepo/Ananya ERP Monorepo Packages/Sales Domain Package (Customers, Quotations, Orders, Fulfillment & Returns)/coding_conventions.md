@@ -1,6 +1,0 @@
-- Each domain sub-package follows a fixed three-file layout: an entity file defining the class/value types, a `*.repository.ts` file declaring a repository interface plus a `FindMany*Options` query filter, and an `index.ts` re-exporting both.
-- Repository interfaces share a uniform contract of `findById`, `findByXxxNumber`, `findMany(options)`, `save(entity)`, and `generateNextXxxNumber()` returning a string identifier.
-- Entities use a private constructor paired with static `create(input)` and `rehydrate(props)` factory methods to control instantiation and default value assignment.
-- Entity state mutations expose explicit domain methods (e.g. `activate`, `suspend`, `archive`, `updateCreditStatus`) that set status fields and refresh `updatedAt` rather than allowing direct property writes.
-- Aggregate child collections are added via dedicated methods (`addContact`, `addAddress`) that generate IDs via `ObjectId.generate().value`, enforce uniqueness constraints (e.g. single primary contact / default address), and persist timestamps.
-- Query filters are expressed as optional option objects (`FindManyCustomersOptions`, `FindManyQuotationsOptions`, etc.) passed to `findMany` instead of separate method overloads.

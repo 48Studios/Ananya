@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: shared_packages/procurement
-title: Procurement Domain (Suppliers, Purchase Orders, Goods Receipts & Invoices)
-scope:
-    - packages/procurement/
-source_files: []
-depends_on: []
-related_to: []

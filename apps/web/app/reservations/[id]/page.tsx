@@ -3,22 +3,7 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Printer,
-  Lock,
-  Clock,
-  XCircle,
-  MapPin,
-  Pencil,
-  Trash2,
-  Calendar,
-  Layers,
-  User,
-  FileText,
-  Unlock,
-  PackageCheck,
-} from "lucide-react";
+import { Printer, Lock, Clock, XCircle, MapPin, Pencil, Trash2, Calendar, Layers, User, FileText, Unlock, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
@@ -285,6 +270,8 @@ export default function ViewReservationPage() {
     <div className="space-y-6 print:space-y-4">
       {/* Header */}
       <PageHeader
+        backHref="/reservations"
+        backLabel="Back to Reservations"
         title={reservation.reservationNumber}
         description={`Stock Hold Commitment: ${reservation.reservedBy}`}
         breadcrumbs={[
@@ -293,14 +280,6 @@ export default function ViewReservationPage() {
         ]}
         actions={
           <div className="flex flex-wrap items-center gap-2 print:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/reservations")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="w-4 h-4 mr-1.5" />
               Print Report

@@ -137,9 +137,14 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
   }) => {
     await page.goto(`/spatial/builder?location=${testParentId}`);
 
-    // Wait for the workspace to finish loading
-    await expect(page.getByText("Inventory Builder")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Save as Draft" })).toBeVisible();
+    // Wait for the workspace to finish loading. Scoped to <main> because the
+    // sidebar navigation also renders an "Inventory Builder" link.
+    await expect(
+      page.getByRole("main").getByText("Inventory Builder"),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Save as Draft" }),
+    ).toBeVisible();
 
     // Verify initial clean state with 0 mapped
     await expect(page.getByText("Mapped: 0 /")).toBeVisible();
@@ -154,7 +159,10 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await page.getByRole("button", { name: "2. Map" }).click();
 
     // Map first child location to slot
-    const mapSelectTrigger = page.locator("button").filter({ hasText: "Map to slot..." }).first();
+    const mapSelectTrigger = page
+      .locator("button")
+      .filter({ hasText: "Map to slot..." })
+      .first();
     await expect(mapSelectTrigger).toBeVisible();
     await mapSelectTrigger.click();
 
@@ -201,7 +209,9 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await expect(page.getByText(/720 × 900 × 300 mm/)).toBeVisible();
 
     // The persisted slot-to-location mapping is restored to the same physical location
-    await expect(page.getByText(`Code: ${testChildACode}`).first()).toBeVisible();
+    await expect(
+      page.getByText(`Code: ${testChildACode}`).first(),
+    ).toBeVisible();
   });
 
   // --------------------------------------------------------------------------
@@ -216,7 +226,10 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     // Switch to Map tab and map second drawer
     await page.getByRole("button", { name: "2. Map" }).click();
 
-    const mapSelectTrigger = page.locator("button").filter({ hasText: "Map to slot..." }).first();
+    const mapSelectTrigger = page
+      .locator("button")
+      .filter({ hasText: "Map to slot..." })
+      .first();
     await expect(mapSelectTrigger).toBeVisible();
     await mapSelectTrigger.click();
 
@@ -311,11 +324,13 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await pageB.getByRole("button", { name: "Save Changes" }).click();
 
     // Verify Conflict Dialog opens with HTTP 409 REVISION_CONFLICT
+    await expect(pageB.getByText("Concurrent Revision Conflict")).toBeVisible();
     await expect(
-      pageB.getByText("Concurrent Revision Conflict"),
+      pageB.getByText(/Your changes are based on revision/i),
     ).toBeVisible();
-    await expect(pageB.getByText(/Your changes are based on revision/i)).toBeVisible();
-    await expect(pageB.getByText(/layout is currently at revision/i)).toBeVisible();
+    await expect(
+      pageB.getByText(/layout is currently at revision/i),
+    ).toBeVisible();
 
     // Session B's local workspace edits are NOT silently discarded while the conflict is open
     await expect(pageB.getByText(/640 × 900 × 300 mm/)).toBeVisible();
@@ -364,9 +379,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await page.getByRole("button", { name: "Publish Layout" }).click();
 
     // Notification confirms publication
-    await expect(
-      page.getByText(/published successfully/i),
-    ).toBeVisible();
+    await expect(page.getByText(/published successfully/i)).toBeVisible();
     await expect(page.locator("h1").getByText("PUBLISHED")).toBeVisible();
 
     // Verify in database that status is PUBLISHED
@@ -397,14 +410,21 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await page.getByRole("button", { name: "2. Map" }).click();
 
     // Map a slot
-    const mapSelectTrigger = page.locator("button").filter({ hasText: "Map to slot..." }).first();
+    const mapSelectTrigger = page
+      .locator("button")
+      .filter({ hasText: "Map to slot..." })
+      .first();
     await mapSelectTrigger.click();
     await page.getByRole("option", { name: /Slot A01/i }).click();
 
     // Save as second draft
     await page.getByRole("button", { name: "Save as Draft" }).click();
-    await page.getByLabel("Layout Code *").fill(`LAYOUT-SECOND-${testParentCode}`);
-    await page.getByLabel("Layout Name *").fill("Second Layout Draft for Same Parent");
+    await page
+      .getByLabel("Layout Code *")
+      .fill(`LAYOUT-SECOND-${testParentCode}`);
+    await page
+      .getByLabel("Layout Name *")
+      .fill("Second Layout Draft for Same Parent");
     await page.getByRole("button", { name: "Create Draft" }).click();
     await expect(page.getByText(/created successfully/i)).toBeVisible();
 
@@ -416,7 +436,9 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await expect(
       page.getByText("Only one layout can be PUBLISHED per parent container"),
     ).toBeVisible();
-    await expect(page.getByText(`LAYOUT-${testParentCode}`).first()).toBeVisible();
+    await expect(
+      page.getByText(`LAYOUT-${testParentCode}`).first(),
+    ).toBeVisible();
 
     // The failed publication changed nothing: the second layout is still a DRAFT
     const secondDraftRes = await pool.query(
@@ -443,7 +465,9 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await page.goto(`/spatial/builder?location=${testParentId}`);
 
     // Ensure the published layout is loaded
-    const layoutSelector = page.locator('button[title="Select spatial layout"]');
+    const layoutSelector = page.locator(
+      'button[title="Select spatial layout"]',
+    );
     if (!(await page.locator("h1").getByText("PUBLISHED").isVisible())) {
       await layoutSelector.click();
       const publishedOption = page.getByRole("option", { name: /PUBLISHED/i });
@@ -466,8 +490,12 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await expect(page.locator("h1").getByText("ARCHIVED")).toBeVisible();
 
     // Verify that Publish and Archive buttons are no longer present for ARCHIVED layout
-    await expect(page.getByRole("button", { name: "Publish", exact: true })).not.toBeVisible();
-    await expect(page.getByRole("button", { name: "Archive", exact: true })).not.toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Publish", exact: true }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Archive", exact: true }),
+    ).not.toBeVisible();
 
     // Verify database record
     const dbRes = await pool.query(
@@ -507,22 +535,30 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     const selectTrigger = page.locator('button[title="Select spatial layout"]');
     await selectTrigger.click();
 
-    const secondDraftOption = page.getByRole("option", { name: /Second Layout Draft/i });
+    const secondDraftOption = page.getByRole("option", {
+      name: /Second Layout Draft/i,
+    });
     await expect(secondDraftOption).toBeVisible();
     await secondDraftOption.click();
 
     // Verify it is DRAFT and has delete button
     await expect(page.locator("h1").getByText("DRAFT")).toBeVisible();
-    const deleteBtn = page.getByRole("button", { name: "Delete un-published draft" });
+    const deleteBtn = page.getByRole("button", {
+      name: "Delete un-published draft",
+    });
     await expect(deleteBtn).toBeVisible();
 
     // Click delete
     await deleteBtn.click();
-    await expect(page.getByRole("heading", { name: "Delete Draft Layout" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Delete Draft Layout" }),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Delete Draft" }).click();
 
     // Notification confirms deletion
-    await expect(page.getByText("Draft layout deleted successfully.")).toBeVisible();
+    await expect(
+      page.getByText("Draft layout deleted successfully."),
+    ).toBeVisible();
 
     // The never-published draft was hard-deleted; only the archived layout remains
     const deletedRes = await pool.query(
@@ -558,25 +594,34 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await expect(page.getByText("Loading layouts...")).not.toBeVisible();
 
     // Switch to clean new draft
-    const layoutSelector = page.locator('button[title="Select spatial layout"]');
+    const layoutSelector = page.locator(
+      'button[title="Select spatial layout"]',
+    );
     await layoutSelector.click();
     await page.getByRole("option", { name: /\+ New Layout Draft/i }).click();
 
     // Map slot A01
     await page.getByRole("button", { name: "2. Map" }).click();
-    const mapSelectTrigger = page.locator("button").filter({ hasText: "Map to slot..." }).first();
+    const mapSelectTrigger = page
+      .locator("button")
+      .filter({ hasText: "Map to slot..." })
+      .first();
     await expect(mapSelectTrigger).toBeVisible();
     await mapSelectTrigger.click();
     await page.getByRole("option", { name: /Slot A01/i }).click();
 
     // Switch to Build tab and commit baseline
     await page.getByRole("button", { name: "1. Build" }).click();
-    const setBaselineBtn = page.getByRole("button", { name: /Set As Baseline|Commit Baseline/i });
+    const setBaselineBtn = page.getByRole("button", {
+      name: /Set As Baseline|Commit Baseline/i,
+    });
     await expect(setBaselineBtn).toBeVisible();
     await setBaselineBtn.click();
 
     // Trigger stale mapping by inverting row ordering
-    const rowOrderTrigger = page.locator("button").filter({ hasText: /Top-to-Bottom/i });
+    const rowOrderTrigger = page
+      .locator("button")
+      .filter({ hasText: /Top-to-Bottom/i });
     await rowOrderTrigger.click();
     await page.getByRole("option", { name: /Bottom-to-Top/i }).click();
 
@@ -588,7 +633,9 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await staleSlot.click();
 
     // Confirm & Keep Association in Compartment Inspector
-    const confirmBtn = page.getByRole("button", { name: "Confirm & Keep Association" });
+    const confirmBtn = page.getByRole("button", {
+      name: "Confirm & Keep Association",
+    });
     await expect(confirmBtn).toBeVisible();
     await confirmBtn.click();
 
@@ -619,7 +666,9 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await expect(page.getByText("Physical Meaning Changed")).not.toBeVisible();
 
     // Now perform a meaning-changing edit: switch naming pattern to Row-Col
-    const patternTrigger = page.locator("button").filter({ hasText: /Alphanumeric/i });
+    const patternTrigger = page
+      .locator("button")
+      .filter({ hasText: /Alphanumeric/i });
     await patternTrigger.click();
     await page.getByRole("option", { name: /Row-Col/i }).click();
 
@@ -627,7 +676,9 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await expect(staleSlot).toBeVisible();
     await staleSlot.click();
     await expect(page.getByText("Physical Meaning Changed")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Confirm & Keep Association" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Confirm & Keep Association" }),
+    ).toBeVisible();
   });
 
   // --------------------------------------------------------------------------
@@ -640,20 +691,27 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await expect(page.getByText("Loading layouts...")).not.toBeVisible();
 
     // Switch to clean new draft
-    const layoutSelector = page.locator('button[title="Select spatial layout"]');
+    const layoutSelector = page.locator(
+      'button[title="Select spatial layout"]',
+    );
     await layoutSelector.click();
     await page.getByRole("option", { name: /\+ New Layout Draft/i }).click();
 
     // Map a slot to make workspace dirty
     await page.getByRole("button", { name: "2. Map" }).click();
-    const mapSelectTrigger = page.locator("button").filter({ hasText: "Map to slot..." }).first();
+    const mapSelectTrigger = page
+      .locator("button")
+      .filter({ hasText: "Map to slot..." })
+      .first();
     await mapSelectTrigger.click();
     await page.getByRole("option", { name: /Slot A01/i }).click();
     await expect(page.getByText("Unsaved Edits")).toBeVisible();
 
     // Attempt to switch to the ARCHIVED layout while dirty
     await layoutSelector.click();
-    const archivedLayoutOption = page.getByRole("option", { name: /ARCHIVED/i });
+    const archivedLayoutOption = page.getByRole("option", {
+      name: /ARCHIVED/i,
+    });
     await expect(archivedLayoutOption).toBeVisible();
     await archivedLayoutOption.click();
 
@@ -681,7 +739,9 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     );
     await expect(guardLayoutSelector).toBeVisible();
     await guardLayoutSelector.click();
-    await guardPage.getByRole("option", { name: /\+ New Layout Draft/i }).click();
+    await guardPage
+      .getByRole("option", { name: /\+ New Layout Draft/i })
+      .click();
     await guardPage.getByRole("button", { name: "2. Map" }).click();
     const guardMapTrigger = guardPage
       .locator("button")
@@ -717,17 +777,26 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
   }) => {
     await page.goto(`/spatial/builder?location=${testParentId}`);
     // Wait for layout switcher to be visible
-    await expect(page.locator('button[title="Select spatial layout"]')).toBeVisible();
+    await expect(
+      page.locator('button[title="Select spatial layout"]'),
+    ).toBeVisible();
 
     // Start a new draft
-    const newDraftBtn = page.locator('button[title="Start a new layout draft"]');
+    const newDraftBtn = page.locator(
+      'button[title="Start a new layout draft"]',
+    );
     await expect(newDraftBtn).toBeVisible();
     await newDraftBtn.click();
-    await expect(page.getByRole("button", { name: "Save as Draft", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Save as Draft", exact: true }),
+    ).toBeVisible();
 
     // Map a slot
     await page.getByRole("button", { name: "2. Map" }).click();
-    const mapSelectTrigger = page.locator("button").filter({ hasText: "Map to slot..." }).first();
+    const mapSelectTrigger = page
+      .locator("button")
+      .filter({ hasText: "Map to slot..." })
+      .first();
     await mapSelectTrigger.click();
     await page.getByRole("option", { name: /Slot A01/i }).click();
 
@@ -759,7 +828,9 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
 
     // Error message displays inside dialog and the loading indicator has cleared
     await expect(
-      page.getByText(/Simulated transient network outage|Failed to save layout/i),
+      page.getByText(
+        /Simulated transient network outage|Failed to save layout/i,
+      ),
     ).toBeVisible();
     const retryBtn = page.getByRole("button", { name: "Create Draft" });
     await expect(retryBtn).toBeEnabled();
@@ -797,7 +868,9 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     // Ensure the archived layout is selected
     const archivedStatus = page.locator("h1").getByText("ARCHIVED");
     if (!(await archivedStatus.isVisible())) {
-      const selectTrigger = page.locator('button[title="Select spatial layout"]');
+      const selectTrigger = page.locator(
+        'button[title="Select spatial layout"]',
+      );
       await selectTrigger.click();
       const archivedOption = page.getByRole("option", { name: /ARCHIVED/i });
       await expect(archivedOption).toBeVisible();
@@ -823,7 +896,9 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     );
 
     // Open History dialog
-    const historyBtn = page.locator('button[title="View revision audit timeline"]');
+    const historyBtn = page.locator(
+      'button[title="View revision audit timeline"]',
+    );
     await expect(historyBtn).toBeVisible();
     await historyBtn.click();
 
@@ -833,7 +908,10 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await expect(page.getByText("Revision #4")).toBeVisible();
 
     // Inspect a historical snapshot in place
-    await page.getByRole("button", { name: "Inspect Snapshot" }).first().click();
+    await page
+      .getByRole("button", { name: "Inspect Snapshot" })
+      .first()
+      .click();
     await expect(page.getByText(/Snapshot Mappings/)).toBeVisible();
     await expect(
       page.getByText(`Location: ${testChildACode}`).first(),

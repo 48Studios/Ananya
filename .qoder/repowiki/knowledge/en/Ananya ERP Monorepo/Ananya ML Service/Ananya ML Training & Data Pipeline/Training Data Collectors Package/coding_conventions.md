@@ -1,4 +1,0 @@
-- Each collector subclasses `BaseCollector` and implements `collect()` returning a list of `ProductRecord` objects.
-- Collectors report progress through `LiveProgress` and surface lifecycle events via `..tui.emit_event` with typed event classes.
-- Per-source outcomes are tracked in a `source_health` dict keyed by source id with fields name/status/products/documents/failures/reason.
-- External configuration (sources, policies) is loaded from YAML under `settings.base_dir/config` rather than hard-coded.

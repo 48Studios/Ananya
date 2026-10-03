@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: web_app/shared_libs
-title: Web App Shared Library
-scope:
-    - apps/web/lib/
-source_files: []
-depends_on: []
-related_to: []

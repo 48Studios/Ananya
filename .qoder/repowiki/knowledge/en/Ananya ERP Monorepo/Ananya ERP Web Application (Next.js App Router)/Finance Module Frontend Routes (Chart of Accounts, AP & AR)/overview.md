@@ -1,1 +1,0 @@
-Next.js App Router client pages for the finance module: chart-of-accounts listing/detail, accounts payable aging, and accounts receivable aging dashboards.

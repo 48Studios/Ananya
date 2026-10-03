@@ -1,1 +1,0 @@
-Transactional execution engine that consolidates duplicate components by migrating inventory, attributes, BOMs, and references into a canonical record under deterministic locking.

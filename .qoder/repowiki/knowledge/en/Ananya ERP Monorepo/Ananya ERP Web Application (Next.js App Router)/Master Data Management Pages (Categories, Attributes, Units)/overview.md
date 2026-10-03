@@ -1,1 +1,0 @@
-Next.js App Router client pages for CRUD management of the three master-data entities — categories (with hierarchy), attribute definitions, and units of measure.

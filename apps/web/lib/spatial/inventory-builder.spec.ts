@@ -10,6 +10,7 @@ import {
   generateStorageCompartments,
   type PalletRackConfig,
   type SmdDrawerCabinetConfig,
+  type SpatialLayoutWithMappings,
 } from "@ananya/inventory";
 import {
   createInitialBuilderState,
@@ -21,14 +22,24 @@ import {
   switchWorkspaceMode,
   convertGeneratedToSceneLayout,
   acknowledgeStaleMapping,
+  selectContainer,
+  selectCompartment,
+  PARENT_CONFLICT_STALE_PREFIX,
+  isChildInteractionEnabled,
   setSelectedParentLocation,
   unmapIncompatibleHierarchySlots,
   getDescendantLocationIds,
   parseBuilderUrlParams,
+  formatWorkspaceMappingsForApi,
+  resetWorkspaceToDraft,
+  loadLayoutIntoWorkspace,
   buildBuilderUrlSearchParams,
   syncStateFromUrl,
 } from "./inventory-builder-state";
-import { computeFrontElevation, type FrontElevationSlot } from "./spatial-front-elevation";
+import {
+  computeFrontElevation,
+  type FrontElevationSlot,
+} from "./spatial-front-elevation";
 import { mmToMeters } from "./spatial-3d-layout";
 import type { LocationDto } from "../api/locations-api";
 
@@ -52,6 +63,15 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   };
+
+  /**
+   * Parent-first: child slots can only be selected or mapped once the top-level
+   * container has an assigned Ananya location.
+   */
+  const withAssignedParent = (
+    state: ReturnType<typeof createInitialBuilderState>,
+    parentId = "loc-cabinet-01",
+  ) => setSelectedParentLocation(state, parentId, []);
 
   // --------------------------------------------------------------------------
   // 1. Template Selection and Configuration Validation
@@ -102,7 +122,9 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
       const updated = updateParametricConfig(state, invalidConfig);
 
       expect(updated.validationErrors.length).toBeGreaterThan(0);
-      expect(updated.validationErrors.some((e) => e.includes("Width"))).toBe(true);
+      expect(updated.validationErrors.some((e) => e.includes("Width"))).toBe(
+        true,
+      );
       // Previous generatedResult is preserved to prevent blank screens
       expect(updated.generatedResult).toBe(state.generatedResult);
     });
@@ -113,7 +135,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
   // --------------------------------------------------------------------------
   describe("Duplex Workspace Modes (Build vs Map)", () => {
     it("switches cleanly between build-new and map-existing modes preserving state", () => {
-      let state = createInitialBuilderState();
+      let state = withAssignedParent(createInitialBuilderState());
 
       // Associate a slot in build mode
       const slot0 = state.generatedResult!.compartments[0]!;
@@ -123,7 +145,9 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
       state = switchWorkspaceMode(state, "map");
       expect(state.mode).toBe("map");
       expect(state.mappings.size).toBe(1);
-      expect(state.mappings.get(slot0.slotId)?.locationId).toBe(mockLocation.id);
+      expect(state.mappings.get(slot0.slotId)?.locationId).toBe(
+        mockLocation.id,
+      );
 
       // Switch back to Build mode
       state = switchWorkspaceMode(state, "build");
@@ -167,8 +191,12 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
       expect(updated.diff?.hasChanges).toBe(true);
 
       const mod0 = modifiedSlots[0]!;
-      expect(mod0.current.dimensions.widthMm).toBeGreaterThan(mod0.previous.dimensions.widthMm);
-      expect(mod0.current.dimensions.heightMm).toBeGreaterThan(mod0.previous.dimensions.heightMm);
+      expect(mod0.current.dimensions.widthMm).toBeGreaterThan(
+        mod0.previous.dimensions.widthMm,
+      );
+      expect(mod0.current.dimensions.heightMm).toBeGreaterThan(
+        mod0.previous.dimensions.heightMm,
+      );
     });
 
     it("allows committing a new baseline to reset diff changes", () => {
@@ -193,7 +221,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
   // --------------------------------------------------------------------------
   describe("Generated vs Mapped Compartment Distinction", () => {
     it("distinguishes unmapped draft compartments from mapped locations in 3D scene layout", () => {
-      let state = createInitialBuilderState();
+      let state = withAssignedParent(createInitialBuilderState());
       const slot0 = state.generatedResult!.compartments[0]!;
       const slot1 = state.generatedResult!.compartments[1]!;
 
@@ -205,8 +233,12 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         state.mappings,
       );
 
-      const sceneSlot0 = sceneLayout.find((c) => c.locationId === slot0.slotId)!;
-      const sceneSlot1 = sceneLayout.find((c) => c.locationId === slot1.slotId)!;
+      const sceneSlot0 = sceneLayout.find(
+        (c) => c.locationId === slot0.slotId,
+      )!;
+      const sceneSlot1 = sceneLayout.find(
+        (c) => c.locationId === slot1.slotId,
+      )!;
 
       // Slot 0 is mapped
       expect(sceneSlot0.isMapped).toBe(true);
@@ -219,7 +251,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
     });
 
     it("allows unmapping an existing slot cleanly", () => {
-      let state = createInitialBuilderState();
+      let state = withAssignedParent(createInitialBuilderState());
       const slot0 = state.generatedResult!.compartments[0]!;
 
       state = mapSlotToLocation(state, slot0.slotId, mockLocation);
@@ -235,12 +267,16 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
   // --------------------------------------------------------------------------
   describe("Safety Invariants: Zero Backend Mutations", () => {
     it("verifies that all state functions are pure in-memory transitions", () => {
-      const state0 = createInitialBuilderState();
+      const state0 = withAssignedParent(createInitialBuilderState());
       const state1 = updateParametricConfig(state0, {
         ...state0.config,
         dimensions: { widthMm: 700, heightMm: 1000, depthMm: 350 },
       });
-      const state2 = mapSlotToLocation(state1, "drawer_slot_r0_c0", mockLocation);
+      const state2 = mapSlotToLocation(
+        state1,
+        "drawer_slot_r0_c0",
+        mockLocation,
+      );
       const state3 = unmapSlot(state2, "drawer_slot_r0_c0");
 
       // Verify states are immutable copies and have no side effects
@@ -372,7 +408,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
     // 2. Enforce unique location mappings (P0)
     describe("2. Unique Location Mappings (P0)", () => {
       it("enforces 1:1 bijection by unmapping prior slot when location is reassigned", () => {
-        let state = createInitialBuilderState();
+        let state = withAssignedParent(createInitialBuilderState());
         const slotA = state.generatedResult!.compartments[0]!.slotId;
         const slotB = state.generatedResult!.compartments[1]!.slotId;
 
@@ -389,7 +425,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
       });
 
       it("replaces location on slot when slot is re-mapped to a different location", () => {
-        let state = createInitialBuilderState();
+        let state = withAssignedParent(createInitialBuilderState());
         const slotA = state.generatedResult!.compartments[0]!.slotId;
 
         const loc2: LocationDto = {
@@ -456,7 +492,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
     // 4. Protect draft mappings (P1)
     describe("4. Draft Mapping Protection & Stale Detection (P1)", () => {
       it("marks mapping as stale when physical meaning/rowOrder changes, but preserves association", () => {
-        let state = createInitialBuilderState();
+        let state = withAssignedParent(createInitialBuilderState());
         const slotA = state.generatedResult!.compartments[0]!.slotId; // "drawer_slot_r0_c0"
         state = mapSlotToLocation(state, slotA, mockLocation);
 
@@ -493,7 +529,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
       });
 
       it("does NOT mark mapping as stale on pure dimensional adjustments", () => {
-        let state = createInitialBuilderState();
+        let state = withAssignedParent(createInitialBuilderState());
         const slotA = state.generatedResult!.compartments[0]!.slotId;
         state = mapSlotToLocation(state, slotA, mockLocation);
 
@@ -634,7 +670,12 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         )!;
 
         // Attempting to map macro warehouse kind must be rejected
-        state = mapSlotToLocation(state, slot0, warehouseLoc, hierarchyLocations);
+        state = mapSlotToLocation(
+          state,
+          slot0,
+          warehouseLoc,
+          hierarchyLocations,
+        );
         expect(state.mappings.has(slot0)).toBe(false);
       });
 
@@ -646,14 +687,24 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         )!; // Belongs to cab-02
 
         // Mapping unrelated drawer under cab-01 must be rejected
-        state = mapSlotToLocation(state, slot0, unrelatedDrawer, hierarchyLocations);
+        state = mapSlotToLocation(
+          state,
+          slot0,
+          unrelatedDrawer,
+          hierarchyLocations,
+        );
         expect(state.mappings.has(slot0)).toBe(false);
 
         // Mapping related drawer under cab-01 succeeds
         const relatedDrawer = hierarchyLocations.find(
           (l) => l.id === "loc-drawer-a01",
         )!;
-        state = mapSlotToLocation(state, slot0, relatedDrawer, hierarchyLocations);
+        state = mapSlotToLocation(
+          state,
+          slot0,
+          relatedDrawer,
+          hierarchyLocations,
+        );
         expect(state.mappings.has(slot0)).toBe(true);
         expect(state.mappings.get(slot0)?.locationId).toBe("loc-drawer-a01");
       });
@@ -670,7 +721,11 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         expect(state.mappings.get(slot0)?.isStale).toBeFalsy();
 
         // 2. Change parent to cabinet-02 (unrelated hierarchy)
-        state = setSelectedParentLocation(state, "loc-cabinet-02", hierarchyLocations);
+        state = setSelectedParentLocation(
+          state,
+          "loc-cabinet-02",
+          hierarchyLocations,
+        );
         expect(state.selectedParentLocationId).toBe("loc-cabinet-02");
 
         // CRITICAL INVARIANT: Incompatible mapping is NOT silently retained as valid!
@@ -708,7 +763,9 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         state = setSelectedParentLocation(state, null, hierarchyLocations);
         expect(state.selectedParentLocationId).toBeNull();
         expect(state.mappings.get(slot0)?.isStale).toBe(true);
-        expect(state.mappings.get(slot0)?.staleReason).toContain("No parent container selected");
+        expect(state.mappings.get(slot0)?.staleReason).toContain(
+          "No parent container selected",
+        );
 
         // When parent is null, getDescendantLocationIds returns empty set
         expect(getDescendantLocationIds(hierarchyLocations, null).size).toBe(0);
@@ -718,8 +775,12 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         let state = createInitialBuilderState("map", "loc-cabinet-01");
         const slot0 = state.generatedResult!.compartments[0]!.slotId;
         const slot1 = state.generatedResult!.compartments[1]!.slotId;
-        const drawerA01 = hierarchyLocations.find((l) => l.id === "loc-drawer-a01")!;
-        const binA01_1 = hierarchyLocations.find((l) => l.id === "loc-sub-bin-01")!;
+        const drawerA01 = hierarchyLocations.find(
+          (l) => l.id === "loc-drawer-a01",
+        )!;
+        const binA01_1 = hierarchyLocations.find(
+          (l) => l.id === "loc-sub-bin-01",
+        )!;
 
         // Assign drawerA01 to slot 0
         state = mapSlotToLocation(state, slot0, drawerA01, hierarchyLocations);
@@ -744,7 +805,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
     // ========================================================================
     describe("2. Stale Mapping Acknowledgment & Configuration Signatures (MEDIUM)", () => {
       it("executes the exact 5-step lifecycle: acknowledge topology change -> resize width preserves approval -> new meaning change re-invalidates", () => {
-        let state = createInitialBuilderState("build");
+        let state = withAssignedParent(createInitialBuilderState("build"));
         const slotA = state.generatedResult!.compartments[0]!.slotId;
         const slotB = state.generatedResult!.compartments[1]!.slotId;
 
@@ -769,14 +830,18 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         state = updateParametricConfig(state, invertedConfig);
 
         expect(state.mappings.get(slotA)?.isStale).toBe(true);
-        expect(state.mappings.get(slotA)?.staleReason).toContain("Row orientation inverted");
+        expect(state.mappings.get(slotA)?.staleReason).toContain(
+          "Row orientation inverted",
+        );
         expect(state.mappings.get(slotB)?.isStale).toBe(true);
 
         // Step 2: Acknowledge stale mapping for slotA ONLY -> it becomes reviewed
         state = acknowledgeStaleMapping(state, slotA);
         expect(state.mappings.get(slotA)?.isStale).toBe(false);
         expect(state.mappings.get(slotA)?.staleReason).toBeUndefined();
-        expect(state.mappings.get(slotA)?.acknowledgedChangeSignature).toBeDefined();
+        expect(
+          state.mappings.get(slotA)?.acknowledgedChangeSignature,
+        ).toBeDefined();
 
         // Step 5 verification: slotB remains unacknowledged and stale!
         expect(state.mappings.get(slotB)?.isStale).toBe(true);
@@ -809,8 +874,12 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
 
         // Invariant: New meaning change invalidates prior acknowledgment!
         expect(state.mappings.get(slotA)?.isStale).toBe(true);
-        expect(state.mappings.get(slotA)?.staleReason).toContain("Code changed");
-        expect(state.mappings.get(slotA)?.acknowledgedChangeSignature).toBeUndefined();
+        expect(state.mappings.get(slotA)?.staleReason).toContain(
+          "Code changed",
+        );
+        expect(
+          state.mappings.get(slotA)?.acknowledgedChangeSignature,
+        ).toBeUndefined();
       });
     });
 
@@ -819,7 +888,9 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
     // ========================================================================
     describe("3. URL and Browser History Synchronization (MEDIUM)", () => {
       it("supports direct links with mode and parent-location query parameters", () => {
-        const searchParams = new URLSearchParams("mode=map&location=loc-cabinet-01");
+        const searchParams = new URLSearchParams(
+          "mode=map&location=loc-cabinet-01",
+        );
         const { mode, locationId } = parseBuilderUrlParams(searchParams);
 
         expect(mode).toBe("map");
@@ -855,7 +926,10 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
 
         // Switching back to build mode with no parent cleans up mode and location but preserves others
         const cleanState = createInitialBuilderState("build", null);
-        const cleanParams = buildBuilderUrlSearchParams(updatedParams, cleanState);
+        const cleanParams = buildBuilderUrlSearchParams(
+          updatedParams,
+          cleanState,
+        );
 
         expect(cleanParams.get("filter")).toBe("active");
         expect(cleanParams.get("sort")).toBe("desc");
@@ -867,25 +941,41 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         const state = createInitialBuilderState("build", null);
 
         // Step 1: User transitions to Step 2 URL: mode=map&location=loc-cabinet-01
-        const urlStep2 = new URLSearchParams("mode=map&location=loc-cabinet-01");
+        const urlStep2 = new URLSearchParams(
+          "mode=map&location=loc-cabinet-01",
+        );
         const step2 = syncStateFromUrl(state, urlStep2, hierarchyLocations);
         expect(step2.changed).toBe(true);
         expect(step2.state.mode).toBe("map");
         expect(step2.state.selectedParentLocationId).toBe("loc-cabinet-01");
 
         // Step 2: User transitions to Step 3 URL: mode=map&location=loc-cabinet-02
-        const urlStep3 = new URLSearchParams("mode=map&location=loc-cabinet-02");
-        const step3 = syncStateFromUrl(step2.state, urlStep3, hierarchyLocations);
+        const urlStep3 = new URLSearchParams(
+          "mode=map&location=loc-cabinet-02",
+        );
+        const step3 = syncStateFromUrl(
+          step2.state,
+          urlStep3,
+          hierarchyLocations,
+        );
         expect(step3.changed).toBe(true);
         expect(step3.state.selectedParentLocationId).toBe("loc-cabinet-02");
 
         // Step 3: User hits Back in browser -> URL reverts to Step 2
-        const stepBack = syncStateFromUrl(step3.state, urlStep2, hierarchyLocations);
+        const stepBack = syncStateFromUrl(
+          step3.state,
+          urlStep2,
+          hierarchyLocations,
+        );
         expect(stepBack.changed).toBe(true);
         expect(stepBack.state.selectedParentLocationId).toBe("loc-cabinet-01");
 
         // Step 4: No change when URL matches current state
-        const idempotent = syncStateFromUrl(stepBack.state, urlStep2, hierarchyLocations);
+        const idempotent = syncStateFromUrl(
+          stepBack.state,
+          urlStep2,
+          hierarchyLocations,
+        );
         expect(idempotent.changed).toBe(false);
       });
     });
@@ -915,15 +1005,23 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
 
           // Outer post clearances:
           // Left post occupies [0, postWidth]
-          expect(minX).toBeGreaterThanOrEqual(postWidth - GEOMETRY_TOLERANCE_MM);
+          expect(minX).toBeGreaterThanOrEqual(
+            postWidth - GEOMETRY_TOLERANCE_MM,
+          );
           // Right post occupies [W - postWidth, W]
-          expect(maxX).toBeLessThanOrEqual(W - postWidth + GEOMETRY_TOLERANCE_MM);
+          expect(maxX).toBeLessThanOrEqual(
+            W - postWidth + GEOMETRY_TOLERANCE_MM,
+          );
 
           // Beam clearances:
           // Ground beam occupies [0, beamHeight]
-          expect(minY).toBeGreaterThanOrEqual(beamHeight - GEOMETRY_TOLERANCE_MM);
+          expect(minY).toBeGreaterThanOrEqual(
+            beamHeight - GEOMETRY_TOLERANCE_MM,
+          );
           // Top beam occupies [H - beamHeight, H]
-          expect(maxY).toBeLessThanOrEqual(H - beamHeight + GEOMETRY_TOLERANCE_MM);
+          expect(maxY).toBeLessThanOrEqual(
+            H - beamHeight + GEOMETRY_TOLERANCE_MM,
+          );
         }
 
         // Intermediate post clearance between adjacent bays on each level
@@ -980,10 +1078,18 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
           const minY = comp.position.y - comp.dimensions.heightMm / 2;
           const maxY = comp.position.y + comp.dimensions.heightMm / 2;
 
-          expect(minX).toBeGreaterThanOrEqual(postWidth - GEOMETRY_TOLERANCE_MM);
-          expect(maxX).toBeLessThanOrEqual(W - postWidth + GEOMETRY_TOLERANCE_MM);
-          expect(minY).toBeGreaterThanOrEqual(beamHeight - GEOMETRY_TOLERANCE_MM);
-          expect(maxY).toBeLessThanOrEqual(H - beamHeight + GEOMETRY_TOLERANCE_MM);
+          expect(minX).toBeGreaterThanOrEqual(
+            postWidth - GEOMETRY_TOLERANCE_MM,
+          );
+          expect(maxX).toBeLessThanOrEqual(
+            W - postWidth + GEOMETRY_TOLERANCE_MM,
+          );
+          expect(minY).toBeGreaterThanOrEqual(
+            beamHeight - GEOMETRY_TOLERANCE_MM,
+          );
+          expect(maxY).toBeLessThanOrEqual(
+            H - beamHeight + GEOMETRY_TOLERANCE_MM,
+          );
         }
 
         // Verify all 3 bays per level have structural post gaps between them
@@ -997,10 +1103,13 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
             const currentBayMaxX =
               levelBays[b]!.position.x + levelBays[b]!.dimensions.widthMm / 2;
             const nextBayMinX =
-              levelBays[b + 1]!.position.x - levelBays[b + 1]!.dimensions.widthMm / 2;
+              levelBays[b + 1]!.position.x -
+              levelBays[b + 1]!.dimensions.widthMm / 2;
             const gap = nextBayMinX - currentBayMaxX;
 
-            expect(gap).toBeGreaterThanOrEqual(postWidth - GEOMETRY_TOLERANCE_MM);
+            expect(gap).toBeGreaterThanOrEqual(
+              postWidth - GEOMETRY_TOLERANCE_MM,
+            );
           }
         }
       });
@@ -1030,6 +1139,292 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         }
       });
     });
+
+    // ========================================================================
+    // 5. Top-Level Container Selection & Assignment (Phase 3.5)
+    // ========================================================================
+    describe("5. Top-Level Container Selection & Assignment", () => {
+      it("selects the top-level container distinctly from compartments", () => {
+        let state = createInitialBuilderState("build", "loc-cabinet-01");
+        expect(state.selectedContainer).toBe(false);
+        expect(state.selectedSlotId).toBe("drawer_slot_r0_c0");
+
+        state = selectContainer(state);
+        expect(state.selectedContainer).toBe(true);
+        expect(state.selectedSlotId).toBeNull();
+
+        // Selecting a compartment clears the container selection
+        state = selectCompartment(state, "drawer_slot_r2_c3");
+        expect(state.selectedContainer).toBe(false);
+        expect(state.selectedSlotId).toBe("drawer_slot_r2_c3");
+      });
+
+      it("allows container selection on a brand-new unsaved layout", () => {
+        let state = createInitialBuilderState();
+        // No persisted layout yet: preview already exists and the container is selectable
+        expect(state.loadedLayoutId).toBeNull();
+        expect(state.generatedResult?.totalCompartments).toBe(60);
+
+        state = selectContainer(state);
+        expect(state.selectedContainer).toBe(true);
+      });
+
+      it("preserves container selection across geometry changes and draft resets", () => {
+        let state = selectContainer(
+          createInitialBuilderState("build", "loc-cabinet-01"),
+        );
+
+        state = updateParametricConfig(state, {
+          ...state.config,
+          dimensions: { widthMm: 750, heightMm: 900, depthMm: 300 },
+        });
+        expect(state.selectedContainer).toBe(true);
+        expect(state.selectedSlotId).toBeNull();
+
+        state = resetWorkspaceToDraft(state, "loc-cabinet-01");
+        expect(state.selectedContainer).toBe(false);
+      });
+
+      it("assigns the container location without creating a compartment mapping", () => {
+        let state = createInitialBuilderState("build", null);
+        expect(state.mappings.size).toBe(0);
+
+        state = setSelectedParentLocation(
+          state,
+          "loc-cabinet-01",
+          hierarchyLocations,
+        );
+
+        // The container lives on parentLocationId, never in slot mappings
+        expect(state.selectedParentLocationId).toBe("loc-cabinet-01");
+        expect(state.mappings.size).toBe(0);
+        expect(
+          formatWorkspaceMappingsForApi(state.mappings, state.generatedResult),
+        ).toEqual([]);
+      });
+
+      it("rejects assigning a container location that is already mapped to a compartment", () => {
+        // Map drawer A01 to a compartment first
+        let state = createInitialBuilderState("build", "loc-cabinet-01");
+        const slotId = state.generatedResult!.compartments[0]!.slotId;
+        state = mapSlotToLocation(
+          state,
+          slotId,
+          hierarchyLocations.find((l) => l.id === "loc-drawer-a01")!,
+          hierarchyLocations,
+        );
+        expect(state.mappings.get(slotId)?.locationId).toBe("loc-drawer-a01");
+
+        // Assigning that same location as the top-level container surfaces an
+        // explicit parent conflict (never a silent dual assignment)
+        state = setSelectedParentLocation(
+          state,
+          "loc-drawer-a01",
+          hierarchyLocations,
+        );
+        const conflicted = state.mappings.get(slotId)!;
+        expect(conflicted.isStale).toBe(true);
+        expect(
+          conflicted.staleReason?.startsWith(PARENT_CONFLICT_STALE_PREFIX),
+        ).toBe(true);
+        expect(conflicted.locationId).toBe("loc-drawer-a01");
+      });
+
+      it("rejects mapping the assigned container location to a compartment afterwards", () => {
+        const state = createInitialBuilderState("build", "loc-cabinet-01");
+        const slotId = state.generatedResult!.compartments[0]!.slotId;
+
+        const after = mapSlotToLocation(
+          state,
+          slotId,
+          hierarchyLocations.find((l) => l.id === "loc-cabinet-01")!,
+          hierarchyLocations,
+        );
+
+        // Unchanged: the container cannot also be a compartment slot
+        expect(after.mappings.size).toBe(0);
+        expect(after).toBe(state);
+      });
+
+      // ========================================================================
+      // 6. Parent-First Workflow Gate (shared across 2D and 3D)
+      // ========================================================================
+      describe("6. Parent-First Workflow Gate", () => {
+        it("derives child interaction from the single authoritative draft condition", () => {
+          const unassigned = createInitialBuilderState("build", null);
+          expect(isChildInteractionEnabled(unassigned)).toBe(false);
+          expect(unassigned.selectedContainer).toBe(true);
+          expect(unassigned.selectedSlotId).toBeNull();
+
+          const assigned = withAssignedParent(createInitialBuilderState());
+          expect(isChildInteractionEnabled(assigned)).toBe(true);
+        });
+
+        it("does not select or map child compartments while no parent is assigned", () => {
+          const state = createInitialBuilderState("build", null);
+          const slotId = state.generatedResult!.compartments[0]!.slotId;
+
+          // Child selection is rejected outright
+          const afterSelect = selectCompartment(state, slotId);
+          expect(afterSelect).toBe(state);
+
+          // Child mapping is rejected outright
+          const afterMap = mapSlotToLocation(
+            afterSelect,
+            slotId,
+            hierarchyLocations.find((l) => l.id === "loc-drawer-a01")!,
+            hierarchyLocations,
+          );
+          expect(afterMap.mappings.size).toBe(0);
+          expect(afterMap).toBe(afterSelect);
+        });
+
+        it("enables child selection and mapping immediately after assigning a parent", () => {
+          let state = createInitialBuilderState("build", null);
+          state = setSelectedParentLocation(
+            state,
+            "loc-cabinet-01",
+            hierarchyLocations,
+          );
+          expect(isChildInteractionEnabled(state)).toBe(true);
+
+          const slotId = state.generatedResult!.compartments[0]!.slotId;
+          state = selectCompartment(state, slotId);
+          expect(state.selectedSlotId).toBe(slotId);
+          expect(state.selectedContainer).toBe(false);
+
+          state = mapSlotToLocation(
+            state,
+            slotId,
+            hierarchyLocations.find((l) => l.id === "loc-drawer-a01")!,
+            hierarchyLocations,
+          );
+          expect(state.mappings.get(slotId)?.locationId).toBe("loc-drawer-a01");
+        });
+
+        it("disables child interaction again when the parent is removed without discarding mappings", () => {
+          // Assign parent, map a slot, then clear the container assignment
+          let state = withAssignedParent(createInitialBuilderState());
+          const slotId = state.generatedResult!.compartments[0]!.slotId;
+          state = mapSlotToLocation(
+            state,
+            slotId,
+            hierarchyLocations.find((l) => l.id === "loc-drawer-a01")!,
+            hierarchyLocations,
+          );
+          expect(state.mappings.size).toBe(1);
+
+          state = setSelectedParentLocation(state, null, hierarchyLocations);
+
+          // Gate closes, container becomes the active target, selection is cleared
+          expect(isChildInteractionEnabled(state)).toBe(false);
+          expect(state.selectedContainer).toBe(true);
+          expect(state.selectedSlotId).toBeNull();
+
+          // The mapping is preserved but explicitly flagged for review
+          const preserved = state.mappings.get(slotId)!;
+          expect(preserved.locationId).toBe("loc-drawer-a01");
+          expect(preserved.isStale).toBe(true);
+          expect(preserved.staleReason).toContain(
+            "No parent container selected",
+          );
+
+          // Child selection and mapping are rejected again
+          expect(selectCompartment(state, slotId)).toBe(state);
+          expect(
+            mapSlotToLocation(
+              state,
+              slotId,
+              hierarchyLocations.find((l) => l.id === "loc-drawer-a01")!,
+              hierarchyLocations,
+            ),
+          ).toBe(state);
+        });
+
+        it("normalises URL synchronisation without a location back to the container target", () => {
+          const assigned = withAssignedParent(createInitialBuilderState());
+          const slotId = assigned.generatedResult!.compartments[0]!.slotId;
+          const withSlot = selectCompartment(assigned, slotId);
+          expect(withSlot.selectedSlotId).toBe(slotId);
+
+          const { state: synced, changed } = syncStateFromUrl(
+            withSlot,
+            new URLSearchParams(""),
+            hierarchyLocations,
+          );
+
+          expect(changed).toBe(true);
+          expect(synced.selectedParentLocationId).toBeNull();
+          expect(synced.selectedContainer).toBe(true);
+          expect(synced.selectedSlotId).toBeNull();
+        });
+      });
+
+      it("loading a persisted layout restores compartment focus without a stale container selection", () => {
+        const config = createDefaultSmdCabinetConfig();
+        const generated = generateStorageCompartments(config);
+        const layout: SpatialLayoutWithMappings = {
+          id: "layout-1",
+          parentLocationId: "loc-cabinet-01",
+          code: "LAYOUT-1",
+          name: "Persisted Layout",
+          description: null,
+          templateType: config.templateType,
+          engineVersion: "1.0.0",
+          config,
+          revision: 1,
+          status: "DRAFT",
+          totalCompartments: generated.totalCompartments,
+          metadata: {},
+          createdBy: null,
+          updatedBy: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          mappings: [],
+        };
+
+        let state = selectContainer(
+          createInitialBuilderState("build", "loc-cabinet-01"),
+        );
+        state = loadLayoutIntoWorkspace(state, layout, hierarchyLocations);
+
+        expect(state.selectedContainer).toBe(false);
+        expect(state.selectedSlotId).toBe("drawer_slot_r0_c0");
+        expect(state.selectedParentLocationId).toBe("loc-cabinet-01");
+      });
+
+      it("keeps descendant-only eligibility rules for compartments", () => {
+        const inactiveDrawer: LocationDto = {
+          ...hierarchyLocations.find((l) => l.id === "loc-drawer-a01")!,
+          id: "loc-drawer-inactive",
+          code: "DRW-INACTIVE",
+          isActive: false,
+        };
+        const locationsWithInactive = [...hierarchyLocations, inactiveDrawer];
+
+        const state = createInitialBuilderState("build", "loc-cabinet-01");
+        const slotId = state.generatedResult!.compartments[0]!.slotId;
+
+        // Unrelated hierarchy is rejected
+        const unrelated = mapSlotToLocation(
+          state,
+          slotId,
+          hierarchyLocations.find((l) => l.id === "loc-drawer-b01")!,
+          locationsWithInactive,
+        );
+        expect(unrelated.mappings.size).toBe(0);
+
+        // Inactive descendant remains a descendant (activity is enforced at publish)
+        const inactiveMapped = mapSlotToLocation(
+          state,
+          slotId,
+          inactiveDrawer,
+          locationsWithInactive,
+        );
+        expect(inactiveMapped.mappings.get(slotId)?.locationId).toBe(
+          "loc-drawer-inactive",
+        );
+      });
+    });
   });
 });
-

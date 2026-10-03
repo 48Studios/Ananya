@@ -30,6 +30,23 @@ import {
 } from "@ananya/inventory";
 import { cn } from "@/lib/utils";
 
+/** Naming pattern options; also used for the trigger tooltip when truncated. */
+const NAMING_PATTERN_OPTIONS = [
+  { value: "ROW_COL_ALPHA_NUM", label: "Alphanumeric (A01..Z99)" },
+  { value: "ROW_COL_NUMERIC", label: "Row-Col (R1-C1)" },
+  { value: "TIER_BIN_NUMERIC", label: "Tier-Bin (T1-B01)" },
+  { value: "LEVEL_BAY_NUMERIC", label: "Level-Bay (L1-B1)" },
+  { value: "SEQUENTIAL", label: "Sequential (001..999)" },
+] as const;
+
+const ROW_ORDER_OPTIONS = [
+  {
+    value: "top_to_bottom",
+    label: "Top-to-Bottom (Row A at highest shelf/drawer)",
+  },
+  { value: "bottom_to_top", label: "Bottom-to-Top (Row A at ground level)" },
+] as const;
+
 export interface ParametricConfigPanelProps {
   config: ParametricStorageConfig;
   validationErrors: string[];
@@ -152,7 +169,9 @@ export function ParametricConfigPanel({
   };
 
   // Naming handlers
-  const handleNamingChange = (updates: Partial<NonNullable<ParametricStorageConfig["naming"]>>) => {
+  const handleNamingChange = (
+    updates: Partial<NonNullable<ParametricStorageConfig["naming"]>>,
+  ) => {
     onChangeConfig({
       ...config,
       naming: {
@@ -161,6 +180,17 @@ export function ParametricConfigPanel({
       },
     });
   };
+
+  // Full labels for the trigger tooltips: the selected value truncates with an
+  // ellipsis in the narrow panel, so the complete text stays discoverable.
+  const namingPatternValue = config.naming?.pattern ?? "ROW_COL_ALPHA_NUM";
+  const namingPatternLabel =
+    NAMING_PATTERN_OPTIONS.find((option) => option.value === namingPatternValue)
+      ?.label ?? namingPatternValue;
+  const rowOrderValue = config.naming?.rowOrder ?? "top_to_bottom";
+  const rowOrderLabel =
+    ROW_ORDER_OPTIONS.find((option) => option.value === rowOrderValue)?.label ??
+    rowOrderValue;
 
   return (
     <div className={cn("space-y-6 text-sm", className)}>
@@ -202,13 +232,17 @@ export function ParametricConfigPanel({
                 <div
                   className={cn(
                     "p-1.5 rounded",
-                    isSelected ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+                    isSelected
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground",
                   )}
                 >
                   <Icon className="size-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold leading-tight">{tmpl.title}</div>
+                  <div className="text-xs font-semibold leading-tight">
+                    {tmpl.title}
+                  </div>
                   <div className="text-[11px] text-muted-foreground leading-snug">
                     {tmpl.subtitle}
                   </div>
@@ -241,13 +275,19 @@ export function ParametricConfigPanel({
             Outer Dimensions (mm)
           </span>
           <span className="text-[11px] text-muted-foreground font-mono">
-            {config.dimensions.widthMm} × {config.dimensions.heightMm} × {config.dimensions.depthMm}
+            {config.dimensions.widthMm} × {config.dimensions.heightMm} ×{" "}
+            {config.dimensions.depthMm}
           </span>
         </div>
 
         <div className="grid grid-cols-3 gap-2.5">
           <div className="space-y-1">
-            <Label htmlFor="param-width" className="text-[11px] text-muted-foreground">Width</Label>
+            <Label
+              htmlFor="param-width"
+              className="text-[11px] text-muted-foreground"
+            >
+              Width
+            </Label>
             <Input
               id="param-width"
               type="number"
@@ -259,19 +299,31 @@ export function ParametricConfigPanel({
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="param-height" className="text-[11px] text-muted-foreground">Height</Label>
+            <Label
+              htmlFor="param-height"
+              className="text-[11px] text-muted-foreground"
+            >
+              Height
+            </Label>
             <Input
               id="param-height"
               type="number"
               min={10}
               step={1}
               value={config.dimensions.heightMm || ""}
-              onChange={(e) => handleDimensionChange("heightMm", e.target.value)}
+              onChange={(e) =>
+                handleDimensionChange("heightMm", e.target.value)
+              }
               className="h-8 text-xs font-mono"
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="param-depth" className="text-[11px] text-muted-foreground">Depth</Label>
+            <Label
+              htmlFor="param-depth"
+              className="text-[11px] text-muted-foreground"
+            >
+              Depth
+            </Label>
             <Input
               id="param-depth"
               type="number"
@@ -285,7 +337,10 @@ export function ParametricConfigPanel({
         </div>
 
         <div className="pt-1 flex items-center justify-between gap-4">
-          <Label htmlFor="param-wall-thickness" className="text-[11px] text-muted-foreground">
+          <Label
+            htmlFor="param-wall-thickness"
+            className="text-[11px] text-muted-foreground"
+          >
             Wall / Carcass Thickness (mm)
           </Label>
           <Input
@@ -312,7 +367,12 @@ export function ParametricConfigPanel({
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2.5">
               <div className="space-y-1">
-                <Label htmlFor="param-rows" className="text-[11px] text-muted-foreground">Rows</Label>
+                <Label
+                  htmlFor="param-rows"
+                  className="text-[11px] text-muted-foreground"
+                >
+                  Rows
+                </Label>
                 <Input
                   id="param-rows"
                   type="number"
@@ -324,7 +384,12 @@ export function ParametricConfigPanel({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="param-columns" className="text-[11px] text-muted-foreground">Columns</Label>
+                <Label
+                  htmlFor="param-columns"
+                  className="text-[11px] text-muted-foreground"
+                >
+                  Columns
+                </Label>
                 <Input
                   id="param-columns"
                   type="number"
@@ -348,7 +413,9 @@ export function ParametricConfigPanel({
                   (config as SmdDrawerCabinetConfig).dividerThicknessMm ??
                   (config.templateType === "GRID_PARTS_TRAY" ? 2 : 3)
                 }
-                onChange={(e) => handleGridChange("dividerThicknessMm", e.target.value)}
+                onChange={(e) =>
+                  handleGridChange("dividerThicknessMm", e.target.value)
+                }
                 className="w-20 h-8 text-xs font-mono text-right"
               />
             </div>
@@ -360,48 +427,64 @@ export function ParametricConfigPanel({
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2.5">
               <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">Tiers (Vertical)</Label>
+                <Label className="text-[11px] text-muted-foreground">
+                  Tiers (Vertical)
+                </Label>
                 <Input
                   type="number"
                   min={1}
                   step={1}
                   value={(config as OpenBinMatrixConfig).tiers || ""}
-                  onChange={(e) => handleBinMatrixChange("tiers", e.target.value)}
+                  onChange={(e) =>
+                    handleBinMatrixChange("tiers", e.target.value)
+                  }
                   className="h-8 text-xs font-mono"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">Bins Per Tier</Label>
+                <Label className="text-[11px] text-muted-foreground">
+                  Bins Per Tier
+                </Label>
                 <Input
                   type="number"
                   min={1}
                   step={1}
                   value={(config as OpenBinMatrixConfig).binsPerTier || ""}
-                  onChange={(e) => handleBinMatrixChange("binsPerTier", e.target.value)}
+                  onChange={(e) =>
+                    handleBinMatrixChange("binsPerTier", e.target.value)
+                  }
                   className="h-8 text-xs font-mono"
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2.5">
               <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">Tier Spacing (mm)</Label>
+                <Label className="text-[11px] text-muted-foreground">
+                  Tier Spacing (mm)
+                </Label>
                 <Input
                   type="number"
                   min={0}
                   step={1}
                   value={(config as OpenBinMatrixConfig).tierSpacingMm ?? 10}
-                  onChange={(e) => handleBinMatrixChange("tierSpacingMm", e.target.value)}
+                  onChange={(e) =>
+                    handleBinMatrixChange("tierSpacingMm", e.target.value)
+                  }
                   className="h-8 text-xs font-mono"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">Bin Spacing (mm)</Label>
+                <Label className="text-[11px] text-muted-foreground">
+                  Bin Spacing (mm)
+                </Label>
                 <Input
                   type="number"
                   min={0}
                   step={1}
                   value={(config as OpenBinMatrixConfig).binSpacingMm ?? 6}
-                  onChange={(e) => handleBinMatrixChange("binSpacingMm", e.target.value)}
+                  onChange={(e) =>
+                    handleBinMatrixChange("binSpacingMm", e.target.value)
+                  }
                   className="h-8 text-xs font-mono"
                 />
               </div>
@@ -414,48 +497,64 @@ export function ParametricConfigPanel({
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2.5">
               <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">Beam Levels</Label>
+                <Label className="text-[11px] text-muted-foreground">
+                  Beam Levels
+                </Label>
                 <Input
                   type="number"
                   min={1}
                   step={1}
                   value={(config as PalletRackConfig).levels || ""}
-                  onChange={(e) => handlePalletRackChange("levels", e.target.value)}
+                  onChange={(e) =>
+                    handlePalletRackChange("levels", e.target.value)
+                  }
                   className="h-8 text-xs font-mono"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">Bays Per Level</Label>
+                <Label className="text-[11px] text-muted-foreground">
+                  Bays Per Level
+                </Label>
                 <Input
                   type="number"
                   min={1}
                   step={1}
                   value={(config as PalletRackConfig).baysPerLevel || ""}
-                  onChange={(e) => handlePalletRackChange("baysPerLevel", e.target.value)}
+                  onChange={(e) =>
+                    handlePalletRackChange("baysPerLevel", e.target.value)
+                  }
                   className="h-8 text-xs font-mono"
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2.5">
               <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">Upright Post (mm)</Label>
+                <Label className="text-[11px] text-muted-foreground">
+                  Upright Post (mm)
+                </Label>
                 <Input
                   type="number"
                   min={10}
                   step={5}
                   value={(config as PalletRackConfig).uprightPostWidthMm ?? 50}
-                  onChange={(e) => handlePalletRackChange("uprightPostWidthMm", e.target.value)}
+                  onChange={(e) =>
+                    handlePalletRackChange("uprightPostWidthMm", e.target.value)
+                  }
                   className="h-8 text-xs font-mono"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">Beam Height (mm)</Label>
+                <Label className="text-[11px] text-muted-foreground">
+                  Beam Height (mm)
+                </Label>
                 <Input
                   type="number"
                   min={10}
                   step={5}
                   value={(config as PalletRackConfig).beamHeightMm ?? 40}
-                  onChange={(e) => handlePalletRackChange("beamHeightMm", e.target.value)}
+                  onChange={(e) =>
+                    handlePalletRackChange("beamHeightMm", e.target.value)
+                  }
                   className="h-8 text-xs font-mono"
                 />
               </div>
@@ -473,31 +572,40 @@ export function ParametricConfigPanel({
 
         <div className="space-y-2.5">
           <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">Naming Pattern</Label>
+            <Label className="text-[11px] text-muted-foreground">
+              Naming Pattern
+            </Label>
             <Select
               value={config.naming?.pattern ?? "ROW_COL_ALPHA_NUM"}
               onValueChange={(val) =>
                 handleNamingChange({
-                  pattern: val as NonNullable<ParametricStorageConfig["naming"]>["pattern"],
+                  pattern: val as NonNullable<
+                    ParametricStorageConfig["naming"]
+                  >["pattern"],
                 })
               }
             >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
+              <SelectTrigger
+                className="h-8 w-full min-w-0 text-xs"
+                title={namingPatternLabel}
+              >
+                <SelectValue className="min-w-0 truncate" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ROW_COL_ALPHA_NUM">Alphanumeric (A01..Z99)</SelectItem>
-                <SelectItem value="ROW_COL_NUMERIC">Row-Col (R1-C1)</SelectItem>
-                <SelectItem value="TIER_BIN_NUMERIC">Tier-Bin (T1-B01)</SelectItem>
-                <SelectItem value="LEVEL_BAY_NUMERIC">Level-Bay (L1-B1)</SelectItem>
-                <SelectItem value="SEQUENTIAL">Sequential (001..999)</SelectItem>
+                {NAMING_PATTERN_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
             <div className="space-y-1">
-              <Label className="text-[11px] text-muted-foreground">Prefix (optional)</Label>
+              <Label className="text-[11px] text-muted-foreground">
+                Prefix (optional)
+              </Label>
               <Input
                 type="text"
                 placeholder="e.g. DRW-"
@@ -507,7 +615,9 @@ export function ParametricConfigPanel({
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[11px] text-muted-foreground">Pad Digits</Label>
+              <Label className="text-[11px] text-muted-foreground">
+                Pad Digits
+              </Label>
               <Input
                 type="number"
                 min={1}
@@ -524,7 +634,9 @@ export function ParametricConfigPanel({
           </div>
 
           <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">Row Vertical Ordering</Label>
+            <Label className="text-[11px] text-muted-foreground">
+              Row Vertical Ordering
+            </Label>
             <Select
               value={config.naming?.rowOrder ?? "top_to_bottom"}
               onValueChange={(val) =>
@@ -533,16 +645,18 @@ export function ParametricConfigPanel({
                 })
               }
             >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
+              <SelectTrigger
+                className="h-8 w-full min-w-0 text-xs"
+                title={rowOrderLabel}
+              >
+                <SelectValue className="min-w-0 truncate" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="top_to_bottom">
-                  Top-to-Bottom (Row A at highest shelf/drawer)
-                </SelectItem>
-                <SelectItem value="bottom_to_top">
-                  Bottom-to-Top (Row A at ground level)
-                </SelectItem>
+                {ROW_ORDER_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

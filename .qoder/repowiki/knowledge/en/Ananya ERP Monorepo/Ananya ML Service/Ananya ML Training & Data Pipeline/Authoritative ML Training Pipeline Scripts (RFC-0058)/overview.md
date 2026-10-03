@@ -1,1 +1,0 @@
-End-to-end Python scripts implementing the RFC-0058 authoritative ML training pipeline: collecting verified component records, validating and quarantining conflicts, building versioned datasets, training candidate classifiers, evaluating quality gates, and promoting to production.

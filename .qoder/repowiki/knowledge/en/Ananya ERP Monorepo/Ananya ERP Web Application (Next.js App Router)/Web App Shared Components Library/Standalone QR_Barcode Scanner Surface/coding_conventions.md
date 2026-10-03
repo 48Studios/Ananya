@@ -1,6 +1,0 @@
-- Every file begins with the `"use client"` directive, marking it as a browser-only component.
-- Component state is kept in React hooks while mutable cross-render values (in-flight locks, gate state, timer handles, callback snapshots) are stored in `useRef` to avoid stale closures in async flows.
-- Camera and decode resources are released through explicit `stopCamera`/`stopDecoding` helpers invoked in effect cleanup, with a `generationRef` counter used to discard responses from obsolete stream launches.
-- User-facing error surfaces follow a uniform shape: a panel with an icon, title, description, and a retry/dismiss button, styled with dark translucent backgrounds and `env(safe-area-inset-*)` offsets.
-- All interactive chrome is positioned with `calc(env(safe-area-inset-*...))` so Dynamic Island/notch/home indicator cannot cover controls.
-- Props interfaces are declared alongside their component function rather than extracted, keeping each file self-contained.

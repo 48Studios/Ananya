@@ -3,15 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  FolderKanban,
-  Package,
-  Layers,
-  ArrowLeft,
-  ExternalLink,
-  CheckCircle2,
-  Eye,
-} from "lucide-react";
+import { FolderKanban, Package, Layers, ExternalLink, CheckCircle2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -205,15 +197,11 @@ export default function ProjectReportsPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        backHref="/reports"
+        backLabel="Back to Reports"
         title="Project Reports"
         description="Project material tracking, job site inventory allocations, and consumption balances."
         actions={
-          <Link href="/reports">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back to Reports
-            </Button>
-          </Link>
         }
       />
 

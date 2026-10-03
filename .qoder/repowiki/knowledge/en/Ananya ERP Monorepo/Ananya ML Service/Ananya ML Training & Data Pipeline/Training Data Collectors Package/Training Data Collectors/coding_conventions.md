@@ -1,5 +1,0 @@
-- Each collector sets class-level `name` and `source_type` string attributes and implements `collect(**kwargs)` returning `List[ProductRecord]`.
-- Every `ProductRecord` is constructed with a `ProvenanceRecord` carrying `source`, `source_type`, `collected_at=datetime.now(timezone.utc).isoformat()`, and a `verification_status` chosen from `VerificationStatus` based on the trust model of the source.
-- Domain inference is centralized through the module-level `infer_domain(category_name)` helper from `ananya_db.py`, called from every collector instead of hard-coding `ProductDomain` mappings inline.
-- Optional heavy dependencies (e.g. `psycopg2`, TUI event emission, coverage generators) are imported inside method bodies rather than at module top, keeping them lazy and avoiding startup failures when extras are absent.
-- File-path arguments are validated with `Path.exists()` and raise `FileNotFoundError` with a message naming the missing path before any parsing begins.

@@ -1,6 +1,0 @@
-- Each CLI subcommand is implemented as a top-level `cmd_<name>(args)` function that parses its own arguments from `argparse.Namespace` and writes results to paths resolved through `config.settings`.
-- Subparsers are registered inside `build_parser()` using a shared `add_common_flags` helper that injects `-q/--quiet`, `-v/--verbose`, and `--tui` flags uniformly across all commands.
-- Long-running stages wrap work in a `LiveProgress` context with explicit `start_stage` / `finish_stage` calls reporting item counts and stage names.
-- Data artifacts are persisted as pretty-printed JSON (or JSONL for task corpora) under versioned directories beneath `settings.<stage>_dir` (raw, cleaned, normalized, training), with manifest files written alongside datasets.
-- Records are typed via Pydantic models from `schemas.product.ProductRecord`, constructed with `ProductRecord(**r)` after loading raw dicts from JSON.
-- Crawl sources are declared declaratively in `config/sources.yaml` and consumed through `CrawlPolicyManager` / `CategoryQueryStrategy` rather than being hard-coded in Python.

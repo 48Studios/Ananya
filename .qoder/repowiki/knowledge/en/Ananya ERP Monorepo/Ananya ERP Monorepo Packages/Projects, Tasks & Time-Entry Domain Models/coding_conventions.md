@@ -1,6 +1,0 @@
-- Each domain entity is exposed as a class with a private constructor and two static factories: `create(props)` for validation-driven construction and `rehydrate(props)` for deserialization.
-- Entity state transitions are implemented as instance methods (e.g. `start`, `pause`, `complete`, `archive`, `cancel`) that validate current status before mutating and throw domain-specific errors.
-- Repository access is defined purely as TypeScript interfaces in a sibling `*.repository.ts` file, never implemented here, so consumers depend on abstractions rather than concrete storage.
-- Query options are grouped into a `FindManyXxxOptions` interface passed to a single `findMany(options)` method per repository.
-- Domain errors are modeled as distinct `Error` subclasses (e.g. `InvalidProjectStatusError`, `ProjectMaterialError`, `ProjectNotFoundError`) with explicit `this.name` set.
-- Entities generate their own immutable `id` fields using `ObjectId.generate().value` from `@ananya/core` inside their `create` factories.

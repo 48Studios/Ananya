@@ -1,5 +1,0 @@
-- DTO classes use class-validator decorators (`IsString`, `IsOptional`, `IsUUID`, `IsObject`) to declare required vs optional fields rather than runtime guards.
-- Query methods build a `conditions[]` array of `eq(...)` clauses and combine them with `and(...)` only when non-empty, falling back to `undefined` for an unfiltered select.
-- Search across multiple columns is implemented by wrapping several `ilike(...)` predicates in `or(...)` and appending them to the conditions array.
-- List endpoints default pagination via a `limit` parameter parsed from the query string with a module-specific default (50 for activity, 100 for audit).
-- Results are ordered newest-first using `orderBy(desc(activityEvents.createdAt))` / `orderBy(desc(securityAuditLogs.createdAt))`.

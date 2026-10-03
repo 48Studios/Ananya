@@ -1,1 +1,0 @@
-NestJS modules that handle session-based authentication, user/role CRUD, and a permission catalogue with reusable guards for inventory, component, attribute, and ML surfaces.

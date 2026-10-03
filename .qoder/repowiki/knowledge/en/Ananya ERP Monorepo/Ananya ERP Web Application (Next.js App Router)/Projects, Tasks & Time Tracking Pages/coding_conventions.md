@@ -1,5 +1,0 @@
-- List pages follow a fixed shape: local `useState` for data/loading/error, a `fetchXxx` callback wrapped in `useEffect`, KPI `StatCard`s, an `EntityDataTable` with inline `ColumnDef` arrays, and a `DialogShell` wrapping a domain-specific form component on success.
-- API calls go through typed client modules under `@/lib/api/*` (e.g. `projectsApi`, `tasksApi`, `timeEntriesApi`) and DTOs are imported as TypeScript types (`ProjectDto`, `TaskDto`, `TimeEntryDto`).
-- Status and priority values are rendered via small switch-based badge helpers (e.g. `getStatusBadge`, `getPriorityBadge`) that map enum-like string literals to colored Tailwind spans.
-- Detail pages read the route id via `useParams()` from `next/navigation`, guard on its presence before calling the API, and render `LoadingState` / `ErrorState` early-return branches.
-- Mutations wrap each async call in try/catch that narrows `err instanceof Error` and surfaces the message into a local error state, followed by a re-fetch of the entity.

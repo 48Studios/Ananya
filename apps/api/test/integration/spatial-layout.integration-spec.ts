@@ -1307,4 +1307,88 @@ describe('Spatial Layout Persistence & Publication Integration', () => {
       expect(nodes).toHaveLength(0);
     });
   });
+
+  // ==========================================================================
+  // 4. Top-Level Container (Parent) Assignment Semantics
+  // ==========================================================================
+  describe('4. Top-Level Container Assignment Semantics', () => {
+    it('publishes compartments under the assigned container without duplicating the container spatial node', async () => {
+      if (!hasDbUrl) return;
+
+      // Pre-existing authoritative container node (e.g. manually authored)
+      const [containerNode] = await db
+        .insert(spatialNodes)
+        .values({
+          locationId: unrelatedParentId,
+          positionX: '10.0000',
+          positionY: '0.0000',
+          positionZ: '20.0000',
+          metadata: { source: 'manual' },
+        })
+        .returning();
+      if (!containerNode) throw new Error('Failed to create container node');
+
+      const layout = await layoutService.createLayout({
+        code: `LAYOUT-CONT-${testRunId}`,
+        name: 'Container Assignment Layout',
+        parentLocationId: unrelatedParentId,
+        templateType: 'SMD_DRAWER_CABINET',
+        config: smdConfig(600, 2, 2),
+        mappings: [
+          {
+            slotId: 'drawer_slot_r0_c0',
+            slotCode: 'A01',
+            locationId: unrelatedChildId,
+          },
+        ],
+      });
+      createdLayoutIds.push(layout.id);
+
+      // The container is the layout's parentLocationId, never a mapping row
+      expect(layout.parentLocationId).toBe(unrelatedParentId);
+      expect(layout.mappings.map((m) => m.locationId)).toEqual([
+        unrelatedChildId,
+      ]);
+
+      const published = await layoutService.publishLayout(layout.id, {
+        expectedRevision: 1,
+      });
+      expect(published.status).toBe('PUBLISHED');
+      expect(published.parentLocationId).toBe(unrelatedParentId);
+
+      // The compartment node is parented under the container's existing node
+      const [childNode] = await db
+        .select()
+        .from(spatialNodes)
+        .where(eq(spatialNodes.locationId, unrelatedChildId));
+      expect(childNode?.parentSpatialNodeId).toBe(containerNode.id);
+      expect(childNode?.metadata).toMatchObject({
+        source: 'inventory_builder',
+        layoutId: layout.id,
+      });
+
+      // Exactly one node exists for the container: the original one. Publishing
+      // did not create a layout-owned duplicate nor mutate its coordinates.
+      const containerNodes = await db
+        .select()
+        .from(spatialNodes)
+        .where(eq(spatialNodes.locationId, unrelatedParentId));
+      expect(containerNodes).toHaveLength(1);
+      expect(containerNodes[0]?.id).toBe(containerNode.id);
+      expect(containerNodes[0]?.positionX).toBe('10.0000');
+      expect(containerNodes[0]?.positionZ).toBe('20.0000');
+      expect(containerNodes[0]?.metadata).toEqual({ source: 'manual' });
+
+      // Persisted mapping rows reference compartments only
+      const mappingRows = await db
+        .select()
+        .from(spatialLayoutMappings)
+        .where(eq(spatialLayoutMappings.layoutId, layout.id));
+      expect(mappingRows).toHaveLength(1);
+      expect(mappingRows[0]?.locationId).toBe(unrelatedChildId);
+      expect(
+        mappingRows.some((row) => row.locationId === unrelatedParentId),
+      ).toBe(false);
+    });
+  });
 });

@@ -4,21 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { LocateButton } from "@/components/spatial";
-import {
-  Edit3,
-  Trash2,
-  ArrowLeft,
-  Package,
-  Layers,
-  MapPin,
-  Activity,
-  CheckCircle2,
-  History,
-  Info,
-  Printer,
-  Sliders,
-  Sparkles,
-} from "lucide-react";
+import { Edit3, Trash2, Package, Layers, MapPin, Activity, CheckCircle2, History, Info, Printer, Sliders, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import {
@@ -440,18 +426,12 @@ export default function ViewComponentPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        backHref="/components"
+        backLabel="Back to Components"
         title={component.name}
         description={`SKU: ${component.sku}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/components")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button
               variant="outline"
               size="sm"

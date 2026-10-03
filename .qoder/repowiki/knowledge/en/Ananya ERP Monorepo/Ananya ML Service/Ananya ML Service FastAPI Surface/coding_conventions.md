@@ -1,6 +1,0 @@
-- Each capability is exposed as a module-level singleton instance of a class (e.g. `category_classifier`, `manufacturer_resolver`, `duplicate_detector`, `training_runner`) imported directly by `main.py` rather than instantiated per request.
-- Request and response bodies are declared as paired Pydantic `BaseModel` classes in `schemas.py` and referenced via FastAPI's `response_model=` parameter on every route.
-- Confidence scores are converted to a fixed three-level vocabulary (`HIGH` >= 0.85, `MEDIUM` >= 0.6, else `LOW`) before being attached to responses, both in individual services and in composite aggregation logic.
-- Evidence for any prediction or suggestion is carried as a list of `EvidenceItem` objects carrying `type`, `description`, `weight`, and optional `page`/`text`/`section` fields so callers can explain why a value was chosen.
-- Internal-only training and deployment routes raise domain-specific exceptions (`TrainingRunConflictError`, `TrainingRunNotFoundError`, `DeploymentRefusedError`) that the route handlers translate into explicit HTTP status codes (409/404/500) with structured error payloads.
-- Long-running operations (training runs, model reloads) are delegated to background threads and expose a non-blocking handle plus a polling surface (`/v1/training/runs/{run_id}`, `/ready`) instead of blocking the request.

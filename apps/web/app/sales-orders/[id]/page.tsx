@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, ShoppingBag, Truck, CheckCircle2 } from "lucide-react";
+import { ShoppingBag, Truck, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatCurrency } from "@/lib/utils";
@@ -14,16 +13,10 @@ export default function SalesOrderDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Link href="/sales-orders">
-          <Button variant="ghost" size="xs">
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Sales Orders
-          </Button>
-        </Link>
-      </div>
 
       <PageHeader
+        backHref="/sales-orders"
+        backLabel="Back to Sales Orders"
         title={`Sales Order #${orderId || "SO-2026-0881"}`}
         description="Detailed line items, fulfillment status, and customer dispatch details."
         actions={

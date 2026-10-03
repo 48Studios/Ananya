@@ -1,1 +1,0 @@
-Python 3 with scikit-learn (`TfidfVectorizer`, `LogisticRegression`, `Pipeline`, `FeatureUnion`, `GroupShuffleSplit`) for feature extraction, classification, and group-aware train/validation splitting; numpy for top-k accuracy computation; pickle for model serialization; hashlib/shutil for artifact promotion.

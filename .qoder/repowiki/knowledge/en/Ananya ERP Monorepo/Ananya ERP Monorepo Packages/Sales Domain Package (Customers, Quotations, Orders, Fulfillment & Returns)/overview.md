@@ -1,1 +1,0 @@
-Domain package exposing customer, quotation, sales order, fulfillment request, and return entities with repository interfaces that abstract persistence for the sales workflow.

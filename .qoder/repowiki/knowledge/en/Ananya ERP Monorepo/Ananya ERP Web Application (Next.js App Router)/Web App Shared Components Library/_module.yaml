@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: web_app/shared_components
-title: Web App Shared Components Library
-scope:
-    - apps/web/components/
-source_files: []
-depends_on: []
-related_to: []

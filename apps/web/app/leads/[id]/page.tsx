@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Users, CheckCircle2, Mail, Building } from "lucide-react";
+import { Users, CheckCircle2, Mail, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -13,16 +12,10 @@ export default function LeadDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Link href="/leads">
-          <Button variant="ghost" size="xs">
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Sales Leads
-          </Button>
-        </Link>
-      </div>
 
       <PageHeader
+        backHref="/leads"
+        backLabel="Back to Sales Leads"
         title={`Sales Lead #${leadId || "LD-2026-01"}`}
         description="Prospect contact information, interaction log, and qualification status."
         actions={

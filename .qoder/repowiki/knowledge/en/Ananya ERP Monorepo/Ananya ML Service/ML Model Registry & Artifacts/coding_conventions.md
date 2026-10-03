@@ -1,4 +1,0 @@
-- Each model version is an immutable directory under `registry/` named `v<major>.<minor>.<patch>` containing a fixed set of files (`category_classifier.pkl`, `metadata.json`, `evaluation_report.json`, optionally `pipeline_summary.json`).
-- The active deployment is declared centrally in `registry/active_deployment.json`, which references both the source artifact path and the mirrored production/backup paths at the module root.
-- Version metadata uses ISO-8601 timestamps (e.g. `created_at`, `trainingTimestamp`, `deployedAt`) and stores the model artifact's integrity via `artifactSha256`.
-- Evaluation results are stored as structured JSON with `per_class` / `per_category_report` maps keyed by category name, including precision, recall, f1-score, and support counts alongside macro/weighted averages.

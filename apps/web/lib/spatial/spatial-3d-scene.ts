@@ -10,7 +10,8 @@ import {
 import type { LocationOperationalViewDto } from "../api/spatial-api";
 import type { DraftAnchor } from "./spatial-anchor-authoring";
 
-export type LocationOperationalViewParent = LocationOperationalViewDto["parent"];
+export type LocationOperationalViewParent =
+  LocationOperationalViewDto["parent"];
 
 export interface MeshUserData {
   locationId: string;
@@ -150,6 +151,8 @@ export const SPATIAL_3D_PALETTE = {
   edgeLines: "#1E293B",
   selectedEdgeLines: "#0284C7",
   targetEdgeLines: "#059669",
+  /** Container emphasis while the parent-first assignment is still pending. */
+  attentionEdgeLines: "#F59E0B",
 };
 
 /**
@@ -366,7 +369,11 @@ export function createDrawerMesh(
   const bodyDepth = Math.max(0.02, dim.z - faceThickness);
 
   // Front face plate
-  const faceGeo = new THREE.BoxGeometry(dim.x * 0.96, dim.y * 0.94, faceThickness);
+  const faceGeo = new THREE.BoxGeometry(
+    dim.x * 0.96,
+    dim.y * 0.94,
+    faceThickness,
+  );
   const labelTexture = createCompartmentLabelTexture(
     userData.locationCode,
     state,
@@ -385,7 +392,11 @@ export function createDrawerMesh(
   const handleWidth = Math.min(0.08, dim.x * 0.4);
   const handleHeight = Math.min(0.012, dim.y * 0.18);
   const handleDepth = 0.01;
-  const handleGeo = new THREE.BoxGeometry(handleWidth, handleHeight, handleDepth);
+  const handleGeo = new THREE.BoxGeometry(
+    handleWidth,
+    handleHeight,
+    handleDepth,
+  );
   const handleMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(SPATIAL_3D_PALETTE.handle.base),
     roughness: SPATIAL_3D_PALETTE.handle.roughness,
@@ -441,11 +452,7 @@ export function createBinMesh(
   const wallThickness = Math.min(0.006, dim.x * 0.05);
 
   // Base
-  const baseGeo = new THREE.BoxGeometry(
-    dim.x,
-    wallThickness,
-    dim.z,
-  );
+  const baseGeo = new THREE.BoxGeometry(dim.x, wallThickness, dim.z);
   const mat = createSemanticMaterial(state);
   const baseMesh = new THREE.Mesh(baseGeo, mat);
   baseMesh.position.set(0, -dim.y / 2 + wallThickness / 2, 0);
@@ -632,6 +639,7 @@ export function createChildCompartmentMesh(
 export function createParentCarcassMesh(
   parent: LocationOperationalViewParent,
   dimensions: Vector3D,
+  options: { isSelected?: boolean; needsAttention?: boolean } = {},
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = `parent-carcass-${parent.location.code}`;
@@ -803,6 +811,46 @@ export function createParentCarcassMesh(
   const wireFrame = new THREE.LineSegments(edges, lineMat);
   wireFrame.position.set(0, H / 2, 0);
   group.add(wireFrame);
+
+  // Parent-first emphasis: the outer container is the required interaction
+  // target until its Ananya location is assigned.
+  if (options.needsAttention) {
+    const attentionGeo = new THREE.BoxGeometry(W * 1.015, H * 1.015, D * 1.015);
+    const attentionEdges = new THREE.EdgesGeometry(attentionGeo);
+    const attentionMat = new THREE.LineBasicMaterial({
+      color: SPATIAL_3D_PALETTE.attentionEdgeLines,
+      transparent: true,
+      opacity: 0.95,
+    });
+    const attentionOutline = new THREE.LineSegments(
+      attentionEdges,
+      attentionMat,
+    );
+    attentionOutline.name = "parent-attention-outline";
+    attentionOutline.position.set(0, H / 2, 0);
+    attentionOutline.userData = { ...userData };
+    group.add(attentionOutline);
+  }
+
+  // Selected top-level container: highlight the full envelope so container
+  // selection is visually distinct from compartment selection.
+  if (options.isSelected) {
+    const selectionGeo = new THREE.BoxGeometry(W * 1.01, H * 1.01, D * 1.01);
+    const selectionEdges = new THREE.EdgesGeometry(selectionGeo);
+    const selectionMat = new THREE.LineBasicMaterial({
+      color: SPATIAL_3D_PALETTE.selectedEdgeLines,
+      transparent: true,
+      opacity: 0.95,
+    });
+    const selectionOutline = new THREE.LineSegments(
+      selectionEdges,
+      selectionMat,
+    );
+    selectionOutline.name = "parent-selection-outline";
+    selectionOutline.position.set(0, H / 2, 0);
+    selectionOutline.userData = { ...userData };
+    group.add(selectionOutline);
+  }
 
   return group;
 }
@@ -1077,7 +1125,10 @@ export function disposeThreeHierarchy(obj: THREE.Object3D): void {
       child.userData.releaseAssetInstance();
     }
 
-    if ((child as THREE.Mesh).isMesh || (child as THREE.LineSegments).isLineSegments) {
+    if (
+      (child as THREE.Mesh).isMesh ||
+      (child as THREE.LineSegments).isLineSegments
+    ) {
       const mesh = child as THREE.Mesh;
 
       // Do NOT dispose shared geometries or materials belonging to cached custom assets.

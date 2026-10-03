@@ -1,1 +1,0 @@
-Markdown-only documentation; RFCs follow a prescribed template with status fields (Draft, Accepted, Superseded, Rejected) and zero-padded sequential filenames.

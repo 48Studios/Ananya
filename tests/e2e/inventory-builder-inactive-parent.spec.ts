@@ -19,8 +19,7 @@ import * as crypto from "crypto";
 const DB_CONN =
   process.env.DATABASE_URL ||
   "postgresql://ananya:dTd1Ii43r9Q9@localhost:5432/ananya";
-const API_BASE =
-  process.env.API_BASE_URL || "http://localhost:4000";
+const API_BASE = process.env.API_BASE_URL || "http://localhost:4000";
 const ADMIN_USER_ID = "e941c06c-f461-4cac-88ed-d2197617d06b"; // admin@48studios.in
 
 test.describe.configure({ mode: "serial" });
@@ -57,11 +56,25 @@ test.describe("Phase 3.4.7: Inactive-Parent Publication UX (browser + API)", () 
 
     await pool.query(
       "INSERT INTO locations (id, code, name, kind, parent_id, is_active) VALUES ($1, $2, $3, $4, $5, $6);",
-      [testParentId, testParentCode, `E2E IP Cabinet ${runSuffix}`, "cabinet", null, true],
+      [
+        testParentId,
+        testParentCode,
+        `E2E IP Cabinet ${runSuffix}`,
+        "cabinet",
+        null,
+        true,
+      ],
     );
     await pool.query(
       "INSERT INTO locations (id, code, name, kind, parent_id, is_active) VALUES ($1, $2, $3, $4, $5, $6);",
-      [testChildId, testChildCode, `E2E IP Drawer ${runSuffix}`, "drawer", testParentId, true],
+      [
+        testChildId,
+        testChildCode,
+        `E2E IP Drawer ${runSuffix}`,
+        "drawer",
+        testParentId,
+        true,
+      ],
     );
   });
 
@@ -75,9 +88,10 @@ test.describe("Phase 3.4.7: Inactive-Parent Publication UX (browser + API)", () 
         "DELETE FROM spatial_layout_mappings WHERE layout_id IN (SELECT id FROM spatial_layouts WHERE parent_location_id = $1);",
         [testParentId],
       );
-      await pool.query("DELETE FROM spatial_layouts WHERE parent_location_id = $1;", [
-        testParentId,
-      ]);
+      await pool.query(
+        "DELETE FROM spatial_layouts WHERE parent_location_id = $1;",
+        [testParentId],
+      );
       await pool.query("DELETE FROM locations WHERE id = $1;", [testChildId]);
       await pool.query("DELETE FROM locations WHERE id = $1;", [testParentId]);
       await pool.query(
@@ -107,8 +121,13 @@ test.describe("Phase 3.4.7: Inactive-Parent Publication UX (browser + API)", () 
   }) => {
     // 1–2. Open the builder, map a slot, save a draft (normal persistence).
     await page.goto(`/spatial/builder?location=${testParentId}`);
-    await expect(page.getByText("Inventory Builder")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Save as Draft" })).toBeVisible();
+    // Scoped to <main>: the sidebar navigation also renders "Inventory Builder".
+    await expect(
+      page.getByRole("main").getByText("Inventory Builder"),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Save as Draft" }),
+    ).toBeVisible();
 
     await page.getByRole("button", { name: "2. Map" }).click();
     const mapTrigger = page
@@ -161,14 +180,15 @@ test.describe("Phase 3.4.7: Inactive-Parent Publication UX (browser + API)", () 
     // Accept either PUT shape; fall back to direct SQL only if the route
     // does not exist, so the test still exercises a real inactive parent.
     if (deactivateRes.status() === 404) {
-      await pool.query("UPDATE locations SET is_active = false WHERE id = $1;", [
-        testParentId,
-      ]);
+      await pool.query(
+        "UPDATE locations SET is_active = false WHERE id = $1;",
+        [testParentId],
+      );
     } else {
       expect(deactivateRes.ok()).toBeTruthy();
     }
     const parentRow = await pool.query(
-      "SELECT is_active AS \"isActive\" FROM locations WHERE id = $1;",
+      'SELECT is_active AS "isActive" FROM locations WHERE id = $1;',
       [testParentId],
     );
     expect(parentRow.rows[0].isActive).toBe(false);
@@ -186,7 +206,10 @@ test.describe("Phase 3.4.7: Inactive-Parent Publication UX (browser + API)", () 
       page.getByRole("button", { name: "Publish Layout" }).click(),
     ]);
     expect(publishResponse.status()).toBe(422);
-    const publishBody = (await publishResponse.json()) as Record<string, unknown>;
+    const publishBody = (await publishResponse.json()) as Record<
+      string,
+      unknown
+    >;
     expect(publishBody.error).toBe("INACTIVE_LAYOUT_PARENT");
     expect(typeof publishBody.message).toBe("string");
     expect((publishBody.message as string).length).toBeGreaterThan(0);
@@ -195,7 +218,9 @@ test.describe("Phase 3.4.7: Inactive-Parent Publication UX (browser + API)", () 
     // 6. The distinct dialog names the blocked parent.
     await expect(page.getByText("Parent Location Inactive")).toBeVisible();
     await expect(
-      page.getByText("Publication is blocked because the parent container is inactive."),
+      page.getByText(
+        "Publication is blocked because the parent container is inactive.",
+      ),
     ).toBeVisible();
     await expect(page.getByText(testParentId).first()).toBeVisible();
 
@@ -218,7 +243,7 @@ test.describe("Phase 3.4.7: Inactive-Parent Publication UX (browser + API)", () 
     );
     expect(revisionsAfter.rows[0].count).toBe(revisionsBefore.rows[0].count);
     const parentAfter = await pool.query(
-      "SELECT is_active AS \"isActive\" FROM locations WHERE id = $1;",
+      'SELECT is_active AS "isActive" FROM locations WHERE id = $1;',
       [testParentId],
     );
     expect(parentAfter.rows[0].isActive).toBe(false);

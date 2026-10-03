@@ -1,1 +1,0 @@
-Domain package implementing the procurement subdomain with suppliers, purchase orders, goods receipts, supplier returns, purchase invoices, and three-way invoice matching.

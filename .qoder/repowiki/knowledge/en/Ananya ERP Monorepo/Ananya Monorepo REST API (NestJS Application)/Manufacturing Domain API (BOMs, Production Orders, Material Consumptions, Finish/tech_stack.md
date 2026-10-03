@@ -1,1 +1,0 @@
-NestJS feature modules with class-validator/class-transformer DTOs; persistence via Drizzle ORM through repository classes under `../infrastructure/repositories/`; domain logic and custom error types imported from the shared `@ananya/manufacturing` package.

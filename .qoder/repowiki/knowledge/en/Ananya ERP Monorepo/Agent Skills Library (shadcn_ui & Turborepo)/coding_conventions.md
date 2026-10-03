@@ -1,4 +1,0 @@
-- Each skill is a single `SKILL.md` entry point with YAML frontmatter declaring `name`, `description`, and capability flags (`user-invocable`, `allowed-tools`, `metadata.version`).
-- Critical rules are split into focused Markdown files under a `rules/` or `references/<topic>/RULE.md` layout and cross-referenced from the main `SKILL.md` rather than inlined.
-- Examples follow a strict WRONG/CORRECT pair pattern using fenced code blocks to illustrate anti-patterns and their fixes.
-- CLI usage is always invoked through the project's package manager (`npx shadcn@latest`, `pnpm dlx shadcn@latest`, `bunx --bun shadcn@latest`) rather than assuming a specific runner.

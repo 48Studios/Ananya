@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, FileSpreadsheet, CheckCircle2 } from "lucide-react";
+import { FileSpreadsheet, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatCurrency } from "@/lib/utils";
@@ -14,16 +13,10 @@ export default function QuotationDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Link href="/quotations">
-          <Button variant="ghost" size="xs">
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Quotations
-          </Button>
-        </Link>
-      </div>
 
       <PageHeader
+        backHref="/quotations"
+        backLabel="Back to Quotations"
         title={`Quotation #${quoteId || "QUO-2026-901"}`}
         description="Detailed commercial proposal, unit pricing breakdown, and customer acceptance terms."
         actions={

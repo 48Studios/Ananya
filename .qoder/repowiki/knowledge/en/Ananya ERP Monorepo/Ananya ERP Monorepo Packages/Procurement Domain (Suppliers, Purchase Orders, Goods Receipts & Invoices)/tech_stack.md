@@ -1,1 +1,0 @@
-TypeScript domain package built with `tsc` (tsconfig.build.json) and tested with Vitest; uses `@ananya/core` for `ObjectId` generation and `@ananya/inventory` as a peer dependency.

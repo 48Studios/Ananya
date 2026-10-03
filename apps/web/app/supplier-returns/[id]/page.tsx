@@ -2,25 +2,7 @@
 
 import * as React from "react";
 import { useParams } from "next/navigation";
-import {
-  Undo2,
-  Building2,
-  FileText,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  Truck,
-  Plus,
-  Trash2,
-  RotateCcw,
-  Loader2,
-  AlertTriangle,
-  MapPin,
-  Package,
-  Layers,
-  Send,
-  Lock,
-} from "lucide-react";
+import { Undo2, Building2, FileText, CheckCircle2, Clock, XCircle, Truck, Plus, Trash2, RotateCcw, Loader2, AlertTriangle, MapPin, Package, Layers, Send, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -498,6 +480,8 @@ export default function SupplierReturnDetailPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        backHref="/supplier-returns"
+        backLabel="Back to Supplier Returns"
         title={returnDoc.returnNumber}
         description={`Supplier Material Return & Debit Memo Authorization • Status: ${returnDoc.status}`}
         actions={

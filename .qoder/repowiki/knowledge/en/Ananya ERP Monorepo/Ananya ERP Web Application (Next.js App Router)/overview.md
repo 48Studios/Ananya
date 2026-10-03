@@ -1,1 +1,0 @@
-Next.js 16 standalone PWA that assembles domain-specific route pages, shared UI components, and a typed API client into the Ananya ERP frontend.

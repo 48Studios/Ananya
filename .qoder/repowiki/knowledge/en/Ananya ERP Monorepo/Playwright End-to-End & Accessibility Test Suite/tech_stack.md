@@ -1,1 +1,0 @@
-Playwright Test runner with TypeScript; Axe Builder (`@axe-core/playwright`) for WCAG 2.1 a11y audits; screenshot-based visual regression via `toHaveScreenshot`.

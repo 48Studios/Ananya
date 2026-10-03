@@ -1,1 +1,0 @@
-pytest with `fastapi.testclient.TestClient` for HTTP integration tests; `httpx` and `MagicMock`/`unittest.mock.patch` for mocking network calls; JSON fixture files drive corpus-based regression assertions.

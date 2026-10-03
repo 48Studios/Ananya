@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: api/security_audit
-title: Security Audit Logging API
-scope:
-    - apps/api/src/security-audit/
-source_files: []
-depends_on: []
-related_to:
-    - path: web_app/settings_security

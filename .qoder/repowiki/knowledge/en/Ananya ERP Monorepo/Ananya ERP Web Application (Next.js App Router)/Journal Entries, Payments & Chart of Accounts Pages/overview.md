@@ -1,1 +1,0 @@
-Next.js App Router client pages that render financial dashboards for journal vouchers, payments/receipts, and the chart of accounts using shared UI table and stat components.

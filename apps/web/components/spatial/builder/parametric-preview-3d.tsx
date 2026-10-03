@@ -5,10 +5,16 @@ import {
   type GeneratedCompartment,
   type ParametricStorageConfig,
 } from "@ananya/inventory";
+import { Box } from "lucide-react";
 import type { SlotMappingRecord } from "@/lib/spatial/inventory-builder-state";
-import { convertGeneratedToSceneLayout } from "@/lib/spatial/inventory-builder-state";
+import {
+  BUILDER_CARCASS_LOCATION_ID,
+  convertGeneratedToSceneLayout,
+} from "@/lib/spatial/inventory-builder-state";
 import { DynamicSpatial3DViewport } from "@/components/spatial/spatial-3d-view";
 import { cn } from "@/lib/utils";
+import type { ContainerIdentity } from "./parametric-preview-2d";
+import { ParentFirstCallout } from "./parent-first-callout";
 
 export interface ParametricPreview3DProps {
   config: ParametricStorageConfig;
@@ -16,6 +22,11 @@ export interface ParametricPreview3DProps {
   mappings: Map<string, SlotMappingRecord>;
   selectedSlotId: string | null;
   onSelectSlot: (slotId: string) => void;
+  isContainerSelected: boolean;
+  onSelectContainer: () => void;
+  /** Shared parent-first gate: child compartments are locked until a container is assigned. */
+  childInteractionEnabled: boolean;
+  containerIdentity?: ContainerIdentity | null;
   onSwitchTo2D: () => void;
   className?: string;
 }
@@ -26,24 +37,34 @@ export function ParametricPreview3D({
   mappings,
   selectedSlotId,
   onSelectSlot,
+  isContainerSelected,
+  onSelectContainer,
+  childInteractionEnabled,
+  containerIdentity,
   onSwitchTo2D,
   className,
 }: ParametricPreview3DProps) {
   // Convert generated compartments to Three.js scene layout
   const childrenLayout = React.useMemo(() => {
-    return convertGeneratedToSceneLayout(compartments, mappings, config.dimensions);
+    return convertGeneratedToSceneLayout(
+      compartments,
+      mappings,
+      config.dimensions,
+    );
   }, [compartments, mappings, config.dimensions]);
 
-  // Construct synthetic parent container data representing the parametric carcass
+  // Construct synthetic parent container data representing the parametric carcass.
+  // The carcass carries the assigned Ananya location identity for display, while
+  // its interaction key stays synthetic so it can never be mistaken for a slot.
   const parentData = React.useMemo(() => {
     return {
       location: {
-        id: "builder-carcass",
-        code: "CONTAINER",
-        name: config.templateType,
-        kind: "cabinet",
+        id: BUILDER_CARCASS_LOCATION_ID,
+        code: containerIdentity?.code ?? "CONTAINER",
+        name: containerIdentity?.name ?? config.templateType,
+        kind: containerIdentity?.kind ?? "cabinet",
         parentId: null,
-        isActive: true,
+        isActive: containerIdentity?.isActive ?? true,
       },
       node: null,
       model: {
@@ -59,23 +80,68 @@ export function ParametricPreview3D({
       },
       anchors: [],
     };
-  }, [config]);
+  }, [config, containerIdentity]);
 
   const emptyStockMap = React.useMemo(() => new Map(), []);
 
+  const handleSelectLocation = React.useCallback(
+    (locationId: string) => {
+      if (locationId === BUILDER_CARCASS_LOCATION_ID) {
+        onSelectContainer();
+        return;
+      }
+      onSelectSlot(locationId);
+    },
+    [onSelectContainer, onSelectSlot],
+  );
+
   return (
-    <div className={cn("w-full h-full min-h-[460px] rounded-lg overflow-hidden border border-border bg-card", className)}>
-      <DynamicSpatial3DViewport
-        parentData={parentData}
-        childrenLayout={childrenLayout}
-        unmappedChildren={[]}
-        stockMap={emptyStockMap}
-        selectedLocationId={selectedSlotId}
-        onSelectLocation={onSelectSlot}
-        onSwitchTo2D={onSwitchTo2D}
-        visualizationMode="standard"
-        showBadges={true}
+    <div
+      className={cn(
+        "flex flex-col w-full h-full min-h-[460px] rounded-lg overflow-hidden border border-border bg-card",
+        className,
+      )}
+    >
+      {/* Parent-first instruction, shared verbatim with the 2D view */}
+      <ParentFirstCallout
+        isParentAssigned={childInteractionEnabled}
+        containerIdentity={containerIdentity}
+        onSelectContainer={onSelectContainer}
+        testId="parent-first-callout-3d"
       />
+
+      <div className="relative flex-1 min-h-[360px]">
+        <DynamicSpatial3DViewport
+          parentData={parentData}
+          childrenLayout={childrenLayout}
+          unmappedChildren={[]}
+          stockMap={emptyStockMap}
+          selectedLocationId={
+            isContainerSelected ? BUILDER_CARCASS_LOCATION_ID : selectedSlotId
+          }
+          onSelectLocation={handleSelectLocation}
+          isParentSelectable={true}
+          isChildInteractionEnabled={childInteractionEnabled}
+          onSwitchTo2D={onSwitchTo2D}
+          visualizationMode="standard"
+          showBadges={true}
+        />
+
+        {isContainerSelected && (
+          <div
+            data-testid="container-selection-badge"
+            className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900/85 backdrop-blur-xs border border-sky-500/70 text-sky-200 text-xs font-medium"
+          >
+            <Box className="size-3.5" />
+            <span>Top-Level Container</span>
+            <span className="font-mono text-[11px] text-sky-100/90">
+              {containerIdentity
+                ? `${containerIdentity.name} (${containerIdentity.code})`
+                : "Unassigned"}
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

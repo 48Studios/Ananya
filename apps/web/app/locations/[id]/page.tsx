@@ -3,21 +3,7 @@
 import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import {
-  Edit3,
-  Trash2,
-  MapPin,
-  Layers,
-  ArrowLeft,
-  Printer,
-  Package,
-  ExternalLink,
-  Info,
-  LayoutGrid,
-  List,
-  Box,
-  Sliders,
-} from "lucide-react";
+import { Edit3, Trash2, MapPin, Layers, Printer, Package, ExternalLink, Info, LayoutGrid, List, Box, Sliders } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DetailChip,
@@ -626,6 +612,8 @@ export default function ViewLocationPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        backHref="/locations"
+        backLabel="Back to Locations"
         title={location.name}
         description={
           parentLocation && (childLocations.length === 0 || subLocationView === "list")
@@ -634,14 +622,6 @@ export default function ViewLocationPage() {
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/locations")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button
               variant="outline"
               size="sm"

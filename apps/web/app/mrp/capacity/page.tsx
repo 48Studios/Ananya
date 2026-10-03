@@ -91,6 +91,8 @@ export default function MrpCapacityPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        backHref="/mrp"
+        backLabel="Back to MRP"
         title="MRP Work Center Capacity Loading"
         description="Monitor machine shop capacity, labor constraints, and work center utilization loading."
       />

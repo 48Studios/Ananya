@@ -464,10 +464,16 @@ export function getSemanticVisualState(
     hasStock: boolean;
     isMapped: boolean;
     isActive?: boolean;
+    /**
+     * Workflow-level gate (e.g. parent-first): renders the compartment in the
+     * disabled palette without implying the underlying location is inactive.
+     */
+    isInteractionDisabled?: boolean;
     mode?: SpatialVisualizationMode;
     stockSummary?: CellStockSummary | null;
   },
 ): SemanticVisualState {
+  if (options.isInteractionDisabled) return "disabled";
   if (options.isActive === false) return "disabled";
   if (locationId === options.highlightedLocationId) return "locate-target";
   if (locationId === options.selectedLocationId) return "selected";
@@ -556,7 +562,11 @@ export function getCompartmentBadgeText(
     if (state === "occupancy-empty") {
       return "EMPTY (0%)";
     }
-    if (stockSummary && stockSummary.fillRatio !== null && stockSummary.fillRatio !== undefined) {
+    if (
+      stockSummary &&
+      stockSummary.fillRatio !== null &&
+      stockSummary.fillRatio !== undefined
+    ) {
       const pct = Math.round(stockSummary.fillRatio * 100);
       return `OCC: ${pct}%`;
     }

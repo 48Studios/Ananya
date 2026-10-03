@@ -3,19 +3,7 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Printer,
-  Cpu,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  Copy,
-  Pencil,
-  Trash2,
-  History,
-  Layers,
-} from "lucide-react";
+import { Printer, Cpu, CheckCircle2, Clock, XCircle, Copy, Pencil, Trash2, History, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
@@ -196,6 +184,8 @@ export default function ViewBomPage() {
     <div className="space-y-6 print:space-y-4">
       {/* Header */}
       <PageHeader
+        backHref="/boms"
+        backLabel="Back to Bill of Materials"
         title={`${productComp ? productComp.name : "Finished Product"} (${bom.revision})`}
         description={`BOM Specification ID: ${bom.id.slice(0, 8)}`}
         breadcrumbs={[
@@ -204,14 +194,6 @@ export default function ViewBomPage() {
         ]}
         actions={
           <div className="flex items-center gap-2 print:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/boms")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="w-4 h-4 mr-1.5" />
               Print Report

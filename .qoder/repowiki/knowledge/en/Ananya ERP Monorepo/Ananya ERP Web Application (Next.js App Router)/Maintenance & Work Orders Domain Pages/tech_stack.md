@@ -1,1 +1,0 @@
-Next.js App Router client components (`"use client"`), `@tanstack/react-table` ColumnDef arrays, `lucide-react` icons, Tailwind utility classes, and a set of hand-written API clients under `@/lib/api/*` (e.g. `maintenance-api`, `work-orders-api`, `boms-api`, `components-api`, `locations-api`, `inventory-transactions-api`).

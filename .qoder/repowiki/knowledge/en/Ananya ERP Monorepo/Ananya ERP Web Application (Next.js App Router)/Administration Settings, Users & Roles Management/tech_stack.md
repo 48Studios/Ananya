@@ -1,1 +1,0 @@
-Next.js App Router client components (`"use client"`), React hooks for state management, `@tanstack/react-table` via the shared `EntityDataTable` component, lucide-react icons, and shadcn-style UI primitives (`Button`, `DialogShell`, `Field`, `Select`, `PageHeader`, `StatCard`, `SectionCard`).

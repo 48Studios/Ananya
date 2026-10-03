@@ -1,1 +1,0 @@
-Python CLI built on `argparse`; scikit-learn classifiers; PyTorch/MPS/CUDA device detection via `config.detect_device`; Rich for the interactive TUI; YAML-backed source registry (`config/sources.yaml`); JSONL/JSON artifact format for datasets and manifests; SHA-256 content hashing and ETag/304 conditional GETs for resilient web crawling.

@@ -1,1 +1,0 @@
-Next.js App Router client pages for equipment preventive maintenance scheduling and work-order creation/detail views, wired to the backend API layer.

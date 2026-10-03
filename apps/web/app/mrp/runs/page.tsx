@@ -170,6 +170,8 @@ export default function MrpRunsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        backHref="/mrp"
+        backLabel="Back to MRP"
         title="MRP Execution History & Logs"
         description="Review historical material requirements planning calculation runs, log traces, and planned order outputs."
         actions={

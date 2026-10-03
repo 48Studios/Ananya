@@ -1,1 +1,0 @@
-Shared PostgreSQL data access layer providing Drizzle ORM schema definitions, a singleton database client, migrations, and bootstrap seed data for the Ananya ERP platform.

@@ -1,1 +1,0 @@
-Python with numpy for percentile computation, scikit-learn's `classification_report` / `precision_recall_fscore_support` / `accuracy_score` for metrics, and `resource.RUSAGE_SELF` for resident-set-memory measurement; models are serialized as Python `pickle` objects.

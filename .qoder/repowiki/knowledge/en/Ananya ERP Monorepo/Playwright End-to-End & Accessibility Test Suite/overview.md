@@ -1,1 +1,0 @@
-Playwright-based end-to-end, accessibility (a11y), and visual regression tests covering ERP feature areas like authentication, dashboard, procurement, manufacturing, and onboarding.

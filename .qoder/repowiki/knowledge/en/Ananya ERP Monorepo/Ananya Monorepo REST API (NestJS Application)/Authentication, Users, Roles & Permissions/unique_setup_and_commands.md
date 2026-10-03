@@ -1,1 +1,0 @@
-`UsersService.onModuleInit()` and `RolesService.onModuleInit()` both call `ensureInitialAdminUser()` / `ensureSystemRoles()` wrapped in try/catch so they tolerate missing tables before migrations run; no separate bootstrap command is needed beyond normal app startup.

@@ -1,6 +1,0 @@
-- Each form declares a top-level `z.object` schema and derives `XxxFormValues = z.infer<typeof xxxSchema>` for the `useForm` generic.
-- Forms accept `initialData?: XxxDto | null`, `onSuccess(saved: XxxDto)`, and `onCancel()` props, deriving `isEditing = Boolean(initialData)` to branch between `CreateXxxPayload` and `UpdateXxxPayload` in `onSubmit`.
-- Server errors are surfaced via a local `useState<string | null>(null)` state named `serverError`, displayed as a red-bordered banner at the top of `DialogShellBody`, and reset at the start of `onSubmit`.
-- Code-like fields (`code`, `currency`, `paymentTerms`) normalize input with `.trim().toUpperCase()` inside the Zod `.transform()` so the stored value is always uppercase.
-- Parent-child selection uses `SearchableSelect` bound through `Controller` with `clearable`, filtering out the current item's id when editing to prevent self-parenting.
-- Submit buttons show a spinning `Loader2` icon and are disabled while `isSubmitting` is true, with label text switching between "Save Changes" (edit) and "Create <Entity>" (new).

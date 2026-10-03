@@ -1,1 +1,0 @@
-NestJS with `@nestjs/platform-express` (multer-based multipart uploads), class-validator DTOs, Drizzle-style queries against `@ananya/database`, and a custom local filesystem storage backend configurable via `STORAGE_DRIVER` / `STORAGE_LOCAL_PATH` environment variables.
