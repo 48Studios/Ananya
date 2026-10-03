@@ -1,1 +1,0 @@
-Domain model and repository interfaces for the finance subdomain, covering accounts, journals, receivables, payables, payments, and bank reconciliation.

@@ -1,1 +1,0 @@
-End-to-end web crawler that discovers, downloads, and extracts structured product records from manufacturer and distributor websites into the training data pipeline.

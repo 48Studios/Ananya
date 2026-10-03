@@ -1,9 +1,0 @@
-Two sibling sub-packages with a one-way dependency: `schemas/` defines immutable Pydantic models consumed by downstream training code, while `config/` provides runtime settings and declarative crawler sources.
-
-- `schemas/manifest.py` — `DatasetManifest` + `DatasetSplitCounts` model that accompanies every generated dataset snapshot (checksum, split counts, provenance flags).
-- `schemas/product.py` — core domain models (`ProductRecord`, `ProvenanceRecord`, `AttributeValueRecord`, `VariantRecord`, `RelationshipRecord`, `DocumentRefRecord`) plus shared enums (`ProductDomain`, `EntityType`, `DocumentType`, `VerificationStatus`). `ProductRecord.to_training_text()` is the single serialization surface used by NLP/embedding tasks.
-- `schemas/tasks.py` — seven task-specific example models (category classification, attribute extraction/relevance, entity resolution, normalization, duplicate matching, similarity triplets) that all embed a `ProvenanceRecord` from `product.py`, establishing the cross-task provenance contract.
-- `config/settings.py` — `WorkspaceSettings` Pydantic model exposing paths (`raw_data_dir`, `cleaned_data_dir`, …), split ratios, hardware detection (`detect_device` prefers `ANANYA_ML_DEVICE` env var → CUDA → MPS → CPU), and an `ensure_directories()` bootstrap. A module-level singleton `settings = WorkspaceSettings()` is the global config handle.
-- `config/sources.yaml` — declarative registry of ~30 external data sources grouped into 11 categories (manufacturers, distributors, tools, mechanical, electrical, electronics, 3D printing, industrial, raw materials, packaging), each entry carrying `id`, `domains`, `start_urls`, `discovery` strategies, `rate_limit`, content-type allowlists, and crawl caps; also includes `category_queries` templates for autonomous discovery.
-
-Dependency direction: `tasks.py` imports from `product.py`; `config/` has no import into `schemas/`. The YAML file is pure data consumed by other modules at runtime.

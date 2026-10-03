@@ -1,6 +1,0 @@
-Three Next.js App Router route segments under `apps/web/app/`:
-- `warehouse/page.tsx` and `warehouses/page.tsx` are thin redirect shims that forward to `/locations`, preserving legacy URLs.
-- `warehouse-transfers/page.tsx` is a client-side list page built on `@tanstack/react-table` via the shared `EntityDataTable` component; it fetches transfers and locations in parallel, renders KPI stat cards, and opens a `DialogShell` wrapping `WarehouseTransferForm` for create/edit.
-- `warehouse-transfers/[id]/page.tsx` is the detail page: it reads the route param via `useParams`, loads the transfer plus source/destination locations, all components, and linked inventory transactions, then renders an overview grid, a lifecycle timeline (DRAFT → SUBMITTED → DISPATCHED → RECEIVED), line-item table, and an audit log of posted inventory transactions. Mutations (submit/dispatch/receive/cancel/delete) call `warehouseTransfersApi` methods and refresh via `fetchData()`.
-
-Dependency direction is one-way: pages depend on shared UI primitives (`@/components/ui/*`) and API clients (`@/lib/api/*`); no cross-page imports exist inside this module. The reusable form lives outside this scope at `@/components/warehouse-transfers/warehouse-transfer-form`.

@@ -1,5 +1,0 @@
-- Each domain file under `api/` exports a camelCase object (e.g. `authApi`, `attributesApi`) whose methods call `apiClient.get/post/put/patch/delete` with the exact backend path string.
-- Request payloads and response shapes are modelled as exported TypeScript interfaces placed at the top of the same file that declares the domain API object.
-- URL segments containing user-supplied IDs are passed through `encodeURIComponent` before being interpolated into template literals.
-- Binary downloads go through `apiClient.getBlob` rather than raw `fetch`, so the Authorization header and 401 interception are handled centrally.
-- ML-related endpoints are grouped under `/ml/...` paths and return a common envelope carrying `isMlActive`, `executionTimeMs`, and evidence arrays alongside business data.

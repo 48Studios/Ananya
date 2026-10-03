@@ -81,6 +81,8 @@ export default function MrpPurchasesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        backHref="/mrp"
+        backLabel="Back to MRP"
         title="MRP Planned Purchase Orders"
         description="Auto-generated purchasing suggestions required to satisfy upcoming manufacturing demand."
       />

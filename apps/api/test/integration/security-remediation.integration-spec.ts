@@ -77,7 +77,12 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
     authService = app.get(AuthService);
     rolesService = app.get(RolesService);
     usersService = app.get(UsersService);
-    loginThrottlerService = app.get(LoginThrottlerService);
+    // LoginThrottlerService is registered under the 'ILoginThrottler' token
+    // (see AuthModule); resolving by class throws. SessionCleanupService is
+    // registered by class and resolves directly.
+    loginThrottlerService = app.get<LoginThrottlerService>('ILoginThrottler', {
+      strict: false,
+    });
     sessionCleanupService = app.get(SessionCleanupService);
 
     // 1. Roles
@@ -967,7 +972,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       const validPassword = 'CorrectPassword123!';
 
       // Create test user
-      await http()
+      const createRes = await http()
         .post('/users')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
@@ -976,6 +981,11 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
           firstName: 'Counter',
           lastName: 'Test',
         });
+      const createdUserId = (createRes.body as { id?: string }).id;
+      // Tracked so FixtureOwner.cleanup removes the user even though it was
+      // created over HTTP rather than through owner.createUser. Without this
+      // the user row (and its sessions/audit rows) leaks on every run.
+      if (createdUserId) owner.trackUser(createdUserId);
 
       try {
         // 4 failed attempts (1 below threshold)
@@ -999,6 +1009,14 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
       } finally {
         delete process.env.ENABLE_TEST_RATE_LIMIT;
         loginThrottlerService.reset();
+        // Sessions for the HTTP-created user are removed with the user row's
+        // cascade, but the explicit delete keeps the suite hermetic even if
+        // the user creation above failed partway.
+        if (createdUserId) {
+          await db
+            .delete(userSessions)
+            .where(eq(userSessions.userId, createdUserId));
+        }
       }
     });
 
@@ -1031,7 +1049,8 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         expiresAt: new Date(now + 24 * 60 * 60 * 1000),
       });
 
-      // 3. Old revoked session (revoked 10 days ago, past 7-day retention)
+      // 3. Old revoked session (revoked 31 days ago, past the 30-day
+      // retention default documented in the security audit).
       await db.insert(userSessions).values({
         userId: adminUser.id,
         token: oldRevokedToken,
@@ -1039,7 +1058,7 @@ describe('Security Remediation Phase 1 & 2 (Integration Specs)', () => {
         userAgent: 'Cleanup Test',
         isRevoked: true,
         expiresAt: new Date(now + 24 * 60 * 60 * 1000),
-        updatedAt: new Date(now - 10 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(now - 31 * 24 * 60 * 60 * 1000),
       });
 
       // 4. Recently revoked session (revoked 1 day ago, within retention period)

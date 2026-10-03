@@ -1,1 +1,0 @@
-httpx for streaming HTTP with exponential backoff; urllib.robotparser for robots.txt compliance; pypdf for PDF text extraction; Pydantic v2 models for configuration and results; YAML-based declarative source registry; hashlib.SHA-256 for content-provenance hashing.

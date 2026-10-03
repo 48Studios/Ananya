@@ -1,1 +1,0 @@
-No build step — the package is consumed directly by other packages referencing `@ananya/eslint-config/base`, `@ananya/eslint-config/next-js`, or `@ananya/eslint-config/react-internal` in their own ESLint configs. The package is marked `private` so it is not published to npm registries.

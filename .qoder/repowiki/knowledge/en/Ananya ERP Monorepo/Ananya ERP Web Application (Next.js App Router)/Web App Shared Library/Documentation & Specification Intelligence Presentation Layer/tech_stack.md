@@ -1,1 +1,0 @@
-TypeScript pure functions consuming typed DTOs from `./api/documentation-intelligence-api` and `./api/component-review-queue-api`; no React, no query library — local state mutations use immutable object spread patterns.

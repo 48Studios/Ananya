@@ -1,1 +1,0 @@
-Next.js/React app codebase; TypeScript throughout; tests use Vitest (`.spec.ts` files); class-name composition uses clsx + tailwind-merge.

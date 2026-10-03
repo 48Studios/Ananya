@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Printer,
   CheckCircle2,
   Clock,
@@ -113,7 +112,6 @@ function getPriorityLabel(priority: ProjectPriority) {
 
 export default function ViewProjectPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params?.id as string;
   const { user: currentUser } = useAuth();
   const currentUserName = currentUser
@@ -659,6 +657,8 @@ export default function ViewProjectPage() {
     <div className="space-y-6 print:space-y-4">
       {/* Header */}
       <PageHeader
+        backHref="/projects"
+        backLabel="Back to Projects"
         title={project.projectNumber}
         description={`${project.name} — ${project.projectType.replace(/_/g, " ").toLowerCase()} project`}
         breadcrumbs={[
@@ -667,14 +667,6 @@ export default function ViewProjectPage() {
         ]}
         actions={
           <div className="flex flex-wrap items-center gap-2 print:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/projects")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="w-4 h-4 mr-1.5" />
               Print

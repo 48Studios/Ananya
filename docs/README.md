@@ -2,55 +2,46 @@
 
 Welcome to the Ananya documentation.
 
-Documentation is organized by topic rather than by technology.
+Documentation is organized by domain and topic rather than by technology.
+
+---
 
 ## Architecture
 
-High-level design and repository organization.
+High-level system design, DDD boundaries, data lifecycle, and navigation architecture.
 
 - [Architecture Overview](architecture/README.md)
-- [Project Structure](architecture/PROJECT_STRUCTURE.md)
+- [System Architecture](architecture/ARCHITECTURE.md) — Core principles, dependency rules, and production data lifecycle
+- [Project Structure](architecture/PROJECT_STRUCTURE.md) — Monorepo layout, applications, and bounded context packages
+- [Domain-Driven Design Standard](architecture/DDD.md) — Layer responsibilities, aggregate invariants, and ubiquitous language
+- [Production Data Lifecycle](architecture/DATA_LIFECYCLE.md) — Operational data management, zero CLI scripts, data packs, and import framework
+- [Information Architecture](architecture/INFORMATION_ARCHITECTURE.md) — 7-module navigation architecture, rails, and routing layout
+- [Component Consolidation](architecture/COMPONENT_CONSOLIDATION.md) — Duplicate component retirement & consolidation lifecycle
+- [AI Agent Guide](architecture/AI_AGENT_GUIDE.md) — Collaborative architecture rules for autonomous AI coding agents
+- [Architectural Review Checklist](architecture/REVIEW_CHECKLIST.md) — In-depth architectural review checklist
 
 ---
 
-## Operations
+## Security
 
-How the running system behaves in production, and what an operator controls.
+Authentication models, RBAC authorization matrices, and endpoint threat boundaries.
 
-- [ML Operations](ML_OPERATIONS.md) — training, evaluation, deployment and rollback
-  of the category model, and the ML & Intelligence control plane.
-- [Scanner App](SCANNER_APP.md) — the installable `/scan` surface: iPhone
-  install, HTTPS/camera requirements, and the scan lifecycle.
-- [Authentication](AUTHENTICATION.md)
-- [Data Lifecycle](DATA_LIFECYCLE.md)
-- [Information Architecture](INFORMATION_ARCHITECTURE.md)
+- [Authorization & Access Matrix](security/authorization-matrix.md) — Complete controller permissions, system roles, and ownership checks
+- [Public Endpoints Inventory](security/public-endpoints.md) — Authoritative inventory of `@Public()` opt-outs and defense-in-depth controls
+- [Authentication & Onboarding](security/AUTHENTICATION.md) — Multi-tenant organization creation, invitation mechanics, and session model
 
 ---
 
-## Development
+## Development & Operations
 
-Guides for setting up and contributing to the project.
+Guides for setting up, developing, testing, and operating Ananya services.
 
 - [Development Guide](development/README.md)
-- [Setup](development/SETUP.md)
-- [Local Development](development/LOCAL_DEVELOPMENT.md)
-- [Testing](development/TESTING.md)
-
----
-
-## API
-
-API design principles.
-
-- [API Documentation](api/README.md)
-
----
-
-## Database
-
-Persistence architecture and database conventions.
-
-- [Database Documentation](database/README.md)
+- [Setup](development/SETUP.md) — Prerequisites and environment configuration
+- [Local Development](development/LOCAL_DEVELOPMENT.md) — Compose workflows, pnpm dev, and database tasks
+- [Testing Guide](development/TESTING.md) — Quality gates, unit tests, and Playwright E2E testing platform
+- [ML Operations](development/ML_OPERATIONS.md) — Training, evaluation, deployment, and rollback control plane
+- [Scanner App](development/SCANNER_APP.md) — Standalone `/scan` PWA surface, camera constraints, and scan lifecycle
 
 ---
 
@@ -58,17 +49,37 @@ Persistence architecture and database conventions.
 
 Engineering standards and contributor guidelines.
 
-- [Engineering Standards](standards/ENGINEERING.md)
-- [Coding Standards](standards/CODING_STANDARDS.md)
-- [New Module Guide](standards/NEW_MODULE.md)
-- [New Package Guide](standards/NEW_PACKAGE.md)
-- [Workspace Packages](standards/WORKSPACE_PACKAGES.md)
-- [PR Review Checklist](standards/PR_REVIEW_CHECKLIST.md)
+- [Engineering Standards](standards/ENGINEERING.md) — Coding conventions, error handling, package boundaries
+- [Coding Standards](standards/CODING_STANDARDS.md) — TypeScript best practices and DTO validation
+- [New Package Guide](standards/NEW_PACKAGE.md) — Checklist for creating workspace packages
+- [New Module Guide](standards/NEW_MODULE.md) — Checklist for introducing new domain modules
+- [PR Review Checklist](standards/PR_REVIEW_CHECKLIST.md) — Pre-merge quality checklist
+
+---
+
+## Benchmarks & Research
+
+- [ML Model Comparison Report](benchmarks/ml-model-comparison-report.md) — Empirical evaluation of FastText, TF-IDF, MiniLM, and deterministic rules
+
+---
+
+## API & Database
+
+- [API Documentation](api/README.md) — Resource-oriented endpoints, thin controllers, and contracts
+- [Database Documentation](database/README.md) — Drizzle schema, migrations, and persistence rules
 
 ---
 
 ## RFCs
 
-Long-term architectural decisions.
+Sequential architectural decision records (RFC-0001 through RFC-0061).
 
 - [RFC Index](rfcs/README.md)
+
+---
+
+## Archive
+
+Historical artifacts, past audits, and superseded architectural analyses.
+
+- [Archive Index](archive/README.md)

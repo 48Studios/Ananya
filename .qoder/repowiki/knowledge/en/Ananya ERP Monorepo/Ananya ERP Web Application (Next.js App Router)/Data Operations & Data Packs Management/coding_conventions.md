@@ -1,6 +1,0 @@
-- Each route page is a `'use client'` default-exported function component that manages all UI state locally with `useState` / `useCallback` / `useMemo` rather than sharing state across pages.
-- Server data loading follows a consistent pattern: a `useCallback`-wrapped async function sets `loading=true`, tries the API call, catches errors into a string `error` state, and always clears loading in a `finally` block, invoked from a `useEffect` on mount.
-- User feedback uses inline toast-like notice blocks rendered conditionally based on a `{type, message}` state object that auto-dismisses after a timeout, instead of a global notification system.
-- Secondary actions open confirmation or detail modals via `DialogShell` with paired `open`/`onOpenChange` handlers that clear related modal state when dismissed.
-- Table columns are defined as `React.useMemo<ColumnDef[]>` arrays with custom `cell` renderers, `filterFn` implementations, and accessor functions that combine multiple fields for display.
-- API interactions go through typed DTOs imported from `@/lib/api/*` (e.g. `ImportExportJobDto`, `DataPackCatalogDto`, `DataPackDetailDto`) rather than ad-hoc shapes.

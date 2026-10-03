@@ -8,7 +8,6 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   ShieldCheck,
-  ArrowLeft,
   ExternalLink,
   Eye,
 } from "lucide-react";
@@ -219,16 +218,10 @@ export default function TransactionReportsPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        backHref="/reports"
+        backLabel="Back to Reports"
         title="Transaction & Audit Reports"
         description="Immutable stock movement history, transaction type breakdown, and audit ledger logs."
-        actions={
-          <Link href="/reports">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back to Reports
-            </Button>
-          </Link>
-        }
       />
 
       {/* KPI Cards */}

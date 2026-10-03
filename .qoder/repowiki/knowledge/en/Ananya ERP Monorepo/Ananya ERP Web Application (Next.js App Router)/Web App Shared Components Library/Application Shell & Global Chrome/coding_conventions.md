@@ -1,4 +1,0 @@
-- Every component file starts with the `"use client"` directive before any imports, marking it as a client-only component.
-- Global chrome components read cross-cutting state through shared contexts (`useAuth`, `useNavigation`) rather than props, keeping the shell decoupled from page-specific data.
-- Route-based visibility gating uses static arrays (`PUBLIC_ROUTES`, `STANDALONE_ROUTES`) matched against `pathname.startsWith(...)` instead of per-route logic.
-- User-facing strings and metadata (quick action titles, keywords, permissions, categories) are declared as plain data arrays at module scope and rendered generically, separating configuration from JSX.

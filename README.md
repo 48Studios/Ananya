@@ -163,7 +163,7 @@ Schema migrations create the database structure; they do not create your busines
 
 The importer provides downloadable templates, column matching, pre-import validation, duplicate checks, and relationship resolution using business codes such as SKUs and location/category codes. Hierarchical records such as locations can be imported with their parent relationships. Start with a small, representative file and verify the resulting records before importing a full catalog.
 
-For detailed rules and supported importer contracts, see [Data Lifecycle](docs/DATA_LIFECYCLE.md). Ananya deliberately does not rely on CLI seed scripts for operational data.
+For detailed rules and supported importer contracts, see [Data Lifecycle](docs/architecture/DATA_LIFECYCLE.md). Ananya deliberately does not rely on CLI seed scripts for operational data.
 
 ## Develop and contribute
 

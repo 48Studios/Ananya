@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog-shell";
 import { ScannedEntityModal } from "./scanned-entity-modal";
 import { barcodesApi, BarcodeLookupResult } from "@/lib/api/barcodes-api";
+import { spatialApi } from "@/lib/api/spatial-api";
 
 // Declare native BarcodeDetector interface for browser compatibility
 interface NativeBarcodeDetector {
@@ -206,9 +207,48 @@ export function ScanDialog({
         if (onScanSuccess) {
           onScanSuccess(res);
         }
-        if (autoNavigate && res.targetUrl) {
-          handleClose();
-          router.push(res.targetUrl);
+        if (autoNavigate) {
+          if (res.entityType === "LOCATION") {
+            try {
+              const spatial = await spatialApi.resolveLocationLocate(res.entityId);
+              if (spatial.hasSpatialView) {
+                handleClose();
+                router.push(spatial.locateUrl);
+                return;
+              }
+            } catch {
+              // Ignore failure and fallback to standard location URL
+            }
+            handleClose();
+            router.push(res.targetUrl);
+            return;
+          }
+
+          if (res.entityType === "COMPONENT") {
+            try {
+              const resolution = await spatialApi.resolveComponentLocate(res.entityId);
+              if (resolution.targets.length === 1 && resolution.targets[0]) {
+                handleClose();
+                router.push(resolution.targets[0].locateUrl);
+                return;
+              }
+              if (resolution.targets.length > 1) {
+                // When multiple locations exist, require explicit user choice; do not navigate arbitrarily.
+                return;
+              }
+            } catch {
+              // Ignore failure and fallback to standard component URL
+            }
+            handleClose();
+            router.push(res.targetUrl);
+            return;
+          }
+
+          if (res.targetUrl) {
+            handleClose();
+            router.push(res.targetUrl);
+            return;
+          }
         }
       } catch (err: unknown) {
         if (err instanceof Error) {

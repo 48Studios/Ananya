@@ -1,1 +1,0 @@
-TypeScript pure functions over generated DTOs from `./api/component-review-queue-api` and `./api/documents-api`; tests run via vitest (no DOM testing library available).

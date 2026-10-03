@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: ml_service/training_pipeline/training_cli_root
-title: Ananya ML Training & Data Pipeline CLI
-scope:
-    - apps/ml/training/
-source_files: []
-depends_on: []
-related_to: []

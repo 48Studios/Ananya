@@ -1,1 +1,0 @@
-NestJS controllers/guards, class-validator/class-transformer for DTOs, Drizzle ORM via `@ananya/database` schema/query builders against PostgreSQL, and HTTP calls into the external ML sidecar through `MlClientService`.

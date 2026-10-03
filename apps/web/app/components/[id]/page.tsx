@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { LocateButton } from "@/components/spatial";
 import {
   Edit3,
   Trash2,
-  ArrowLeft,
   Package,
   Layers,
   MapPin,
@@ -438,18 +439,12 @@ export default function ViewComponentPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        backHref="/components"
+        backLabel="Back to Components"
         title={component.name}
         description={`SKU: ${component.sku}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/components")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -673,11 +668,23 @@ export default function ViewComponentPage() {
         contentClassName="p-0"
         actions={
           stockLocations.length > 0 ? (
-            <span className="rounded bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-muted-foreground">
-              {stockLocations.length}{" "}
-              {stockLocations.length === 1 ? "location" : "locations"} ·{" "}
-              {currentStock} {component.unit}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded bg-muted/50 px-2.5 py-1 font-mono text-xs font-medium text-muted-foreground">
+                {stockLocations.length}{" "}
+                {stockLocations.length === 1 ? "location" : "locations"} ·{" "}
+                {currentStock} {component.unit}
+              </span>
+              <LocateButton
+                componentId={component.id}
+                componentSku={component.sku}
+                componentName={component.name}
+                unit={component.unit}
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+              >
+                <span>Locate in storage</span>
+              </LocateButton>
+            </div>
           ) : (
             <>
               <Button
@@ -708,7 +715,7 @@ export default function ViewComponentPage() {
               {
                 key: "location",
                 header: "Location",
-                width: "46%",
+                width: "42%",
                 className: "min-w-0",
                 render: (projection) => {
                   const loc = locationMap.get(projection.locationId);
@@ -722,7 +729,16 @@ export default function ViewComponentPage() {
                             : projection.locationId
                         }
                       >
-                        {loc ? loc.code : projection.locationId}
+                        {loc ? (
+                          <Link
+                            href={`/locations/${loc.id}`}
+                            className="text-primary hover:underline"
+                          >
+                            {loc.code}
+                          </Link>
+                        ) : (
+                          projection.locationId
+                        )}
                       </div>
                       {loc ? (
                         <div className="text-[11px] text-muted-foreground truncate">
@@ -736,7 +752,7 @@ export default function ViewComponentPage() {
               {
                 key: "kind",
                 header: "Kind",
-                width: "18%",
+                width: "16%",
                 render: (projection) => {
                   const loc = locationMap.get(projection.locationId);
                   return loc ? (
@@ -750,13 +766,31 @@ export default function ViewComponentPage() {
                 key: "onHand",
                 header: "On Hand",
                 align: "right",
-                width: "36%",
+                width: "22%",
                 className: "whitespace-nowrap",
                 render: (projection) => (
                   <span className="font-mono text-xs font-bold text-foreground">
                     {projection.quantity}{" "}
                     {projection.unitOfMeasure || component.unit}
                   </span>
+                ),
+              },
+              {
+                key: "locate",
+                header: "Spatial",
+                align: "right",
+                width: "20%",
+                className: "whitespace-nowrap",
+                render: (projection) => (
+                  <LocateButton
+                    componentId={component.id}
+                    locationId={projection.locationId}
+                    componentSku={component.sku}
+                    componentName={component.name}
+                    unit={component.unit}
+                    size="xs"
+                    className="h-7 gap-1 text-xs"
+                  />
                 ),
               },
             ]}

@@ -1,2 +1,0 @@
-- Controller methods are thin pass-throughs that forward query parameters directly to corresponding service methods without additional validation or transformation.
-- Service queries are constructed by starting from a base Drizzle query and reassigning it with `.where(...)` when optional filter parameters are present.

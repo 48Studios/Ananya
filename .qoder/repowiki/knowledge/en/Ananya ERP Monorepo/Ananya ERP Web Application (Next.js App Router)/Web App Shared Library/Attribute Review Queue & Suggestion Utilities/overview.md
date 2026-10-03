@@ -1,1 +1,0 @@
-Pure, React-free presentation and eligibility logic for the attribute intelligence review queue, AI-driven attribute suggestions, and quantity unit selection in the web app.

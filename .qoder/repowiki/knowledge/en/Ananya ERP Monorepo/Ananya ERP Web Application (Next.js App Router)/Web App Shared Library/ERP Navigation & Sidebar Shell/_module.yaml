@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: web_app/shared_libs/navigation
-title: ERP Navigation & Sidebar Shell
-scope:
-    - apps/web/lib/navigation/
-source_files: []
-depends_on: []
-related_to: []

@@ -1,1 +1,0 @@
-Client-side React forms for creating and editing inventory reference entities — categories, units, locations, suppliers, and manufacturers — backed by typed API clients.

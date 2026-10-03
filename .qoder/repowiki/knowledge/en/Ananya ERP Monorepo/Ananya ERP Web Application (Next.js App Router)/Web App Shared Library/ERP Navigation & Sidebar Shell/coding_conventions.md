@@ -1,6 +1,0 @@
-- Navigation structure is declared as plain data objects (`NavigationModule` / `SidebarSection` / `NavigationItem`) in `navigation-config.tsx` rather than built imperatively, so adding a new menu item means editing a config literal.
-- All navigation state is owned centrally in `NavigationProvider` and accessed exclusively through the `useNavigation()` hook; components never hold their own copy of module or route state.
-- User preferences (collapsed sidebar, expanded accordions, pinned items, recent routes) are persisted to `localStorage` using the `ananya_*` key prefix and wrapped in try/catch blocks that silently ignore storage errors.
-- Visual sizing is sourced from the shared `NAV_TOKENS` constants instead of inline Tailwind strings, ensuring consistent row heights, indentation levels, and section dividers across all sidebar components.
-- Route matching uses an exact-match flag (`item.exact`) or a `startsWith(href + '/')` suffix check, applied uniformly in both `SidebarItem` and `getModuleForPath` to determine active state.
-- Each top-level module declares a `permissions` array at the module level and optionally per-item, and `SidebarItem` gates rendering by checking those permissions against `useAuth().hasPermission`.

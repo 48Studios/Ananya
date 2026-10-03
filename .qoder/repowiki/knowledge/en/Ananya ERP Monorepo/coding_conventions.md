@@ -1,4 +1,0 @@
-- All JavaScript/TypeScript tooling is executed through Turborepo tasks (`build`, `lint`, `check-types`, `test`) rather than per-app scripts.
-- Cross-cutting types, database schemas, and UI primitives live in `packages/*` and are imported by both the API and web apps instead of being duplicated.
-- Environment variables are declared once in `turbo.json` `globalEnv` and injected into every child process at runtime.
-- Each Dockerized service exposes a `/health` endpoint used by Compose healthchecks before other services depend on it.

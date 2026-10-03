@@ -134,6 +134,20 @@
       "when": 1790630293093,
       "tag": "0018_generic_organization_profile_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790764442957,
+      "tag": "0019_safe_ikaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790929275804,
+      "tag": "0020_spatial_layouts",
+      "breakpoints": true
     }
   ]
 }

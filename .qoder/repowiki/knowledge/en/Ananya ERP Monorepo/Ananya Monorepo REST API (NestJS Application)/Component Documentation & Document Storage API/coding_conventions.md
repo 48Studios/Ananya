@@ -1,6 +1,0 @@
-- Every write route is protected by `@UseGuards(DocumentWriteGuard)` and every read route by `@UseGuards(DocumentReadGuard)`, derived from the shared `createPermissionGuard` factory using `Inventory.Read` / `Inventory.Update`.
-- Authenticated actor identity is extracted from `req.user` in a small `actorFrom` helper and passed as a `DocumentActor` to service methods rather than being read inside services.
-- External-facing strings are normalised through dedicated validators (`normalizeDocumentType`, `parseDocumentTags`, `parseOptionalText`, `validateExternalUrl`) instead of trusting raw request bodies.
-- Database mutations that touch both the `documents` table and `documentVersions` run inside a single `db.transaction` block, often acquiring a row lock (`SELECT ... FOR UPDATE`) to serialise concurrent writes.
-- Storage operations go exclusively through the injected `StorageService` implementing `IStorageProvider`, so tests can swap in an in-memory double without touching the filesystem.
-- Cleanup of uploaded files on failure is handled explicitly in try/catch blocks that call `removeStoredFile`, ensuring no orphaned bytes remain when database persistence fails.

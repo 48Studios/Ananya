@@ -1,1 +1,0 @@
-Storage location defaults to `/app/uploads` when `STORAGE_LOCAL_PATH` is set; otherwise falls back to `<cwd>/uploads` and logs a warning if the configured path cannot be created. An unknown `STORAGE_DRIVER` value throws at startup via `createStorageProvider`, failing fast instead of silently writing to an unexpected location.

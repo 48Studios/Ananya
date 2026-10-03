@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: shared_packages/eslint_config
-title: Shared ESLint Configuration Package
-scope:
-    - packages/eslint-config/
-source_files: []
-depends_on: []
-related_to: []

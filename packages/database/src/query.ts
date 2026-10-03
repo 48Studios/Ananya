@@ -14,4 +14,5 @@ export {
   lt,
   inArray,
   notInArray,
+  ne,
 } from "drizzle-orm";

@@ -1,1 +1,0 @@
-React client components using `react-hook-form` + `@hookform/resolvers/zod` for schema-driven validation, `lucide-react` icons, and Tailwind CSS classes; data access goes through typed API clients in `@/lib/api/*`.

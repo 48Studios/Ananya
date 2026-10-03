@@ -1,1 +1,0 @@
-`pnpm dev` starts the dev server on port 3000; `pnpm build` produces a standalone Next.js bundle; `pnpm check-types` runs next typegen then tsc; `pnpm test` runs Vitest across all `*.spec.ts` files; `pnpm lint` enforces ESLint with zero warnings.

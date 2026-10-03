@@ -1,1 +1,0 @@
-TypeScript 5.9 compiled to CommonJS via `tsc -p tsconfig.build.json`; tests run with Vitest (`vitest.config.ts`).

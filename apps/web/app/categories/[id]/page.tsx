@@ -6,7 +6,6 @@ import Link from "next/link";
 import {
   Edit3,
   Trash2,
-  ArrowLeft,
   FolderTree,
   Package,
   CheckCircle2,
@@ -148,18 +147,12 @@ export default function ViewCategoryPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        backHref="/categories"
+        backLabel="Back to Categories"
         title={category.name}
         description={`Code: ${category.code}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/categories")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button
               variant="outline"
               size="sm"

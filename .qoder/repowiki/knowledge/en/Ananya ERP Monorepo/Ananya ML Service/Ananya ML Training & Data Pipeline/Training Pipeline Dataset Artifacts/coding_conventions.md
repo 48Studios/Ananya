@@ -1,2 +1,0 @@
-- Raw crawl artifacts are kept under `raw/` with one subdirectory per source type (documents, web, catalogs, metadata) and never modified in place.
-- Processed dataset versions are isolated as separate timestamped folders under `training/dataset-crawl-<ts>` to preserve reproducibility across runs.

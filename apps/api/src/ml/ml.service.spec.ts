@@ -397,6 +397,140 @@ describe('MlService', () => {
   });
 
   /**
+   * Phase 3.4.7 §3 — power-rating fallback extraction matrix.
+   *
+   * The deterministic fallback is the only extraction when the ML service is
+   * unreachable. Each row pins the full contract: the regex match, the
+   * canonical unit spelling, the `power` key (resolved to `power_rating` by
+   * the existing alias map), and the description/query sourcing.
+   */
+  describe('power-rating fallback extraction', () => {
+    const suggestPower = async (query: string, description?: string) => {
+      (clientMock.suggest as jest.Mock).mockResolvedValueOnce(null);
+      withAttributeDefinitions([
+        {
+          id: 'power-id',
+          code: 'power_rating',
+          name: 'Power Rating',
+          dataType: 'QUANTITY',
+          unitCategory: 'Power',
+          defaultUnit: 'W',
+          aliases: [],
+          isActive: true,
+        },
+      ]);
+      const result = await service.suggest({ query, description });
+      return result.attributes['power'];
+    };
+
+    it.each([
+      // [label, query, description, expectedValue, expectedUnit, expectedFormatted]
+      [
+        'compact milli-watts',
+        '27ohm resistor',
+        '27ohm 125mW resistor',
+        125,
+        'mW',
+        '125mW',
+      ],
+      [
+        'spaced watts with decimal',
+        'resistor',
+        '0.125 W thick film',
+        0.125,
+        'W',
+        '0.125W',
+      ],
+      ['kilowatts', 'power resistor', '1 kW wirewound', 1, 'kW', '1kW'],
+      [
+        'labeled value with colon',
+        'resistor',
+        'Power: 250 mW',
+        250,
+        'mW',
+        '250mW',
+      ],
+      [
+        'uppercase unit folds to canonical',
+        'resistor',
+        '125MW metal film',
+        125,
+        'mW',
+        '125mW',
+      ],
+      [
+        'no space between value and unit',
+        'resistor',
+        '0.25W carbon',
+        0.25,
+        'W',
+        '0.25W',
+      ],
+    ])(
+      'extracts %s',
+      async (
+        _label,
+        query,
+        description,
+        expectedValue,
+        expectedUnit,
+        expectedFormatted,
+      ) => {
+        const attr = await suggestPower(query, description);
+        expect(attr).toBeDefined();
+        expect(attr?.value).toBe(expectedValue);
+        expect(attr?.unit).toBe(expectedUnit);
+        expect(attr?.formatted).toBe(expectedFormatted);
+        expect(attr?.attributeDefinitionId).toBe('power-id');
+        expect(attr?.resolution).toBe('RESOLVED');
+      },
+    );
+
+    it('extracts power present only in the description', async () => {
+      const attr = await suggestPower(
+        '27ohm 0805 SMD Thick Film Resistor',
+        '27ohm ±1% 125mW 0805 thick-film for general-purpose applications resistor.',
+      );
+      expect(attr?.value).toBe(125);
+      expect(attr?.unit).toBe('mW');
+      expect(attr?.formatted).toBe('125mW');
+    });
+
+    it('extracts power present in both query and description', async () => {
+      const attr = await suggestPower(
+        '125mW resistor 0805',
+        '125mW thick-film resistor',
+      );
+      expect(attr?.value).toBe(125);
+      expect(attr?.unit).toBe('mW');
+    });
+
+    it('does not invent power from unrelated numbers and units', async () => {
+      for (const text of [
+        'RC0805FR-0710KL 10k resistor 50V',
+        '100uF 25V capacitor 0805',
+        '1N5819 diode SOD-123',
+      ]) {
+        (clientMock.suggest as jest.Mock).mockResolvedValueOnce(null);
+        withAttributeDefinitions([]);
+        const result = await service.suggest({ query: text });
+        expect(result.attributes['power']).toBeUndefined();
+      }
+    });
+
+    it('maps the power key onto the power_rating definition', () => {
+      expect(
+        resolveAttributeDefinition('power', [
+          { id: 'power-id', code: 'power_rating', name: 'Power Rating' },
+        ])?.id,
+      ).toBe('power-id');
+      expect(normalizeExtractedUnit('power', 'MW')).toBe('mW');
+      expect(normalizeExtractedUnit('power_rating', 'mw')).toBe('mW');
+      expect(normalizeExtractedUnit('power_rating', 'KW')).toBe('kW');
+    });
+  });
+
+  /**
    * A component is never a duplicate of itself.
    *
    * Regression: the request carried no component identity, so editing a

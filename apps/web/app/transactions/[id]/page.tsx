@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Printer,
   Package,
   MapPin,
@@ -55,7 +54,6 @@ function getDirectionBadge(type: TransactionType) {
 
 export default function ViewTransactionPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params?.id as string;
 
   const [tx, setTx] = React.useState<InventoryTransactionDto | null>(null);
@@ -132,6 +130,8 @@ export default function ViewTransactionPage() {
     <div className="space-y-6 print:space-y-4">
       {/* Header */}
       <PageHeader
+        backHref="/transactions"
+        backLabel="Back to Transactions"
         title={`Transaction ${tx.id.slice(0, 8)}`}
         description={`Immutable stock movement audit entry — Recorded ${new Date(tx.createdAt).toLocaleString()}`}
         breadcrumbs={[
@@ -140,14 +140,6 @@ export default function ViewTransactionPage() {
         ]}
         actions={
           <div className="flex items-center gap-2 print:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/transactions")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="w-4 h-4 mr-1.5" />
               Print Audit Record

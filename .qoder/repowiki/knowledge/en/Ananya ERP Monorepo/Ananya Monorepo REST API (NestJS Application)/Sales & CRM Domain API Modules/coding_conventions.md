@@ -1,6 +1,0 @@
-- Each resource folder ships a quartet of files — controller, service, module, and dtos.ts — with the module registering both the controller and the service as providers.
-- Repositories are injected via a string token constant (e.g. `CUSTOMER_REPOSITORY`, `LEAD_REPOSITORY`) declared in the service and bound in the module's providers array to a concrete `Drizzle*Repository` implementation.
-- Domain mutation methods live on the entity classes from `@ananya/sales` / `@ananya/crm` (e.g. `customer.activate()`, `lead.convert()`); services load the entity, call the method, then persist via `repository.save()`.
-- DTOs are plain classes decorated with `class-validator` annotations (`@IsString`, `@IsNotEmpty`, `@IsEmail`, `@IsOptional`) and import their enum types from the domain packages instead of redefining them.
-- Controllers expose a uniform CRUD surface (`POST /`, `GET /`, `GET /:id`) plus domain-action endpoints under `POST :id/<action>` such as activate, suspend, convert, send, approve, ship, inspect.
-- Missing-entity lookups throw `NotFoundException` with a message naming the resource and ID, rather than returning null or undefined.

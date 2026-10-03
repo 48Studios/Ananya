@@ -1,1 +1,0 @@
-Node.js built-in `crypto` for SHA-256 fingerprints; PostgreSQL via `@ananya/database` using `SET LOCAL set_config` for transaction-scoped `lock_timeout` / `statement_timeout`; SQLSTATE codes `55P03` (lock timeout) and `57014` (statement cancellation) are treated as retryable conflicts.

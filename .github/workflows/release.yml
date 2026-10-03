@@ -122,6 +122,13 @@ jobs:
           push: true
           tags: ${{ steps.compute_tags.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Phase 3.4.11: bake the release identity into the image so
+          # setup.sh can bind artifact-only upgrades to this exact release.
+          # RELEASE_VERSION is the tag name (e.g. v0.2.0); setup.sh compares
+          # it against ANANYA_VERSION ignoring a single leading "v".
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            RELEASE_VERSION=${{ github.ref_name }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 

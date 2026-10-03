@@ -1,1 +1,0 @@
-React client components with Next.js App Router (`usePathname` from `next/navigation`), lucide-react icons, Tailwind CSS utility classes, and localStorage for persistent navigation preferences.

@@ -5,14 +5,12 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   Shield,
-  ArrowLeft,
   CheckCircle2,
   Lock,
   Users,
   KeyRound,
   Calendar,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { DetailTable } from "@/components/ui/detail-table";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
@@ -77,17 +75,11 @@ export default function RoleDetailPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        backHref="/roles"
+        backLabel="Back to Roles"
         title={roleInfo.name}
         description={
           roleInfo.description || "System-configured access control role."
-        }
-        actions={
-          <Link href="/roles">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back to Roles
-            </Button>
-          </Link>
         }
       />
 

@@ -1,1 +1,0 @@
-Consumed by other workspace packages via `extends` in their tsconfig.json pointing to this package's preset files; the package itself has no build or test steps — install it like any npm dependency.

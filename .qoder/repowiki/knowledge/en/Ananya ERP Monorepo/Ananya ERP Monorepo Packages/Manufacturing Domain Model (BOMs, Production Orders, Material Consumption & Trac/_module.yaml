@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: shared_packages/manufacturing
-title: Manufacturing Domain Model (BOMs, Production Orders, Material Consumption & Traceability)
-scope:
-    - packages/manufacturing/
-source_files: []
-depends_on: []
-related_to: []

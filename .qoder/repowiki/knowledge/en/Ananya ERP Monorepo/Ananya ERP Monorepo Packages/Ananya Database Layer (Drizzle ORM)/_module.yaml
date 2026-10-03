@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: shared_packages/database
-title: Ananya Database Layer (Drizzle ORM)
-scope:
-    - packages/database/
-source_files: []
-depends_on: []
-related_to: []

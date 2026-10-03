@@ -1,1 +1,0 @@
-Runs only as a client component (`"use client"` at the top of every file) because it needs `window`, `document`, `navigator.mediaDevices`, and `AudioContext`; intended to be opened as a standalone PWA entry point or via a printed label encoding `/scan?code=…`.

@@ -1,1 +1,0 @@
-Defines the service domain's aggregate root types, state machines, and repository interfaces for service requests, work orders, warranty claims, RMAs, maintenance schedules, and notes.

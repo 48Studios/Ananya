@@ -1,1 +1,0 @@
-NestJS feature modules exposing CRUD REST endpoints for locations, units, and manufacturers, delegating business logic to domain use-cases backed by a repository abstraction.

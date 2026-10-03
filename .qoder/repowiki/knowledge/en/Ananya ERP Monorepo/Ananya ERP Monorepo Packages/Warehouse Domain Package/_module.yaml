@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: shared_packages/warehouse
-title: Warehouse Domain Package
-scope:
-    - packages/warehouse/
-source_files: []
-depends_on: []
-related_to: []

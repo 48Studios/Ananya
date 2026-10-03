@@ -1,4 +1,0 @@
-- Each route page is a `'use client'` default-exported function component that fetches data in a `useEffect` calling `financeApi.get*()` and stores results plus loading/error flags in local `useState`.
-- List pages render a consistent layout: `PageHeader` followed by a 3-column `StatCard` grid of KPIs, then an `EntityDataTable` configured with a typed `ColumnDef[]` array and search placeholder.
-- Monetary values are formatted through `formatCurrency` from `@/lib/utils` and dates through `formatDate`, never raw string interpolation.
-- Error boundaries on each page return `<ErrorState>` with an `onRetry` that reloads the window, and loading states return `<LoadingState>` before the main layout.

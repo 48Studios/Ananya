@@ -1,10 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, CheckCircle2, FileText } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CheckCircle2, FileText } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
 import { mrpApi, type MrpRunRecordDto } from "@/lib/api/mrp-api";
@@ -48,16 +46,10 @@ export default function MrpRunDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Link href="/mrp/runs">
-          <Button variant="ghost" size="xs">
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to MRP Runs
-          </Button>
-        </Link>
-      </div>
 
       <PageHeader
+        backHref="/mrp/runs"
+        backLabel="Back to MRP Runs"
         title={`MRP Execution Run #${run?.runNumber || runId || "MRP-RUN"}`}
         description="Detailed calculation log, gross demand processing matrix, and generated purchase/production recommendations."
       />

@@ -1,1 +1,0 @@
-Workspace of private npm packages that compose the Ananya ERP platform, with shared primitives, database layer, and per-bounded-context domain models depending on a common core.

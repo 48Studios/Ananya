@@ -1,6 +1,0 @@
-- Each aggregate directory groups an entity class, its input/output types, a `*.errors.ts` file of domain-specific errors, a repository interface, and optional command handlers, all re-exported via an `index.ts` barrel.
-- Entities use a private constructor plus static `create` factory for construction and a static `rehydrate` factory for deserialization, keeping state mutation through instance methods.
-- Status transitions are enforced inside entity methods by checking the current status and throwing `InvalidPoStatusTransitionError` (or equivalent) when an illegal transition is attempted.
-- Command classes (e.g. `CreateGoodsReceipt`, `CreatePurchaseOrder`) take a repository interface in their constructor and expose a single `execute` method that orchestrates entity creation and persistence.
-- Input strings are normalized at the boundary — codes and currencies are trimmed and uppercased, optional fields default to sensible values like `INR` or `NET30`.
-- Cross-aggregate logic is extracted into pure services (e.g. `ThreeWayMatcher.evaluate`) rather than being embedded in entities, taking multiple aggregates as parameters and returning typed result objects.

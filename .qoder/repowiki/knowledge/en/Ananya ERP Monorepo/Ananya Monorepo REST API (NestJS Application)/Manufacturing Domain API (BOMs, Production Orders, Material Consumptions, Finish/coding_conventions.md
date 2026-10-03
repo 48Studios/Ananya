@@ -1,5 +1,0 @@
-- Each feature module declares its own `@Module` with a single controller, service, and one or more repository bindings mapped via string-token providers to concrete `Drizzle*Repository` classes.
-- Request payloads are validated using `class-validator` decorators (`IsString`, `IsNotEmpty`, `IsOptional`, `IsNumber`, `Min`, `IsEnum`, `ValidateNested`) defined in a per-module `dtos.ts` file.
-- Domain exceptions thrown by services are caught by dedicated `@Catch(...)` `ExceptionFilter` classes that map each error type to a specific HTTP status and return a uniform `{ statusCode, error, message }` JSON body.
-- Cross-cutting concerns such as inventory updates are accessed by importing sibling feature modules (`InventoryTransactionsModule`, `InventoryProjectionsModule`) rather than calling infrastructure directly.
-- Repository interfaces are exposed as exported string-constant tokens from the service file and rebound in other modules when those modules need direct access to the same repository.

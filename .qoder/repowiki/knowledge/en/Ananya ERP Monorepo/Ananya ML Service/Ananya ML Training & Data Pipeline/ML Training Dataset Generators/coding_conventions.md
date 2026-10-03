@@ -1,6 +1,0 @@
-- Each generator is a class whose only public surface is a `generate(self, records: List[ProductRecord]) -> List[TypedExample]` method returning schema-defined example objects.
-- Generators filter out invalid input early (missing attributes, excluded categories, generic/unknown values) before constructing examples.
-- Textual representations are produced via `record.to_training_text()` rather than raw field concatenation, ensuring consistent formatting across tasks.
-- External knowledge (canonical categories, manufacturer aliases, unit normalizer) is imported from `..processors.*` instead of being hardcoded inside generators.
-- Optional configuration is passed through constructor parameters with sensible defaults (e.g. `attribute_universe`, `alias_dict`, `include_variations`).
-- Cross-source or cross-category negative pairs cap iteration depth with `min(i + N, len(group))` to bound dataset size.

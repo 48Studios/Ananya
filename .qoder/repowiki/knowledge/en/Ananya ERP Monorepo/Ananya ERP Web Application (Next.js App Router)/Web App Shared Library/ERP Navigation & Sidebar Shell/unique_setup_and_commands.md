@@ -1,1 +1,0 @@
-`navigation-metrics.spec.ts` asserts that the numeric pixel widths in `NAV_WIDTHS_PX` match the Tailwind width classes in `NAV_TOKENS`, keeping layout values in sync between CSS generation and runtime JS offsets.

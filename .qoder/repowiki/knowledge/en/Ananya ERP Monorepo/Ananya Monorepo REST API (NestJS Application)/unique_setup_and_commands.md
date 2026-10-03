@@ -1,1 +1,0 @@
-`npm run dev` starts the Nest app in watch mode; `npm run build` produces `dist/main`; `npm run start:prod` runs the compiled server; `npm run start:worker` runs the background worker process; `npm run test:e2e` executes integration specs under `test/integration/` using `./test/jest-e2e.json`.

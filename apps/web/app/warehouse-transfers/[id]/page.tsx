@@ -4,7 +4,6 @@ import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Printer,
   Truck,
   CheckCircle2,
@@ -261,6 +260,8 @@ export default function ViewWarehouseTransferPage() {
     <div className="space-y-6 print:space-y-4">
       {/* Header */}
       <PageHeader
+        backHref="/warehouse-transfers"
+        backLabel="Back to Warehouse Transfers"
         title={transfer.transferNumber}
         description={`Stock Movement: ${sourceLocation ? sourceLocation.name : transfer.sourceLocationId} → ${destLocation ? destLocation.name : transfer.destinationLocationId}`}
         breadcrumbs={[
@@ -269,14 +270,6 @@ export default function ViewWarehouseTransferPage() {
         ]}
         actions={
           <div className="flex flex-wrap items-center gap-2 print:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/warehouse-transfers")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="w-4 h-4 mr-1.5" />
               Print Order

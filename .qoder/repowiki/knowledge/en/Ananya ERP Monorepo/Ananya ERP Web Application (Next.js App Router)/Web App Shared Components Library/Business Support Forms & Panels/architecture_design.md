@@ -1,7 +1,0 @@
-Each subdirectory under `apps/web/components/` is a self-contained domain slice exporting one React component:
-- `projects/project-form.tsx`, `tasks/task-form.tsx`, `time/time-entry-form.tsx`, `service/service-request-form.tsx`, `warehouse/warehouse-policy-form.tsx` are dialog-embedded `<form>` components built on `react-hook-form` + `zod` (or manual state for the project form), wrapped in `DialogShellBody/Footer` and calling the corresponding `*Api` module from `@/lib/api/*`.
-- `reports/report-filters.tsx` is a pure presentational filter bar; `reports/trend-card.tsx` composes `StatCard` with `AreaChartWidget`.
-- `ml-ops/ml-ops-panels.tsx` is a large presentational-only panel set (`MlOverviewPanel`, `MlActiveRunPanel`, `MlModelsPanel`, `MlRunsPanel`) that consumes DTOs from `@/lib/api/ml-ops-api` and formatting helpers from `@/lib/ml-ops`; it owns no data fetching.
-- `transactions/component-timeline.tsx` renders an audit-style timeline of `InventoryTransactionDto` rows.
-
-Dependency direction is strictly downward: these components depend on shared UI primitives (`@/components/ui/*` — `Field`, `Select`, `DialogShell*`, `EntityDataTable`, `SectionCard`, `StatusBadge`, `DetailField`), chart widgets (`@/components/charts/*`), and API client modules (`@/lib/api/*`). They never import sibling domain components, keeping each file independently mountable inside a parent page's dialog or section.

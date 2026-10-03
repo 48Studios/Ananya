@@ -1,1 +1,0 @@
-Next.js App Router client components, TanStack Table (`ColumnDef`) for column definitions, Lucide icons, and shadcn-style primitives (`Button`, `PageHeader`, `StatCard`, `EntityDataTable`, `StatusBadge`, `DialogShell`, `TooltipProvider`).

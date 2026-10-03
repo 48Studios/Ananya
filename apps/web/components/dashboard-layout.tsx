@@ -117,7 +117,7 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
             <TopHeader />
           </div>
           <main className="flex-1 overflow-y-auto bg-background flex flex-col justify-between print:overflow-visible print:bg-white print:p-0">
-            <div className="flex-1 p-6 lg:p-8 max-w-7xl mx-auto w-full print:p-0 print:max-w-none">
+            <div className="flex-1 p-6 lg:p-8 max-w-10xl mx-auto w-full print:p-0 print:max-w-none">
               {children}
             </div>
             <div className="print:hidden">

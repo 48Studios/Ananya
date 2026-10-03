@@ -6,7 +6,6 @@ import Link from "next/link";
 import {
   Edit3,
   Trash2,
-  ArrowLeft,
   ShoppingBag,
   Package,
   Star,
@@ -157,18 +156,12 @@ export default function ViewSupplierPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        backHref="/suppliers"
+        backLabel="Back to Suppliers"
         title={supplier.name}
         description={`Code: ${supplier.code}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/suppliers")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button
               variant="outline"
               size="sm"

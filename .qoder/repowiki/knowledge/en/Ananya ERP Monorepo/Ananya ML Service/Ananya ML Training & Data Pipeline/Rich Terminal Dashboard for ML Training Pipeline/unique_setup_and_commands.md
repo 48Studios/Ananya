@@ -1,1 +1,0 @@
-Interactive hotkeys are available only when `sys.stdin.isatty()` and `termios`/`tty` are importable; otherwise the keyboard listener silently disables itself. The TUI can be detached at any time by pressing Q, after which the underlying job continues in a daemon worker thread until completion.

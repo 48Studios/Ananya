@@ -4,7 +4,6 @@ import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Printer,
   Wrench,
   CheckCircle2,
@@ -360,6 +359,8 @@ export default function ViewWorkOrderPage() {
     <div className="space-y-6 print:space-y-4">
       {/* Header */}
       <PageHeader
+        backHref="/work-orders"
+        backLabel="Back to Work Orders"
         title={`Production Execution — ${wo.productionNumber}`}
         description={`Product: ${productComp ? productComp.name : wo.componentId}`}
         breadcrumbs={[
@@ -368,14 +369,6 @@ export default function ViewWorkOrderPage() {
         ]}
         actions={
           <div className="flex flex-wrap items-center gap-2 print:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/work-orders")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="w-4 h-4 mr-1.5" />
               Print Report

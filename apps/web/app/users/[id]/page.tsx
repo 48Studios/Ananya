@@ -1,12 +1,10 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   User,
   Shield,
-  ArrowLeft,
   CheckCircle2,
   Lock,
   Loader2,
@@ -102,16 +100,12 @@ export default function UserDetailPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        backHref="/users"
+        backLabel="Back to Users"
         title={`${userInfo.firstName} ${userInfo.lastName}`}
         description={`Work Email: ${userInfo.email} | Department: ${userInfo.department || "General"}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Link href="/users">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-1.5" />
-                Back to Users
-              </Button>
-            </Link>
             <PermissionGuard permission="Administration.Users">
               <Button size="sm" onClick={() => setIsResetOpen(true)}>
                 <Lock className="w-4 h-4 mr-1.5" />

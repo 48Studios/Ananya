@@ -1,1 +1,0 @@
-Next.js App Router client components, `@tanstack/react-table` for entity tables, `lucide-react` icons, and Tailwind utility classes; ML polling uses `window.setInterval` driven by constants from `@/lib/ml-ops`.

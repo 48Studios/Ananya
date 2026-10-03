@@ -1,1 +1,0 @@
-React Server Components client components (`"use client"`) rendering charts via `recharts` (`ResponsiveContainer`, `AreaChart`, `BarChart`, `PieChart`) and icons from `lucide-react`; styling relies on Tailwind utility classes and CSS custom properties (`var(--card)`, `var(--border)`, `var(--foreground)`).

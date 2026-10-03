@@ -93,7 +93,7 @@ export class BarcodesService {
     }
 
     // 1. Check if input is a structured QR payload: ANANYA:V1:TYPE:IDENTIFIER
-    if (code.startsWith('ANANYA:V1:')) {
+    if (code.toUpperCase().startsWith('ANANYA:V1:')) {
       const parts = code.split(':');
       if (parts.length >= 4) {
         const type = parts[2]?.toUpperCase();

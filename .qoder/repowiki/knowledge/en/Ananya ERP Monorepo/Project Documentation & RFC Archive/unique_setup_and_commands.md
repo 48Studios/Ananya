@@ -1,1 +1,0 @@
-New RFCs are created by adding a file named `<NNNN>-<slug>.md` under `docs/rfcs/` using the next unused number; numbers are never reused even if an RFC is rejected or superseded.

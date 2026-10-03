@@ -1,1 +1,0 @@
-Domain package exposing warehouse, stock-count, cycle-count, transfer, and policy entities with their repositories and validation errors for the inventory subsystem.

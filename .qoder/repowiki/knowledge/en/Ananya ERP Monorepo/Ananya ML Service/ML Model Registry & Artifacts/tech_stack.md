@@ -1,1 +1,0 @@
-Pickled scikit-learn model (`category_classifier.pkl`, likely a `hybrid_union_model`) paired with JSON manifests; no Python package or build step lives here.

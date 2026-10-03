@@ -1,4 +1,0 @@
-- Each domain entity lives in its own folder containing exactly four files: the entity class, a repository interface, a dedicated errors module, and an index barrel.
-- Persistence is modeled as interfaces named `<Entity>Repository` with methods like findById/findMany/save and optional generateNext*Number helpers, keeping storage implementation out of the domain layer.
-- Domain classes use a private constructor plus static factory methods (`create`, `rehydrate`) and throw typed error classes from the sibling `.errors.ts` file rather than throwing generic exceptions.
-- ID generation is delegated to `ObjectId.generate().value` from `@ananya/core` instead of local UUID logic, and timestamps are produced via `new Date()` at construction/mutation time.

@@ -1,5 +1,0 @@
-- Integration tests hit the FastAPI app through a `TestClient` fixture that yields a scoped client over `apps.ml.app.main.app`.
-- Corpus-driven tests load case tables from sibling JSON files (`category_resolution_cases.json`, `manufacturer_resolution_cases.json`) and assert expected resolution states rather than hard-coding individual inputs.
-- External dependencies (HTTP clients, PDF readers, pipeline steps) are replaced with `monkeypatch.setattr` or `unittest.mock.MagicMock` so tests remain deterministic and offline.
-- Regression baselines are asserted explicitly (e.g. legacy_correct == 15 vs v2_correct == 18, legacy top-one count == 4) to quantify improvement over prior behavior.
-- Per-test temporary directories are created via `tmp_path` and passed as `raw_storage_base` / `metadata_dir` to filesystem-backed components like `ResilientDownloader` and `AcquisitionStore`.

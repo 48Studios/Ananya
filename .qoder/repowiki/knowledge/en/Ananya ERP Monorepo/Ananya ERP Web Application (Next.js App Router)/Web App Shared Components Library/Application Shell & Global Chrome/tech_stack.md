@@ -1,1 +1,0 @@
-Next.js App Router client components (`"use client"`), `next-themes` for theme persistence, `lucide-react` icons, shadcn `CommandDialog` primitives, and the native Service Worker API for PWA registration at `/sw.js`.

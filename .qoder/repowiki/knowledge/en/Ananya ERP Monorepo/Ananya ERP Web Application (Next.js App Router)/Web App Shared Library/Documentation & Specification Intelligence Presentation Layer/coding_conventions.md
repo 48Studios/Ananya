@@ -1,6 +1,0 @@
-- Presentation logic is exported as pure functions operating on DTO slices (`Pick<...>`) rather than classes or hooks, keeping each rule independently unit-testable.
-- User-facing strings are centralized in `Record<string, string>` label maps (e.g. `ANALYSIS_STATUS_LABELS`, `INTELLIGENCE_STATUS_LABELS`, `EVIDENCE_ROLE_LABELS`) and resolved via lookup functions with fallback to the raw key.
-- Permission checks gate action visibility through explicit boolean predicates (`canApplySpecification`, `canDecideSpecification`, `deriveAnalyzeAction`) that return a reason string when an action is withheld.
-- Local state updates are expressed as immutable reducer-like functions that take the current map/state and return a new object, avoiding direct mutation of cached analysis or specification lists.
-- Shared review vocabulary (statuses, confidence levels, filter options) is defined once in `intelligence-review-filters.ts` and consumed by other surfaces instead of being re-declared per component.
-- Filter values use an `ALL` sentinel constant that is stripped to `undefined` before reaching the API, separating UI-only concepts from wire protocol values.

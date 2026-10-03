@@ -1,6 +1,0 @@
-- Each feature folder ships a matching `*.module.ts`, `*.controller.ts`, `*.service.ts`, `dtos.ts`, and a `*.service.spec.ts` test file.
-- Modules consistently import `ActivityModule` and `SecurityAuditModule` so services can emit activity events and audit records after mutations.
-- Services accept an optional `userId?: string` parameter and resolve it via a private `resolveUserId` helper that validates UUID format and falls back to the first user in the database when none is supplied.
-- Read endpoints return a seeded default row when the target record does not exist (organization profile, system settings, numbering series, feature flags, notification preferences, dashboard layout, workspace preferences).
-- Mutating endpoints call both `activityService.createEvent` (with a descriptive `eventType` like `SETTINGS_CHANGED` or `DATA_PACK_INSTALLED`) and `auditService.record` with a stable action key and category `Administration`.
-- DTO fields use `dto.field !== undefined ? dto.field : existing.field` style merging so omitted properties preserve their persisted defaults rather than being overwritten.

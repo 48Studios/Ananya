@@ -1,4 +1,0 @@
-- Spec files import the extended `test` and `expect` from `../../fixtures/test.fixture` instead of directly from `@playwright/test`, gaining access to injected page-object fixtures.
-- Each page object is a class that holds a `Page` reference plus `Locator` fields declared as `readonly`, with constructor-driven locator resolution and async action methods.
-- Test groups are organized with `test.describe` around a feature domain, and individual assertions use Playwright's built-in matchers (`toBeVisible`, `toHaveURL`, `toEqual`).
-- Accessibility tests instantiate `new AxeBuilder({ page })` with explicit WCAG tag arrays and assert that `accessibilityScanResults.violations` equals an empty array.

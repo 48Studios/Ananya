@@ -38,6 +38,19 @@ COPY --from=pruner /app/out/full/ .
 ENV NODE_ENV=production
 RUN pnpm turbo run build --filter=@ananya/api...
 
+# Bake the migration identity (Phases 3.4.11–3.4.12/D1): binds this image to
+# the source revision and release version it was built from, so setup.sh can
+# verify artifact-only upgrades against the intended release instead of
+# trusting a mutable image tag. GIT_SHA/RELEASE_VERSION arrive as build args
+# from CI (release.yml / docker.yml); local builds record "unknown" and fail
+# closed in artifact-only mode, which is the safe direction. The shared script
+# reads the journal + SQL files actually packaged in this build context and
+# fails the build when the tree is incomplete.
+ARG GIT_SHA=unknown
+ARG RELEASE_VERSION=unknown
+RUN node packages/database/scripts/bake-migration-identity.js packages/database \
+ && test -f packages/database/migration-identity.json || (echo "❌ migration-identity.json not generated!" && exit 1)
+
 # Clean non-runtime source files and test suites from workspace packages
 RUN find packages -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.mts" -o -name "*.cts" -o -name "*.md" -o -name "tsconfig*.json" \) -not -path "*/dist/*" -delete && \
     find packages -type d \( -name "src" -o -name "test" -o -name "tests" -o -name "__tests__" \) -exec rm -rf {} +
@@ -79,7 +92,8 @@ COPY --from=builder --chown=ananya:ananya /app/apps/api/dist ./apps/api/dist
 # Deterministic build verification
 RUN test -f apps/api/dist/src/main.js || (echo "❌ main.js not found in build output!" && exit 1) && \
     test -f packages/database/dist/setup/migrate.js || (echo "❌ migrate.js not found in build output!" && exit 1) && \
-    test -d packages/database/drizzle || (echo "❌ drizzle migrations directory not found in build output!" && exit 1)
+    test -d packages/database/drizzle || (echo "❌ drizzle migrations directory not found in build output!" && exit 1) && \
+    test -f packages/database/migration-identity.json || (echo "❌ migration-identity.json not found in build output!" && exit 1)
 
 USER ananya
 

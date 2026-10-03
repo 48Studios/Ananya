@@ -1,6 +1,0 @@
-- List pages load entities and related lookup data (suppliers, POs, components) concurrently via `Promise.all([...].catch(() => []))` and cache results in `Record<string, ...>` maps keyed by id for fast cell lookups.
-- Detail pages render loading/error boundaries using shared `<LoadingState>` and `<ErrorState>` components before returning the main content, with retry wired back to the fetch callback.
-- Destructive or state-changing actions open a `<ConfirmDialog>` with `variant="destructive"` and a `loading` flag bound to a single `actionBusy`/`actionLoading` state, then update local state optimistically after the API call resolves.
-- User feedback is delivered via inline banner notices (success/warning/error) rendered conditionally above the table or header, cleared after a short timeout or on next action.
-- Table columns use `meta.width` percentages and custom `cell` functions that wrap values in `<TooltipProvider>/<Tooltip>` when displaying truncated identifiers like PO numbers or invoice numbers.
-- Status values are rendered as colored badge components built inline with Tailwind classes (e.g., `bg-emerald-500/10 text-emerald-700 border border-emerald-500/20`) rather than via a shared enum-to-badge mapper.

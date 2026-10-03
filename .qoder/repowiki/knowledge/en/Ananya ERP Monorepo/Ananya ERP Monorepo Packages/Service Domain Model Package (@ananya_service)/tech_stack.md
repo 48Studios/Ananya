@@ -1,1 +1,0 @@
-TypeScript 5.9.2 compiled via `tsc -p tsconfig.build.json`; tests run with Vitest (`vitest.config.ts`); build/test orchestrated through Turborepo (`.turbo/` cache).

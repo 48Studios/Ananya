@@ -1,1 +1,0 @@
-Next.js App Router client pages providing the sales executive dashboard, sales order listing/detail views, and quotation listing/detail views with mock data.

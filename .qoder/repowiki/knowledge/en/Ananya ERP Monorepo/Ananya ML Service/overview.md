@@ -1,1 +1,0 @@
-End-to-end ML service that serves a FastAPI API over versioned category-classifier models and drives their collection, training, evaluation, and deployment through a shared file-based workspace.

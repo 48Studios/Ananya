@@ -803,13 +803,15 @@ describe('ML operations — training control plane', () => {
       expect(detail.dataset.recordCount).toBe(25);
       expect(detail.dataset.quarantineRecordCount).toBe(0);
       expect(detail.evaluation.candidateTop1Accuracy).toBe(0.6);
+      // The service echoes the runner's own threshold table entry
+      // (thresholdDetails) alongside the scalar threshold it derives from it.
       expect(detail.gates.gates).toEqual([
         {
           gate: 'accuracy_gate',
           passed: false,
           description: undefined,
           threshold: 0.7,
-          thresholdDetails: undefined,
+          thresholdDetails: { minimum: 0.7 },
           actualValue: undefined,
           failureReason: undefined,
         },

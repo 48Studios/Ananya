@@ -498,6 +498,8 @@ export default function SupplierReturnDetailPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        backHref="/supplier-returns"
+        backLabel="Back to Supplier Returns"
         title={returnDoc.returnNumber}
         description={`Supplier Material Return & Debit Memo Authorization • Status: ${returnDoc.status}`}
         actions={

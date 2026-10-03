@@ -1,1 +1,0 @@
-Pluggable collectors that ingest product records from manufacturer catalogs, distributor feeds, the Ananya ERP database, technical documents, and autonomous web crawling into normalized ProductRecord objects.

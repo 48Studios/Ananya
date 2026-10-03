@@ -1,1 +1,0 @@
-NestJS v11 + Express as the web framework; TypeScript with ts-jest for unit tests and Supertest/Jest for e2e; Drizzle ORM for database access via the shared `@ananya/database` package; class-validator/class-transformer for DTO validation; Jest for testing across all feature modules.

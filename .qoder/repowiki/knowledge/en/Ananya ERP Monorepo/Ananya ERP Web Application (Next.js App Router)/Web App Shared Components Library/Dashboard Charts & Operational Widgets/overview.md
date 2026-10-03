@@ -1,1 +1,0 @@
-Reusable Recharts-based chart widgets and Next.js dashboard cards that surface production, procurement, stock, and alert data on the web dashboard.

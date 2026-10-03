@@ -1,6 +1,6 @@
 [project]
 name = "ananya-ml"
-version = "1.0.0"
+version = "0.3.0"
 description = "Lightweight CPU-first ML Service for Ananya ERP"
 readme = "README.md"
 requires-python = ">=3.11"

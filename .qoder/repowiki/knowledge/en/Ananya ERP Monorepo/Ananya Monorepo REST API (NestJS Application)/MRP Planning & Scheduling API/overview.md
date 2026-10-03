@@ -1,1 +1,0 @@
-NestJS feature modules exposing REST endpoints to start planning runs and query the resulting material requirements, purchase/production recommendations, capacity plans, and planning messages.

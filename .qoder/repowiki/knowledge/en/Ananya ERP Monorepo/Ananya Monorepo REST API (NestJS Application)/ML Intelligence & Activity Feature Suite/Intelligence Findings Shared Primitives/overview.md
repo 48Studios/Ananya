@@ -1,1 +1,0 @@
-Subject-neutral primitives shared by all intelligence findings queues: canonical JSON fingerprinting, review lifecycle state/decision rules, and bounded apply-transaction timeouts.

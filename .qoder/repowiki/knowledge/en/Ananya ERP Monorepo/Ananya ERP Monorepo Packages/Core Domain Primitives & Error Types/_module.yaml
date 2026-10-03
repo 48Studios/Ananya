@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: shared_packages/core
-title: Core Domain Primitives & Error Types
-scope:
-    - packages/core/
-source_files: []
-depends_on: []
-related_to: []

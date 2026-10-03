@@ -1,1 +1,0 @@
-Run via the project venv: `./apps/ml/.venv/bin/python apps/ml/benchmarks/document_acquisition_benchmark.py --docs 24 --rate-delay 1.0 --net-latency 0.15 --document-workers 1 [--resume-run] [--json-out path]`. The duplicate benchmark runs directly with `python apps/ml/benchmarks/duplicate_benchmark.py` and writes its summary to `apps/ml/benchmarks/benchmark_results.json`.

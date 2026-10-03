@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Printer,
   MapPin,
   CheckCircle2,
@@ -55,7 +54,6 @@ function getStatusBadge(status: StockAdjustmentStatus) {
 
 export default function ViewStockAdjustmentPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params?.id as string;
 
   const [adj, setAdj] = React.useState<StockAdjustmentDto | null>(null);
@@ -164,6 +162,8 @@ export default function ViewStockAdjustmentPage() {
     <div className="space-y-6 print:space-y-4">
       {/* Header */}
       <PageHeader
+        backHref="/stock-adjustments"
+        backLabel="Back to Stock Adjustments"
         title={adj.adjustmentNumber}
         description={`Target Location: ${location?.name || adj.locationId}`}
         breadcrumbs={[
@@ -172,14 +172,6 @@ export default function ViewStockAdjustmentPage() {
         ]}
         actions={
           <div className="flex items-center gap-2 print:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/stock-adjustments")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back
-            </Button>
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="w-4 h-4 mr-1.5" />
               Print Report

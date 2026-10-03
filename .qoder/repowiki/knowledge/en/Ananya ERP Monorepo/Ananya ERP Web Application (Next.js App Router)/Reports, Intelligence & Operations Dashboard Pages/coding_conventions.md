@@ -1,6 +1,0 @@
-- Each page component declares `'use client'` at the top and manages loading/error state with local `useState` booleans plus a `LoadingState` / `ErrorState` fallback pattern before rendering content.
-- Data fetching is wrapped in a `React.useCallback` named `loadData` (or equivalent) invoked from a `React.useEffect` with `[loadData]` dependency, so the effect runs once on mount and re-runs only when the callback changes.
-- Parallel API calls use `Promise.all` or `Promise.allSettled`, and errors are normalized by checking `err instanceof Error` (or `ApiError`) before surfacing a user-facing message.
-- Report sub-pages compose a consistent visual stack: `PageHeader` → grid of `StatCard` KPIs → two `ChartCard`s holding a `BarChartWidget` and a `DonutChartWidget` → `ReportFilters` → `EntityDataTable` with per-row `<Link>` drill-downs.
-- Domain data is formatted through shared helpers (`formatNumber`, `formatCurrency`, `formatQuantity`, `formatDate`) rather than inline formatting logic inside JSX cells.
-- Write actions on the intelligence page go through a single `runAction` wrapper that sets `busy`/`actionError`/`notice` state, executes the mutation, and refreshes overview/models/runs afterward.

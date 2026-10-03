@@ -1,1 +1,0 @@
-Provides foundational domain primitives — a typed ObjectId value object and a hierarchy of domain-specific error classes — shared across the Ananya monorepo.

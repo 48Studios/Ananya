@@ -1,1 +1,0 @@
-NestJS feature modules with Drizzle ORM repositories; request validation via class-validator/class-transformer; direct database access from barcodes service against `@ananya/database` schema/query primitives.

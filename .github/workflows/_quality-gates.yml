@@ -24,6 +24,29 @@ jobs:
   quality-gates:
     name: Lint, Type Check, Test & Build
     runs-on: ubuntu-latest
+
+    # The @ananya/database schema suite asserts real PostgreSQL referential
+    # integrity (restrict/cascade foreign keys, partial unique indexes), so the
+    # gate needs a live database with every migration applied. The credentials
+    # are ephemeral to this job's service container.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ananya
+          POSTGRES_PASSWORD: ananya
+          POSTGRES_DB: ananya
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ananya -d ananya"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://ananya:ananya@localhost:5432/ananya
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -50,6 +73,9 @@ jobs:
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Apply Database Migrations
+        run: pnpm db:migrate
 
       - name: Lint & Type Check
         run: >-

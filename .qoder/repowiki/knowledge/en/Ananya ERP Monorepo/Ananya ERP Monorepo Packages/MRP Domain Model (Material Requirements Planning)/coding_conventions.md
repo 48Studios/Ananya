@@ -1,6 +1,0 @@
-- Each aggregate is defined in its own file with a private constructor, a static `create` factory that validates inputs and sets initial state, and a static `rehydrate` factory for deserialization from persisted shapes.
-- State is stored in underscore-prefixed private fields and exposed exclusively through read-only getters; mutation occurs only via explicit methods that enforce status-transition rules.
-- Validation failures throw a domain-specific `Invalid<X>Error` class whose `name` is set to match the aggregate, enabling callers to distinguish MRP validation errors from other exceptions.
-- Aggregate properties use discriminated union types (e.g. `PlanningRunStatus`, `PurchaseRecommendationStatus`, `RequirementSource`, `MessageSeverity`) rather than raw strings to constrain allowed values at the type level.
-- Each sub-package follows a uniform three-file layout: `<aggregate>.ts` (domain), `<aggregate>.repository.ts` (interface), and `index.ts` (barrel re-exporting both).
-- Aggregates derive derived invariants during construction — shortage quantity, utilization percentage, overload flag — so consumers read precomputed results instead of recomputing business logic.

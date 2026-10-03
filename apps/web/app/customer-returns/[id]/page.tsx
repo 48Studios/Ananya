@@ -1,10 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
 import { PageHeader } from "@/components/ui/page-header";
 
 export default function CustomerReturnDetailPage() {
@@ -13,16 +11,10 @@ export default function CustomerReturnDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Link href="/customer-returns">
-          <Button variant="ghost" size="xs">
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Customer Returns
-          </Button>
-        </Link>
-      </div>
 
       <PageHeader
+        backHref="/customer-returns"
+        backLabel="Back to Customer Returns"
         title={`Customer Return #${retId || "CR-2026-011"}`}
         description="Return inspection notes, disposition details, and credit note issuance."
       />

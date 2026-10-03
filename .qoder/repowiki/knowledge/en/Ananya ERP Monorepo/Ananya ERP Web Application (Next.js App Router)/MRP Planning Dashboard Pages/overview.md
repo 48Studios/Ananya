@@ -1,1 +1,0 @@
-Next.js App Router client pages that render the Material Requirements Planning dashboard, including gross requirements, planned production orders, capacity, purchases, and execution run details.

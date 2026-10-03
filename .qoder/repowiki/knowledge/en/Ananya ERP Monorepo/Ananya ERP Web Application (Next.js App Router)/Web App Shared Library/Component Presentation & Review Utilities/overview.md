@@ -1,1 +1,0 @@
-Pure, React-free presentation and state-derivation utilities for component documentation, ERP entity assignment, and the Component Intelligence review queue.

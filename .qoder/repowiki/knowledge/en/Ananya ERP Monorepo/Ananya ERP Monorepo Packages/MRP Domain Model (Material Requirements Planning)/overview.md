@@ -1,1 +1,0 @@
-Domain model for Material Requirements Planning that defines planning runs, material requirements, purchase and production recommendations, capacity plans, and planning messages with lifecycle invariants.

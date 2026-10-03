@@ -1,6 +1,0 @@
-- Each label template lives in its own file under `templates/` and exports a typed `{Name}LabelProps` interface plus a default function component that renders a fixed mm-sized sticker box.
-- New templates are added by declaring a member in the `LabelTemplate` union in `templates/registry.ts` and providing a corresponding entry in `TEMPLATE_OPTIONS`, making the picker a total record of the union.
-- Template selection is centralized in `label-preview.tsx` via explicit `if (template === '...')` branches rather than a lookup table, keeping the dispatcher readable and exhaustive.
-- Dialogs keep the rendered label faces in a `useRef<HTMLDivElement>` and pass the resulting DOM nodes directly to `printLabelDocument`, ensuring the printed output cannot drift from the on-screen preview.
-- QR-only templates are identified through `isQrOnlyTemplate` from the registry, which disables the barcode format selector in both single and batch print dialogs.
-- All user-facing labels and sizes are sourced from `TEMPLATE_OPTIONS` in the registry instead of being hard-coded in UI strings, keeping picker text and sticker dimensions in sync.

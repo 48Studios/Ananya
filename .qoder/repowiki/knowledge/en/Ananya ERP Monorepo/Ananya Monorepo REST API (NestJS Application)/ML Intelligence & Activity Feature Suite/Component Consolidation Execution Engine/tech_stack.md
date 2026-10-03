@@ -1,1 +1,0 @@
-NestJS service with Drizzle ORM (`@ananya/database`) for schema access and `DbExecutor`-scoped transactions; PostgreSQL `SELECT ... FOR UPDATE` row locks for deadlock-free concurrency control; raw SQL via `sql` template literal for polymorphic table updates where Drizzle's type-safe API does not cover them.

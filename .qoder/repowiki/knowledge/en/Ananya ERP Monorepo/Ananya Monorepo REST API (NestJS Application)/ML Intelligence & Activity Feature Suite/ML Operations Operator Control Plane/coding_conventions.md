@@ -1,6 +1,0 @@
-- Every route on the controller is decorated with `@UseGuards(MlAdminGuard)` so the entire ML operations surface is administrator-only rather than introducing a new permission.
-- State enums are declared as `as const` tuple arrays (e.g. `TRAINING_RUN_STATUSES`, `DEPLOYMENT_STATUSES`, `ML_OPS_REFUSAL_REASONS`) and typed via `(typeof X)[number]`, with helper functions like `isActiveTrainingRunStatus` derived from them.
-- Query DTOs are classes with `class-validator` decorators and `class-transformer` coercion, while response shapes are plain TypeScript interfaces — read models never carry validation decorators.
-- Operator mutations record their outcome through `SecurityAuditService.record` using the shared `ML_OPS_AUDIT_ACTIONS` constants under the `Inventory` audit category.
-- Confusional/refusal outcomes are surfaced via the domain-specific `MlOpsConflictError` extending `ConflictException` with a stable `reason` code, instead of ad-hoc 409 messages.
-- Database-level concurrency guarantees (single active training run, conditional finish) are enforced by partial unique indexes and `WHERE ... IN ACTIVE_STATUSES` clauses, with the repository translating Postgres unique violations into `ActiveTrainingRunExistsError`.

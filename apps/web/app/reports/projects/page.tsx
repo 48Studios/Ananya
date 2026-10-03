@@ -7,7 +7,6 @@ import {
   FolderKanban,
   Package,
   Layers,
-  ArrowLeft,
   ExternalLink,
   CheckCircle2,
   Eye,
@@ -205,16 +204,10 @@ export default function ProjectReportsPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        backHref="/reports"
+        backLabel="Back to Reports"
         title="Project Reports"
         description="Project material tracking, job site inventory allocations, and consumption balances."
-        actions={
-          <Link href="/reports">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back to Reports
-            </Button>
-          </Link>
-        }
       />
 
       {/* KPI Cards */}

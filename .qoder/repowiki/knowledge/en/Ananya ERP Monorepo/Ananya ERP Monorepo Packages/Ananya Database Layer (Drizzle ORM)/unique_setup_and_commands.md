@@ -1,1 +1,0 @@
-Environment requires `DATABASE_URL` in `.env`. Package scripts: `pnpm db:generate` (generate SQL from schema), `pnpm db:push` (push schema to DB), `pnpm db:migrate` (apply versioned migrations), `pnpm db:setup` (builds then runs `dist/setup/setup.js`), `pnpm db:bootstrap` (runs seed roles/settings), `pnpm db:studio` (Drizzle Studio UI), `pnpm db:check` (schema drift check).

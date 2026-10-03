@@ -1,1 +1,0 @@
-Visual regression snapshots are stored under `tests/e2e/visual-regression.spec.ts-snapshots/` and are platform-scoped (e.g. `*-chromium-darwin.png`, `*-Mobile-Safari-darwin.png`), so snapshot updates may need to be run per browser/platform combination.

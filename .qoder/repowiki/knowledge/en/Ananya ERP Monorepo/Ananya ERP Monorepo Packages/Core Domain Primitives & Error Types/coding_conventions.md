@@ -1,4 +1,0 @@
-- Domain errors form a single inheritance tree rooted at `DomainError`, with each specific error class being a thin subclass that forwards its message to `super(message)`.
-- Value objects are implemented as immutable classes with a private backing field (e.g. `_value`) exposed only through getters or dedicated methods like `toString()`/`equals()`.
-- Public APIs are created via static factory methods (`ObjectId.create`, `ObjectId.generate`) rather than exposing raw constructors directly.
-- Each source file is self-contained and re-exported through a barrel index (`src/index.ts`, `src/errors/index.ts`) so consumers import from the package root.

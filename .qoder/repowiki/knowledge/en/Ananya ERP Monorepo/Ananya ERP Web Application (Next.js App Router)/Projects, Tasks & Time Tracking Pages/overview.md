@@ -1,1 +1,0 @@
-Next.js App Router client pages for managing projects (with material allocation/issue/return), operational tasks, and employee time-entry logs.

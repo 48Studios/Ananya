@@ -1,1 +1,0 @@
-TypeScript library built with `tsc -p tsconfig.build.json`, tested with Vitest (`vitest.config.ts`), and published from `dist/index.js` with types resolved from `src/index.ts`; depends on `@ananya/core` for shared `ObjectId` generation.

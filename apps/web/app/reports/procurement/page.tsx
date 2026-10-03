@@ -8,7 +8,6 @@ import {
   Truck,
   DollarSign,
   FileCheck,
-  ArrowLeft,
   ExternalLink,
   Eye,
 } from "lucide-react";
@@ -228,16 +227,10 @@ export default function ProcurementReportsPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        backHref="/reports"
+        backLabel="Back to Reports"
         title="Procurement Reports"
         description="Purchase order breakdown, vendor spend performance, and goods receipt metrics."
-        actions={
-          <Link href="/reports">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back to Reports
-            </Button>
-          </Link>
-        }
       />
 
       {/* KPI Cards */}

@@ -1,1 +1,0 @@
-scikit-learn (`TfidfVectorizer`, `LogisticRegression`, `Pipeline`, `FeatureUnion`) for feature extraction and classification; `numpy` for top-k ranking; `pickle` for model serialization; `datetime`/`json` for artifact metadata.

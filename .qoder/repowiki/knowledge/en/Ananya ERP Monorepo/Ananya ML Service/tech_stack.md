@@ -1,1 +1,0 @@
-FastAPI + Pydantic for the HTTP surface; scikit-learn / pickle-based hybrid union classifier stored as `.pkl`; YAML-based source configuration in `training/config/sources.yaml`; pytest for tests and benchmarks.

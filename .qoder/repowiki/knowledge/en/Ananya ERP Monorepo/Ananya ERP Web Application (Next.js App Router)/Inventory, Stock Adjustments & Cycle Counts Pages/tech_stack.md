@@ -1,1 +1,0 @@
-Next.js App Router client components, TanStack Table `ColumnDef` for table columns, Lucide icons, and a set of internal API client modules under `@/lib/api/*` exposing typed DTOs.

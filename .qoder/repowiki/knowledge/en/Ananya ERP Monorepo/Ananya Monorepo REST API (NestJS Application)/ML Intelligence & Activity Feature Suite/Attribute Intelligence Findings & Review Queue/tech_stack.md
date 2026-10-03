@@ -1,1 +1,0 @@
-NestJS `@Injectable` services with Drizzle ORM queries against Postgres (`@ananya/database`); uses JSONB metadata for finding payloads and expected-state snapshots; integrates with the shared `intelligence-findings` status machine (`canDecide`, `mapDecisionToFeedbackAction`).

@@ -604,11 +604,13 @@ describe('Consolidation preview (read-only, Pass 6A)', () => {
     }
   });
 
-  it('guards against unauthenticated access to the preview route only', async () => {
+  it('requires authentication on the read routes under the global fail-closed guard', async () => {
     if (!hasDbUrl) return;
 
-    // The read routes stay open, matching the rest of the API. This asserts the
-    // guard is scoped to the preview route rather than applied globally.
+    // The global fail-closed AuthGuard (APP_GUARD) requires a session on every
+    // non-@Public() route, including these reads. The preview route additionally
+    // requires Inventory.Update via ComponentWriteGuard; this asserts the two
+    // layers compose rather than the guard being scoped to one route.
     const application = await NestFactory.create(AppModule, { logger: false });
     await application.init();
     const server = application.getHttpServer() as Parameters<typeof request>[0];
@@ -616,7 +618,7 @@ describe('Consolidation preview (read-only, Pass 6A)', () => {
 
     try {
       const list = await http.get('/ml/components/review-queue?pageSize=1');
-      expect(list.status).toBe(200);
+      expect(list.status).toBe(401);
     } finally {
       await application.close();
     }

@@ -1,1 +1,0 @@
-React Server/Client components with Next.js; QR codes rendered as inline SVG paths via the `qrcode` library; linear barcodes via a shared `BarcodeViewer`; print output delegated to `@/lib/print/print-document` which clones the preview DOM nodes into a printable document.

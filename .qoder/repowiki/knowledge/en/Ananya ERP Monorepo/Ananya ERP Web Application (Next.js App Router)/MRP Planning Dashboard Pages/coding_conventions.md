@@ -1,5 +1,0 @@
-- Each route file declares `'use client'` at the top and exports a default function component that owns its own loading/empty state via `useState`.
-- Data fetching is performed inside a `useEffect` that calls the appropriate `mrpApi` method, setting items on success and clearing them on error before marking loading false in `finally`.
-- Tables are built by defining a `ColumnDef<T>[]` array with `accessorKey` plus custom `cell` renderers that fall back to `-` or `0` for nullish values.
-- Summary metrics are computed with `React.useMemo` over fetched arrays (e.g. shortage counts, total suggested quantities) and displayed alongside the table via `StatCard` components.
-- User feedback after mutations uses a local `{ message, type }` banner state rendered inside the `EntityDataTable.notice` prop and auto-dismissed after a timeout.

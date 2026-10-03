@@ -6,6 +6,7 @@
 - [ ] package.json created
 - [ ] Correct package name
 - [ ] Version defined
+- [ ] Explicitly declares dependencies on all consumed internal packages (no implicit hoisting)
 
 ## TypeScript
 

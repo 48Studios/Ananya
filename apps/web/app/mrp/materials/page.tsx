@@ -76,6 +76,8 @@ export default function MrpMaterialsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        backHref="/mrp"
+        backLabel="Back to MRP"
         title="MRP Material Shortage Matrix"
         description="Review time-phased component shortages, lead time horizons, and auto-generated purchase requisitions."
       />

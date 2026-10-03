@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   AlertOctagon,
   FileSpreadsheet,
-  ArrowLeft,
   ExternalLink,
   Eye,
 } from "lucide-react";
@@ -201,16 +200,10 @@ export default function ManufacturingReportsPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        backHref="/reports"
+        backLabel="Back to Reports"
         title="Manufacturing Reports"
         description="Production execution, output yield, material consumption, and scrap analysis."
-        actions={
-          <Link href="/reports">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back to Reports
-            </Button>
-          </Link>
-        }
       />
 
       {/* KPI Cards */}

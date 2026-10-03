@@ -6,9 +6,9 @@ This document describes how to prepare a local development environment for Anany
 
 Install the following software before continuing:
 
-- Node.js 20 LTS (or newer)
-- pnpm
-- Docker
+- Node.js `22.14.0` (or any version satisfying `>=22.12.0`, see `.nvmrc`)
+- pnpm `9.0.0`
+- Docker and Docker Compose
 - Git
 
 ## Clone the Repository
