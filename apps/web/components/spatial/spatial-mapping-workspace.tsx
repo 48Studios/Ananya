@@ -507,25 +507,26 @@ export function SpatialMappingWorkspace({
                         )}
                       </td>
                       <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
-                            size="xs"
-                            variant="outline"
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => onOpenMapping(child.location.id)}
-                            className="h-6 px-2 text-[11px] gap-1"
+                            title={child.isMapped ? "Edit mapping" : "Map anchor"}
+                            aria-label={
+                              child.isMapped ? "Edit mapping" : "Map anchor"
+                            }
                           >
-                            <Edit3 className="size-3" />
-                            <span>{child.isMapped ? "Edit" : "Map"}</span>
+                            <Edit3 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                           </Button>
                           <Button
-                            size="xs"
                             variant="ghost"
+                            size="icon-xs"
                             onClick={() => onSelectLocation(child.location.id)}
-                            className="h-6 px-2 text-[11px] gap-1"
-                            title="Select in Workspace"
+                            title="Select in workspace"
+                            aria-label="Select in workspace"
                           >
-                            <span>Inspect</span>
-                            <ArrowRight className="size-3" />
+                            <ArrowRight className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                           </Button>
                         </div>
                       </td>

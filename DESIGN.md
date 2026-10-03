@@ -464,6 +464,15 @@ Rows should never appear cramped.
 
 Avoid heavy grid lines.
 
+Row actions:
+
+- Every row or item action is icon-only.
+- Use `variant="ghost"` with `size="icon-xs"` and a `w-3.5 h-3.5` icon.
+- Every icon-only action carries a `title` and an `aria-label`.
+- Group row actions at the trailing edge; keep destructive actions in the destructive colour.
+- Labelled buttons belong on page headers, panels and dialogs — never inside table rows.
+- A table nested inside a card or panel uses `borderless` so its toolbar, body and pagination read as part of the parent surface instead of a card inside a card.
+
 ---
 
 # Forms

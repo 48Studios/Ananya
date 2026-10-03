@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Package, Plus, CheckCircle2 } from "lucide-react";
+import { Package, Plus, CheckCircle2, Eye, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -129,21 +129,31 @@ export default function MaterialConsumptionPage() {
       id: "actions",
       header: () => <span className="text-right block w-full">Actions</span>,
       meta: {
-        width: "10%",
+        width: "8%",
         headerClassName: "text-right",
         cellClassName: "text-right",
       },
-      cell: ({ row }) => (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setManagingId(row.original.id)}
-          >
-            {row.original.status === "DRAFT" ? "Issue lines" : "View lines"}
-          </Button>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const isDraft = row.original.status === "DRAFT";
+        const label = isDraft ? "Manage issue lines" : "View issue lines";
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              title={label}
+              aria-label={label}
+              onClick={() => setManagingId(row.original.id)}
+            >
+              {isDraft ? (
+                <ListPlus className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+              ) : (
+                <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+              )}
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 

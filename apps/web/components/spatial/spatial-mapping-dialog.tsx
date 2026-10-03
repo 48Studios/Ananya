@@ -11,6 +11,7 @@ import {
   Trash2,
   Save,
   Grid,
+  Link2,
   Info,
 } from "lucide-react";
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -657,8 +658,10 @@ export function SpatialMappingDialog({
                                 <td className="py-2 px-3 text-right">
                                   <div className="flex items-center justify-end gap-1">
                                     <Button
-                                      size="xs"
-                                      variant="default"
+                                      variant="ghost"
+                                      size="icon-xs"
+                                      title="Assign anchor"
+                                      aria-label="Assign anchor"
                                       disabled={
                                         actionLoading ||
                                         !selectedAnchorId ||
@@ -666,13 +669,14 @@ export function SpatialMappingDialog({
                                       }
                                       onClick={() => handleMapChildAnchor(child.location.id)}
                                     >
-                                      Assign
+                                      <Link2 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                                     </Button>
                                     {child.node && (
                                       <Button
-                                        size="xs"
                                         variant="ghost"
+                                        size="icon-xs"
                                         title="Unmap child"
+                                        aria-label="Unmap child"
                                         disabled={actionLoading}
                                         onClick={() => handleUnmapChild(child.node!.id)}
                                       >

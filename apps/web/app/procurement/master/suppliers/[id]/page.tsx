@@ -11,6 +11,7 @@ import {
   Star,
   Users,
   CheckCircle2,
+  Eye,
   Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -481,8 +482,13 @@ export default function ViewSupplierPage() {
                 width: "10%",
                 render: (mapping) => (
                   <Link href={`/inventory/components/${mapping.componentId}`}>
-                    <Button variant="ghost" size="xs">
-                      View
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="View component"
+                      aria-label="View component"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                     </Button>
                   </Link>
                 ),

@@ -315,6 +315,7 @@ export default function MrpRunDetailPage() {
             },
           ]}
           searchPlaceholder="Search planning messages..."
+          borderless
           loading={messages.status === "loading"}
           emptyTitle="No planning messages"
           emptyMessage="This run has not produced any planning log messages."
@@ -409,6 +410,7 @@ export default function MrpRunDetailPage() {
             },
           ]}
           searchPlaceholder="Search gross requirements..."
+          borderless
           loading={requirements.status === "loading"}
           emptyTitle="No gross requirements"
           emptyMessage="This run recorded no material requirements for the planning horizon."
@@ -468,6 +470,7 @@ export default function MrpRunDetailPage() {
               },
             ]}
             searchPlaceholder="Search planned purchase orders..."
+            borderless
             loading={purchases.status === "loading"}
             emptyTitle="No purchase recommendations"
             emptyMessage="No purchased components were short inside this run's horizon."
@@ -526,6 +529,7 @@ export default function MrpRunDetailPage() {
               },
             ]}
             searchPlaceholder="Search planned production orders..."
+            borderless
             loading={production.status === "loading"}
             emptyTitle="No production recommendations"
             emptyMessage="No manufactured items were short inside this run's horizon."

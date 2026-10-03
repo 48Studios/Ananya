@@ -17,7 +17,7 @@ export interface LocateButtonProps {
   componentName?: string;
   unit?: string;
   variant?: "default" | "outline" | "secondary" | "ghost";
-  size?: "default" | "sm" | "xs" | "icon";
+  size?: "default" | "sm" | "xs" | "icon" | "icon-xs";
   className?: string;
   children?: React.ReactNode;
   onLocateError?: (error: string) => void;

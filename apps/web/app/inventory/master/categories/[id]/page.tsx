@@ -9,6 +9,7 @@ import {
   FolderTree,
   Package,
   CheckCircle2,
+  Eye,
   Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -346,8 +347,13 @@ export default function ViewCategoryPage() {
                 <div className="flex items-center gap-3">
                   <RecordStatusBadge isActive={child.isActive} />
                   <Link href={`/inventory/master/categories/${child.id}`}>
-                    <Button variant="ghost" size="xs">
-                      View
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="View category"
+                      aria-label="View category"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                     </Button>
                   </Link>
                 </div>
@@ -421,8 +427,13 @@ export default function ViewCategoryPage() {
                 width: "12%",
                 render: (component) => (
                   <Link href={`/inventory/components/${component.id}`}>
-                    <Button variant="ghost" size="xs">
-                      View
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="View component"
+                      aria-label="View component"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                     </Button>
                   </Link>
                 ),

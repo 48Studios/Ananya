@@ -788,9 +788,10 @@ export default function ViewComponentPage() {
                     componentSku={component.sku}
                     componentName={component.name}
                     unit={component.unit}
-                    size="xs"
-                    className="h-7 gap-1 text-xs"
-                  />
+                    size="icon-xs"
+                  >
+                    <span className="sr-only">Locate in storage</span>
+                  </LocateButton>
                 ),
               },
             ]}

@@ -11,6 +11,7 @@ import {
   Printer,
   Package,
   ExternalLink,
+  Eye,
   Info,
   LayoutGrid,
   List,
@@ -466,21 +467,26 @@ export default function ViewLocationPage() {
               render: (projection) => {
                 const component = componentMap.get(projection.componentId);
                 return (
-                  <div className="flex items-center justify-end gap-1.5">
+                  <div className="flex items-center justify-end gap-1">
                     {component ? (
                       <Button
                         variant="ghost"
-                        size="xs"
+                        size="icon-xs"
                         title="Print component label"
+                        aria-label="Print component label"
                         onClick={() => setSelectedCompForPrint(component)}
                       >
-                        <Printer className="size-3.5 mr-1 text-muted-foreground" />
-                        Label
+                        <Printer className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                       </Button>
                     ) : null}
                     <Link href={`/inventory/components/${projection.componentId}`}>
-                      <Button variant="outline" size="xs">
-                        View
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="View component"
+                        aria-label="View component"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                       </Button>
                     </Link>
                   </div>
@@ -604,8 +610,13 @@ export default function ViewLocationPage() {
                 width: "12%",
                 render: (child) => (
                   <Link href={`/inventory/locations/${child.id}`}>
-                    <Button variant="ghost" size="xs">
-                      View
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="View sub-location"
+                      aria-label="View sub-location"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                     </Button>
                   </Link>
                 ),

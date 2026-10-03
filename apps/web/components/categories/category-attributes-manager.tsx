@@ -15,6 +15,7 @@ import {
   Check,
   CheckSquare,
   Square,
+  Pencil,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -718,18 +719,20 @@ export function CategoryAttributesManager({
                   <div className="flex items-center justify-end gap-1">
                     <Button
                       variant="ghost"
-                      size="xs"
+                      size="icon-xs"
                       onClick={() => handleOpenAssign(item)}
-                      className="text-muted-foreground hover:text-foreground"
+                      title="Edit specification"
+                      aria-label="Edit specification"
                     >
-                      Edit
+                      <Pencil className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                     </Button>
                     <Button
                       variant="ghost"
-                      size="xs"
+                      size="icon-xs"
                       onClick={() => setUnassignTarget(item)}
                       className="text-destructive hover:bg-destructive/10"
                       title="Unassign specification"
+                      aria-label="Unassign specification"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
