@@ -71,7 +71,6 @@ export type ConsolidationConflictCode =
   | 'SUPPLIER_REFERENCE_DUPLICATION'
   // Inventory and operations
   | 'INVENTORY_PRESENT'
-  | 'INITIAL_STOCK_UNSUPPORTED'
   | 'BATCH_COLLISION'
   | 'SERIAL_COLLISION'
   | 'ACTIVE_RESERVATION_REQUIRES_POLICY'

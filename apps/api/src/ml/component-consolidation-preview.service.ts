@@ -12,7 +12,6 @@ import {
   componentIntelligenceFindings,
   components,
   inventoryProjections,
-  inventoryTransactions,
   manufacturers,
 } from '@ananya/database/schema';
 import { inArray, or, sql } from '@ananya/database/query';
@@ -102,11 +101,6 @@ const CONFLICT_SEVERITIES: Record<
   SUPPLIER_REFERENCE_DUPLICATION: 'BLOCKING',
   // The ledger move is a supported operation; this is reported, not blocking.
   INVENTORY_PRESENT: 'WARNING',
-  // Opening balances recorded as `InitialStock` are invisible to
-  // `CalculateInventoryProjection`, which is the calculator behind the
-  // projections that reservations, MRP and consolidation itself read. The
-  // quantity therefore cannot be moved, so this blocks.
-  INITIAL_STOCK_UNSUPPORTED: 'BLOCKING',
   BATCH_COLLISION: 'BLOCKING',
   SERIAL_COLLISION: 'BLOCKING',
   // Open reservations are repointed; the adapter proves the availability
@@ -155,9 +149,6 @@ const UNRESOLVED_CONFLICT_CODES: ReadonlySet<ConsolidationConflictCode> =
     'MANUFACTURER_CONFLICT',
     'CATEGORY_INCOMPATIBLE',
     'SUPPLIER_REFERENCE_DUPLICATION',
-    // No reviewer decision can make this safe: the underlying inventory model
-    // would have to change first, which is an ERP-wide decision.
-    'INITIAL_STOCK_UNSUPPORTED',
   ]);
 
 /**
@@ -606,40 +597,6 @@ export class ComponentConsolidationPreviewService {
           canonicalComponentId: canonicalComponent.id,
           sourceComponentId: sourceComponent.id,
           affectedCount: inventory.byLocation.length,
-        }),
-      );
-    }
-
-    // Opening balances recorded as `InitialStock`.
-    //
-    // `CalculateInventoryProjection` has no `InitialStock` case, so such entries
-    // are permanently invisible to `inventory_projections` — the read model that
-    // reservations, MRP and consolidation itself use. A rebuild does not help.
-    // Consolidation reads source balances from projections, so it would post
-    // nothing and strand the quantity on a retired component.
-    //
-    // This is not something a reviewer can decide around, so it blocks.
-    const initialStock = await this.findInitialStockRows(
-      [canonicalComponent.id, sourceComponent.id],
-      executor,
-    );
-    if (initialStock.total > 0) {
-      const side =
-        initialStock.canonicalCount > 0 && initialStock.sourceCount > 0
-          ? 'both records'
-          : initialStock.sourceCount > 0
-            ? 'the record being retired'
-            : 'the surviving record';
-      push(
-        this.conflict({
-          code: 'INITIAL_STOCK_UNSUPPORTED',
-          title: 'Opening balances recorded as InitialStock cannot be moved',
-          description: `${initialStock.total} InitialStock ledger entr${initialStock.total === 1 ? 'y' : 'ies'} exist on ${side}, holding ${initialStock.quantity} unit(s) in total. The projection calculator behind inventory_projections has no InitialStock case, so those quantities are invisible to the stock model that reservations, MRP and consolidation read — and a rebuild cannot recover them. Consolidating would retire the component while its opening balance stayed behind, so execution is refused until the opening balance is represented as a ledger movement the projection model understands.`,
-          entityType: 'inventory_transactions',
-          entityIds: initialStock.sampleIds,
-          canonicalComponentId: canonicalComponent.id,
-          sourceComponentId: sourceComponent.id,
-          affectedCount: initialStock.total,
         }),
       );
     }
@@ -1283,66 +1240,6 @@ export class ComponentConsolidationPreviewService {
       sql`select count(*)::int as total from inventory_transactions where component_id = ${componentId}`,
     );
     return Number(rows.rows[0]?.total ?? 0);
-  }
-
-  /**
-   * Finds `InitialStock` ledger entries for either component.
-   *
-   * Why this exists: `CalculateInventoryProjection` has no `InitialStock` case,
-   * so such entries never reach `inventory_projections`. That table is the stock
-   * read model for `ReservationsService.getAvailableQuantity`, the MRP planner
-   * and this consolidation feature. Consolidation reads source balances from
-   * projections, so an opening balance recorded this way would be silently
-   * stranded on the retired component. Detecting it lets execution refuse
-   * instead.
-   *
-   * Deliberately reads the ledger rather than projections, because projections
-   * are exactly what cannot see these rows.
-   */
-  private async findInitialStockRows(
-    componentIds: string[],
-    executor: DbExecutor,
-  ): Promise<{
-    total: number;
-    quantity: number;
-    canonicalCount: number;
-    sourceCount: number;
-    sampleIds: string[];
-  }> {
-    const unique = [...new Set(componentIds.filter((id) => Boolean(id)))];
-    if (unique.length === 0) {
-      return {
-        total: 0,
-        quantity: 0,
-        canonicalCount: 0,
-        sourceCount: 0,
-        sampleIds: [],
-      };
-    }
-
-    const rows = await executor.execute<{
-      component_id: string;
-      id: string;
-      quantity: string;
-    }>(
-      sql`select id, component_id, quantity from inventory_transactions where transaction_type = 'InitialStock' and ${inArray(inventoryTransactions.componentId, unique)} order by id`,
-    );
-
-    const [canonicalId] = unique;
-    const canonicalCount = rows.rows.filter(
-      (row) => row.component_id === canonicalId,
-    ).length;
-
-    return {
-      total: rows.rows.length,
-      quantity: rows.rows.reduce(
-        (total, row) => total + Number(row.quantity ?? 0),
-        0,
-      ),
-      canonicalCount,
-      sourceCount: rows.rows.length - canonicalCount,
-      sampleIds: rows.rows.slice(0, 5).map((row) => row.id),
-    };
   }
 
   private async buildAttributes(

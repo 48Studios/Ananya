@@ -210,4 +210,38 @@ export class Reservation {
     this._status = ReservationStatus.Expired;
     this.updatedAt = new Date();
   }
+
+  /**
+   * Public JSON contract for API consumers. Status is stored privately, so
+   * without this the payload would expose `_status` and every client reading
+   * `reservation.status` (list badges, counters, action gating) would see
+   * `undefined`.
+   */
+  public toJSON(): {
+    id: string;
+    reservationNumber: string;
+    reservationType: ReservationType;
+    referenceDocument?: string | null;
+    reservedBy: string;
+    notes?: string | null;
+    lines: ReservationLineProps[];
+    status: ReservationStatus;
+    createdAt: Date;
+    updatedAt: Date;
+    expiresAt?: Date | null;
+  } {
+    return {
+      id: this.id,
+      reservationNumber: this.reservationNumber,
+      reservationType: this.reservationType,
+      referenceDocument: this.referenceDocument,
+      reservedBy: this.reservedBy,
+      notes: this.notes,
+      lines: this.lines,
+      status: this._status,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+      expiresAt: this.expiresAt,
+    };
+  }
 }

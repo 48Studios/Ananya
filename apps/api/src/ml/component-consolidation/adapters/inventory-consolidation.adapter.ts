@@ -6,8 +6,6 @@ import {
   type InventoryProjectionRepository,
   type InventoryTransactionRepository,
 } from '@ananya/inventory';
-import type { DbExecutor } from '@ananya/database';
-import { sql } from '@ananya/database/query';
 import { ConsolidationAdapterBlockedError } from '../component-consolidation.errors';
 import type {
   ConsolidationAdapter,
@@ -53,7 +51,7 @@ export class InventoryConsolidationAdapter implements ConsolidationAdapter {
   async apply(
     context: ConsolidationContext,
   ): Promise<ConsolidationAdapterOutcome> {
-    const { canonical, sources, executor } = context;
+    const { canonical, sources } = context;
     const warnings: string[] = [];
     const entries: Array<{
       action: 'ISSUE_SOURCE' | 'RECEIPT_CANONICAL';
@@ -82,16 +80,6 @@ export class InventoryConsolidationAdapter implements ConsolidationAdapter {
           },
         );
       }
-
-      // Defence in depth. The preview already refuses when an InitialStock
-      // entry exists, but this adapter must not be able to strand an opening
-      // balance even if it were ever invoked without that preflight.
-      //
-      // `CalculateInventoryProjection` has no `InitialStock` case, so the
-      // quantity never reaches `inventory_projections` — the table this adapter
-      // reads source balances from. The loop below would therefore find nothing
-      // to move and retire the component with its opening balance left behind.
-      await this.assertNoInitialStock(source.id, source.sku, executor);
 
       const sourceBalances = await this.projections.findManyByComponent(
         source.id,
@@ -235,49 +223,6 @@ export class InventoryConsolidationAdapter implements ConsolidationAdapter {
       locationId,
     );
     return projection?.quantity ?? 0;
-  }
-
-  /**
-   * Refuses when the component has an `InitialStock` ledger entry.
-   *
-   * `CalculateInventoryProjection` has no case for `InitialStock`, so such an
-   * entry is permanently invisible to `inventory_projections`. This adapter
-   * reads source balances from projections, so it would post nothing and retire
-   * the component with the opening balance stranded.
-   *
-   * Refusing is the correct response: representing that stock correctly is an
-   * inventory-modelling decision that affects reservations, MRP and every stock
-   * report, not something consolidation may decide unilaterally.
-   */
-  private async assertNoInitialStock(
-    componentId: string,
-    sku: string,
-    executor: DbExecutor,
-  ): Promise<void> {
-    const rows = await executor.execute<{
-      id: string;
-      quantity: string;
-    }>(
-      sql`select id, quantity from inventory_transactions where component_id = ${componentId} and transaction_type = 'InitialStock' order by id`,
-    );
-
-    if (rows.rows.length === 0) return;
-
-    const quantity = rows.rows.reduce(
-      (total, row) => total + Number(row.quantity ?? 0),
-      0,
-    );
-
-    throw new ConsolidationAdapterBlockedError(
-      this.id,
-      `${sku} has ${rows.rows.length} InitialStock ledger entr${rows.rows.length === 1 ? 'y' : 'ies'} holding ${quantity} unit(s). Those quantities are invisible to inventory_projections, so consolidation cannot move them and would retire the component with its opening balance left behind. Consolidation was rolled back.`,
-      {
-        componentId,
-        initialStockEntryCount: rows.rows.length,
-        initialStockQuantity: quantity,
-        sampleIds: rows.rows.slice(0, 5).map((row) => row.id),
-      },
-    );
   }
 
   /**

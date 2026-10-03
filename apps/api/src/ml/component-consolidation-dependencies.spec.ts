@@ -76,6 +76,17 @@ const PHASE_0_POLYMORPHIC_REFERENCES: readonly string[] = [
   'user_favorites',
 ];
 
+/**
+ * Inventory alerting added a real foreign key from `inventory_alerts` to
+ * `components.id`. Registered for the same reason as the references above: an
+ * unregistered component reference must fail closed, so the live coverage check
+ * (`inspectDependencyCoverage`) would otherwise report it as drift and block
+ * consolidation.
+ */
+const INVENTORY_ALERT_REFERENCES: readonly string[] = [
+  'inventory_alerts.component_id',
+];
+
 const VALID_CLASSIFICATIONS: readonly DependencyClassification[] = [
   'MUST_PRESERVE',
   'MUST_REPOINT',
@@ -126,8 +137,27 @@ describe('Component dependency registry (Pass 6A, extended in Pass 6B)', () => {
     expect(registered).toHaveLength(
       PHASE_0_FK_REFERENCES.length +
         CONSOLIDATION_OWNED_REFERENCES.length +
-        DOCUMENTATION_INTELLIGENCE_REFERENCES.length,
+        DOCUMENTATION_INTELLIGENCE_REFERENCES.length +
+        INVENTORY_ALERT_REFERENCES.length,
     );
+  });
+
+  it('treats inventory alerts as derived state that is recalculated, not repointed', () => {
+    // Alerts describe current balances. A retired component's open alerts are
+    // closed by the next evaluation (see INVENTORY_ALERT_REFERENCES comment);
+    // resolved alerts are history and keep their original component identity.
+    const alerts = ALL_DEPENDENCY_ADAPTERS.find(
+      (entry) => entry.id === 'inventory_alerts',
+    );
+    expect(alerts).toBeDefined();
+    expect(alerts!.classification).toBe('MUST_RECONCILE');
+    expect(alerts!.executionSupport).toBe('SUPPORTED');
+    expect(alerts!.temporality).toBe('MIXED');
+    expect(alerts!.tables).toEqual([
+      { table: 'inventory_alerts', column: 'component_id' },
+    ]);
+    expect(alerts!.supportNote).toMatch(/closes open alerts/i);
+    expect(isRegisteredDependencyId('inventory_alerts')).toBe(true);
   });
 
   it('treats datasheet analysis evidence as a supported repoint', () => {
@@ -341,9 +371,10 @@ describe('Component dependency registry (Pass 6A, extended in Pass 6B)', () => {
     // because findings carry both sides of a pair and two tables reference
     // components through a `product_id` column), plus the 3 consolidation-owned
     // references added in Pass 6B, plus the documentation intelligence analysis
-    // reference added in Pass 2. Plus 4 polymorphic systems.
-    expect(COMPONENT_DEPENDENCY_ADAPTERS).toHaveLength(37);
+    // reference added in Pass 2, plus the inventory alert reference added with
+    // inventory alerting. Plus 4 polymorphic systems.
+    expect(COMPONENT_DEPENDENCY_ADAPTERS).toHaveLength(38);
     expect(POLYMORPHIC_DEPENDENCY_ADAPTERS).toHaveLength(4);
-    expect(ALL_DEPENDENCY_ADAPTERS).toHaveLength(41);
+    expect(ALL_DEPENDENCY_ADAPTERS).toHaveLength(42);
   });
 });

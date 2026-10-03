@@ -203,29 +203,32 @@ Guard rails that block rather than guess:
   rolled back — consolidation must not claim it emptied a component when it did
   not.
 
-### `InitialStock` is unsupported and blocks
+### `InitialStock` opening balances move like any other stock (resolved)
 
 `CalculateInventoryProjection` — the calculator behind
 `RebuildInventoryProjections`, and therefore behind the `inventory_projections`
 that `ReservationsService.getAvailableQuantity`, the MRP planner and this feature
-all read — **has no `InitialStock` case**. An entry of that type falls through the
-calculator's `default` branch and contributes nothing, so a rebuild can never
-recover it.
+all read — originally had no `InitialStock` case, so an entry of that type fell
+through the calculator's `default` branch, contributed nothing, and a rebuild
+could never recover it. That made the authoritative stock model disagree with the
+transaction-derived figures the ERP pages show, and it would have let
+consolidation retire a component while its opening balance stayed behind.
 
-Consequences, all verified against a live fixture:
+The calculator now handles `InitialStock` as an ordinary receipt (as it already
+did for `ManualCorrection`), and the opening-inventory importer writes
+`InitialStock` entries, so an opening balance:
 
-- a component whose opening balance came from `InitialStock` reports `0` from the
-  authoritative stock model while three ERP pages (component list, component
-  detail fallback, inventory page) count it and show the real figure,
-- consolidation reads source balances from projections, so it would post nothing
-  and retire the component with its opening balance stranded,
-- `RebuildInventoryProjections` does not help.
+- reaches `inventory_projections` and is visible to reservations, MRP and this
+  feature,
+- is moved by consolidation exactly like Receipt-backed stock (compensating
+  Issue/Receipt entries plus a projection rebuild), and
+- keeps its original ledger entry on the retired component as retained history.
 
-Because no reviewer decision can fix this — it is an inventory-modelling question
-that affects reservations, MRP and every stock report — consolidation emits a
-`BLOCKING` `INITIAL_STOCK_UNSUPPORTED` conflict and refuses. The inventory adapter
-re-checks the same condition so it cannot be bypassed. Representing that stock
-correctly is a separate ERP decision, deliberately not taken here.
+The former `BLOCKING` `INITIAL_STOCK_UNSUPPORTED` conflict was therefore removed:
+with the calculator fixed it would only refuse a safe operation. The regression is
+covered by `component-consolidation-execution.integration-spec.ts`
+(“moves an opening balance recorded as InitialStock instead of stranding it”) and
+proved end to end by `opening-inventory-import.integration-spec.ts`.
 
 ---
 

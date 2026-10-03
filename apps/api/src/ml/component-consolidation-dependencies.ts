@@ -182,7 +182,7 @@ async function countComponentRowsWhere(
 }
 
 // ---------------------------------------------------------------------------
-// FK-backed adapters (31 tables / 32 columns)
+// FK-backed adapters (32 tables / 33 columns)
 // ---------------------------------------------------------------------------
 
 export const COMPONENT_DEPENDENCY_ADAPTERS: readonly ComponentDependencyAdapter[] =
@@ -197,7 +197,7 @@ export const COMPONENT_DEPENDENCY_ADAPTERS: readonly ComponentDependencyAdapter[
       executionSupport: 'UNSUPPORTED',
       temporality: 'HISTORICAL',
       supportNote:
-        'The inventory ledger is append-only. Consolidation must never repoint transactions; retained history must stay on the source component while the canonical balance is corrected with new, attributable entries. An `InitialStock` entry is a special case: `CalculateInventoryProjection` has no case for it, so it never reaches inventory_projections and cannot be moved at all — consolidation refuses while one exists.',
+        'The inventory ledger is append-only. Consolidation must never repoint transactions; retained history must stay on the source component while the canonical balance is corrected with new, attributable entries. Opening balances recorded as `InitialStock` are ordinary receipts to `CalculateInventoryProjection`, so they are visible in inventory_projections and move like any other balance; the original entry itself still stays on the source as retained history.',
       analyze: (componentId, executor) =>
         countComponentRows(
           'inventory_transactions',
@@ -247,6 +247,38 @@ export const COMPONENT_DEPENDENCY_ADAPTERS: readonly ComponentDependencyAdapter[
           'component_id',
           componentId,
           sql`reservation_id in (select id from inventory_reservations where status in ('DRAFT', 'ACTIVE'))`,
+          executor,
+        );
+        return {
+          count: all.count,
+          openCount,
+          historicalCount: all.count - openCount,
+          sampleIds: all.sampleIds,
+        };
+      },
+    }),
+    adapter({
+      id: 'inventory_alerts',
+      label: 'Inventory alerts (low stock / out of stock)',
+      tables: [{ table: 'inventory_alerts', column: 'component_id' }],
+      classification: 'MUST_RECONCILE',
+      executionSupport: 'SUPPORTED',
+      temporality: 'MIXED',
+      supportNote:
+        'Alerts are derived from current balances, so they are recalculated rather than repointed. Open (ACTIVE) alerts on the retired component are closed by the next inventory-alert evaluation, because evaluation only covers active, non-consolidated components and closes open alerts for anything that left that scope; the surviving component inherits the combined balance and is evaluated after consolidation recalculates its projection. RESOLVED alerts keep their original component identity as history.',
+      analyze: async (componentId, executor) => {
+        // Alert statuses: ACTIVE / RESOLVED.
+        const all = await countComponentRows(
+          'inventory_alerts',
+          'component_id',
+          componentId,
+          executor,
+        );
+        const openCount = await countComponentRowsWhere(
+          'inventory_alerts',
+          'component_id',
+          componentId,
+          sql`status = 'ACTIVE'`,
           executor,
         );
         return {

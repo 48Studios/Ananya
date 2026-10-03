@@ -2298,71 +2298,67 @@ describe('Consolidation execution (Pass 6B)', () => {
   // 11. InitialStock (audit finding, Pass 6B final safety audit)
   // -------------------------------------------------------------------------
 
-  it('proves InitialStock is invisible to projections and BLOCKS consolidation', async () => {
+  it('moves an opening balance recorded as InitialStock instead of stranding it', async () => {
     if (!hasDbUrl) return;
 
     const { canonical, duplicate, finding } =
       await createDuplicatePair('INITIAL');
 
     // The retired component's opening balance is recorded ONLY as an
-    // `InitialStock` ledger entry, exactly as the real posting path would leave
-    // it. The surviving component has ordinary Receipt-backed stock.
+    // `InitialStock` ledger entry, exactly as the opening-inventory import
+    // leaves it. The surviving component has ordinary Receipt-backed stock.
     await seedInitialStock(duplicate.id, 40);
     const canonicalLocation = await seedInventory(canonical.id, 10);
 
-    // --- The two read models disagree -------------------------------------
+    // --- Both read models agree on the opening balance ---------------------
     //
-    // `CalculateInventoryProjection` (the calculator behind
-    // `RebuildInventoryProjections`, and therefore behind the projections that
-    // reservations and MRP read) has no `InitialStock` case, so the entry is
-    // permanently invisible to it.
-    expect(await authoritativeOnHand(duplicate.id)).toBe(0);
-    // The ERP UI, which derives stock from transactions, does count it.
+    // This fixture writes the ledger row directly, so the projection is stale
+    // until a rebuild runs; the transaction-derived figure the ERP UI shows sees
+    // it immediately.
     expect(await uiVisibleStock(duplicate.id)).toBe(40);
+    expect(await authoritativeOnHand(duplicate.id)).toBe(0);
 
-    // Even a full rebuild cannot see it, so this is not a "not projected yet"
-    // problem: no rebuild will ever include the quantity.
+    // `CalculateInventoryProjection` handles `InitialStock` as an ordinary
+    // receipt, so a rebuild brings the entry into inventory_projections — the
+    // read model that reservations, MRP and consolidation read. An invisible
+    // opening balance is what used to strand stock on a retired component.
     await app.get(InventoryProjectionsService).rebuild();
-    expect(await authoritativeOnHand(duplicate.id)).toBe(0);
+    expect(await authoritativeOnHand(duplicate.id)).toBe(40);
     expect(await uiVisibleStock(duplicate.id)).toBe(40);
 
-    // --- Consolidation must refuse rather than strand the stock -----------
+    // --- Consolidation moves it rather than refusing -----------------------
     const preview = await previewService.buildPreview(finding.id, canonical.id);
+    expect(preview.executable).toBe(true);
 
-    const initialStockConflict = preview.conflicts.find(
-      (conflict) => conflict.code === 'INITIAL_STOCK_UNSUPPORTED',
+    await consolidationService.consolidate(
+      finding.id,
+      buildRequest(preview, canonical.id),
+      actor,
     );
-    expect(initialStockConflict).toBeDefined();
-    expect(initialStockConflict!.severity).toBe('BLOCKING');
-    expect(initialStockConflict!.blocksExecution).toBe(true);
-    // No reviewer decision can make this safe: the fix is an inventory
-    // modelling decision, not a choice about this pair.
-    expect(initialStockConflict!.resolutionSupported).toBe(false);
-    expect(preview.executable).toBe(false);
 
-    await expect(
-      consolidationService.consolidate(
-        finding.id,
-        buildRequest(preview, canonical.id),
-        actor,
-      ),
-    ).rejects.toThrow();
-
-    // --- Nothing moved, and the stock is still where it was ---------------
+    // The source holds nothing afterwards and the survivor holds both balances.
     expect(await authoritativeOnHand(duplicate.id)).toBe(0);
-    expect(await uiVisibleStock(duplicate.id)).toBe(40);
-    expect(await authoritativeOnHand(canonical.id)).toBe(10);
-    expect(await uiVisibleStock(canonical.id)).toBe(10);
+    expect(await uiVisibleStock(duplicate.id)).toBe(0);
+    expect(await authoritativeOnHand(canonical.id)).toBe(50);
+    expect(await uiVisibleStock(canonical.id)).toBe(50);
 
     const source = await reloadComponent(duplicate.id);
-    expect(source.is_active).toBe(true);
-    expect(source.consolidated_into_component_id).toBeNull();
+    expect(source.is_active).toBe(false);
+    expect(source.consolidated_into_component_id).toBe(canonical.id);
 
-    // The surviving component's own balance is untouched.
     const canonicalProjection = await db.execute<{ quantity: string }>(
       sql`select quantity from inventory_projections where component_id = ${canonical.id} and location_id = ${canonicalLocation}`,
     );
     expect(Number(canonicalProjection.rows[0]!.quantity)).toBe(10);
+
+    // The opening balance arrived from the source's own location, so it is
+    // rebalanced there rather than silently merged into the canonical location.
+    const movedRows = await db.execute<{ quantity: string }>(
+      sql`select quantity from inventory_projections where component_id = ${canonical.id} and location_id <> ${canonicalLocation}`,
+    );
+    expect(
+      movedRows.rows.reduce((total, row) => total + Number(row.quantity), 0),
+    ).toBe(40);
   });
 
   it('still consolidates normally when no InitialStock is present', async () => {
@@ -2374,11 +2370,6 @@ describe('Consolidation execution (Pass 6B)', () => {
     await seedInventory(duplicate.id, 7);
 
     const preview = await previewService.buildPreview(finding.id, canonical.id);
-    expect(
-      preview.conflicts.find(
-        (conflict) => conflict.code === 'INITIAL_STOCK_UNSUPPORTED',
-      ),
-    ).toBeUndefined();
     expect(preview.executable).toBe(true);
 
     await consolidationService.consolidate(
