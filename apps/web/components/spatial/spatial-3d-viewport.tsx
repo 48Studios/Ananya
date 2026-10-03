@@ -58,7 +58,59 @@ import {
   type AnchorMarkerUserData,
 } from "@/lib/spatial/spatial-3d-scene";
 import { loadAndNormalizeCustomAsset } from "@/lib/spatial/spatial-3d-asset-loader";
+import {
+  DRAWER_CLOSE_DURATION_SECONDS,
+  DRAWER_OPEN_DURATION_SECONDS,
+  advanceDrawerMotion,
+  computeDrawerExtension,
+  createDrawerMotion,
+  drawerOffsetMeters,
+  getDrawerMotionPhase,
+  isDrawerMotionSettled,
+  pruneDrawerMotions,
+  resolveDrawerFrontAxis,
+  type DrawerMotion,
+  type DrawerMotionPhase,
+} from "@/lib/spatial/drawer-opening";
 import type { DraftAnchor } from "@/lib/spatial/spatial-anchor-authoring";
+
+export interface DrawerProbeState {
+  phase: DrawerMotionPhase;
+  progress: number;
+  offsetMeters: number;
+  extensionMeters: number | null;
+  basePosition: Vector3D;
+  position: Vector3D;
+  frontAxis: Vector3D;
+  activeDrawerId: string | null;
+}
+
+/**
+ * Non-visual automation seam for canvas-only 3D content, exposed on the interaction
+ * surface element while drawer opening is enabled. Automated browser tests use it to
+ * project a compartment's front-plate centre to screen coordinates and to observe
+ * the transient, view-only motion state.
+ */
+export interface SpatialDrawerProbe {
+  getActiveDrawerId(): string | null;
+  getDrawerLocationIds(): string[];
+  getDrawerState(locationId: string): DrawerProbeState | null;
+  /** True while the camera is lerping between presets or focus targets. */
+  isCameraAnimating(): boolean;
+  projectCompartmentCenter(
+    locationId: string,
+  ): { clientX: number; clientY: number } | null;
+}
+
+interface SpatialDrawerProbeHost extends HTMLElement {
+  __ananyaDrawerProbe?: SpatialDrawerProbe;
+}
+
+/**
+ * Stable empty default: an inline `[]` default would create a new array identity on
+ * every render, re-running the scene rebuild effect on every hover and selection.
+ */
+const EMPTY_DRAFT_ANCHORS: DraftAnchor[] = [];
 
 export interface Spatial3DViewportProps {
   parentData: LocationOperationalViewDto["parent"];
@@ -84,6 +136,15 @@ export interface Spatial3DViewportProps {
   onOpenMapping?: () => void;
   visualizationMode?: SpatialVisualizationMode;
   showBadges?: boolean;
+  /**
+   * Enables click-to-open drawer animation: clicking a compartment slides it out
+   * along its front (+Z) axis, clicking it again (or clicking empty space) closes
+   * it, and opening another compartment closes the previous one. The motion is
+   * purely visual and never mutates layout, mapping, or persistence state.
+   *
+   * Defaults to false so the read-only spatial viewer is unchanged.
+   */
+  enableDrawerOpening?: boolean;
   isAuthoringAnchors?: boolean;
   draftAnchors?: DraftAnchor[];
   selectedAnchorId?: string | null;
@@ -113,8 +174,9 @@ export function Spatial3DViewport({
   onSwitchTo2D,
   visualizationMode = "standard",
   showBadges = true,
+  enableDrawerOpening = false,
   isAuthoringAnchors = false,
-  draftAnchors = [],
+  draftAnchors = EMPTY_DRAFT_ANCHORS,
   selectedAnchorId,
   authoringGizmoMode = "translate",
   onSelectAnchor,
@@ -187,6 +249,16 @@ export function Spatial3DViewport({
     x: 0,
     y: 0,
   });
+
+  // --- Drawer opening: transient, view-only interaction state ---
+  const [activeDrawerId, setActiveDrawerId] = React.useState<string | null>(
+    null,
+  );
+  const activeDrawerIdRef = React.useRef<string | null>(null);
+  const drawerMotionsRef = React.useRef<Map<string, DrawerMotion>>(new Map());
+  const drawerGroupsRef = React.useRef<Map<string, THREE.Group>>(new Map());
+  const childrenLayoutRef = React.useRef(childrenLayout);
+  childrenLayoutRef.current = childrenLayout;
 
   // Compute scene bounds
   const parentDimensions = React.useMemo<Vector3D>(() => {
@@ -362,10 +434,131 @@ export function Spatial3DViewport({
     [childrenLayout, prefersReducedMotion],
   );
 
+  // --- Drawer opening helpers (view-only; never persisted) ---
+
+  const applyDrawerMotionOffset = React.useCallback(
+    (group: THREE.Group, motion: DrawerMotion) => {
+      const base = group.userData.drawerBasePosition as Vector3D | undefined;
+      const axis = group.userData.drawerFrontAxis as Vector3D | undefined;
+      if (!base || !axis) return;
+      const offset = drawerOffsetMeters(motion);
+      group.position.set(
+        base.x + axis.x * offset,
+        base.y + axis.y * offset,
+        base.z + axis.z * offset,
+      );
+    },
+    [],
+  );
+
+  /** Starts or reverses the motion of a single compartment. */
+  const beginDrawerMotion = React.useCallback(
+    (locationId: string, target: 0 | 1) => {
+      const descriptor = childrenLayoutRef.current.find(
+        (child) => child.locationId === locationId,
+      );
+      if (!descriptor) return;
+      const existing = drawerMotionsRef.current.get(locationId);
+      const duration = prefersReducedMotion()
+        ? 0
+        : target === 1
+          ? DRAWER_OPEN_DURATION_SECONDS
+          : DRAWER_CLOSE_DURATION_SECONDS;
+      drawerMotionsRef.current.set(
+        locationId,
+        createDrawerMotion({
+          locationId,
+          from: existing?.progress ?? 0,
+          to: target,
+          duration,
+          extensionMeters:
+            existing?.extensionMeters ??
+            computeDrawerExtension(descriptor.dimensions.z),
+        }),
+      );
+    },
+    [prefersReducedMotion],
+  );
+
+  /**
+   * Closes the single active open drawer. The shared slot selection is left intact
+   * so closing is purely visual and the mapping workflow does not drift.
+   */
+  const closeActiveDrawer = React.useCallback(() => {
+    const openId = activeDrawerIdRef.current;
+    if (!openId) return;
+    beginDrawerMotion(openId, 0);
+    activeDrawerIdRef.current = null;
+    setActiveDrawerId(null);
+  }, [beginDrawerMotion]);
+
+  const openDrawer = React.useCallback(
+    (locationId: string) => {
+      const previousId = activeDrawerIdRef.current;
+      if (previousId && previousId !== locationId) {
+        // Selecting another drawer closes the previously opened one.
+        beginDrawerMotion(previousId, 0);
+      }
+      beginDrawerMotion(locationId, 1);
+      activeDrawerIdRef.current = locationId;
+      setActiveDrawerId(locationId);
+    },
+    [beginDrawerMotion],
+  );
+
+  /** Discards all transient motion state (used when the viewed layout is replaced). */
+  const resetDrawerOpeningState = React.useCallback(() => {
+    drawerMotionsRef.current.clear();
+    activeDrawerIdRef.current = null;
+    setActiveDrawerId(null);
+  }, []);
+
+  /** Advances all in-flight drawer motions and applies their offsets to the meshes. */
+  const advanceDrawerAnimations = React.useCallback(
+    (deltaSeconds: number) => {
+      const motions = drawerMotionsRef.current;
+      if (motions.size === 0) return;
+      for (const [locationId, motion] of motions) {
+        const advanced = advanceDrawerMotion(motion, deltaSeconds);
+        if (advanced !== motion) {
+          motions.set(locationId, advanced);
+        }
+        const group = drawerGroupsRef.current.get(locationId);
+        if (group) {
+          applyDrawerMotionOffset(group, advanced);
+        }
+        // Settled close motions are dropped so no orphaned animation state survives.
+        if (isDrawerMotionSettled(advanced) && advanced.to === 0) {
+          motions.delete(locationId);
+        }
+      }
+    },
+    [applyDrawerMotionOffset],
+  );
+
+  // The render loop is created once on mount, so it consumes the latest animation
+  // helper through a ref (same pattern as the anchor transform callbacks).
+  const advanceDrawerAnimationsRef = React.useRef(advanceDrawerAnimations);
+  advanceDrawerAnimationsRef.current = advanceDrawerAnimations;
+
+  // Keep the transient open drawer aligned with the shared slot selection: if the
+  // selection moves to another compartment, to the container, or is cleared, the
+  // open drawer closes and its transient state is discarded.
+  React.useEffect(() => {
+    if (!enableDrawerOpening) return;
+    const openId = activeDrawerIdRef.current;
+    if (!openId || selectedLocationId === openId) return;
+    beginDrawerMotion(openId, 0);
+    activeDrawerIdRef.current = null;
+    setActiveDrawerId(null);
+  }, [beginDrawerMotion, enableDrawerOpening, selectedLocationId]);
+
   // Initialize Three.js WebGL Scene
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    const drawerGroups = drawerGroupsRef.current;
+    const drawerMotions = drawerMotionsRef.current;
 
     // Check WebGL availability
     try {
@@ -519,6 +712,9 @@ export function Spatial3DViewport({
       const delta = (currentTime - lastTime) / 1000;
       lastTime = currentTime;
 
+      // Advance view-only drawer opening/closing motions (no-op when idle)
+      advanceDrawerAnimationsRef.current(delta);
+
       // Handle smooth camera lerp
       if (cameraTransitionRef.current && cameraTransitionRef.current.active) {
         const trans = cameraTransitionRef.current;
@@ -585,6 +781,9 @@ export function Spatial3DViewport({
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
+      drawerGroups.clear();
+      drawerMotions.clear();
+      activeDrawerIdRef.current = null;
       sceneRef.current = null;
       cameraRef.current = null;
       controlsRef.current = null;
@@ -615,6 +814,7 @@ export function Spatial3DViewport({
       disposeThreeHierarchy(sceneRootRef.current);
       sceneRootRef.current = null;
     }
+    drawerGroupsRef.current.clear();
 
     const rootGroup = new THREE.Group();
     rootGroup.name = "spatial-scene-root";
@@ -653,8 +853,60 @@ export function Spatial3DViewport({
         ? getCompartmentBadgeText(visualizationMode, state, summary)
         : null;
 
-      const childMesh = createChildCompartmentMesh(child, state, badgeText);
+      const childMesh = createChildCompartmentMesh(child, state, badgeText, {
+        openable: enableDrawerOpening,
+        isOpen: enableDrawerOpening && child.locationId === activeDrawerId,
+      });
       rootGroup.add(childMesh);
+
+      if (enableDrawerOpening) {
+        // Remember the resting transform and opening axis so the animation loop can
+        // slide this compartment without re-deriving parametric geometry.
+        childMesh.userData.drawerBasePosition = {
+          x: childMesh.position.x,
+          y: childMesh.position.y,
+          z: childMesh.position.z,
+        } satisfies Vector3D;
+        childMesh.userData.drawerFrontAxis = resolveDrawerFrontAxis(
+          child.rotation,
+        );
+        // Meshes expose their own front-facing probe point; fall back to the
+        // compartment's front plane for shapes that do not.
+        const probePoint = (childMesh.userData.probePoint ?? {
+          x: 0,
+          y: 0,
+          z: child.dimensions.z / 2,
+        }) as Vector3D;
+        childMesh.userData.drawerProbePoint = probePoint;
+        drawerGroupsRef.current.set(child.locationId, childMesh);
+
+        // Re-apply any in-flight motion so a scene rebuild never snaps a drawer.
+        const motion = drawerMotionsRef.current.get(child.locationId);
+        if (motion) {
+          applyDrawerMotionOffset(childMesh, motion);
+        }
+      }
+    }
+
+    if (enableDrawerOpening) {
+      // Compartments removed by a template change or layout reload must not leave
+      // orphaned animation state behind.
+      const { motions, removedLocationIds } = pruneDrawerMotions(
+        drawerMotionsRef.current,
+        childrenLayout.map((child) => child.locationId),
+      );
+      // Keep the same Map instance alive for the whole viewport lifetime.
+      drawerMotionsRef.current.clear();
+      for (const [locationId, motion] of motions) {
+        drawerMotionsRef.current.set(locationId, motion);
+      }
+      if (
+        activeDrawerIdRef.current &&
+        removedLocationIds.includes(activeDrawerIdRef.current)
+      ) {
+        activeDrawerIdRef.current = null;
+        setActiveDrawerId(null);
+      }
     }
 
     // 3. Build Spatial Anchor Markers if in authoring mode
@@ -698,6 +950,11 @@ export function Spatial3DViewport({
 
     scene.add(rootGroup);
     sceneRootRef.current = rootGroup;
+
+    // Compartment meshes are built and placed in this effect, so their world matrices
+    // must be resolved immediately. Otherwise a pointer raycast that arrives before the
+    // next render frame tests identity matrices and misses every freshly built mesh.
+    rootGroup.updateMatrixWorld(true);
 
     // Attach / Detach transform controls to selected anchor
     if (transformControlsRef.current) {
@@ -792,7 +1049,69 @@ export function Spatial3DViewport({
     visualizationMode,
     showBadges,
     stockMap,
+    enableDrawerOpening,
+    activeDrawerId,
+    applyDrawerMotionOffset,
   ]);
+
+  // Canvas-only 3D content has no DOM representation, so expose a non-visual probe
+  // for automated 3D interaction tests while drawer opening is enabled. The probe
+  // reads live scene state and never mutates it.
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !enableDrawerOpening) return;
+    const probeHost = container as SpatialDrawerProbeHost;
+    probeHost.__ananyaDrawerProbe = {
+      getActiveDrawerId: () => activeDrawerIdRef.current,
+      getDrawerLocationIds: () => [...drawerGroupsRef.current.keys()],
+      isCameraAnimating: () => Boolean(cameraTransitionRef.current?.active),
+      getDrawerState: (locationId) => {
+        const group = drawerGroupsRef.current.get(locationId);
+        if (!group) return null;
+        const motion = drawerMotionsRef.current.get(locationId);
+        const basePosition = group.userData.drawerBasePosition as
+          Vector3D | undefined;
+        const frontAxis = group.userData.drawerFrontAxis as
+          Vector3D | undefined;
+        if (!basePosition || !frontAxis) return null;
+        return {
+          phase: motion ? getDrawerMotionPhase(motion) : "closed",
+          progress: motion?.progress ?? 0,
+          offsetMeters: motion ? drawerOffsetMeters(motion) : 0,
+          extensionMeters: motion?.extensionMeters ?? null,
+          basePosition: { ...basePosition },
+          position: {
+            x: group.position.x,
+            y: group.position.y,
+            z: group.position.z,
+          },
+          frontAxis: { ...frontAxis },
+          activeDrawerId: activeDrawerIdRef.current,
+        };
+      },
+      projectCompartmentCenter: (locationId) => {
+        const group = drawerGroupsRef.current.get(locationId);
+        const camera = cameraRef.current;
+        const host = containerRef.current;
+        const probePoint = group?.userData.drawerProbePoint as
+          Vector3D | undefined;
+        if (!group || !probePoint || !camera || !host) return null;
+        group.updateMatrixWorld(true);
+        const point = group.localToWorld(
+          new THREE.Vector3(probePoint.x, probePoint.y, probePoint.z),
+        );
+        point.project(camera);
+        const rect = host.getBoundingClientRect();
+        return {
+          clientX: rect.left + ((point.x + 1) / 2) * rect.width,
+          clientY: rect.top + ((1 - point.y) / 2) * rect.height,
+        };
+      },
+    };
+    return () => {
+      delete probeHost.__ananyaDrawerProbe;
+    };
+  }, [enableDrawerOpening]);
 
   // Synchronize gizmo mode (translate vs rotate)
   React.useEffect(() => {
@@ -811,9 +1130,17 @@ export function Spatial3DViewport({
 
     if (prevParentIdRef.current !== parentData.location.id) {
       prevParentIdRef.current = parentData.location.id;
+      // A different container means a different layout: drop any transient open state
+      // so nothing survives a reload.
+      resetDrawerOpeningState();
       fitCameraToScene(!prefersReducedMotion());
     }
-  }, [parentData.location.id, fitCameraToScene, prefersReducedMotion]);
+  }, [
+    parentData.location.id,
+    fitCameraToScene,
+    prefersReducedMotion,
+    resetDrawerOpeningState,
+  ]);
 
   // React to external selected / highlighted location changes
   React.useEffect(() => {
@@ -890,10 +1217,26 @@ export function Spatial3DViewport({
         lastTapRef.current = { time: now, locationId: userData.locationId };
       }
 
+      // Clicking a compartment toggles its view-only open state; selecting another
+      // compartment closes the previously opened drawer.
+      if (!userData.isParent && enableDrawerOpening) {
+        if (activeDrawerIdRef.current === userData.locationId) {
+          closeActiveDrawer();
+        } else {
+          openDrawer(userData.locationId);
+        }
+      }
+
       if (onSelectLocation) {
         onSelectLocation(userData.locationId);
       }
       return;
+    }
+
+    // Clicking empty space closes the active drawer without touching the current
+    // slot selection, mapping state, or camera controls.
+    if (enableDrawerOpening) {
+      closeActiveDrawer();
     }
   };
 
@@ -1033,6 +1376,7 @@ export function Spatial3DViewport({
       <div
         ref={containerRef}
         className="w-full h-full"
+        data-testid="spatial-3d-interaction-surface"
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onDoubleClick={handleDoubleClick}

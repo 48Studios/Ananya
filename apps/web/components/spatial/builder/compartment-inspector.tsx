@@ -121,6 +121,7 @@ export function CompartmentInspector({
 
   return (
     <div
+      data-testid="compartment-inspector"
       className={cn(
         "p-4 rounded-lg border border-border bg-card space-y-4 text-xs shadow-xs",
         className,

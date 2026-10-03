@@ -8,6 +8,7 @@ import {
   type Vector3D,
 } from "./spatial-3d-layout";
 import type { LocationOperationalViewDto } from "../api/spatial-api";
+import { computeOpenTrayGeometry } from "./drawer-opening";
 import type { DraftAnchor } from "./spatial-anchor-authoring";
 
 export type LocationOperationalViewParent =
@@ -157,12 +158,14 @@ export const SPATIAL_3D_PALETTE = {
 
 /**
  * Creates dynamic text canvas textures for compartment front plates (codes like "A01", "DRAWER-02").
- * Supports rendering secondary badge text directly on the compartment for accessibility.
+ * Supports rendering secondary badge text directly on the compartment for accessibility, plus a
+ * transient text-based "OPEN" indicator so the extended state never relies on color alone.
  */
 export function createCompartmentLabelTexture(
   code: string,
   state: SemanticVisualState,
   badgeText?: string | null,
+  isOpen?: boolean,
 ): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = 256;
@@ -229,13 +232,30 @@ export function createCompartmentLabelTexture(
     ctx.lineWidth = 4;
     ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
 
+    // Transient open-drawer indicator, drawn as text so the state is legible
+    // without relying on color alone. Content below shifts down to make room.
+    const yShift = isOpen ? 14 : 0;
+    if (isOpen) {
+      ctx.fillStyle = textColor;
+      ctx.font = "bold 16px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("OPEN", canvas.width / 2 + 5, 14);
+      ctx.strokeStyle = accentBarColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(canvas.width / 2 - 28, 26);
+      ctx.lineTo(canvas.width / 2 + 38, 26);
+      ctx.stroke();
+    }
+
     if (badgeText) {
       // Primary compartment code (top/middle)
       ctx.fillStyle = textColor;
       ctx.font = "bold 36px monospace";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(code, canvas.width / 2 + 5, 46);
+      ctx.fillText(code, canvas.width / 2 + 5, 46 + yShift);
 
       // Bottom accessible badge pill
       ctx.font = "bold 16px sans-serif";
@@ -243,7 +263,7 @@ export function createCompartmentLabelTexture(
       const pillW = Math.min(canvas.width - 32, textMetrics.width + 18);
       const pillH = 26;
       const pillX = canvas.width / 2 + 5 - pillW / 2;
-      const pillY = 82;
+      const pillY = 82 + yShift;
 
       ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
       ctx.beginPath();
@@ -262,7 +282,7 @@ export function createCompartmentLabelTexture(
       ctx.font = "bold 44px monospace";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(code, canvas.width / 2 + 5, canvas.height / 2);
+      ctx.fillText(code, canvas.width / 2 + 5, canvas.height / 2 + yShift);
     }
   }
 
@@ -353,15 +373,64 @@ export function createSemanticMaterial(
 }
 
 /**
+ * Options shared by compartment mesh factories.
+ */
+export interface CompartmentMeshOptions {
+  /**
+   * Builds a hollow, open-top tray body in place of the closed slab body so the
+   * compartment can slide out and reveal an interior. Off by default so static
+   * viewers keep their existing compact geometry.
+   */
+  openable?: boolean;
+  /** Renders the transient text "OPEN" indicator on the front plate label. */
+  isOpen?: boolean;
+}
+
+/**
+ * Builds the hollow open-top tray body used by openable compartments.
+ * Keeps the outer envelope of the closed body it replaces so compartment
+ * dimensions, rail alignment, and front-plate placement are preserved.
+ */
+function createOpenTrayBody(
+  dim: Vector3D,
+  state: SemanticVisualState,
+  faceThickness: number,
+  userData: MeshUserData,
+): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "compartment-tray-body";
+
+  const tray = computeOpenTrayGeometry(dim, faceThickness);
+  const mat = createSemanticMaterial(state);
+
+  for (const part of tray.parts) {
+    const geo = new THREE.BoxGeometry(part.size.x, part.size.y, part.size.z);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.name = part.name;
+    mesh.position.set(part.position.x, part.position.y, part.position.z);
+    mesh.userData = userData;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  }
+
+  return group;
+}
+
+/**
  * Procedural Drawer Mesh:
  * A front face plate with alphanumeric label & pull handle, and a sliding body tray.
+ * When `openable` is set the tray body is hollow and open at the top so opening the
+ * drawer reveals a real interior without inventing stored contents.
  */
 export function createDrawerMesh(
   dim: Vector3D,
   userData: MeshUserData,
   state: SemanticVisualState,
   badgeText?: string | null,
+  options: CompartmentMeshOptions = {},
 ): THREE.Group {
+  const { openable = false, isOpen = false } = options;
   const group = new THREE.Group();
   group.name = `drawer-${userData.locationCode}`;
 
@@ -378,6 +447,7 @@ export function createDrawerMesh(
     userData.locationCode,
     state,
     badgeText,
+    isOpen,
   );
   const faceMat = createSemanticMaterial(state, labelTexture);
   const faceMesh = new THREE.Mesh(faceGeo, faceMat);
@@ -407,15 +477,23 @@ export function createDrawerMesh(
   handleMesh.userData = userData;
   group.add(handleMesh);
 
-  // Body box (sliding tray behind face)
-  const bodyGeo = new THREE.BoxGeometry(dim.x * 0.92, dim.y * 0.88, bodyDepth);
-  const bodyMat = createSemanticMaterial(state);
-  bodyMat.opacity = Math.min(bodyMat.opacity, 0.7);
-  bodyMat.transparent = true;
-  const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-  bodyMesh.position.set(0, 0, -faceThickness / 2);
-  bodyMesh.userData = userData;
-  group.add(bodyMesh);
+  // Body (sliding tray behind face)
+  if (openable) {
+    group.add(createOpenTrayBody(dim, state, faceThickness, userData));
+  } else {
+    const bodyGeo = new THREE.BoxGeometry(
+      dim.x * 0.92,
+      dim.y * 0.88,
+      bodyDepth,
+    );
+    const bodyMat = createSemanticMaterial(state);
+    bodyMat.opacity = Math.min(bodyMat.opacity, 0.7);
+    bodyMat.transparent = true;
+    const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+    bodyMesh.position.set(0, 0, -faceThickness / 2);
+    bodyMesh.userData = userData;
+    group.add(bodyMesh);
+  }
 
   // Edge outline for crisp appearance
   const edges = new THREE.EdgesGeometry(faceGeo);
@@ -433,6 +511,10 @@ export function createDrawerMesh(
   edgeLines.position.copy(faceMesh.position);
   group.add(edgeLines);
 
+  // Local point that always sits on the front-facing interactive surface of the
+  // compartment; used to project hit-test and automated 3D verification points.
+  group.userData.probePoint = { x: 0, y: 0, z: dim.z / 2 };
+
   return group;
 }
 
@@ -445,7 +527,9 @@ export function createBinMesh(
   userData: MeshUserData,
   state: SemanticVisualState,
   badgeText?: string | null,
+  options: CompartmentMeshOptions = {},
 ): THREE.Group {
+  const { isOpen = false } = options;
   const group = new THREE.Group();
   group.name = `bin-${userData.locationCode}`;
 
@@ -496,6 +580,7 @@ export function createBinMesh(
     userData.locationCode,
     state,
     badgeText,
+    isOpen,
   );
   const frontMat = createSemanticMaterial(state, labelTexture);
   const frontMesh = new THREE.Mesh(frontGeo, frontMat);
@@ -506,6 +591,13 @@ export function createBinMesh(
   );
   frontMesh.userData = userData;
   group.add(frontMesh);
+
+  // Front lip centre (label plate) doubles as the interaction probe point.
+  group.userData.probePoint = {
+    x: 0,
+    y: -dim.y / 2 + wallThickness + frontHeight / 2,
+    z: dim.z / 2 - wallThickness / 2,
+  };
 
   return group;
 }
@@ -519,7 +611,9 @@ export function createShelfDeckMesh(
   userData: MeshUserData,
   state: SemanticVisualState,
   badgeText?: string | null,
+  options: CompartmentMeshOptions = {},
 ): THREE.Group {
+  const { isOpen = false } = options;
   const group = new THREE.Group();
   group.name = `shelf-${userData.locationCode}`;
 
@@ -529,6 +623,7 @@ export function createShelfDeckMesh(
     userData.locationCode,
     state,
     badgeText,
+    isOpen,
   );
   const mat = createSemanticMaterial(state, labelTexture);
   const deckMesh = new THREE.Mesh(deckGeo, mat);
@@ -551,6 +646,13 @@ export function createShelfDeckMesh(
   edgeLines.position.copy(deckMesh.position);
   group.add(edgeLines);
 
+  // Deck top surface centre: the visible, clickable face of an open shelf tier.
+  group.userData.probePoint = {
+    x: 0,
+    y: -dim.y / 2 + deckThickness + 0.001,
+    z: 0,
+  };
+
   return group;
 }
 
@@ -562,7 +664,9 @@ export function createGenericBoxMesh(
   userData: MeshUserData,
   state: SemanticVisualState,
   badgeText?: string | null,
+  options: CompartmentMeshOptions = {},
 ): THREE.Group {
+  const { isOpen = false } = options;
   const group = new THREE.Group();
   group.name = `box-${userData.locationCode}`;
 
@@ -571,6 +675,7 @@ export function createGenericBoxMesh(
     userData.locationCode,
     state,
     badgeText,
+    isOpen,
   );
   const mat = createSemanticMaterial(state, labelTexture);
   const mesh = new THREE.Mesh(geo, mat);
@@ -591,16 +696,23 @@ export function createGenericBoxMesh(
   );
   group.add(edgeLines);
 
+  group.userData.probePoint = { x: 0, y: 0, z: dim.z / 2 };
+
   return group;
 }
 
 /**
  * Creates child compartment mesh based on kind.
+ *
+ * `options.openable` swaps closed slab bodies for hollow open-top trays (drawers and
+ * parts-tray slots) so the compartment can slide out and reveal an interior.
+ * `options.isOpen` prints the transient OPEN indicator on the front plate label.
  */
 export function createChildCompartmentMesh(
   child: SceneChildLayout,
   state: SemanticVisualState,
   badgeText?: string | null,
+  options: CompartmentMeshOptions = {},
 ): THREE.Group {
   const userData: MeshUserData = {
     locationId: child.locationId,
@@ -613,16 +725,44 @@ export function createChildCompartmentMesh(
   };
 
   const kindLower = child.kind?.toLowerCase() || "";
+  const openable = Boolean(options.openable);
   let group: THREE.Group;
 
-  if (kindLower.includes("drawer")) {
-    group = createDrawerMesh(child.dimensions, userData, state, badgeText);
+  if (
+    kindLower.includes("drawer") ||
+    (openable && kindLower.includes("slot"))
+  ) {
+    group = createDrawerMesh(
+      child.dimensions,
+      userData,
+      state,
+      badgeText,
+      options,
+    );
   } else if (kindLower.includes("bin")) {
-    group = createBinMesh(child.dimensions, userData, state, badgeText);
+    group = createBinMesh(
+      child.dimensions,
+      userData,
+      state,
+      badgeText,
+      options,
+    );
   } else if (kindLower.includes("shelf") || kindLower.includes("tier")) {
-    group = createShelfDeckMesh(child.dimensions, userData, state, badgeText);
+    group = createShelfDeckMesh(
+      child.dimensions,
+      userData,
+      state,
+      badgeText,
+      options,
+    );
   } else {
-    group = createGenericBoxMesh(child.dimensions, userData, state, badgeText);
+    group = createGenericBoxMesh(
+      child.dimensions,
+      userData,
+      state,
+      badgeText,
+      options,
+    );
   }
 
   // Set position & rotation

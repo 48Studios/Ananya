@@ -77,6 +77,18 @@ The 3D view provides spatial orientation, depth, and vertical context across roo
 - **Camera Controls**: Orbit, pan, zoom, and programmatic animated focus with bounded collision and angle limits.
 - **Instanced Rendering**: Repeated storage units (e.g., identical racks or bins) share geometry and materials via Three.js `InstancedMesh`.
 
+### Interactive Drawer Opening (Inventory Builder)
+
+The Inventory Builder's 3D preview is an editable surface, so compartments can be opened in place to inspect the physical interior:
+
+- **Single Active Drawer**: At most one compartment is extended at a time. Clicking a compartment selects its `slotId` and slides it out; clicking it again, clicking another compartment, clicking empty space, or changing the shared selection closes it.
+- **Opening Axis**: Compartments translate along their own front-facing axis (the rotated local +Z axis on which the front plate and label are modelled), so the motion follows the authored orientation rather than a hard-coded world direction.
+- **Extension**: Full extension is a fraction of the compartment's own depth (85%, bounded to 30–450 mm), which clears the carcass opening without exceeding the slide rails. Travel never overlaps neighbouring compartments because the motion is confined to the opening axis.
+- **Interior Geometry**: Openable drawers and parts-tray slots are modelled as a hollow open-top tray (floor, two sides, back wall) behind the existing labelled front plate and handle, inside the envelope of the closed body. Bins already render open-topped, and rack/shelf tiers slide out as their existing deck. No stored contents are invented.
+- **State Cues**: The open compartment prints a transient "OPEN" indicator on its front-plate label, so the state is legible without relying on color alone, and remains selected for the mapping workflow while extended.
+- **View-Only Guarantee**: Opening and closing mutate only Three.js transforms. Generated compartments, `slotId`s, mappings, revisions, published geometry, and persisted layout state are never touched, and no location is created or deleted.
+- **Invalidation**: Template changes, layout reloads, container switches, and selection changes close the active compartment and discard its transient motion state, so no orphaned animation survives a scene rebuild.
+
 ---
 
 # 3. Search-to-Visual Workflow

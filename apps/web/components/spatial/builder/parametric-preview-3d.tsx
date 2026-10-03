@@ -122,6 +122,7 @@ export function ParametricPreview3D({
           onSelectLocation={handleSelectLocation}
           isParentSelectable={true}
           isChildInteractionEnabled={childInteractionEnabled}
+          enableDrawerOpening={true}
           onSwitchTo2D={onSwitchTo2D}
           visualizationMode="standard"
           showBadges={true}
