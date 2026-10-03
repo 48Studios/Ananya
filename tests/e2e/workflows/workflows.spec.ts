@@ -1,11 +1,14 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, requireE2EAuth } from "../../fixtures/test.fixture";
+test.beforeEach(() => requireE2EAuth());
 
 test.describe("Primary Business Workflows E2E Audit", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
   });
 
-  test("1. Finished Goods (/manufacturing/finished-goods)", async ({ page }) => {
+  test("1. Finished Goods (/manufacturing/finished-goods)", async ({
+    page,
+  }) => {
     await page.goto("/manufacturing/finished-goods");
     await expect(page.locator("h1")).toContainText(
       "Finished Goods Inventory Master",
@@ -18,7 +21,9 @@ test.describe("Primary Business Workflows E2E Audit", () => {
     await expect(page.getByText("Receive Production Batch")).toBeVisible();
   });
 
-  test("2. Material Consumption (/manufacturing/material-consumption)", async ({ page }) => {
+  test("2. Material Consumption (/manufacturing/material-consumption)", async ({
+    page,
+  }) => {
     await page.goto("/manufacturing/material-consumption");
     await expect(page.locator("h1")).toContainText(
       "Material Consumption & Issue Log",
@@ -33,7 +38,9 @@ test.describe("Primary Business Workflows E2E Audit", () => {
     await expect(page.getByText("Issue Material to Work Order")).toBeVisible();
   });
 
-  test("3. Production Orders (/manufacturing/production-orders)", async ({ page }) => {
+  test("3. Production Orders (/manufacturing/production-orders)", async ({
+    page,
+  }) => {
     await page.goto("/manufacturing/production-orders");
     await expect(page.locator("h1")).toContainText(
       "Production Orders & Scheduling",
@@ -115,7 +122,9 @@ test.describe("Primary Business Workflows E2E Audit", () => {
     ).toBeVisible();
   });
 
-  test("9. Supplier Returns (/procurement/supplier-returns)", async ({ page }) => {
+  test("9. Supplier Returns (/procurement/supplier-returns)", async ({
+    page,
+  }) => {
     await page.goto("/procurement/supplier-returns");
     await expect(page.locator("h1")).toContainText(
       "Supplier Returns & Debit Memos",

@@ -241,17 +241,10 @@ export function CommandPalette() {
     { title: string; href: string }[]
   >([]);
 
-  // Listen for ⌘K / Ctrl+K keyboard shortcut globally and sync with searchOpen
-  React.useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setSearchOpen(!searchOpen);
-      }
-    };
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, [searchOpen, setSearchOpen]);
+  // The ⌘K / Ctrl+K shortcut is owned by the navigation context, which owns
+  // `searchOpen`. A second listener here toggled the same state with a stale
+  // closure value, so a keypress set and unset the flag in one batch and the
+  // palette never opened.
 
   // Load cached recent items on mount
   React.useEffect(() => {

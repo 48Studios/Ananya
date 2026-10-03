@@ -92,7 +92,21 @@ pnpm test:e2e:update-snapshots
 
 ### E2E Test Credentials & Environment
 
-End-to-end checks that require an existing administrator account read credentials from `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD`. Those authenticated checks are skipped when the variables are not configured; they do not rely on a repository account or a hard-coded password.
+End-to-end checks that require an existing administrator account read credentials from `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD`. They do not rely on a repository account or a hard-coded password.
+
+**How the session is created.** `tests/global-setup.ts` runs once before the suite. When the variables are set it logs in through the API (`E2E_API_URL`, default `http://localhost:4000`), writes a Playwright storage state (session cookie + `localStorage` token) to `tests/.auth/e2e-state.json`, and every browser context reuses it. The file contains a live session token and is git-ignored.
+
+**Without credentials.** Global setup removes any stale state and logs a warning; specs that call `requireE2EAuth()` (from `tests/fixtures/test.fixture.ts`) skip themselves with a clear reason, while public specs (`/login`, `/setup`, unauthenticated redirect checks) still run. A file that mixes both — for example the accessibility and visual-regression suites — calls the helper only inside its authenticated tests.
+
+```bash
+# Public specs only (authenticated specs report as skipped)
+pnpm test:e2e
+
+# Full suite, including authenticated specs
+E2E_ADMIN_EMAIL=admin@example.test E2E_ADMIN_PASSWORD='…' pnpm test:e2e
+```
+
+Prefer `Control+k` over `Meta+k` in specs: the application accepts both, but headless CI runners do not reliably deliver the Meta key. Wait for a hydrated element (for example the command-palette trigger button) before pressing global shortcuts, because the listeners are registered client-side.
 
 ---
 

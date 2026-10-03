@@ -9,7 +9,7 @@ export class DashboardPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.heading = page.locator('h1:has-text("Dashboard")');
+    this.heading = page.locator('h1:has-text("Operations Control Center")');
     this.customizeButton = page.locator('button:has-text("Customize")');
     this.widgetGrid = page.locator(".grid");
     this.commandPaletteTrigger = page.locator('button:has-text("Search")');

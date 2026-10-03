@@ -1,8 +1,10 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, requireE2EAuth } from "../fixtures/test.fixture";
+import type { Page } from "@playwright/test";
 import { Pool } from "pg";
 import * as crypto from "crypto";
 import fs from "node:fs";
 import path from "node:path";
+test.beforeEach(() => requireE2EAuth());
 
 const ADMIN_USER_ID = "e941c06c-f461-4cac-88ed-d2197617d06b"; // admin@48studios.in
 
@@ -358,7 +360,9 @@ test.describe("Inventory Builder 3D — Interactive Drawer Opening", () => {
   test("1. clicking a closed drawer opens it smoothly and clicking it again returns it exactly home", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${parentId}`,
+    );
     await waitForWorkspaceReady(page, parentCode);
     await open3DView(page);
 
@@ -425,7 +429,9 @@ test.describe("Inventory Builder 3D — Interactive Drawer Opening", () => {
   test("2. opening another drawer closes the previous one (single active drawer)", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${parentId}`,
+    );
     await waitForWorkspaceReady(page, parentCode);
     await open3DView(page);
 
@@ -469,7 +475,9 @@ test.describe("Inventory Builder 3D — Interactive Drawer Opening", () => {
   test("3. empty-space clicks close the open drawer without disturbing selection or camera controls", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${parentId}`,
+    );
     await waitForWorkspaceReady(page, parentCode);
     await open3DView(page);
 
@@ -533,7 +541,9 @@ test.describe("Inventory Builder 3D — Interactive Drawer Opening", () => {
       locations: await countRows(locationCountSql, []),
     };
 
-    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${parentId}`,
+    );
     await waitForWorkspaceReady(page, parentCode);
     await open3DView(page);
 
@@ -588,7 +598,9 @@ test.describe("Inventory Builder 3D — Interactive Drawer Opening", () => {
   test("5. every parametric template opens compartments and template switches clear transient state", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${parentId}`,
+    );
     await waitForWorkspaceReady(page, parentCode);
     await open3DView(page);
 

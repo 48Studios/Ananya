@@ -1,7 +1,8 @@
-import { test, expect } from "../fixtures/test.fixture";
+import { test, expect, requireE2EAuth } from "../fixtures/test.fixture";
 
 test.describe("Visual Regression Testing", () => {
   test("should match dashboard snapshot", async ({ page }) => {
+    requireE2EAuth();
     await page.goto("/dashboard");
     await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible();
     await expect(page).toHaveScreenshot("dashboard.png", {

@@ -1,4 +1,5 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, requireE2EAuth } from "../fixtures/test.fixture";
+test.beforeEach(() => requireE2EAuth());
 
 test.describe("Master Data & Planning Modules Completion Audit", () => {
   test.beforeEach(async ({ page }) => {
@@ -11,9 +12,7 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
   }) => {
     await page.goto("/inventory/locations");
     await expect(page).toHaveURL(/\/locations/);
-    await expect(page.locator("h1")).toContainText(
-      "Storage Locations & Bins",
-    );
+    await expect(page.locator("h1")).toContainText("Storage Locations & Bins");
 
     // Verify StatCards are present and render values
     await expect(page.getByText("Total Storage Nodes")).toBeVisible();
@@ -43,7 +42,9 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 
-  test("3. Physical Stock Counts (/inventory/stock-counts)", async ({ page }) => {
+  test("3. Physical Stock Counts (/inventory/stock-counts)", async ({
+    page,
+  }) => {
     await page.goto("/inventory/stock-counts");
     await expect(page.locator("h1")).toContainText(
       "Stock Audits & Cycle Counting",
@@ -85,7 +86,9 @@ test.describe("Master Data & Planning Modules Completion Audit", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 
-  test("6. Demand Projection (/inventory/batches/projections)", async ({ page }) => {
+  test("6. Demand Projection (/inventory/batches/projections)", async ({
+    page,
+  }) => {
     await page.goto("/inventory/batches/projections");
     await expect(page.locator("h1")).toContainText(
       "Financial Projections & Cash Flow Forecast",

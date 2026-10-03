@@ -1,8 +1,10 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, requireE2EAuth } from "../fixtures/test.fixture";
+import type { Page } from "@playwright/test";
 import { Pool } from "pg";
 import * as crypto from "crypto";
 import fs from "node:fs";
 import path from "node:path";
+test.beforeEach(() => requireE2EAuth());
 
 const ADMIN_USER_ID = "e941c06c-f461-4cac-88ed-d2197617d06b"; // admin@48studios.in
 
@@ -245,7 +247,9 @@ test.describe("Inventory Builder Preview: Front Elevation & Container Assignment
   test("1. renders the front elevation with faithful physical proportions", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${parentId}`,
+    );
     await waitForWorkspaceReady(page);
 
     const viewport = page.getByTestId("front-elevation-viewport");
@@ -341,7 +345,9 @@ test.describe("Inventory Builder Preview: Front Elevation & Container Assignment
   test("2. keeps 2D and 3D selection synchronized through shared state", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${parentId}`,
+    );
     await waitForWorkspaceReady(page);
 
     const a01 = page.locator('[data-slot-id="drawer_slot_r0_c0"]');
@@ -367,7 +373,9 @@ test.describe("Inventory Builder Preview: Front Elevation & Container Assignment
   test("3. updates the projection when geometry changes and zooms without distortion", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${parentId}`,
+    );
     await waitForWorkspaceReady(page);
     const viewport = page.getByTestId("front-elevation-viewport");
 
@@ -423,7 +431,9 @@ test.describe("Inventory Builder Preview: Front Elevation & Container Assignment
   test("4. selects the top-level container independently of compartments in 2D and 3D", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${parentId}`,
+    );
     await waitForWorkspaceReady(page);
 
     const container = page.getByTestId("front-elevation-container");
@@ -539,7 +549,9 @@ test.describe("Inventory Builder Preview: Front Elevation & Container Assignment
   test("6. prevents a compartment-mapped location from also being the container", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${parentId}`,
+    );
     await waitForWorkspaceReady(page);
 
     // Map the child drawer to the default-selected compartment A01
@@ -687,7 +699,9 @@ test.describe("Inventory Builder Preview: Front Elevation & Container Assignment
   test("9. clearing the parent re-locks children without discarding mappings", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${parentId}`,
+    );
     await waitForWorkspaceReady(page);
 
     // Map the child drawer to the default-selected compartment A01
@@ -740,7 +754,9 @@ test.describe("Inventory Builder Preview: Front Elevation & Container Assignment
   test("10. naming dropdowns fill the panel column and truncate long values", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/spatial-builder?location=${parentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${parentId}`,
+    );
     await waitForWorkspaceReady(page);
 
     const rowOrderTrigger = page

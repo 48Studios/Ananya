@@ -1,6 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, requireE2EAuth } from "../fixtures/test.fixture";
 import { Pool } from "pg";
 import * as crypto from "crypto";
+test.beforeEach(() => requireE2EAuth());
 
 const DB_URL =
   process.env.DATABASE_URL ||
@@ -71,20 +72,32 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
   test("1. Renders 3D Spatial Inventory view with mode toggles and unit-safe operational metrics", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+    );
 
     // Verify 3D canvas is visible
     const canvas = page.locator("div.relative canvas").first();
     await expect(canvas).toBeVisible({ timeout: 10000 });
 
     // Verify Visualization Mode controls exist
-    await expect(page.getByRole("button", { name: "Standard", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Provenance", exact: false })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Occupancy", exact: false })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Labels", exact: false })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Standard", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Provenance", exact: false }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Occupancy", exact: false }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Labels", exact: false }),
+    ).toBeVisible();
 
     // Verify Top Operational Bar metrics are rendered cleanly
-    const operationalBar = page.locator("[data-testid='spatial-operational-bar']");
+    const operationalBar = page.locator(
+      "[data-testid='spatial-operational-bar']",
+    );
     await expect(operationalBar).toBeVisible();
     await expect(operationalBar).toContainText("Total Stock:");
     await expect(operationalBar).toContainText("Occupancy:");
@@ -99,7 +112,9 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
   test("2. Switches between Standard, Provenance, and Occupancy modes, verifying accessible legend and labels", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+    );
     const canvas = page.locator("div.relative canvas").first();
     await expect(canvas).toBeVisible({ timeout: 10000 });
 
@@ -112,7 +127,10 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     await expect(legend).toContainText("Empty");
 
     // 1. Switch to Provenance Mode
-    const provenanceBtn = page.getByRole("button", { name: "Provenance", exact: false });
+    const provenanceBtn = page.getByRole("button", {
+      name: "Provenance",
+      exact: false,
+    });
     await provenanceBtn.click();
 
     // Verify Provenance Legend displays direct stock separated from descendant sub-compartments
@@ -122,7 +140,10 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     await expect(legend).toContainText("Empty");
 
     // 2. Switch to Occupancy Mode
-    const occupancyBtn = page.getByRole("button", { name: "Occupancy", exact: false });
+    const occupancyBtn = page.getByRole("button", {
+      name: "Occupancy",
+      exact: false,
+    });
     await occupancyBtn.click();
 
     // Verify Occupancy Legend displays explicit capacity tiers and presence for unspecified
@@ -134,7 +155,10 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     await expect(legend).toContainText("Empty (0%)");
 
     // 3. Toggle Labels on and off
-    const labelsToggle = page.getByRole("button", { name: "Labels", exact: false });
+    const labelsToggle = page.getByRole("button", {
+      name: "Labels",
+      exact: false,
+    });
     await expect(labelsToggle).toBeVisible();
     await labelsToggle.click();
     await labelsToggle.click();
@@ -152,7 +176,9 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
       }
     });
 
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+    );
     const canvas = page.locator("div.relative canvas").first();
     await expect(canvas).toBeVisible({ timeout: 10000 });
 
@@ -171,7 +197,9 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
   test("4. Selects a compartment and inspects unit-safe direct vs descendant stock and explicit capacity", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+    );
     const canvas = page.locator("div.relative canvas").first();
     await expect(canvas).toBeVisible({ timeout: 10000 });
 
@@ -192,14 +220,18 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     }
 
     // Verify Inspector opens with unit-safe direct vs descendant stock
-    await expect(page.getByText("Direct Stock").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Direct Stock").first()).toBeVisible({
+      timeout: 5000,
+    });
     await expect(page.getByText("Sub-compartment Stock").first()).toBeVisible();
 
     // Verify Physical Capacity is displayed without false percentages for unspecified locations
     await expect(page.getByText("Physical Capacity:").first()).toBeVisible();
 
     // Verify Page navigation button exists in inspector actions
-    await expect(page.getByRole("button", { name: "Page", exact: false }).first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Page", exact: false }).first(),
+    ).toBeVisible();
   });
 
   test("5. Captures visual verification screenshots across modes and inspector", async ({
@@ -208,7 +240,9 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     const artifactDir =
       "/Users/jrsarath/.gemini/antigravity-ide/brain/982b4a48-12e8-4b31-affb-7a158555e9a0";
 
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+    );
     const canvas = page.locator("div.relative canvas").first();
     await expect(canvas).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
@@ -220,7 +254,10 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     });
 
     // Provenance mode screenshot
-    const provenanceBtn = page.getByRole("button", { name: "Provenance", exact: false });
+    const provenanceBtn = page.getByRole("button", {
+      name: "Provenance",
+      exact: false,
+    });
     await provenanceBtn.click();
     await page.waitForTimeout(500);
     await page.screenshot({
@@ -229,7 +266,10 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     });
 
     // Occupancy mode screenshot
-    const occupancyBtn = page.getByRole("button", { name: "Occupancy", exact: false });
+    const occupancyBtn = page.getByRole("button", {
+      name: "Occupancy",
+      exact: false,
+    });
     await occupancyBtn.click();
     await page.waitForTimeout(500);
     await page.screenshot({
@@ -257,20 +297,37 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     playwright,
   }) => {
     // 1. Create a user session with Auditor role (lacks Inventory.Read)
-    const roleRes = await pool.query("SELECT id FROM roles WHERE name = 'Auditor';");
+    const roleRes = await pool.query(
+      "SELECT id FROM roles WHERE name = 'Auditor';",
+    );
     const auditorRoleId = roleRes.rows[0].id;
 
     const unauthUserId = crypto.randomUUID();
-    const unauthToken = "playwright-unauth-" + crypto.randomBytes(16).toString("hex");
+    const unauthToken =
+      "playwright-unauth-" + crypto.randomBytes(16).toString("hex");
 
     await pool.query(
       "INSERT INTO users (id, email, password_hash, first_name, last_name, role_id) VALUES ($1, $2, $3, $4, $5, $6);",
-      [unauthUserId, `unauth-${Date.now()}@test.com`, "hash", "Unauth", "Auditor", auditorRoleId],
+      [
+        unauthUserId,
+        `unauth-${Date.now()}@test.com`,
+        "hash",
+        "Unauth",
+        "Auditor",
+        auditorRoleId,
+      ],
     );
 
     await pool.query(
       "INSERT INTO user_sessions (user_id, token, ip_address, user_agent, device_info, expires_at) VALUES ($1, $2, $3, $4, $5, $6);",
-      [unauthUserId, unauthToken, "127.0.0.1", "Playwright", "Headless", new Date(Date.now() + 60000)],
+      [
+        unauthUserId,
+        unauthToken,
+        "127.0.0.1",
+        "Playwright",
+        "Headless",
+        new Date(Date.now() + 60000),
+      ],
     );
 
     try {
@@ -314,7 +371,9 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
       );
       expect(projRes.status()).toBe(403);
     } finally {
-      await pool.query("DELETE FROM user_sessions WHERE user_id = $1;", [unauthUserId]);
+      await pool.query("DELETE FROM user_sessions WHERE user_id = $1;", [
+        unauthUserId,
+      ]);
       await pool.query("DELETE FROM users WHERE id = $1;", [unauthUserId]);
     }
   });
@@ -322,33 +381,50 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
   test("7. Freshness and invalidation: preserves view state, supports navigation and breadcrumb reload", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+    );
     const canvas = page.locator("div.relative canvas").first();
     await expect(canvas).toBeVisible({ timeout: 10000 });
 
     // Verify operational metrics are present
-    const operationalBar = page.locator("[data-testid='spatial-operational-bar']");
+    const operationalBar = page.locator(
+      "[data-testid='spatial-operational-bar']",
+    );
     await expect(operationalBar).toBeVisible();
     await expect(operationalBar).toContainText("Total Stock:");
 
     // Switch to Provenance mode
-    const provenanceBtn = page.getByRole("button", { name: "Provenance", exact: false });
+    const provenanceBtn = page.getByRole("button", {
+      name: "Provenance",
+      exact: false,
+    });
     await provenanceBtn.click();
-    await expect(page.locator("div.absolute.bottom-3.left-3")).toContainText("Direct Stock");
+    await expect(page.locator("div.absolute.bottom-3.left-3")).toContainText(
+      "Direct Stock",
+    );
 
     // Test 1: Page refresh preserves canvas and operational state
     await page.reload();
     await expect(canvas).toBeVisible({ timeout: 10000 });
-    await expect(page.locator("[data-testid='spatial-operational-bar']")).toBeVisible();
+    await expect(
+      page.locator("[data-testid='spatial-operational-bar']"),
+    ).toBeVisible();
 
     // Test 2: Navigate away to another location (drawer)
     const drawerLocationId = "cc6e8839-2d94-48c2-9710-04be238a3c32"; // DEMO-SPATIAL-DRAWER-A06
     await page.goto(`/inventory/locations/${drawerLocationId}`);
-    await expect(page.getByText("DEMO-SPATIAL-DRAWER-A06").first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("DEMO-SPATIAL-DRAWER-A06").first()).toBeVisible(
+      { timeout: 10000 },
+    );
 
     // Test 3: Return to the existing 3D view of the cabinet
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+    );
     await expect(canvas).toBeVisible({ timeout: 10000 });
-    await expect(page.locator("[data-testid='spatial-operational-bar']")).toContainText("Total Stock:");
+    await expect(
+      page.locator("[data-testid='spatial-operational-bar']"),
+    ).toContainText("Total Stock:");
   });
 });

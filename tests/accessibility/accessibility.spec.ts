@@ -1,4 +1,4 @@
-import { test, expect } from "../fixtures/test.fixture";
+import { test, expect, requireE2EAuth } from "../fixtures/test.fixture";
 import AxeBuilder from "@axe-core/playwright";
 
 test.describe("Accessibility Audits (a11y)", () => {
@@ -12,6 +12,7 @@ test.describe("Accessibility Audits (a11y)", () => {
   });
 
   test("should pass accessibility checks on /dashboard", async ({ page }) => {
+    requireE2EAuth();
     await page.goto("/dashboard");
     const accessibilityScanResults = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa"])

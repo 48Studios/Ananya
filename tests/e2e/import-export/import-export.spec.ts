@@ -1,4 +1,5 @@
-import { test, expect } from "../../fixtures/test.fixture";
+import { test, expect, requireE2EAuth } from "../../fixtures/test.fixture";
+test.beforeEach(() => requireE2EAuth());
 
 test.describe("Import / Export Framework & Read Model Data Integrity", () => {
   test("should render import trigger and open unified ImportWizard with FileUploader on Components", async ({

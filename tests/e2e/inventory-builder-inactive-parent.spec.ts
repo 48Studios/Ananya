@@ -1,6 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, requireE2EAuth } from "../fixtures/test.fixture";
 import { Pool } from "pg";
 import * as crypto from "crypto";
+test.beforeEach(() => requireE2EAuth());
 
 /**
  * Phase 3.4.7 §2 — Inactive-parent publication UX, end to end in the browser.
@@ -120,7 +121,9 @@ test.describe("Phase 3.4.7: Inactive-Parent Publication UX (browser + API)", () 
     request,
   }) => {
     // 1–2. Open the builder, map a slot, save a draft (normal persistence).
-    await page.goto(`/inventory/locations/spatial-builder?location=${testParentId}`);
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${testParentId}`,
+    );
     // Scoped to <main>: the sidebar navigation also renders "Inventory Builder".
     await expect(
       page.getByRole("main").getByText("Inventory Builder"),
@@ -200,8 +203,11 @@ test.describe("Phase 3.4.7: Inactive-Parent Publication UX (browser + API)", () 
     const [publishResponse] = await Promise.all([
       page.waitForResponse(
         (res) =>
-          res.url().includes(`/inventory/locations/spatial/layouts/${layoutId}/publish`) &&
-          res.request().method() === "POST",
+          res
+            .url()
+            .includes(
+              `/inventory/locations/spatial/layouts/${layoutId}/publish`,
+            ) && res.request().method() === "POST",
       ),
       page.getByRole("button", { name: "Publish Layout" }).click(),
     ]);

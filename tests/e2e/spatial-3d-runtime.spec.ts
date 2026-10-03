@@ -1,8 +1,9 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, requireE2EAuth } from "../fixtures/test.fixture";
 import { Pool } from "pg";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
+test.beforeEach(() => requireE2EAuth());
 
 const DB_URL =
   process.env.DATABASE_URL ||

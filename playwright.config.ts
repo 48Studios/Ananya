@@ -1,4 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
+
+const hasE2ECredentials = Boolean(
+  process.env.E2E_ADMIN_EMAIL && process.env.E2E_ADMIN_PASSWORD,
+);
+const storageStatePath = path.join(__dirname, "tests/.auth/e2e-state.json");
 
 export default defineConfig({
   testDir: "./tests",
@@ -11,11 +17,15 @@ export default defineConfig({
     ["junit", { outputFile: "playwright-report/results.xml" }],
     ["list"],
   ],
+  globalSetup: "./tests/global-setup.ts",
   use: {
     baseURL: process.env.BASE_URL || "http://localhost:3000",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
+    // The session written by globalSetup; absent without E2E credentials, in
+    // which case authenticated specs skip themselves.
+    ...(hasE2ECredentials ? { storageState: storageStatePath } : {}),
   },
 
   projects: [

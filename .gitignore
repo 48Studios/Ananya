@@ -50,6 +50,7 @@ Thumbs.db
 .turbo
 /test-results
 /playwright-report
+/tests/.auth
 /apps/api/uploads
 
 # ML Training Data, Large Artifacts & Experiments

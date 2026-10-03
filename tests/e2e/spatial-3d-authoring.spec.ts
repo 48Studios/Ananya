@@ -1,6 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, requireE2EAuth } from "../fixtures/test.fixture";
 import { Pool } from "pg";
 import crypto from "crypto";
+test.beforeEach(() => requireE2EAuth());
 
 const DB_CONN =
   process.env.DATABASE_URL ||
@@ -60,9 +61,12 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
   test("1. Edit Anchors toggle opens authoring workspace with 3D markers and panel", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
-      waitUntil: "networkidle",
-    });
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+      {
+        waitUntil: "networkidle",
+      },
+    );
 
     // Check Edit Anchors button is available
     const editAnchorsBtn = page.getByRole("button", { name: /Edit Anchors/i });
@@ -72,9 +76,7 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
     await editAnchorsBtn.click();
 
     // Verify 3D canvas overlay indicates authoring mode active
-    await expect(
-      page.getByText("Anchor Authoring Active"),
-    ).toBeVisible();
+    await expect(page.getByText("Anchor Authoring Active")).toBeVisible();
 
     // Verify Anchor Authoring sidebar panel opens
     await expect(
@@ -82,8 +84,12 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
     ).toBeVisible();
 
     // Verify Move and Rotate gizmo toggles are visible
-    await expect(page.getByRole("button", { name: "Move" }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Rotate" }).first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Move" }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Rotate" }).first(),
+    ).toBeVisible();
 
     // Verify exit authoring works
     const exitBtn = page.getByRole("button", { name: "Exit Edit" });
@@ -91,15 +97,20 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
     await exitBtn.click();
 
     // Verify returns to standard inspection mode
-    await expect(page.getByRole("button", { name: "Edit Anchors" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Edit Anchors" }),
+    ).toBeVisible();
   });
 
   test("2. Select anchor, inspect coordinates, verify live preview and occupancy", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
-      waitUntil: "networkidle",
-    });
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+      {
+        waitUntil: "networkidle",
+      },
+    );
 
     await page.getByRole("button", { name: /Edit Anchors/i }).click();
 
@@ -124,9 +135,12 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
   test("3. Edit coordinates, verify dirty diff state, and guard cancel via ConfirmDialog", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
-      waitUntil: "networkidle",
-    });
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+      {
+        waitUntil: "networkidle",
+      },
+    );
 
     await page.getByRole("button", { name: /Edit Anchors/i }).click();
 
@@ -139,7 +153,9 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
     await posX.fill("120");
 
     // Unsaved dirty summary should appear
-    await expect(page.getByText(/Unsaved: 0 added, 1 edited, 0 removed/i)).toBeVisible();
+    await expect(
+      page.getByText(/Unsaved: 0 added, 1 edited, 0 removed/i),
+    ).toBeVisible();
 
     // Save button should be enabled
     const saveBtn = page.getByRole("button", { name: /Save Anchors/i });
@@ -158,15 +174,20 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
     await page.getByRole("button", { name: "Discard Changes" }).click();
 
     // Should return to normal view with changes discarded
-    await expect(page.getByRole("button", { name: "Edit Anchors" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Edit Anchors" }),
+    ).toBeVisible();
   });
 
   test("4. Add new anchor and detect envelope boundary warnings", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
-      waitUntil: "networkidle",
-    });
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+      {
+        waitUntil: "networkidle",
+      },
+    );
 
     await page.getByRole("button", { name: /Edit Anchors/i }).click();
 
@@ -196,9 +217,12 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
   test("5. Atomic multi-anchor bulk save persists to database and survives reload", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
-      waitUntil: "networkidle",
-    });
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+      {
+        waitUntil: "networkidle",
+      },
+    );
 
     await page.getByRole("button", { name: /Edit Anchors/i }).click();
 
@@ -211,19 +235,22 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
 
     // Edit X coordinate to 105 mm
     await posX.fill("105");
-    await expect(page.getByText(/Unsaved: 0 added, 1 edited, 0 removed/i)).toBeVisible();
+    await expect(
+      page.getByText(/Unsaved: 0 added, 1 edited, 0 removed/i),
+    ).toBeVisible();
 
     // Save and wait for bulk-save API call to succeed
     await Promise.all([
       page.waitForResponse(
-        (resp) =>
-          resp.url().includes("/anchors/bulk-save") && resp.ok(),
+        (resp) => resp.url().includes("/anchors/bulk-save") && resp.ok(),
       ),
       page.getByRole("button", { name: /Save Anchors/i }).click(),
     ]);
 
     // Viewport returns to standard inspection mode
-    await expect(page.getByRole("button", { name: "Edit Anchors" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Edit Anchors" }),
+    ).toBeVisible();
 
     // Reload page to verify persisted state from database
     await page.reload({ waitUntil: "networkidle" });
@@ -239,20 +266,24 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
     await posXReloaded.fill("100");
     await Promise.all([
       page.waitForResponse(
-        (resp) =>
-          resp.url().includes("/anchors/bulk-save") && resp.ok(),
+        (resp) => resp.url().includes("/anchors/bulk-save") && resp.ok(),
       ),
       page.getByRole("button", { name: /Save Anchors/i }).click(),
     ]);
-    await expect(page.getByRole("button", { name: "Edit Anchors" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Edit Anchors" }),
+    ).toBeVisible();
   });
 
   test("6. Concurrent conflict error preserves user draft and shows conflict message", async ({
     page,
   }) => {
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
-      waitUntil: "networkidle",
-    });
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+      {
+        waitUntil: "networkidle",
+      },
+    );
 
     await page.getByRole("button", { name: /Edit Anchors/i }).click();
 
@@ -264,18 +295,21 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
     await posX.fill("135");
 
     // Mock 409 Conflict from bulk-save endpoint
-    await page.route("**/spatial/models/**/anchors/bulk-save", async (route) => {
-      await route.fulfill({
-        status: 409,
-        contentType: "application/json",
-        body: JSON.stringify({
-          statusCode: 409,
-          error: "Conflict",
-          message:
-            "Spatial model was modified by another user. Please reload the page to get the latest version.",
-        }),
-      });
-    });
+    await page.route(
+      "**/spatial/models/**/anchors/bulk-save",
+      async (route) => {
+        await route.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({
+            statusCode: 409,
+            error: "Conflict",
+            message:
+              "Spatial model was modified by another user. Please reload the page to get the latest version.",
+          }),
+        });
+      },
+    );
 
     // Click Save Anchors
     await page.getByRole("button", { name: /Save Anchors/i }).click();
@@ -292,7 +326,9 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
       page.getByRole("heading", { name: "ANCHOR AUTHORING" }),
     ).toBeVisible();
     await expect(posX).toHaveValue("135");
-    await expect(page.getByRole("button", { name: /Save Anchors/i })).toBeEnabled();
+    await expect(
+      page.getByRole("button", { name: /Save Anchors/i }),
+    ).toBeEnabled();
 
     // Unroute and cancel cleanly
     await page.unroute("**/spatial/models/**/anchors/bulk-save");
@@ -316,9 +352,12 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
       });
     });
 
-    await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`, {
-      waitUntil: "networkidle",
-    });
+    await page.goto(
+      `/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`,
+      {
+        waitUntil: "networkidle",
+      },
+    );
 
     // Verify Edit Anchors button is disabled with permission tooltip
     const editBtn = page.getByRole("button", { name: /Edit Anchors/i });
@@ -331,7 +370,8 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
 
     // Verify authoring workspace is not accessible
     await expect(page.getByText("Anchor Authoring Active")).not.toBeVisible();
-    await expect(page.getByRole("heading", { name: "ANCHOR AUTHORING" })).not.toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "ANCHOR AUTHORING" }),
+    ).not.toBeVisible();
   });
 });
-
