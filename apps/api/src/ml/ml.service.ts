@@ -864,7 +864,14 @@ export class MlService {
     const resolvedAttributes: Record<string, ExtractedAttributeDto> = {};
     const rawAttrs: Record<string, RawExtractedAttribute> = mlResponse
       ? mlResponse.extracted_attributes
-      : this.extractAttributesFallback(query);
+      : this.extractAttributesFallback(
+          // The analyzer passes the name as the query and the name plus the
+          // specification text as the description; a spec-only token such as
+          // `125mW` lives only in the description, so the fallback must read
+          // both. When no separate description was supplied the two are
+          // identical and the match is unchanged.
+          description === query ? query : `${query} ${description}`,
+        );
 
     for (const [key, raw] of Object.entries(rawAttrs)) {
       const dbDef = resolveAttributeDefinition(key, allAttributes);
@@ -1734,6 +1741,38 @@ export class MlService {
           {
             type: 'datasheet_param',
             description: `Extracted voltage ${formatted} from query`,
+            weight: 0.92,
+            source: 'regex:fallback',
+          },
+        ],
+      };
+    }
+
+    // Power rating (e.g. `125mW`, `0.25W`, `1/4W` is handled by the ML path).
+    // The fallback previously extracted resistance, capacitance, voltage and
+    // footprint but never power, so a spec-only description like
+    // `27Ω ±1% 125mW 0805` produced no power_rating suggestion when the ML
+    // service was unreachable — and the regression test that guards the
+    // power-rating-as-attribute (not MPN) contract failed.
+    const powerM = t.match(/\b(\d+(?:\.\d+)?)\s*(mw|kw|w)\b/i);
+    if (powerM && powerM[1] && powerM[2]) {
+      const rawUnit = powerM[2].toLowerCase();
+      const canonicalUnit =
+        rawUnit === 'mw' ? 'mW' : rawUnit === 'kw' ? 'kW' : 'W';
+      const formatted = `${powerM[1]}${canonicalUnit}`;
+      attrs['power'] = {
+        code: 'power',
+        value: parseFloat(powerM[1]),
+        unit: canonicalUnit,
+        source_value: parseFloat(powerM[1]),
+        source_unit: canonicalUnit,
+        formatted,
+        confidence: 0.92,
+        confidenceLevel: 'HIGH',
+        evidence: [
+          {
+            type: 'datasheet_param',
+            description: `Extracted power rating ${formatted} from query`,
             weight: 0.92,
             source: 'regex:fallback',
           },

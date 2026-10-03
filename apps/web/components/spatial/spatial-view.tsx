@@ -206,13 +206,78 @@ export function SpatialView({
         if (onNavigateLocation) {
           onNavigateLocation(targetLocationId);
         } else {
+          const params = new URLSearchParams();
           const viewParam = currentMode === "3d" ? "spatial3d" : "spatial";
-          router.push(`/locations/${targetLocationId}?view=${viewParam}`);
+          params.set("view", viewParam);
+          if (focusComponentId) {
+            params.set("focusComponent", focusComponentId);
+          }
+          const qs = params.toString();
+          router.push(`/locations/${targetLocationId}${qs ? `?${qs}` : ""}`);
         }
       });
     },
-    [onNavigateLocation, currentMode, router, guardNavigation],
+    [onNavigateLocation, currentMode, router, guardNavigation, focusComponentId],
   );
+
+  // Unified keyboard shortcuts: Enter to open selected compartment, Escape to clear selection
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is inside an input, textarea, select, or editable element
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement ||
+        (e.target instanceof HTMLElement && e.target.isContentEditable)
+      ) {
+        return;
+      }
+
+      // Check if an interactive overlay (modal dialog, alert dialog, menu, popover) is open
+      const hasActiveModalOrMenu = Boolean(
+        unsavedNavConfirmOpen ||
+          document.querySelector(
+            '[role="dialog"], [role="alertdialog"], [role="menu"], [data-radix-popper-content-wrapper]',
+          ),
+      );
+
+      if (e.key === "Escape") {
+        // If a modal or menu is open, let its own handler process Escape
+        if (hasActiveModalOrMenu) {
+          return;
+        }
+
+        if (selectedLocationId) {
+          e.preventDefault();
+          setSelectedLocationId(null);
+        }
+      } else if (e.key === "Enter") {
+        // Do not hijack Enter if focus is on any interactive control
+        // (buttons, links, menus, dialogs have their own native activation)
+        if (
+          e.target instanceof HTMLElement &&
+          e.target.closest(
+            "button, a, select, [role='button'], [role='menuitem'], [role='dialog'], [role='alertdialog']",
+          )
+        ) {
+          return;
+        }
+
+        if (selectedLocationId && !isAuthoringAnchors && !hasActiveModalOrMenu) {
+          e.preventDefault();
+          handleNavigate(selectedLocationId);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    selectedLocationId,
+    isAuthoringAnchors,
+    unsavedNavConfirmOpen,
+    handleNavigate,
+  ]);
 
   const handleUpOneLevel = React.useCallback(() => {
     if (parentLocationId) {
@@ -582,16 +647,9 @@ export function SpatialView({
         </div>
       )}
 
-      {/* Main Grid View Area + Inspector Drawer */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-        {/* Spatial Grid Matrix (7 or 8 columns on large screens if inspector is open) */}
-        <div
-          className={
-            selectedLocationId
-              ? "lg:col-span-8 order-2 lg:order-1"
-              : "lg:col-span-12 order-2 lg:order-1"
-          }
-        >
+      {/* Main Spatial Canvas Area (Always stable full-width; selecting a cell never resizes or reflows the canvas) */}
+      <div className="relative w-full">
+        <div className="w-full">
           <div className="bg-card rounded-xl border border-border p-4 shadow-xs">
             <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-border/60">
               <div className="flex items-center gap-2">
@@ -736,6 +794,7 @@ export function SpatialView({
                 selectedLocationId={selectedLocationId}
                 highlightedLocationId={effectiveHighlightedLocationId}
                 onSelectCell={handleCellSelect}
+                onEnterCell={handleNavigate}
               />
             ) : (
               <DynamicSpatial3DViewport
@@ -748,6 +807,7 @@ export function SpatialView({
                 onSelectLocation={handleCellSelect}
                 onEnterLocation={handleNavigate}
                 onOpenMapping={onOpenMapping}
+                onSwitchTo2D={() => handleSafeModeChange("2d")}
                 visualizationMode={visualizationMode}
                 showBadges={showBadges}
                 isAuthoringAnchors={isAuthoringAnchors}
@@ -770,9 +830,31 @@ export function SpatialView({
           </div>
         </div>
 
-        {/* Selected Cell Inspector or Anchor Authoring Panel (4 columns on large screens) */}
-        {isAuthoringAnchors && data.parent.model ? (
-          <div className="lg:col-span-4 order-1 lg:order-2 sticky top-4">
+        {/* Selected Cell Inspector: Floating Overlay on Desktop, Bottom Sheet on Mobile */}
+        {selectedLocationId && selectedChild && selectedSummary && !isAuthoringAnchors && (
+          <div
+            data-testid="spatial-inspector-overlay"
+            className={cn(
+              // Desktop & tablet: Floating overlay positioned top-right over canvas without resizing canvas
+              "sm:absolute sm:top-14 sm:right-4 sm:z-20 sm:w-84 sm:max-w-[calc(100%-2rem)] sm:max-h-[min(640px,calc(100vh-10rem))] sm:overflow-y-auto sm:shadow-xl",
+              // Mobile (<sm): Fixed bottom sheet overlay
+              "fixed inset-x-0 bottom-0 z-50 p-2 bg-background/80 backdrop-blur-sm sm:p-0 sm:bg-transparent sm:backdrop-blur-none",
+            )}
+          >
+            <SpatialInspector
+              summary={selectedSummary}
+              childDto={selectedChild}
+              focusComponentId={focusComponentId}
+              onClose={() => setSelectedLocationId(null)}
+              onEnterLocation={handleNavigate}
+              className="shadow-xl border-border bg-card/95 backdrop-blur-md max-h-[70vh] sm:max-h-[min(640px,calc(100vh-10rem))] overflow-y-auto"
+            />
+          </div>
+        )}
+
+        {/* Anchor Authoring Panel (preserved for 3D authoring mode) */}
+        {isAuthoringAnchors && data.parent.model && (
+          <div className="mt-4 lg:mt-0 lg:absolute lg:top-14 lg:right-4 lg:z-20 lg:w-96 lg:max-h-[min(640px,calc(100vh-10rem))] lg:overflow-y-auto lg:shadow-xl">
             <SpatialAnchorEditor
               model={data.parent.model}
               draftAnchors={draftAnchors}
@@ -814,17 +896,7 @@ export function SpatialView({
               onGizmoModeChange={setAuthoringGizmoMode}
             />
           </div>
-        ) : selectedLocationId && selectedChild && selectedSummary ? (
-          <div className="lg:col-span-4 order-1 lg:order-2 sticky top-4">
-            <SpatialInspector
-              summary={selectedSummary}
-              childDto={selectedChild}
-              focusComponentId={focusComponentId}
-              onClose={() => setSelectedLocationId(null)}
-              onEnterLocation={handleNavigate}
-            />
-          </div>
-        ) : null}
+        )}
       </div>
 
       {/* Discard Changes Navigation Guard Dialog */}

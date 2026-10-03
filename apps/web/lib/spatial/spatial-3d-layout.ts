@@ -396,6 +396,53 @@ export function computeSceneBoundingBox(
   };
 }
 
+export type CameraOrientationPreset = "isometric" | "front" | "top";
+
+/**
+ * Computes optimal camera position and target to frame a bounding box from canonical viewpoints.
+ */
+export function calculateCameraOrientationPreset(
+  bounds: BoundingBox3D,
+  preset: CameraOrientationPreset = "isometric",
+  fovDegrees = 45,
+): { position: Vector3D; target: Vector3D; distance: number } {
+  const maxDim = Math.max(bounds.size.x, bounds.size.y, bounds.size.z);
+  const fovRad = (fovDegrees * Math.PI) / 180;
+  // Calculate distance needed to fit the bounding sphere in the camera frustum
+  const distance = (maxDim / 2 / Math.tan(fovRad / 2)) * 1.6;
+  const center = bounds.center;
+
+  let pos: Vector3D;
+  if (preset === "front") {
+    pos = {
+      x: center.x,
+      y: center.y,
+      z: center.z + distance * 0.95,
+    };
+  } else if (preset === "top") {
+    pos = {
+      x: center.x,
+      y: center.y + distance * 1.05,
+      z: center.z + 0.001,
+    };
+  } else {
+    // Elevate camera at a natural 30-degree isometric viewing angle with 45-degree azimuth
+    const angleY = (30 * Math.PI) / 180;
+    const angleX = (45 * Math.PI) / 180;
+    pos = {
+      x: center.x + distance * Math.cos(angleY) * Math.sin(angleX),
+      y: center.y + distance * Math.sin(angleY),
+      z: center.z + distance * Math.cos(angleY) * Math.cos(angleX),
+    };
+  }
+
+  return {
+    position: pos,
+    target: { ...center },
+    distance,
+  };
+}
+
 /**
  * Computes optimal camera position and target to frame a bounding box.
  */
@@ -403,24 +450,7 @@ export function calculateCameraFit(
   bounds: BoundingBox3D,
   fovDegrees = 45,
 ): { position: Vector3D; target: Vector3D; distance: number } {
-  const maxDim = Math.max(bounds.size.x, bounds.size.y, bounds.size.z);
-  const fovRad = (fovDegrees * Math.PI) / 180;
-  // Calculate distance needed to fit the bounding sphere in the camera frustum
-  const distance = (maxDim / 2 / Math.tan(fovRad / 2)) * 1.6;
-
-  // Elevate camera at a natural 30-degree isometric viewing angle
-  const angleY = (30 * Math.PI) / 180;
-  const angleX = (45 * Math.PI) / 180;
-
-  const posX = bounds.center.x + distance * Math.cos(angleY) * Math.sin(angleX);
-  const posY = bounds.center.y + distance * Math.sin(angleY);
-  const posZ = bounds.center.z + distance * Math.cos(angleY) * Math.cos(angleX);
-
-  return {
-    position: { x: posX, y: posY, z: posZ },
-    target: { ...bounds.center },
-    distance,
-  };
+  return calculateCameraOrientationPreset(bounds, "isometric", fovDegrees);
 }
 
 /**

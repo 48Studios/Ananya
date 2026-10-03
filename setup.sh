@@ -98,6 +98,57 @@ set +a
 ANANYA_VERSION="${ANANYA_VERSION:-latest}"
 API_PUBLIC_URL="${API_PUBLIC_URL:-http://localhost:4000}"
 
+# Preflight (Phase 3.4.12/D3): in artifact-only mode (no usable local migration
+# checkout) the requested version is the sole release binding, so validate it
+# HERE — before image pulls, web builds, or database startup. This is a cheap
+# shell preflight for values that cannot be final releases (empty, known
+# mutable tags, or anything that is not X.Y.Z / vX.Y.Z with integer parts);
+# the authoritative check is the in-container verifier, which additionally
+# compares against the baked identity. Checkout mode is unaffected: any
+# ANANYA_VERSION is accepted here and the journal-identity comparison below
+# remains the gate.
+if [ ! -d "packages/database/drizzle" ]; then
+  PREFLIGHT_VERSION_OK=true
+  case "${ANANYA_VERSION}" in
+    ""|"latest"|"Latest"|"LATEST"|"edge"|"Edge"|"EDGE"|"rc"|"RC"|"beta"|"Beta"|"BETA"|"main"|"Main"|"MAIN"|"unknown"|"Unknown"|"UNKNOWN")
+      PREFLIGHT_VERSION_OK=false
+      ;;
+    *)
+      # Final release format only: optional single "v" + X.Y.Z integers, no
+      # prerelease suffixes, no leading zeros. Shell-pattern approximation of
+      # the verifier's FINAL_RELEASE_PATTERN; the verifier remains authoritative.
+      PREFLIGHT_TMP="${ANANYA_VERSION#[vV]}"
+      case "$PREFLIGHT_TMP" in
+        *[!0-9.]*|*..*|.*|*.) PREFLIGHT_VERSION_OK=false ;;
+        *.*.*)
+          PREFLIGHT_MAJOR="${PREFLIGHT_TMP%%.*}"
+          PREFLIGHT_REST="${PREFLIGHT_TMP#*.}"
+          PREFLIGHT_MINOR="${PREFLIGHT_REST%%.*}"
+          PREFLIGHT_PATCH="${PREFLIGHT_REST#*.}"
+          case "$PREFLIGHT_PATCH" in
+            *.*) PREFLIGHT_VERSION_OK=false ;;
+          esac
+          for PREFLIGHT_PART in "$PREFLIGHT_MAJOR" "$PREFLIGHT_MINOR" "$PREFLIGHT_PATCH"; do
+            case "$PREFLIGHT_PART" in
+              ""|*[!0-9]*) PREFLIGHT_VERSION_OK=false ;;
+              0*) [ "${#PREFLIGHT_PART}" -gt 1 ] && PREFLIGHT_VERSION_OK=false ;;
+            esac
+          done
+          ;;
+        *) PREFLIGHT_VERSION_OK=false ;;
+      esac
+      unset PREFLIGHT_TMP PREFLIGHT_MAJOR PREFLIGHT_REST PREFLIGHT_MINOR PREFLIGHT_PATCH PREFLIGHT_PART
+      ;;
+  esac
+  if [ "$PREFLIGHT_VERSION_OK" != "true" ]; then
+    log_error "ANANYA_VERSION='${ANANYA_VERSION}' is not a pinned final release version (expected X.Y.Z or vX.Y.Z, e.g. 0.2.0)."
+    log_error "Artifact-only upgrades (no local packages/database/drizzle checkout) require a final release tag such as ANANYA_VERSION=0.2.0."
+    log_error "Deploy prerelease, channel, SHA, or mutable tags (latest/edge/rc/beta) only from a full checkout, where the migration tree is verified by journal identity."
+    exit 1
+  fi
+  unset PREFLIGHT_VERSION_OK
+fi
+
 log_info "Deployment Configuration:"
 echo "  - Release Tag (ANANYA_VERSION)    : ${ANANYA_VERSION}"
 echo "  - Browser API URL (API_PUBLIC_URL): ${API_PUBLIC_URL}"
@@ -162,11 +213,79 @@ fi
 
 # ------------------------------------------------------------------------------
 # 5. Database Schema Migrations
+#
+# Migration-source guarantee (Phase 3.4.10, F2): the migrate container reads
+# /app/packages/database/drizzle either from the image bake or from the
+# read-only checkout mount below. A stale image without the mount would
+# silently skip pending migrations, so the source is verified BEFORE the
+# migrator runs:
+#   1. If the checkout tree exists, it must be a git work tree whose HEAD
+#      contains the migration journal (guards against the warn-and-continue
+#      `git pull` above leaving a stale or unrelated checkout behind). Only
+#      then is it mounted read-only as the migration source.
+#   2. Inside the container, verify-migrations.js compares the effective tree
+#      (what drizzle-orm will read) against the expected checkout tree by
+#      journal-entry identity (idx + tag + when) plus SQL-file presence.
+# Either check failing aborts before application activation (§6).
 # ------------------------------------------------------------------------------
 log_info "Executing database schema migrations..."
 MIGRATE_VOL_OPTS=()
+MIGRATE_EXPECTED_DIR=""
 if [ -d "packages/database/drizzle" ]; then
-  MIGRATE_VOL_OPTS=(-v "$(pwd)/packages/database/drizzle:/app/packages/database/drizzle:ro")
+  if [ -d .git ] && command -v git &> /dev/null; then
+    JOURNAL_PATH="packages/database/drizzle/meta/_journal.json"
+    if git ls-files --error-unmatch "$JOURNAL_PATH" >/dev/null 2>&1; then
+      # The journal must be tracked at HEAD (not a stale checkout missing the
+      # release's migrations). Uncommitted journal entries are allowed — they
+      # are exactly what a release branch carries before merge — but the
+      # committed HEAD version must already contain every migration the image
+      # under upgrade could need. The in-container identity check below is the
+      # authoritative gate; this guard only rejects clearly unrelated checkouts.
+      JOURNAL_HEAD_COMMIT=$(git log -1 --format=%H -- "$JOURNAL_PATH" 2>/dev/null || echo "")
+      if [ -n "$JOURNAL_HEAD_COMMIT" ] && git merge-base --is-ancestor "$JOURNAL_HEAD_COMMIT" HEAD 2>/dev/null; then
+        MIGRATE_VOL_OPTS=(-v "$(pwd)/packages/database/drizzle:/app/packages/database/drizzle:ro")
+        MIGRATE_EXPECTED_DIR="$(pwd)/packages/database/drizzle"
+        log_info "Migration source: verified checkout tree (journal HEAD commit ${JOURNAL_HEAD_COMMIT:0:8} is an ancestor of $(git rev-parse --short HEAD 2>/dev/null || echo HEAD))."
+      else
+        log_error "Checkout migration journal is not tracked at HEAD (stale or unrelated checkout?). Refusing to supply migrations from this directory."
+        exit 1
+      fi
+    else
+      log_error "Migration journal $JOURNAL_PATH is not tracked in this checkout. Refusing to supply migrations from an unverifiable directory."
+      exit 1
+    fi
+  else
+    # No git metadata (artifact-only deploy dir): the checkout tree itself is
+    # still the intended source when present — verify it inside the container.
+    MIGRATE_VOL_OPTS=(-v "$(pwd)/packages/database/drizzle:/app/packages/database/drizzle:ro")
+    MIGRATE_EXPECTED_DIR="$(pwd)/packages/database/drizzle"
+    log_info "Migration source: local directory (no git metadata; content verified inside the migrate container)."
+  fi
+fi
+
+# Resolve the expected-source path as seen INSIDE the migrate container: the
+# read-only mount lands exactly on the path the migrator reads, so the expected
+# tree and the effective tree coincide when the mount is active.
+#
+# Without a mount (artifact-only directory), the image's baked-in
+# migration-identity.json binds the tree to the intended release (Phase 3.4.11):
+# the identity is written at Docker build time from CI's release tag + source
+# SHA, and --release requires ANANYA_VERSION to match it. A stale-but-complete
+# tree is rejected because its baked identity names the older release — the
+# check never trusts the tree to describe itself. Mutable tags (latest/edge/rc)
+# fail closed: pin ANANYA_VERSION to the release being deployed.
+VERIFY_EXPECTED_CONTAINER_DIR="/app/packages/database/drizzle"
+if [ -z "$MIGRATE_EXPECTED_DIR" ]; then
+  log_info "No local migration directory; binding the migrate image's baked-in tree to release ${ANANYA_VERSION}..."
+  if ! docker compose -f compose.yml -f compose.prod.yml run --rm --no-deps --entrypoint node migrate packages/database/dist/setup/verify-migrations.js --release "${ANANYA_VERSION}" "$VERIFY_EXPECTED_CONTAINER_DIR" /app/packages/database; then
+    log_error "Release identity verification failed (see above). Aborting before database migration and application activation."
+    exit 1
+  fi
+else
+  if ! docker compose -f compose.yml -f compose.prod.yml run --rm --no-deps "${MIGRATE_VOL_OPTS[@]}" --entrypoint node migrate packages/database/dist/setup/verify-migrations.js "$VERIFY_EXPECTED_CONTAINER_DIR" /app/packages/database/drizzle; then
+    log_error "Migration source verification failed. Aborting before application activation."
+    exit 1
+  fi
 fi
 
 if docker compose -f compose.yml -f compose.prod.yml run --rm "${MIGRATE_VOL_OPTS[@]}" migrate; then

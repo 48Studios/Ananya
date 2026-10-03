@@ -12,6 +12,7 @@ export interface SpatialGridProps {
   selectedLocationId: string | null;
   highlightedLocationId?: string | null;
   onSelectCell: (locationId: string) => void;
+  onEnterCell?: (locationId: string) => void;
   className?: string;
 }
 
@@ -21,6 +22,7 @@ export function SpatialGrid({
   selectedLocationId,
   highlightedLocationId,
   onSelectCell,
+  onEnterCell,
   className,
 }: SpatialGridProps) {
   if (layout.cells.length === 0) {
@@ -62,6 +64,8 @@ export function SpatialGrid({
                       isSelected={isSelected}
                       isHighlighted={isHighlighted}
                       onClick={() => onSelectCell(gridCell.child.location.id)}
+                      onDoubleClick={() => onEnterCell?.(gridCell.child.location.id)}
+                      onEnter={() => onEnterCell?.(gridCell.child.location.id)}
                     />
                   );
                 })}
@@ -92,6 +96,8 @@ export function SpatialGrid({
                 isSelected={isSelected}
                 isHighlighted={isHighlighted}
                 onClick={() => onSelectCell(gridCell.child.location.id)}
+                onDoubleClick={() => onEnterCell?.(gridCell.child.location.id)}
+                onEnter={() => onEnterCell?.(gridCell.child.location.id)}
               />
             );
           })}

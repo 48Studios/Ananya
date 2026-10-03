@@ -1,0 +1,553 @@
+"use client";
+
+import * as React from "react";
+import {
+  Box,
+  Layers,
+  Grid,
+  RotateCcw,
+  Sliders,
+  Type,
+  AlertCircle,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  type ParametricStorageConfig,
+  type ParametricTemplateType,
+  type SmdDrawerCabinetConfig,
+  type OpenBinMatrixConfig,
+  type PalletRackConfig,
+  type GridPartsTrayConfig,
+} from "@ananya/inventory";
+import { cn } from "@/lib/utils";
+
+export interface ParametricConfigPanelProps {
+  config: ParametricStorageConfig;
+  validationErrors: string[];
+  onChangeConfig: (newConfig: ParametricStorageConfig) => void;
+  onSelectTemplate: (templateType: ParametricTemplateType) => void;
+  onResetBaseline: () => void;
+  className?: string;
+}
+
+const TEMPLATE_OPTIONS: Array<{
+  type: ParametricTemplateType;
+  title: string;
+  subtitle: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [
+  {
+    type: "SMD_DRAWER_CABINET",
+    title: "SMD Cabinet",
+    subtitle: "Matrix drawer unit",
+    icon: Box,
+  },
+  {
+    type: "OPEN_BIN_MATRIX",
+    title: "Open Bins",
+    subtitle: "Tiered parts matrix",
+    icon: Layers,
+  },
+  {
+    type: "PALLET_RACK",
+    title: "Pallet Rack",
+    subtitle: "Heavy-duty levels & bays",
+    icon: Sliders,
+  },
+  {
+    type: "GRID_PARTS_TRAY",
+    title: "Parts Tray",
+    subtitle: "Low-profile grid slots",
+    icon: Grid,
+  },
+];
+
+export function ParametricConfigPanel({
+  config,
+  validationErrors,
+  onChangeConfig,
+  onSelectTemplate,
+  onResetBaseline,
+  className,
+}: ParametricConfigPanelProps) {
+  // Handlers for dimension inputs
+  const handleDimensionChange = (
+    field: "widthMm" | "heightMm" | "depthMm",
+    valStr: string,
+  ) => {
+    const val = Number.parseFloat(valStr) || 0;
+    onChangeConfig({
+      ...config,
+      dimensions: {
+        ...config.dimensions,
+        [field]: val,
+      },
+    });
+  };
+
+  const handleWallThicknessChange = (valStr: string) => {
+    const val = Number.parseFloat(valStr) || 0;
+    onChangeConfig({
+      ...config,
+      wallThicknessMm: val,
+    });
+  };
+
+  // Subdivision handlers per template
+  const handleGridChange = (
+    field: "rows" | "columns" | "dividerThicknessMm",
+    valStr: string,
+  ) => {
+    const isInteger = field !== "dividerThicknessMm";
+    const val = isInteger
+      ? Number.parseInt(valStr, 10) || 0
+      : Number.parseFloat(valStr) || 0;
+
+    const gridConfig = config as SmdDrawerCabinetConfig | GridPartsTrayConfig;
+    onChangeConfig({
+      ...gridConfig,
+      [field]: val,
+    });
+  };
+
+  const handleBinMatrixChange = (
+    field: "tiers" | "binsPerTier" | "tierSpacingMm" | "binSpacingMm",
+    valStr: string,
+  ) => {
+    const isInteger = field === "tiers" || field === "binsPerTier";
+    const val = isInteger
+      ? Number.parseInt(valStr, 10) || 0
+      : Number.parseFloat(valStr) || 0;
+
+    const binConfig = config as OpenBinMatrixConfig;
+    onChangeConfig({
+      ...binConfig,
+      [field]: val,
+    });
+  };
+
+  const handlePalletRackChange = (
+    field: "levels" | "baysPerLevel" | "uprightPostWidthMm" | "beamHeightMm",
+    valStr: string,
+  ) => {
+    const isInteger = field === "levels" || field === "baysPerLevel";
+    const val = isInteger
+      ? Number.parseInt(valStr, 10) || 0
+      : Number.parseFloat(valStr) || 0;
+
+    const rackConfig = config as PalletRackConfig;
+    onChangeConfig({
+      ...rackConfig,
+      [field]: val,
+    });
+  };
+
+  // Naming handlers
+  const handleNamingChange = (updates: Partial<NonNullable<ParametricStorageConfig["naming"]>>) => {
+    onChangeConfig({
+      ...config,
+      naming: {
+        ...config.naming,
+        ...updates,
+      },
+    });
+  };
+
+  return (
+    <div className={cn("space-y-6 text-sm", className)}>
+      {/* 1. Template Type Selector */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Storage Template
+          </Label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onResetBaseline}
+            className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+            title="Reset to clean baseline for diffing"
+          >
+            <RotateCcw className="size-3" />
+            <span>Set As Baseline</span>
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {TEMPLATE_OPTIONS.map((tmpl) => {
+            const Icon = tmpl.icon;
+            const isSelected = config.templateType === tmpl.type;
+            return (
+              <button
+                key={tmpl.type}
+                type="button"
+                onClick={() => onSelectTemplate(tmpl.type)}
+                className={cn(
+                  "flex items-start gap-2.5 p-2.5 text-left rounded-md border transition-all cursor-pointer",
+                  isSelected
+                    ? "bg-primary/5 border-primary text-primary font-medium shadow-xs"
+                    : "bg-card border-border hover:bg-accent/40 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <div
+                  className={cn(
+                    "p-1.5 rounded",
+                    isSelected ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  <Icon className="size-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold leading-tight">{tmpl.title}</div>
+                  <div className="text-[11px] text-muted-foreground leading-snug">
+                    {tmpl.subtitle}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Validation Errors Banner */}
+      {validationErrors.length > 0 && (
+        <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs space-y-1">
+          <div className="flex items-center gap-1.5 font-semibold">
+            <AlertCircle className="size-3.5 shrink-0" />
+            <span>Invalid Configuration Parameters</span>
+          </div>
+          <ul className="list-disc list-inside space-y-0.5 text-[11px] pl-1">
+            {validationErrors.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* 2. Outer Container Dimensions */}
+      <div className="space-y-3 p-3.5 rounded-lg border border-border bg-card">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-foreground">
+            Outer Dimensions (mm)
+          </span>
+          <span className="text-[11px] text-muted-foreground font-mono">
+            {config.dimensions.widthMm} × {config.dimensions.heightMm} × {config.dimensions.depthMm}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="space-y-1">
+            <Label htmlFor="param-width" className="text-[11px] text-muted-foreground">Width</Label>
+            <Input
+              id="param-width"
+              type="number"
+              min={10}
+              step={1}
+              value={config.dimensions.widthMm || ""}
+              onChange={(e) => handleDimensionChange("widthMm", e.target.value)}
+              className="h-8 text-xs font-mono"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="param-height" className="text-[11px] text-muted-foreground">Height</Label>
+            <Input
+              id="param-height"
+              type="number"
+              min={10}
+              step={1}
+              value={config.dimensions.heightMm || ""}
+              onChange={(e) => handleDimensionChange("heightMm", e.target.value)}
+              className="h-8 text-xs font-mono"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="param-depth" className="text-[11px] text-muted-foreground">Depth</Label>
+            <Input
+              id="param-depth"
+              type="number"
+              min={10}
+              step={1}
+              value={config.dimensions.depthMm || ""}
+              onChange={(e) => handleDimensionChange("depthMm", e.target.value)}
+              className="h-8 text-xs font-mono"
+            />
+          </div>
+        </div>
+
+        <div className="pt-1 flex items-center justify-between gap-4">
+          <Label htmlFor="param-wall-thickness" className="text-[11px] text-muted-foreground">
+            Wall / Carcass Thickness (mm)
+          </Label>
+          <Input
+            id="param-wall-thickness"
+            type="number"
+            min={0}
+            step={0.5}
+            value={config.wallThicknessMm || 0}
+            onChange={(e) => handleWallThicknessChange(e.target.value)}
+            className="w-20 h-8 text-xs font-mono text-right"
+          />
+        </div>
+      </div>
+
+      {/* 3. Subdivision & Compartment Geometry */}
+      <div className="space-y-3 p-3.5 rounded-lg border border-border bg-card">
+        <span className="text-xs font-semibold text-foreground">
+          Compartment Subdivisions
+        </span>
+
+        {/* SMD Drawer Cabinet & Grid Parts Tray */}
+        {(config.templateType === "SMD_DRAWER_CABINET" ||
+          config.templateType === "GRID_PARTS_TRAY") && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label htmlFor="param-rows" className="text-[11px] text-muted-foreground">Rows</Label>
+                <Input
+                  id="param-rows"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={(config as SmdDrawerCabinetConfig).rows || ""}
+                  onChange={(e) => handleGridChange("rows", e.target.value)}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="param-columns" className="text-[11px] text-muted-foreground">Columns</Label>
+                <Input
+                  id="param-columns"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={(config as SmdDrawerCabinetConfig).columns || ""}
+                  onChange={(e) => handleGridChange("columns", e.target.value)}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <Label className="text-[11px] text-muted-foreground">
+                Divider Thickness (mm)
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.5}
+                value={
+                  (config as SmdDrawerCabinetConfig).dividerThicknessMm ??
+                  (config.templateType === "GRID_PARTS_TRAY" ? 2 : 3)
+                }
+                onChange={(e) => handleGridChange("dividerThicknessMm", e.target.value)}
+                className="w-20 h-8 text-xs font-mono text-right"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Open Bin Matrix */}
+        {config.templateType === "OPEN_BIN_MATRIX" && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Tiers (Vertical)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={(config as OpenBinMatrixConfig).tiers || ""}
+                  onChange={(e) => handleBinMatrixChange("tiers", e.target.value)}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Bins Per Tier</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={(config as OpenBinMatrixConfig).binsPerTier || ""}
+                  onChange={(e) => handleBinMatrixChange("binsPerTier", e.target.value)}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Tier Spacing (mm)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={(config as OpenBinMatrixConfig).tierSpacingMm ?? 10}
+                  onChange={(e) => handleBinMatrixChange("tierSpacingMm", e.target.value)}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Bin Spacing (mm)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={(config as OpenBinMatrixConfig).binSpacingMm ?? 6}
+                  onChange={(e) => handleBinMatrixChange("binSpacingMm", e.target.value)}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pallet Rack */}
+        {config.templateType === "PALLET_RACK" && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Beam Levels</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={(config as PalletRackConfig).levels || ""}
+                  onChange={(e) => handlePalletRackChange("levels", e.target.value)}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Bays Per Level</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={(config as PalletRackConfig).baysPerLevel || ""}
+                  onChange={(e) => handlePalletRackChange("baysPerLevel", e.target.value)}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Upright Post (mm)</Label>
+                <Input
+                  type="number"
+                  min={10}
+                  step={5}
+                  value={(config as PalletRackConfig).uprightPostWidthMm ?? 50}
+                  onChange={(e) => handlePalletRackChange("uprightPostWidthMm", e.target.value)}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Beam Height (mm)</Label>
+                <Input
+                  type="number"
+                  min={10}
+                  step={5}
+                  value={(config as PalletRackConfig).beamHeightMm ?? 40}
+                  onChange={(e) => handlePalletRackChange("beamHeightMm", e.target.value)}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Compartment Naming & Identification */}
+      <div className="space-y-3 p-3.5 rounded-lg border border-border bg-card">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+          <Type className="size-3.5 text-muted-foreground" />
+          <span>Naming & Code Schemes</span>
+        </div>
+
+        <div className="space-y-2.5">
+          <div className="space-y-1">
+            <Label className="text-[11px] text-muted-foreground">Naming Pattern</Label>
+            <Select
+              value={config.naming?.pattern ?? "ROW_COL_ALPHA_NUM"}
+              onValueChange={(val) =>
+                handleNamingChange({
+                  pattern: val as NonNullable<ParametricStorageConfig["naming"]>["pattern"],
+                })
+              }
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ROW_COL_ALPHA_NUM">Alphanumeric (A01..Z99)</SelectItem>
+                <SelectItem value="ROW_COL_NUMERIC">Row-Col (R1-C1)</SelectItem>
+                <SelectItem value="TIER_BIN_NUMERIC">Tier-Bin (T1-B01)</SelectItem>
+                <SelectItem value="LEVEL_BAY_NUMERIC">Level-Bay (L1-B1)</SelectItem>
+                <SelectItem value="SEQUENTIAL">Sequential (001..999)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Prefix (optional)</Label>
+              <Input
+                type="text"
+                placeholder="e.g. DRW-"
+                value={config.naming?.prefix ?? ""}
+                onChange={(e) => handleNamingChange({ prefix: e.target.value })}
+                className="h-8 text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Pad Digits</Label>
+              <Input
+                type="number"
+                min={1}
+                max={6}
+                value={config.naming?.padDigits ?? 2}
+                onChange={(e) =>
+                  handleNamingChange({
+                    padDigits: Number.parseInt(e.target.value, 10) || 2,
+                  })
+                }
+                className="h-8 text-xs font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-[11px] text-muted-foreground">Row Vertical Ordering</Label>
+            <Select
+              value={config.naming?.rowOrder ?? "top_to_bottom"}
+              onValueChange={(val) =>
+                handleNamingChange({
+                  rowOrder: val as "top_to_bottom" | "bottom_to_top",
+                })
+              }
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="top_to_bottom">
+                  Top-to-Bottom (Row A at highest shelf/drawer)
+                </SelectItem>
+                <SelectItem value="bottom_to_top">
+                  Bottom-to-Top (Row A at ground level)
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

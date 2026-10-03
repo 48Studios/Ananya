@@ -77,6 +77,17 @@ RUN chown root:root \
     chmod 0555 \
       /app/apps/ml/training/datasets/training/dataset-crawl-1790343594-reprocessed
 
+# Record the release provenance for this image (Phase 3.4.12/D1). The ML image
+# is Python-only and packages no drizzle tree, so no migration identity is
+# baked here — the migration gate verifies the `migrate` (api) image only.
+# This label is informational: it names the release this image was built from
+# without claiming anything about migrations. GIT_SHA/RELEASE_VERSION arrive
+# as build args from CI; local builds record "unknown".
+ARG GIT_SHA=unknown
+ARG RELEASE_VERSION=unknown
+LABEL org.opencontainers.image.revision="${GIT_SHA}" \
+      ananya.release.version="${RELEASE_VERSION}"
+
 USER ananya
 
 EXPOSE 5001

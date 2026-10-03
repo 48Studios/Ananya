@@ -6,6 +6,10 @@ dist/
 build/
 target/
 
+# Docker-baked release artifact (generated at image build time by
+# packages/database/scripts/bake-migration-identity.js; never committed).
+packages/database/migration-identity.json
+
 # Python specific
 __pycache__/
 *.pyc

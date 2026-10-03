@@ -72,7 +72,6 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
     @Body() dto: ChangePasswordDto,
   ) {
-    return this.authService.changePassword(req.user!.id, dto);
     const token = extractBearerToken(req);
     return this.authService.changePassword(
       req.user!.id,

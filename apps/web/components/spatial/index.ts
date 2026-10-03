@@ -13,3 +13,4 @@ export * from "./spatial-3d-viewport";
 export * from "./spatial-3d-view";
 export * from "./spatial-breadcrumbs";
 export * from "./spatial-anchor-editor";
+export * from "./builder";

@@ -1072,6 +1072,11 @@ export function createAnchorMarkerGroup(
  */
 export function disposeThreeHierarchy(obj: THREE.Object3D): void {
   obj.traverse((child) => {
+    // If the node or container has an active asset instance release hook, invoke it
+    if (typeof child.userData?.releaseAssetInstance === "function") {
+      child.userData.releaseAssetInstance();
+    }
+
     if ((child as THREE.Mesh).isMesh || (child as THREE.LineSegments).isLineSegments) {
       const mesh = child as THREE.Mesh;
 

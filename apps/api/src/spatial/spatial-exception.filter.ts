@@ -24,6 +24,22 @@ import {
   SpatialNodeHasChildrenError,
   SpatialModelConflictError,
   SpatialAnchorConflictError,
+  SpatialLayoutNotFoundError,
+  SpatialLayoutRevisionConflictError,
+  SpatialNodeOwnershipConflictError,
+  ParentCannotBeSlotError,
+  InvalidParametricConfigError,
+  ConcurrentHierarchyMutationError,
+  InactiveLayoutParentError,
+  InactiveLocationMappingError,
+  DuplicateLocationMappingError,
+  DuplicateSlotMappingError,
+  IncompatibleLocationKindError,
+  InvalidSlotIdError,
+  PublishedLayoutAlreadyExistsError,
+  CannotDeleteNonDraftLayoutError,
+  CannotModifyArchivedLayoutError,
+  MalformedSupersededGeometryError,
 } from '@ananya/inventory';
 import type { Response } from 'express';
 import {
@@ -38,6 +54,85 @@ export class SpatialExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 
+    // 1. Specialized layout conflict errors
+    if (exception instanceof SpatialLayoutRevisionConflictError) {
+      response.status(HttpStatus.CONFLICT).json({
+        statusCode: HttpStatus.CONFLICT,
+        error: 'REVISION_CONFLICT',
+        message: exception.message,
+        currentRevision: exception.currentRevision,
+        expectedRevision: exception.expectedRevision,
+        updatedBy: exception.updatedBy,
+        updatedAt: exception.updatedAt,
+      });
+      return;
+    }
+
+    if (exception instanceof SpatialNodeOwnershipConflictError) {
+      response.status(HttpStatus.CONFLICT).json({
+        statusCode: HttpStatus.CONFLICT,
+        error: 'SPATIAL_NODE_OWNERSHIP_CONFLICT',
+        message: exception.message,
+        conflictingNodes: exception.conflictingNodes,
+      });
+      return;
+    }
+
+    if (exception instanceof PublishedLayoutAlreadyExistsError) {
+      response.status(HttpStatus.CONFLICT).json({
+        statusCode: HttpStatus.CONFLICT,
+        error: 'PUBLISHED_LAYOUT_ALREADY_EXISTS',
+        message: exception.message,
+        parentLocationId: exception.parentLocationId,
+        existingLayoutId: exception.existingLayoutId,
+        existingLayoutCode: exception.existingLayoutCode,
+      });
+      return;
+    }
+
+    if (exception instanceof CannotDeleteNonDraftLayoutError) {
+      response.status(HttpStatus.BAD_REQUEST).json({
+        statusCode: HttpStatus.BAD_REQUEST,
+        error: 'CANNOT_DELETE_NON_DRAFT_LAYOUT',
+        message: exception.message,
+        layoutId: exception.layoutId,
+        status: exception.status,
+      });
+      return;
+    }
+
+    if (exception instanceof CannotModifyArchivedLayoutError) {
+      response.status(HttpStatus.BAD_REQUEST).json({
+        statusCode: HttpStatus.BAD_REQUEST,
+        error: 'CANNOT_MODIFY_ARCHIVED_LAYOUT',
+        message: exception.message,
+        layoutId: exception.layoutId,
+      });
+      return;
+    }
+
+    if (exception instanceof MalformedSupersededGeometryError) {
+      response.status(HttpStatus.UNPROCESSABLE_ENTITY).json({
+        statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        error: 'MALFORMED_SUPERSEDED_GEOMETRY',
+        message: exception.message,
+        nodeId: exception.nodeId,
+        locationId: exception.locationId,
+        reason: exception.reason,
+      });
+      return;
+    }
+
+    if (exception instanceof InvalidParametricConfigError) {
+      response.status(HttpStatus.BAD_REQUEST).json({
+        statusCode: HttpStatus.BAD_REQUEST,
+        error: 'INVALID_PARAMETRIC_CONFIG',
+        message: exception.message,
+        validationErrors: exception.validationErrors,
+      });
+      return;
+    }
+
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
 
@@ -45,6 +140,7 @@ export class SpatialExceptionFilter implements ExceptionFilter {
       exception instanceof SpatialModelNotFoundError ||
       exception instanceof SpatialAnchorNotFoundError ||
       exception instanceof SpatialNodeNotFoundError ||
+      exception instanceof SpatialLayoutNotFoundError ||
       exception instanceof LocationNotFoundError
     ) {
       status = HttpStatus.NOT_FOUND;
@@ -58,7 +154,10 @@ export class SpatialExceptionFilter implements ExceptionFilter {
       exception instanceof InvalidSpatialModelCodeError ||
       exception instanceof InvalidSpatialModelNameError ||
       exception instanceof InvalidSpatialAnchorCodeError ||
-      exception instanceof InvalidSpatialAnchorNameError
+      exception instanceof InvalidSpatialAnchorNameError ||
+      exception instanceof ParentCannotBeSlotError ||
+      exception instanceof IncompatibleLocationKindError ||
+      exception instanceof InvalidSlotIdError
     ) {
       status = HttpStatus.BAD_REQUEST;
       message = exception.message;
@@ -67,11 +166,42 @@ export class SpatialExceptionFilter implements ExceptionFilter {
       exception instanceof SpatialAnchorAlreadyOccupiedError ||
       exception instanceof SpatialNodeHasChildrenError ||
       exception instanceof SpatialModelConflictError ||
-      exception instanceof SpatialAnchorConflictError
+      exception instanceof SpatialAnchorConflictError ||
+      exception instanceof DuplicateLocationMappingError ||
+      exception instanceof DuplicateSlotMappingError
     ) {
       status = HttpStatus.CONFLICT;
       message = exception.message;
+    } else if (exception instanceof InactiveLayoutParentError) {
+      response.status(HttpStatus.UNPROCESSABLE_ENTITY).json({
+        statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        error: 'INACTIVE_LAYOUT_PARENT',
+        message: exception.message,
+        parentLocationId: exception.parentLocationId,
+      });
+      return;
+    } else if (
+      exception instanceof ConcurrentHierarchyMutationError ||
+      exception instanceof InactiveLocationMappingError
+    ) {
+      status = HttpStatus.UNPROCESSABLE_ENTITY;
+      message = exception.message;
     } else if (isPostgresErrorCode(exception, POSTGRES_UNIQUE_VIOLATION)) {
+      const errCandidate = exception as {
+        constraint?: string;
+        cause?: { constraint?: string };
+      };
+      const constraint =
+        errCandidate?.constraint || errCandidate?.cause?.constraint;
+      if (constraint === 'spatial_layouts_active_parent_unique') {
+        response.status(HttpStatus.CONFLICT).json({
+          statusCode: HttpStatus.CONFLICT,
+          error: 'PUBLISHED_LAYOUT_ALREADY_EXISTS',
+          message:
+            'Another layout is already published for this container location. It must be archived before a new layout can be published.',
+        });
+        return;
+      }
       status = HttpStatus.CONFLICT;
       message =
         'A spatial record with this unique identifier or location mapping already exists.';

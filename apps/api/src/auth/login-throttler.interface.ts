@@ -6,6 +6,13 @@ export interface ILoginThrottler {
   isBlocked(identifier: string, ipAddress?: string): boolean;
 
   /**
+   * Throws the canonical HTTP 429 (statusCode, error, message, retryAfter)
+   * when the identifier/IP exceeded the allowed failed attempts. Prefer this
+   * over isBlocked at API boundaries so callers receive the retry detail.
+   */
+  checkRateLimit(identifier: string, ipAddress?: string): void;
+
+  /**
    * Record a failed login attempt.
    */
   recordFailure(identifier: string, ipAddress?: string): void;

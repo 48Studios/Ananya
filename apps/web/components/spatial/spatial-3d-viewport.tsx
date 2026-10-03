@@ -19,9 +19,15 @@ import {
   Anchor as AnchorIcon,
   Move,
   RotateCw,
+  Compass,
+  ZoomIn,
+  ZoomOut,
+  X,
+  LayoutGrid,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DetailChip } from "@/components/ui/detail-field";
+import { cn } from "@/lib/utils";
 import type {
   LocationOperationalViewChildDto,
   LocationOperationalViewDto,
@@ -29,6 +35,7 @@ import type {
 import type { CellStockSummary } from "@/lib/spatial/spatial-inventory-mapper";
 import {
   calculateCameraFit,
+  calculateCameraOrientationPreset,
   computeSceneBoundingBox,
   getSemanticVisualState,
   getCompartmentBadgeText,
@@ -37,6 +44,7 @@ import {
   type SceneChildLayout,
   type SpatialVisualizationMode,
   type Vector3D,
+  type CameraOrientationPreset,
 } from "@/lib/spatial/spatial-3d-layout";
 import {
   createChildCompartmentMesh,
@@ -74,6 +82,7 @@ export interface Spatial3DViewportProps {
     updates: Partial<DraftAnchor>,
   ) => void;
   onGizmoModeChange?: (mode: "translate" | "rotate") => void;
+  onSwitchTo2D?: () => void;
   className?: string;
 }
 
@@ -87,6 +96,7 @@ export function Spatial3DViewport({
   onSelectLocation,
   onEnterLocation,
   onOpenMapping,
+  onSwitchTo2D,
   visualizationMode = "standard",
   showBadges = true,
   isAuthoringAnchors = false,
@@ -101,6 +111,10 @@ export function Spatial3DViewport({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [webglError, setWebglError] = React.useState<string | null>(null);
   const [isUnmappedDrawerOpen, setIsUnmappedDrawerOpen] = React.useState(false);
+  const [activeCameraPreset, setActiveCameraPreset] = React.useState<
+    CameraOrientationPreset | "custom"
+  >("isometric");
+  const [isLegendExpanded, setIsLegendExpanded] = React.useState(false);
   const [hoveredLocation, setHoveredLocation] = React.useState<{
     code: string;
     name: string;
@@ -183,11 +197,12 @@ export function Spatial3DViewport({
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, []);
 
-  // Fit camera helper
-  const fitCameraToScene = React.useCallback(
-    (smooth = true) => {
+  // Camera orientation preset helper
+  const setCameraPreset = React.useCallback(
+    (preset: CameraOrientationPreset, smooth = true) => {
       if (!cameraRef.current || !controlsRef.current) return;
-      const fit = calculateCameraFit(sceneBounds, 45);
+      setActiveCameraPreset(preset);
+      const fit = calculateCameraOrientationPreset(sceneBoundsRef.current, preset, 45);
 
       if (!smooth || prefersReducedMotion()) {
         cameraRef.current.position.set(fit.position.x, fit.position.y, fit.position.z);
@@ -205,11 +220,59 @@ export function Spatial3DViewport({
         startTarget: controlsRef.current.target.clone(),
         endTarget: new THREE.Vector3(fit.target.x, fit.target.y, fit.target.z),
         progress: 0,
-        duration: 0.45,
+        duration: 0.4,
         active: true,
       };
     },
-    [sceneBounds, prefersReducedMotion],
+    [prefersReducedMotion],
+  );
+
+  // Zoom In / Out step helper
+  const zoomCamera = React.useCallback(
+    (direction: "in" | "out") => {
+      if (!cameraRef.current || !controlsRef.current) return;
+      const camera = cameraRef.current;
+      const controls = controlsRef.current;
+      setActiveCameraPreset("custom");
+
+      const factor = direction === "in" ? 0.75 : 1.33;
+      const offset = camera.position.clone().sub(controls.target);
+      const currentDist = offset.length();
+      const minD = controls.minDistance || 0.1;
+      const maxD = controls.maxDistance || 25;
+      const newDist = Math.max(minD, Math.min(maxD, currentDist * factor));
+
+      offset.normalize().multiplyScalar(newDist);
+      const endPos = controls.target.clone().add(offset);
+
+      if (prefersReducedMotion()) {
+        camera.position.copy(endPos);
+        controls.update();
+        if (cameraTransitionRef.current) {
+          cameraTransitionRef.current.active = false;
+        }
+        return;
+      }
+
+      cameraTransitionRef.current = {
+        startPos: camera.position.clone(),
+        endPos,
+        startTarget: controls.target.clone(),
+        endTarget: controls.target.clone(),
+        progress: 0,
+        duration: 0.25,
+        active: true,
+      };
+    },
+    [prefersReducedMotion],
+  );
+
+  // Fit camera helper (delegates to isometric preset)
+  const fitCameraToScene = React.useCallback(
+    (smooth = true) => {
+      setCameraPreset("isometric", smooth);
+    },
+    [setCameraPreset],
   );
 
   // Focus on specific location
@@ -320,6 +383,9 @@ export function Spatial3DViewport({
     controls.maxPolarAngle = Math.PI / 2 + 0.05; // Prevent camera sinking far below ground
     controls.minDistance = 0.1;
     controls.maxDistance = 20;
+    controls.addEventListener("start", () => {
+      setActiveCameraPreset("custom");
+    });
     controlsRef.current = controls;
 
     // 4b. TransformControls for interactive anchor authoring
@@ -1032,7 +1098,10 @@ export function Spatial3DViewport({
       </div>
 
       {/* Top Right: Viewport Camera Controls & Authoring Gizmo Toggle */}
-      <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-slate-900/80 backdrop-blur-xs border border-slate-700/70 p-1 rounded-md">
+      <div
+        data-testid="spatial-3d-camera-controls"
+        className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-slate-900/80 backdrop-blur-xs border border-slate-700/70 p-1 rounded-md"
+      >
         {isAuthoringAnchors && (
           <div className="flex items-center gap-0.5 bg-slate-950/60 p-0.5 rounded mr-1 border border-slate-700/60">
             <Button
@@ -1042,6 +1111,7 @@ export function Spatial3DViewport({
               onClick={() => onGizmoModeChange?.("translate")}
               className="h-6 px-2 text-[11px] text-slate-200 gap-1"
               title="Move transform gizmo"
+              aria-label="Move transform gizmo"
             >
               <Move className="size-3" />
               <span>Move</span>
@@ -1053,6 +1123,7 @@ export function Spatial3DViewport({
               onClick={() => onGizmoModeChange?.("rotate")}
               className="h-6 px-2 text-[11px] text-slate-200 gap-1"
               title="Rotate transform gizmo"
+              aria-label="Rotate transform gizmo"
             >
               <RotateCw className="size-3" />
               <span>Rotate</span>
@@ -1060,156 +1131,306 @@ export function Spatial3DViewport({
           </div>
         )}
 
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => fitCameraToScene(true)}
-          className="h-7 px-2 text-xs text-slate-200 hover:text-white hover:bg-slate-800 gap-1"
-          title="Fit view to all compartments"
-        >
-          <Maximize2 className="size-3.5" />
-          <span className="hidden sm:inline">Fit View</span>
-        </Button>
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => fitCameraToScene(false)}
-          className="h-7 px-2 text-xs text-slate-200 hover:text-white hover:bg-slate-800"
-          title="Reset camera orientation"
-        >
-          <RotateCcw className="size-3.5" />
-        </Button>
+        {/* Camera Orientation Presets */}
+        <div className="flex items-center gap-0.5 bg-slate-950/60 p-0.5 rounded border border-slate-700/60">
+          <Button
+            type="button"
+            variant={activeCameraPreset === "isometric" ? "secondary" : "ghost"}
+            size="xs"
+            onClick={() => setCameraPreset("isometric")}
+            className="h-6 px-2 text-[11px] font-mono text-slate-200 hover:text-white"
+            title="Isometric 3D View (30° Elevation)"
+            aria-label="Isometric camera view"
+          >
+            Iso
+          </Button>
+          <Button
+            type="button"
+            variant={activeCameraPreset === "front" ? "secondary" : "ghost"}
+            size="xs"
+            onClick={() => setCameraPreset("front")}
+            className="h-6 px-2 text-[11px] font-mono text-slate-200 hover:text-white"
+            title="Front Elevation View (Compartment Faceplates)"
+            aria-label="Front elevation camera view"
+          >
+            Front
+          </Button>
+          <Button
+            type="button"
+            variant={activeCameraPreset === "top" ? "secondary" : "ghost"}
+            size="xs"
+            onClick={() => setCameraPreset("top")}
+            className="h-6 px-2 text-[11px] font-mono text-slate-200 hover:text-white"
+            title="Top Plan View (Layout & Footprint)"
+            aria-label="Top plan camera view"
+          >
+            Top
+          </Button>
+        </div>
+
+        {/* Zoom In & Zoom Out */}
+        <div className="flex items-center gap-0.5 pl-1 border-l border-slate-700/60">
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={() => zoomCamera("in")}
+            className="h-6 w-6 p-0 text-slate-200 hover:text-white hover:bg-slate-800"
+            title="Zoom In"
+            aria-label="Zoom in camera"
+          >
+            <ZoomIn className="size-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={() => zoomCamera("out")}
+            className="h-6 w-6 p-0 text-slate-200 hover:text-white hover:bg-slate-800"
+            title="Zoom Out"
+            aria-label="Zoom out camera"
+          >
+            <ZoomOut className="size-3.5" />
+          </Button>
+        </div>
+
+        {/* Fit View & Reset */}
+        <div className="flex items-center gap-0.5 pl-1 border-l border-slate-700/60">
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={() => fitCameraToScene(true)}
+            className="h-6 px-2 text-[11px] text-slate-200 hover:text-white hover:bg-slate-800 gap-1"
+            title="Fit view to all compartments"
+            aria-label="Fit view to all compartments"
+          >
+            <Maximize2 className="size-3" />
+            <span className="hidden sm:inline">Fit</span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={() => setCameraPreset("isometric", false)}
+            className="h-6 w-6 p-0 text-slate-200 hover:text-white hover:bg-slate-800"
+            title="Reset camera to default isometric orientation"
+            aria-label="Reset camera orientation"
+          >
+            <RotateCcw className="size-3" />
+          </Button>
+        </div>
       </div>
 
-      {/* Bottom Left: Semantic Color Legend */}
-      <div className="absolute bottom-3 left-3 z-10 hidden sm:flex flex-wrap items-center gap-2.5 max-w-[85%] px-3 py-1.5 rounded-md bg-slate-900/90 backdrop-blur-xs border border-slate-700/60 text-[11px] text-slate-300">
-        {isAuthoringAnchors ? (
-          <>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#F59E0B]" />
-              <span>Selected Anchor</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#0284C7]" />
-              <span>Anchor Marker</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#10B981]" />
-              <span>Live Placement</span>
-            </div>
-          </>
-        ) : visualizationMode === "provenance" ? (
-          <>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#0284C7]" />
-              <span>Direct Stock</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#8B5CF6]" />
-              <span>Sub-compartments</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#4F46E5]" />
-              <span>Mixed</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#CBD5E1]" />
-              <span>Empty</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#10B981]" />
-              <span>Locate Target</span>
-            </div>
-          </>
-        ) : visualizationMode === "occupancy" ? (
-          <>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#059669]" />
-              <span>Low (&lt;50%)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#D97706]" />
-              <span>Mod (50–79%)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#EA580C]" />
-              <span>High (80–100%)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#E11D48]" />
-              <span>Over (&gt;100%)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#0D9488]" />
-              <span>Presence (Cap N/A)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#CBD5E1]" />
-              <span>Empty (0%)</span>
-            </div>
-          </>
+      {/* Bottom Left: Collapsible 3D Legend & Orientation HUD */}
+      <div
+        data-testid="spatial-3d-legend"
+        className="absolute bottom-3 left-3 z-10"
+      >
+        {!isLegendExpanded ? (
+          <button
+            type="button"
+            onClick={() => setIsLegendExpanded(true)}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-slate-900/90 backdrop-blur-xs border border-slate-700/70 text-[11px] text-slate-300 hover:text-white hover:bg-slate-800/90 transition-colors shadow-sm"
+            aria-expanded={false}
+            aria-label="Open 3D scene legend and orientation details"
+          >
+            <Info className="size-3.5 text-blue-400" />
+            <span className="font-medium">Legend</span>
+            <span className="text-slate-600">·</span>
+            <span className="inline-flex items-center gap-1 text-slate-400">
+              <Compass className="size-3 text-sky-400" />
+              <span className="capitalize">{activeCameraPreset}</span>
+            </span>
+          </button>
         ) : (
-          <>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#1E90FF]" />
-              <span>Selected</span>
+          <div className="flex flex-col gap-2 p-3 rounded-lg bg-slate-900/95 backdrop-blur-md border border-slate-700/80 text-xs text-slate-200 shadow-xl max-w-sm sm:max-w-md animate-in fade-in duration-150">
+            <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Compass className="size-4 text-sky-400" />
+                <span className="font-semibold text-slate-100">3D Visual Legend</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700/60 uppercase">
+                  {activeCameraPreset} View
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLegendExpanded(false)}
+                className="text-slate-400 hover:text-white p-0.5 rounded hover:bg-slate-800 transition-colors"
+                aria-label="Close 3D scene legend"
+              >
+                <X className="size-3.5" />
+              </button>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#10B981]" />
-              <span>Locate Target</span>
+
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-1 text-[11px]">
+              {isAuthoringAnchors ? (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#F59E0B]" />
+                    <span>Selected Anchor</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#0284C7]" />
+                    <span>Anchor Marker</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#10B981]" />
+                    <span>Live Placement</span>
+                  </div>
+                </>
+              ) : visualizationMode === "provenance" ? (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#0284C7]" />
+                    <span>Direct Stock</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#8B5CF6]" />
+                    <span>Sub-compartments</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#4F46E5]" />
+                    <span>Mixed</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#CBD5E1]" />
+                    <span>Empty</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#10B981]" />
+                    <span>Locate Target</span>
+                  </div>
+                </>
+              ) : visualizationMode === "occupancy" ? (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#059669]" />
+                    <span>Low (&lt;50%)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#D97706]" />
+                    <span>Mod (50–79%)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#EA580C]" />
+                    <span>High (80–100%)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#E11D48]" />
+                    <span>Over (&gt;100%)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#0D9488]" />
+                    <span>Presence (Cap N/A)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#CBD5E1]" />
+                    <span>Empty (0%)</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#1E90FF]" />
+                    <span>Selected</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#10B981]" />
+                    <span>Locate Target</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#0284C7]" />
+                    <span>Has Stock</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-[#CBD5E1]" />
+                    <span>Empty</span>
+                  </div>
+                </>
+              )}
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#0284C7]" />
-              <span>Has Stock</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#CBD5E1]" />
-              <span>Empty</span>
-            </div>
-          </>
+
+            <p className="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1.5 leading-normal">
+              3D envelopes represent physical storage volumes. Authoritative inventory records are verified upon selection.
+            </p>
+          </div>
         )}
       </div>
 
       {/* Unmapped Staging Tray Drawer */}
       {isUnmappedDrawerOpen && unmappedChildren.length > 0 && (
-        <div className="absolute top-12 left-3 z-20 w-80 max-h-72 overflow-y-auto bg-slate-900/95 backdrop-blur-md border border-amber-600/40 rounded-lg p-3 shadow-xl text-xs">
+        <div
+          data-testid="spatial-staging-tray"
+          className="absolute top-12 left-3 z-20 w-84 max-h-80 overflow-y-auto bg-slate-900/95 backdrop-blur-md border border-amber-600/50 rounded-lg p-3 shadow-2xl text-xs"
+        >
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
             <span className="font-semibold text-amber-300 flex items-center gap-1.5">
-              <Info className="size-3.5" />
-              Unmapped Compartments
+              <AlertTriangle className="size-3.5 text-amber-400" />
+              Staging Tray ({unmappedChildren.length})
             </span>
             <button
               type="button"
               onClick={() => setIsUnmappedDrawerOpen(false)}
-              className="text-slate-400 hover:text-slate-200"
+              className="text-slate-400 hover:text-slate-200 p-0.5 rounded hover:bg-slate-800"
+              aria-label="Close unmapped staging tray"
             >
-              ✕
+              <X className="size-3.5" />
             </button>
           </div>
+
           <p className="text-[11px] text-slate-400 mb-2 leading-relaxed">
-            These sub-locations belong under{" "}
+            Authoritative sub-locations under{" "}
             <span className="font-mono text-slate-200 font-bold">
               {parentData.location.code}
             </span>{" "}
-            but do not have an anchor assigned on this model. They are not
-            invented into 3D space:
+            lacking 3D anchor coordinates on this model. Visualized here to preserve physical integrity:
           </p>
-          <div className="space-y-1.5">
+
+          {onSwitchTo2D && (
+            <div className="mb-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={onSwitchTo2D}
+                className="w-full h-7 text-[11px] gap-1.5 bg-slate-800/80 border-slate-700 text-slate-200 hover:text-white hover:bg-slate-700"
+                title="Switch to 2D Operational Grid to see all compartments"
+              >
+                <LayoutGrid className="size-3 text-sky-400" />
+                <span>View in 2D Operational Grid</span>
+              </Button>
+            </div>
+          )}
+
+          <div className="space-y-1.5" role="listbox" aria-label="Unmapped staging items">
             {unmappedChildren.map((child) => {
               const stock = stockMap.get(child.location.id);
+              const isSelected = selectedLocationId === child.location.id;
+              const isHighlighted = highlightedLocationId === child.location.id;
+
               return (
                 <div
                   key={child.location.id}
-                  onClick={() => {
-                    if (onSelectLocation) {
-                      onSelectLocation(child.location.id);
+                  role="option"
+                  aria-selected={isSelected}
+                  tabIndex={0}
+                  onClick={() => onSelectLocation?.(child.location.id)}
+                  onDoubleClick={() => onEnterLocation?.(child.location.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      onEnterLocation?.(child.location.id);
                     }
                   }}
-                  className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
-                    selectedLocationId === child.location.id
-                      ? "bg-blue-600/30 border border-blue-500/50 text-white"
-                      : "bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 text-slate-200"
-                  }`}
+                  className={cn(
+                    "flex items-center justify-between p-2 rounded cursor-pointer transition-colors focus:outline-none focus:ring-1 focus:ring-sky-500",
+                    isSelected
+                      ? "bg-blue-600/30 border border-blue-500/70 text-white"
+                      : isHighlighted
+                        ? "bg-emerald-950/40 border border-emerald-500/50 text-emerald-200"
+                        : "bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 text-slate-200",
+                  )}
                 >
                   <div className="min-w-0 pr-2">
                     <div className="font-mono font-bold uppercase truncate">
@@ -1238,6 +1459,7 @@ export function Spatial3DViewport({
                         }}
                         className="h-6 px-1.5 text-[10px] font-mono text-slate-300 hover:text-white hover:bg-slate-700"
                         title={`Enter ${child.location.code}`}
+                        aria-label={`Enter ${child.location.code}`}
                       >
                         <CornerDownRight className="size-3 mr-0.5" />
                         <span>Enter</span>

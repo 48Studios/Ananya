@@ -391,19 +391,34 @@ describe('Component Review Queue — write authorization', () => {
     expect(feedback.length).toBe(0);
   });
 
-  it('leaves the read endpoints open, matching the rest of the API', async () => {
+  it('requires authentication on the read endpoints under the global fail-closed guard', async () => {
     if (!hasDbUrl) return;
 
-    const list = await http().get(
+    // The global fail-closed AuthGuard (APP_GUARD, added after this spec was
+    // written) requires a session on every non-@Public() route. These reads
+    // are intentionally not @Public(): the web client always calls them with
+    // the operator's session token.
+    const anonymousList = await http().get(
       '/ml/components/review-queue?page=1&pageSize=1',
     );
-    expect(list.status).toBe(200);
+    expect(anonymousList.status).toBe(401);
 
     const { finding } = await createPendingFinding();
-    const detail = await http().get(
+    const anonymousDetail = await http().get(
       `/ml/components/review-queue/${finding.id}`,
     );
-    expect(detail.status).toBe(200);
+    expect(anonymousDetail.status).toBe(401);
+
+    // An authenticated read-only user (no Inventory.Update) can still read.
+    const readerList = await http()
+      .get('/ml/components/review-queue?page=1&pageSize=1')
+      .set('Authorization', `Bearer ${readerToken}`);
+    expect(readerList.status).toBe(200);
+
+    const readerDetail = await http()
+      .get(`/ml/components/review-queue/${finding.id}`)
+      .set('Authorization', `Bearer ${readerToken}`);
+    expect(readerDetail.status).toBe(200);
   });
 
   // -------------------------------------------------------------------------

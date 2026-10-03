@@ -38,6 +38,17 @@ ENV NEXT_PUBLIC_API_URL=${API_PUBLIC_URL}
 
 RUN pnpm turbo run build --filter=@ananya/web...
 
+# Record the release provenance for this image (Phase 3.4.12/D1). The web
+# prune scope does NOT package the drizzle tree, so no migration identity is
+# baked here — the migration gate verifies the `migrate` (api) image only.
+# This label is informational: it names the release this image was built from
+# without claiming anything about migrations. GIT_SHA/RELEASE_VERSION arrive
+# as build args from CI; local builds record "unknown".
+ARG GIT_SHA=unknown
+ARG RELEASE_VERSION=unknown
+LABEL org.opencontainers.image.revision="${GIT_SHA}" \
+      ananya.release.version="${RELEASE_VERSION}"
+
 # ------------------------------------------------------------------------------
 # Stage 3: Production Dependencies
 # Kept for standard 4-stage pipeline structure across platform

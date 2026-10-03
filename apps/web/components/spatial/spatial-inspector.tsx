@@ -126,7 +126,8 @@ export function SpatialInspector({
               size="xs"
               onClick={() => onEnterLocation(summary.locationId)}
               className="gap-1 font-mono text-xs shadow-2xs"
-              title={`Enter ${locationCode} to inspect nested compartments`}
+              title={`Enter ${locationCode} to inspect nested compartments (Enter)`}
+              aria-label={`Enter location ${locationCode}`}
             >
               <CornerDownRight className="size-3" />
               <span>Enter</span>
@@ -137,9 +138,10 @@ export function SpatialInspector({
               variant="outline"
               size="xs"
               className="gap-1 font-mono text-xs"
-              title={`Open ${locationCode} details page`}
+              title={`View details and inventory for ${locationCode}`}
+              aria-label={`View details for ${locationCode}`}
             >
-              <span>Page</span>
+              <span>Details</span>
               <ArrowRight className="size-3" />
             </Button>
           </Link>
@@ -147,7 +149,8 @@ export function SpatialInspector({
             variant="ghost"
             size="icon"
             onClick={onClose}
-            aria-label="Close inspector"
+            aria-label="Close inspector (Esc)"
+            title="Close inspector (Esc)"
             className="size-7"
           >
             <X className="size-4" />
@@ -328,6 +331,16 @@ export function SpatialInspector({
             This storage compartment is currently empty.
           </div>
         )}
+      </div>
+
+      {/* Keyboard Shortcuts Affordance */}
+      <div className="flex items-center justify-between pt-1 border-t border-border/30 text-[10px] text-muted-foreground/70 select-none">
+        <span>
+          <kbd className="font-mono bg-muted px-1 py-0.5 rounded text-[9px] border border-border/40">Enter</kbd> Open
+        </span>
+        <span>
+          <kbd className="font-mono bg-muted px-1 py-0.5 rounded text-[9px] border border-border/40">Esc</kbd> Close
+        </span>
       </div>
     </div>
   );

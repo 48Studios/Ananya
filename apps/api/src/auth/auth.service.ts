@@ -4,7 +4,6 @@ import {
   BadRequestException,
   NotFoundException,
   HttpException,
-  HttpStatus,
   Inject,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
@@ -40,19 +39,26 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto, ipAddress?: string, userAgent?: string) {
-    // 1. Check rate limit / brute-force protection
-    if (this.loginThrottler.isBlocked(dto.email, ipAddress)) {
-      await this.auditService.record({
-        action: 'THROTTLED_LOGIN',
-        category: 'SECURITY',
-        userEmail: dto.email,
-        ipAddress,
-        details: { reason: 'Rate limit threshold exceeded' },
-      });
-      throw new HttpException(
-        'Too many login attempts.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+    // 1. Check rate limit / brute-force protection.
+    // checkRateLimit throws the canonical 429 body (statusCode, error,
+    // message, retryAfter); isBlocked would discard that body, so call it
+    // directly and record the audit event only when it throws.
+    try {
+      this.loginThrottler.checkRateLimit(dto.email, ipAddress);
+    } catch (throttledErr: unknown) {
+      if (
+        throttledErr instanceof HttpException &&
+        throttledErr.getStatus() === 429
+      ) {
+        await this.auditService.record({
+          action: 'THROTTLED_LOGIN',
+          category: 'SECURITY',
+          userEmail: dto.email,
+          ipAddress,
+          details: { reason: 'Rate limit threshold exceeded' },
+        });
+      }
+      throw throttledErr;
     }
 
     const userRecord = await this.usersService.findByEmail(dto.email);
@@ -78,10 +84,9 @@ export class AuthService {
         ipAddress,
         details: { reason: 'User account disabled' },
       });
-      throw new UnauthorizedException(
-        'Account disabled. Contact administrator.',
-      );
       // Do not leak account existence or status to prevent enumeration
+      // (security audit 2026-09 section 17.4): disabled accounts, unknown
+      // emails, and wrong passwords all return the identical response.
       throw new UnauthorizedException('Invalid credentials.');
     }
     // 2. Verify password with support for Argon2id and legacy SHA-256 transparent upgrade

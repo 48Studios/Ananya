@@ -10,6 +10,8 @@ export interface SpatialCellProps {
   isSelected?: boolean;
   isHighlighted?: boolean;
   onClick?: () => void;
+  onDoubleClick?: () => void;
+  onEnter?: () => void;
   className?: string;
 }
 
@@ -18,6 +20,8 @@ export function SpatialCell({
   isSelected = false,
   isHighlighted = false,
   onClick,
+  onDoubleClick,
+  onEnter,
   className,
 }: SpatialCellProps) {
   const {
@@ -50,16 +54,30 @@ export function SpatialCell({
     }
   }, [isHighlighted]);
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === "Enter") {
+      if (onEnter) {
+        e.preventDefault();
+        e.stopPropagation();
+        onEnter();
+      }
+    }
+  };
+
   return (
     <button
       ref={cellRef}
       type="button"
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      onKeyDown={handleKeyDown}
       aria-label={`Storage location ${locationCode}, ${
         hasStock
           ? `${totalQuantity} units across ${distinctComponentsCount} items`
           : "empty"
       }, ${isMapped ? "spatially mapped" : "unmapped"}`}
+      aria-pressed={isSelected}
+      title={`${locationCode} - Click to select, double-click or Enter to open`}
       className={cn(
         "group relative flex flex-col justify-between text-left rounded-lg p-2.5 transition-all outline-none",
         "min-h-[82px] select-none",

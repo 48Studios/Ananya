@@ -5,3 +5,8 @@ export * from './update-spatial-anchor.dto';
 export * from './create-spatial-node.dto';
 export * from './update-spatial-node.dto';
 export * from './bulk-save-spatial-anchors.dto';
+export * from './spatial-layout-mapping-item.dto';
+export * from './create-spatial-layout.dto';
+export * from './update-spatial-layout.dto';
+export * from './publish-spatial-layout.dto';
+export * from './archive-spatial-layout.dto';

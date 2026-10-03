@@ -6,5 +6,12 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
-  "testTimeout": 60000
+  "testTimeout": 60000,
+  // Integration suites share one database and several assert global table
+  // state (whole-library audits, global counts, usage aggregates). Parallel
+  // workers interleave those suites and fail deterministically (see Phase
+  // 3.4.8). Serial execution is the supported mode until per-worker isolation
+  // lands; it costs wall-clock time (parallel ~20s vs serial ~73s) but is
+  // deterministic: 730/730 green.
+  "maxWorkers": 1
 }

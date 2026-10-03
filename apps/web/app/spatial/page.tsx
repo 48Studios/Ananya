@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Package,
+  Sliders,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -214,6 +215,12 @@ function SpatialInventoryContent() {
         description="Configure physical spatial mapping for warehouse locations, racks, drawers, and bins."
         actions={
           <div className="flex items-center gap-2">
+            <Link href="/spatial/builder">
+              <Button size="sm" className="gap-1.5 text-xs">
+                <Sliders className="size-3.5" />
+                <span>Inventory Builder</span>
+              </Button>
+            </Link>
             <Link href="/spatial-models">
               <Button variant="outline" size="sm" className="gap-1.5 text-xs">
                 <Box className="size-3.5" />

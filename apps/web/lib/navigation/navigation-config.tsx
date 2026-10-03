@@ -224,6 +224,12 @@ export const navigationModules: NavigationModule[] = [
                 icon: <Layers className="w-4 h-4" />,
               },
               {
+                id: "inv-inventory-builder",
+                title: "Inventory Builder",
+                href: "/spatial/builder",
+                icon: <Sliders className="w-4 h-4" />,
+              },
+              {
                 id: "inv-spatial-models",
                 title: "Spatial Models & Anchors",
                 href: "/spatial-models",

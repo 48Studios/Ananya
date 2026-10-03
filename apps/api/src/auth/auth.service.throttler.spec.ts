@@ -6,7 +6,7 @@ import { PermissionsService } from '../permissions/permissions.service';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { SessionCleanupService } from './session-cleanup.service';
 import { ILoginThrottler } from './login-throttler.interface';
-import { HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
 
 /**
  * Tests that verify AuthService respects the injected ILoginThrottler.
@@ -34,6 +34,7 @@ describe('AuthService throttler integration', () => {
   beforeEach(async () => {
     mockLoginThrottler = {
       isBlocked: jest.fn().mockReturnValue(false),
+      checkRateLimit: jest.fn(),
       recordFailure: jest.fn(),
       recordSuccess: jest.fn(),
     };
@@ -62,7 +63,17 @@ describe('AuthService throttler integration', () => {
   });
 
   it('rejects a blocked login with HTTP 429 and does not record throttler failure', async () => {
-    mockLoginThrottler.isBlocked.mockReturnValueOnce(true);
+    mockLoginThrottler.checkRateLimit.mockImplementationOnce(() => {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          error: 'Too Many Requests',
+          message: 'Too many failed login attempts.',
+          retryAfter: 60,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    });
     const dto: LoginDto = {
       email: 'blocked@example.com',
       password: 'any',

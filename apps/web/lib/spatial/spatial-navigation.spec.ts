@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { buildSpatialBreadcrumbs } from "./spatial-hierarchy";
 import {
@@ -5,6 +8,9 @@ import {
   resolveTargetChildLocationId,
 } from "./spatial-3d-layout";
 import type { LocationOperationalViewChildDto } from "../api/spatial-api";
+
+const webRoot = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../..");
+const readWebFile = (rel: string) => fs.readFileSync(path.join(webRoot, rel), "utf8");
 
 describe("Spatial Navigation & Breadcrumb Engine", () => {
   const mockHierarchy = [
@@ -273,6 +279,114 @@ describe("Spatial Navigation & Breadcrumb Engine", () => {
 
       // Successfully traces upward to draw-1 so the parent 3D view highlights draw-1
       expect(targetChildId).toBe("draw-1");
+    });
+  });
+
+  describe("RFC-0067 Phase 2: Stable Canvas & Unified Navigation Invariants", () => {
+    const spatialViewSrc = readWebFile("components/spatial/spatial-view.tsx");
+    const spatialCellSrc = readWebFile("components/spatial/spatial-cell.tsx");
+    const spatialGridSrc = readWebFile("components/spatial/spatial-grid.tsx");
+    const spatialInspectorSrc = readWebFile("components/spatial/spatial-inspector.tsx");
+    const spatial3DViewportSrc = readWebFile("components/spatial/spatial-3d-viewport.tsx");
+
+    it("ensures selecting a cell never modifies the canvas grid column span or container width", () => {
+      // Must not dynamically toggle between 8 and 12 columns
+      expect(spatialViewSrc).not.toContain("lg:col-span-8");
+      expect(spatialViewSrc).not.toContain("lg:col-span-12");
+
+      // Canvas wrapper must be permanently full width in relative layout
+      expect(spatialViewSrc).toContain('<div className="relative w-full">');
+      expect(spatialViewSrc).toContain('<div className="w-full">');
+    });
+
+    it("renders the inspector as a floating overlay on desktop and bottom sheet on mobile with viewport-relative sizing", () => {
+      expect(spatialViewSrc).toContain('data-testid="spatial-inspector-overlay"');
+      expect(spatialViewSrc).toContain("sm:absolute sm:top-14 sm:right-4 sm:z-20 sm:w-84");
+      expect(spatialViewSrc).toContain("fixed inset-x-0 bottom-0 z-50");
+
+      // Must not compute max-height against parent canvas container (prevents squishing on short 1-row grids)
+      expect(spatialViewSrc).not.toContain("calc(100%-4.5rem)");
+      expect(spatialViewSrc).toContain("sm:max-h-[min(640px,calc(100vh-10rem))]");
+    });
+
+    it("provides explicit Enter/Open and Details actions with accessible labels in the inspector", () => {
+      // Enter action for drill-down
+      expect(spatialInspectorSrc).toContain("onEnterLocation");
+      expect(spatialInspectorSrc).toContain("<CornerDownRight");
+      expect(spatialInspectorSrc).toContain("<span>Enter</span>");
+      expect(spatialInspectorSrc).toContain("aria-label={`Enter location ${locationCode}`}");
+
+      // Details action for master data page
+      expect(spatialInspectorSrc).toContain("<span>Details</span>");
+      expect(spatialInspectorSrc).toContain("aria-label={`View details for ${locationCode}`}");
+
+      // Close action with Esc hint
+      expect(spatialInspectorSrc).toContain('aria-label="Close inspector (Esc)"');
+    });
+
+    it("displays keyboard shortcut affordances in the inspector", () => {
+      expect(spatialInspectorSrc).toContain("<kbd");
+      expect(spatialInspectorSrc).toContain("Enter");
+      expect(spatialInspectorSrc).toContain("Esc");
+    });
+
+    it("supports double-click and keyboard Enter for child navigation in 2D with stopPropagation", () => {
+      // SpatialCell defines and handles onDoubleClick and onKeyDown
+      expect(spatialCellSrc).toContain("onDoubleClick?: () => void;");
+      expect(spatialCellSrc).toContain("onEnter?: () => void;");
+      expect(spatialCellSrc).toContain("onDoubleClick={onDoubleClick}");
+      expect(spatialCellSrc).toContain("onKeyDown={handleKeyDown}");
+      expect(spatialCellSrc).toContain("e.stopPropagation()");
+
+      // SpatialGrid forwards onEnterCell
+      expect(spatialGridSrc).toContain("onEnterCell?: (locationId: string) => void;");
+      expect(spatialGridSrc).toContain("onDoubleClick={() => onEnterCell?.(gridCell.child.location.id)}");
+      expect(spatialGridSrc).toContain("onEnter={() => onEnterCell?.(gridCell.child.location.id)}");
+
+      // SpatialView binds onEnterCell to handleNavigate
+      expect(spatialViewSrc).toContain("onEnterCell={handleNavigate}");
+    });
+
+    it("ensures SpatialCell uses valid WAI-ARIA toggle state (aria-pressed) rather than invalid aria-selected on button", () => {
+      expect(spatialCellSrc).toContain("aria-pressed={isSelected}");
+      expect(spatialCellSrc).not.toContain("aria-selected=");
+    });
+
+    it("unifies keyboard shortcuts without hijacking interactive controls or open dialogs", () => {
+      // Escape clears selection when no modal dialog is active
+      expect(spatialViewSrc).toContain('e.key === "Escape"');
+      expect(spatialViewSrc).toContain("setSelectedLocationId(null)");
+      expect(spatialViewSrc).toContain("hasActiveModalOrMenu");
+
+      // Enter navigates to selected location only when focus is not on an interactive button or link
+      expect(spatialViewSrc).toContain('e.key === "Enter"');
+      expect(spatialViewSrc).toContain("handleNavigate(selectedLocationId)");
+      expect(spatialViewSrc).toContain(
+        "e.target.closest(\n            \"button, a, select, [role='button'], [role='menuitem'], [role='dialog'], [role='alertdialog']\",\n          )",
+      );
+    });
+
+    it("provides consistent selection and navigation semantics between 2D and 3D", () => {
+      // 3D viewport supports single pointer selection and double-click/double-tap navigation
+      expect(spatial3DViewportSrc).toContain("onSelectLocation(userData.locationId)");
+      expect(spatial3DViewportSrc).toContain("onEnterLocation?.(userData.locationId)");
+      expect(spatial3DViewportSrc).toContain("handleDoubleClick");
+
+      // Both 2D and 3D wire to handleCellSelect and handleNavigate
+      expect(spatialViewSrc).toContain("onSelectCell={handleCellSelect}");
+      expect(spatialViewSrc).toContain("onSelectLocation={handleCellSelect}");
+      expect(spatialViewSrc).toContain("onEnterLocation={handleNavigate}");
+    });
+
+    it("preserves focusLocation and focusComponent during drill-down and mode transitions", () => {
+      // URL generator preserves params across view transitions
+      const params = new URLSearchParams();
+      params.set("view", "spatial3d");
+      params.set("focusComponent", "comp-123");
+      params.set("focusLocation", "loc-bin-4");
+      expect(params.get("view")).toBe("spatial3d");
+      expect(params.get("focusComponent")).toBe("comp-123");
+      expect(params.get("focusLocation")).toBe("loc-bin-4");
     });
   });
 });

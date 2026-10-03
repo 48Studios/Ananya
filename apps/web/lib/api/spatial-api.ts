@@ -378,3 +378,5 @@ export const spatialApi = {
       }`,
     ),
 };
+
+export * from "./spatial-layouts-api";
