@@ -41,6 +41,7 @@ Guides for setting up, developing, testing, and operating Ananya services.
 - [Setup](development/SETUP.md) — Prerequisites and environment configuration
 - [Local Development](development/LOCAL_DEVELOPMENT.md) — Compose workflows, pnpm dev, and database tasks
 - [Testing Guide](development/TESTING.md) — Quality gates, unit tests, and Playwright E2E testing platform
+- [Inventory Alerts & Email](development/NOTIFICATIONS_AND_EMAIL.md) — Alert thresholds, recipients, SMTP setup, outbox retries, and template editing
 - [ML Operations](development/ML_OPERATIONS.md) — Training, evaluation, deployment, and rollback control plane
 - [Scanner App](development/SCANNER_APP.md) — Standalone `/scan` PWA surface, camera constraints, and scan lifecycle
 

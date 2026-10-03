@@ -4,9 +4,10 @@ import { DrizzleReservationRepository } from '../infrastructure/repositories/dri
 import { ReservationsController } from './reservations.controller';
 import { ReservationsService } from './reservations.service';
 import { InventoryProjectionsModule } from '../inventory-projections/inventory-projections.module';
+import { InventoryAlertsModule } from '../inventory-alerts/inventory-alerts.module';
 
 @Module({
-  imports: [InventoryProjectionsModule],
+  imports: [InventoryProjectionsModule, InventoryAlertsModule],
   controllers: [ReservationsController],
   providers: [
     ReservationsService,

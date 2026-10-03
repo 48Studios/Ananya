@@ -1,6 +1,7 @@
 import {
   Injectable,
   Inject,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -14,14 +15,18 @@ import {
 import { CreateReservationDto, UpdateReservationDto } from './dtos';
 import { RESERVATION_REPOSITORY } from './reservation.tokens';
 import { InventoryProjectionsService } from '../inventory-projections/inventory-projections.service';
+import { InventoryAlertsService } from '../inventory-alerts/inventory-alerts.service';
 import { assertComponentUsableForNewActivity } from '../components/component-lifecycle.guard';
 
 @Injectable()
 export class ReservationsService {
+  private readonly logger = new Logger(ReservationsService.name);
+
   constructor(
     @Inject(RESERVATION_REPOSITORY)
     private readonly reservationRepository: ReservationRepository,
     private readonly inventoryProjectionsService: InventoryProjectionsService,
+    private readonly inventoryAlertsService: InventoryAlertsService,
   ) {}
 
   async create(dto: CreateReservationDto): Promise<Reservation> {
@@ -67,7 +72,9 @@ export class ReservationsService {
       lines: dto.lines,
     });
 
-    return this.reservationRepository.save(reservation);
+    return this.afterReservationChange(
+      await this.reservationRepository.save(reservation),
+    );
   }
 
   async update(id: string, dto: UpdateReservationDto): Promise<Reservation> {
@@ -114,7 +121,9 @@ export class ReservationsService {
       }
     }
 
-    return this.reservationRepository.save(reservation);
+    return this.afterReservationChange(
+      await this.reservationRepository.save(reservation),
+    );
   }
 
   async findAll(
@@ -146,19 +155,25 @@ export class ReservationsService {
   async fulfill(id: string): Promise<Reservation> {
     const res = await this.getById(id);
     res.fulfill();
-    return this.reservationRepository.save(res);
+    return this.afterReservationChange(
+      await this.reservationRepository.save(res),
+    );
   }
 
   async release(id: string): Promise<Reservation> {
     const res = await this.getById(id);
     res.release();
-    return this.reservationRepository.save(res);
+    return this.afterReservationChange(
+      await this.reservationRepository.save(res),
+    );
   }
 
   async cancel(id: string): Promise<Reservation> {
     const res = await this.getById(id);
     res.cancel();
-    return this.reservationRepository.save(res);
+    return this.afterReservationChange(
+      await this.reservationRepository.save(res),
+    );
   }
 
   async delete(id: string): Promise<void> {
@@ -172,6 +187,31 @@ export class ReservationsService {
       );
     }
     await this.reservationRepository.delete(id);
+    await this.evaluateInventoryAlerts();
+  }
+
+  /**
+   * Reservations change available stock without touching projections, so they
+   * must re-evaluate inventory alerts themselves. Alerting must never fail the
+   * reservation operation: failures are logged and the scheduler retries.
+   */
+  private async afterReservationChange(
+    reservation: Reservation,
+  ): Promise<Reservation> {
+    await this.evaluateInventoryAlerts();
+    return reservation;
+  }
+
+  private async evaluateInventoryAlerts(): Promise<void> {
+    try {
+      await this.inventoryAlertsService.evaluate();
+    } catch (error: unknown) {
+      this.logger.error(
+        `Inventory alert evaluation after reservation change failed: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
   }
 
   async getAvailableQuantity(

@@ -3,8 +3,11 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { db } from '@ananya/database';
+import { TransactionType } from '@ananya/inventory';
+import { InventoryProjectionsService } from '../inventory-projections/inventory-projections.service';
 import {
   importExportJobs,
   components,
@@ -111,6 +114,13 @@ function parseCsvLine(line: string): string[] {
 export class ImportExportService {
   private readonly logger = new Logger(ImportExportService.name);
   private readonly componentSkuService = new ComponentSkuService();
+
+  constructor(
+    // Optional so unit tests can construct the service without the inventory
+    // projection subsystem; the module always provides it in the application.
+    @Optional()
+    private readonly inventoryProjectionsService?: InventoryProjectionsService,
+  ) {}
 
   getTemplate(entityType: string) {
     return getRegistryTemplate(entityType);
@@ -1703,7 +1713,7 @@ export class ImportExportService {
               .values({
                 componentId: compId,
                 destinationLocationId: locId,
-                transactionType: 'OPENING_BALANCE',
+                transactionType: TransactionType.InitialStock,
                 quantity: qtyVal,
                 unitOfMeasure: 'pcs',
                 createdBy: 'SYSTEM_IMPORT',
@@ -2061,6 +2071,34 @@ export class ImportExportService {
             updatedAt: new Date(),
           })
           .where(eq(purchaseOrders.id, poId));
+      }
+    }
+
+    // Imported ledger rows only become stock once projections are rebuilt, and
+    // the rebuild also re-evaluates inventory alerts. Without this, an opening
+    // balance import would leave the ledger and the stock projection disagreeing.
+    if (
+      canonicalEntity === 'OpeningInventory' &&
+      createdEntities.some(
+        (entity) => entity.entityType === 'InventoryTransaction',
+      )
+    ) {
+      if (this.inventoryProjectionsService) {
+        try {
+          await this.inventoryProjectionsService.rebuild();
+        } catch (rebuildError: unknown) {
+          this.logger.error(
+            `Projection rebuild after inventory transaction import failed: ${
+              rebuildError instanceof Error
+                ? rebuildError.message
+                : 'unknown error'
+            }`,
+          );
+        }
+      } else {
+        this.logger.warn(
+          'Inventory projection service is unavailable; imported balances were not projected.',
+        );
       }
     }
 

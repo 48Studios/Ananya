@@ -39,6 +39,7 @@ export class CalculateInventoryProjection {
         case TransactionType.Receipt:
         case TransactionType.Return:
         case TransactionType.Production:
+        case TransactionType.InitialStock:
           // These increase inventory
           totalQuantity += quantity;
           break;
@@ -62,7 +63,8 @@ export class CalculateInventoryProjection {
           break;
 
         case TransactionType.Adjustment:
-          // Adjustments can be positive or negative
+        case TransactionType.ManualCorrection:
+          // Adjustments and manual corrections can be positive or negative
           totalQuantity += quantity;
           break;
 

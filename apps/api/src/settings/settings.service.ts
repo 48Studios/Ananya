@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { db } from '@ananya/database';
 import {
   organizationProfile,
@@ -9,6 +14,7 @@ import {
 import { eq } from '@ananya/database/query';
 import { ActivityService } from '../activity/activity.service';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
+import { InventoryAlertsService } from '../inventory-alerts/inventory-alerts.service';
 import {
   UpdateOrganizationProfileDto,
   UpdateSystemSettingsDto,
@@ -18,9 +24,15 @@ import {
 
 @Injectable()
 export class SettingsService {
+  private readonly logger = new Logger(SettingsService.name);
+
   constructor(
     private readonly activityService: ActivityService,
     private readonly auditService: SecurityAuditService,
+    // Optional so unit tests can construct the service without the alerting
+    // subsystem; the module always provides it in the running application.
+    @Optional()
+    private readonly inventoryAlertsService?: InventoryAlertsService,
   ) {}
 
   async getOrganizationProfile() {
@@ -103,11 +115,21 @@ export class SettingsService {
 
   async updateSystemSettings(dto: UpdateSystemSettingsDto, userId?: string) {
     const settings = await this.getSystemSettings();
+    const { reorderDefaultsJson, ...rest } = dto;
 
     const [updated] = await db
       .update(systemSettings)
       .set({
-        ...dto,
+        ...rest,
+        // Merge so a partial threshold edit preserves reorderQuantity.
+        ...(reorderDefaultsJson !== undefined
+          ? {
+              reorderDefaultsJson: {
+                ...(settings!.reorderDefaultsJson ?? {}),
+                ...reorderDefaultsJson,
+              },
+            }
+          : {}),
         updatedAt: new Date(),
       })
       .where(eq(systemSettings.id, settings!.id))
@@ -123,7 +145,26 @@ export class SettingsService {
       },
     });
 
+    // A reorder-default edit changes the alert threshold, so alert state must
+    // be re-derived immediately rather than waiting for the scheduler.
+    if (dto.reorderDefaultsJson !== undefined) {
+      await this.evaluateInventoryAlertsAfterThresholdChange();
+    }
+
     return updated;
+  }
+
+  private async evaluateInventoryAlertsAfterThresholdChange(): Promise<void> {
+    if (!this.inventoryAlertsService) return;
+    try {
+      await this.inventoryAlertsService.evaluate();
+    } catch (error: unknown) {
+      this.logger.error(
+        `Inventory alert evaluation after threshold change failed: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
   }
 
   async getNumberingSeries() {

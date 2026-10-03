@@ -716,6 +716,12 @@ export const navigationModules: NavigationModule[] = [
             icon: <Zap className="w-4 h-4" />,
           },
           {
+            id: "settings-notifications",
+            title: "Notifications & Email",
+            href: "/settings/notifications",
+            icon: <Bell className="w-4 h-4" />,
+          },
+          {
             id: "settings-data-operations",
             title: "Data Operations & Imports",
             href: "/settings/data-operations",

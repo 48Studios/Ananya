@@ -6,9 +6,10 @@ import { InventoryProjectionsService } from './inventory-projections.service';
 import { InventoryTransactionsModule } from '../inventory-transactions/inventory-transactions.module';
 import { LOCATION_REPOSITORY } from '../locations/location.tokens';
 import { DrizzleLocationRepository } from '../infrastructure/repositories/drizzle-location.repository';
+import { InventoryAlertsModule } from '../inventory-alerts/inventory-alerts.module';
 
 @Module({
-  imports: [InventoryTransactionsModule],
+  imports: [InventoryTransactionsModule, InventoryAlertsModule],
   controllers: [InventoryProjectionsController],
   providers: [
     InventoryProjectionsService,

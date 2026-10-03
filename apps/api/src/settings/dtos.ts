@@ -4,7 +4,11 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  Min,
+  Max,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateOrganizationProfileDto {
   @IsOptional()
@@ -64,6 +68,24 @@ export class UpdateOrganizationProfileDto {
   logoUrl?: string;
 }
 
+/**
+ * Reorder thresholds used by inventory alerting. `minStockLevel` is the
+ * company-wide reorder point; 0 disables low-stock alerts.
+ */
+export class ReorderDefaultsDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1000000)
+  minStockLevel?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1000000)
+  reorderQuantity?: number;
+}
+
 export class UpdateSystemSettingsDto {
   @IsOptional()
   @IsString()
@@ -84,6 +106,11 @@ export class UpdateSystemSettingsDto {
   @IsOptional()
   @IsString()
   dateFormat?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ReorderDefaultsDto)
+  reorderDefaultsJson?: ReorderDefaultsDto;
 }
 
 export class UpdateNumberingSeriesDto {

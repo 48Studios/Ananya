@@ -79,6 +79,9 @@ import { ImportExportModule } from './import-export/import-export.module';
 import { DocumentsModule } from './documents/documents.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SettingsModule } from './settings/settings.module';
+import { MailModule } from './mail/mail.module';
+import { EmailTemplatesModule } from './email-templates/email-templates.module';
+import { InventoryAlertsModule } from './inventory-alerts/inventory-alerts.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { DataPacksModule } from './data-packs/data-packs.module';
 import { AttributesModule } from './attributes/attributes.module';
@@ -167,6 +170,9 @@ import { SpatialModule } from './spatial/spatial.module';
     PreferencesModule,
     DataPacksModule,
     AttributesModule,
+    MailModule,
+    EmailTemplatesModule,
+    InventoryAlertsModule,
   ],
   controllers: [AppController],
 })

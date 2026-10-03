@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
   RebuildInventoryProjections,
   type InventoryProjection,
@@ -9,9 +9,12 @@ import {
 import { INVENTORY_PROJECTION_REPOSITORY } from './inventory-projection.tokens';
 import { INVENTORY_TRANSACTION_REPOSITORY } from '../inventory-transactions/inventory-transaction.tokens';
 import { LOCATION_REPOSITORY } from '../locations/location.tokens';
+import { InventoryAlertsService } from '../inventory-alerts/inventory-alerts.service';
 
 @Injectable()
 export class InventoryProjectionsService {
+  private readonly logger = new Logger(InventoryProjectionsService.name);
+
   constructor(
     @Inject(INVENTORY_PROJECTION_REPOSITORY)
     private readonly projectionRepository: InventoryProjectionRepository,
@@ -19,6 +22,10 @@ export class InventoryProjectionsService {
     private readonly transactionRepository: InventoryTransactionRepository,
     @Inject(LOCATION_REPOSITORY)
     private readonly locationRepository: LocationRepository,
+    // Optional so unit tests can construct the service without the alerting
+    // subsystem; the module always provides it in the running application.
+    @Optional()
+    private readonly inventoryAlertsService?: InventoryAlertsService,
   ) {}
 
   async getByComponentAndLocation(
@@ -83,5 +90,25 @@ export class InventoryProjectionsService {
       this.projectionRepository,
     );
     await rebuildUseCase.execute();
+    await this.evaluateAlertsAfterStockChange();
+  }
+
+  /**
+   * Every stock-changing operation rebuilds projections, which makes this the
+   * single choke point for re-evaluating inventory alerts. Alerting must never
+   * fail the stock operation that triggered it: failures are logged and the
+   * scheduled reconciliation retries.
+   */
+  private async evaluateAlertsAfterStockChange(): Promise<void> {
+    if (!this.inventoryAlertsService) return;
+    try {
+      await this.inventoryAlertsService.evaluate();
+    } catch (error: unknown) {
+      this.logger.error(
+        `Inventory alert evaluation after projection rebuild failed: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
   }
 }
