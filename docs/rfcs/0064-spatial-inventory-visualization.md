@@ -53,6 +53,16 @@ The 2D view is the primary operational interface for dense storage units (such a
 - **Mobile First**: Fully responsive and touch-friendly for warehouse handheld terminals and smartphones.
 - **Information Density**: Displays status badges, occupancy bars, stock count indicators, and selection rings without visual clutter.
 
+### Parametric Front Elevation (Inventory Builder)
+
+Inside the Inventory Builder, the 2D view is a dimensionally faithful orthographic **front elevation** of the same physical layout rendered in 3D:
+
+- **Single Geometry Source**: Compartments are projected directly from the parametric engine's `GeneratedCompartment` envelopes (`position` ± `dimensions / 2`) and the configured container dimensions. The frontend never regenerates rows, columns, dividers, or slot positions.
+- **Front-Facing Axis**: The projection looks along the same axis as the 3D "Front" camera preset (-Z, X right / Y up), flipping world Y into screen Y. Depth is ignored; the outer container envelope forms the frame and the physical gaps between compartment envelopes are the dividers, rack posts, and beams.
+- **Proportional Fidelity**: A single aspect-preserving px/mm scale fits the drawing into the viewport (never stretched), so unequal compartment widths, heights, and spacing remain proportional. Zoom and pan operate on that same transform.
+- **Labels**: Each compartment renders its existing addressable code, centred and clipped by layout rules (scaled, truncated, or hidden) without altering geometry; labels reappear as the view is zoomed.
+- **Selection Parity**: 2D selection is keyed by the engine's stable `slotId`, so 2D and 3D highlight the same slot through shared workspace state, and geometry edits cannot leave stale visual slot mappings.
+
 ## 2.2 The 3D Digital Twin Engine
 
 The 3D view provides spatial orientation, depth, and vertical context across rooms, aisles, and tall storage racks.

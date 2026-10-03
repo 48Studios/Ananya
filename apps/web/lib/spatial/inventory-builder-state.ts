@@ -702,38 +702,6 @@ export function convertGeneratedToSceneLayout(
 }
 
 /**
- * Groups compartments by logical row, sorting groups descending by physical vertical position (Y)
- * so the physically highest shelf/level/drawer always appears at the top of the 2D grid.
- */
-export function compute2DPreviewRowGroups(compartments: GeneratedCompartment[]) {
-  const map = new Map<number, GeneratedCompartment[]>();
-  for (const comp of compartments) {
-    const r = comp.logicalIndex.row;
-    if (!map.has(r)) {
-      map.set(r, []);
-    }
-    map.get(r)!.push(comp);
-  }
-
-  const groups = Array.from(map.entries()).map(([rowIndex, cells]) => {
-    const sortedCells = [...cells].sort(
-      (a, b) => a.logicalIndex.col - b.logicalIndex.col,
-    );
-    const avgY =
-      sortedCells.reduce((sum, c) => sum + c.position.y, 0) /
-      sortedCells.length;
-    return {
-      rowIndex,
-      cells: sortedCells,
-      avgY,
-    };
-  });
-
-  // Sort descending by physical Y: highest compartments appear first visually
-  return groups.sort((a, b) => b.avgY - a.avgY);
-}
-
-/**
  * Loads an existing persisted layout and its mappings into the workspace.
  */
 export function loadLayoutIntoWorkspace(

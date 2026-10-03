@@ -580,10 +580,12 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await rowOrderTrigger.click();
     await page.getByRole("option", { name: /Bottom-to-Top/i }).click();
 
-    // Verify slot A01 is marked stale in 2D preview and click it to inspect
-    const slotA01Btn = page.locator("button").filter({ hasText: "Stale" });
-    await expect(slotA01Btn).toBeVisible();
-    await slotA01Btn.click();
+    // Verify slot A01 is marked stale in the 2D front elevation and click it to inspect
+    const staleSlot = page.locator(
+      '[data-testid="front-elevation-slot"][aria-label*="stale mapping"]',
+    );
+    await expect(staleSlot).toBeVisible();
+    await staleSlot.click();
 
     // Confirm & Keep Association in Compartment Inspector
     const confirmBtn = page.getByRole("button", { name: "Confirm & Keep Association" });
@@ -591,7 +593,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await confirmBtn.click();
 
     // Stale indicator on slot A01 is now cleared
-    await expect(page.locator("button").filter({ hasText: "Stale" })).not.toBeVisible();
+    await expect(staleSlot).not.toBeVisible();
     await expect(page.getByText("Physical Meaning Changed")).not.toBeVisible();
 
     // Perform an unrelated geometric change: outer width 600 -> 750
@@ -599,7 +601,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await widthInput.fill("750");
 
     // Verify slot A01 preserves acknowledgment and remains valid (not stale)
-    await expect(page.locator("button").filter({ hasText: "Stale" })).not.toBeVisible();
+    await expect(staleSlot).not.toBeVisible();
     await expect(page.getByText("Physical Meaning Changed")).not.toBeVisible();
 
     // Persist the acknowledged state and reload: acknowledgment survives the round-trip
@@ -613,7 +615,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await page.reload();
     await expect(page.getByText("Revision: 1")).toBeVisible();
     await expect(page.getByText(/750 × 900 × 300 mm/)).toBeVisible();
-    await expect(page.locator("button").filter({ hasText: "Stale" })).not.toBeVisible();
+    await expect(staleSlot).not.toBeVisible();
     await expect(page.getByText("Physical Meaning Changed")).not.toBeVisible();
 
     // Now perform a meaning-changing edit: switch naming pattern to Row-Col
@@ -622,9 +624,8 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await page.getByRole("option", { name: /Row-Col/i }).click();
 
     // Meaning change invalidates prior acknowledgment!
-    const updatedSlotBtn = page.locator("button").filter({ hasText: "Stale" });
-    await expect(updatedSlotBtn).toBeVisible();
-    await updatedSlotBtn.click();
+    await expect(staleSlot).toBeVisible();
+    await staleSlot.click();
     await expect(page.getByText("Physical Meaning Changed")).toBeVisible();
     await expect(page.getByRole("button", { name: "Confirm & Keep Association" })).toBeVisible();
   });

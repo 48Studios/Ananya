@@ -847,7 +847,7 @@ export function InventoryBuilderWorkspace({
         {/* Toolbar: Persistence Actions & View Modes */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Persistence Actions */}
-          <div className="flex items-center gap-1.5 p-1 rounded-lg bg-muted border border-border">
+          <div className="flex items-center gap-1.5 p-0.5 rounded-lg bg-muted border border-border">
             <Button
               variant="default"
               size="sm"
@@ -1182,7 +1182,7 @@ export function InventoryBuilderWorkspace({
       {/* 3. Main Workspace Split Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[640px]">
         {/* Left Column: Configuration or Location Mapping Panel */}
-        <div className="lg:col-span-4 xl:col-span-4 flex flex-col gap-4">
+        <div className="lg:col-span-4 xl:col-span-3 flex flex-col gap-4">
           {state.mode === "build" ? (
             <>
               <ParametricConfigPanel
@@ -1215,11 +1215,12 @@ export function InventoryBuilderWorkspace({
         </div>
 
         {/* Right Column: Interactive Preview (2D/3D) and Compartment Inspector */}
-        <div className="lg:col-span-8 xl:col-span-8 flex flex-col gap-4">
+        <div className="lg:col-span-8 xl:col-span-9 flex flex-col gap-4">
           {/* Top: 2D or 3D Spatial Canvas */}
           <div className="flex-1 min-h-[420px]">
             {state.viewMode === "2d" ? (
               <ParametricPreview2D
+                config={state.config}
                 compartments={state.generatedResult?.compartments ?? []}
                 diff={state.diff}
                 mappings={state.mappings}

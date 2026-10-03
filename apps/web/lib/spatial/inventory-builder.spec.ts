@@ -21,7 +21,6 @@ import {
   switchWorkspaceMode,
   convertGeneratedToSceneLayout,
   acknowledgeStaleMapping,
-  compute2DPreviewRowGroups,
   setSelectedParentLocation,
   unmapIncompatibleHierarchySlots,
   getDescendantLocationIds,
@@ -29,6 +28,7 @@ import {
   buildBuilderUrlSearchParams,
   syncStateFromUrl,
 } from "./inventory-builder-state";
+import { computeFrontElevation, type FrontElevationSlot } from "./spatial-front-elevation";
 import { mmToMeters } from "./spatial-3d-layout";
 import type { LocationDto } from "../api/locations-api";
 
@@ -409,33 +409,47 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
     });
 
     // 3. Correct preview orientation (P1)
-    describe("3. 2D Preview Physical Vertical Orientation (P1)", () => {
-      it("renders physically highest row at the top for Pallet Rack (bottom_to_top levels)", () => {
+    describe("3. 2D Front Elevation Physical Vertical Orientation (P1)", () => {
+      const topMost = (slots: FrontElevationSlot[]) =>
+        slots.reduce((highest, slot) =>
+          slot.centerYMm > highest.centerYMm ? slot : highest,
+        );
+      const bottomMost = (slots: FrontElevationSlot[]) =>
+        slots.reduce((lowest, slot) =>
+          slot.centerYMm < lowest.centerYMm ? slot : lowest,
+        );
+
+      it("projects the physically highest level at the top for Pallet Rack (bottom_to_top levels)", () => {
         const rackConfig = createDefaultPalletRackConfig();
         const gen = generateStorageCompartments(rackConfig);
-        const rowGroups = compute2DPreviewRowGroups(gen.compartments);
+        const projection = computeFrontElevation(
+          gen.compartments,
+          rackConfig.dimensions,
+        );
 
-        // The top visual row (index 0) must have higher physical Y than the bottom visual row
-        expect(rowGroups.length).toBe(rackConfig.levels);
-        expect(rowGroups[0]!.avgY).toBeGreaterThan(rowGroups[rowGroups.length - 1]!.avgY);
+        // Visual reading order starts with the physically highest compartment
+        expect(projection.slots[0]!.centerYMm).toBeGreaterThan(
+          projection.slots[projection.slots.length - 1]!.centerYMm,
+        );
 
         // For Pallet Rack, Level 4 (index 3) is at the top physically, Level 1 (index 0) is at the bottom
-        const topRowLevel = rowGroups[0]!.cells[0]!.logicalIndex.row;
-        const bottomRowLevel = rowGroups[rowGroups.length - 1]!.cells[0]!.logicalIndex.row;
-        expect(topRowLevel).toBe(rackConfig.levels - 1);
-        expect(bottomRowLevel).toBe(0);
+        expect(topMost(projection.slots).slotId).toBe("rack_bay_r3_c0");
+        expect(bottomMost(projection.slots).slotId).toBe("rack_bay_r0_c0");
       });
 
-      it("renders physically highest row at the top for SMD Cabinet (top_to_bottom drawers)", () => {
+      it("projects the physically highest row at the top for SMD Cabinet (top_to_bottom drawers)", () => {
         const cabConfig = createDefaultSmdCabinetConfig();
         const gen = generateStorageCompartments(cabConfig);
-        const rowGroups = compute2DPreviewRowGroups(gen.compartments);
+        const projection = computeFrontElevation(
+          gen.compartments,
+          cabConfig.dimensions,
+        );
 
         // Row 0 is at the top physically in top_to_bottom
-        expect(rowGroups.length).toBe(cabConfig.rows);
-        expect(rowGroups[0]!.avgY).toBeGreaterThan(rowGroups[rowGroups.length - 1]!.avgY);
-        expect(rowGroups[0]!.rowIndex).toBe(0);
-        expect(rowGroups[rowGroups.length - 1]!.rowIndex).toBe(cabConfig.rows - 1);
+        expect(topMost(projection.slots).slotId).toBe("drawer_slot_r0_c0");
+        expect(bottomMost(projection.slots).slotId).toBe(
+          `drawer_slot_r${cabConfig.rows - 1}_c0`,
+        );
       });
     });
 
