@@ -43,6 +43,9 @@ export const finishedGoodsApi = {
   getAll: async (): Promise<FinishedGoodsReceiptDto[]> => {
     return apiClient.get<FinishedGoodsReceiptDto[]>("/finished-goods");
   },
+  getById: async (id: string): Promise<FinishedGoodsReceiptDto> => {
+    return apiClient.get<FinishedGoodsReceiptDto>(`/finished-goods/${id}`);
+  },
   create: async (data: {
     productionOrderId: string;
   }): Promise<FinishedGoodsReceiptDto> => {

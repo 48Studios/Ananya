@@ -20,6 +20,7 @@ import { formatDate } from "@/lib/utils";
 
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { MaterialConsumptionForm } from "@/components/material-consumption/material-consumption-form";
+import { ConsumptionLinesDialog } from "@/components/material-consumption/consumption-lines-dialog";
 
 export default function MaterialConsumptionPage() {
   const [consumptions, setConsumptions] = React.useState<
@@ -27,6 +28,7 @@ export default function MaterialConsumptionPage() {
   >([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [managingId, setManagingId] = React.useState<string | null>(null);
 
   const fetchConsumptions = React.useCallback(() => {
     setLoading(true);
@@ -123,6 +125,26 @@ export default function MaterialConsumptionPage() {
         </span>
       ),
     },
+    {
+      id: "actions",
+      header: () => <span className="text-right block w-full">Actions</span>,
+      meta: {
+        width: "10%",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
+      cell: ({ row }) => (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setManagingId(row.original.id)}
+          >
+            {row.original.status === "DRAFT" ? "Issue lines" : "View lines"}
+          </Button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -165,6 +187,12 @@ export default function MaterialConsumptionPage() {
         loading={loading}
         emptyTitle="No Material Consumptions Found"
         emptyMessage="No material consumption records match your filter."
+      />
+
+      <ConsumptionLinesDialog
+        documentId={managingId}
+        onClose={() => setManagingId(null)}
+        onChanged={fetchConsumptions}
       />
 
       <DialogShell

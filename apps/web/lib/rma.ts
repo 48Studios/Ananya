@@ -7,9 +7,9 @@ import type {
 /**
  * An RMA request as the UI displays it.
  *
- * The API returns `customerId` and an optional `salesOrderId`; the web client
- * has no sales-order lookup yet, so the originating order is reported as linked
- * or not linked rather than as a fabricated order number.
+ * The API returns `customerId` and an optional `salesOrderId`; the originating
+ * order number is resolved from the sales orders API and stays `null` when it
+ * cannot be resolved, so the page never shows a fabricated number.
  */
 export interface RmaRow {
   id: string;
@@ -20,6 +20,7 @@ export interface RmaRow {
   reason: string;
   status: RmaStatus;
   disposition: RmaDisposition | null;
+  salesOrderLabel: string | null;
   salesOrderLinked: boolean;
   reportedAt: string;
 }
@@ -33,7 +34,9 @@ function clean(value: string | undefined | null): string | null {
 export function toRmaRow(
   request: RmaRequestDto,
   customerNames?: ReadonlyMap<string, string>,
+  salesOrderNumbers?: ReadonlyMap<string, string>,
 ): RmaRow {
+  const salesOrderId = clean(request.salesOrderId);
   return {
     id: request.id,
     rmaNumber: clean(request.rmaNumber) ?? "-",
@@ -43,7 +46,10 @@ export function toRmaRow(
     reason: clean(request.reason) ?? "-",
     status: request.status,
     disposition: request.disposition ?? null,
-    salesOrderLinked: Boolean(clean(request.salesOrderId)),
+    salesOrderLabel: clean(
+      salesOrderId ? salesOrderNumbers?.get(salesOrderId) : null,
+    ),
+    salesOrderLinked: Boolean(salesOrderId),
     reportedAt: request.createdAt,
   };
 }
@@ -51,7 +57,21 @@ export function toRmaRow(
 export function buildRmaRows(
   requests: RmaRequestDto[] | undefined | null,
   customerNames?: ReadonlyMap<string, string>,
+  salesOrderNumbers?: ReadonlyMap<string, string>,
 ): RmaRow[] {
   if (!requests?.length) return [];
-  return requests.map((request) => toRmaRow(request, customerNames));
+  return requests.map((request) =>
+    toRmaRow(request, customerNames, salesOrderNumbers),
+  );
+}
+
+export function toSalesOrderNumberMap(
+  orders: Array<{ id: string; orderNumber?: string }> | undefined | null,
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const order of orders ?? []) {
+    const number = clean(order.orderNumber);
+    if (number) map.set(order.id, number);
+  }
+  return map;
 }

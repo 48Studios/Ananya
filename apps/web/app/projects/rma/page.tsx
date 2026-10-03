@@ -11,7 +11,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { rmaRequestsApi } from "@/lib/api/rma-requests-api";
 import { customersApi } from "@/lib/api/customers-api";
 import { toCustomerNameMap } from "@/lib/service-requests";
-import { buildRmaRows, type RmaRow } from "@/lib/rma";
+import { salesOrdersApi } from "@/lib/api/sales-orders-api";
+import { buildRmaRows, toSalesOrderNumberMap, type RmaRow } from "@/lib/rma";
 import { formatDate } from "@/lib/utils";
 
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -24,15 +25,21 @@ export default function RmaPage() {
 
   const fetchRequests = React.useCallback(() => {
     setLoading(true);
-    // An RMA carries `customerId`; the customer name is resolved from the
-    // customers API. The originating sales order is reported as linked or not,
-    // because the web client has no sales-order lookup yet.
+    // An RMA carries `customerId` and an optional `salesOrderId`; both labels
+    // are resolved from their own APIs.
     Promise.all([
       rmaRequestsApi.getAll(),
       customersApi.getAll().catch(() => []),
+      salesOrdersApi.getAll().catch(() => []),
     ])
-      .then(([rows, customers]) =>
-        setRequests(buildRmaRows(rows, toCustomerNameMap(customers))),
+      .then(([rows, customers, salesOrders]) =>
+        setRequests(
+          buildRmaRows(
+            rows,
+            toCustomerNameMap(customers),
+            toSalesOrderNumberMap(salesOrders),
+          ),
+        ),
       )
       .catch(() => setRequests([]))
       .finally(() => setLoading(false));
@@ -66,9 +73,10 @@ export default function RmaPage() {
             {row.original.customerName || "Unassigned customer"}
           </p>
           <p className="font-mono text-[11px] text-muted-foreground">
-            {row.original.salesOrderLinked
-              ? "Sales order linked"
-              : "No sales order linked"}
+            {row.original.salesOrderLabel ??
+              (row.original.salesOrderLinked
+                ? "Sales order linked"
+                : "No sales order linked")}
           </p>
         </div>
       ),

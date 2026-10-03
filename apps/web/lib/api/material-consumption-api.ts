@@ -44,6 +44,9 @@ export const materialConsumptionApi = {
   getAll: async (): Promise<MaterialConsumptionDto[]> => {
     return apiClient.get<MaterialConsumptionDto[]>("/material-consumptions");
   },
+  getById: async (id: string): Promise<MaterialConsumptionDto> => {
+    return apiClient.get<MaterialConsumptionDto>(`/material-consumptions/${id}`);
+  },
   create: async (data: {
     productionOrderId: string;
   }): Promise<MaterialConsumptionDto> => {

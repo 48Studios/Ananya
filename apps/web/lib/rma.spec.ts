@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildRmaRows, toRmaRow } from "./rma";
+import { buildRmaRows, toRmaRow, toSalesOrderNumberMap } from "./rma";
 import type { RmaRequestDto } from "./api/rma-requests-api";
 
 const baseRequest: RmaRequestDto = {
@@ -29,15 +29,29 @@ describe("toRmaRow", () => {
       reason: "Intermittent fault on power-up",
       status: "RECEIVED",
       disposition: "REPAIR",
+      salesOrderLabel: null,
       salesOrderLinked: true,
       reportedAt: "2026-09-28T09:00:00.000Z",
     });
   });
 
-  it("reports an order as not linked instead of inventing a number", () => {
-    const row = toRmaRow({ ...baseRequest, salesOrderId: undefined });
+  it("resolves the originating sales order number", () => {
+    const row = toRmaRow(
+      baseRequest,
+      undefined,
+      new Map([["so-1", "SO-2026-0881"]]),
+    );
 
-    expect(row.salesOrderLinked).toBe(false);
+    expect(row.salesOrderLabel).toBe("SO-2026-0881");
+    expect(row.salesOrderLinked).toBe(true);
+  });
+
+  it("falls back to linked/not linked when the number cannot be resolved", () => {
+    expect(toRmaRow(baseRequest).salesOrderLabel).toBeNull();
+    expect(toRmaRow(baseRequest).salesOrderLinked).toBe(true);
+    expect(
+      toRmaRow({ ...baseRequest, salesOrderId: undefined }).salesOrderLinked,
+    ).toBe(false);
   });
 
   it("leaves the disposition null until inspection records one", () => {
@@ -60,5 +74,28 @@ describe("toRmaRow", () => {
 describe("buildRmaRows", () => {
   it("returns an empty list for a missing response", () => {
     expect(buildRmaRows(null)).toEqual([]);
+  });
+
+  it("passes the sales order numbers through to every row", () => {
+    const rows = buildRmaRows(
+      [baseRequest],
+      undefined,
+      new Map([["so-1", "SO-2026-0881"]]),
+    );
+
+    expect(rows[0]?.salesOrderLabel).toBe("SO-2026-0881");
+  });
+});
+
+describe("toSalesOrderNumberMap", () => {
+  it("maps ids to order numbers and skips blanks", () => {
+    const map = toSalesOrderNumberMap([
+      { id: "so-1", orderNumber: "SO-2026-0881" },
+      { id: "so-2", orderNumber: " " },
+      { id: "so-3" },
+    ]);
+
+    expect(map.get("so-1")).toBe("SO-2026-0881");
+    expect(map.size).toBe(1);
   });
 });

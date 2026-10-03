@@ -3,7 +3,6 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Package, Plus, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
@@ -19,12 +18,15 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/utils";
 
 import { DialogShell } from "@/components/ui/dialog-shell";
+import { Button } from "@/components/ui/button";
 import { FinishedGoodsForm } from "@/components/finished-goods/finished-goods-form";
+import { FinishedGoodsLinesDialog } from "@/components/finished-goods/finished-goods-lines-dialog";
 
 export default function FinishedGoodsPage() {
   const [goods, setGoods] = React.useState<FinishedGoodsRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [managingId, setManagingId] = React.useState<string | null>(null);
 
   const fetchGoods = React.useCallback(() => {
     setLoading(true);
@@ -137,6 +139,26 @@ export default function FinishedGoodsPage() {
         </span>
       ),
     },
+    {
+      id: "actions",
+      header: () => <span className="text-right block w-full">Actions</span>,
+      meta: {
+        width: "10%",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
+      cell: ({ row }) => (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setManagingId(row.original.id)}
+          >
+            {row.original.status === "DRAFT" ? "Receipt lines" : "View lines"}
+          </Button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -177,6 +199,12 @@ export default function FinishedGoodsPage() {
         loading={loading}
         emptyTitle="No Finished Goods Found"
         emptyMessage="No completed finished goods match your search."
+      />
+
+      <FinishedGoodsLinesDialog
+        documentId={managingId}
+        onClose={() => setManagingId(null)}
+        onChanged={fetchGoods}
       />
 
       <DialogShell
