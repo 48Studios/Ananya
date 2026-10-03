@@ -3,7 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowRightLeft, ArrowDownLeft, ArrowUpRight, ShieldCheck, ExternalLink, Eye } from "lucide-react";
+import {
+  ArrowRightLeft,
+  ArrowDownLeft,
+  ArrowUpRight,
+  ShieldCheck,
+  ExternalLink,
+  Eye,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -215,8 +222,6 @@ export default function TransactionReportsPage() {
         backLabel="Back to Reports"
         title="Transaction & Audit Reports"
         description="Immutable stock movement history, transaction type breakdown, and audit ledger logs."
-        actions={
-        }
       />
 
       {/* KPI Cards */}

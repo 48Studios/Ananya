@@ -3,7 +3,20 @@
 import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Edit3, Trash2, MapPin, Layers, Printer, Package, ExternalLink, Info, LayoutGrid, List, Box, Sliders } from "lucide-react";
+import {
+  Edit3,
+  Trash2,
+  MapPin,
+  Layers,
+  Printer,
+  Package,
+  ExternalLink,
+  Info,
+  LayoutGrid,
+  List,
+  Box,
+  Sliders,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DetailChip,

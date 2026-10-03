@@ -3,7 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { FolderKanban, Package, Layers, ExternalLink, CheckCircle2, Eye } from "lucide-react";
+import {
+  FolderKanban,
+  Package,
+  Layers,
+  ExternalLink,
+  CheckCircle2,
+  Eye,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -201,8 +208,6 @@ export default function ProjectReportsPage() {
         backLabel="Back to Reports"
         title="Project Reports"
         description="Project material tracking, job site inventory allocations, and consumption balances."
-        actions={
-        }
       />
 
       {/* KPI Cards */}

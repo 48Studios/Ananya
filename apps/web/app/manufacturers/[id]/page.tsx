@@ -3,7 +3,15 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Edit3, Trash2, Factory, Package, Calendar, CheckCircle2, Info } from "lucide-react";
+import {
+  Edit3,
+  Trash2,
+  Factory,
+  Package,
+  Calendar,
+  CheckCircle2,
+  Info,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DetailChip,

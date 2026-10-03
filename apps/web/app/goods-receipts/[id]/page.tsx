@@ -3,7 +3,15 @@
 import * as React from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Printer, Building2, Calendar, Package, Layers, MapPin, CheckCircle2 } from "lucide-react";
+import {
+  Printer,
+  Building2,
+  Calendar,
+  Package,
+  Layers,
+  MapPin,
+  CheckCircle2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";

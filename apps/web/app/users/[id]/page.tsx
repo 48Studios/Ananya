@@ -2,7 +2,15 @@
 
 import * as React from "react";
 import { useParams } from "next/navigation";
-import { User, Shield, CheckCircle2, Lock, Loader2, Calendar, Activity } from "lucide-react";
+import {
+  User,
+  Shield,
+  CheckCircle2,
+  Lock,
+  Loader2,
+  Calendar,
+  Activity,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DialogShell,

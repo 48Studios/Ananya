@@ -3,7 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Shield, CheckCircle2, Lock, Users, KeyRound, Calendar } from "lucide-react";
+import {
+  Shield,
+  CheckCircle2,
+  Lock,
+  Users,
+  KeyRound,
+  Calendar,
+} from "lucide-react";
 import { DetailTable } from "@/components/ui/detail-table";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
@@ -73,8 +80,6 @@ export default function RoleDetailPage() {
         title={roleInfo.name}
         description={
           roleInfo.description || "System-configured access control role."
-        }
-        actions={
         }
       />
 

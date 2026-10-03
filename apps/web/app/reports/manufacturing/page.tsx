@@ -3,7 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Factory, CheckCircle2, AlertOctagon, FileSpreadsheet, ExternalLink, Eye } from "lucide-react";
+import {
+  Factory,
+  CheckCircle2,
+  AlertOctagon,
+  FileSpreadsheet,
+  ExternalLink,
+  Eye,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -197,8 +204,6 @@ export default function ManufacturingReportsPage() {
         backLabel="Back to Reports"
         title="Manufacturing Reports"
         description="Production execution, output yield, material consumption, and scrap analysis."
-        actions={
-        }
       />
 
       {/* KPI Cards */}

@@ -3,7 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Package, MapPin, Layers, CheckCircle2, ExternalLink, Eye } from "lucide-react";
+import {
+  Package,
+  MapPin,
+  Layers,
+  CheckCircle2,
+  ExternalLink,
+  Eye,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -200,8 +207,6 @@ export default function InventoryReportsPage() {
         backLabel="Back to Reports"
         title="Inventory Reports"
         description="Comprehensive stock levels, storage location distributions, and component valuation."
-        actions={
-        }
       />
 
       {/* KPI Cards */}

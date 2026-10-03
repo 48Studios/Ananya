@@ -4,7 +4,20 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { LocateButton } from "@/components/spatial";
-import { Edit3, Trash2, Package, Layers, MapPin, Activity, CheckCircle2, History, Info, Printer, Sliders, Sparkles } from "lucide-react";
+import {
+  Edit3,
+  Trash2,
+  Package,
+  Layers,
+  MapPin,
+  Activity,
+  CheckCircle2,
+  History,
+  Info,
+  Printer,
+  Sliders,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import {

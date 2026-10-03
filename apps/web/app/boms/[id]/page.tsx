@@ -3,7 +3,18 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Printer, Cpu, CheckCircle2, Clock, XCircle, Copy, Pencil, Trash2, History, Layers } from "lucide-react";
+import {
+  Printer,
+  Cpu,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  Copy,
+  Pencil,
+  Trash2,
+  History,
+  Layers,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
