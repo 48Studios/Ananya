@@ -24,6 +24,10 @@ import { ComponentsService } from '../components/components.service';
 import { BomsService } from '../boms/boms.service';
 import { SalesOrdersService } from '../sales-orders/sales-orders.service';
 
+function roundPlanningQuantity(value: number): number {
+  return Math.round(value * 10000) / 10000;
+}
+
 export const PLANNING_RUN_REPOSITORY = 'PLANNING_RUN_REPOSITORY';
 export const MATERIAL_REQUIREMENT_REPOSITORY =
   'MATERIAL_REQUIREMENT_REPOSITORY';
@@ -83,9 +87,11 @@ export class PlanningRunsService {
   }
 
   private async executeMrpCalculation(run: PlanningRun): Promise<void> {
-    const allComponents = await this.componentsService.getAllComponents();
-    const allBoms = await this.bomsService.findAll();
-    const allSalesOrders = await this.salesOrdersService.findAll();
+    const [allComponents, allBoms, allSalesOrders] = await Promise.all([
+      this.componentsService.getAllComponents(),
+      this.bomsService.findAll(),
+      this.salesOrdersService.findAll(),
+    ]);
     const [projectionRows, reservationRows] = await Promise.all([
       db
         .select({
@@ -125,20 +131,13 @@ export class PlanningRunsService {
       }),
     );
 
-    const generatedRequirements: MaterialRequirement[] = [];
-    const generatedPurchaseRecs: PurchaseRecommendation[] = [];
-    const generatedProdRecs: ProductionRecommendation[] = [];
-    const now = new Date();
-    const horizonLimit = new Date(
-      now.getTime() + run.horizonDays * 24 * 60 * 60 * 1000,
+    const componentById = new Map(
+      allComponents.map((component) => [component.id, component]),
     );
     const releasedBomByProduct = new Map(
       allBoms
         .filter((bom) => bom.status === 'RELEASED')
         .map((bom) => [bom.componentId, bom]),
-    );
-    const componentById = new Map(
-      allComponents.map((component) => [component.id, component]),
     );
     const availableByComponent = new Map(
       projectionRows.map((row) => [
@@ -152,15 +151,11 @@ export class PlanningRunsService {
         parseFloat(row.reservedQuantity ?? '0'),
       ]),
     );
-    const requirementsByComponent = new Map<
-      string,
-      {
-        requiredQuantity: number;
-        requiredDate: Date;
-        sourceReferenceId: string;
-      }
-    >();
 
+    const now = new Date();
+    const horizonLimit = new Date(
+      now.getTime() + run.horizonDays * 24 * 60 * 60 * 1000,
+    );
     const demandOrders = allSalesOrders.filter((order) => {
       if (
         !['APPROVED', 'RELEASED', 'ALLOCATED', 'PARTIALLY_FULFILLED'].includes(
@@ -174,96 +169,180 @@ export class PlanningRunsService {
       return requiredDate <= horizonLimit;
     });
 
+    const grossDemandByComponent = new Map<
+      string,
+      {
+        quantity: number;
+        requiredDate: Date;
+        sourceReferenceId?: string;
+      }
+    >();
+    const addGrossDemand = (
+      componentId: string,
+      quantity: number,
+      requiredDate: Date,
+      sourceReferenceId?: string,
+    ): void => {
+      const rounded = roundPlanningQuantity(quantity);
+      if (rounded <= 0) return;
+
+      const current = grossDemandByComponent.get(componentId);
+      if (current) {
+        current.quantity = roundPlanningQuantity(current.quantity + rounded);
+        if (requiredDate < current.requiredDate) {
+          current.requiredDate = requiredDate;
+        }
+        return;
+      }
+
+      grossDemandByComponent.set(componentId, {
+        quantity: rounded,
+        requiredDate,
+        sourceReferenceId,
+      });
+    };
+
     for (const order of demandOrders) {
       const orderRequiredDate = order.requiredDate ?? order.orderDate;
 
       for (const line of order.lines) {
         const netDemand = Math.max(line.quantity - line.fulfilledQuantity, 0);
-        if (netDemand <= 0) {
-          continue;
-        }
-
-        const releasedBom = releasedBomByProduct.get(line.componentId);
-        if (!releasedBom || releasedBom.lines.length === 0) {
-          const current = requirementsByComponent.get(line.componentId);
-          requirementsByComponent.set(line.componentId, {
-            requiredQuantity: (current?.requiredQuantity ?? 0) + netDemand,
-            requiredDate:
-              current && current.requiredDate < orderRequiredDate
-                ? current.requiredDate
-                : orderRequiredDate,
-            sourceReferenceId: order.id,
-          });
-          continue;
-        }
-
-        for (const bomLine of releasedBom.lines) {
-          const grossRequirement =
-            netDemand *
-            bomLine.quantityPerUnit *
-            (1 + bomLine.scrapFactorPercent / 100);
-          const current = requirementsByComponent.get(bomLine.componentId);
-
-          requirementsByComponent.set(bomLine.componentId, {
-            requiredQuantity:
-              (current?.requiredQuantity ?? 0) + grossRequirement,
-            requiredDate:
-              current && current.requiredDate < orderRequiredDate
-                ? current.requiredDate
-                : orderRequiredDate,
-            sourceReferenceId: order.id,
-          });
-        }
+        addGrossDemand(
+          line.componentId,
+          netDemand,
+          orderRequiredDate,
+          order.id,
+        );
       }
     }
 
-    for (const [componentId, demand] of requirementsByComponent.entries()) {
-      const req = MaterialRequirement.create({
-        planningRunId: run.id,
-        componentId,
-        requiredQuantity: Math.round(demand.requiredQuantity * 10000) / 10000,
-        availableQuantity: availableByComponent.get(componentId) ?? 0,
-        reservedQuantity: reservedByComponent.get(componentId) ?? 0,
-        requiredDate: demand.requiredDate,
-        source: 'SALES_ORDER',
-        sourceReferenceId: demand.sourceReferenceId,
-      });
-      generatedRequirements.push(req);
+    // Low-level coding: a component is netted only at its deepest occurrence in
+    // the product structure. Parents then always have released their dependent
+    // demand - exploded from their net shortage - before stock is applied.
+    const lowLevelByComponent = new Map<string, number>();
+    const cycleWarnings: string[] = [];
+    const traversalQueue: Array<{
+      componentId: string;
+      level: number;
+      path: string[];
+    }> = [];
 
-      if (req.shortageQuantity <= 0) {
+    for (const componentId of grossDemandByComponent.keys()) {
+      lowLevelByComponent.set(componentId, 0);
+      traversalQueue.push({ componentId, level: 0, path: [componentId] });
+    }
+
+    const expandedAtLevel = new Map<string, number>();
+    const maxPlanningLevels = 25;
+    while (traversalQueue.length > 0) {
+      const current = traversalQueue.shift();
+      if (!current) break;
+
+      const previousExpansion = expandedAtLevel.get(current.componentId);
+      if (
+        previousExpansion !== undefined &&
+        current.level <= previousExpansion
+      ) {
         continue;
       }
+      expandedAtLevel.set(current.componentId, current.level);
+      if (current.level > (lowLevelByComponent.get(current.componentId) ?? 0)) {
+        lowLevelByComponent.set(current.componentId, current.level);
+      }
 
-      const manufacturedBom = releasedBomByProduct.get(componentId);
-      if (manufacturedBom) {
-        const suggestedCompletion = demand.requiredDate;
-        const suggestedStart = new Date(
-          suggestedCompletion.getTime() - 7 * 24 * 60 * 60 * 1000,
-        );
+      const bom = releasedBomByProduct.get(current.componentId);
+      if (!bom) continue;
+
+      for (const bomLine of bom.lines) {
+        if (current.path.includes(bomLine.componentId)) {
+          cycleWarnings.push(
+            `${[...current.path, bomLine.componentId].join(' -> ')} is a circular BOM dependency; it was planned as a single level.`,
+          );
+          continue;
+        }
+        if (current.level + 1 > maxPlanningLevels) {
+          cycleWarnings.push(
+            `BOM depth exceeded ${maxPlanningLevels} levels below ${current.path[0]}; deeper levels were not planned.`,
+          );
+          continue;
+        }
+
+        traversalQueue.push({
+          componentId: bomLine.componentId,
+          level: current.level + 1,
+          path: [...current.path, bomLine.componentId],
+        });
+      }
+    }
+
+    const generatedRequirements: MaterialRequirement[] = [];
+    const generatedPurchaseRecs: PurchaseRecommendation[] = [];
+    const generatedProdRecs: ProductionRecommendation[] = [];
+    const maxLevel = Math.max(0, ...lowLevelByComponent.values());
+
+    for (let level = 0; level <= maxLevel; level += 1) {
+      for (const [componentId, demand] of grossDemandByComponent) {
+        if ((lowLevelByComponent.get(componentId) ?? 0) !== level) {
+          continue;
+        }
+
+        const requirement = MaterialRequirement.create({
+          planningRunId: run.id,
+          componentId,
+          requiredQuantity: demand.quantity,
+          availableQuantity: availableByComponent.get(componentId) ?? 0,
+          reservedQuantity: reservedByComponent.get(componentId) ?? 0,
+          requiredDate: demand.requiredDate,
+          source: 'SALES_ORDER',
+          sourceReferenceId: demand.sourceReferenceId,
+        });
+        generatedRequirements.push(requirement);
+
+        const shortage = roundPlanningQuantity(requirement.shortageQuantity);
+        if (shortage <= 0) {
+          continue;
+        }
+
+        const manufacturedBom = releasedBomByProduct.get(componentId);
+        if (!manufacturedBom) {
+          const component = componentById.get(componentId);
+
+          generatedPurchaseRecs.push(
+            PurchaseRecommendation.create({
+              planningRunId: run.id,
+              componentId,
+              suggestedQuantity: shortage,
+              requiredDate: demand.requiredDate,
+              recommendationReason: component
+                ? `Projected shortage of ${shortage} ${component.unit} for ${component.sku}.`
+                : `Projected shortage of ${shortage} units.`,
+            }),
+          );
+          continue;
+        }
 
         generatedProdRecs.push(
           ProductionRecommendation.create({
             planningRunId: run.id,
             productId: componentId,
-            suggestedQuantity: req.shortageQuantity,
-            suggestedStart,
-            suggestedCompletion,
+            suggestedQuantity: shortage,
+            suggestedStart: new Date(
+              demand.requiredDate.getTime() - 7 * 24 * 60 * 60 * 1000,
+            ),
+            suggestedCompletion: demand.requiredDate,
           }),
         );
-      } else {
-        const component = componentById.get(componentId);
 
-        generatedPurchaseRecs.push(
-          PurchaseRecommendation.create({
-            planningRunId: run.id,
-            componentId,
-            suggestedQuantity: req.shortageQuantity,
-            requiredDate: demand.requiredDate,
-            recommendationReason: component
-              ? `Projected shortage of ${req.shortageQuantity} ${component.unit} for ${component.sku}.`
-              : `Projected shortage of ${req.shortageQuantity} units.`,
-          }),
-        );
+        for (const bomLine of manufacturedBom.lines) {
+          addGrossDemand(
+            bomLine.componentId,
+            shortage *
+              bomLine.quantityPerUnit *
+              (1 + bomLine.scrapFactorPercent / 100),
+            demand.requiredDate,
+            demand.sourceReferenceId,
+          );
+        }
       }
     }
 
@@ -287,6 +366,46 @@ export class PlanningRunsService {
         message: `Generated ${generatedRequirements.length} requirements, ${generatedPurchaseRecs.length} purchase recommendations, and ${generatedProdRecs.length} production recommendations.`,
       }),
     );
+
+    if (generatedRequirements.length === 0) {
+      await this.planningMessageRepository.save(
+        PlanningMessage.create({
+          planningRunId: run.id,
+          severity: 'INFO',
+          message: `No open sales-order demand falls inside the ${run.horizonDays}-day planning horizon; the run completed with no material requirements.`,
+        }),
+      );
+    } else if (
+      generatedPurchaseRecs.length === 0 &&
+      generatedProdRecs.length === 0
+    ) {
+      await this.planningMessageRepository.save(
+        PlanningMessage.create({
+          planningRunId: run.id,
+          severity: 'INFO',
+          message: `All ${generatedRequirements.length} gross requirements are covered by available inventory and reservations; no replenishment recommendations were required.`,
+        }),
+      );
+    }
+
+    for (const warning of cycleWarnings.slice(0, 3)) {
+      await this.planningMessageRepository.save(
+        PlanningMessage.create({
+          planningRunId: run.id,
+          severity: 'WARNING',
+          message: warning,
+        }),
+      );
+    }
+    if (cycleWarnings.length > 3) {
+      await this.planningMessageRepository.save(
+        PlanningMessage.create({
+          planningRunId: run.id,
+          severity: 'WARNING',
+          message: `${cycleWarnings.length} circular or over-deep BOM paths were detected; only the first 3 are listed.`,
+        }),
+      );
+    }
 
     if (generatedProdRecs.length > 0) {
       await this.planningMessageRepository.save(

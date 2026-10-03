@@ -1,4 +1,5 @@
 import { apiClient } from "../api-client";
+import { normalizeCapacityPlans, type CapacityPlanRecord } from "../mrp-runs";
 import { componentsApi } from "./components-api";
 import { suppliersApi } from "./suppliers-api";
 
@@ -55,6 +56,7 @@ export interface WorkCenterCapacityDto {
   availableHoursWeekly: number;
   allocatedHoursWeekly: number;
   utilizationPercentage: number;
+  isOverloaded: boolean;
 }
 
 export interface MrpRunRecordDto {
@@ -62,7 +64,7 @@ export interface MrpRunRecordDto {
   runNumber: string;
   startedBy: string;
   horizonDays: number;
-  status: "DRAFT" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  status: "DRAFT" | "RUNNING" | "COMPLETED" | "CANCELLED";
   createdAt: string;
   updatedAt: string;
   completedAt?: string | null;
@@ -117,15 +119,26 @@ export const mrpApi = {
   async getGrossRequirements(
     planningRunId?: string,
   ): Promise<MrpRequirementDto[]> {
-    const [requirements, components] = await Promise.all([
-      apiClient.get<MaterialRequirementRecord[]>(
-        buildQuery("/material-requirements", { planningRunId }),
-      ),
-      componentsApi.getAll(),
-    ]);
+    const [requirements, productionRecommendations, components] =
+      await Promise.all([
+        apiClient.get<MaterialRequirementRecord[]>(
+          buildQuery("/material-requirements", { planningRunId }),
+        ),
+        apiClient
+          .get<ProductionRecommendationRecord[]>(
+            buildQuery("/production-recommendations", { planningRunId }),
+          )
+          .catch(() => [] as ProductionRecommendationRecord[]),
+        componentsApi.getAll().catch(() => []),
+      ]);
 
     const componentById = new Map(
       components.map((component) => [component.id, component]),
+    );
+    const makeComponentIds = new Set(
+      productionRecommendations.map(
+        (recommendation) => recommendation.productId,
+      ),
     );
 
     return requirements.map((requirement) => {
@@ -143,7 +156,12 @@ export const mrpApi = {
         reservedStock: Number(requirement.reservedQuantity ?? 0),
         shortageQuantity,
         requiredDate: requirement.requiredDate,
-        recommendedAction: shortageQuantity <= 0 ? "NONE" : "RELEASE_PO",
+        recommendedAction:
+          shortageQuantity <= 0
+            ? "NONE"
+            : makeComponentIds.has(requirement.componentId)
+              ? "RELEASE_WO"
+              : "RELEASE_PO",
       };
     });
   },
@@ -233,10 +251,12 @@ export const mrpApi = {
 
   getCapacityPlans: async (
     planningRunId?: string,
-  ): Promise<WorkCenterCapacityDto[]> =>
-    apiClient.get<WorkCenterCapacityDto[]>(
+  ): Promise<WorkCenterCapacityDto[]> => {
+    const records = await apiClient.get<CapacityPlanRecord[]>(
       buildQuery("/capacity-plans", { planningRunId }),
-    ),
+    );
+    return normalizeCapacityPlans(records);
+  },
 
   getRuns: async (): Promise<MrpRunRecordDto[]> =>
     apiClient.get<MrpRunRecordDto[]>("/planning-runs"),

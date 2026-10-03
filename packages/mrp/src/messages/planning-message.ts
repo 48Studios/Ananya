@@ -74,4 +74,21 @@ export class PlanningMessage {
   public get createdAt(): Date {
     return this._createdAt;
   }
+
+  /** Public JSON contract; see PlanningRun.toJSON. */
+  public toJSON(): {
+    id: string;
+    planningRunId: string;
+    severity: MessageSeverity;
+    message: string;
+    createdAt: Date;
+  } {
+    return {
+      id: this.id,
+      planningRunId: this._planningRunId,
+      severity: this._severity,
+      message: this._message,
+      createdAt: this._createdAt,
+    };
+  }
 }

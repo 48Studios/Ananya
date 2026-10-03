@@ -16,7 +16,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { mrpApi, type MrpRunRecordDto } from "@/lib/api/mrp-api";
-import { formatDate } from "@/lib/utils";
+import {
+  formatRunCompletedAt,
+  formatRunCreatedAt,
+  formatRunHorizon,
+  formatRunStatus,
+} from "@/lib/mrp-runs";
 
 export default function MrpRunsPage() {
   const [runs, setRuns] = React.useState<MrpRunRecordDto[]>([]);
@@ -47,10 +52,17 @@ export default function MrpRunsPage() {
     setRunning(true);
     try {
       const newRun = await mrpApi.executeRun();
-      setBanner({
-        message: `Executed new MRP run "${newRun.runNumber}".`,
-        type: "success",
-      });
+      if (newRun.status === "COMPLETED") {
+        setBanner({
+          message: `Executed new MRP run "${newRun.runNumber}".`,
+          type: "success",
+        });
+      } else {
+        setBanner({
+          message: `MRP run "${newRun.runNumber}" did not complete (status ${formatRunStatus(newRun.status)}). Open the run to review the failure log.`,
+          type: "error",
+        });
+      }
       fetchRuns();
     } catch (err: unknown) {
       setBanner({
@@ -111,7 +123,7 @@ export default function MrpRunsPage() {
       header: "Planning Horizon",
       cell: ({ row }) => (
         <span className="font-mono text-xs text-foreground">
-          {row.original.horizonDays || 0} days
+          {formatRunHorizon(row.original.horizonDays)}
         </span>
       ),
     },
@@ -120,9 +132,7 @@ export default function MrpRunsPage() {
       header: "Completed At",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
-          {row.original.completedAt
-            ? formatDate(row.original.completedAt)
-            : "Pending"}
+          {formatRunCompletedAt(row.original)}
         </span>
       ),
     },
@@ -130,7 +140,7 @@ export default function MrpRunsPage() {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => (
-        <StatusBadge status={row.original.status || "COMPLETED"} />
+        <StatusBadge status={formatRunStatus(row.original.status)} />
       ),
     },
     {
@@ -138,7 +148,7 @@ export default function MrpRunsPage() {
       header: "Run Date",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {row.original.createdAt ? formatDate(row.original.createdAt) : "-"}
+          {formatRunCreatedAt(row.original)}
         </span>
       ),
     },
@@ -195,7 +205,7 @@ export default function MrpRunsPage() {
         />
         <StatCard
           title="Active Runs"
-          value={runs.filter((run) => run.status === "IN_PROGRESS").length}
+          value={runs.filter((run) => run.status === "RUNNING").length}
           icon={Clock3}
         />
       </div>

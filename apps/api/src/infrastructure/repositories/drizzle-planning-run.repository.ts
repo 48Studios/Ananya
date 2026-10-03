@@ -1,6 +1,6 @@
 import { db } from '@ananya/database';
 import { planningRuns } from '@ananya/database/schema';
-import { eq, desc, count, ilike } from '@ananya/database/query';
+import { and, eq, desc, ilike, sql } from '@ananya/database/query';
 import type { PlanningRunRecord } from '@ananya/database/schema';
 import {
   PlanningRun,
@@ -44,18 +44,22 @@ export class DrizzlePlanningRunRepository implements PlanningRunRepository {
   async findMany(
     options?: FindManyPlanningRunsOptions,
   ): Promise<PlanningRun[]> {
-    const query = db.select().from(planningRuns);
+    const conditions = [];
     if (options?.status) {
-      query.where(eq(planningRuns.status, options.status));
+      conditions.push(eq(planningRuns.status, options.status));
     }
     if (options?.startedBy) {
-      query.where(eq(planningRuns.startedBy, options.startedBy));
+      conditions.push(eq(planningRuns.startedBy, options.startedBy));
     }
     if (options?.search) {
-      query.where(ilike(planningRuns.runNumber, `%${options.search}%`));
+      conditions.push(ilike(planningRuns.runNumber, `%${options.search}%`));
     }
 
-    const rows = await query.orderBy(desc(planningRuns.createdAt));
+    const rows = await db
+      .select()
+      .from(planningRuns)
+      .where(and(...conditions))
+      .orderBy(desc(planningRuns.createdAt));
     return rows.map(toDomain);
   }
 
@@ -80,10 +84,24 @@ export class DrizzlePlanningRunRepository implements PlanningRunRepository {
       });
   }
 
+  /**
+   * Derives the next sequence from the highest existing number for the year
+   * rather than a row count. A count-based sequence collides with an existing
+   * `run_number` as soon as any run row is removed, which fails the unique
+   * constraint and aborts the whole planning run.
+   */
   async generateNextRunNumber(): Promise<string> {
     const year = new Date().getFullYear();
-    const [result] = await db.select({ count: count() }).from(planningRuns);
-    const num = (Number(result?.count ?? 0) + 1).toString().padStart(4, '0');
-    return `MRP-${year}-${num}`;
+    const prefix = `MRP-${year}-`;
+    const [result] = await db
+      .select({ maxNumber: sql<string | null>`MAX(${planningRuns.runNumber})` })
+      .from(planningRuns)
+      .where(ilike(planningRuns.runNumber, `${prefix}%`));
+
+    const maxSequence = result?.maxNumber
+      ? Number.parseInt(result.maxNumber.slice(prefix.length), 10)
+      : 0;
+    const nextSequence = Number.isFinite(maxSequence) ? maxSequence + 1 : 1;
+    return `${prefix}${nextSequence.toString().padStart(4, '0')}`;
   }
 }

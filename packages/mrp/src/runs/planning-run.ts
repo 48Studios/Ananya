@@ -102,6 +102,34 @@ export class PlanningRun {
     return this._updatedAt;
   }
 
+  /**
+   * Public JSON contract for API consumers. The aggregate stores state in
+   * private fields; without this the serialized payload would expose `_status`,
+   * `_horizonDays`, and friends and every client reading `run.status` would see
+   * `undefined`.
+   */
+  public toJSON(): {
+    id: string;
+    runNumber: string;
+    horizonDays: number;
+    status: PlanningRunStatus;
+    startedBy: string;
+    completedAt?: Date;
+    createdAt: Date;
+    updatedAt: Date;
+  } {
+    return {
+      id: this.id,
+      runNumber: this._runNumber,
+      horizonDays: this._horizonDays,
+      status: this._status,
+      startedBy: this._startedBy,
+      completedAt: this._completedAt,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt,
+    };
+  }
+
   public start(): void {
     if (this._status !== "DRAFT") {
       throw new InvalidPlanningRunError(

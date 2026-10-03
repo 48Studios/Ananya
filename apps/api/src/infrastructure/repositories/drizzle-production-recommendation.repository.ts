@@ -1,6 +1,6 @@
 import { db } from '@ananya/database';
 import { productionRecommendations } from '@ananya/database/schema';
-import { eq, desc } from '@ananya/database/query';
+import { and, eq, desc } from '@ananya/database/query';
 import type { ProductionRecommendationRecord } from '@ananya/database/schema';
 import {
   ProductionRecommendation,
@@ -39,20 +39,26 @@ export class DrizzleProductionRecommendationRepository implements ProductionReco
   async findMany(
     options?: FindManyProductionRecommendationsOptions,
   ): Promise<ProductionRecommendation[]> {
-    const query = db.select().from(productionRecommendations);
+    const conditions = [];
     if (options?.planningRunId) {
-      query.where(
+      conditions.push(
         eq(productionRecommendations.planningRunId, options.planningRunId),
       );
     }
     if (options?.productId) {
-      query.where(eq(productionRecommendations.productId, options.productId));
+      conditions.push(
+        eq(productionRecommendations.productId, options.productId),
+      );
     }
     if (options?.status) {
-      query.where(eq(productionRecommendations.status, options.status));
+      conditions.push(eq(productionRecommendations.status, options.status));
     }
 
-    const rows = await query.orderBy(desc(productionRecommendations.createdAt));
+    const rows = await db
+      .select()
+      .from(productionRecommendations)
+      .where(and(...conditions))
+      .orderBy(desc(productionRecommendations.createdAt));
     return rows.map(toDomain);
   }
 

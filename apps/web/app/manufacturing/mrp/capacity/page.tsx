@@ -71,11 +71,11 @@ export default function MrpCapacityPage() {
       header: "Capacity Utilization",
       cell: ({ row }) => {
         const util = row.original.utilizationPercentage || 0;
-        if (util > 90) {
+        if (row.original.isOverloaded || util > 90) {
           return (
             <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-              <AlertTriangle className="w-3.5 h-3.5" /> {util}% (Near
-              Bottleneck)
+              <AlertTriangle className="w-3.5 h-3.5" /> {util}%
+              {row.original.isOverloaded ? " (Overloaded)" : " (Near Bottleneck)"}
             </span>
           );
         }
@@ -106,7 +106,12 @@ export default function MrpCapacityPage() {
         />
         <StatCard
           title="Bottlenecks"
-          value={`${centers.filter((c) => (c?.utilizationPercentage || 0) > 90).length} High Load`}
+          value={`${
+            centers.filter(
+              (c) =>
+                c?.isOverloaded || (c?.utilizationPercentage || 0) > 90,
+            ).length
+          } High Load`}
           icon={AlertTriangle}
         />
       </div>

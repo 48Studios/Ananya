@@ -1,6 +1,6 @@
 import { db } from '@ananya/database';
 import { purchaseRecommendations } from '@ananya/database/schema';
-import { eq, desc } from '@ananya/database/query';
+import { and, eq, desc } from '@ananya/database/query';
 import type { PurchaseRecommendationRecord } from '@ananya/database/schema';
 import {
   PurchaseRecommendation,
@@ -37,23 +37,31 @@ export class DrizzlePurchaseRecommendationRepository implements PurchaseRecommen
   async findMany(
     options?: FindManyPurchaseRecommendationsOptions,
   ): Promise<PurchaseRecommendation[]> {
-    const query = db.select().from(purchaseRecommendations);
+    const conditions = [];
     if (options?.planningRunId) {
-      query.where(
+      conditions.push(
         eq(purchaseRecommendations.planningRunId, options.planningRunId),
       );
     }
     if (options?.componentId) {
-      query.where(eq(purchaseRecommendations.componentId, options.componentId));
+      conditions.push(
+        eq(purchaseRecommendations.componentId, options.componentId),
+      );
     }
     if (options?.supplierId) {
-      query.where(eq(purchaseRecommendations.supplierId, options.supplierId));
+      conditions.push(
+        eq(purchaseRecommendations.supplierId, options.supplierId),
+      );
     }
     if (options?.status) {
-      query.where(eq(purchaseRecommendations.status, options.status));
+      conditions.push(eq(purchaseRecommendations.status, options.status));
     }
 
-    const rows = await query.orderBy(desc(purchaseRecommendations.createdAt));
+    const rows = await db
+      .select()
+      .from(purchaseRecommendations)
+      .where(and(...conditions))
+      .orderBy(desc(purchaseRecommendations.createdAt));
     return rows.map(toDomain);
   }
 

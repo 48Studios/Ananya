@@ -141,4 +141,33 @@ export class MaterialRequirement {
   public get createdAt(): Date {
     return this._createdAt;
   }
+
+  /** Public JSON contract; see PlanningRun.toJSON. */
+  public toJSON(): {
+    id: string;
+    planningRunId: string;
+    componentId: string;
+    requiredQuantity: number;
+    availableQuantity: number;
+    reservedQuantity: number;
+    shortageQuantity: number;
+    requiredDate: Date;
+    source: RequirementSource;
+    sourceReferenceId?: string;
+    createdAt: Date;
+  } {
+    return {
+      id: this.id,
+      planningRunId: this._planningRunId,
+      componentId: this._componentId,
+      requiredQuantity: this._requiredQuantity,
+      availableQuantity: this._availableQuantity,
+      reservedQuantity: this._reservedQuantity,
+      shortageQuantity: this._shortageQuantity,
+      requiredDate: this._requiredDate,
+      source: this._source,
+      sourceReferenceId: this._sourceReferenceId,
+      createdAt: this._createdAt,
+    };
+  }
 }

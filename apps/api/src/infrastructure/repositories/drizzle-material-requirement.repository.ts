@@ -1,6 +1,6 @@
 import { db } from '@ananya/database';
 import { materialRequirements } from '@ananya/database/schema';
-import { eq, desc, gt } from '@ananya/database/query';
+import { and, eq, desc, gt } from '@ananya/database/query';
 import type { MaterialRequirementRecord } from '@ananya/database/schema';
 import {
   MaterialRequirement,
@@ -38,23 +38,29 @@ export class DrizzleMaterialRequirementRepository implements MaterialRequirement
   async findMany(
     options?: FindManyMaterialRequirementsOptions,
   ): Promise<MaterialRequirement[]> {
-    const query = db.select().from(materialRequirements);
+    const conditions = [];
     if (options?.planningRunId) {
-      query.where(
+      conditions.push(
         eq(materialRequirements.planningRunId, options.planningRunId),
       );
     }
     if (options?.componentId) {
-      query.where(eq(materialRequirements.componentId, options.componentId));
+      conditions.push(
+        eq(materialRequirements.componentId, options.componentId),
+      );
     }
     if (options?.source) {
-      query.where(eq(materialRequirements.source, options.source));
+      conditions.push(eq(materialRequirements.source, options.source));
     }
     if (options?.onlyShortages) {
-      query.where(gt(materialRequirements.shortageQuantity, '0'));
+      conditions.push(gt(materialRequirements.shortageQuantity, '0'));
     }
 
-    const rows = await query.orderBy(desc(materialRequirements.createdAt));
+    const rows = await db
+      .select()
+      .from(materialRequirements)
+      .where(and(...conditions))
+      .orderBy(desc(materialRequirements.createdAt));
     return rows.map(toDomain);
   }
 

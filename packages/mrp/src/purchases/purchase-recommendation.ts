@@ -166,4 +166,31 @@ export class PurchaseRecommendation {
     this._status = "IMPLEMENTED";
     this._updatedAt = new Date();
   }
+
+  /** Public JSON contract; see PlanningRun.toJSON. */
+  public toJSON(): {
+    id: string;
+    planningRunId: string;
+    componentId: string;
+    supplierId?: string;
+    suggestedQuantity: number;
+    requiredDate: Date;
+    recommendationReason: string;
+    status: PurchaseRecommendationStatus;
+    createdAt: Date;
+    updatedAt: Date;
+  } {
+    return {
+      id: this.id,
+      planningRunId: this._planningRunId,
+      componentId: this._componentId,
+      supplierId: this._supplierId,
+      suggestedQuantity: this._suggestedQuantity,
+      requiredDate: this._requiredDate,
+      recommendationReason: this._recommendationReason,
+      status: this._status,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt,
+    };
+  }
 }

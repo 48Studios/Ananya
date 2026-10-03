@@ -99,3 +99,30 @@ sequenceDiagram
 ## 20. Future Extensions
 
 - Dynamic safety stock auto-adjustment based on lead time variance.
+- Scheduled receipts from open purchase orders and production orders in the net requirement formula.
+
+## 21. Implementation Notes
+
+The MRP engine (`PlanningRunsService.executeMrpCalculation`) applies the netting rules in this order:
+
+1. **Independent demand** is collected from sales-order lines inside the horizon whose
+   order status is `APPROVED`, `RELEASED`, `ALLOCATED` or `PARTIALLY_FULFILLED`,
+   reduced by each line's fulfilled quantity.
+2. **Low-level coding** walks the released BOM graph from every demanded item and
+   records the deepest level at which each component appears. A component shared by
+   several assemblies is therefore netted once, after every parent level has released
+   its dependent demand.
+3. **Netting** creates one `MaterialRequirement` per component: `shortage = required −
+max(0, available − reserved)`, where available comes from inventory projections and
+   reserved from `ACTIVE` reservations of type `WORK_ORDER`, `SALES_ORDER` or `PROJECT`.
+4. **Explosion** is driven by the net shortage, not the gross demand. A make item with a
+   released BOM produces a production recommendation and passes
+   `shortage × quantityPerUnit × (1 + scrapFactorPercent / 100)` to its components; a
+   purchased item produces a purchase recommendation.
+5. **Cycle handling** detects a component repeated along one BOM path and logs a
+   `WARNING` planning message instead of recursing, so malformed data cannot trap a run.
+
+Scheduled receipts (open POs and production orders) are not yet part of the net
+requirement formula; only on-hand projections and active reservations are. A completed
+run with no requirements records an explicit `INFO` message explaining that no demand
+fell inside the horizon, so a valid zero-result plan is distinguishable from a failure.

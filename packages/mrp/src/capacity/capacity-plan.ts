@@ -117,4 +117,29 @@ export class CapacityPlan {
   public get createdAt(): Date {
     return this._createdAt;
   }
+
+  /** Public JSON contract; see PlanningRun.toJSON. */
+  public toJSON(): {
+    id: string;
+    planningRunId: string;
+    workCenterId: string;
+    workCenterName: string;
+    availableCapacityHours: number;
+    plannedCapacityHours: number;
+    utilizationPercentage: number;
+    isOverloaded: boolean;
+    createdAt: Date;
+  } {
+    return {
+      id: this.id,
+      planningRunId: this._planningRunId,
+      workCenterId: this._workCenterId,
+      workCenterName: this._workCenterName,
+      availableCapacityHours: this._availableCapacityHours,
+      plannedCapacityHours: this._plannedCapacityHours,
+      utilizationPercentage: this._utilizationPercentage,
+      isOverloaded: this._isOverloaded,
+      createdAt: this._createdAt,
+    };
+  }
 }

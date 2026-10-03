@@ -163,4 +163,31 @@ export class ProductionRecommendation {
     this._status = "IMPLEMENTED";
     this._updatedAt = new Date();
   }
+
+  /** Public JSON contract; see PlanningRun.toJSON. */
+  public toJSON(): {
+    id: string;
+    planningRunId: string;
+    productId: string;
+    suggestedQuantity: number;
+    suggestedStart: Date;
+    suggestedCompletion: Date;
+    manufacturingRoute?: string;
+    status: ProductionRecommendationStatus;
+    createdAt: Date;
+    updatedAt: Date;
+  } {
+    return {
+      id: this.id,
+      planningRunId: this._planningRunId,
+      productId: this._productId,
+      suggestedQuantity: this._suggestedQuantity,
+      suggestedStart: this._suggestedStart,
+      suggestedCompletion: this._suggestedCompletion,
+      manufacturingRoute: this._manufacturingRoute,
+      status: this._status,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt,
+    };
+  }
 }

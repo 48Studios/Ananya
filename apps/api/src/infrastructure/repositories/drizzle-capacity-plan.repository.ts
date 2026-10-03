@@ -1,6 +1,6 @@
 import { db } from '@ananya/database';
 import { capacityPlans } from '@ananya/database/schema';
-import { eq, desc } from '@ananya/database/query';
+import { and, eq, desc } from '@ananya/database/query';
 import type { CapacityPlanRecord } from '@ananya/database/schema';
 import {
   CapacityPlan,
@@ -35,18 +35,22 @@ export class DrizzleCapacityPlanRepository implements CapacityPlanRepository {
   async findMany(
     options?: FindManyCapacityPlansOptions,
   ): Promise<CapacityPlan[]> {
-    const query = db.select().from(capacityPlans);
+    const conditions = [];
     if (options?.planningRunId) {
-      query.where(eq(capacityPlans.planningRunId, options.planningRunId));
+      conditions.push(eq(capacityPlans.planningRunId, options.planningRunId));
     }
     if (options?.workCenterId) {
-      query.where(eq(capacityPlans.workCenterId, options.workCenterId));
+      conditions.push(eq(capacityPlans.workCenterId, options.workCenterId));
     }
     if (options?.onlyOverloaded) {
-      query.where(eq(capacityPlans.isOverloaded, true));
+      conditions.push(eq(capacityPlans.isOverloaded, true));
     }
 
-    const rows = await query.orderBy(desc(capacityPlans.createdAt));
+    const rows = await db
+      .select()
+      .from(capacityPlans)
+      .where(and(...conditions))
+      .orderBy(desc(capacityPlans.createdAt));
     return rows.map(toDomain);
   }
 

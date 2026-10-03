@@ -1,6 +1,6 @@
 import { db } from '@ananya/database';
 import { planningMessages } from '@ananya/database/schema';
-import { eq, desc } from '@ananya/database/query';
+import { and, eq, desc } from '@ananya/database/query';
 import type { PlanningMessageRecord } from '@ananya/database/schema';
 import {
   PlanningMessage,
@@ -32,15 +32,21 @@ export class DrizzlePlanningMessageRepository implements PlanningMessageReposito
   async findMany(
     options?: FindManyPlanningMessagesOptions,
   ): Promise<PlanningMessage[]> {
-    const query = db.select().from(planningMessages);
+    const conditions = [];
     if (options?.planningRunId) {
-      query.where(eq(planningMessages.planningRunId, options.planningRunId));
+      conditions.push(
+        eq(planningMessages.planningRunId, options.planningRunId),
+      );
     }
     if (options?.severity) {
-      query.where(eq(planningMessages.severity, options.severity));
+      conditions.push(eq(planningMessages.severity, options.severity));
     }
 
-    const rows = await query.orderBy(desc(planningMessages.createdAt));
+    const rows = await db
+      .select()
+      .from(planningMessages)
+      .where(and(...conditions))
+      .orderBy(desc(planningMessages.createdAt));
     return rows.map(toDomain);
   }
 

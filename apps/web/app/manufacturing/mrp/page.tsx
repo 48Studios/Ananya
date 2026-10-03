@@ -38,10 +38,17 @@ export default function MrpPage() {
     setRunning(true);
     try {
       const result = await mrpApi.executeRun();
-      setBanner({
-        message: `MRP Calculation Engine finished run "${result.runNumber}".`,
-        type: "success",
-      });
+      if (result.status === "COMPLETED") {
+        setBanner({
+          message: `MRP Calculation Engine finished run "${result.runNumber}".`,
+          type: "success",
+        });
+      } else {
+        setBanner({
+          message: `MRP run "${result.runNumber}" did not complete (status ${result.status}). Open the run to review the failure log.`,
+          type: "error",
+        });
+      }
       fetchRequirements();
     } catch (err: unknown) {
       setBanner({
