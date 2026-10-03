@@ -8,22 +8,32 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { rmaRequestsApi, type RmaRequestDto } from "@/lib/api/rma-requests-api";
+import { rmaRequestsApi } from "@/lib/api/rma-requests-api";
+import { customersApi } from "@/lib/api/customers-api";
+import { toCustomerNameMap } from "@/lib/service-requests";
+import { buildRmaRows, type RmaRow } from "@/lib/rma";
 import { formatDate } from "@/lib/utils";
 
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { RmaRequestForm } from "@/components/rma/rma-request-form";
 
 export default function RmaPage() {
-  const [requests, setRequests] = React.useState<RmaRequestDto[]>([]);
+  const [requests, setRequests] = React.useState<RmaRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
 
   const fetchRequests = React.useCallback(() => {
     setLoading(true);
-    rmaRequestsApi
-      .getAll()
-      .then((data) => setRequests(data || []))
+    // An RMA carries `customerId`; the customer name is resolved from the
+    // customers API. The originating sales order is reported as linked or not,
+    // because the web client has no sales-order lookup yet.
+    Promise.all([
+      rmaRequestsApi.getAll(),
+      customersApi.getAll().catch(() => []),
+    ])
+      .then(([rows, customers]) =>
+        setRequests(buildRmaRows(rows, toCustomerNameMap(customers))),
+      )
       .catch(() => setRequests([]))
       .finally(() => setLoading(false));
   }, []);
@@ -37,13 +47,13 @@ export default function RmaPage() {
     fetchRequests();
   };
 
-  const columns: ColumnDef<RmaRequestDto>[] = [
+  const columns: ColumnDef<RmaRow>[] = [
     {
       accessorKey: "rmaNumber",
       header: "RMA Number",
       cell: ({ row }) => (
         <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase font-bold inline-block truncate max-w-full align-middle">
-          {row.original.rmaNumber || "-"}
+          {row.original.rmaNumber}
         </span>
       ),
     },
@@ -53,10 +63,26 @@ export default function RmaPage() {
       cell: ({ row }) => (
         <div>
           <p className="font-medium text-xs text-foreground">
-            {row.original.customerName || "Customer"}
+            {row.original.customerName || "Unassigned customer"}
           </p>
           <p className="font-mono text-[11px] text-muted-foreground">
-            {row.original.salesOrderNumber || "-"}
+            {row.original.salesOrderLinked
+              ? "Sales order linked"
+              : "No sales order linked"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "itemDescription",
+      header: "Item / Serial",
+      cell: ({ row }) => (
+        <div>
+          <p className="text-xs text-muted-foreground">
+            {row.original.itemDescription}
+          </p>
+          <p className="font-mono text-[11px] text-muted-foreground">
+            {row.original.serialNumber || "No serial recorded"}
           </p>
         </div>
       ),
@@ -66,7 +92,7 @@ export default function RmaPage() {
       header: "Return Reason",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {row.original.reason || "-"}
+          {row.original.reason}
         </span>
       ),
     },
@@ -74,17 +100,15 @@ export default function RmaPage() {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => (
-        <StatusBadge status={row.original.status || "SUBMITTED"} />
+        <StatusBadge status={row.original.status || "REQUESTED"} />
       ),
     },
     {
-      accessorKey: "createdDate",
+      accessorKey: "reportedAt",
       header: "Created Date",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground font-mono">
-          {row.original.createdDate
-            ? formatDate(row.original.createdDate)
-            : "-"}
+          {row.original.reportedAt ? formatDate(row.original.reportedAt) : "-"}
         </span>
       ),
     },

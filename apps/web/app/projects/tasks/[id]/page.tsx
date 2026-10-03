@@ -5,20 +5,26 @@ import { useParams } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
-import { tasksApi, type TaskDto } from "@/lib/api/tasks-api";
+import { tasksApi } from "@/lib/api/tasks-api";
+import { projectsApi } from "@/lib/api/projects-api";
+import { toProjectNameMap, toTaskRow, type TaskRow } from "@/lib/tasks";
 
 export default function TaskDetailPage() {
   const params = useParams();
   const taskId = params?.id as string;
 
-  const [task, setTask] = React.useState<TaskDto | null>(null);
+  const [task, setTask] = React.useState<TaskRow | null>(null);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     if (!taskId) return;
-    tasksApi
-      .getById(taskId)
-      .then((data) => setTask(data))
+    Promise.all([
+      tasksApi.getById(taskId),
+      projectsApi.getAll().catch(() => []),
+    ])
+      .then(([row, projects]) =>
+        setTask(toTaskRow(row, toProjectNameMap(projects))),
+      )
       .catch(() => setTask(null))
       .finally(() => setLoading(false));
   }, [taskId]);
@@ -39,7 +45,7 @@ export default function TaskDetailPage() {
       <PageHeader
         backHref="/projects/tasks"
         backLabel="Back to Tasks"
-        title={`Task #${task?.taskNumber || taskId || "TSK-1"}`}
+        title={`Task ${task?.taskNumber ?? taskId ?? ""}`.trim()}
         description="Inspect operational task details, assignment, and completion checklist."
         actions={
           <Button size="sm">
@@ -53,19 +59,19 @@ export default function TaskDetailPage() {
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Task Title</p>
           <p className="text-sm font-semibold text-foreground">
-            {task?.taskTitle || "Operational Task"}
+            {task?.title || "Untitled task"}
           </p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Assignee</p>
           <p className="text-sm font-semibold text-foreground">
-            {task?.assignee || "Unassigned"}
+            {task?.assignedTo || "Unassigned"}
           </p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
-          <p className="text-xs text-muted-foreground">Module Context</p>
+          <p className="text-xs text-muted-foreground">Project</p>
           <span className="font-mono text-xs text-primary font-bold">
-            {task?.moduleRef || "OPERATIONS"}
+            {task?.projectLabel || "No project name available"}
           </span>
         </div>
       </div>

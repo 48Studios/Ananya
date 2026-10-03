@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { EntitySelector } from "@/components/ui/entity-selector";
 import {
   maintenanceApi,
   type MaintenanceScheduleDto,
@@ -27,16 +28,15 @@ import {
 } from "@/lib/api/maintenance-api";
 
 const maintenanceSchema = z.object({
-  equipmentName: z
+  customerId: z.string().min(1, "Customer is required"),
+  assetName: z
     .string()
     .min(1, "Equipment asset name is required")
     .transform((val) => val.trim()),
-  workCenterCode: z
-    .string()
-    .min(1, "Work center code is required")
-    .transform((val) => val.trim().toUpperCase()),
-  taskType: z.enum(["CALIBRATION", "PREVENTIVE", "OVERHAUL"]),
-  nextDueDate: z.string().min(1, "Next service due date is required"),
+  serialNumber: z.string().optional(),
+  frequency: z.enum(["MONTHLY", "QUARTERLY", "BIANNUAL", "ANNUAL"]),
+  nextVisitDate: z.string().min(1, "Next visit date is required"),
+  assignedTechnician: z.string().optional(),
 });
 
 export type MaintenanceFormValues = z.infer<typeof maintenanceSchema>;
@@ -62,11 +62,13 @@ export function MaintenanceForm({
   } = useForm<MaintenanceFormValues>({
     resolver: zodResolver(maintenanceSchema),
     defaultValues: {
-      equipmentName: initialData?.equipmentName ?? "",
-      workCenterCode: initialData?.workCenterCode ?? "WC-01",
-      taskType: initialData?.taskType ?? "PREVENTIVE",
-      nextDueDate:
-        initialData?.nextDueDate ?? new Date().toISOString().split("T")[0],
+      customerId: initialData?.customerId ?? "",
+      assetName: initialData?.assetName ?? "",
+      serialNumber: initialData?.serialNumber ?? "",
+      frequency: initialData?.frequency ?? "QUARTERLY",
+      nextVisitDate:
+        initialData?.nextVisitDate ?? new Date().toISOString().split("T")[0],
+      assignedTechnician: initialData?.assignedTechnician ?? "",
     },
   });
 
@@ -74,10 +76,12 @@ export function MaintenanceForm({
     setServerError(null);
     try {
       const payload: CreateMaintenanceSchedulePayload = {
-        equipmentName: values.equipmentName,
-        workCenterCode: values.workCenterCode,
-        taskType: values.taskType,
-        nextDueDate: values.nextDueDate,
+        customerId: values.customerId,
+        assetName: values.assetName,
+        serialNumber: values.serialNumber,
+        frequency: values.frequency,
+        nextVisitDate: values.nextVisitDate,
+        assignedTechnician: values.assignedTechnician,
       };
       const created = await maintenanceApi.create(payload);
       onSuccess(created);
@@ -103,51 +107,68 @@ export function MaintenanceForm({
         )}
 
         <Field>
+          <FieldLabel htmlFor="maint-customer">
+            Customer <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Controller
+            name="customerId"
+            control={control}
+            render={({ field }) => (
+              <EntitySelector
+                id="maint-customer"
+                entity="customer"
+                value={field.value}
+                onChange={(val) => field.onChange(val ?? "")}
+                placeholder="Select the customer this asset belongs to..."
+                creatable={false}
+              />
+            )}
+          />
+          {errors.customerId?.message && (
+            <FieldError>{errors.customerId.message}</FieldError>
+          )}
+        </Field>
+
+        <Field>
           <FieldLabel htmlFor="maint-equipment">
-            Equipment Asset Name
+            Equipment Asset Name <span className="text-destructive">*</span>
           </FieldLabel>
           <Input
             id="maint-equipment"
-            {...register("equipmentName")}
+            {...register("assetName")}
             placeholder="e.g. CNC Milling Machine 04"
           />
-          {errors.equipmentName?.message && (
-            <FieldError>{errors.equipmentName.message}</FieldError>
+          {errors.assetName?.message && (
+            <FieldError>{errors.assetName.message}</FieldError>
           )}
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
           <Field>
-            <FieldLabel htmlFor="maint-wc">Work Center Code</FieldLabel>
+            <FieldLabel htmlFor="maint-serial">Serial Number</FieldLabel>
             <Input
-              id="maint-wc"
-              {...register("workCenterCode")}
-              placeholder="e.g. WC-MACHINING"
+              id="maint-serial"
+              {...register("serialNumber")}
+              placeholder="e.g. SN-4471"
               className="font-mono uppercase"
             />
-            {errors.workCenterCode?.message && (
-              <FieldError>{errors.workCenterCode.message}</FieldError>
-            )}
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="maint-type">Task Type</FieldLabel>
+            <FieldLabel htmlFor="maint-type">Service Frequency</FieldLabel>
             <Controller
-              name="taskType"
+              name="frequency"
               control={control}
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger id="maint-type">
-                    <SelectValue placeholder="Select task type" />
+                    <SelectValue placeholder="Select frequency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PREVENTIVE">
-                      Preventive Maintenance
-                    </SelectItem>
-                    <SelectItem value="CALIBRATION">Calibration</SelectItem>
-                    <SelectItem value="OVERHAUL">
-                      Overhaul / Rebuild
-                    </SelectItem>
+                    <SelectItem value="MONTHLY">Monthly</SelectItem>
+                    <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                    <SelectItem value="BIANNUAL">Biannual</SelectItem>
+                    <SelectItem value="ANNUAL">Annual</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -155,18 +176,31 @@ export function MaintenanceForm({
           </Field>
         </div>
 
-        <Field>
-          <FieldLabel htmlFor="maint-due">Next Service Due Date</FieldLabel>
-          <Input
-            id="maint-due"
-            type="date"
-            {...register("nextDueDate")}
-            className="font-mono"
-          />
-          {errors.nextDueDate?.message && (
-            <FieldError>{errors.nextDueDate.message}</FieldError>
-          )}
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="maint-due">
+              Next Visit Date <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="maint-due"
+              type="date"
+              {...register("nextVisitDate")}
+              className="font-mono"
+            />
+            {errors.nextVisitDate?.message && (
+              <FieldError>{errors.nextVisitDate.message}</FieldError>
+            )}
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="maint-tech">Assigned Technician</FieldLabel>
+            <Input
+              id="maint-tech"
+              {...register("assignedTechnician")}
+              placeholder="e.g. Alex Morgan"
+            />
+          </Field>
+        </div>
       </DialogShellBody>
       <DialogShellFooter>
         <DialogShellCancelButton disabled={isSubmitting} onClick={onCancel} />

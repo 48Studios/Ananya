@@ -405,19 +405,55 @@ export class AuthService {
       );
   }
 
+  /**
+   * Client-facing session list: same rows as `getUserSessions`, but filtered to
+   * unexpired sessions and mapped to a shape that never exposes the session
+   * token. `isCurrent` marks the session that made the request.
+   */
+  async listSessions(userId: string, currentSessionToken?: string) {
+    const sessions = await this.getUserSessions(userId);
+    const now = new Date();
+
+    return sessions
+      .filter((session) => session.expiresAt > now)
+      .map((session) => ({
+        id: session.id,
+        deviceInfo: session.deviceInfo,
+        ipAddress: session.ipAddress,
+        createdAt: session.createdAt,
+        expiresAt: session.expiresAt,
+        isCurrent:
+          Boolean(currentSessionToken) && session.token === currentSessionToken,
+      }));
+  }
+
   async revokeSession(userId: string, sessionId: string) {
-    await db
-      .update(userSessions)
-      .set({ isRevoked: true, updatedAt: new Date() })
+    // Ownership is enforced in the query, so another user's session id resolves
+    // to 404 rather than being revocable.
+    const [session] = await db
+      .select()
+      .from(userSessions)
       .where(
         and(eq(userSessions.id, sessionId), eq(userSessions.userId, userId)),
-      );
+      )
+      .limit(1);
+
+    if (!session) {
+      throw new NotFoundException(`Session #${sessionId} not found.`);
+    }
+
+    if (!session.isRevoked) {
+      await db
+        .update(userSessions)
+        .set({ isRevoked: true, updatedAt: new Date() })
+        .where(eq(userSessions.id, session.id));
+    }
 
     await this.auditService.record({
       action: 'SESSION_REVOKED',
       category: 'SECURITY',
       userId,
-      details: { sessionId },
+      details: { sessionId: session.id },
     });
 
     return { success: true };

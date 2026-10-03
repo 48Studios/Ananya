@@ -7,10 +7,15 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { materialConsumptionApi } from "@/lib/api/material-consumption-api";
+import { workOrdersApi } from "@/lib/api/work-orders-api";
+import { componentsApi } from "@/lib/api/components-api";
 import {
-  materialConsumptionApi,
-  type MaterialConsumptionDto,
-} from "@/lib/api/material-consumption-api";
+  buildConsumptionRows,
+  toProductionNumberMap,
+  type MaterialConsumptionRow,
+} from "@/lib/material-consumption";
 import { formatDate } from "@/lib/utils";
 
 import { DialogShell } from "@/components/ui/dialog-shell";
@@ -18,16 +23,33 @@ import { MaterialConsumptionForm } from "@/components/material-consumption/mater
 
 export default function MaterialConsumptionPage() {
   const [consumptions, setConsumptions] = React.useState<
-    MaterialConsumptionDto[]
+    MaterialConsumptionRow[]
   >([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
 
   const fetchConsumptions = React.useCallback(() => {
     setLoading(true);
-    materialConsumptionApi
-      .getAll()
-      .then((data) => setConsumptions(data || []))
+    // The header carries ids; work-order numbers and component labels are
+    // resolved from their own APIs.
+    Promise.all([
+      materialConsumptionApi.getAll(),
+      workOrdersApi.getAll().catch(() => []),
+      componentsApi.getAll().catch(() => []),
+    ])
+      .then(([rows, orders, components]) =>
+        setConsumptions(
+          buildConsumptionRows(rows, {
+            productionNumbers: toProductionNumberMap(orders),
+            componentNames: new Map(
+              components.map((component) => [
+                component.id,
+                `${component.sku} — ${component.name}`,
+              ]),
+            ),
+          }),
+        ),
+      )
       .catch(() => setConsumptions([]))
       .finally(() => setLoading(false));
   }, []);
@@ -41,55 +63,63 @@ export default function MaterialConsumptionPage() {
     fetchConsumptions();
   };
 
-  const columns: ColumnDef<MaterialConsumptionDto>[] = [
+  const columns: ColumnDef<MaterialConsumptionRow>[] = [
     {
-      accessorKey: "workOrderNumber",
-      header: "Work Order No.",
+      accessorKey: "consumptionNumber",
+      header: "Consumption No.",
       cell: ({ row }) => (
         <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase font-bold inline-block truncate max-w-full align-middle">
-          {row.original.workOrderNumber || "-"}
+          {row.original.consumptionNumber}
         </span>
       ),
     },
     {
-      accessorKey: "componentSku",
-      header: "Component SKU",
+      accessorKey: "productionOrderLabel",
+      header: "Work Order",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs font-bold text-foreground">
+          {row.original.productionOrderLabel || "Unresolved work order"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "componentLabels",
+      header: "Materials Issued",
       cell: ({ row }) => (
         <div>
-          <p className="font-mono text-xs font-bold text-foreground">
-            {row.original.componentSku || "-"}
+          <p className="text-xs text-muted-foreground">
+            {row.original.lineCount === 0
+              ? "No lines recorded"
+              : `${row.original.lineCount} line${row.original.lineCount === 1 ? "" : "s"}`}
           </p>
-          <p className="text-[11px] text-muted-foreground">
-            {row.original.componentName || "-"}
+          <p className="text-[11px] text-muted-foreground truncate max-w-[220px]">
+            {row.original.componentLabels.join(", ") || "—"}
           </p>
         </div>
       ),
     },
     {
-      accessorKey: "quantityConsumed",
+      accessorKey: "totalConsumed",
       header: "Quantity Consumed",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
-          {row.original.quantityConsumed || 0}{" "}
-          {row.original.unitOfMeasure || "pcs"}
+          {row.original.totalConsumed}
         </span>
       ),
     },
     {
-      accessorKey: "consumedBy",
-      header: "Operator",
+      accessorKey: "status",
+      header: "Status",
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">
-          {row.original.consumedBy || "System"}
-        </span>
+        <StatusBadge status={row.original.status || "DRAFT"} />
       ),
     },
     {
-      accessorKey: "consumedAt",
-      header: "Timestamp",
+      accessorKey: "postedAt",
+      header: "Posted",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground font-mono">
-          {row.original.consumedAt ? formatDate(row.original.consumedAt) : "-"}
+          {row.original.postedAt ? formatDate(row.original.postedAt) : "Not posted"}
         </span>
       ),
     },
@@ -115,13 +145,15 @@ export default function MaterialConsumptionPage() {
           icon={Package}
         />
         <StatCard
-          title="Component SKUs Issued"
-          value={new Set(consumptions.map((c) => c?.componentSku)).size}
+          title="Components Issued"
+          value={
+            new Set(consumptions.flatMap((c) => c.componentLabels)).size
+          }
           icon={CheckCircle2}
         />
         <StatCard
-          title="Issuance Accuracy"
-          value="100% Verified"
+          title="Posted Documents"
+          value={consumptions.filter((c) => c.status === "POSTED").length}
           icon={CheckCircle2}
         />
       </div>

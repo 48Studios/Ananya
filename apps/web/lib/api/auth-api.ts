@@ -25,9 +25,10 @@ export interface SessionDto {
   id: string;
   deviceInfo?: string | null;
   ipAddress?: string | null;
-  lastActiveAt?: string | null;
+  createdAt?: string | null;
   expiresAt?: string | null;
-  isCurrent?: boolean;
+  /** True for the session that made the request. */
+  isCurrent: boolean;
 }
 
 export interface LoginPayload {
@@ -35,6 +36,17 @@ export interface LoginPayload {
   user: UserProfileDto;
   permissions?: string[];
   permissionGroups?: PermissionGroup[];
+}
+
+/**
+ * `/auth/me` returns the authenticated user, never a session token, so it must
+ * not be typed as `LoginPayload` (which requires `token`).
+ */
+export interface CurrentUserPayload {
+  user: UserProfileDto;
+  permissions?: string[];
+  permissionGroups?: PermissionGroup[];
+  currentSessionId?: string;
 }
 
 export interface SetupStatusDto {
@@ -61,8 +73,8 @@ export const authApi = {
     return apiClient.post<{ success: boolean }>("/auth/logout", {});
   },
 
-  getMe: (): Promise<LoginPayload> => {
-    return apiClient.get<LoginPayload>("/auth/me");
+  getMe: (): Promise<CurrentUserPayload> => {
+    return apiClient.get<CurrentUserPayload>("/auth/me");
   },
 
   changePassword: (data: {

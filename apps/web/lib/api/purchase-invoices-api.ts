@@ -19,8 +19,8 @@ export interface PurchaseInvoiceLineDto {
   id: string;
   purchaseInvoiceId: string;
   componentId: string;
-  componentName?: string;
-  componentCode?: string;
+  /** Resolved by the caller from the components API; the API returns only the id. */
+  componentLabel?: string;
   quantityBilled: number;
   unitPrice: number;
   lineTotal: number;

@@ -2,50 +2,56 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  ShieldCheck,
-  Plus,
-  CheckCircle2,
-  Edit2,
-  Trash2,
-  Package,
-} from "lucide-react";
+import { ShieldCheck, Plus, CheckCircle2, Edit2, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
-import { RecordStatusBadge } from "@/components/ui/status-badge";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { WarehousePolicyForm } from "@/components/warehouse/warehouse-policy-form";
+import { warehousePoliciesApi } from "@/lib/api/warehouse-policies-api";
+import { warehousesApi } from "@/lib/api/warehouses-api";
+import { locationsApi } from "@/lib/api/locations-api";
 import {
-  warehousePoliciesApi,
-  type WarehousePolicyDto,
-} from "@/lib/api/warehouse-policies-api";
+  buildWarehousePolicyRows,
+  describeRules,
+  toLocationNameMap,
+  toWarehouseNameMap,
+  type WarehousePolicyRow,
+} from "@/lib/warehouse-policies";
+import { formatDate } from "@/lib/utils";
 
 export default function WarehousePoliciesPage() {
-  const [policies, setPolicies] = React.useState<WarehousePolicyDto[]>([]);
+  const [policies, setPolicies] = React.useState<WarehousePolicyRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingPolicy, setEditingPolicy] =
-    React.useState<WarehousePolicyDto | null>(null);
-  const [deletingPolicy, setDeletingPolicy] =
-    React.useState<WarehousePolicyDto | null>(null);
+    React.useState<WarehousePolicyRow | null>(null);
   const [banner, setBanner] = React.useState<{
     message: string;
     type: "success" | "error";
   } | null>(null);
+
   const fetchPolicies = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await warehousePoliciesApi.getAll();
-      setPolicies(data || []);
+      // A policy references a warehouse and its default bins by id; the labels
+      // are resolved from the warehouses and locations APIs.
+      const [rows, warehouses, locations] = await Promise.all([
+        warehousePoliciesApi.getAll(),
+        warehousesApi.getAll().catch(() => []),
+        locationsApi.getAll().catch(() => []),
+      ]);
+      setPolicies(
+        buildWarehousePolicyRows(rows, {
+          warehouseNames: toWarehouseNameMap(warehouses),
+          locationNames: toLocationNameMap(locations),
+        }),
+      );
     } catch (err: unknown) {
       setBanner({
         message:
-          err instanceof Error
-            ? err.message
-            : "Failed to load storage policies",
+          err instanceof Error ? err.message : "Failed to load storage policies",
         type: "error",
       });
     } finally {
@@ -70,85 +76,75 @@ export default function WarehousePoliciesPage() {
     setIsFormOpen(true);
   };
 
-  const handleOpenEdit = (pol: WarehousePolicyDto) => {
-    setEditingPolicy(pol);
+  const handleOpenEdit = (policy: WarehousePolicyRow) => {
+    setEditingPolicy(policy);
     setIsFormOpen(true);
   };
 
   const handleFormSuccess = () => {
     setIsFormOpen(false);
     showBanner(
-      editingPolicy ? "Storage policy updated." : "Storage policy created.",
+      editingPolicy ? "Storage policy updated." : "Storage policy saved.",
     );
     fetchPolicies();
   };
 
-  const handleDelete = async () => {
-    if (!deletingPolicy) return;
-    try {
-      await warehousePoliciesApi.delete(deletingPolicy.id);
-      showBanner(`Storage policy "${deletingPolicy.policyName}" deleted.`);
-      fetchPolicies();
-    } catch (err: unknown) {
-      showBanner(
-        err instanceof Error ? err.message : "Failed to delete policy.",
-        "error",
-      );
-    } finally {
-      setDeletingPolicy(null);
-    }
-  };
-
-  const fifoCount = React.useMemo(
-    () => policies.filter((p) => p.pickingRule === "FIFO").length,
+  const directedPickingCount = React.useMemo(
+    () => policies.filter((policy) => policy.directedPicking).length,
     [policies],
   );
-  const fefoCount = React.useMemo(
-    () => policies.filter((p) => p.pickingRule === "FEFO").length,
+  const capacityEnforcedCount = React.useMemo(
+    () => policies.filter((policy) => policy.enforceBinCapacity).length,
     [policies],
   );
 
-  const columns: ColumnDef<WarehousePolicyDto>[] = [
+  const columns: ColumnDef<WarehousePolicyRow>[] = [
     {
-      accessorKey: "policyName",
-      header: "Policy Rule Name",
+      accessorKey: "warehouseLabel",
+      header: "Facility",
       cell: ({ row }) => (
         <span className="font-medium text-xs text-foreground">
-          {row.original.policyName}
+          {row.original.warehouseLabel || "Unknown warehouse"}
         </span>
       ),
     },
     {
-      accessorKey: "warehouseName",
-      header: "Applies to Facility",
+      accessorKey: "directedPicking",
+      header: "Rules",
+      cell: ({ row }) => {
+        const rules = describeRules(row.original);
+        return (
+          <span className="text-xs text-muted-foreground">
+            {rules.length > 0 ? rules.join(" · ") : "No rules enabled"}
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: "defaultReceivingBin",
+      header: "Default Bins",
       cell: ({ row }) => (
-        <span className="font-medium text-foreground">
-          {row.original.warehouseName}
-        </span>
+        <div className="space-y-0.5">
+          <p className="text-[11px] text-muted-foreground">
+            Receiving: {row.original.defaultReceivingBin || "Not set"}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            Production: {row.original.defaultProductionBin || "Not set"}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            Shipping: {row.original.defaultShippingBin || "Not set"}
+          </p>
+        </div>
       ),
     },
     {
-      accessorKey: "pickingRule",
-      header: "Picking Strategy",
+      accessorKey: "createdAt",
+      header: "Configured",
       cell: ({ row }) => (
-        <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-          {row.original.pickingRule}
+        <span className="text-xs text-muted-foreground font-mono">
+          {row.original.createdAt ? formatDate(row.original.createdAt) : "-"}
         </span>
       ),
-    },
-    {
-      accessorKey: "putawayRule",
-      header: "Putaway Strategy",
-      cell: ({ row }) => (
-        <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-          {row.original.putawayRule}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "isActive",
-      header: "Status",
-      cell: ({ row }) => <RecordStatusBadge isActive={row.original.isActive} />,
     },
     {
       id: "actions",
@@ -169,16 +165,6 @@ export default function WarehousePoliciesPage() {
           >
             <Edit2 className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={() => setDeletingPolicy(row.original)}
-            title="Delete policy"
-            aria-label="Delete policy"
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
         </div>
       ),
     },
@@ -188,7 +174,7 @@ export default function WarehousePoliciesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Warehouse Policies & Picking Rules"
-        description="Configure FIFO, FEFO, putaway strategies, and automated bin selection rules."
+        description="Configure directed picking and putaway, bin capacity enforcement, and default bins per facility."
         actions={
           <Button size="sm" onClick={handleOpenCreate}>
             <Plus className="w-4 h-4 mr-1.5" />
@@ -199,18 +185,18 @@ export default function WarehousePoliciesPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          title="Active Storage Policies"
+          title="Configured Policies"
           value={policies.length}
           icon={ShieldCheck}
         />
         <StatCard
-          title="FIFO Picking Strategy"
-          value={`${fifoCount} Policies`}
+          title="Directed Picking"
+          value={`${directedPickingCount} Facilities`}
           icon={CheckCircle2}
         />
         <StatCard
-          title="FEFO Expiry Rules"
-          value={`${fefoCount} Policies`}
+          title="Bin Capacity Enforced"
+          value={`${capacityEnforcedCount} Facilities`}
           icon={Package}
         />
       </div>
@@ -233,21 +219,17 @@ export default function WarehousePoliciesPage() {
         }
         data={policies}
         columns={columns}
-        searchPlaceholder="Search policies by name, strategy, or facility..."
+        searchPlaceholder="Search policies by facility or rule..."
         loading={loading}
         emptyTitle="No Storage Policies Found"
-        emptyMessage="Click 'New Storage Policy' to create your first picking & putaway rule."
+        emptyMessage="Click 'New Storage Policy' to configure rules for a warehouse."
       />
 
       <DialogShell
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         title={editingPolicy ? "Edit Storage Policy" : "New Storage Policy"}
-        description={
-          editingPolicy
-            ? "Update picking rules (FIFO/FEFO) and putaway strategies."
-            : "Define picking strategies and automated putaway rules for warehouse facilities."
-        }
+        description="Rules are saved against the selected warehouse; saving an existing facility updates its policy."
         size="sm"
       >
         <WarehousePolicyForm
@@ -256,16 +238,6 @@ export default function WarehousePoliciesPage() {
           onCancel={() => setIsFormOpen(false)}
         />
       </DialogShell>
-
-      <ConfirmDialog
-        isOpen={Boolean(deletingPolicy)}
-        onCancel={() => setDeletingPolicy(null)}
-        title="Delete Storage Policy"
-        description={`Are you sure you want to delete policy "${deletingPolicy?.policyName}"?`}
-        confirmText="Delete"
-        variant="destructive"
-        onConfirm={handleDelete}
-      />
     </div>
   );
 }

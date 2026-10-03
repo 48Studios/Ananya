@@ -20,15 +20,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { EntitySelector } from "@/components/ui/entity-selector";
 import {
   serviceRequestsApi,
   type ServiceRequestDto,
+  type ServiceCategory,
+  type ServicePriority,
 } from "@/lib/api/service-requests-api";
 
 const serviceRequestSchema = z.object({
+  customerId: z.string().min(1, "Customer is required"),
   title: z.string().min(1, "Ticket title is required"),
-  category: z.string().min(1, "Category is required"),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
+  category: z.enum([
+    "HARDWARE",
+    "SOFTWARE",
+    "MAINTENANCE",
+    "INSTALLATION",
+    "INSPECTION",
+  ]),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]),
   description: z.string().optional(),
 });
 
@@ -53,6 +63,7 @@ export function ServiceRequestForm({
   } = useForm<ServiceRequestFormValues>({
     resolver: zodResolver(serviceRequestSchema),
     defaultValues: {
+      customerId: "",
       title: "",
       category: "MAINTENANCE",
       priority: "MEDIUM",
@@ -64,9 +75,10 @@ export function ServiceRequestForm({
     setServerError(null);
     try {
       const res = await serviceRequestsApi.create({
+        customerId: values.customerId,
         title: values.title,
-        category: values.category,
-        priority: values.priority,
+        category: values.category as ServiceCategory,
+        priority: values.priority as ServicePriority,
         description: values.description,
       });
       onSuccess(res);
@@ -88,6 +100,29 @@ export function ServiceRequestForm({
             {serverError}
           </div>
         )}
+
+        <Field>
+          <FieldLabel htmlFor="service-request-customer">
+            Customer <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Controller
+            name="customerId"
+            control={control}
+            render={({ field }) => (
+              <EntitySelector
+                id="service-request-customer"
+                entity="customer"
+                value={field.value}
+                onChange={(val) => field.onChange(val ?? "")}
+                placeholder="Select the customer reporting the issue..."
+                creatable={false}
+              />
+            )}
+          />
+          {errors.customerId && (
+            <FieldError>{errors.customerId.message}</FieldError>
+          )}
+        </Field>
 
         <Field>
           <FieldLabel htmlFor="title">
@@ -113,8 +148,9 @@ export function ServiceRequestForm({
                     <SelectValue placeholder="Select category..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="HARDWARE">Hardware</SelectItem>
+                    <SelectItem value="SOFTWARE">Software</SelectItem>
                     <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                    <SelectItem value="REPAIR">Repair</SelectItem>
                     <SelectItem value="INSTALLATION">Installation</SelectItem>
                     <SelectItem value="INSPECTION">Inspection</SelectItem>
                   </SelectContent>
@@ -137,6 +173,7 @@ export function ServiceRequestForm({
                     <SelectItem value="LOW">Low</SelectItem>
                     <SelectItem value="MEDIUM">Medium</SelectItem>
                     <SelectItem value="HIGH">High</SelectItem>
+                    <SelectItem value="URGENT">Urgent</SelectItem>
                   </SelectContent>
                 </Select>
               )}

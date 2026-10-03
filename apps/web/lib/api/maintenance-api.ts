@@ -1,22 +1,37 @@
 import { apiClient } from "../api-client";
 
+/**
+ * Mirrors the `MaintenanceSchedule` aggregate in `@ananya/service`. There is no
+ * work centre, no task type and no "last completed" date in the domain: the
+ * schedule records a service frequency and the next visit date.
+ */
+export type MaintenanceStatus = "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED";
+
+export type ServiceFrequency = "MONTHLY" | "QUARTERLY" | "BIANNUAL" | "ANNUAL";
+
 export interface MaintenanceScheduleDto {
   id: string;
-  workCenterCode: string;
-  equipmentName: string;
-  taskType: "CALIBRATION" | "PREVENTIVE" | "OVERHAUL";
-  lastCompletedDate: string;
-  nextDueDate: string;
-  status: "SCHEDULED" | "OVERDUE" | "COMPLETED" | "PAUSED";
+  scheduleNumber: string;
+  customerId: string;
+  assetName: string;
+  serialNumber?: string;
+  frequency: ServiceFrequency;
+  nextVisitDate: string;
+  assignedTechnician?: string;
+  status: MaintenanceStatus;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateMaintenanceSchedulePayload {
-  equipmentName: string;
-  workCenterCode: string;
-  taskType: "CALIBRATION" | "PREVENTIVE" | "OVERHAUL";
-  nextDueDate: string;
+  customerId: string;
+  assetName: string;
+  frequency: ServiceFrequency;
+  nextVisitDate: string;
+  serialNumber?: string;
+  assignedTechnician?: string;
+  notes?: string;
 }
 
 export const maintenanceApi = {

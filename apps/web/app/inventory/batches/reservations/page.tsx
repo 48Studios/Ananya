@@ -414,7 +414,7 @@ export default function ReservationsPage() {
             ? `Update reservation "${editingReservation.reservationNumber}" while preserving its active hold details.`
             : "Create an inventory reservation with its purpose, reference document, and held stock lines."
         }
-        size="sm"
+        size="md"
       >
         <ReservationForm
           initialData={editingReservation}

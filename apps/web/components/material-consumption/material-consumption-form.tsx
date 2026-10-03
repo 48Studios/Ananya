@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
@@ -11,8 +11,15 @@ import {
   DialogShellCancelButton,
   DialogShellFooter,
 } from "@/components/ui/dialog-shell";
-import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { workOrdersApi, type WorkOrderDto } from "@/lib/api/work-orders-api";
 import {
   materialConsumptionApi,
   type MaterialConsumptionDto,
@@ -38,10 +45,20 @@ export function MaterialConsumptionForm({
   onCancel,
 }: MaterialConsumptionFormProps) {
   const [serverError, setServerError] = React.useState<string | null>(null);
+  const [workOrders, setWorkOrders] = React.useState<WorkOrderDto[]>([]);
+
+  React.useEffect(() => {
+    // The document is always created against a production order, so offer the
+    // real orders instead of asking the user to paste an id.
+    workOrdersApi
+      .getAll()
+      .then((all) => setWorkOrders(all ?? []))
+      .catch(() => setWorkOrders([]));
+  }, []);
 
   const {
-    register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<MaterialConsumptionFormValues>({
     resolver: zodResolver(materialConsumptionSchema),
@@ -79,14 +96,26 @@ export function MaterialConsumptionForm({
         )}
 
         <Field>
-          <FieldLabel htmlFor="productionOrderId">
-            Production Order ID / Number{" "}
-            <span className="text-destructive">*</span>
+          <FieldLabel htmlFor="production-order">
+            Work Order <span className="text-destructive">*</span>
           </FieldLabel>
-          <Input
-            id="productionOrderId"
-            placeholder="e.g. WO-2026-001 or Production Order ID"
-            {...register("productionOrderId")}
+          <Controller
+            name="productionOrderId"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="production-order">
+                  <SelectValue placeholder="Select the production order..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {workOrders.map((order) => (
+                    <SelectItem key={order.id} value={order.id}>
+                      {order.productionNumber}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           />
           {errors.productionOrderId && (
             <FieldError>{errors.productionOrderId.message}</FieldError>

@@ -7,25 +7,47 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
+import { finishedGoodsApi } from "@/lib/api/finished-goods-api";
+import { workOrdersApi } from "@/lib/api/work-orders-api";
+import { componentsApi } from "@/lib/api/components-api";
 import {
-  finishedGoodsApi,
-  type FinishedGoodDto,
-} from "@/lib/api/finished-goods-api";
-import { formatCurrency } from "@/lib/utils";
+  buildFinishedGoodsRows,
+  toProductionNumberMap,
+  type FinishedGoodsRow,
+} from "@/lib/finished-goods";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { formatDate } from "@/lib/utils";
 
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { FinishedGoodsForm } from "@/components/finished-goods/finished-goods-form";
 
 export default function FinishedGoodsPage() {
-  const [goods, setGoods] = React.useState<FinishedGoodDto[]>([]);
+  const [goods, setGoods] = React.useState<FinishedGoodsRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
 
   const fetchGoods = React.useCallback(() => {
     setLoading(true);
-    finishedGoodsApi
-      .getAll()
-      .then((data) => setGoods(data || []))
+    // A receipt carries ids; the work-order number and component labels are
+    // resolved from their own APIs.
+    Promise.all([
+      finishedGoodsApi.getAll(),
+      workOrdersApi.getAll().catch(() => []),
+      componentsApi.getAll().catch(() => []),
+    ])
+      .then(([rows, orders, components]) =>
+        setGoods(
+          buildFinishedGoodsRows(rows, {
+            productionNumbers: toProductionNumberMap(orders),
+            componentNames: new Map(
+              components.map((component) => [
+                component.id,
+                `${component.sku} — ${component.name}`,
+              ]),
+            ),
+          }),
+        ),
+      )
       .catch(() => setGoods([]))
       .finally(() => setLoading(false));
   }, []);
@@ -39,57 +61,79 @@ export default function FinishedGoodsPage() {
     fetchGoods();
   };
 
-  const totalValue = React.useMemo(() => {
-    return goods.reduce(
-      (acc, item) => acc + (item?.quantityOnHand || 0) * (item?.unitCost || 0),
-      0,
-    );
-  }, [goods]);
+  const totalProduced = React.useMemo(
+    () => goods.reduce((total, row) => total + row.totalProduced, 0),
+    [goods],
+  );
 
-  const columns: ColumnDef<FinishedGoodDto>[] = [
+  const columns: ColumnDef<FinishedGoodsRow>[] = [
     {
-      accessorKey: "sku",
-      header: "Finished SKU",
+      accessorKey: "fgrNumber",
+      header: "Receipt No.",
       cell: ({ row }) => (
         <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase font-bold inline-block truncate max-w-full align-middle">
-          {row.original.sku || "-"}
+          {row.original.fgrNumber}
         </span>
       ),
     },
     {
-      accessorKey: "name",
-      header: "Description",
-      cell: ({ row }) => (
-        <span className="font-medium text-foreground">
-          {row.original.name || "-"}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "warehouseLocation",
-      header: "Location",
-      cell: ({ row }) => (
-        <span className="font-mono text-xs text-muted-foreground">
-          {row.original.warehouseLocation || "Main Assembly"}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "quantityOnHand",
-      header: "OnHand Stock",
+      accessorKey: "productionOrderLabel",
+      header: "Work Order",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
-          {row.original.quantityOnHand || 0}{" "}
-          {row.original.unitOfMeasure || "units"}
+          {row.original.productionOrderLabel || "Unresolved work order"}
         </span>
       ),
     },
     {
-      accessorKey: "unitCost",
-      header: "Unit Cost",
+      accessorKey: "componentLabels",
+      header: "Received Products",
       cell: ({ row }) => (
-        <span className="font-mono text-xs text-foreground font-semibold">
-          {formatCurrency(row.original.unitCost || 0)}
+        <div>
+          <p className="text-xs text-muted-foreground">
+            {row.original.lineCount === 0
+              ? "No lines recorded"
+              : `${row.original.lineCount} line${row.original.lineCount === 1 ? "" : "s"}`}
+          </p>
+          <p className="text-[11px] text-muted-foreground truncate max-w-[220px]">
+            {row.original.componentLabels.join(", ") || "—"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "totalProduced",
+      header: "Quantity Produced",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs font-bold text-foreground">
+          {row.original.totalProduced}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "totalScrapped",
+      header: "Scrapped",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.totalScrapped}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <StatusBadge status={row.original.status || "DRAFT"} />
+      ),
+    },
+    {
+      accessorKey: "postedAt",
+      header: "Posted",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground font-mono">
+          {row.original.postedAt
+            ? formatDate(row.original.postedAt)
+            : "Not posted"}
         </span>
       ),
     },
@@ -110,18 +154,18 @@ export default function FinishedGoodsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          title="Finished Goods SKUs"
+          title="Receipts Recorded"
           value={goods.length}
           icon={Package}
         />
         <StatCard
-          title="Total Valuation"
-          value={formatCurrency(totalValue)}
+          title="Units Produced"
+          value={totalProduced}
           icon={CheckCircle2}
         />
         <StatCard
-          title="Quality Clearance"
-          value="100% Passed QA"
+          title="Posted Receipts"
+          value={goods.filter((row) => row.status === "POSTED").length}
           icon={CheckCircle2}
         />
       </div>

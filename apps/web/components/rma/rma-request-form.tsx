@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
@@ -13,13 +13,13 @@ import {
 } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { EntitySelector } from "@/components/ui/entity-selector";
 import { rmaRequestsApi, type RmaRequestDto } from "@/lib/api/rma-requests-api";
 
 const rmaRequestSchema = z.object({
+  customerId: z.string().min(1, "Customer is required"),
   itemDescription: z.string().min(1, "Item description is required"),
   reason: z.string().min(1, "Return reason is required"),
-  customerName: z.string().optional(),
-  salesOrderNumber: z.string().optional(),
   serialNumber: z.string().optional(),
 });
 
@@ -36,14 +36,14 @@ export function RmaRequestForm({ onSuccess, onCancel }: RmaRequestFormProps) {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<RmaRequestFormValues>({
     resolver: zodResolver(rmaRequestSchema),
     defaultValues: {
+      customerId: "",
       itemDescription: "",
       reason: "",
-      customerName: "",
-      salesOrderNumber: "",
       serialNumber: "",
     },
   });
@@ -52,9 +52,9 @@ export function RmaRequestForm({ onSuccess, onCancel }: RmaRequestFormProps) {
     setServerError(null);
     try {
       const res = await rmaRequestsApi.create({
+        customerId: values.customerId,
         itemDescription: values.itemDescription,
         reason: values.reason,
-        salesOrderNumber: values.salesOrderNumber,
         serialNumber: values.serialNumber,
       });
       onSuccess(res);
@@ -76,6 +76,29 @@ export function RmaRequestForm({ onSuccess, onCancel }: RmaRequestFormProps) {
             {serverError}
           </div>
         )}
+
+        <Field>
+          <FieldLabel htmlFor="rma-customer">
+            Customer <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Controller
+            name="customerId"
+            control={control}
+            render={({ field }) => (
+              <EntitySelector
+                id="rma-customer"
+                entity="customer"
+                value={field.value}
+                onChange={(val) => field.onChange(val ?? "")}
+                placeholder="Select the customer returning goods..."
+                creatable={false}
+              />
+            )}
+          />
+          {errors.customerId && (
+            <FieldError>{errors.customerId.message}</FieldError>
+          )}
+        </Field>
 
         <Field>
           <FieldLabel htmlFor="itemDescription">
@@ -105,15 +128,6 @@ export function RmaRequestForm({ onSuccess, onCancel }: RmaRequestFormProps) {
         </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field>
-            <FieldLabel htmlFor="salesOrderNumber">Sales Order #</FieldLabel>
-            <Input
-              id="salesOrderNumber"
-              placeholder="e.g. SO-2026-0881"
-              {...register("salesOrderNumber")}
-            />
-          </Field>
-
           <Field>
             <FieldLabel htmlFor="serialNumber">Serial Number</FieldLabel>
             <Input

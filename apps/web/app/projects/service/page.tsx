@@ -15,25 +15,35 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { serviceRequestsApi } from "@/lib/api/service-requests-api";
+import { customersApi } from "@/lib/api/customers-api";
 import {
-  serviceRequestsApi,
-  type ServiceRequestDto,
-} from "@/lib/api/service-requests-api";
+  buildServiceRequestRows,
+  toCustomerNameMap,
+  type ServiceRequestRow,
+} from "@/lib/service-requests";
 import { formatDate } from "@/lib/utils";
 
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { ServiceRequestForm } from "@/components/service/service-request-form";
 
 export default function ServicePage() {
-  const [tickets, setTickets] = React.useState<ServiceRequestDto[]>([]);
+  const [tickets, setTickets] = React.useState<ServiceRequestRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
 
   const fetchTickets = React.useCallback(() => {
     setLoading(true);
-    serviceRequestsApi
-      .getAll()
-      .then((data) => setTickets(data || []))
+    // Customer names are resolved from the customers API; the service request
+    // itself only carries `customerId`. A caller without customer read access
+    // still sees the tickets, with the customer shown as unassigned.
+    Promise.all([
+      serviceRequestsApi.getAll(),
+      customersApi.getAll().catch(() => []),
+    ])
+      .then(([requests, customers]) =>
+        setTickets(buildServiceRequestRows(requests, toCustomerNameMap(customers))),
+      )
       .catch(() => setTickets([]))
       .finally(() => setLoading(false));
   }, []);
@@ -47,9 +57,9 @@ export default function ServicePage() {
     fetchTickets();
   };
 
-  const columns: ColumnDef<ServiceRequestDto>[] = [
+  const columns: ColumnDef<ServiceRequestRow>[] = [
     {
-      accessorKey: "ticketNumber",
+      accessorKey: "serviceNumber",
       header: "Ticket No.",
       meta: { width: "13%" },
       cell: ({ row }) => (
@@ -60,15 +70,15 @@ export default function ServicePage() {
                 render={
                   <Link
                     href={`/projects/service/${row.original.id}`}
-                    title={row.original.ticketNumber || "-"}
+                    title={row.original.serviceNumber}
                     className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors uppercase inline-block truncate max-w-full align-middle"
                   />
                 }
               >
-                {row.original.ticketNumber || "-"}
+                {row.original.serviceNumber}
               </TooltipTrigger>
               <TooltipContent side="top" className="font-mono text-xs">
-                {row.original.ticketNumber || "-"}
+                {row.original.serviceNumber}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -81,20 +91,20 @@ export default function ServicePage() {
       cell: ({ row }) => (
         <div>
           <p className="font-medium text-foreground">
-            {row.original.customerName || "Customer"}
+            {row.original.customerName || "Unassigned customer"}
           </p>
           <p className="text-[11px] text-muted-foreground">
-            {row.original.assetName || "-"}
+            {row.original.assetLabel || "No asset recorded"}
           </p>
         </div>
       ),
     },
     {
-      accessorKey: "issueSubject",
+      accessorKey: "title",
       header: "Service Request",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground max-w-xs truncate block">
-          {row.original.issueSubject || "-"}
+          {row.original.title}
         </span>
       ),
     },
@@ -115,13 +125,11 @@ export default function ServicePage() {
       ),
     },
     {
-      accessorKey: "createdDate",
+      accessorKey: "reportedAt",
       header: "Reported",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {row.original.createdDate
-            ? formatDate(row.original.createdDate)
-            : "-"}
+          {row.original.reportedAt ? formatDate(row.original.reportedAt) : "-"}
         </span>
       ),
     },
@@ -179,7 +187,7 @@ export default function ServicePage() {
         />
         <StatCard
           title="Dispatched Engineers"
-          value={`${tickets.filter((t) => t?.status === "IN_PROGRESS").length} Active Techs`}
+          value={`${tickets.filter((t) => t.status === "REPAIRING" || t.status === "DIAGNOSING").length} Active Techs`}
           icon={Clock}
         />
         <StatCard

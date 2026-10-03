@@ -15,11 +15,17 @@ import { EntityDataTable } from "@/components/ui/entity-data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { batchesApi, type BatchDto } from "@/lib/api/batches-api";
+import { batchesApi } from "@/lib/api/batches-api";
+import { componentsApi } from "@/lib/api/components-api";
+import {
+  buildBatchRows,
+  toComponentLabelMap,
+  type BatchRow,
+} from "@/lib/batches";
 import { formatDate } from "@/lib/utils";
 
 export default function BatchesPage() {
-  const [batches, setBatches] = React.useState<BatchDto[]>([]);
+  const [batches, setBatches] = React.useState<BatchRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -27,7 +33,13 @@ export default function BatchesPage() {
     setLoading(true);
     try {
       setError(null);
-      setBatches((await batchesApi.getAll()) || []);
+      // A batch carries `componentId`; the component label is resolved from the
+      // components API so a caller without that read access still sees batches.
+      const [rows, components] = await Promise.all([
+        batchesApi.getAll(),
+        componentsApi.getAll().catch(() => []),
+      ]);
+      setBatches(buildBatchRows(rows, toComponentLabelMap(components)));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load batches");
     } finally {
@@ -40,11 +52,7 @@ export default function BatchesPage() {
   }, [fetchBatches]);
 
   const activeBatchesCount = React.useMemo(
-    () =>
-      batches.filter((batch) => {
-        if (!batch.expiryDate) return true;
-        return new Date(batch.expiryDate) >= new Date();
-      }).length,
+    () => batches.filter((batch) => !batch.expired).length,
     [batches],
   );
 
@@ -57,7 +65,7 @@ export default function BatchesPage() {
     }).length;
   }, [batches]);
 
-  const columns: ColumnDef<BatchDto>[] = [
+  const columns: ColumnDef<BatchRow>[] = [
     {
       accessorKey: "batchNumber",
       header: "Batch / Lot No.",
@@ -68,17 +76,12 @@ export default function BatchesPage() {
       ),
     },
     {
-      accessorKey: "componentSku",
+      accessorKey: "componentLabel",
       header: "SKU / Material",
       cell: ({ row }) => (
-        <div>
-          <p className="font-mono text-xs font-bold text-foreground">
-            {row.original.componentSku}
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            {row.original.componentName}
-          </p>
-        </div>
+        <span className="font-mono text-xs font-bold text-foreground">
+          {row.original.componentLabel || "Unknown component"}
+        </span>
       ),
     },
     {
@@ -111,20 +114,14 @@ export default function BatchesPage() {
       ),
     },
     {
-      accessorKey: "status",
+      accessorKey: "expired",
       header: "Status",
-      cell: ({ row }) => {
-        const isExpired =
-          row.original.expiryDate !== null &&
-          row.original.expiryDate !== undefined &&
-          new Date(row.original.expiryDate) < new Date();
-        return (
-          <StatusBadge
-            status={isExpired ? "OVERDUE" : "ACTIVE"}
-            label={isExpired ? "Expired" : "Traceable"}
-          />
-        );
-      },
+      cell: ({ row }) => (
+        <StatusBadge
+          status={row.original.expired ? "OVERDUE" : "ACTIVE"}
+          label={row.original.expired ? "Expired" : "Traceable"}
+        />
+      ),
     },
   ];
 

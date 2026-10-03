@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
@@ -13,16 +13,27 @@ import {
 } from "@/components/ui/dialog-shell";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { EntitySelector } from "@/components/ui/entity-selector";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   warrantyClaimsApi,
   type WarrantyClaimDto,
 } from "@/lib/api/warranty-claims-api";
+import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 
 const warrantyClaimSchema = z.object({
+  customerId: z.string().min(1, "Customer is required"),
+  productId: z.string().min(1, "Product is required"),
   claimReason: z.string().min(1, "Claim reason is required"),
   serialNumber: z.string().optional(),
-  customerName: z.string().optional(),
-  productName: z.string().optional(),
+  purchaseDate: z.string().min(1, "Purchase date is required"),
+  expiryDate: z.string().min(1, "Warranty expiry date is required"),
 });
 
 export type WarrantyClaimFormValues = z.infer<typeof warrantyClaimSchema>;
@@ -37,31 +48,45 @@ export function WarrantyClaimForm({
   onCancel,
 }: WarrantyClaimFormProps) {
   const [serverError, setServerError] = React.useState<string | null>(null);
+  const [components, setComponents] = React.useState<ComponentDto[]>([]);
 
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<WarrantyClaimFormValues>({
     resolver: zodResolver(warrantyClaimSchema),
     defaultValues: {
+      customerId: "",
+      productId: "",
       claimReason: "",
       serialNumber: "",
-      customerName: "",
-      productName: "",
+      purchaseDate: new Date().toISOString().slice(0, 10),
+      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10),
     },
   });
+
+  React.useEffect(() => {
+    // The claim must name the covered product; the API requires its component id.
+    componentsApi
+      .getAll()
+      .then((all) => setComponents(all ?? []))
+      .catch(() => setComponents([]));
+  }, []);
 
   const onSubmit = async (values: WarrantyClaimFormValues) => {
     setServerError(null);
     try {
       const res = await warrantyClaimsApi.create({
+        customerId: values.customerId,
+        productId: values.productId,
         claimReason: values.claimReason,
         serialNumber: values.serialNumber,
-        purchaseDate: new Date().toISOString().split("T")[0],
-        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .split("T")[0],
+        purchaseDate: values.purchaseDate,
+        expiryDate: values.expiryDate,
       });
       onSuccess(res);
     } catch (err) {
@@ -84,6 +109,56 @@ export function WarrantyClaimForm({
         )}
 
         <Field>
+          <FieldLabel htmlFor="warranty-customer">
+            Customer <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Controller
+            name="customerId"
+            control={control}
+            render={({ field }) => (
+              <EntitySelector
+                id="warranty-customer"
+                entity="customer"
+                value={field.value}
+                onChange={(val) => field.onChange(val ?? "")}
+                placeholder="Select the customer claiming warranty..."
+                creatable={false}
+              />
+            )}
+          />
+          {errors.customerId && (
+            <FieldError>{errors.customerId.message}</FieldError>
+          )}
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="warranty-product">
+            Product <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Controller
+            name="productId"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="warranty-product">
+                  <SelectValue placeholder="Select the covered product..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {components.map((component) => (
+                    <SelectItem key={component.id} value={component.id}>
+                      {component.sku} — {component.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.productId && (
+            <FieldError>{errors.productId.message}</FieldError>
+          )}
+        </Field>
+
+        <Field>
           <FieldLabel htmlFor="claimReason">
             Claim Reason / Issue Details{" "}
             <span className="text-destructive">*</span>
@@ -98,34 +173,46 @@ export function WarrantyClaimForm({
           )}
         </Field>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field>
-            <FieldLabel htmlFor="serialNumber">Serial Number</FieldLabel>
-            <Input
-              id="serialNumber"
-              placeholder="e.g. SN-2026-90412"
-              {...register("serialNumber")}
-            />
-          </Field>
-
-          <Field>
-            <FieldLabel htmlFor="productName">Product Name</FieldLabel>
-            <Input
-              id="productName"
-              placeholder="e.g. Servo Motor Controller"
-              {...register("productName")}
-            />
-          </Field>
-        </div>
-
         <Field>
-          <FieldLabel htmlFor="customerName">Customer Name</FieldLabel>
+          <FieldLabel htmlFor="serialNumber">Serial Number</FieldLabel>
           <Input
-            id="customerName"
-            placeholder="e.g. ACME Components"
-            {...register("customerName")}
+            id="serialNumber"
+            placeholder="e.g. SN-2026-90412"
+            {...register("serialNumber")}
           />
         </Field>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field>
+            <FieldLabel htmlFor="purchaseDate">
+              Purchase Date <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="purchaseDate"
+              type="date"
+              className="font-mono"
+              {...register("purchaseDate")}
+            />
+            {errors.purchaseDate && (
+              <FieldError>{errors.purchaseDate.message}</FieldError>
+            )}
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="expiryDate">
+              Warranty Expiry <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+              id="expiryDate"
+              type="date"
+              className="font-mono"
+              {...register("expiryDate")}
+            />
+            {errors.expiryDate && (
+              <FieldError>{errors.expiryDate.message}</FieldError>
+            )}
+          </Field>
+        </div>
       </DialogShellBody>
 
       <DialogShellFooter>

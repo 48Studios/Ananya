@@ -7,22 +7,44 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
-import { timeEntriesApi, type TimeEntryDto } from "@/lib/api/time-entries-api";
+import { timeEntriesApi } from "@/lib/api/time-entries-api";
+import { tasksApi } from "@/lib/api/tasks-api";
+import { usersApi } from "@/lib/api/users-api";
+import {
+  buildTimeEntryRows,
+  sumLoggedHours,
+  toTaskTitleMap,
+  toUserLabelMap,
+  type TimeEntryRow,
+} from "@/lib/time-entries";
 import { formatDate } from "@/lib/utils";
 
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { TimeEntryForm } from "@/components/time/time-entry-form";
 
 export default function TimePage() {
-  const [logs, setLogs] = React.useState<TimeEntryDto[]>([]);
+  const [logs, setLogs] = React.useState<TimeEntryRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
 
   const fetchLogs = React.useCallback(() => {
     setLoading(true);
-    timeEntriesApi
-      .getAll()
-      .then((data) => setLogs(data || []))
+    // A time entry carries `userId` and `taskId`; the employee and task labels
+    // are resolved from their own APIs. A caller without those read
+    // permissions still sees the timesheet.
+    Promise.all([
+      timeEntriesApi.getAll(),
+      usersApi.getAll().catch(() => []),
+      tasksApi.getAll().catch(() => []),
+    ])
+      .then(([entries, users, tasks]) =>
+        setLogs(
+          buildTimeEntryRows(entries, {
+            userNames: toUserLabelMap(users),
+            taskTitles: toTaskTitleMap(tasks),
+          }),
+        ),
+      )
       .catch(() => setLogs([]))
       .finally(() => setLoading(false));
   }, []);
@@ -36,44 +58,51 @@ export default function TimePage() {
     fetchLogs();
   };
 
-  const totalHours = React.useMemo(() => {
-    return logs.reduce((acc, l) => acc + (l?.hoursLogged || 0), 0);
-  }, [logs]);
+  const totalHours = React.useMemo(() => sumLoggedHours(logs), [logs]);
 
-  const columns: ColumnDef<TimeEntryDto>[] = [
+  const columns: ColumnDef<TimeEntryRow>[] = [
     {
-      accessorKey: "employeeName",
-      header: "Employee Name",
+      accessorKey: "employeeLabel",
+      header: "Employee",
       cell: ({ row }) => (
         <span className="font-medium text-xs text-foreground">
-          {row.original.employeeName || "Staff"}
+          {row.original.employeeLabel || "Unknown employee"}
         </span>
       ),
     },
     {
-      accessorKey: "workOrderRef",
-      header: "Ref Order / Ticket",
+      accessorKey: "taskLabel",
+      header: "Task",
       cell: ({ row }) => (
-        <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-0.5 rounded uppercase font-bold">
-          {row.original.workOrderRef || "-"}
+        <span className="font-mono text-xs text-foreground bg-muted/50 px-2 py-0.5 rounded font-bold">
+          {row.original.taskLabel || "Unknown task"}
         </span>
       ),
     },
     {
-      accessorKey: "taskDescription",
+      accessorKey: "description",
       header: "Work Completed",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {row.original.taskDescription || "-"}
+          {row.original.description || "-"}
         </span>
       ),
     },
     {
-      accessorKey: "hoursLogged",
+      accessorKey: "hours",
       header: "Logged Hours",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold text-foreground">
-          {row.original.hoursLogged || 0} hrs
+          {row.original.hours} hrs
+        </span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {row.original.status || "-"}
         </span>
       ),
     },

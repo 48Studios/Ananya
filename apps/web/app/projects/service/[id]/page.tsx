@@ -5,23 +5,30 @@ import { useParams } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { serviceRequestsApi } from "@/lib/api/service-requests-api";
+import { customersApi } from "@/lib/api/customers-api";
 import {
-  serviceRequestsApi,
-  type ServiceRequestDto,
-} from "@/lib/api/service-requests-api";
+  toServiceRequestRow,
+  toCustomerNameMap,
+  type ServiceRequestRow,
+} from "@/lib/service-requests";
 
 export default function ServiceTicketDetailPage() {
   const params = useParams();
   const ticketId = params?.id as string;
 
-  const [ticket, setTicket] = React.useState<ServiceRequestDto | null>(null);
+  const [ticket, setTicket] = React.useState<ServiceRequestRow | null>(null);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     if (!ticketId) return;
-    serviceRequestsApi
-      .getById(ticketId)
-      .then((data) => setTicket(data))
+    Promise.all([
+      serviceRequestsApi.getById(ticketId),
+      customersApi.getAll().catch(() => []),
+    ])
+      .then(([request, customers]) =>
+        setTicket(toServiceRequestRow(request, toCustomerNameMap(customers))),
+      )
       .catch(() => setTicket(null))
       .finally(() => setLoading(false));
   }, [ticketId]);
@@ -42,7 +49,7 @@ export default function ServiceTicketDetailPage() {
       <PageHeader
         backHref="/projects/service"
         backLabel="Back to Service Tickets"
-        title={`Field Service Ticket #${ticket?.ticketNumber || ticketId || "SRV-1"}`}
+        title={`Field Service Ticket ${ticket?.serviceNumber ?? ticketId ?? ""}`.trim()}
         description="Field diagnostic details, technician assignment, and resolution log."
         actions={
           <Button size="sm">
@@ -56,13 +63,13 @@ export default function ServiceTicketDetailPage() {
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Customer</p>
           <p className="text-sm font-semibold text-foreground">
-            {ticket?.customerName || "Customer Account"}
+            {ticket?.customerName || "Unassigned customer"}
           </p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">
           <p className="text-xs text-muted-foreground">Asset Equipment</p>
           <p className="text-sm font-mono text-foreground">
-            {ticket?.assetName || "-"}
+            {ticket?.assetLabel || "No asset recorded"}
           </p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl space-y-1">

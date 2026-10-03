@@ -8,22 +8,30 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EntityDataTable } from "@/components/ui/entity-data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { tasksApi, type TaskDto } from "@/lib/api/tasks-api";
-import { formatDate } from "@/lib/utils";
+import { tasksApi } from "@/lib/api/tasks-api";
+import { projectsApi } from "@/lib/api/projects-api";
+import {
+  buildTaskRows,
+  toProjectNameMap,
+  type TaskRow,
+} from "@/lib/tasks";
 
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { TaskForm } from "@/components/tasks/task-form";
 
 export default function TasksPage() {
-  const [tasks, setTasks] = React.useState<TaskDto[]>([]);
+  const [tasks, setTasks] = React.useState<TaskRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
 
   const fetchTasks = React.useCallback(() => {
     setLoading(true);
-    tasksApi
-      .getAll()
-      .then((data) => setTasks(data || []))
+    // Project names are resolved from the projects API: a task only carries
+    // `projectId`. A caller without project read access still sees the tasks.
+    Promise.all([tasksApi.getAll(), projectsApi.getAll().catch(() => [])])
+      .then(([rows, projects]) =>
+        setTasks(buildTaskRows(rows, toProjectNameMap(projects))),
+      )
       .catch(() => setTasks([]))
       .finally(() => setLoading(false));
   }, []);
@@ -37,47 +45,63 @@ export default function TasksPage() {
     fetchTasks();
   };
 
-  const columns: ColumnDef<TaskDto>[] = [
+  const columns: ColumnDef<TaskRow>[] = [
     {
-      accessorKey: "taskTitle",
+      accessorKey: "taskNumber",
+      header: "Task No.",
+      cell: ({ row }) => (
+        <span className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase">
+          {row.original.taskNumber}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "title",
       header: "Task Title",
       cell: ({ row }) => (
         <span className="font-medium text-xs text-foreground">
-          {row.original.taskTitle || "-"}
+          {row.original.title}
         </span>
       ),
     },
     {
-      accessorKey: "assignee",
+      accessorKey: "assignedTo",
       header: "Assigned To",
       cell: ({ row }) => (
         <span className="font-medium text-foreground">
-          {row.original.assignee || "Unassigned"}
+          {row.original.assignedTo || "Unassigned"}
         </span>
       ),
     },
     {
-      accessorKey: "moduleRef",
-      header: "Module Context",
+      accessorKey: "projectLabel",
+      header: "Project",
       cell: ({ row }) => (
-        <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-          {row.original.moduleRef || "GENERAL"}
+        <span className="text-xs text-muted-foreground">
+          {row.original.projectLabel || "No project name available"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "priority",
+      header: "Priority",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+          {row.original.priority || "-"}
         </span>
       ),
     },
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => (
-        <StatusBadge status={row.original.status || "PENDING"} />
-      ),
+      cell: ({ row }) => <StatusBadge status={row.original.status || "TODO"} />,
     },
     {
-      accessorKey: "dueDate",
-      header: "Due Date",
+      accessorKey: "actualHours",
+      header: "Hours (actual / estimated)",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground font-mono">
-          {row.original.dueDate ? formatDate(row.original.dueDate) : "-"}
+          {row.original.actualHours} / {row.original.estimatedHours}
         </span>
       ),
     },
@@ -104,7 +128,7 @@ export default function TasksPage() {
         />
         <StatCard
           title="In Progress"
-          value={tasks.filter((t) => t?.status === "IN_PROGRESS").length}
+          value={tasks.filter((t) => t.status === "IN_PROGRESS").length}
           icon={Clock}
         />
         <StatCard title="On-Time Completion" value="100%" icon={CheckCircle2} />

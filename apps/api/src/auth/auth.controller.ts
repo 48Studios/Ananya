@@ -67,6 +67,31 @@ export class AuthController {
     return this.authService.getMeByToken(token);
   }
 
+  @Get('sessions')
+  listSessions(
+    @Req() req: AuthenticatedRequest,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    const token =
+      extractBearerToken(req) || authHeader?.replace('Bearer ', '') || '';
+    return this.authService.listSessions(req.user!.id, token || undefined);
+  }
+
+  @Post('sessions/:id/revoke')
+  revokeSession(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.authService.revokeSession(req.user!.id, id);
+  }
+
+  @Post('revoke-sessions')
+  revokeOtherSessions(
+    @Req() req: AuthenticatedRequest,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    const token =
+      extractBearerToken(req) || authHeader?.replace('Bearer ', '') || '';
+    return this.authService.revokeAllOtherSessions(req.user!.id, token);
+  }
+
   @Post('change-password')
   async changePassword(
     @Req() req: AuthenticatedRequest,

@@ -25,13 +25,14 @@ export interface SupplierReturnDto {
   id: string;
   returnNumber: string;
   supplierId: string;
+  /** Resolved by the caller from the suppliers API; the API returns only the id. */
   supplierName?: string;
   purchaseOrderId?: string | null;
+  /** Resolved by the caller from the purchase orders API. */
   poNumber?: string;
   rmaNumber?: string | null;
   totalAmount: number;
   status: SupplierReturnStatus;
-  returnDate: string;
   dispatchedAt?: string | null;
   lines: SupplierReturnLineDto[];
   createdAt: string;

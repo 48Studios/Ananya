@@ -16,8 +16,15 @@ const AUDITED_HANDLER_LEVEL_MUTATIONS: Record<string, string[]> = {
   ImportExportController: ['previewImport', 'executeImport'],
   // Dynamic per-entity RBAC partitioning (SEC-20): Role -> Administration.Roles, Component -> Inventory.Delete, fails closed.
   BulkActionsController: ['executeBulkAction'],
-  // Authenticated actor self-service: revokes caller's own token or changes own password
-  AuthController: ['logout', 'changePassword'],
+  // Authenticated actor self-service: revokes caller's own token or changes own password.
+  // Session list/revocation is bound to req.user.id and ownership is enforced inside the
+  // query, so a foreign session id resolves to 404 (auth-sessions.integration-spec.ts).
+  AuthController: [
+    'logout',
+    'changePassword',
+    'revokeSession',
+    'revokeOtherSessions',
+  ],
   // Sequential numbering generation for document creation
   SettingsController: ['generateDocumentCode'],
   // Scoped to req.user.id with manager permission checks for cross-user actions & approvals (SEC-17)

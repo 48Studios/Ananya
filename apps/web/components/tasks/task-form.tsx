@@ -20,13 +20,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
-import { tasksApi, type TaskDto } from "@/lib/api/tasks-api";
+import { EntitySelector } from "@/components/ui/entity-selector";
+import {
+  tasksApi,
+  type TaskDto,
+  type TaskPriority,
+} from "@/lib/api/tasks-api";
 
 const taskSchema = z.object({
+  projectId: z.string().min(1, "Project is required"),
   title: z.string().min(1, "Task title is required"),
   description: z.string().optional(),
   assignedUser: z.string().optional(),
-  priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]),
   estimatedHours: z.number().min(0, "Hours must be non-negative"),
 });
 
@@ -48,10 +54,11 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
   } = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
+      projectId: "",
       title: "",
       description: "",
       assignedUser: "",
-      priority: "NORMAL",
+      priority: "MEDIUM",
       estimatedHours: 1,
     },
   });
@@ -60,10 +67,11 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
     setServerError(null);
     try {
       const res = await tasksApi.create({
+        projectId: values.projectId,
         title: values.title,
         description: values.description,
         assignedUser: values.assignedUser,
-        priority: values.priority,
+        priority: values.priority as TaskPriority,
         estimatedHours: values.estimatedHours,
       });
       onSuccess(res);
@@ -85,6 +93,29 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
             {serverError}
           </div>
         )}
+
+        <Field>
+          <FieldLabel htmlFor="task-project">
+            Project <span className="text-destructive">*</span>
+          </FieldLabel>
+          <Controller
+            name="projectId"
+            control={control}
+            render={({ field }) => (
+              <EntitySelector
+                id="task-project"
+                entity="project"
+                value={field.value}
+                onChange={(val) => field.onChange(val ?? "")}
+                placeholder="Select the project this task belongs to..."
+                creatable={false}
+              />
+            )}
+          />
+          {errors.projectId && (
+            <FieldError>{errors.projectId.message}</FieldError>
+          )}
+        </Field>
 
         <Field>
           <FieldLabel htmlFor="title">
@@ -120,7 +151,7 @@ export function TaskForm({ onSuccess, onCancel }: TaskFormProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="NORMAL">Normal</SelectItem>
+                    <SelectItem value="MEDIUM">Medium</SelectItem>
                     <SelectItem value="HIGH">High</SelectItem>
                     <SelectItem value="URGENT">Urgent</SelectItem>
                   </SelectContent>

@@ -22,16 +22,18 @@ import {
 } from "@/components/ui/entity-data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { MaintenanceForm } from "@/components/maintenance/maintenance-form";
+import { maintenanceApi } from "@/lib/api/maintenance-api";
+import { customersApi } from "@/lib/api/customers-api";
+import { toCustomerNameMap } from "@/lib/service-requests";
 import {
-  maintenanceApi,
-  type MaintenanceScheduleDto,
-} from "@/lib/api/maintenance-api";
+  buildMaintenanceRows,
+  FREQUENCY_LABELS,
+  type MaintenanceRow,
+} from "@/lib/maintenance";
 import { formatDate } from "@/lib/utils";
 
 export default function MaintenancePage() {
-  const [schedules, setSchedules] = React.useState<MaintenanceScheduleDto[]>(
-    [],
-  );
+  const [schedules, setSchedules] = React.useState<MaintenanceRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
@@ -40,8 +42,13 @@ export default function MaintenancePage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await maintenanceApi.getAll();
-      setSchedules(data || []);
+      // A schedule carries `customerId`; the customer name is resolved from the
+      // customers API so a caller without that read access still sees the plan.
+      const [data, customers] = await Promise.all([
+        maintenanceApi.getAll(),
+        customersApi.getAll().catch(() => []),
+      ]);
+      setSchedules(buildMaintenanceRows(data, toCustomerNameMap(customers)));
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -59,8 +66,8 @@ export default function MaintenancePage() {
 
   const handleCompleteVisit = async (id: string) => {
     try {
-      const updated = await maintenanceApi.completeVisit(id);
-      setSchedules((prev) => prev.map((s) => (s.id === id ? updated : s)));
+      await maintenanceApi.completeVisit(id);
+      await fetchData();
       setToastMessage("Maintenance service visit completed successfully.");
       setTimeout(() => setToastMessage(null), 4000);
     } catch {
@@ -69,15 +76,14 @@ export default function MaintenancePage() {
     }
   };
 
-  const handleTogglePause = async (schedule: MaintenanceScheduleDto) => {
+  const handleTogglePause = async (schedule: MaintenanceRow) => {
     try {
-      const updated =
-        schedule.status === "PAUSED"
-          ? await maintenanceApi.resume(schedule.id)
-          : await maintenanceApi.pause(schedule.id);
-      setSchedules((prev) =>
-        prev.map((s) => (s.id === schedule.id ? updated : s)),
-      );
+      if (schedule.status === "PAUSED") {
+        await maintenanceApi.resume(schedule.id);
+      } else {
+        await maintenanceApi.pause(schedule.id);
+      }
+      await fetchData();
       setToastMessage(
         `Schedule ${schedule.status === "PAUSED" ? "resumed" : "paused"} successfully.`,
       );
@@ -88,48 +94,64 @@ export default function MaintenancePage() {
     }
   };
 
-  const columns: ColumnDef<MaintenanceScheduleDto>[] = [
+  const columns: ColumnDef<MaintenanceRow>[] = [
     {
-      accessorKey: "equipmentName",
+      accessorKey: "scheduleNumber",
+      header: "Schedule No.",
+      cell: ({ row }) => (
+        <span className="font-mono font-medium text-xs text-foreground bg-muted/50 px-2 py-1 rounded uppercase">
+          {row.original.scheduleNumber}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "assetLabel",
       header: "Equipment Asset",
       cell: ({ row }) => (
         <div>
           <p className="font-medium text-xs text-foreground">
-            {row.original.equipmentName || "Asset"}
+            {row.original.assetLabel}
           </p>
           <p className="font-mono text-[11px] text-muted-foreground">
-            {row.original.workCenterCode || "-"}
+            {row.original.assetSubLabel || "No serial recorded"}
           </p>
         </div>
       ),
     },
     {
-      accessorKey: "taskType",
-      header: "Maintenance Task",
+      accessorKey: "customerName",
+      header: "Customer",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {row.original.customerName || "Unassigned customer"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "frequency",
+      header: "Service Frequency",
       cell: ({ row }) => (
         <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-          {row.original.taskType || "PREVENTIVE"}
+          {FREQUENCY_LABELS[row.original.frequency] ?? row.original.frequency}
         </span>
       ),
     },
     {
-      accessorKey: "lastCompletedDate",
-      header: "Last Service",
+      accessorKey: "assignedTechnician",
+      header: "Technician",
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground font-mono">
-          {row.original.lastCompletedDate
-            ? formatDate(row.original.lastCompletedDate)
-            : "-"}
+        <span className="text-xs text-muted-foreground">
+          {row.original.assignedTechnician || "Unassigned"}
         </span>
       ),
     },
     {
-      accessorKey: "nextDueDate",
-      header: "Next Service Due",
+      accessorKey: "nextVisitDate",
+      header: "Next Visit Due",
       cell: ({ row }) => (
         <span className="font-mono text-xs font-semibold text-foreground">
-          {row.original.nextDueDate
-            ? formatDate(row.original.nextDueDate)
+          {row.original.nextVisitDate
+            ? formatDate(row.original.nextVisitDate)
             : "-"}
         </span>
       ),
@@ -137,7 +159,7 @@ export default function MaintenancePage() {
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => <StatusBadge status={row.original.status || "SCHEDULED"} />,
+      cell: ({ row }) => <StatusBadge status={row.original.status || "ACTIVE"} />,
     },
     {
       id: "actions",
@@ -218,13 +240,13 @@ export default function MaintenancePage() {
         />
         <StatCard
           title="Scheduled Tasks"
-          value={schedules.filter((s) => s?.status === "SCHEDULED").length}
-          subtitle="Upcoming preventive visits"
+          value={schedules.filter((s) => s.status === "ACTIVE").length}
+          subtitle="Active preventive visit plans"
           icon={Clock}
         />
         <StatCard
           title="Completed Runs"
-          value={schedules.filter((s) => s?.status === "COMPLETED").length}
+          value={schedules.filter((s) => s.status === "COMPLETED").length}
           subtitle="Verified calibration logs"
           icon={CheckCircle2}
         />
@@ -272,8 +294,10 @@ export default function MaintenancePage() {
         size="sm"
       >
         <MaintenanceForm
-          onSuccess={(created) => {
-            setSchedules((prev) => [created, ...prev]);
+          onSuccess={() => {
+            // Re-read through the same mapper so the new row carries its
+            // resolved customer label instead of a raw id.
+            void fetchData();
             setIsFormOpen(false);
             setToastMessage(
               "New equipment maintenance task scheduled cleanly.",
