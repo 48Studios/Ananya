@@ -124,6 +124,15 @@ export interface LocationOperationalViewChildDto {
   node: SpatialNodeDto | null;
   model: SpatialModelDto | null;
   anchor: SpatialAnchorDto | null;
+  /**
+   * Authored slot envelope this child is mapped into, when the parent layout
+   * defines one. The viewer shrinks an oversized object to fit it.
+   */
+  slotDimensionsMm?: {
+    widthMm: number;
+    heightMm: number;
+    depthMm: number;
+  } | null;
 }
 
 export interface LocationOperationalViewDto {

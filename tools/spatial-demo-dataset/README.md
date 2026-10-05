@@ -138,7 +138,7 @@ Capacity metadata (`{ capacity, capacityUnit }`) is applied to a few locations (
 ## Manual walkthrough
 
 1. **Spatial Inventory** (`/inventory/locations/spatial`) — the tree shows `Facility root`, `Mapped`, `◐ 8/12` and `Layout` badges; KPIs reconcile with the matrix above.
-2. **Warehouse details** (`/inventory/locations?…` → `DEMO-SPATIAL-WAREHOUSE`) — canonical section order, `Facility root` + `Layout published` chips; 3D shows four containers placed by the bay plan and a three-item staging tray.
+2. **Warehouse details** (`/inventory/locations?…` → `DEMO-SPATIAL-WAREHOUSE`) — canonical section order, `Facility root` + `Layout published` chips; 3D shows four containers placed by the bay plan, each contained inside its authored bay (an oversized model such as the full pallet rack is shrunk to fit its slot), and a three-item staging tray.
 3. **Primary cabinet** (`DEMO-SPATIAL-CABINET-A`, `?view=spatial3d`) — 8 mapped drawers (deep row A, shallow row B) and 4 unmapped drawers; 2D and 3D both report `8 / 4`; click a drawer to open it (transient, view-only).
 4. **Mapped vs unmapped leaf** — `DEMO-SPATIAL-BIN-A01-01` shows `Mapped` and renders its drawer's frame with the bin selected, while the requested route stays on the bin; `DEMO-SPATIAL-DRAWER-C01` shows `Unmapped`.
 5. **Draft workflow** — open `DEMO-SPATIAL-CABINET-C` in the Builder Workspace: the draft layout loads with zero mappings and four drawers ready to map; publishing it creates the builder-owned nodes.

@@ -4,6 +4,8 @@ import {
   computeSceneBoundingBox,
   degToRad,
   getSemanticVisualState,
+  fitDimensionsToSlot,
+  isCornerAuthoredAnchorZ,
   layoutChildrenFor3D,
   metersToMm,
   mmToMeters,
@@ -11,8 +13,10 @@ import {
   resolveAuthoredContainerDimensions,
   resolveChildPosition,
   resolveChildRotation,
+  resolveChildSlotEnvelope,
   resolveObjectDimensions,
   resolveTargetChildLocationId,
+  type Vector3D,
 } from "./spatial-3d-layout";
 import { convertGeneratedToSceneLayout } from "./inventory-builder-state";
 import {
@@ -282,6 +286,247 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       expect(rot.x).toBe(0);
       expect(rot.y).toBeCloseTo(degToRad(135), 5); // 90 + 45 deg
       expect(rot.z).toBe(0);
+    });
+  });
+
+  describe("Parent-Frame Normalization of Child Placement", () => {
+    // DEMO-SPATIAL-MODEL-DRAWER-DEEP: the drawer body its bins are mapped into.
+    const drawerFrame: Vector3D = { x: 0.171, y: 0.28933, z: 0.308 };
+
+    const makeAnchor = (
+      overrides: Partial<SpatialAnchorDto> = {},
+    ): SpatialAnchorDto => ({
+      id: "anchor-1",
+      modelId: "model-drawer-deep",
+      code: "BIN01",
+      name: "Bin Compartment 01",
+      anchorType: "BIN",
+      localPositionX: 42.75,
+      localPositionY: 144.67,
+      localPositionZ: 0,
+      localRotationX: 0,
+      localRotationY: 0,
+      localRotationZ: 0,
+      boundingWidthMm: 68.4,
+      boundingHeightMm: 231.46,
+      boundingDepthMm: 277.2,
+      metadata: {},
+      ...overrides,
+    });
+
+    it("keeps an elevation-authored anchor Z on the parent's mid-depth plane", () => {
+      // The anchor editor's default authors Z = 0 as the mid-depth elevation
+      // plane. Centring it by -depth/2 pushed every anchored child half a
+      // container out of its parent's back.
+      const position = resolveChildPosition(
+        null,
+        makeAnchor({ localPositionZ: 0 }),
+        drawerFrame,
+      );
+
+      expect(position.z).toBeCloseTo(0, 6);
+    });
+
+    it("keeps an anchored bin fully inside its drawer in depth", () => {
+      const anchor = makeAnchor({ localPositionZ: 0 });
+      const position = resolveChildPosition(null, anchor, drawerFrame);
+      const dimensions = resolveObjectDimensions(null, anchor, "bin");
+
+      expect(position.z - dimensions.z / 2).toBeGreaterThanOrEqual(
+        -drawerFrame.z / 2 - 1e-9,
+      );
+      expect(position.z + dimensions.z / 2).toBeLessThanOrEqual(
+        drawerFrame.z / 2 + 1e-9,
+      );
+    });
+
+    it("still centres a corner-authored anchor Z into the frame", () => {
+      // A positive Z whose slot envelope fits [0, depth] is corner-authored.
+      const position = resolveChildPosition(
+        null,
+        makeAnchor({
+          localPositionZ: 200,
+          boundingDepthMm: 150,
+          boundingWidthMm: 100,
+          boundingHeightMm: 100,
+        }),
+        { x: 0.6, y: 0.9, z: 0.4 },
+      );
+
+      expect(position.z).toBeCloseTo(0, 6);
+    });
+
+    it("applies an anchored node offset in the anchor's frame", () => {
+      const node = createMockChild("c1", "A01").node!;
+      node.positionZ = 12;
+
+      const position = resolveChildPosition(
+        node,
+        makeAnchor({ localPositionZ: 0 }),
+        drawerFrame,
+      );
+
+      expect(position.z).toBeCloseTo(mmToMeters(12), 6);
+    });
+
+    it("keeps builder-published node slots corner-authored", () => {
+      // The storage engine emits slot centres relative to the container corner,
+      // so a 166 mm Z in a 320 mm cabinet frame is 6 mm in front of centre.
+      const node = createMockChild("c1", "A01").node!;
+      node.positionX = 97.5;
+      node.positionY = 743.33;
+      node.positionZ = 166;
+
+      const position = resolveChildPosition(node, null, {
+        x: 0.72,
+        y: 0.9,
+        z: 0.32,
+      });
+
+      expect(position.x).toBeCloseTo(mmToMeters(97.5 - 360), 6);
+      expect(position.y).toBeCloseTo(mmToMeters(743.33), 6);
+      expect(position.z).toBeCloseTo(mmToMeters(166 - 160), 6);
+    });
+
+    it("never shifts an explicitly centred anchor", () => {
+      const anchor = makeAnchor({
+        localPositionZ: 25,
+        boundingDepthMm: 100,
+        metadata: { origin: "center" },
+      });
+
+      const position = resolveChildPosition(null, anchor, drawerFrame);
+      expect(position.z).toBeCloseTo(mmToMeters(25), 6);
+    });
+
+    it("classifies anchor Z conventions from the slot envelope", () => {
+      expect(
+        isCornerAuthoredAnchorZ(
+          { localPositionZ: 0, boundingDepthMm: 277.2, metadata: {} },
+          0.308,
+        ),
+      ).toBe(false);
+      expect(
+        isCornerAuthoredAnchorZ(
+          { localPositionZ: 200, boundingDepthMm: 150, metadata: {} },
+          0.4,
+        ),
+      ).toBe(true);
+      expect(
+        isCornerAuthoredAnchorZ(
+          {
+            localPositionZ: 25,
+            boundingDepthMm: 100,
+            metadata: { origin: "center" },
+          },
+          0.4,
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe("Slot Containment for Oversized Objects", () => {
+    // DEMO-SPATIAL-LAYOUT-WAREHOUSE bay: the slot a mapped container lives in.
+    const warehouseBay = { widthMm: 786.67, heightMm: 1080, depthMm: 900 };
+
+    it("keeps objects that already fit their slot at their exact model dimensions", () => {
+      const fitted = fitDimensionsToSlot(
+        { x: mmToMeters(720), y: mmToMeters(900), z: mmToMeters(320) },
+        { x: 1, y: 1, z: 1 },
+        warehouseBay,
+      );
+
+      expect(fitted.x).toBeCloseTo(mmToMeters(720), 6);
+      expect(fitted.y).toBeCloseTo(mmToMeters(900), 6);
+      expect(fitted.z).toBeCloseTo(mmToMeters(320), 6);
+    });
+
+    it("shrinks an oversized object uniformly into its slot", () => {
+      // A full pallet rack model mapped into a single warehouse bay.
+      const fitted = fitDimensionsToSlot(
+        { x: mmToMeters(2200), y: mmToMeters(2400), z: mmToMeters(900) },
+        { x: 1, y: 1, z: 1 },
+        warehouseBay,
+      );
+
+      const widthRatio = fitted.x / mmToMeters(2200);
+      const heightRatio = fitted.y / mmToMeters(2400);
+      const depthRatio = fitted.z / mmToMeters(900);
+
+      expect(widthRatio).toBeCloseTo(heightRatio, 6);
+      expect(heightRatio).toBeCloseTo(depthRatio, 6);
+      expect(fitted.x).toBeLessThanOrEqual(mmToMeters(warehouseBay.widthMm) + 1e-9);
+      expect(fitted.y).toBeLessThanOrEqual(mmToMeters(warehouseBay.heightMm) + 1e-9);
+      expect(fitted.z).toBeLessThanOrEqual(mmToMeters(warehouseBay.depthMm) + 1e-9);
+    });
+
+    it("accounts for a persisted node scale when fitting", () => {
+      const base = { x: mmToMeters(400), y: mmToMeters(400), z: mmToMeters(400) };
+      const slot = { widthMm: 400, heightMm: 400, depthMm: 400 };
+
+      const fitted = fitDimensionsToSlot(base, { x: 2, y: 2, z: 2 }, slot);
+
+      expect(fitted.x).toBeCloseTo(mmToMeters(200), 6);
+      expect(fitted.x * 2).toBeCloseTo(mmToMeters(400), 6);
+    });
+
+    it("never grows an object and leaves slot-less placements untouched", () => {
+      const tiny = { x: 0.05, y: 0.05, z: 0.05 };
+      expect(
+        fitDimensionsToSlot(tiny, { x: 1, y: 1, z: 1 }, warehouseBay),
+      ).toEqual(tiny);
+
+      const oversized = { x: 5, y: 5, z: 5 };
+      expect(fitDimensionsToSlot(oversized, { x: 1, y: 1, z: 1 }, null)).toEqual(
+        oversized,
+      );
+    });
+
+    it("resolves the authored slot envelope from the layout, falling back to the anchor bounds", () => {
+      const layoutMapped = createMockChild("c1", "A01", {
+        modelDims: { w: 2200, h: 2400, d: 900 },
+      });
+      layoutMapped.slotDimensionsMm = warehouseBay;
+      expect(resolveChildSlotEnvelope(layoutMapped)).toEqual(warehouseBay);
+
+      const anchorMapped = createMockChild("c2", "A02", {
+        anchorPos: { x: 0, y: 0, z: 0 },
+        anchorBounds: { w: 180, h: 120, d: 300 },
+      });
+      expect(resolveChildSlotEnvelope(anchorMapped)).toEqual({
+        widthMm: 180,
+        heightMm: 120,
+        depthMm: 300,
+      });
+
+      const bare = createMockChild("c3", "A03", { isMapped: true });
+      expect(resolveChildSlotEnvelope(bare)).toBeNull();
+    });
+
+    it("fits a warehouse rack into its bay without moving it", () => {
+      const rack = createMockChild("rack", "DEMO-SPATIAL-RACK", {
+        kind: "rack",
+        modelDims: { w: 2200, h: 2400, d: 900 },
+      });
+      rack.node!.positionX = 453.33;
+      rack.node!.positionY = 1780;
+      rack.node!.positionZ = 450;
+      rack.slotDimensionsMm = warehouseBay;
+
+      const { mapped } = layoutChildrenFor3D(
+        [rack],
+        null,
+        new Map(),
+        { x: 2.6, y: 2.4, z: 0.9 },
+      );
+
+      const placed = mapped[0]!;
+      expect(placed.position.x).toBeCloseTo(mmToMeters(453.33 - 1300), 6);
+      expect(placed.position.y).toBeCloseTo(mmToMeters(1780), 6);
+      expect(placed.position.z).toBeCloseTo(0, 6);
+      expect(placed.dimensions.x).toBeLessThanOrEqual(mmToMeters(786.67) + 1e-9);
+      expect(placed.dimensions.y).toBeLessThanOrEqual(mmToMeters(1080) + 1e-9);
+      expect(placed.dimensions.z).toBeLessThanOrEqual(mmToMeters(900) + 1e-9);
     });
   });
 

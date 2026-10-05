@@ -803,6 +803,70 @@ describe('SpatialService', () => {
       expect(view.projections[0]?.quantity).toBe(2500);
     });
 
+    it('exposes the authored slot envelope of a layout-mapped child', async () => {
+      const parentLoc = makeLocation('loc-parent', 'CAB-A', null);
+      const child1 = makeLocation('loc-c1', 'A01', 'loc-parent');
+
+      const childNode = SpatialNode.create({
+        locationId: child1.id,
+        metadata: {
+          source: 'inventory_builder',
+          layoutId: 'layout-1',
+          slotId: 'drawer_slot_r0_c0',
+        },
+      });
+
+      locationRepo.findMany.mockResolvedValue([parentLoc, child1]);
+      nodeRepo.findByLocationId.mockResolvedValue(null);
+      nodeRepo.findMany.mockResolvedValue([childNode]);
+      layoutRepo.findByParentLocationId.mockResolvedValue([
+        {
+          id: 'layout-1',
+          parentLocationId: parentLoc.id,
+          code: 'LAY-1',
+          name: 'Cabinet A layout',
+          description: null,
+          templateType: 'SMD_DRAWER_CABINET',
+          engineVersion: '1',
+          config: {
+            templateType: 'SMD_DRAWER_CABINET',
+            dimensions: { widthMm: 720, heightMm: 900, depthMm: 320 },
+            wallThicknessMm: 12,
+            dividerThicknessMm: 4,
+            rows: 3,
+            columns: 4,
+          },
+          revision: 1,
+          status: 'PUBLISHED',
+          totalCompartments: 12,
+          metadata: {},
+          createdBy: null,
+          updatedBy: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          mappings: [
+            {
+              slotId: 'drawer_slot_r0_c0',
+              slotCode: 'A01',
+              locationId: child1.id,
+              logicalRow: 0,
+              logicalCol: 0,
+            },
+          ],
+        },
+      ]);
+
+      const view = await service.getLocationOperationalView(parentLoc.id);
+
+      const child = view.children.find((c) => c.location.id === child1.id);
+      expect(child?.node?.id).toBe(childNode.id);
+      expect(child?.slotDimensionsMm).toEqual({
+        widthMm: 171,
+        heightMm: 289.33,
+        depthMm: 308,
+      });
+    });
+
     it('throws LocationNotFoundError when location does not exist', async () => {
       locationRepo.findMany.mockResolvedValue([]);
       await expect(

@@ -218,9 +218,13 @@ test.describe("Spatial View — requested location stays authoritative", () => {
     );
 
     const openSpatial = page.getByRole("link", { name: /Open Spatial View/ });
+    // The requested drawer stays the route; the canonical `/inventory/locations`
+    // prefix is asserted through the page URL after navigation below.
     await expect(openSpatial).toHaveAttribute(
       "href",
-      new RegExp(`/locations/${drawerId}\\?view=spatial&focusLocation=${drawerId}$`),
+      new RegExp(
+        `/${drawerId}\\?view=spatial&focusLocation=${drawerId}$`,
+      ),
     );
 
     await openSpatial.click();
@@ -230,6 +234,6 @@ test.describe("Spatial View — requested location stays authoritative", () => {
     await expect(
       page.getByText(/DEMO-SPATIAL-DRAWER-A01\s+OPERATIONAL LAYOUT/i),
     ).toBeVisible({ timeout: 15000 });
-    expect(page.url()).toContain(drawerId);
+    expect(page.url()).toContain(`/inventory/locations/${drawerId}`);
   });
 });

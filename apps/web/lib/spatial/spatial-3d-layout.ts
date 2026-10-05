@@ -139,63 +139,200 @@ export function resolveObjectDimensions(
 }
 
 /**
+ * Resolves whether an anchor's Z is authored in the container's corner frame
+ * ([0, depth], where 0 is the back plane) or on the mid-depth elevation plane
+ * (0 = centre) used by the anchor editor's default.
+ *
+ * Both conventions exist in persisted data (`validateAnchorBounds` deliberately
+ * accepts each), so the anchor's own slot envelope decides: a positive Z whose
+ * envelope fits the corner frame is corner-authored, while Z = 0 (the elevation
+ * default), a negative Z, or an envelope that only fits the centred frame is
+ * mid-depth. The choice only affects rendering; the persisted value never
+ * changes.
+ */
+export function isCornerAuthoredAnchorZ(
+  anchor: {
+    localPositionZ: number;
+    boundingDepthMm?: number | null;
+    metadata?: Record<string, unknown> | null;
+  },
+  parentDepthMeters: number,
+): boolean {
+  const metadata = anchor.metadata;
+  if (
+    metadata &&
+    typeof metadata === "object" &&
+    (metadata as Record<string, unknown>).origin === "center"
+  ) {
+    return false;
+  }
+  if (!(parentDepthMeters > 0)) return false;
+
+  const depthMm = metersToMm(parentDepthMeters);
+  const z = Number(anchor.localPositionZ ?? 0);
+  const halfExtent = Math.max(0, Number(anchor.boundingDepthMm ?? 0)) / 2;
+  const zMin = z - halfExtent;
+  const zMax = z + halfExtent;
+
+  const fitsCorner = zMin >= -1 && zMax <= depthMm + 1;
+  const fitsCentre = zMin >= -depthMm / 2 - 1 && zMax <= depthMm / 2 + 1;
+
+  // A positive Z inside the corner range is corner-authored, including the
+  // ambiguous case where the envelope also fits the centred frame.
+  if (fitsCorner && (z > 0 || !fitsCentre)) return true;
+  // A malformed envelope that fits neither frame keeps the legacy corner read.
+  if (!fitsCorner && !fitsCentre) return true;
+  return false;
+}
+
+/**
  * Resolves the 3D local position of a child node relative to its parent model in meters.
  *
- * Anchor coordinates are interpreted consistently relative to their parent model:
- * - Corner-based origin (standard CAD/warehouse authoring where X in [0, width]):
- *   Shifted horizontally by -width / 2 so children sit inside the centered parent frame [-W/2, +W/2].
- * - Center-based origin (where X is authored around 0 or has negative coordinates):
- *   Preserved directly without shifting.
+ * Coordinates are interpreted per source:
+ * - Anchor X/Y are corner-based ([0, W], [0, H]) and shift into the centred
+ *   parent frame; an explicit `metadata.origin === "center"` skips the shift.
+ * - Anchor Z is either corner-based ([0, depth], see
+ *   `isCornerAuthoredAnchorZ`) or sits on the mid-depth elevation plane used by
+ *   the anchor editor's default (Z = 0 = centre), so it only shifts when the
+ *   anchor is corner-authored. Shifting every Z in [0, depth] pushed
+ *   elevation-authored children half a container out of their parent.
+ * - Builder-published node coordinates are corner-authored slot centres in all
+ *   axes (the storage engine emits `origin: "corner"`), and refine an anchor
+ *   placement as an offset when both are present.
  * - Y coordinates remain grounded on the floor/bottom [0, height].
- * - Z coordinates in [0, depth] are centered relative to parent depth if positive.
  */
 export function resolveChildPosition(
   node: SpatialNodeDto | null | undefined,
   anchor: SpatialAnchorDto | null | undefined,
   parentDimensions?: Vector3D | null,
 ): Vector3D {
-  let rawX = 0;
-  let rawY = 0;
-  let rawZ = 0;
+  const frameWidth = parentDimensions?.x ?? 0;
+  const frameDepth = parentDimensions?.z ?? 0;
 
-  if (anchor) {
-    rawX += anchor.localPositionX;
-    rawY += anchor.localPositionY;
-    rawZ += anchor.localPositionZ;
-  }
+  const isExplicitlyCentered = Boolean(
+    anchor?.metadata &&
+      typeof anchor.metadata === "object" &&
+      (anchor.metadata as Record<string, unknown>).origin === "center",
+  );
 
-  if (node) {
-    rawX += node.positionX;
-    rawY += node.positionY;
-    rawZ += node.positionZ;
-  }
+  const rawX = (anchor?.localPositionX ?? 0) + (node?.positionX ?? 0);
+  const rawY = (anchor?.localPositionY ?? 0) + (node?.positionY ?? 0);
 
   let x = mmToMeters(rawX);
   const y = mmToMeters(rawY);
-  let z = mmToMeters(rawZ);
 
-  // If parent dimensions are available, check whether coordinates were authored
-  // using corner-based origin [0, W] or centered origin [-W/2, +W/2].
-  const isExplicitlyCentered =
-    anchor?.metadata &&
-    typeof anchor.metadata === "object" &&
-    (anchor.metadata as Record<string, unknown>).origin === "center";
-
-  if (parentDimensions && parentDimensions.x > 0 && !isExplicitlyCentered) {
-    // If coordinate is positive and within the parent's width, it is corner-based:
-    // convert from [0, W] to centered parent frame [-W/2, +W/2]
-    if (rawX >= 0 && x <= parentDimensions.x) {
-      x -= parentDimensions.x / 2;
-    }
+  // Corner-based X and builder node Z shift into the centred parent frame.
+  if (frameWidth > 0 && !isExplicitlyCentered && rawX >= 0 && x <= frameWidth) {
+    x -= frameWidth / 2;
   }
 
-  if (parentDimensions && parentDimensions.z > 0 && !isExplicitlyCentered) {
-    if (rawZ >= 0 && z <= parentDimensions.z) {
-      z -= parentDimensions.z / 2;
+  let z = 0;
+  if (anchor) {
+    z += mmToMeters(anchor.localPositionZ);
+    if (frameDepth > 0 && isCornerAuthoredAnchorZ(anchor, frameDepth)) {
+      z -= frameDepth / 2;
+    }
+  }
+  if (node) {
+    z += mmToMeters(node.positionZ);
+    // A node riding on an anchor refines the anchor placement and is applied
+    // as an offset in the anchor's frame; a node alone is a corner-authored
+    // slot centre and shifts like one.
+    if (
+      !anchor &&
+      frameDepth > 0 &&
+      !isExplicitlyCentered &&
+      node.positionZ >= 0 &&
+      mmToMeters(node.positionZ) <= frameDepth
+    ) {
+      z -= frameDepth / 2;
     }
   }
 
   return { x, y, z };
+}
+
+/**
+ * Shrinks an object uniformly so a mapped compartment can never render outside
+ * the slot envelope it was authored into.
+ *
+ * The authored node scale is preserved as-is and the containment factor is
+ * folded into the rendered dimensions, so:
+ * - objects that already fit keep their exact model dimensions (the common
+ *   case: drawers, bins, cabinets),
+ * - objects larger than their slot (e.g. a full rack mapped into one bay) are
+ *   scaled down uniformly — never up — to fit,
+ * - payloads without an authored envelope keep their model dimensions.
+ */
+export function fitDimensionsToSlot(
+  dimensions: Vector3D,
+  scale: Vector3D,
+  slotDimensionsMm?:
+    | { widthMm: number; heightMm: number; depthMm: number }
+    | null,
+): Vector3D {
+  if (!slotDimensionsMm) return dimensions;
+
+  const slot = {
+    x: mmToMeters(slotDimensionsMm.widthMm),
+    y: mmToMeters(slotDimensionsMm.heightMm),
+    z: mmToMeters(slotDimensionsMm.depthMm),
+  };
+  if (!(slot.x > 0 && slot.y > 0 && slot.z > 0)) return dimensions;
+
+  const rendered = {
+    x: dimensions.x * scale.x,
+    y: dimensions.y * scale.y,
+    z: dimensions.z * scale.z,
+  };
+  if (!(rendered.x > 0 && rendered.y > 0 && rendered.z > 0)) return dimensions;
+
+  const factor = Math.min(
+    1,
+    slot.x / rendered.x,
+    slot.y / rendered.y,
+    slot.z / rendered.z,
+  );
+  if (!Number.isFinite(factor) || factor >= 1) return dimensions;
+
+  return {
+    x: dimensions.x * factor,
+    y: dimensions.y * factor,
+    z: dimensions.z * factor,
+  };
+}
+
+/**
+ * Resolves the authored slot envelope of a mapped child: the parent layout's
+ * slot geometry when the API provides it, otherwise the anchor's bounding box
+ * (the slot envelope authoring writes for anchor-mapped children).
+ */
+export function resolveChildSlotEnvelope(
+  child: LocationOperationalViewChildDto,
+): { widthMm: number; heightMm: number; depthMm: number } | null {
+  if (
+    child.slotDimensionsMm &&
+    child.slotDimensionsMm.widthMm > 0 &&
+    child.slotDimensionsMm.heightMm > 0 &&
+    child.slotDimensionsMm.depthMm > 0
+  ) {
+    return child.slotDimensionsMm;
+  }
+
+  const anchor = child.anchor;
+  if (
+    anchor?.boundingWidthMm &&
+    anchor?.boundingHeightMm &&
+    anchor?.boundingDepthMm
+  ) {
+    return {
+      widthMm: anchor.boundingWidthMm,
+      heightMm: anchor.boundingHeightMm,
+      depthMm: anchor.boundingDepthMm,
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -428,10 +565,15 @@ export function layoutChildrenFor3D(
         effectiveParentDims,
       );
       const rotation = resolveChildRotation(child.node, child.anchor);
-      const dimensions = resolveObjectDimensions(
-        child.model,
-        child.anchor,
-        child.location.kind,
+      const scale = resolveChildScale(child.node);
+      const dimensions = fitDimensionsToSlot(
+        resolveObjectDimensions(
+          child.model,
+          child.anchor,
+          child.location.kind,
+        ),
+        scale,
+        resolveChildSlotEnvelope(child),
       );
 
       mapped.push({
@@ -444,7 +586,7 @@ export function layoutChildrenFor3D(
         totalQuantity,
         position,
         rotation,
-        scale: resolveChildScale(child.node),
+        scale,
         dimensions,
         anchorCode: child.anchor?.code,
         modelCode: child.model?.code,

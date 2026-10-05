@@ -3,6 +3,7 @@ import {
   mmToMeters,
   metersToMm,
   degToRad,
+  isCornerAuthoredAnchorZ,
   type SceneChildLayout,
   type SemanticVisualState,
   type Vector3D,
@@ -1046,17 +1047,17 @@ export function resolveAnchorScenePosition(
     localPositionX: number;
     localPositionY: number;
     localPositionZ: number;
+    boundingDepthMm?: number | null;
     metadata?: Record<string, unknown>;
   },
   parentDimensions?: Vector3D | null,
 ): Vector3D {
   const rawX = anchor.localPositionX;
   const rawY = anchor.localPositionY;
-  const rawZ = anchor.localPositionZ;
 
   let x = mmToMeters(rawX);
   const y = mmToMeters(rawY);
-  let z = mmToMeters(rawZ);
+  let z = mmToMeters(anchor.localPositionZ);
 
   const isExplicitlyCentered =
     anchor.metadata &&
@@ -1069,10 +1070,15 @@ export function resolveAnchorScenePosition(
     }
   }
 
-  if (parentDimensions && parentDimensions.z > 0 && !isExplicitlyCentered) {
-    if (rawZ >= 0 && z <= parentDimensions.z) {
-      z -= parentDimensions.z / 2;
-    }
+  // The marker must land exactly where the mapped child renders, so it follows
+  // the same Z convention detection as `resolveChildPosition`.
+  if (
+    parentDimensions &&
+    parentDimensions.z > 0 &&
+    !isExplicitlyCentered &&
+    isCornerAuthoredAnchorZ(anchor, parentDimensions.z)
+  ) {
+    z -= parentDimensions.z / 2;
   }
 
   return { x, y, z };

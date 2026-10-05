@@ -23,6 +23,7 @@ import {
   SpatialAnchorConflictError,
   InvalidSpatialAnchorCodeError,
   computeSpatialMappingStatus,
+  generateStorageCompartments,
   type InventoryProjection,
   type SpatialContainerStatus,
   type SpatialLayoutRepository,
@@ -131,6 +132,16 @@ export interface LocationOperationalViewChild {
   node: SpatialNode | null;
   model: SpatialModel | null;
   anchor: SpatialAnchor | null;
+  /**
+   * Authored slot envelope this child is mapped into, resolved from the parent
+   * layout's generated geometry. Viewers use it to keep an oversized object
+   * inside its slot; `null` when the mapping has no authored envelope.
+   */
+  slotDimensionsMm?: {
+    widthMm: number;
+    heightMm: number;
+    depthMm: number;
+  } | null;
 }
 
 export interface LocationOperationalView {
@@ -753,6 +764,68 @@ export class SpatialService {
     };
   }
 
+  /**
+   * Resolves the authored slot envelope of every location mapped into this
+   * container's layouts, keyed by location id.
+   *
+   * Slot geometry is not persisted on the mapping — it is regenerated from the
+   * layout's parametric config, the same source the Builder and the seed
+   * utility use, so an envelope can never drift from the published layout. A
+   * published layout wins over a draft or archived one when a location is
+   * mapped more than once.
+   */
+  private async resolveSlotEnvelopes(
+    parentLocationId: string,
+  ): Promise<
+    Map<string, { widthMm: number; heightMm: number; depthMm: number }>
+  > {
+    const envelopes = new Map<
+      string,
+      { widthMm: number; heightMm: number; depthMm: number }
+    >();
+    const layouts =
+      await this.layoutRepo.findByParentLocationId(parentLocationId);
+    if (layouts.length === 0) return envelopes;
+
+    const statusRank: Record<SpatialLayoutStatus, number> = {
+      PUBLISHED: 0,
+      DRAFT: 1,
+      ARCHIVED: 2,
+    };
+    const ordered = [...layouts].sort(
+      (a, b) => statusRank[a.status] - statusRank[b.status],
+    );
+
+    for (const layout of ordered) {
+      let compartments;
+      try {
+        compartments = generateStorageCompartments(layout.config).compartments;
+      } catch {
+        // A historical config that the current engine cannot read must never
+        // break the operational view; its mappings simply carry no envelope.
+        continue;
+      }
+      const dimensionsBySlotId = new Map(
+        compartments.map((compartment) => [
+          compartment.slotId,
+          compartment.dimensions,
+        ]),
+      );
+      for (const mapping of layout.mappings) {
+        if (envelopes.has(mapping.locationId)) continue;
+        const dimensions = dimensionsBySlotId.get(mapping.slotId);
+        if (!dimensions) continue;
+        envelopes.set(mapping.locationId, {
+          widthMm: dimensions.widthMm,
+          heightMm: dimensions.heightMm,
+          depthMm: dimensions.depthMm,
+        });
+      }
+    }
+
+    return envelopes;
+  }
+
   async getLocationMappingContext(
     locationId: string,
   ): Promise<LocationMappingContext> {
@@ -1006,6 +1079,10 @@ export class SpatialService {
     const allNodes = await this.nodeRepo.findMany();
     const nodesByLocId = new Map(allNodes.map((n) => [n.locationId, n]));
 
+    // Authored slot envelopes of this container's layouts, so viewers can keep
+    // an oversized object inside the slot it is mapped into.
+    const slotEnvelopes = await this.resolveSlotEnvelopes(locationId);
+
     const modelCache = new Map<string, SpatialModel | null>();
     const anchorCache = new Map<string, SpatialAnchor | null>();
     for (const anchor of parentAnchors) {
@@ -1049,6 +1126,9 @@ export class SpatialService {
         node: childNode,
         model: childModel,
         anchor: childAnchor,
+        slotDimensionsMm: childNode
+          ? (slotEnvelopes.get(childLoc.id) ?? null)
+          : null,
       });
     }
 
