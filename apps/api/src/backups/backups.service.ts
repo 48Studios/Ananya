@@ -59,6 +59,23 @@ const INTERNAL_TABLES = new Set([
   '__drizzle_migrations',
 ]);
 
+export class BackupPreflightIntegrityError extends Error {
+  readonly missingCount: number;
+  readonly missingKeys: string[];
+
+  constructor(missingKeys: string[]) {
+    const missingCount = missingKeys.length;
+    const preview = missingKeys.slice(0, 10).join(', ');
+    const suffix = missingCount > 10 ? ` (and ${missingCount - 10} more)` : '';
+    super(
+      `Backup preflight integrity check failed: ${missingCount} referenced document file(s) are missing from storage: [${preview}${suffix}]`,
+    );
+    this.name = 'BackupPreflightIntegrityError';
+    this.missingCount = missingCount;
+    this.missingKeys = missingKeys;
+  }
+}
+
 @Injectable()
 export class BackupsService {
   private readonly logger = new Logger(BackupsService.name);
@@ -1276,6 +1293,23 @@ export class BackupsService {
     return recovered;
   }
 
+  private async preflightStorageDocuments(
+    storageKeys: string[],
+  ): Promise<string[]> {
+    const uniqueKeys = Array.from(new Set(storageKeys));
+    const missingKeys: string[] = [];
+    for (const key of uniqueKeys) {
+      const exists = await this.storage.exists(key);
+      if (!exists) {
+        missingKeys.push(key);
+      }
+    }
+    if (missingKeys.length > 0) {
+      throw new BackupPreflightIntegrityError(missingKeys);
+    }
+    return uniqueKeys;
+  }
+
   private async buildArchive(dto: CreateBackupDto): Promise<BackupArchive> {
     const scope = normalizeScope(dto.scope);
     const tables = await listTables();
@@ -1297,13 +1331,14 @@ export class BackupsService {
       const docs = await pool.query<{ storage_key: string | null }>(
         'select storage_key from documents where storage_key is not null',
       );
-      for (const doc of docs.rows) {
-        if (!doc.storage_key) continue;
+      const rawKeys = docs.rows
+        .map((doc) => doc.storage_key)
+        .filter((key): key is string => Boolean(key));
+      const validatedKeys = await this.preflightStorageDocuments(rawKeys);
+      for (const storageKey of validatedKeys) {
         files.push({
-          storageKey: doc.storage_key,
-          content: (await this.storage.readFile(doc.storage_key)).toString(
-            'base64',
-          ),
+          storageKey,
+          content: (await this.storage.readFile(storageKey)).toString('base64'),
         });
       }
     }
@@ -1335,7 +1370,7 @@ export class BackupsService {
     const selected = requestedTables.length
       ? tables.filter((table) => requestedTables.includes(table))
       : tables;
-    const documents =
+    const rawDocuments =
       scope.includeFiles === false
         ? []
         : (
@@ -1345,6 +1380,10 @@ export class BackupsService {
           ).rows
             .map((row) => row.storage_key)
             .filter((key): key is string => Boolean(key));
+    const documents =
+      scope.includeFiles === false
+        ? []
+        : await this.preflightStorageDocuments(rawDocuments);
     const manifest = {
       formatVersion: '2',
       applicationVersion: process.env.npm_package_version ?? '0.3.0',

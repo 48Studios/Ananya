@@ -23,6 +23,7 @@ import {
   componentIntelligenceFindings,
   documentIntelligenceAnalyses,
   documents,
+  documentVersions,
   roles,
   securityAuditLogs,
   users,
@@ -359,85 +360,122 @@ describe('Datasheet Documentation Intelligence', () => {
   afterAll(async () => {
     if (!hasDbUrl) return;
 
-    // Findings cascade with the component; analyses and documents have no
-    // component FK, so they are removed explicitly to avoid residue.
-    if (createdDocumentIds.length > 0) {
-      await db
-        .delete(documentIntelligenceAnalyses)
-        .where(
-          inArray(documentIntelligenceAnalyses.documentId, createdDocumentIds),
+    try {
+      // 1. Remove all documents and document versions associated with this test run.
+      // Gather by explicit createdDocumentIds, by createdComponentIds, or by runTag title prefix.
+      const docQueries = [
+        createdDocumentIds.length > 0
+          ? inArray(documents.id, createdDocumentIds)
+          : undefined,
+        createdComponentIds.length > 0
+          ? inArray(documents.entityId, createdComponentIds)
+          : undefined,
+        sql`${documents.title} LIKE ${`${runTag}%`}`,
+      ].filter(Boolean);
+
+      try {
+        const docRows = await db
+          .select({ id: documents.id })
+          .from(documents)
+          .where(sql.join(docQueries, sql` OR `));
+        const allDocIds = Array.from(
+          new Set([...createdDocumentIds, ...docRows.map((r) => r.id)]),
         );
+
+        if (allDocIds.length > 0) {
+          await db
+            .delete(documentIntelligenceAnalyses)
+            .where(inArray(documentIntelligenceAnalyses.documentId, allDocIds))
+            .catch(() => undefined);
+          await db
+            .delete(documentVersions)
+            .where(inArray(documentVersions.documentId, allDocIds))
+            .catch(() => undefined);
+          await db
+            .delete(documents)
+            .where(inArray(documents.id, allDocIds))
+            .catch(() => undefined);
+        }
+      } catch (docCleanupErr) {
+        console.error('Failed to clean up test documents:', docCleanupErr);
+      }
+
+      // 2. Feedback BEFORE components. `ai_suggestion_feedback.component_id` is
+      // `ON DELETE SET NULL`: deleting the component first leaves the row with no
+      // subject at all.
+      if (createdComponentIds.length > 0) {
+        await db
+          .delete(aiSuggestionFeedback)
+          .where(inArray(aiSuggestionFeedback.componentId, createdComponentIds))
+          .catch(() => undefined);
+      }
+
+      for (const id of createdComponentIds) {
+        await componentsService.delete(id).catch(() => undefined);
+      }
+
+      if (createdUserIds.length > 0) {
+        await db
+          .delete(users)
+          .where(inArray(users.id, createdUserIds))
+          .catch(() => undefined);
+      }
+
+      if (createdRoleIds.length > 0) {
+        await db
+          .delete(roles)
+          .where(inArray(roles.id, createdRoleIds))
+          .catch(() => undefined);
+      }
+
+      if (createdComponentIds.length > 0) {
+        await db
+          .delete(activityEvents)
+          .where(inArray(activityEvents.entityId, createdComponentIds))
+          .catch(() => undefined);
+      }
+
       await db
-        .delete(documents)
-        .where(inArray(documents.id, createdDocumentIds));
-    }
-    // Feedback BEFORE components. `ai_suggestion_feedback.component_id` is
-    // `ON DELETE SET NULL`: deleting the component first leaves the row with no
-    // subject at all, which makes it permanent residue rather than merely an
-    // orphan — nothing can match it afterwards.
-    if (createdComponentIds.length > 0) {
-      await db
-        .delete(aiSuggestionFeedback)
-        .where(inArray(aiSuggestionFeedback.componentId, createdComponentIds));
-    }
-    for (const id of createdComponentIds) {
-      await componentsService.delete(id).catch(() => undefined);
-    }
-    if (createdUserIds.length > 0) {
-      await db.delete(users).where(inArray(users.id, createdUserIds));
-    }
-    if (createdRoleIds.length > 0) {
-      await db.delete(roles).where(inArray(roles.id, createdRoleIds));
-    }
-    // Activity events carry no foreign key to their subject, so the component
-    // delete leaves them behind with a dangling `entity_id`. Removed by the fixture
-    // component id they were written against — not by orphanhood, which cannot
-    // distinguish residue from a legitimate event whose entity was later deleted.
-    if (createdComponentIds.length > 0) {
-      await db
-        .delete(activityEvents)
-        .where(inArray(activityEvents.entityId, createdComponentIds));
-    }
-    // Audit rows name their actor by EMAIL with `user_id` NULL, so the fixture
-    // addresses are the only deterministic handle.
-    await db
-      .delete(securityAuditLogs)
-      .where(
-        inArray(securityAuditLogs.userEmail, [
-          `di-reader-${runId}@example.test`,
-          `di-writer-${runId}@example.test`,
-        ]),
-      );
-    // `ROLE_CREATED` carries NO actor at all — `user_id` and `user_email` are both
-    // NULL and the role id lives in the details blob, so it is invisible to every
-    // predicate above.
-    if (createdRoleIds.length > 0) {
-      await db.delete(securityAuditLogs).where(
-        sql`${securityAuditLogs.details}->>'roleId' IN (${sql.join(
-          createdRoleIds.map((id) => sql`${id}`),
-          sql`, `,
-        )})`,
-      );
-    }
-    // A third shape: the analysis path records its own `DOCUMENT_ANALYZED` rows
-    // under whatever actor it is handed, and this suite drives it directly with a
-    // synthetic one (`{ email: 'e2e@local' }`) rather than a fixture account. The
-    // component id inside the details blob is the deterministic handle — no
-    // fixture email can match these rows.
-    if (createdComponentIds.length > 0) {
-      await db.delete(securityAuditLogs).where(
-        sql`${securityAuditLogs.details}->>'componentId' IN (${sql.join(
-          createdComponentIds.map((id) => sql`${id}`),
-          sql`, `,
-        )})`,
-      );
-    }
-    if (app) {
-      await app.close();
-    }
-    await closeDatabaseConnection();
-    if (storageRoot) {
-      fs.rmSync(storageRoot, { recursive: true, force: true });
+        .delete(securityAuditLogs)
+        .where(
+          inArray(securityAuditLogs.userEmail, [
+            `di-reader-${runId}@example.test`,
+            `di-writer-${runId}@example.test`,
+          ]),
+        )
+        .catch(() => undefined);
+
+      if (createdRoleIds.length > 0) {
+        await db
+          .delete(securityAuditLogs)
+          .where(
+            sql`${securityAuditLogs.details}->>'roleId' IN (${sql.join(
+              createdRoleIds.map((id) => sql`${id}`),
+              sql`, `,
+            )})`,
+          )
+          .catch(() => undefined);
+      }
+
+      if (createdComponentIds.length > 0) {
+        await db
+          .delete(securityAuditLogs)
+          .where(
+            sql`${securityAuditLogs.details}->>'componentId' IN (${sql.join(
+              createdComponentIds.map((id) => sql`${id}`),
+              sql`, `,
+            )})`,
+          )
+          .catch(() => undefined);
+      }
+    } finally {
+      if (app) {
+        await app.close().catch(() => undefined);
+      }
+      await closeDatabaseConnection().catch(() => undefined);
+      if (storageRoot && fs.existsSync(storageRoot)) {
+        fs.rmSync(storageRoot, { recursive: true, force: true });
+      }
     }
   });
 
