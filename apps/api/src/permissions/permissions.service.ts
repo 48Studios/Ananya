@@ -175,6 +175,45 @@ export const ALL_PERMISSIONS: PermissionDefinition[] = [
     description:
       'Update organization profile, system preferences, numbering series, and feature flags',
   },
+  {
+    code: 'Administration.Backups.Read',
+    name: 'View Backups',
+    category: 'Administration',
+    description:
+      'View backup jobs, runs, artifacts, metrics, and restore history',
+  },
+  {
+    code: 'Administration.Backups.Create',
+    name: 'Manage Backup Jobs',
+    category: 'Administration',
+    description: 'Create, update, enable, and pause scheduled backup jobs',
+  },
+  {
+    code: 'Administration.Backups.Run',
+    name: 'Execute Backups',
+    category: 'Administration',
+    description: 'Trigger manual backups and immediate scheduled job runs',
+  },
+  {
+    code: 'Administration.Backups.Delete',
+    name: 'Delete Backups & Jobs',
+    category: 'Administration',
+    description: 'Delete backup artifacts and scheduled backup jobs',
+  },
+  {
+    code: 'Administration.Backups.Restore.Preview',
+    name: 'Preview Restore',
+    category: 'Administration',
+    description:
+      'Upload archives, validate integrity, and generate restore plans',
+  },
+  {
+    code: 'Administration.Backups.Restore.Execute',
+    name: 'Execute Destructive Restore',
+    category: 'Administration',
+    description:
+      'Execute destructive database and filesystem restore operations',
+  },
 
   // Sales & CRM
   {
@@ -349,6 +388,13 @@ export class PermissionsService {
 
     const [domain] = requiredPermission.split('.');
     if (domain && userPermissions.includes(`${domain}.*`)) return true;
+
+    if (
+      requiredPermission.startsWith('Administration.Backups.') &&
+      userPermissions.includes('Administration.Settings')
+    ) {
+      return true;
+    }
 
     return false;
   }

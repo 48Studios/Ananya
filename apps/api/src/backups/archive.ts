@@ -99,7 +99,7 @@ export function packArchive(
  */
 export async function streamPackArchiveToFile(
   manifest: BackupManifest,
-  records: AsyncIterable<BackupStreamRecord>,
+  records: AsyncIterable<BackupStreamRecord> | Iterable<BackupStreamRecord>,
   outputPath: string,
   passphrase?: string,
 ): Promise<StreamedArchiveResult> {
@@ -294,7 +294,7 @@ export function safeGunzip(
 
 export async function streamPackArchiveToBuffer(
   manifest: BackupManifest,
-  records: AsyncIterable<BackupStreamRecord>,
+  records: AsyncIterable<BackupStreamRecord> | Iterable<BackupStreamRecord>,
   passphrase?: string,
 ): Promise<Buffer> {
   const tmp = join(tmpdir(), `ananya-stream-${randomUUID()}.archive`);

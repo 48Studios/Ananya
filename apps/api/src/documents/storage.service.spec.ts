@@ -189,11 +189,67 @@ describe('document storage', () => {
           return Promise.resolve();
         },
         exists: (key) => Promise.resolve(memory.has(key)),
+        getMetadata: (key) =>
+          Promise.resolve({
+            sizeBytes: memory.get(key)?.length ?? 0,
+            lastModified: new Date(),
+          }),
+        copyFile: (src, dst) => {
+          const content = memory.get(src) ?? Buffer.from('');
+          memory.set(dst, content);
+          return Promise.resolve({
+            storageKey: dst,
+            sizeBytes: content.length,
+          });
+        },
+        createReadStream: () => {
+          throw new Error('Not implemented');
+        },
       });
 
       const stored = await service.storeFile('b.txt', Buffer.from('data'));
       expect(stored.sizeBytes).toBe(4);
       expect(await service.exists('b.txt')).toBe(true);
+      const meta = await service.getMetadata('b.txt');
+      expect(meta.sizeBytes).toBe(4);
+      const copy = await service.copyFile('b.txt', 'b-copy.txt');
+      expect(copy.storageKey).toBe('b-copy.txt');
+      expect(await service.exists('b-copy.txt')).toBe(true);
+    });
+
+    it('supports metadata, copy, read stream and write stream on LocalStorageProvider', async () => {
+      const provider = new LocalStorageProvider(uploadDir);
+      const service = new StorageService(provider);
+
+      // Write stream
+      const { stream, done } = service.createWriteStream('stream-out.txt');
+      stream.write(Buffer.from('streamed-data-'));
+      stream.end(Buffer.from('finish'));
+      const stored = await done;
+      expect(stored.storageKey).toBe('stream-out.txt');
+      expect(stored.sizeBytes).toBe(20);
+
+      // Metadata
+      const meta = await service.getMetadata('stream-out.txt');
+      expect(meta.sizeBytes).toBe(20);
+      expect(Number.isNaN(meta.lastModified.getTime())).toBe(false);
+
+      // Copy
+      const copied = await service.copyFile(
+        'stream-out.txt',
+        'stream-copy.txt',
+      );
+      expect(copied.storageKey).toBe('stream-copy.txt');
+      expect(copied.sizeBytes).toBe(20);
+      expect(await service.exists('stream-copy.txt')).toBe(true);
+
+      // Read stream
+      const readStream = service.createReadStream('stream-copy.txt');
+      const chunks: Buffer[] = [];
+      for await (const chunk of readStream) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      expect(Buffer.concat(chunks).toString()).toBe('streamed-data-finish');
     });
   });
 });

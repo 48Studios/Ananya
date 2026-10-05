@@ -6,6 +6,7 @@ import { MailModule } from '../mail/mail.module';
 import { BackupsController } from './backups.controller';
 import { BackupsService } from './backups.service';
 import { BackupsScheduler } from './backups.scheduler';
+import { BackupsMetricsService } from './backups-metrics.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { BackupsScheduler } from './backups.scheduler';
     MailModule,
   ],
   controllers: [BackupsController],
-  providers: [BackupsService, BackupsScheduler],
-  exports: [BackupsService],
+  providers: [BackupsService, BackupsScheduler, BackupsMetricsService],
+  exports: [BackupsService, BackupsMetricsService],
 })
 export class BackupsModule {}

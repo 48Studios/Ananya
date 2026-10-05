@@ -18,6 +18,11 @@ export interface StoredObject {
   sizeBytes: number;
 }
 
+export interface StorageObjectMetadata {
+  sizeBytes: number;
+  lastModified: Date;
+}
+
 export interface IStorageProvider {
   /** Driver name as configured through `STORAGE_DRIVER`. */
   readonly driver: string;
@@ -25,6 +30,13 @@ export interface IStorageProvider {
   readFile(storageKey: string): Promise<Buffer>;
   deleteFile(storageKey: string): Promise<void>;
   exists(storageKey: string): Promise<boolean>;
+  getMetadata(storageKey: string): Promise<StorageObjectMetadata>;
+  copyFile(sourceKey: string, destinationKey: string): Promise<StoredObject>;
+  createReadStream(storageKey: string): NodeJS.ReadableStream;
+  createWriteStream?(storageKey: string): {
+    stream: NodeJS.WritableStream;
+    done: Promise<StoredObject>;
+  };
   storeFileFromPath?(
     storageKey: string,
     sourcePath: string,
@@ -177,6 +189,75 @@ export class LocalStorageProvider implements IStorageProvider {
     return Promise.resolve(fs.existsSync(this.resolvePath(storageKey)));
   }
 
+  async getMetadata(storageKey: string): Promise<StorageObjectMetadata> {
+    const target = this.resolvePath(storageKey);
+    if (!fs.existsSync(target)) {
+      throw new StorageObjectNotFoundError(storageKey);
+    }
+    const stat = await fs.promises.stat(target);
+    return {
+      sizeBytes: stat.size,
+      lastModified: stat.mtime,
+    };
+  }
+
+  async copyFile(
+    sourceKey: string,
+    destinationKey: string,
+  ): Promise<StoredObject> {
+    const source = this.resolvePath(sourceKey);
+    if (!fs.existsSync(source)) {
+      throw new StorageObjectNotFoundError(sourceKey);
+    }
+    const destination = this.resolvePath(destinationKey);
+    const temporaryTarget = `${destination}.tmp-${process.pid}-${Date.now()}`;
+    await fs.promises.copyFile(source, temporaryTarget);
+    await fs.promises.rename(temporaryTarget, destination);
+    const stat = await fs.promises.stat(destination);
+    return {
+      storageKey: path.basename(destination),
+      sizeBytes: stat.size,
+    };
+  }
+
+  createReadStream(storageKey: string): NodeJS.ReadableStream {
+    const target = this.resolvePath(storageKey);
+    if (!fs.existsSync(target)) {
+      throw new StorageObjectNotFoundError(storageKey);
+    }
+    return fs.createReadStream(target);
+  }
+
+  createWriteStream(storageKey: string): {
+    stream: NodeJS.WritableStream;
+    done: Promise<StoredObject>;
+  } {
+    const target = this.resolvePath(storageKey);
+    const temporaryTarget = `${target}.tmp-${process.pid}-${Date.now()}`;
+    const stream = fs.createWriteStream(temporaryTarget);
+    const done = new Promise<StoredObject>((resolve, reject) => {
+      stream.on('finish', () => {
+        void (async () => {
+          try {
+            await fs.promises.rename(temporaryTarget, target);
+            const stat = await fs.promises.stat(target);
+            resolve({
+              storageKey: path.basename(target),
+              sizeBytes: stat.size,
+            });
+          } catch (err) {
+            reject(err instanceof Error ? err : new Error(String(err)));
+          }
+        })();
+      });
+      stream.on('error', (err) => {
+        void fs.promises.unlink(temporaryTarget).catch(() => {});
+        reject(err instanceof Error ? err : new Error(String(err)));
+      });
+    });
+    return { stream, done };
+  }
+
   /**
    * Maps a storage key to an absolute path, refusing anything that escapes the
    * upload directory.
@@ -243,6 +324,30 @@ export class StorageService implements IStorageProvider {
 
   exists(storageKey: string): Promise<boolean> {
     return this.provider.exists(storageKey);
+  }
+
+  getMetadata(storageKey: string): Promise<StorageObjectMetadata> {
+    return this.provider.getMetadata(storageKey);
+  }
+
+  copyFile(sourceKey: string, destinationKey: string): Promise<StoredObject> {
+    return this.provider.copyFile(sourceKey, destinationKey);
+  }
+
+  createReadStream(storageKey: string): NodeJS.ReadableStream {
+    return this.provider.createReadStream(storageKey);
+  }
+
+  createWriteStream(storageKey: string): {
+    stream: NodeJS.WritableStream;
+    done: Promise<StoredObject>;
+  } {
+    if (this.provider.createWriteStream) {
+      return this.provider.createWriteStream(storageKey);
+    }
+    throw new Error(
+      `Storage driver "${this.provider.driver}" does not support createWriteStream.`,
+    );
   }
 
   storeFileFromPath(

@@ -31,9 +31,9 @@ const archive = {
 describe('backup archive v1 tests', () => {
   it('round-trips encrypted archives and produces a valid checksum', () => {
     const content = packArchive(archive, 'passphrase');
-    expect(
-      unpackArchive(content, 'passphrase').tables.components,
-    ).toHaveLength(2);
+    expect(unpackArchive(content, 'passphrase').tables.components).toHaveLength(
+      2,
+    );
     expect(archiveChecksum(content)).toHaveLength(64);
   });
 

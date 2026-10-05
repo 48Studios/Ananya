@@ -4,21 +4,31 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
+import { BackupsMetricsService } from './backups-metrics.service';
 import { db, pool } from '@ananya/database';
 import {
   backupArtifacts,
   backupJobRuns,
   backupJobs,
+  emailTemplates,
   restoreOperations,
+  users,
 } from '@ananya/database/schema';
 import { and, or, desc, eq, lt, sql } from '@ananya/database/query';
 import { StorageService } from '../documents/storage.service';
 import { SecurityAuditService } from '../security-audit/security-audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
-import { users } from '@ananya/database/schema';
+import {
+  BACKUP_EVENT_TYPES,
+  RESTORE_EVENT_TYPES,
+  getEventDefinition,
+  urlVariableNames,
+} from '../email-templates/template-registry';
+import { renderEmailContent } from '../email-templates/template-renderer';
 import {
   CreateBackupDto,
   CreateBackupJobDto,
@@ -58,6 +68,7 @@ export class BackupsService {
     private readonly audit: SecurityAuditService,
     private readonly notifications: NotificationsService,
     private readonly mail: MailService,
+    @Optional() private readonly metrics?: BackupsMetricsService,
   ) {}
 
   async listArtifacts() {
@@ -182,6 +193,8 @@ export class BackupsService {
       })
       .returning();
     if (!artifact) throw new Error('Unable to create backup record.');
+    const startTime = Date.now();
+    this.metrics?.recordBackupStarted(dto.name, artifact.id);
     const temporaryPath = join(
       tmpdir(),
       `ananya-backup-${artifact.id}-${randomUUID()}.archive`,
@@ -202,6 +215,12 @@ export class BackupsService {
         })
         .where(eq(backupArtifacts.id, artifact.id))
         .returning();
+      const durationMs = Date.now() - startTime;
+      this.metrics?.recordBackupSucceeded({
+        artifactId: artifact.id,
+        durationMs,
+        sizeBytes: streamed.sizeBytes,
+      });
       await this.audit.record({
         userId,
         action: source === 'manual' ? 'BACKUP_CREATED' : 'BACKUP_SCHEDULED',
@@ -212,16 +231,37 @@ export class BackupsService {
           checksum: completed?.checksum,
         },
       });
+      if (source === 'manual') {
+        await this.dispatchBackupNotification(BACKUP_EVENT_TYPES.SUCCEEDED, {
+          artifact: completed,
+          actor: userId,
+          userId,
+        });
+      }
       return completed;
     } catch (error) {
+      const durationMs = Date.now() - startTime;
+      const errorMsg =
+        error instanceof Error ? error.message : 'Backup failed.';
+      this.metrics?.recordBackupFailed({
+        durationMs,
+        error: errorMsg,
+      });
       await db
         .update(backupArtifacts)
         .set({
           status: 'FAILED',
-          errorMessage:
-            error instanceof Error ? error.message : 'Backup failed.',
+          errorMessage: errorMsg,
         })
         .where(eq(backupArtifacts.id, artifact.id));
+      if (source === 'manual') {
+        await this.dispatchBackupNotification(BACKUP_EVENT_TYPES.FAILED, {
+          artifact,
+          error: errorMsg,
+          actor: userId,
+          userId,
+        });
+      }
       throw error;
     } finally {
       await fs.rm(temporaryPath, { force: true });
@@ -391,6 +431,12 @@ export class BackupsService {
       attempt += 1
     ) {
       const startedAt = new Date();
+      this.metrics?.recordBackupStarted(job.id, run.id);
+      await this.dispatchBackupNotification(BACKUP_EVENT_TYPES.STARTED, {
+        job,
+        run,
+        actor: 'Scheduler',
+      });
       await db
         .update(backupJobRuns)
         .set({
@@ -456,13 +502,36 @@ export class BackupsService {
             ),
           })
           .where(eq(backupJobs.id, id));
+        const durationMs = Date.now() - startedAt.getTime();
+        this.metrics?.recordBackupSucceeded({
+          jobId: id,
+          runId: run.id,
+          artifactId: artifact?.id,
+          durationMs,
+          sizeBytes: artifact?.sizeBytes ?? 0,
+        });
         await this.applyRetention(job);
-        await this.notifyJobOutcome(job, run, artifact, 'SUCCESS');
+        await this.dispatchBackupNotification(BACKUP_EVENT_TYPES.SUCCEEDED, {
+          job,
+          run,
+          artifact,
+          actor: 'Scheduler',
+        });
         return artifact;
       } catch (error) {
         lastError = error;
         const retryable = isRetryable(error);
+        const durationMs = Date.now() - startedAt.getTime();
+        const errorMsg =
+          error instanceof Error ? error.message : 'Scheduled backup failed.';
+
         if (!retryable || attempt > job.retryLimit) {
+          this.metrics?.recordBackupFailed({
+            jobId: id,
+            runId: run.id,
+            durationMs,
+            error: errorMsg,
+          });
           await db
             .update(backupJobRuns)
             .set({
@@ -471,10 +540,7 @@ export class BackupsService {
               retryReason: retryable
                 ? 'retry limit exhausted'
                 : 'permanent failure',
-              errorMessage:
-                error instanceof Error
-                  ? error.message
-                  : 'Scheduled backup failed.',
+              errorMessage: errorMsg,
             })
             .where(eq(backupJobRuns.id, run.id));
           await db
@@ -491,15 +557,28 @@ export class BackupsService {
               ),
             })
             .where(eq(backupJobs.id, id));
-          await this.notifyJobOutcome(
-            job,
-            run,
-            undefined,
-            retryable ? 'EXHAUSTED_RETRIES' : 'FAILED',
+          await this.dispatchBackupNotification(
+            retryable
+              ? BACKUP_EVENT_TYPES.EXHAUSTED_RETRIES
+              : BACKUP_EVENT_TYPES.FAILED,
+            {
+              job,
+              run,
+              attempt,
+              maxAttempts: job.retryLimit + 1,
+              error: errorMsg,
+              actor: 'Scheduler',
+            },
           );
           throw error;
         }
 
+        this.metrics?.recordBackupRetry({
+          jobId: id,
+          runId: run.id,
+          attempt,
+          reason: errorMsg,
+        });
         const delayMs = Math.min(
           job.retryMaxDelaySeconds * 1000,
           job.retryInitialDelaySeconds * 1000 * 2 ** (attempt - 1),
@@ -509,10 +588,17 @@ export class BackupsService {
           .set({
             status: 'RETRY_SCHEDULED',
             nextRetryAt: new Date(Date.now() + delayMs),
-            retryReason:
-              error instanceof Error ? error.message : 'transient failure',
+            retryReason: errorMsg,
           })
           .where(eq(backupJobRuns.id, run.id));
+        await this.dispatchBackupNotification(BACKUP_EVENT_TYPES.RETRYING, {
+          job,
+          run,
+          attempt,
+          maxAttempts: job.retryLimit + 1,
+          error: errorMsg,
+          actor: 'Scheduler',
+        });
         return undefined;
       } finally {
         clearInterval(heartbeatTimer);
@@ -523,56 +609,247 @@ export class BackupsService {
       : new Error('Scheduled backup failed.');
   }
 
-  private async notifyJobOutcome(
-    job: typeof backupJobs.$inferSelect,
-    run: typeof backupJobRuns.$inferSelect,
-    artifact: { id: string; name: string; sizeBytes: number } | undefined,
-    status: string,
+  async dispatchBackupNotification(
+    eventType: string,
+    params: {
+      job?: typeof backupJobs.$inferSelect;
+      run?: typeof backupJobRuns.$inferSelect;
+      artifact?: {
+        id: string;
+        name?: string;
+        sizeBytes?: number;
+        checksum?: string | null;
+      };
+      attempt?: number;
+      maxAttempts?: number;
+      error?: string;
+      reason?: string;
+      actor?: string;
+      userId?: string;
+    },
   ) {
     try {
-      if (
-        (status === 'SUCCESS' && !job.notifyOnSuccess) ||
-        (status !== 'SUCCESS' && !job.notifyOnFailure)
-      ) {
-        return;
+      const job = params.job;
+      if (job) {
+        if (eventType === BACKUP_EVENT_TYPES.SUCCEEDED && !job.notifyOnSuccess)
+          return;
+        if (eventType === BACKUP_EVENT_TYPES.FAILED && !job.notifyOnFailure)
+          return;
+        if (
+          eventType === BACKUP_EVENT_TYPES.EXHAUSTED_RETRIES &&
+          !job.notifyOnFailure
+        )
+          return;
       }
-      const title = `Backup job ${job.name}: ${status}`;
-      const message = `Run ${run.id} finished with status ${status}.`;
+
+      const targetUserId = params.userId ?? job?.createdById ?? undefined;
+      const startedAtStr = params.run?.startedAt
+        ? params.run.startedAt.toISOString()
+        : new Date().toISOString();
+      const completedAtStr = new Date().toISOString();
+      const durationStr = params.run?.startedAt
+        ? `${Math.max(1, Math.round((Date.now() - new Date(params.run.startedAt).getTime()) / 1000))}s`
+        : '0s';
+
+      const context: Record<string, string> = {
+        company_name: '48 Studios',
+        job_name: job?.name ?? 'Manual Backup',
+        job_id: job?.id ?? '',
+        run_id: params.run?.id ?? '',
+        status: params.run?.status ?? 'UNKNOWN',
+        started_at: startedAtStr,
+        completed_at: completedAtStr,
+        duration: durationStr,
+        attempt: String(params.attempt ?? params.run?.attempt ?? 1),
+        max_attempts: String(
+          params.maxAttempts ??
+            params.run?.maxAttempts ??
+            (job ? job.retryLimit + 1 : 1),
+        ),
+        error: params.error ?? params.reason ?? '',
+        artifact_id: params.artifact?.id ?? '',
+        artifact_size: params.artifact?.sizeBytes
+          ? `${(params.artifact.sizeBytes / (1024 * 1024)).toFixed(2)} MB`
+          : '0 MB',
+        checksum: params.artifact?.checksum ?? '',
+        actor: params.actor ?? 'System',
+        view_url: '/settings/backups',
+      };
+
       await this.notifications.createNotification({
-        userId: job.createdById ?? undefined,
+        userId: targetUserId,
         module: 'BACKUPS',
-        type: status === 'SUCCESS' ? 'SUCCESS' : 'ERROR',
-        title,
-        message,
+        type:
+          eventType.includes('failed') || eventType.includes('exhausted')
+            ? 'ERROR'
+            : eventType.includes('retrying')
+              ? 'WARNING'
+              : 'INFO',
+        title: `Backup: ${job?.name ?? 'Run'} - ${eventType.split('.').pop()}`,
+        message: params.error
+          ? `Backup failed: ${params.error}`
+          : `Backup status: ${eventType}`,
         entityType: 'BackupJobRun',
-        entityId: run.id,
+        entityId: params.run?.id ?? params.artifact?.id,
       });
-      if (job.createdById) {
+
+      let recipientEmail: string | undefined;
+      if (targetUserId) {
         const [user] = await db
           .select({ id: users.id, email: users.email })
           .from(users)
-          .where(eq(users.id, job.createdById));
-        if (user?.email) {
+          .where(eq(users.id, targetUserId));
+        recipientEmail = user?.email;
+      }
+
+      if (recipientEmail) {
+        const [dbTemplate] = await db
+          .select()
+          .from(emailTemplates)
+          .where(eq(emailTemplates.eventType, eventType));
+
+        if (dbTemplate && !dbTemplate.isEnabled) {
+          return;
+        }
+
+        const templateDef = getEventDefinition(eventType);
+        const subject = dbTemplate?.subject ?? templateDef?.defaultSubject;
+        const bodyHtml = dbTemplate?.bodyHtml ?? templateDef?.defaultBodyHtml;
+        const bodyText = dbTemplate?.bodyText ?? templateDef?.defaultBodyText;
+
+        if (subject && bodyHtml && bodyText) {
+          const rendered = renderEmailContent(
+            { subject, bodyHtml, bodyText },
+            context,
+            urlVariableNames(eventType),
+          );
+
           await this.mail.enqueue({
-            eventType: `BACKUP_${status}`,
-            to: user.email,
-            userId: user.id,
-            subject: title,
-            text: `${message}${
-              artifact
-                ? ` Artifact ${artifact.name} (${artifact.sizeBytes} bytes).`
-                : ''
-            }`,
-            html: `<p>${message}</p>`,
+            eventType,
+            to: recipientEmail,
+            userId: targetUserId,
+            subject: rendered.subject,
+            html: rendered.html,
+            text: rendered.text,
             sourceType: 'BackupJobRun',
-            sourceId: run.id,
+            sourceId: params.run?.id ?? params.artifact?.id,
           });
         }
       }
-    } catch (error) {
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
       this.logger.warn(
-        `Backup notification failed for run ${run.id}: ${String(error)}`,
+        `Backup notification failed for event ${eventType}: ${errorMsg}`,
       );
+      this.metrics?.recordNotificationFailure(eventType, errorMsg);
+    }
+  }
+
+  async dispatchRestoreNotification(
+    eventType: string,
+    params: {
+      operation: typeof restoreOperations.$inferSelect;
+      artifactId?: string;
+      artifactSize?: string;
+      durationMs?: number;
+      error?: string;
+      actor?: string;
+      userId?: string;
+    },
+  ) {
+    try {
+      const operation = params.operation;
+      const targetUserId =
+        params.userId ?? operation.initiatedById ?? undefined;
+      const startedAtStr = operation.startedAt
+        ? operation.startedAt.toISOString()
+        : new Date().toISOString();
+      const completedAtStr = operation.completedAt
+        ? operation.completedAt.toISOString()
+        : new Date().toISOString();
+      const durationStr = params.durationMs
+        ? `${Math.round(params.durationMs / 1000)}s`
+        : '0s';
+
+      const context: Record<string, string> = {
+        company_name: '48 Studios',
+        operation_id: operation.id,
+        status: operation.status,
+        started_at: startedAtStr,
+        completed_at: completedAtStr,
+        duration: durationStr,
+        error: params.error ?? operation.errorMessage ?? '',
+        artifact_id: params.artifactId ?? operation.artifactId ?? '',
+        artifact_size: params.artifactSize ?? '',
+        restore_scope: JSON.stringify(operation.scope ?? {}),
+        conflict_policy: operation.conflictPolicy ?? 'ABORT',
+        actor: params.actor ?? 'System',
+        view_url: '/settings/backups',
+      };
+
+      await this.notifications.createNotification({
+        userId: targetUserId,
+        module: 'BACKUPS',
+        type: eventType.includes('failed')
+          ? 'ERROR'
+          : eventType.includes('aborted')
+            ? 'WARNING'
+            : 'INFO',
+        title: `Restore Operation: ${eventType.split('.').pop()}`,
+        message: params.error
+          ? `Restore failed: ${params.error}`
+          : `Restore ${operation.id} status: ${eventType}`,
+        entityType: 'RestoreOperation',
+        entityId: operation.id,
+      });
+
+      let recipientEmail: string | undefined;
+      if (targetUserId) {
+        const [user] = await db
+          .select({ id: users.id, email: users.email })
+          .from(users)
+          .where(eq(users.id, targetUserId));
+        recipientEmail = user?.email;
+      }
+
+      if (recipientEmail) {
+        const [dbTemplate] = await db
+          .select()
+          .from(emailTemplates)
+          .where(eq(emailTemplates.eventType, eventType));
+
+        if (dbTemplate && !dbTemplate.isEnabled) return;
+
+        const templateDef = getEventDefinition(eventType);
+        const subject = dbTemplate?.subject ?? templateDef?.defaultSubject;
+        const bodyHtml = dbTemplate?.bodyHtml ?? templateDef?.defaultBodyHtml;
+        const bodyText = dbTemplate?.bodyText ?? templateDef?.defaultBodyText;
+
+        if (subject && bodyHtml && bodyText) {
+          const rendered = renderEmailContent(
+            { subject, bodyHtml, bodyText },
+            context,
+            urlVariableNames(eventType),
+          );
+
+          await this.mail.enqueue({
+            eventType,
+            to: recipientEmail,
+            userId: targetUserId,
+            subject: rendered.subject,
+            html: rendered.html,
+            text: rendered.text,
+            sourceType: 'RestoreOperation',
+            sourceId: operation.id,
+          });
+        }
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(
+        `Restore notification failed for event ${eventType}: ${errorMsg}`,
+      );
+      this.metrics?.recordNotificationFailure(eventType, errorMsg);
     }
   }
 
@@ -716,20 +993,60 @@ export class BackupsService {
       })
       .where(eq(restoreOperations.id, operation.id));
 
+    const restoreStartTime = Date.now();
+    this.metrics?.recordRestoreStarted({
+      operationId: operation.id,
+      artifactId: operation.artifactId ?? undefined,
+    });
+    await this.dispatchRestoreNotification(RESTORE_EVENT_TYPES.STARTED, {
+      operation,
+      actor: userId,
+      userId,
+    });
+
     let safetyBackupId: string | undefined;
     let staging: { directory: string; files: string[] } | undefined;
     let databaseCommitted = false;
     try {
-      const safety = await this.createBackup(
-        {
-          name: `Pre-restore safety ${new Date().toISOString()}`,
-          type: 'FULL',
-          encrypted: false,
-        },
-        userId,
-        'pre-restore',
-      );
-      safetyBackupId = safety?.id;
+      let safety;
+      try {
+        safety = await this.createBackup(
+          {
+            name: `Pre-restore safety ${new Date().toISOString()}`,
+            type: 'FULL',
+            encrypted: false,
+          },
+          userId,
+          'pre-restore',
+        );
+        safetyBackupId = safety?.id;
+        await this.dispatchRestoreNotification(
+          RESTORE_EVENT_TYPES.SAFETY_BACKUP_SUCCEEDED,
+          {
+            operation,
+            artifactId: safetyBackupId,
+            artifactSize: safety?.sizeBytes
+              ? `${(safety.sizeBytes / (1024 * 1024)).toFixed(2)} MB`
+              : undefined,
+            actor: userId,
+            userId,
+          },
+        );
+      } catch (safetyErr) {
+        await this.dispatchRestoreNotification(
+          RESTORE_EVENT_TYPES.SAFETY_BACKUP_FAILED,
+          {
+            operation,
+            error:
+              safetyErr instanceof Error
+                ? safetyErr.message
+                : 'Safety backup failed',
+            actor: userId,
+            userId,
+          },
+        );
+        throw safetyErr;
+      }
       await db
         .update(restoreOperations)
         .set({ artifactId: safetyBackupId })
@@ -775,6 +1092,18 @@ export class BackupsService {
         })
         .where(eq(restoreOperations.id, operation.id));
 
+      const durationMs = Date.now() - restoreStartTime;
+      this.metrics?.recordRestoreSucceeded({
+        operationId: operation.id,
+        durationMs,
+      });
+      await this.dispatchRestoreNotification(RESTORE_EVENT_TYPES.SUCCEEDED, {
+        operation,
+        durationMs,
+        actor: userId,
+        userId,
+      });
+
       await this.audit.record({
         userId,
         action: 'BACKUP_RESTORED',
@@ -793,12 +1122,27 @@ export class BackupsService {
         safetyBackupId,
       };
     } catch (error) {
+      const durationMs = Date.now() - restoreStartTime;
+      const errorMsg =
+        error instanceof Error ? error.message : 'Restore failed.';
+      this.metrics?.recordRestoreFailed({
+        operationId: operation.id,
+        durationMs,
+        error: errorMsg,
+      });
+      await this.dispatchRestoreNotification(RESTORE_EVENT_TYPES.FAILED, {
+        operation,
+        durationMs,
+        error: errorMsg,
+        actor: userId,
+        userId,
+      });
+
       await db
         .update(restoreOperations)
         .set({
           status: databaseCommitted ? 'PARTIALLY_FAILED' : 'FAILED',
-          errorMessage:
-            error instanceof Error ? error.message : 'Restore failed.',
+          errorMessage: errorMsg,
           recoveryInfo: {
             safetyBackupId,
             stagingDirectory: staging?.directory,
@@ -851,7 +1195,13 @@ export class BackupsService {
         'select pg_try_advisory_lock(hashtext($1)) as locked',
         [`ananya_backup_job_${job.id}`],
       );
-      if (!lock.rows[0]?.locked) continue;
+      if (!lock.rows[0]?.locked) {
+        await this.dispatchBackupNotification(BACKUP_EVENT_TYPES.SKIPPED, {
+          job,
+          reason: 'Job execution locked by active run.',
+        });
+        continue;
+      }
       try {
         await this.runJob(job.id, systemUserId);
       } catch (error) {
@@ -920,6 +1270,9 @@ export class BackupsService {
         ),
       )
       .returning();
+    for (const run of recovered) {
+      this.metrics?.recordAbandonedRunRecovery(run.id);
+    }
     return recovered;
   }
 
@@ -1128,10 +1481,14 @@ export class BackupsService {
         const key = basename(file.storageKey.replace(/\\/g, '/'));
         const exists = await this.storage.exists(key);
         if (exists) {
-          // Backup existing file before overwriting
-          const originalContent = await this.storage.readFile(key);
+          // Backup existing file before overwriting using storage copy abstraction (with fallback)
           const backupKey = `${key}.backup-${Date.now()}-${randomUUID()}`;
-          await this.storage.storeFile(backupKey, originalContent);
+          if (typeof this.storage.copyFile === 'function') {
+            await this.storage.copyFile(key, backupKey);
+          } else {
+            const originalContent = await this.storage.readFile(key);
+            await this.storage.storeFile(backupKey, originalContent);
+          }
           await this.storage.storeFileFromPath(
             key,
             join(staging.directory, key),
@@ -1163,10 +1520,16 @@ export class BackupsService {
       for (const info of promotedInfo) {
         try {
           if (info.replaced && info.backupKey) {
-            // Restore original content and attempt to delete backup
+            // Restore original content using storage copy abstraction and attempt to delete backup
             try {
-              const backupContent = await this.storage.readFile(info.backupKey);
-              await this.storage.storeFile(info.key, backupContent);
+              if (typeof this.storage.copyFile === 'function') {
+                await this.storage.copyFile(info.backupKey, info.key);
+              } else {
+                const backupContent = await this.storage.readFile(
+                  info.backupKey,
+                );
+                await this.storage.storeFile(info.key, backupContent);
+              }
             } catch (restoreErr) {
               this.logger.warn(
                 `Failed to restore backup for ${info.key}: ${String(restoreErr)}`,
@@ -1241,6 +1604,7 @@ export class BackupsService {
           : []),
       ];
 
+      let deletedCount = 0;
       for (const artifact of new Map(
         stale.map((item) => [item.id, item]),
       ).values()) {
@@ -1254,10 +1618,14 @@ export class BackupsService {
             await tx
               .delete(backupArtifacts)
               .where(eq(backupArtifacts.id, artifact.id));
+            deletedCount += 1;
           } catch {
             // ignore cleanup failure
           }
         }
+      }
+      if (deletedCount > 0) {
+        this.metrics?.recordRetentionDeletions(deletedCount);
       }
     });
   }

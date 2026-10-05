@@ -18,6 +18,7 @@ import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../auth/permission.guard';
 import { createPermissionGuard } from '../auth/permission.guard';
 import { BackupsService } from './backups.service';
+import { BackupsMetricsService } from './backups-metrics.service';
 import {
   CreateBackupDto,
   CreateBackupJobDto,
@@ -25,27 +26,63 @@ import {
   RestoreDto,
 } from './dtos';
 
-const BackupGuard = createPermissionGuard(
-  'Administration.Settings',
-  'manage backups',
+const ReadBackupsGuard = createPermissionGuard(
+  'Administration.Backups.Read',
+  'view backup records and configurations',
+);
+
+const CreateBackupsGuard = createPermissionGuard(
+  'Administration.Backups.Create',
+  'create or modify backup jobs',
+);
+
+const RunBackupsGuard = createPermissionGuard(
+  'Administration.Backups.Run',
+  'run backup operations',
+);
+
+const DeleteBackupsGuard = createPermissionGuard(
+  'Administration.Backups.Delete',
+  'delete backups or scheduled jobs',
+);
+
+const PreviewRestoreGuard = createPermissionGuard(
+  'Administration.Backups.Restore.Preview',
+  'preview restore operations',
+);
+
+const ExecuteRestoreGuard = createPermissionGuard(
+  'Administration.Backups.Restore.Execute',
+  'execute destructive restore operations',
 );
 
 @Controller('backups')
-@UseGuards(BackupGuard)
 export class BackupsController {
-  constructor(private readonly service: BackupsService) {}
+  constructor(
+    private readonly service: BackupsService,
+    private readonly metrics: BackupsMetricsService,
+  ) {}
+
+  @Get('metrics')
+  @UseGuards(ReadBackupsGuard)
+  getMetrics() {
+    return this.metrics.getSnapshot();
+  }
 
   @Get('artifacts')
+  @UseGuards(ReadBackupsGuard)
   listArtifacts() {
     return this.service.listArtifacts();
   }
 
   @Post('artifacts')
+  @UseGuards(RunBackupsGuard)
   create(@Body() dto: CreateBackupDto, @Req() req: AuthenticatedRequest) {
     return this.service.createBackup(dto, req.user!.id);
   }
 
   @Get('artifacts/:id/download')
+  @UseGuards(ReadBackupsGuard)
   async download(
     @Param('id') id: string,
     @Req() req: AuthenticatedRequest,
@@ -61,21 +98,25 @@ export class BackupsController {
   }
 
   @Delete('artifacts/:id')
+  @UseGuards(DeleteBackupsGuard)
   delete(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.delete(id, req.user!.id);
   }
 
   @Get('jobs')
+  @UseGuards(ReadBackupsGuard)
   listJobs() {
     return this.service.listJobs();
   }
 
   @Post('jobs')
+  @UseGuards(CreateBackupsGuard)
   createJob(@Body() dto: CreateBackupJobDto, @Req() req: AuthenticatedRequest) {
     return this.service.createJob(dto, req.user!.id);
   }
 
   @Put('jobs/:id')
+  @UseGuards(CreateBackupsGuard)
   updateJob(
     @Param('id') id: string,
     @Body() dto: Partial<CreateBackupJobDto>,
@@ -85,11 +126,13 @@ export class BackupsController {
   }
 
   @Delete('jobs/:id')
+  @UseGuards(DeleteBackupsGuard)
   deleteJob(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.deleteJob(id, req.user!.id);
   }
 
   @Post('jobs/:id/pause')
+  @UseGuards(CreateBackupsGuard)
   setJobEnabled(
     @Param('id') id: string,
     @Body('enabled') enabled: boolean,
@@ -99,31 +142,37 @@ export class BackupsController {
   }
 
   @Post('jobs/:id/run')
+  @UseGuards(RunBackupsGuard)
   runJob(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.runJob(id, req.user!.id);
   }
 
   @Get('jobs/:id/runs')
+  @UseGuards(ReadBackupsGuard)
   getJobRuns(@Param('id') id: string) {
     return this.service.getJobRuns(id);
   }
 
   @Get('jobs/:id/details')
+  @UseGuards(ReadBackupsGuard)
   getJobDetails(@Param('id') id: string) {
     return this.service.getJobDetails(id);
   }
 
   @Get('restores')
+  @UseGuards(ReadBackupsGuard)
   listRestores() {
     return this.service.listRestoreOperations();
   }
 
   @Get('restores/:id')
+  @UseGuards(ReadBackupsGuard)
   getRestore(@Param('id') id: string) {
     return this.service.getRestoreOperation(id);
   }
 
   @Post('restore/preview')
+  @UseGuards(PreviewRestoreGuard)
   @UseInterceptors(FileInterceptor('file'))
   preview(
     @UploadedFile() file: { buffer: Buffer } | undefined,
@@ -135,6 +184,7 @@ export class BackupsController {
   }
 
   @Post('restore/preview/:id')
+  @UseGuards(PreviewRestoreGuard)
   async previewArtifact(
     @Param('id') id: string,
     @Body() dto: PreviewRestoreDto,
@@ -145,6 +195,7 @@ export class BackupsController {
   }
 
   @Post('restore')
+  @UseGuards(ExecuteRestoreGuard)
   @UseInterceptors(FileInterceptor('file'))
   restore(
     @UploadedFile() file: { buffer: Buffer } | undefined,
@@ -156,6 +207,7 @@ export class BackupsController {
   }
 
   @Post('restore/artifact/:id')
+  @UseGuards(ExecuteRestoreGuard)
   async restoreArtifact(
     @Param('id') id: string,
     @Body() dto: RestoreDto,
