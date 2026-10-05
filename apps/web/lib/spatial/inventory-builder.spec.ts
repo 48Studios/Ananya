@@ -294,11 +294,15 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
       const navConfig = read("lib/navigation/navigation-config.tsx");
       expect(navConfig).toContain('id: "inv-inventory-builder"');
       expect(navConfig).toContain('title: "Inventory Builder"');
-      expect(navConfig).toContain('href: "/inventory/locations/spatial-builder"');
+      expect(navConfig).toContain(
+        'href: "/inventory/locations/spatial-builder"',
+      );
     });
 
     it("declares the builder entry route at apps/web/app/spatial/builder/page.tsx", () => {
-      const builderPage = read("app/inventory/locations/spatial-builder/page.tsx");
+      const builderPage = read(
+        "app/inventory/locations/spatial-builder/page.tsx",
+      );
       expect(builderPage).toContain("InventoryBuilderWorkspace");
       expect(builderPage).toContain("useSearchParams");
     });
@@ -348,9 +352,9 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
             expect(minX).toBeGreaterThanOrEqual(-halfW - eps);
             expect(maxX).toBeLessThanOrEqual(halfW + eps);
 
-            // Y must span inside [0, H]
-            expect(minY).toBeGreaterThanOrEqual(-eps);
-            expect(maxY).toBeLessThanOrEqual(H + eps);
+            // Y must span inside the centered frame [-H/2, H/2]
+            expect(minY).toBeGreaterThanOrEqual(-H / 2 - eps);
+            expect(maxY).toBeLessThanOrEqual(H / 2 + eps);
 
             // Z must span inside [-D/2, D/2]
             expect(minZ).toBeGreaterThanOrEqual(-halfD - eps);
@@ -359,7 +363,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         });
       }
 
-      it("correctly handles asymmetric dimensions and preserves Y-axis floor semantics", () => {
+      it("correctly handles asymmetric dimensions in the centered frame", () => {
         const asymmetricConfig: SmdDrawerCabinetConfig = {
           templateType: "SMD_DRAWER_CABINET",
           dimensions: { widthMm: 1200, heightMm: 800, depthMm: 350 },
@@ -397,8 +401,8 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
 
           expect(minX).toBeGreaterThanOrEqual(-halfW - eps);
           expect(maxX).toBeLessThanOrEqual(halfW + eps);
-          expect(minY).toBeGreaterThanOrEqual(-eps);
-          expect(maxY).toBeLessThanOrEqual(H + eps);
+          expect(minY).toBeGreaterThanOrEqual(-H / 2 - eps);
+          expect(maxY).toBeLessThanOrEqual(H / 2 + eps);
           expect(minZ).toBeGreaterThanOrEqual(-halfD - eps);
           expect(maxZ).toBeLessThanOrEqual(halfD + eps);
         }

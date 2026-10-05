@@ -225,6 +225,22 @@ function countHorizontalSlabs(
 }
 
 describe("Parent geometry ownership", () => {
+  it.each([
+    ["dry-cabinet", "structure-dry-cabinet-"],
+    ["reel-rack", "structure-reel-rack-"],
+    ["tube", "structure-tube-"],
+    ["reel-slot", "structure-reel-slot-"],
+  ] as const)("renders a distinct procedural %s body", (structure, namePrefix) => {
+    const parent = makeParent({ kind: structure });
+    const group = createParentCarcassMesh(
+      parent,
+      { x: 0.8, y: 1.2, z: 0.5 },
+      { structure },
+    );
+    expect(group.getObjectByName(`${namePrefix}${parent.location.code}`)).toBeTruthy();
+    expect(countMeshes(group)).toBeGreaterThan(0);
+  });
+
   it("Case 1 — a root warehouse without model or layout owns a cutaway shell", () => {
     const parent = makeParent({ kind: "warehouse" });
     const ownership = resolveParentGeometryOwnership(parent);

@@ -168,7 +168,7 @@ export function LocationMappingPanel({
           onValueChange={(id) => {
             if (id) onSelectParentId(id);
           }}
-          placeholder="Search and select warehouse, cabinet, or rack..."
+          placeholder="Search and select a compatible root location..."
           searchPlaceholder="Search storage locations..."
           emptyText="No locations found."
         />

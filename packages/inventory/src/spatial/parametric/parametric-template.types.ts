@@ -4,6 +4,14 @@ export type ParametricTemplateType =
   | "PALLET_RACK"
   | "GRID_PARTS_TRAY";
 
+/** Stable ordering used by Builder template pickers and persisted-config tooling. */
+export const PARAMETRIC_TEMPLATE_TYPES: readonly ParametricTemplateType[] = [
+  "SMD_DRAWER_CABINET",
+  "OPEN_BIN_MATRIX",
+  "PALLET_RACK",
+  "GRID_PARTS_TRAY",
+];
+
 export type CompartmentKind = "drawer" | "bin" | "shelf" | "slot";
 
 export interface Dimensions3D {

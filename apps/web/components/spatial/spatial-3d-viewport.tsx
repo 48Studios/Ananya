@@ -44,8 +44,11 @@ import {
   resolveParentSpatialRepresentation,
   resolveFloorStandingChildren,
   resolveParentGeometryOwnership,
+  resolveOperationalParentBodyOffset,
   resolveWarehouseFloorPlan,
   resolveWarehouseShellDimensions,
+  SPATIAL_GROUND_PLANE_Y_METERS,
+  shouldGroundRootAssembly,
   radToDeg,
   type SceneChildLayout,
   type SpatialVisualizationMode,
@@ -1066,6 +1069,15 @@ export function Spatial3DViewport({
         beamHeightMm: parentGeometry.beamHeightMm,
       },
     );
+    const parentBodyOffset = resolveOperationalParentBodyOffset(
+      carcassDimensions,
+      { isAuthoringLayout, rendersWarehouseShell },
+    );
+    fallbackCarcass.position.set(
+      parentBodyOffset.x,
+      parentBodyOffset.y,
+      parentBodyOffset.z,
+    );
     carcassContainer.add(fallbackCarcass);
     rootGroup.add(carcassContainer);
 
@@ -1255,6 +1267,14 @@ export function Spatial3DViewport({
       );
     }
 
+    // Standalone roots use the same local frame as their generated children, but
+    // centered model geometry must be lifted as one assembly to the world ground.
+    // Grounding the complete assembly preserves every root/slot relative transform;
+    // nested children are never independently forced onto world Y=0.
+    if (shouldGroundRootAssembly(isAuthoringLayout, rendersWarehouseShell)) {
+      groundObjectOnFloor(rootGroup, SPATIAL_GROUND_PLANE_Y_METERS, 0);
+    }
+
     // Compartment meshes are built and placed in this effect, so their world matrices
     // must be resolved immediately. Otherwise a pointer raycast that arrives before the
     // next render frame tests identity matrices and misses every freshly built mesh.
@@ -1349,6 +1369,7 @@ export function Spatial3DViewport({
     sceneBounds,
     composedChildren,
     rendersWarehouseShell,
+    isAuthoringLayout,
     startChildAssetInstance,
     selectedLocationId,
     highlightedLocationId,

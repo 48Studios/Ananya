@@ -13,9 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
-  checkSpatialMappingCompatibility,
   isTemplateRootCompatible,
-  type CompartmentKind,
   type Dimensions3D,
   type ParametricTemplateType,
 } from "@ananya/inventory";
@@ -37,7 +35,6 @@ export interface ContainerInspectorProps {
   locations: LocationDto[];
   selectedParentId: string | null;
   mappings: Map<string, SlotMappingRecord>;
-  slotKindsBySlotId?: ReadonlyMap<string, CompartmentKind>;
   onSelectParentId: (id: string) => void;
   /** Clears the container assignment (draft state only; mappings are kept for review). */
   onClearParent?: () => void;
@@ -59,7 +56,6 @@ export function ContainerInspector({
   locations,
   selectedParentId,
   mappings,
-  slotKindsBySlotId,
   onSelectParentId,
   onClearParent,
   className,
@@ -83,18 +79,9 @@ export function ContainerInspector({
     return locations.map((loc) => {
       const isCompatibleRoot = isTemplateRootCompatible(templateType, loc.kind);
       const isMappedToCompartment = compartmentLocationIds.has(loc.id);
-      const hasIncompatibleMapping = [...mappings.values()].some((record) => {
-        const slotKind = slotKindsBySlotId?.get(record.slotId);
-        return !checkSpatialMappingCompatibility({
-          rootKind: loc.kind,
-          candidateKind: record.locationKind,
-          slotKind,
-        }).compatible;
-      });
       const details = [loc.kind];
       if (!loc.isActive) details.push("inactive");
       if (isMappedToCompartment) details.push("mapped to a compartment");
-      if (hasIncompatibleMapping) details.push("incompatible with mapped slots");
       if (!isCompatibleRoot) details.push("incompatible root type");
 
       return {
@@ -103,14 +90,12 @@ export function ContainerInspector({
         sublabel: details.filter(Boolean).join(" • "),
         chip: loc.code,
         disabled:
-          !isCompatibleRoot || isMappedToCompartment || hasIncompatibleMapping,
+          !isCompatibleRoot || isMappedToCompartment,
       };
     });
   }, [
     locations,
     compartmentLocationIds,
-    mappings,
-    slotKindsBySlotId,
     templateType,
   ]);
 
@@ -119,19 +104,6 @@ export function ContainerInspector({
     const loc = locations.find((candidate) => candidate.id === locId);
     if (loc && compartmentLocationIds.has(loc.id)) return;
     if (loc && !isTemplateRootCompatible(templateType, loc.kind)) return;
-    if (
-      loc &&
-      [...mappings.values()].some((record) => {
-        const slotKind = slotKindsBySlotId?.get(record.slotId);
-        return !checkSpatialMappingCompatibility({
-          rootKind: loc.kind,
-          candidateKind: record.locationKind,
-          slotKind,
-        }).compatible;
-      })
-    ) {
-      return;
-    }
     onSelectParentId(locId);
   };
 
@@ -263,7 +235,7 @@ export function ContainerInspector({
             options={parentOptions}
             value={selectedParentId ?? ""}
             onValueChange={handleAssignParent}
-            placeholder="Search and select warehouse, cabinet, or rack..."
+            placeholder="Search and select a compatible root location..."
             searchPlaceholder="Search storage locations..."
             emptyText="No matching storage locations found."
           />

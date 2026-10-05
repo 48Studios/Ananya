@@ -9,6 +9,11 @@ import {
   type ParametricStorageConfig,
 } from "@ananya/inventory";
 import type { CellStockSummary } from "./spatial-inventory-mapper";
+import {
+  resolveSpatialModel,
+  resolveTemplateSpatialModel,
+  type SpatialModelStructure,
+} from "./spatial-model-library";
 
 /**
  * Standard unit scale: 1 world unit = 1000 millimeters (1 meter).
@@ -23,6 +28,25 @@ export function mmToMeters(mm: number): number {
 
 export function metersToMm(meters: number): number {
   return (meters || 0) / MM_TO_METERS;
+}
+
+/**
+ * Converts a parametric lower-left-back corner-frame point into the centered
+ * local frame used by procedural model geometry.
+ *
+ * Parametric coordinates describe slot centers from the container corner:
+ * [0, W] x [0, H] x [0, D]. Procedural model geometry is centered on its
+ * local origin, so all three axes use the same conversion.
+ */
+export function cornerOriginToCenteredPosition(
+  positionMm: { x: number; y: number; z: number },
+  dimensionsMm: { widthMm: number; heightMm: number; depthMm: number },
+): Vector3D {
+  return {
+    x: mmToMeters(positionMm.x - dimensionsMm.widthMm / 2),
+    y: mmToMeters(positionMm.y - dimensionsMm.heightMm / 2),
+    z: mmToMeters(positionMm.z - dimensionsMm.depthMm / 2),
+  };
 }
 
 export function degToRad(degrees: number): number {
@@ -127,19 +151,15 @@ export function resolveObjectDimensions(
     };
   }
 
-  // Fallbacks by kind (in mm)
-  switch (kind?.toLowerCase()) {
-    case "drawer":
-      return { x: mmToMeters(180), y: mmToMeters(70), z: mmToMeters(350) };
-    case "bin":
-      return { x: mmToMeters(80), y: mmToMeters(60), z: mmToMeters(120) };
-    case "shelf":
-      return { x: mmToMeters(950), y: mmToMeters(300), z: mmToMeters(350) };
-    case "cabinet":
-      return { x: mmToMeters(600), y: mmToMeters(900), z: mmToMeters(400) };
-    default:
-      return { x: mmToMeters(100), y: mmToMeters(100), z: mmToMeters(100) };
+  const definition = resolveSpatialModel(kind);
+  if (definition) {
+    return {
+      x: mmToMeters(definition.dimensionsMm.widthMm),
+      y: mmToMeters(definition.dimensionsMm.heightMm),
+      z: mmToMeters(definition.dimensionsMm.depthMm),
+    };
   }
+  return { x: mmToMeters(100), y: mmToMeters(100), z: mmToMeters(100) };
 }
 
 /**
@@ -203,7 +223,9 @@ export function isCornerAuthoredAnchorZ(
  * - Builder-published node coordinates are corner-authored slot centres in all
  *   axes (the storage engine emits `origin: "corner"`), and refine an anchor
  *   placement as an offset when both are present.
- * - Y coordinates remain grounded on the floor/bottom [0, height].
+ * - Manual/anchor-authored Y coordinates remain grounded on the floor/bottom
+ *   [0, height]. Builder-owned node coordinates use the parametric corner
+ *   frame and are centered on Y with the same conversion as X/Z.
  */
 export function resolveChildPosition(
   node: SpatialNodeDto | null | undefined,
@@ -221,9 +243,18 @@ export function resolveChildPosition(
 
   const rawX = (anchor?.localPositionX ?? 0) + (node?.positionX ?? 0);
   const rawY = (anchor?.localPositionY ?? 0) + (node?.positionY ?? 0);
+  const nodeMetadata =
+    node?.metadata && typeof node.metadata === "object"
+      ? (node.metadata as Record<string, unknown>)
+      : null;
+  const isBuilderOwnedNode = nodeMetadata?.source === "inventory_builder";
 
   let x = mmToMeters(rawX);
   const y = mmToMeters(rawY);
+  const centeredY =
+    isBuilderOwnedNode && !anchor && parentDimensions
+      ? y - parentDimensions.y / 2
+      : y;
 
   // Corner-based X and builder node Z shift into the centred parent frame.
   if (frameWidth > 0 && !isExplicitlyCentered && rawX >= 0 && x <= frameWidth) {
@@ -253,7 +284,7 @@ export function resolveChildPosition(
     }
   }
 
-  return { x, y, z };
+  return { x, y: centeredY, z };
 }
 
 /**
@@ -545,8 +576,8 @@ export type ParentGeometrySource = "model" | "layout" | "kind" | "overview";
  * roof) whose front stays fully open so the contents read as equipment standing
  * inside a space.
  */
-export type ParentStructureShape =
-  "rack" | "tray" | "drawer" | "enclosure" | "warehouse" | "none";
+export type ParentStructureShape = SpatialModelStructure;
+export type { SpatialModelDefinition } from "./spatial-model-library";
 
 /**
  * Kinds whose physical form is an explicit domain rule: they own a body even
@@ -560,21 +591,6 @@ export type ParentStructureShape =
  * contain mapped children, not enclosures, unless a model or a published layout
  * gives them geometry.
  */
-export const PHYSICAL_CONTAINER_KINDS: ReadonlySet<string> = new Set([
-  "cabinet",
-  "cupboard",
-  "locker",
-  "drawer",
-  "shelf",
-  "rack",
-  "bin",
-  "tray",
-  "reel_slot",
-  "tube",
-  "slot",
-  "compartment",
-]);
-
 /**
  * Space kinds that own no carcass: they are scenes that contain storage
  * equipment. The viewer draws their cutaway shell instead of a compartment
@@ -585,13 +601,6 @@ export const WAREHOUSE_SHELL_KINDS: ReadonlySet<string> = new Set([
   "facility",
   "building",
 ]);
-
-const TEMPLATE_STRUCTURES: Record<string, ParentStructureShape> = {
-  PALLET_RACK: "rack",
-  GRID_PARTS_TRAY: "tray",
-  SMD_DRAWER_CABINET: "enclosure",
-  OPEN_BIN_MATRIX: "enclosure",
-};
 
 /** Kind tokens whose physical form is an open-top tray. */
 const TRAY_SHAPED_TOKENS: ReadonlySet<string> = new Set([
@@ -622,7 +631,10 @@ const RACK_SHAPED_TOKENS: ReadonlySet<string> = new Set([
  * as a child of another scene resolve to the same shape.
  */
 export function resolveKindStructureShape(kind?: string): ParentStructureShape {
-  const normalized = (kind ?? "").trim().toLowerCase();
+  const normalized = (kind ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
   // A warehouse is a space, so its procedural body is the cutaway shell rather
   // than a compartment carcass. An explicit model still wins (see
   // `resolveSpatialRepresentation`).
@@ -632,6 +644,8 @@ export function resolveKindStructureShape(kind?: string): ParentStructureShape {
   if (!normalized || isSpatialSpaceKind(normalized)) {
     return "none";
   }
+  const definition = resolveSpatialModel(normalized);
+  if (definition) return definition.structure;
   // Kinds are compound names (`dry_cabinet`, `reel_slot`, `open_bin_wall`), so
   // match whole tokens rather than substrings: "cabinet" must never match "bin".
   const tokens = normalized.split(/[^a-z0-9]+/).filter(Boolean);
@@ -645,7 +659,6 @@ export function resolveKindStructureShape(kind?: string): ParentStructureShape {
   if (tokens.includes("cabinet") || tokens.includes("cupboard")) {
     return "enclosure";
   }
-  if (PHYSICAL_CONTAINER_KINDS.has(normalized)) return "enclosure";
   // An unrecognized kind is not evidence of a physical container: render the
   // location as the scene context for its children instead of inventing a body.
   return "none";
@@ -804,6 +817,7 @@ export function resolveSpatialRepresentation(
   // 3. Published Inventory Builder geometry is the container's own body.
   if (published) {
     const template = (published.templateType ?? "").toUpperCase();
+    const templateModel = resolveTemplateSpatialModel(template, kind);
     const layoutDimensions = published.containerDimensionsMm;
     const dimensions =
       layoutDimensions &&
@@ -819,7 +833,7 @@ export function resolveSpatialRepresentation(
     return {
       locationId,
       source: "layout",
-      structure: TEMPLATE_STRUCTURES[template] ?? kindShape,
+      structure: templateModel?.structure ?? kindShape,
       dimensions,
       model: null,
       wallThicknessMm: authored.wallThicknessMm,
@@ -1001,13 +1015,50 @@ export const WAREHOUSE_SHELL_MIN_DIMENSIONS: Vector3D = {
  * model or published geometry states a floor elevation keeps that instead
  * (this constant only drives the fallback cutaway shell).
  */
-export const WAREHOUSE_FLOOR_ELEVATION_METERS = 0;
+/** The canonical Three.js/world ground plane for standalone spatial scenes. */
+export const SPATIAL_GROUND_PLANE_Y_METERS = 0;
+
+export const WAREHOUSE_FLOOR_ELEVATION_METERS = SPATIAL_GROUND_PLANE_Y_METERS;
 
 /**
  * Vertical clearance kept between a grounded object and the floor, so the
  * shared floor plane never z-fights with the object's bottom face.
  */
 export const WAREHOUSE_GROUNDING_CLEARANCE_METERS = 0.001;
+
+/**
+ * Operational child anchors use a floor-origin Y frame, while procedural
+ * parent bodies are authored around their centred model origin. Move only the
+ * procedural parent body into that child frame; child placement and persisted
+ * coordinates remain untouched. Builder previews deliberately keep their
+ * existing assembly frame.
+ */
+export function resolveOperationalParentBodyOffset(
+  parentDimensions: Vector3D,
+  options: {
+    isAuthoringLayout: boolean;
+    rendersWarehouseShell: boolean;
+  },
+): Vector3D {
+  if (options.isAuthoringLayout || options.rendersWarehouseShell) {
+    return { x: 0, y: 0, z: 0 };
+  }
+
+  return { x: 0, y: parentDimensions.y / 2, z: 0 };
+}
+
+/**
+ * Builder roots are generated from a corner-origin parametric layout and need
+ * one render-time lift so their centered physical model rests on world ground.
+ * Persisted Location Details nodes already carry authoritative placement and
+ * must never be normalized by this policy.
+ */
+export function shouldGroundRootAssembly(
+  isBuilderRoot: boolean,
+  rendersWarehouseShell: boolean,
+): boolean {
+  return isBuilderRoot && !rendersWarehouseShell;
+}
 
 /**
  * Rise of the shell's pitched roof for a shell of the given width, in meters.

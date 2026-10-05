@@ -15,9 +15,12 @@ import {
   resolveChildRotation,
   resolveChildSlotEnvelope,
   resolveObjectDimensions,
+  resolveOperationalParentBodyOffset,
+  resolveSpatialRepresentation,
   resolveTargetChildLocationId,
   resolveWarehouseFloorPlan,
   resolveWarehouseShellDimensions,
+  shouldGroundRootAssembly,
   type SceneChildLayout,
   type Vector3D,
 } from "./spatial-3d-layout";
@@ -140,6 +143,83 @@ function createMockChild(
 }
 
 describe("Spatial 3D Layout & Scene Engine", () => {
+  describe("Root placement context", () => {
+    it("grounds only synthetic Builder roots", () => {
+      expect(shouldGroundRootAssembly(true, false)).toBe(true);
+      expect(shouldGroundRootAssembly(true, true)).toBe(false);
+    });
+
+    it("does not ground persisted Location Details roots", () => {
+      expect(shouldGroundRootAssembly(false, false)).toBe(false);
+      expect(shouldGroundRootAssembly(false, true)).toBe(false);
+    });
+  });
+
+  describe("Operational parent/child frame composition", () => {
+    it("keeps the real Drawer A01 Bin A01-01 envelope inside the procedural drawer", () => {
+      const parentDimensions = {
+        x: mmToMeters(171),
+        y: mmToMeters(289.33),
+        z: mmToMeters(308),
+      };
+      const child = createMockChild("bin-a01-01", "DEMO-SPATIAL-BIN-A01-01", {
+        kind: "bin",
+        anchorPos: { x: 42.75, y: 144.67, z: 0 },
+        anchorBounds: { w: 68.4, h: 231.46, d: 277.2 },
+      });
+
+      const { mapped } = layoutChildrenFor3D(
+        [child],
+        null,
+        new Map(),
+        parentDimensions,
+      );
+      const bin = mapped[0]!;
+      const parentOffset = resolveOperationalParentBodyOffset(
+        parentDimensions,
+        { isAuthoringLayout: false, rendersWarehouseShell: false },
+      );
+
+      const drawerMin = {
+        x: parentOffset.x - parentDimensions.x / 2,
+        y: parentOffset.y - parentDimensions.y / 2,
+        z: parentOffset.z - parentDimensions.z / 2,
+      };
+      const drawerMax = {
+        x: parentOffset.x + parentDimensions.x / 2,
+        y: parentOffset.y + parentDimensions.y / 2,
+        z: parentOffset.z + parentDimensions.z / 2,
+      };
+      const binMin = {
+        x: bin.position.x - bin.dimensions.x / 2,
+        y: bin.position.y - bin.dimensions.y / 2,
+        z: bin.position.z - bin.dimensions.z / 2,
+      };
+      const binMax = {
+        x: bin.position.x + bin.dimensions.x / 2,
+        y: bin.position.y + bin.dimensions.y / 2,
+        z: bin.position.z + bin.dimensions.z / 2,
+      };
+
+      expect(bin.position).toEqual({
+        x: mmToMeters(-42.75),
+        y: mmToMeters(144.67),
+        z: 0,
+      });
+      expect(bin.dimensions).toEqual({
+        x: mmToMeters(68.4),
+        y: mmToMeters(231.46),
+        z: mmToMeters(277.2),
+      });
+      expect(binMin.x).toBeGreaterThanOrEqual(drawerMin.x);
+      expect(binMax.x).toBeLessThanOrEqual(drawerMax.x);
+      expect(binMin.y).toBeGreaterThanOrEqual(drawerMin.y);
+      expect(binMax.y).toBeLessThanOrEqual(drawerMax.y);
+      expect(binMin.z).toBeGreaterThanOrEqual(drawerMin.z);
+      expect(binMax.z).toBeLessThanOrEqual(drawerMax.z);
+    });
+  });
+
   describe("Millimeter Dimensions and Unit Conversions", () => {
     it("converts millimeters to meters accurately", () => {
       expect(mmToMeters(0)).toBe(0);
@@ -253,6 +333,30 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       expect(shelfDims.y).toBeCloseTo(0.3, 4);
       expect(shelfDims.z).toBeCloseTo(0.35, 4);
     });
+
+    it.each([
+      ["rack", "rack", 1.2, 2.1, 0.6],
+      ["dry_cabinet", "dry-cabinet", 0.8, 1.8, 0.6],
+      ["reel_rack", "reel-rack", 1, 1.8, 0.45],
+      ["tray", "tray", 0.6, 0.08, 0.3],
+      ["tube", "tube", 0.04, 0.04, 0.12],
+      ["reel_slot", "reel-slot", 0.09, 0.09, 0.1],
+      ["compartment", "tray", 0.1, 0.08, 0.14],
+      ["slot", "tray", 0.1, 0.08, 0.14],
+    ])(
+      "resolves %s to a dedicated physical representation",
+      (kind, shape, width, height, depth) => {
+        const representation = resolveSpatialRepresentation({
+          location: { id: `loc-${kind}`, kind },
+        });
+        expect(representation.structure).toBe(shape);
+        expect(representation.dimensions).toEqual({
+          x: width,
+          y: height,
+          z: depth,
+        });
+      },
+    );
   });
 
   describe("Anchor-Based Child Placement and Transform Offsets", () => {
@@ -663,6 +767,7 @@ describe("Spatial 3D Layout & Scene Engine", () => {
           z: first.position.z,
         },
       });
+      publishedChild.node!.metadata = { source: "inventory_builder" };
 
       const authoredFrame = resolveAuthoredContainerDimensions(
         { publishedLayout: { containerDimensionsMm: config.dimensions } },
@@ -1476,9 +1581,13 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       (planNode.rawChild as { node?: unknown }).node = {
         metadata: { source: "inventory_builder" },
       };
-      const handPlaced = child("MANUAL-B", { x: 0.6, y: 0.9, z: 0.4 }, {
-        position: { x: 1.4, y: 0.45, z: 0 },
-      });
+      const handPlaced = child(
+        "MANUAL-B",
+        { x: 0.6, y: 0.9, z: 0.4 },
+        {
+          position: { x: 1.4, y: 0.45, z: 0 },
+        },
+      );
 
       const plan = resolveWarehouseFloorPlan([planNode, handPlaced]);
 

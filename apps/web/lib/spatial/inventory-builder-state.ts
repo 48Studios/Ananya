@@ -22,7 +22,10 @@ import {
 } from "@ananya/inventory";
 import type { LocationDto } from "../api/locations-api";
 import type { SceneChildLayout, Vector3D } from "./spatial-3d-layout";
-import { mmToMeters } from "./spatial-3d-layout";
+import {
+  cornerOriginToCenteredPosition,
+  mmToMeters,
+} from "./spatial-3d-layout";
 
 export type BuilderWorkspaceMode = "build" | "map";
 
@@ -604,9 +607,12 @@ export function mapSlotToLocation(
 
   // Reject kinds the domain does not allow inside a compartment (spaces).
   const compatibility = checkSpatialMappingCompatibility({
-    rootKind: locations?.find((l) => l.id === state.selectedParentLocationId)?.kind,
+    rootKind: locations?.find((l) => l.id === state.selectedParentLocationId)
+      ?.kind,
     candidateKind: location.kind,
-    slotKind: state.generatedResult?.compartments.find((c) => c.slotId === slotId)?.kind,
+    slotKind: state.generatedResult?.compartments.find(
+      (c) => c.slotId === slotId,
+    )?.kind,
   });
   if (!compatibility.compatible) {
     return state;
@@ -872,30 +878,34 @@ export function convertGeneratedToSceneLayout(
           ...compartments.map((c) => c.position.z + c.dimensions.depthMm / 2),
         )
       : 0);
+  const containerH =
+    containerDimensions?.heightMm ??
+    (compartments.length > 0
+      ? Math.max(
+          ...compartments.map((c) => c.position.y + c.dimensions.heightMm / 2),
+        )
+      : 0);
 
   return compartments.map((comp) => {
     const mapping = mappings.get(comp.slotId);
     const isMapped = Boolean(mapping && !mapping.isStale);
 
     // Transform corner-origin coordinates [0, W] x [0, H] x [0, D]
-    // into parent carcass frame [-W/2, W/2] x [0, H] x [-D/2, D/2]
+    // into the centered parent carcass frame on all three axes.
     const isCenterOrigin =
       (comp.metadata as Record<string, unknown> | undefined)?.origin ===
       "center";
-    const sceneXMm = isCenterOrigin
-      ? comp.position.x
-      : comp.position.x - containerW / 2;
-    const sceneYMm = comp.position.y;
-    const sceneZMm = isCenterOrigin
-      ? comp.position.z
-      : comp.position.z - containerD / 2;
-
-    // Position in meters (Three.js coordinates)
-    const position: Vector3D = {
-      x: mmToMeters(sceneXMm),
-      y: mmToMeters(sceneYMm),
-      z: mmToMeters(sceneZMm),
-    };
+    const position: Vector3D = isCenterOrigin
+      ? {
+          x: mmToMeters(comp.position.x),
+          y: mmToMeters(comp.position.y),
+          z: mmToMeters(comp.position.z),
+        }
+      : cornerOriginToCenteredPosition(comp.position, {
+          widthMm: containerW,
+          heightMm: containerH,
+          depthMm: containerD,
+        });
 
     // Dimensions in meters
     const dimensions: Vector3D = {

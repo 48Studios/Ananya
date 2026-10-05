@@ -367,8 +367,13 @@ describe("Spatial 2D Front Elevation Projection", () => {
             slot.centerXMm,
             metersToMm(sceneChild.position.x) + config.dimensions.widthMm / 2,
           );
-          // Scene Y is the engine's Y-up height and is shared verbatim
-          expectClose(slot.centerYMm, metersToMm(sceneChild.position.y));
+          // Scene Y is centered on the parent model, while the front elevation
+          // remains corner-origin, so restore the container half-height.
+          expectClose(
+            slot.centerYMm,
+            metersToMm(sceneChild.position.y) +
+              config.dimensions.heightMm / 2,
+          );
         }
       }
     });

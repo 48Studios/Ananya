@@ -68,7 +68,10 @@ import type {
   ParametricTemplateType,
   SpatialLayoutWithMappings,
 } from "@ananya/inventory";
-import { findSpatialMappingIncompatibilities } from "@ananya/inventory";
+import {
+  findSpatialMappingIncompatibilities,
+  resolveTemplateTypesForRootKind,
+} from "@ananya/inventory";
 import { ParametricConfigPanel } from "./parametric-config-panel";
 import { ParametricDiffPanel } from "./parametric-diff-panel";
 import { ParametricPreview2D } from "./parametric-preview-2d";
@@ -367,6 +370,41 @@ export function InventoryBuilderWorkspace({
     state.selectedParentLocationId,
     state.mode,
     updateUrl,
+  ]);
+
+  // A location-first Builder entry should open on a template that can use the
+  // selected root. Persisted layouts are intentionally excluded so an
+  // existing incompatible draft remains visible for explicit correction.
+  React.useEffect(() => {
+    if (
+      loadingLocations ||
+      state.loadedLayoutId ||
+      state.mappings.size > 0 ||
+      !state.selectedParentLocationId
+    ) {
+      return;
+    }
+    const parentKind = locations.find(
+      (location) => location.id === state.selectedParentLocationId,
+    )?.kind;
+    const compatibleTemplates = resolveTemplateTypesForRootKind(parentKind);
+    if (
+      !parentKind ||
+      compatibleTemplates.includes(state.config.templateType)
+    ) {
+      return;
+    }
+    const compatibleTemplate = compatibleTemplates[0];
+    if (compatibleTemplate) {
+      setState((prev) => setTemplateType(prev, compatibleTemplate));
+    }
+  }, [
+    loadingLocations,
+    locations,
+    state.config.templateType,
+    state.loadedLayoutId,
+    state.mappings.size,
+    state.selectedParentLocationId,
   ]);
 
   // ==========================================
@@ -1343,6 +1381,7 @@ export function InventoryBuilderWorkspace({
                 onChangeConfig={handleConfigChange}
                 onSelectTemplate={handleSelectTemplate}
                 onResetBaseline={handleCommitBaseline}
+                rootKind={containerIdentity?.kind ?? null}
               />
               <ParametricDiffPanel
                 diff={state.diff}
@@ -1412,14 +1451,6 @@ export function InventoryBuilderWorkspace({
               locations={locations}
               selectedParentId={state.selectedParentLocationId}
               mappings={state.mappings}
-              slotKindsBySlotId={
-                new Map(
-                  state.generatedResult.compartments.map((compartment) => [
-                    compartment.slotId,
-                    compartment.kind,
-                  ]),
-                )
-              }
               onSelectParentId={handleSelectParentLocation}
               onClearParent={handleClearParentLocation}
             />

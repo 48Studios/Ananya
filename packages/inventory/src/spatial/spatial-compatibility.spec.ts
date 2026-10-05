@@ -11,6 +11,7 @@ import {
   isTemplateRootCompatible,
   normalizeSpatialKind,
   resolveSlotCandidateKinds,
+  resolveTemplateTypesForRootKind,
 } from "./spatial-compatibility";
 
 describe("spatial kind classification", () => {
@@ -42,6 +43,26 @@ describe("spatial kind classification", () => {
       expect(isTemplateRootCompatible("SMD_DRAWER_CABINET", "drawer")).toBe(false);
       expect(isTemplateRootCompatible("PALLET_RACK", "rack")).toBe(true);
       expect(isTemplateRootCompatible("PALLET_RACK", "cabinet")).toBe(false);
+    });
+
+    it("discovers templates bidirectionally from compatible root families", () => {
+      expect(resolveTemplateTypesForRootKind("cabinet")).toEqual([
+        "SMD_DRAWER_CABINET",
+        "OPEN_BIN_MATRIX",
+      ]);
+      expect(resolveTemplateTypesForRootKind("dry_cabinet")).toEqual([
+        "SMD_DRAWER_CABINET",
+        "OPEN_BIN_MATRIX",
+      ]);
+      expect(resolveTemplateTypesForRootKind("rack")).toEqual(["PALLET_RACK"]);
+      expect(resolveTemplateTypesForRootKind("shelf")).toEqual(["PALLET_RACK"]);
+      expect(resolveTemplateTypesForRootKind("reel_rack")).toEqual([
+        "PALLET_RACK",
+      ]);
+      expect(resolveTemplateTypesForRootKind("tray")).toEqual([
+        "GRID_PARTS_TRAY",
+      ]);
+      expect(resolveTemplateTypesForRootKind("drawer")).toEqual([]);
     });
   });
 

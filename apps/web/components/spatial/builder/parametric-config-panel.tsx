@@ -27,8 +27,10 @@ import {
   type OpenBinMatrixConfig,
   type PalletRackConfig,
   type GridPartsTrayConfig,
+  isTemplateRootCompatible,
 } from "@ananya/inventory";
 import { cn } from "@/lib/utils";
+import { SPATIAL_TEMPLATE_MODEL_DEFINITIONS } from "@/lib/spatial/spatial-model-library";
 
 /** Naming pattern options; also used for the trigger tooltip when truncated. */
 const NAMING_PATTERN_OPTIONS = [
@@ -53,6 +55,7 @@ export interface ParametricConfigPanelProps {
   onChangeConfig: (newConfig: ParametricStorageConfig) => void;
   onSelectTemplate: (templateType: ParametricTemplateType) => void;
   onResetBaseline: () => void;
+  rootKind?: string | null;
   className?: string;
 }
 
@@ -94,6 +97,7 @@ export function ParametricConfigPanel({
   onChangeConfig,
   onSelectTemplate,
   onResetBaseline,
+  rootKind = null,
   className,
 }: ParametricConfigPanelProps) {
   // Handlers for dimension inputs
@@ -216,14 +220,22 @@ export function ParametricConfigPanel({
         <div className="grid grid-cols-2 gap-2">
           {TEMPLATE_OPTIONS.map((tmpl) => {
             const Icon = tmpl.icon;
+            const modelDefinition =
+              SPATIAL_TEMPLATE_MODEL_DEFINITIONS[tmpl.type];
             const isSelected = config.templateType === tmpl.type;
+            const isCompatible =
+              !rootKind || isTemplateRootCompatible(tmpl.type, rootKind);
             return (
               <button
                 key={tmpl.type}
                 type="button"
-                onClick={() => onSelectTemplate(tmpl.type)}
+                onClick={() => {
+                  if (isCompatible) onSelectTemplate(tmpl.type);
+                }}
+                disabled={!isCompatible}
+                aria-disabled={!isCompatible}
                 className={cn(
-                  "flex items-start gap-2.5 p-2.5 text-left rounded-md border transition-all cursor-pointer",
+                  "flex items-start gap-2.5 p-2.5 text-left rounded-md border transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-45",
                   isSelected
                     ? "bg-primary/5 border-primary text-primary font-medium shadow-xs"
                     : "bg-card border-border hover:bg-accent/40 text-muted-foreground hover:text-foreground",
@@ -245,6 +257,9 @@ export function ParametricConfigPanel({
                   </div>
                   <div className="text-[11px] text-muted-foreground leading-snug">
                     {tmpl.subtitle}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground/80 leading-snug">
+                    Model: {modelDefinition.displayName}
                   </div>
                 </div>
               </button>

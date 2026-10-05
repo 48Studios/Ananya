@@ -1,4 +1,8 @@
-import type { CompartmentKind, ParametricTemplateType } from "./parametric";
+import {
+  PARAMETRIC_TEMPLATE_TYPES,
+  type CompartmentKind,
+  type ParametricTemplateType,
+} from "./parametric";
 import { INCOMPATIBLE_COMPARTMENT_KINDS } from "./spatial-layout.types";
 
 /**
@@ -160,6 +164,23 @@ export function resolveRootCandidateKinds(
   templateType: ParametricTemplateType,
 ): readonly string[] {
   return ROOT_CANDIDATE_KINDS[templateType] ?? [];
+}
+
+/**
+ * Returns Builder templates that can use a location kind as their root.
+ *
+ * This is intentionally derived from root compatibility, never from slot
+ * compatibility, so a location can remain a valid Builder root regardless of
+ * what the generated compartments may contain.
+ */
+export function resolveTemplateTypesForRootKind(
+  rootKind: string | null | undefined,
+): readonly ParametricTemplateType[] {
+  const candidate = normalizeSpatialKind(rootKind);
+  if (!candidate) return [];
+  return PARAMETRIC_TEMPLATE_TYPES.filter((templateType) =>
+    isTemplateRootCompatible(templateType, candidate),
+  );
 }
 
 export function isTemplateRootCompatible(

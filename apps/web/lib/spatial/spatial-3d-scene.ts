@@ -489,7 +489,7 @@ export function createDrawerMesh(
     metalness: SPATIAL_3D_PALETTE.handle.metalness,
   });
   const handleMesh = new THREE.Mesh(handleGeo, handleMat);
-  handleMesh.position.set(0, 0, dim.z / 2 + handleDepth / 2);
+  handleMesh.position.set(0, 0, dim.z / 2 - handleDepth / 2);
   handleMesh.userData = userData;
   group.add(handleMesh);
 
@@ -1221,6 +1221,100 @@ export function createStructureBodyMesh(
       }),
     );
     return group;
+  }
+
+  if (structure === "dry-cabinet") {
+    const cabinet = createStructureBodyMesh(
+      "enclosure",
+      dimensions,
+      userData,
+      params,
+      materials,
+      options,
+    );
+    cabinet.name = `structure-dry-cabinet-${userData.locationCode}`;
+    const { x: W, y: H, z: D } = dimensions;
+    const frame = Math.min(0.012, Math.min(W, H) * 0.035);
+    const sealMaterial = materials.interior;
+    const bars = [
+      { x: 0, y: H / 2 - frame / 2, w: W, h: frame },
+      { x: 0, y: -H / 2 + frame / 2, w: W, h: frame },
+      { x: -W / 2 + frame / 2, y: 0, w: frame, h: H },
+      { x: W / 2 - frame / 2, y: 0, w: frame, h: H },
+    ];
+    for (const bar of bars) {
+      const seal = new THREE.Mesh(
+        new THREE.BoxGeometry(bar.w, bar.h, frame),
+        sealMaterial,
+      );
+      seal.position.set(bar.x, bar.y, D / 2 - frame / 2);
+      seal.userData = userData;
+      cabinet.add(seal);
+    }
+    const handle = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.min(0.02, W * 0.04), H * 0.18, frame),
+      materials.body,
+    );
+    handle.position.set(W / 2 - frame * 2, 0, D / 2 - frame / 2);
+    handle.userData = userData;
+    cabinet.add(handle);
+    return cabinet;
+  }
+
+  if (structure === "tube" || structure === "reel-slot") {
+    const radius = Math.max(0.012, Math.min(W, H) * 0.42);
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(radius, radius, D, 24),
+      bodyMat,
+    );
+    body.rotation.x = Math.PI / 2;
+    body.userData = userData;
+    body.castShadow = true;
+    group.add(body);
+    if (structure === "reel-slot") {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(
+          radius * 0.88,
+          Math.max(0.004, radius * 0.08),
+          10,
+          24,
+        ),
+        interiorMat,
+      );
+      ring.rotation.y = Math.PI / 2;
+      ring.position.z = D / 2 - radius * 0.88 - Math.max(0.004, radius * 0.08);
+      ring.userData = userData;
+      group.add(ring);
+    }
+    group.userData.probePoint = { x: 0, y: 0, z: D / 2 };
+    addStructureLabel(group, structure, dimensions, userData, options);
+    return group;
+  }
+
+  if (structure === "reel-rack") {
+    const rack = createStructureBodyMesh(
+      "rack",
+      dimensions,
+      userData,
+      params,
+      materials,
+      options,
+    );
+    rack.name = `structure-reel-rack-${userData.locationCode}`;
+    const { x: W, y: H, z: D } = dimensions;
+    const spoolRadius = Math.min(W, H) * 0.13;
+    const spoolDepth = Math.min(D * 0.7, spoolRadius * 0.45);
+    for (const y of [-H * 0.22, H * 0.22]) {
+      const spool = new THREE.Mesh(
+        new THREE.CylinderGeometry(spoolRadius, spoolRadius, spoolDepth, 24),
+        materials.interior,
+      );
+      spool.rotation.z = Math.PI / 2;
+      spool.position.set(0, y, 0);
+      spool.userData = userData;
+      rack.add(spool);
+    }
+    return rack;
   }
 
   const authoredWall =

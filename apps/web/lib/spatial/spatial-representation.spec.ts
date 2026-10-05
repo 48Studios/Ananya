@@ -269,14 +269,15 @@ describe("Canonical spatial representation", () => {
   it("resolves generated parametric geometry from the kind", () => {
     const expectations: Array<[string, string]> = [
       ["cabinet", "enclosure"],
-      ["dry_cabinet", "enclosure"],
+      ["dry_cabinet", "dry-cabinet"],
       ["rack", "rack"],
       ["shelf", "rack"],
-      ["reel_rack", "rack"],
+      ["reel_rack", "reel-rack"],
       ["drawer", "drawer"],
       ["bin", "tray"],
       ["tray", "tray"],
-      ["reel_slot", "tray"],
+      ["reel_slot", "reel-slot"],
+      ["tube", "tube"],
     ];
 
     for (const [kind, structure] of expectations) {
@@ -306,17 +307,17 @@ describe("Canonical spatial representation", () => {
       shelf: { structure: "rack", source: "kind", kindClass: "container" },
       cabinet: { structure: "enclosure", source: "kind", kindClass: "container" },
       dry_cabinet: {
-        structure: "enclosure",
+        structure: "dry-cabinet",
         source: "kind",
         kindClass: "container",
       },
-      reel_rack: { structure: "rack", source: "kind", kindClass: "container" },
+      reel_rack: { structure: "reel-rack", source: "kind", kindClass: "container" },
       drawer: { structure: "drawer", source: "kind", kindClass: "compartment" },
       bin: { structure: "tray", source: "kind", kindClass: "compartment" },
       compartment: { structure: "tray", source: "kind", kindClass: "compartment" },
       tray: { structure: "tray", source: "kind", kindClass: "compartment" },
-      tube: { structure: "tray", source: "kind", kindClass: "compartment" },
-      reel_slot: { structure: "tray", source: "kind", kindClass: "compartment" },
+      tube: { structure: "tube", source: "kind", kindClass: "compartment" },
+      reel_slot: { structure: "reel-slot", source: "kind", kindClass: "compartment" },
     };
 
     for (const [kind, expectation] of Object.entries(expected)) {
