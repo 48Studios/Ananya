@@ -326,7 +326,7 @@ describe("Spatial Navigation & Breadcrumb Engine", () => {
         '"flex flex-col gap-4 lg:min-h-[520px] lg:flex-row lg:items-stretch"',
       );
       expect(spatialViewSrc).toContain('className="relative min-w-0 flex-1"');
-      expect(spatialViewSrc).toContain("lg:w-[380px] lg:shrink-0 xl:w-[400px]");
+      expect(spatialViewSrc).toContain("lg:w-[280px] lg:shrink-0 xl:w-[320px]");
       expect(spatialViewSrc).toContain('"flex w-full min-w-0 flex-col overflow-hidden');
 
       // Non-modal: a labelled complementary surface, never a dialog/backdrop.

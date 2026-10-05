@@ -4,6 +4,11 @@ import {
   metersToMm,
   degToRad,
   isCornerAuthoredAnchorZ,
+  resolveKindStructureShape,
+  resolveWarehouseRoofRise,
+  WAREHOUSE_FLOOR_ELEVATION_METERS,
+  WAREHOUSE_GROUNDING_CLEARANCE_METERS,
+  type ParentStructureShape,
   type SceneChildLayout,
   type SemanticVisualState,
   type Vector3D,
@@ -775,16 +780,319 @@ export function createChildCompartmentMesh(
 }
 
 /**
- * Creates the outer chassis/carcass for the parent location (cabinet, rack frame, room zone).
- * Carcass is rendered with an open front so child drawers and bins inside remain visible.
+ * Creates the outer body for the parent location: a cabinet/rack/tray carcass
+ * for a physical container, or the cutaway warehouse shell for a space kind.
+ * Bodies are rendered with an open front so the compartments and equipment
+ * inside them remain visible.
+ */
+export interface ParentCarcassOptions {
+  isSelected?: boolean;
+  needsAttention?: boolean;
+  /**
+   * Authored body shape, resolved by `resolveParentGeometryOwnership`.
+   * `"none"` means the location owns no physical enclosure (a warehouse/root
+   * overview) and must not become a mesh.
+   */
+  structure?: ParentStructureShape;
+  /** Authored structure parameters in millimetres, when a layout defines them. */
+  wallThicknessMm?: number | null;
+  postWidthMm?: number | null;
+  beamHeightMm?: number | null;
+}
+
+/**
+ * Builds the cutaway shell that visualizes a warehouse/root location: a floor
+ * slab, a back wall, two partial side walls, a pitched roof and a few exposed
+ * structural posts and beams, with the front left completely open so the
+ * equipment standing inside stays visible and clickable.
+ *
+ * The shell is scene context, not inventory geometry: its dimensions come from
+ * `resolveWarehouseShellDimensions`, its floor top sits on
+ * `WAREHOUSE_FLOOR_ELEVATION_METERS` (the warehouse scene's floor reference),
+ * and it deliberately has no front wall, doors, windows, lights, furniture or
+ * decorative assets. Every mesh still carries the location's `userData`, so
+ * callers that opt into parent selection keep their existing behavior.
+ */
+export function createWarehouseShellMesh(
+  dimensions: Vector3D,
+  userData: MeshUserData,
+): THREE.Group {
+  const group = new THREE.Group();
+  group.name = `warehouse-shell-${userData.locationCode}`;
+
+  const { x: W, y: H, z: D } = dimensions;
+  const minSpan = Math.min(W, D);
+  const wall = Math.max(0.025, Math.min(0.05, minSpan * 0.04));
+  // A thicker slab reads as a poured floor and marks the warehouse boundary.
+  const floorThickness = Math.max(0.1, wall * 2.4);
+  // The rear third of each side wall is enough to read as an enclosure without
+  // fencing the contents off from the front corner view.
+  const sideWallDepth = D / 3;
+  const eaveOverhang = Math.min(0.15, W * 0.05);
+  // `H` is the shell's outer envelope, so the walls stop at the eaves and the
+  // pitched roof rises to the envelope's top.
+  const roofRise = resolveWarehouseRoofRise(W);
+  const eaveHeight = Math.max(H - roofRise, H * 0.5);
+  const roofHalfSpan = W / 2 + eaveOverhang;
+  const roofSlabLength = Math.hypot(roofHalfSpan, roofRise);
+  const roofPitch = Math.atan2(roofRise, roofHalfSpan);
+  const roofThickness = Math.max(0.05, wall * 1.6);
+
+  // Exposed structure: corner posts, eave beams and a ridge line. Kept to a
+  // handful of members so the storage objects stay the focus.
+  const post = Math.max(0.07, wall * 1.8);
+  const beam = Math.max(0.05, wall * 1.4);
+  const ribWidth = Math.max(0.03, post * 0.6);
+  const ribDepth = Math.min(0.03, wall * 0.8);
+  const ribSpacing = 0.36;
+
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(SPATIAL_3D_PALETTE.carcass.base),
+    roughness: SPATIAL_3D_PALETTE.carcass.roughness,
+    metalness: SPATIAL_3D_PALETTE.carcass.metalness,
+  });
+
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(SPATIAL_3D_PALETTE.carcassInterior.base),
+    roughness: SPATIAL_3D_PALETTE.carcassInterior.roughness,
+    metalness: SPATIAL_3D_PALETTE.carcassInterior.metalness,
+  });
+
+  // Panel seams and the exposed frame use the darker interior tone, so the
+  // structure stays legible against the wall panels without any texture.
+  const structureMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(SPATIAL_3D_PALETTE.carcassInterior.base),
+    roughness: SPATIAL_3D_PALETTE.carcassInterior.roughness,
+    metalness: SPATIAL_3D_PALETTE.carcassInterior.metalness,
+  });
+
+  const addShellMesh = (
+    name: string,
+    geometry: THREE.BufferGeometry,
+    material: THREE.Material,
+    position: Vector3D,
+  ): THREE.Mesh => {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = name;
+    mesh.position.set(position.x, position.y, position.z);
+    mesh.userData = userData;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    return mesh;
+  };
+
+  // 1. Floor slab: its top face is the ground plane the contents stand on, so
+  // it extends downwards instead of lifting every persisted child coordinate.
+  addShellMesh(
+    "warehouse-floor",
+    new THREE.BoxGeometry(W, floorThickness, D),
+    floorMat,
+    { x: 0, y: -floorThickness / 2, z: 0 },
+  );
+  const floorEdges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(W, floorThickness, D)),
+    new THREE.LineBasicMaterial({ color: SPATIAL_3D_PALETTE.edgeLines }),
+  );
+  floorEdges.name = "warehouse-floor-edge";
+  floorEdges.position.set(0, -floorThickness / 2, 0);
+  group.add(floorEdges);
+
+  // 2. Back wall with vertical corrugation ribs on its inner face.
+  addShellMesh(
+    "warehouse-back-wall",
+    new THREE.BoxGeometry(W, eaveHeight, wall),
+    wallMat,
+    { x: 0, y: eaveHeight / 2, z: -D / 2 + wall / 2 },
+  );
+  const ribMargin = Math.min(0.16, eaveHeight * 0.08);
+  const ribGeometry = new THREE.BoxGeometry(
+    ribWidth,
+    Math.max(0.1, eaveHeight - 2 * ribMargin),
+    ribDepth,
+  );
+  let ribIndex = 0;
+  for (
+    let x = -W / 2 + ribSpacing;
+    x <= W / 2 - ribSpacing / 2;
+    x += ribSpacing
+  ) {
+    addShellMesh(
+      `warehouse-back-panel-${ribIndex++}`,
+      ribGeometry,
+      structureMat,
+      { x, y: eaveHeight / 2, z: -D / 2 + wall + ribDepth / 2 },
+    );
+  }
+
+  // 3. Partial side walls (rear third only) with the same panel treatment.
+  for (const side of [-1, 1]) {
+    const sideName = side < 0 ? "left" : "right";
+    addShellMesh(
+      `warehouse-side-wall-${sideName}`,
+      new THREE.BoxGeometry(wall, eaveHeight, sideWallDepth),
+      wallMat,
+      {
+        x: side * (W / 2 - wall / 2),
+        y: eaveHeight / 2,
+        z: -D / 2 + sideWallDepth / 2,
+      },
+    );
+    const sideRibGeometry = new THREE.BoxGeometry(
+      ribDepth,
+      Math.max(0.1, eaveHeight - 2 * ribMargin),
+      ribWidth,
+    );
+    let sideRibIndex = 0;
+    for (
+      let z = -D / 2 + ribSpacing;
+      z <= -D / 2 + sideWallDepth - ribSpacing / 2;
+      z += ribSpacing
+    ) {
+      addShellMesh(
+        `warehouse-side-panel-${sideName}-${sideRibIndex++}`,
+        sideRibGeometry,
+        structureMat,
+        {
+          x: side * (W / 2 - wall - ribDepth / 2),
+          y: eaveHeight / 2,
+          z,
+        },
+      );
+    }
+  }
+
+  // 4. Pitched roof: two thick slabs meeting at the ridge, with a modest
+  // overhang and a ridge cap closing the apex.
+  const roofGeometry = new THREE.BoxGeometry(
+    roofSlabLength,
+    roofThickness,
+    D + 2 * eaveOverhang,
+  );
+  for (const side of [-1, 1]) {
+    const slabMesh = addShellMesh(
+      `warehouse-roof-${side < 0 ? "left" : "right"}`,
+      roofGeometry,
+      wallMat,
+      {
+        x: (side * roofHalfSpan) / 2,
+        y: eaveHeight + roofRise / 2,
+        z: 0,
+      },
+    );
+    slabMesh.rotation.z = -side * roofPitch;
+  }
+  addShellMesh(
+    "warehouse-ridge-cap",
+    new THREE.BoxGeometry(
+      beam * 2.4,
+      roofThickness * 1.4,
+      D + 2 * eaveOverhang,
+    ),
+    structureMat,
+    { x: 0, y: eaveHeight + roofRise, z: 0 },
+  );
+
+  // 5. Exposed structure: four corner posts, eave beams and a ridge beam.
+  const postGeometry = new THREE.BoxGeometry(post, eaveHeight, post);
+  for (const sideX of [-1, 1]) {
+    for (const sideZ of [-1, 1]) {
+      addShellMesh(
+        `warehouse-post-${sideX < 0 ? "left" : "right"}-${sideZ < 0 ? "rear" : "front"}`,
+        postGeometry,
+        structureMat,
+        {
+          x: sideX * (W / 2 - post / 2),
+          y: eaveHeight / 2,
+          z: sideZ * (D / 2 - post / 2),
+        },
+      );
+    }
+  }
+  const eaveBeamGeometry = new THREE.BoxGeometry(
+    beam,
+    beam,
+    Math.max(0.1, D - post),
+  );
+  for (const side of [-1, 1]) {
+    addShellMesh(
+      `warehouse-eave-beam-${side < 0 ? "left" : "right"}`,
+      eaveBeamGeometry,
+      structureMat,
+      { x: side * (W / 2 - post / 2), y: eaveHeight - beam / 2, z: 0 },
+    );
+  }
+  addShellMesh(
+    "warehouse-back-beam",
+    new THREE.BoxGeometry(Math.max(0.1, W - 2 * post), beam, beam),
+    structureMat,
+    { x: 0, y: eaveHeight - beam / 2, z: -D / 2 + post / 2 },
+  );
+  addShellMesh(
+    "warehouse-ridge-beam",
+    new THREE.BoxGeometry(beam, beam, Math.max(0.1, D - post)),
+    structureMat,
+    { x: 0, y: eaveHeight + roofRise - beam, z: 0 },
+  );
+
+  return group;
+}
+
+/**
+ * Grounds one rendered object on the warehouse floor.
+ *
+ * The correction comes from the object's world-space bounding box *after* its
+ * persisted position, rotation and scale are applied as authored — never from a
+ * hard-coded offset and never by assuming the object's origin sits at its
+ * centre or at its bottom. Objects whose own geometry carries feet or clearance
+ * keep that silhouette: only the object's root translation changes.
+ *
+ * This is a scene composition transform. The persisted spatial node, rotation,
+ * scale, model dimensions, mappings and ownership metadata are never touched,
+ * and no correction is ever written back to the database.
+ *
+ * @returns the vertical correction applied, in meters (0 when already grounded).
+ */
+export function groundObjectOnFloor(
+  object: THREE.Object3D,
+  floorElevationMeters: number = WAREHOUSE_FLOOR_ELEVATION_METERS,
+  clearanceMeters: number = WAREHOUSE_GROUNDING_CLEARANCE_METERS,
+): number {
+  if (!Number.isFinite(floorElevationMeters)) return 0;
+  object.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(object);
+  if (bounds.isEmpty()) return 0;
+
+  const correction = floorElevationMeters + clearanceMeters - bounds.min.y;
+  if (!Number.isFinite(correction)) return 0;
+  object.position.y += correction;
+  object.updateMatrixWorld(true);
+  return correction;
+}
+
+/**
+ * Creates the parent's visible body from the resolved structure: a container
+ * carcass (rack frame, open tray, cabinet enclosure or sliding drawer front) or
+ * the cutaway warehouse shell for a space kind. Passing `structure: "none"`
+ * returns an empty group, so a location without authored geometry never grows
+ * an invented body.
  */
 export function createParentCarcassMesh(
   parent: LocationOperationalViewParent,
   dimensions: Vector3D,
-  options: { isSelected?: boolean; needsAttention?: boolean } = {},
+  options: ParentCarcassOptions = {},
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = `parent-carcass-${parent.location.code}`;
+
+  const kindLower = parent.location.kind?.toLowerCase() || "";
+  // Callers normally pass an authored structure; this kind-based default keeps
+  // direct callers consistent with the ownership rule.
+  const structure = options.structure ?? resolveKindStructureShape(kindLower);
+
+  // A location without authored physical geometry is a scene, not a body.
+  // Returning an empty group keeps every caller free of an invented enclosure.
+  if (structure === "none") return group;
 
   const userData: MeshUserData = {
     locationId: parent.location.id,
@@ -796,8 +1104,32 @@ export function createParentCarcassMesh(
     isParent: true,
   };
 
+  // 1. Warehouse / space shell: the location is scene context, so draw a
+  // cutaway shell with an open front instead of a compartment carcass.
+  if (structure === "warehouse") {
+    group.add(createWarehouseShellMesh(dimensions, userData));
+    return group;
+  }
+
   const { x: W, y: H, z: D } = dimensions;
-  const wall = Math.min(0.018, Math.min(W, D) * 0.05);
+  const minSpan = Math.min(W, D);
+  const authoredWall =
+    options.wallThicknessMm != null && options.wallThicknessMm > 0
+      ? mmToMeters(options.wallThicknessMm)
+      : null;
+  const authoredPost =
+    options.postWidthMm != null && options.postWidthMm > 0
+      ? mmToMeters(options.postWidthMm)
+      : null;
+  const authoredBeam =
+    options.beamHeightMm != null && options.beamHeightMm > 0
+      ? mmToMeters(options.beamHeightMm)
+      : null;
+  // Authored structure thickness wins over the generic proportional default.
+  const wall = Math.min(
+    authoredWall ?? Math.min(0.018, minSpan * 0.05),
+    minSpan * 0.25,
+  );
 
   const carcassMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(SPATIAL_3D_PALETTE.carcass.base),
@@ -811,11 +1143,13 @@ export function createParentCarcassMesh(
     metalness: SPATIAL_3D_PALETTE.carcassInterior.metalness,
   });
 
-  const kindLower = parent.location.kind?.toLowerCase() || "";
-
-  // 1. Procedural Shelf / Pallet Rack: Upright corner posts and perimeter rails (open sides and front/back)
-  if (kindLower.includes("shelf") || kindLower.includes("rack")) {
-    const postWidth = Math.min(0.035, Math.min(W, D) * 0.08);
+  // 2. Procedural Shelf / Pallet Rack: Upright corner posts and perimeter rails (open sides and front/back)
+  if (structure === "rack") {
+    const postWidth = Math.min(
+      authoredPost ?? Math.min(0.035, minSpan * 0.08),
+      minSpan * 0.3,
+    );
+    const railThickness = Math.min(authoredBeam ?? postWidth * 0.7, H * 0.2);
     const postGeo = new THREE.BoxGeometry(postWidth, H, postWidth);
 
     const corners = [
@@ -834,8 +1168,8 @@ export function createParentCarcassMesh(
     }
 
     // Top & Bottom cross rails
-    const railXGeo = new THREE.BoxGeometry(W, postWidth * 0.7, postWidth * 0.7);
-    for (const yPos of [postWidth / 2, H - postWidth / 2]) {
+    const railXGeo = new THREE.BoxGeometry(W, railThickness, railThickness);
+    for (const yPos of [railThickness / 2, H - railThickness / 2]) {
       for (const zPos of [-D / 2 + postWidth / 2, D / 2 - postWidth / 2]) {
         const rail = new THREE.Mesh(railXGeo, carcassMat);
         rail.position.set(0, yPos, zPos);
@@ -858,8 +1192,9 @@ export function createParentCarcassMesh(
     return group;
   }
 
-  // 2. Procedural Open-Top Drawer: Bottom plate + 4 walls (open top for nested bin visibility)
-  if (kindLower.includes("drawer")) {
+  // 3. Procedural Open-Top Tray / Drawer body: Bottom plate + walls. The top is
+  // always open so nested compartments stay visible and clickable.
+  if (structure === "tray" || structure === "drawer") {
     // Bottom panel
     const botGeo = new THREE.BoxGeometry(W, wall, D);
     const botMesh = new THREE.Mesh(botGeo, carcassMat);
@@ -888,12 +1223,16 @@ export function createParentCarcassMesh(
     backMesh.userData = userData;
     group.add(backMesh);
 
-    // Front face plate with pull handle
-    const frontGeo = new THREE.BoxGeometry(W, H, wall);
-    const frontMesh = new THREE.Mesh(frontGeo, carcassMat);
-    frontMesh.position.set(0, H / 2, D / 2 - wall / 2);
-    frontMesh.userData = userData;
-    group.add(frontMesh);
+    // Front face plate with pull handle. Only a sliding body (drawer) closes
+    // its front: a grid tray must keep its front open so its compartments
+    // remain visible and directly clickable.
+    if (structure === "drawer") {
+      const frontGeo = new THREE.BoxGeometry(W, H, wall);
+      const frontMesh = new THREE.Mesh(frontGeo, carcassMat);
+      frontMesh.position.set(0, H / 2, D / 2 - wall / 2);
+      frontMesh.userData = userData;
+      group.add(frontMesh);
+    }
 
     const frameGeo = new THREE.BoxGeometry(W, H, D);
     const edges = new THREE.EdgesGeometry(frameGeo);
@@ -908,7 +1247,7 @@ export function createParentCarcassMesh(
     return group;
   }
 
-  // 3. Procedural Cabinet / Default Enclosure: Open front with top, bottom, sides, back
+  // 4. Procedural Cabinet / Default Enclosure: Open front with top, bottom, sides, back
   // Top panel
   const topGeo = new THREE.BoxGeometry(W, wall, D);
   const topMesh = new THREE.Mesh(topGeo, carcassMat);

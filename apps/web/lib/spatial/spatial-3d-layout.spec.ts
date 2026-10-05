@@ -16,6 +16,9 @@ import {
   resolveChildSlotEnvelope,
   resolveObjectDimensions,
   resolveTargetChildLocationId,
+  resolveWarehouseFloorPlan,
+  resolveWarehouseShellDimensions,
+  type SceneChildLayout,
   type Vector3D,
 } from "./spatial-3d-layout";
 import { convertGeneratedToSceneLayout } from "./inventory-builder-state";
@@ -58,27 +61,28 @@ function createMockChild(
     isActive = true,
   } = options;
 
-  const anchor: SpatialAnchorDto | null = (anchorPos || anchorRot)
-    ? {
-        id: `anchor-${id}`,
-        modelId: "model-parent",
-        code: `ANCHOR-${code}`,
-        name: `Anchor ${code}`,
-        anchorType: "DRAWER",
-        localPositionX: anchorPos?.x ?? 0,
-        localPositionY: anchorPos?.y ?? 0,
-        localPositionZ: anchorPos?.z ?? 0,
-        localRotationX: anchorRot?.x ?? 0,
-        localRotationY: anchorRot?.y ?? 0,
-        localRotationZ: anchorRot?.z ?? 0,
-        boundingWidthMm: anchorBounds?.w ?? null,
-        boundingHeightMm: anchorBounds?.h ?? null,
-        boundingDepthMm: anchorBounds?.d ?? null,
-        metadata: { allowedKind: kind },
-        createdAt: "2026-09-30T00:00:00Z",
-        updatedAt: "2026-09-30T00:00:00Z",
-      }
-    : null;
+  const anchor: SpatialAnchorDto | null =
+    anchorPos || anchorRot
+      ? {
+          id: `anchor-${id}`,
+          modelId: "model-parent",
+          code: `ANCHOR-${code}`,
+          name: `Anchor ${code}`,
+          anchorType: "DRAWER",
+          localPositionX: anchorPos?.x ?? 0,
+          localPositionY: anchorPos?.y ?? 0,
+          localPositionZ: anchorPos?.z ?? 0,
+          localRotationX: anchorRot?.x ?? 0,
+          localRotationY: anchorRot?.y ?? 0,
+          localRotationZ: anchorRot?.z ?? 0,
+          boundingWidthMm: anchorBounds?.w ?? null,
+          boundingHeightMm: anchorBounds?.h ?? null,
+          boundingDepthMm: anchorBounds?.d ?? null,
+          metadata: { allowedKind: kind },
+          createdAt: "2026-09-30T00:00:00Z",
+          updatedAt: "2026-09-30T00:00:00Z",
+        }
+      : null;
 
   const model: SpatialModelDto | null = modelDims
     ? {
@@ -455,13 +459,23 @@ describe("Spatial 3D Layout & Scene Engine", () => {
 
       expect(widthRatio).toBeCloseTo(heightRatio, 6);
       expect(heightRatio).toBeCloseTo(depthRatio, 6);
-      expect(fitted.x).toBeLessThanOrEqual(mmToMeters(warehouseBay.widthMm) + 1e-9);
-      expect(fitted.y).toBeLessThanOrEqual(mmToMeters(warehouseBay.heightMm) + 1e-9);
-      expect(fitted.z).toBeLessThanOrEqual(mmToMeters(warehouseBay.depthMm) + 1e-9);
+      expect(fitted.x).toBeLessThanOrEqual(
+        mmToMeters(warehouseBay.widthMm) + 1e-9,
+      );
+      expect(fitted.y).toBeLessThanOrEqual(
+        mmToMeters(warehouseBay.heightMm) + 1e-9,
+      );
+      expect(fitted.z).toBeLessThanOrEqual(
+        mmToMeters(warehouseBay.depthMm) + 1e-9,
+      );
     });
 
     it("accounts for a persisted node scale when fitting", () => {
-      const base = { x: mmToMeters(400), y: mmToMeters(400), z: mmToMeters(400) };
+      const base = {
+        x: mmToMeters(400),
+        y: mmToMeters(400),
+        z: mmToMeters(400),
+      };
       const slot = { widthMm: 400, heightMm: 400, depthMm: 400 };
 
       const fitted = fitDimensionsToSlot(base, { x: 2, y: 2, z: 2 }, slot);
@@ -477,9 +491,9 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       ).toEqual(tiny);
 
       const oversized = { x: 5, y: 5, z: 5 };
-      expect(fitDimensionsToSlot(oversized, { x: 1, y: 1, z: 1 }, null)).toEqual(
-        oversized,
-      );
+      expect(
+        fitDimensionsToSlot(oversized, { x: 1, y: 1, z: 1 }, null),
+      ).toEqual(oversized);
     });
 
     it("resolves the authored slot envelope from the layout, falling back to the anchor bounds", () => {
@@ -513,18 +527,19 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       rack.node!.positionZ = 450;
       rack.slotDimensionsMm = warehouseBay;
 
-      const { mapped } = layoutChildrenFor3D(
-        [rack],
-        null,
-        new Map(),
-        { x: 2.6, y: 2.4, z: 0.9 },
-      );
+      const { mapped } = layoutChildrenFor3D([rack], null, new Map(), {
+        x: 2.6,
+        y: 2.4,
+        z: 0.9,
+      });
 
       const placed = mapped[0]!;
       expect(placed.position.x).toBeCloseTo(mmToMeters(453.33 - 1300), 6);
       expect(placed.position.y).toBeCloseTo(mmToMeters(1780), 6);
       expect(placed.position.z).toBeCloseTo(0, 6);
-      expect(placed.dimensions.x).toBeLessThanOrEqual(mmToMeters(786.67) + 1e-9);
+      expect(placed.dimensions.x).toBeLessThanOrEqual(
+        mmToMeters(786.67) + 1e-9,
+      );
       expect(placed.dimensions.y).toBeLessThanOrEqual(mmToMeters(1080) + 1e-9);
       expect(placed.dimensions.z).toBeLessThanOrEqual(mmToMeters(900) + 1e-9);
     });
@@ -707,9 +722,10 @@ describe("Spatial 3D Layout & Scene Engine", () => {
         modelFrame,
       );
 
-      expect(
-        Math.abs(withModelFrame.x - withLayoutFrame.x),
-      ).toBeCloseTo(mmToMeters(60), 6);
+      expect(Math.abs(withModelFrame.x - withLayoutFrame.x)).toBeCloseTo(
+        mmToMeters(60),
+        6,
+      );
 
       const operational = layoutChildrenFor3D(
         [publishedChild],
@@ -768,7 +784,6 @@ describe("Spatial 3D Layout & Scene Engine", () => {
 
       expect(frame).toEqual({ x: 0.6, y: 0.9, z: 0.4 });
     });
-
   });
 
   describe("Colliding Placements Are Fanned Out Instead of Stacked", () => {
@@ -987,7 +1002,11 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       const childLeft = createMockChild("c-left", "A01", {
         anchorPos: { x: 100, y: 675, z: 0 },
       });
-      const posLeft = resolveChildPosition(childLeft.node, childLeft.anchor, cabinetDims);
+      const posLeft = resolveChildPosition(
+        childLeft.node,
+        childLeft.anchor,
+        cabinetDims,
+      );
       // 100 - 300 = -200 mm (-0.2 m)
       expect(posLeft.x).toBeCloseTo(-0.2, 4);
       expect(posLeft.y).toBeCloseTo(0.675, 4);
@@ -996,7 +1015,11 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       const childCenter = createMockChild("c-center", "A02", {
         anchorPos: { x: 300, y: 675, z: 0 },
       });
-      const posCenter = resolveChildPosition(childCenter.node, childCenter.anchor, cabinetDims);
+      const posCenter = resolveChildPosition(
+        childCenter.node,
+        childCenter.anchor,
+        cabinetDims,
+      );
       // 300 - 300 = 0 mm (0.0 m)
       expect(posCenter.x).toBeCloseTo(0.0, 4);
 
@@ -1004,7 +1027,11 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       const childRight = createMockChild("c-right", "A03", {
         anchorPos: { x: 500, y: 675, z: 0 },
       });
-      const posRight = resolveChildPosition(childRight.node, childRight.anchor, cabinetDims);
+      const posRight = resolveChildPosition(
+        childRight.node,
+        childRight.anchor,
+        cabinetDims,
+      );
       // 500 - 300 = +200 mm (+0.2 m)
       expect(posRight.x).toBeCloseTo(0.2, 4);
     });
@@ -1143,6 +1170,486 @@ describe("Spatial 3D Layout & Scene Engine", () => {
         descendantLocations,
       );
       expect(resolved).toBeNull();
+    });
+  });
+
+  describe("Warehouse Floor Grid", () => {
+    const child = (
+      code: string,
+      dims: { x: number; y: number; z: number },
+      options: {
+        position?: { x: number; y: number; z: number };
+        rotation?: { x: number; y: number; z: number };
+      } = {},
+    ): SceneChildLayout => {
+      const position = options.position ?? { x: 0, y: dims.y / 2, z: 0 };
+      return {
+        locationId: `loc-${code}`,
+        locationCode: code,
+        locationName: code,
+        kind: "cabinet",
+        isMapped: true,
+        hasStock: false,
+        totalQuantity: 0,
+        position,
+        rotation: options.rotation ?? { x: 0, y: 0, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+        dimensions: dims,
+        rawChild: {
+          location: {
+            id: `loc-${code}`,
+            code,
+            name: code,
+            kind: "cabinet",
+            parentId: "warehouse",
+            isActive: true,
+          },
+          node: null,
+          model: null,
+          anchor: null,
+        },
+      } as SceneChildLayout;
+    };
+
+    /** Elevated bay-plan placements: never a deliberate floor arrangement. */
+    const bayPlaced = (code: string, level: number): SceneChildLayout =>
+      child(
+        code,
+        { x: 0.72, y: 0.9, z: 0.32 },
+        {
+          position: {
+            x: (level % 3) * 0.9 - 0.9,
+            y: level % 2 === 0 ? 0.62 : 1.78,
+            z: 0.45,
+          },
+        },
+      );
+
+    const bounds = (entries: SceneChildLayout[]) =>
+      entries.map((entry) => ({
+        code: entry.locationCode,
+        minX: entry.position.x - entry.dimensions.x / 2,
+        maxX: entry.position.x + entry.dimensions.x / 2,
+        minZ: entry.position.z - entry.dimensions.z / 2,
+        maxZ: entry.position.z + entry.dimensions.z / 2,
+      }));
+
+    const overlapCount = (entries: SceneChildLayout[]): number => {
+      const boxes = bounds(entries);
+      let overlaps = 0;
+      for (let i = 0; i < boxes.length; i += 1) {
+        for (let j = i + 1; j < boxes.length; j += 1) {
+          const a = boxes[i]!;
+          const b = boxes[j]!;
+          if (
+            a.minX < b.maxX &&
+            b.minX < a.maxX &&
+            a.minZ < b.maxZ &&
+            b.minZ < a.maxZ
+          ) {
+            overlaps += 1;
+          }
+        }
+      }
+      return overlaps;
+    };
+
+    it("keeps a single child as the only occupant of the floor", () => {
+      const plan = resolveWarehouseFloorPlan([bayPlaced("A", 1)]);
+
+      // One object needs no arrangement: its authored placement is preserved.
+      expect(plan.generated).toBe(false);
+      expect(plan.rows).toBe(1);
+      expect(plan.columns).toBe(1);
+      expect(plan.children).toHaveLength(1);
+      expect(overlapCount(plan.children)).toBe(0);
+    });
+
+    it("lays three children out in one row", () => {
+      const plan = resolveWarehouseFloorPlan([
+        bayPlaced("A", 0),
+        bayPlaced("B", 1),
+        bayPlaced("C", 2),
+      ]);
+
+      expect(plan.generated).toBe(true);
+      expect(plan.rows).toBe(1);
+      expect(plan.columns).toBe(3);
+      const zs = new Set(plan.children.map((entry) => entry.position.z));
+      expect(zs.size).toBe(1);
+      expect(overlapCount(plan.children)).toBe(0);
+    });
+
+    it("lays six children out in two rows with an aisle between them", () => {
+      const plan = resolveWarehouseFloorPlan(
+        Array.from({ length: 6 }, (_, index) =>
+          bayPlaced(`ITEM-${index}`, index),
+        ),
+      );
+
+      expect(plan.generated).toBe(true);
+      expect(plan.rows).toBe(2);
+      expect(plan.columns).toBe(3);
+
+      const rows = new Map<number, number>();
+      for (const entry of plan.children) {
+        rows.set(entry.position.z, (rows.get(entry.position.z) ?? 0) + 1);
+      }
+      expect(rows.size).toBe(2);
+      expect([...rows.values()].sort()).toEqual([3, 3]);
+
+      // The row gap is the aisle plus the two half-depths it separates.
+      const rowDepths = [...rows.keys()].sort((a, b) => a - b);
+      const gap = rowDepths[1]! - rowDepths[0]!;
+      expect(gap).toBeGreaterThanOrEqual(0.9);
+      expect(overlapCount(plan.children)).toBe(0);
+    });
+
+    it("lays ten or more children out in multiple rows and columns", () => {
+      const plan = resolveWarehouseFloorPlan(
+        Array.from({ length: 12 }, (_, index) =>
+          bayPlaced(`ITEM-${String(index).padStart(2, "0")}`, index),
+        ),
+      );
+
+      expect(plan.generated).toBe(true);
+      expect(plan.columns).toBeGreaterThanOrEqual(3);
+      expect(plan.rows).toBeGreaterThanOrEqual(3);
+      expect(plan.children).toHaveLength(12);
+      expect(overlapCount(plan.children)).toBe(0);
+
+      const maxRowWidth = bounds(plan.children).reduce(
+        (widest, box) => Math.max(widest, box.maxX - box.minX),
+        0,
+      );
+      expect(plan.width).toBeGreaterThanOrEqual(maxRowWidth - 1e-6);
+    });
+
+    it("keeps mixed dimensions apart and inside the planned footprint", () => {
+      const plan = resolveWarehouseFloorPlan([
+        child(
+          "RACK",
+          { x: 1.0, y: 0.9, z: 0.5 },
+          {
+            position: { x: 0, y: 1.78, z: 0.45 },
+          },
+        ),
+        child(
+          "CAB",
+          { x: 0.6, y: 0.9, z: 0.4 },
+          {
+            position: { x: 0, y: 0.62, z: 0.45 },
+          },
+        ),
+        child(
+          "SHELF",
+          { x: 1.2, y: 0.6, z: 0.5 },
+          {
+            position: { x: 0, y: 0.62, z: 0.45 },
+          },
+        ),
+        child(
+          "BINS",
+          { x: 0.4, y: 0.47, z: 0.18 },
+          {
+            position: { x: 0, y: 0.62, z: 0.45 },
+          },
+        ),
+      ]);
+
+      expect(plan.generated).toBe(true);
+      expect(overlapCount(plan.children)).toBe(0);
+
+      for (const entry of plan.children) {
+        expect(
+          entry.position.x - entry.dimensions.x / 2,
+        ).toBeGreaterThanOrEqual(-plan.width / 2 - 1e-6);
+        expect(entry.position.x + entry.dimensions.x / 2).toBeLessThanOrEqual(
+          plan.width / 2 + 1e-6,
+        );
+        expect(
+          entry.position.z - entry.dimensions.z / 2,
+        ).toBeGreaterThanOrEqual(-plan.depth / 2 - 1e-6);
+        expect(entry.position.z + entry.dimensions.z / 2).toBeLessThanOrEqual(
+          plan.depth / 2 + 1e-6,
+        );
+      }
+
+      const shelf = plan.children.find(
+        (entry) => entry.locationCode === "SHELF",
+      )!;
+      const bins = plan.children.find(
+        (entry) => entry.locationCode === "BINS",
+      )!;
+      expect(
+        Math.abs(shelf.position.x - bins.position.x),
+      ).toBeGreaterThanOrEqual((1.2 + 0.4) / 2);
+    });
+
+    it("produces the same arrangement for the same input", () => {
+      const entries = Array.from({ length: 7 }, (_, index) =>
+        bayPlaced(`ITEM-${index}`, index),
+      );
+
+      const placement = (plan: ReturnType<typeof resolveWarehouseFloorPlan>) =>
+        Object.fromEntries(
+          plan.children.map((entry) => [
+            entry.locationCode,
+            { x: entry.position.x, z: entry.position.z },
+          ]),
+        );
+
+      const first = resolveWarehouseFloorPlan(entries);
+      // The same warehouse, whatever order the children arrive in.
+      const second = resolveWarehouseFloorPlan([...entries].reverse());
+
+      expect(placement(second)).toEqual(placement(first));
+      expect(second.width).toBe(first.width);
+      expect(second.depth).toBe(first.depth);
+      expect(second.columns).toBe(first.columns);
+    });
+
+    it("preserves an authored floor arrangement and its coordinates", () => {
+      const authored = [
+        child(
+          "CAB-A",
+          { x: 0.72, y: 0.9, z: 0.32 },
+          {
+            position: { x: -1.2, y: 0.45, z: -0.4 },
+          },
+        ),
+        child(
+          "CAB-B",
+          { x: 0.6, y: 0.9, z: 0.4 },
+          {
+            position: { x: 0.2, y: 0.45, z: -0.4 },
+          },
+        ),
+        child(
+          "RACK",
+          { x: 0.79, y: 0.86, z: 0.32 },
+          {
+            position: { x: -1.2, y: 0.43, z: 0.9 },
+          },
+        ),
+      ];
+
+      const plan = resolveWarehouseFloorPlan(authored);
+
+      expect(plan.generated).toBe(false);
+      expect(plan.children.map((entry) => entry.position.x)).toEqual(
+        authored.map((entry) => entry.position.x),
+      );
+      expect(plan.children.map((entry) => entry.position.z)).toEqual(
+        authored.map((entry) => entry.position.z),
+      );
+    });
+
+    it("arranges children whose coordinates came from a layout plan", () => {
+      // A published bay plan writes slot coordinates; those are a plan
+      // placement, not a deliberate warehouse floor arrangement, so the
+      // fallback grid takes over even when nothing is elevated.
+      const planMapped = bayPlaced("PLAN-A", 0);
+      (planMapped.rawChild as { slotDimensionsMm?: unknown }).slotDimensionsMm =
+        {
+          widthMm: 786.67,
+          heightMm: 1080,
+          depthMm: 900,
+        };
+      const handPlaced = child(
+        "MANUAL-B",
+        { x: 0.6, y: 0.9, z: 0.4 },
+        {
+          position: { x: 1.4, y: 0.45, z: 0 },
+        },
+      );
+
+      const plan = resolveWarehouseFloorPlan([planMapped, handPlaced]);
+
+      expect(plan.generated).toBe(true);
+      expect(plan.rows).toBe(1);
+      expect(plan.columns).toBe(2);
+    });
+
+    it("recognizes plan-written nodes as plan placement, not a floor plan", () => {
+      const planNode = bayPlaced("PLAN-NODE", 0);
+      (planNode.rawChild as { node?: unknown }).node = {
+        metadata: { source: "inventory_builder" },
+      };
+      const handPlaced = child("MANUAL-B", { x: 0.6, y: 0.9, z: 0.4 }, {
+        position: { x: 1.4, y: 0.45, z: 0 },
+      });
+
+      const plan = resolveWarehouseFloorPlan([planNode, handPlaced]);
+
+      expect(plan.generated).toBe(true);
+      expect(plan.columns).toBe(2);
+    });
+
+    it("never mutates the layout it arranges", () => {
+      const entries = Array.from({ length: 5 }, (_, index) =>
+        bayPlaced(`ITEM-${index}`, index),
+      );
+      const snapshot = JSON.parse(JSON.stringify(entries));
+
+      const plan = resolveWarehouseFloorPlan(entries);
+
+      expect(entries).toEqual(snapshot);
+      expect(plan.children).not.toBe(entries);
+
+      if (plan.generated) {
+        const moved = plan.children.filter(
+          (entry, index) =>
+            entry.position.x !== snapshot[index].position.x ||
+            entry.position.z !== snapshot[index].position.z,
+        );
+        expect(moved.length).toBeGreaterThan(0);
+        // Elevation and every other authored transform stay untouched.
+        for (let index = 0; index < plan.children.length; index += 1) {
+          const planned = plan.children[index]!;
+          const original = entries.find(
+            (entry) => entry.locationId === planned.locationId,
+          )!;
+          expect(planned.position.y).toBe(original.position.y);
+          expect(planned.rotation).toEqual(original.rotation);
+          expect(planned.scale).toEqual(original.scale);
+          expect(planned.dimensions).toEqual(original.dimensions);
+        }
+      }
+    });
+
+    it("grows the shell with the grid instead of with a single line", () => {
+      const three = resolveWarehouseFloorPlan(
+        Array.from({ length: 3 }, (_, index) =>
+          bayPlaced(`ITEM-${index}`, index),
+        ),
+      );
+      const twelve = resolveWarehouseFloorPlan(
+        Array.from({ length: 12 }, (_, index) =>
+          bayPlaced(`ITEM-${String(index).padStart(2, "0")}`, index),
+        ),
+      );
+
+      const shellThree = resolveWarehouseShellDimensions(null, three);
+      const shellTwelve = resolveWarehouseShellDimensions(null, twelve);
+
+      expect(shellTwelve.x).toBeGreaterThan(shellThree.x);
+      expect(shellTwelve.z).toBeGreaterThan(shellThree.z);
+      // Industrial proportions: never an extremely tall warehouse.
+      const shellTwelvePlanAspect = shellTwelve.x / shellTwelve.z;
+      expect(shellTwelvePlanAspect).toBeGreaterThan(0.5);
+      expect(shellTwelvePlanAspect).toBeLessThan(6);
+    });
+  });
+
+  describe("Warehouse Shell Sizing", () => {
+    const child = (
+      code: string,
+      x: number,
+      y: number,
+      dims: { x: number; y: number; z: number },
+      options: {
+        z?: number;
+        rotation?: { x: number; y: number; z: number };
+      } = {},
+    ): SceneChildLayout =>
+      ({
+        locationId: code,
+        locationCode: code,
+        locationName: code,
+        kind: "cabinet",
+        isMapped: true,
+        hasStock: false,
+        totalQuantity: 0,
+        position: { x, y, z: options.z ?? 0 },
+        rotation: options.rotation ?? { x: 0, y: 0, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+        dimensions: dims,
+        rawChild: {
+          location: {
+            id: code,
+            code,
+            name: code,
+            kind: "cabinet",
+            parentId: "warehouse",
+            isActive: true,
+          },
+          node: null,
+          model: null,
+          anchor: null,
+        },
+      }) as SceneChildLayout;
+
+    it("wraps the floor placement and keeps the authored headroom", () => {
+      const plan = resolveWarehouseFloorPlan([
+        child("CAB-A", -0.85, 0.62, { x: 0.72, y: 0.9, z: 0.32 }),
+      ]);
+      const shell = resolveWarehouseShellDimensions(
+        { x: 2.6, y: 2.4, z: 0.9 },
+        plan,
+      );
+
+      expect(shell.x).toBeGreaterThan(plan.width);
+      expect(shell.y).toBeGreaterThan(2.4);
+      expect(shell.z).toBeGreaterThan(plan.depth);
+    });
+
+    it("sizes the roof from the contents' own heights, not their authored elevation", () => {
+      const onFloor = child("CAB-A", 0, 0.45, { x: 0.72, y: 0.9, z: 0.32 });
+      const authoredHigher = child("CAB-B", 0, 4.2, {
+        x: 0.72,
+        y: 0.9,
+        z: 0.32,
+      });
+
+      // Elevation is a layout detail: the same object is the same height once
+      // it stands on the warehouse floor.
+      expect(
+        resolveWarehouseShellDimensions(
+          null,
+          resolveWarehouseFloorPlan([authoredHigher]),
+        ),
+      ).toEqual(
+        resolveWarehouseShellDimensions(
+          null,
+          resolveWarehouseFloorPlan([onFloor]),
+        ),
+      );
+    });
+
+    it("uses rotated extents so a rotated object can never poke through a wall", () => {
+      const upright = child("CAB", 0, 0.45, { x: 1, y: 0.9, z: 0.4 });
+      const rotated = child(
+        "CAB",
+        0,
+        0.45,
+        { x: 1, y: 0.9, z: 0.4 },
+        {
+          rotation: { x: 0, y: Math.PI / 2, z: 0 },
+        },
+      );
+
+      expect(
+        resolveWarehouseShellDimensions(
+          null,
+          resolveWarehouseFloorPlan([rotated]),
+        ).z,
+      ).toBeGreaterThan(
+        resolveWarehouseShellDimensions(
+          null,
+          resolveWarehouseFloorPlan([upright]),
+        ).z,
+      );
+    });
+
+    it("keeps a finite minimum stage for an empty warehouse", () => {
+      const shell = resolveWarehouseShellDimensions(
+        null,
+        resolveWarehouseFloorPlan([]),
+      );
+      expect(shell.x).toBeGreaterThan(0);
+      expect(shell.y).toBeGreaterThan(0);
+      expect(shell.z).toBeGreaterThan(0);
     });
   });
 });

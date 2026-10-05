@@ -25,6 +25,7 @@ import {
   computeSpatialMappingStatus,
   generateStorageCompartments,
   type InventoryProjection,
+  type ParametricStorageConfig,
   type SpatialContainerStatus,
   type SpatialLayoutRepository,
   type SpatialLayoutStatus,
@@ -93,7 +94,8 @@ export interface LocationSpatialMappingSummary {
   /**
    * The published (operational) layout of this location as a container. Its
    * configured dimensions are the physical frame the builder wrote child
-   * spatial-node coordinates in, so 3D rendering must use them.
+   * spatial-node coordinates in, and its template/config are the authored
+   * geometry a viewer must render instead of inventing a generic enclosure.
    */
   publishedLayout: {
     id: string;
@@ -105,6 +107,10 @@ export interface LocationSpatialMappingSummary {
       heightMm: number;
       depthMm: number;
     } | null;
+    /** Parametric template that authored the layout's physical geometry. */
+    templateType: string;
+    /** Authored parametric config (wall thickness, posts, beams, …). */
+    config: ParametricStorageConfig | null;
   } | null;
   /**
    * Slot mapping of this location into an ancestor's layout. A draft mapping is
@@ -750,6 +756,8 @@ export class SpatialService {
                   depthMm: layoutDimensions.depthMm,
                 }
               : null,
+            templateType: publishedLayout.templateType,
+            config: publishedLayout.config ?? null,
           }
         : null,
       slotMapping: slotMapping

@@ -40,6 +40,9 @@ import {
   getSemanticVisualState,
   getCompartmentBadgeText,
   resolveContainerFrameDimensions,
+  resolveParentGeometryOwnership,
+  resolveWarehouseFloorPlan,
+  resolveWarehouseShellDimensions,
   radToDeg,
   type SceneChildLayout,
   type SpatialVisualizationMode,
@@ -49,6 +52,7 @@ import {
 import {
   createChildCompartmentMesh,
   createParentCarcassMesh,
+  groundObjectOnFloor,
   createAnchorMarkerGroup,
   findAnchorMarkerUserData,
   scenePositionToAnchorLocal,
@@ -134,6 +138,13 @@ export interface Spatial3DViewportProps {
    */
   isChildInteractionEnabled?: boolean;
   onOpenMapping?: () => void;
+  /**
+   * Marks an authoring surface (the Inventory Builder preview): the authored
+   * layout is the container being edited, so its structure and its authored
+   * elevations render instead of the location's warehouse overview. Defaults
+   * to false so operational viewers keep the space composition.
+   */
+  isAuthoringLayout?: boolean;
   visualizationMode?: SpatialVisualizationMode;
   showBadges?: boolean;
   /**
@@ -179,6 +190,7 @@ export function Spatial3DViewport({
   isChildInteractionEnabled = true,
   onOpenMapping,
   onSwitchTo2D,
+  isAuthoringLayout = false,
   visualizationMode = "standard",
   showBadges = true,
   enableDrawerOpening = false,
@@ -265,8 +277,6 @@ export function Spatial3DViewport({
   const activeDrawerIdRef = React.useRef<string | null>(null);
   const drawerMotionsRef = React.useRef<Map<string, DrawerMotion>>(new Map());
   const drawerGroupsRef = React.useRef<Map<string, THREE.Group>>(new Map());
-  const childrenLayoutRef = React.useRef(childrenLayout);
-  childrenLayoutRef.current = childrenLayout;
 
   // Compute scene bounds. The container frame is the published layout the
   // child coordinates were authored in, falling back to the container's own
@@ -279,6 +289,65 @@ export function Spatial3DViewport({
     );
   }, [parentData.mapping, parentData.model, parentData.location.kind]);
 
+  /**
+   * Whether (and how) the viewed location owns visible physical geometry. A
+   * warehouse that merely contains mapped locations owns no carcass: its body
+   * is the cutaway shell, so its mathematical bounds must never become a
+   * cabinet-shaped mesh.
+   */
+  const parentGeometry = React.useMemo(
+    () =>
+      resolveParentGeometryOwnership(parentData, {
+        authoredLayoutBody: isAuthoringLayout,
+      }),
+    [parentData, isAuthoringLayout],
+  );
+
+  const rendersWarehouseShell = parentGeometry.structure === "warehouse";
+
+  /**
+   * Floor placement of a warehouse's contents: the authored arrangement when it
+   * already describes floor-standing equipment, otherwise a deterministic floor
+   * grid with rows and aisles. Render-time only — the persisted spatial nodes,
+   * mappings and layout revisions are never touched.
+   */
+  const warehouseFloorPlan = React.useMemo(
+    () =>
+      rendersWarehouseShell ? resolveWarehouseFloorPlan(childrenLayout) : null,
+    [rendersWarehouseShell, childrenLayout],
+  );
+
+  /** The layout the scene composes: grid-placed contents for a warehouse shell. */
+  const composedChildren = warehouseFloorPlan?.children ?? childrenLayout;
+
+  /**
+   * Carcass dimensions: a warehouse shell is built around the required floor
+   * placement — grid width and depth, aisles and floor margins — so it grows
+   * with its contents instead of hugging them like a carcass. Every other
+   * parent keeps its authored frame.
+   */
+  const carcassDimensions = React.useMemo<Vector3D>(
+    () =>
+      warehouseFloorPlan
+        ? resolveWarehouseShellDimensions(parentDimensions, warehouseFloorPlan)
+        : parentDimensions,
+    [warehouseFloorPlan, parentDimensions],
+  );
+
+  const childrenLayoutRef = React.useRef(composedChildren);
+  childrenLayoutRef.current = composedChildren;
+
+  /**
+   * World-space position each child was composed at, keyed by location id.
+   * Warehouse children are grounded on the floor during scene composition, so
+   * camera focus targets the composed transform instead of the authored one.
+   */
+  const composedChildPositionsRef = React.useRef<Map<string, Vector3D>>(
+    new Map(),
+  );
+
+  // Anchor authoring always converts against the authored frame the anchor
+  // coordinates are persisted in, never against the shell that visualizes it.
   const parentDimensionsRef = React.useRef(parentDimensions);
   parentDimensionsRef.current = parentDimensions;
 
@@ -298,12 +367,19 @@ export function Spatial3DViewport({
     [enableDrawerOpening, openableKindSet],
   );
   const sceneBounds = React.useMemo(() => {
-    const bounds = computeSceneBoundingBox(parentDimensions, childrenLayout);
+    // A warehouse shell is the stage: it is sized to contain every grounded
+    // object (floor, walls, roof included), so the shell envelope alone is the
+    // camera frame. Every other parent frames its authored container plus the
+    // children composed inside it.
+    const bounds = computeSceneBoundingBox(
+      parentGeometry.structure === "none" ? null : carcassDimensions,
+      rendersWarehouseShell ? [] : composedChildren,
+    );
     if (!enableDrawerOpening) return bounds;
     // A compartment opens towards the viewer, which would push bottom rows of a
     // fitted scene past the canvas edge. Leave headroom for the deepest possible
     // extension so an opened compartment stays fully framed.
-    const frontClearanceMeters = childrenLayout.reduce(
+    const frontClearanceMeters = composedChildren.reduce(
       (widest, child) =>
         isCompartmentOpenable(child.kind)
           ? Math.max(widest, computeDrawerExtension(child.dimensions.z))
@@ -321,8 +397,10 @@ export function Spatial3DViewport({
       },
     };
   }, [
-    parentDimensions,
-    childrenLayout,
+    carcassDimensions,
+    parentGeometry.structure,
+    rendersWarehouseShell,
+    composedChildren,
     enableDrawerOpening,
     isCompartmentOpenable,
   ]);
@@ -441,15 +519,18 @@ export function Spatial3DViewport({
   const focusOnLocation = React.useCallback(
     (locationId: string) => {
       if (!cameraRef.current || !controlsRef.current) return;
-      const targetChild = childrenLayout.find(
+      const targetChild = composedChildren.find(
         (c) => c.locationId === locationId,
       );
       if (!targetChild) return;
 
+      // Prefer the composed transform (grounded for a warehouse overview) so
+      // the camera targets where the child actually is on screen.
+      const composed = composedChildPositionsRef.current.get(locationId);
       const targetPos = new THREE.Vector3(
-        targetChild.position.x,
-        targetChild.position.y,
-        targetChild.position.z,
+        composed?.x ?? targetChild.position.x,
+        composed?.y ?? targetChild.position.y,
+        composed?.z ?? targetChild.position.z,
       );
 
       // Camera offset positioned at isometric viewpoint relative to target
@@ -482,7 +563,7 @@ export function Spatial3DViewport({
         active: true,
       };
     },
-    [childrenLayout, prefersReducedMotion],
+    [composedChildren, prefersReducedMotion],
   );
 
   // --- Drawer opening helpers (view-only; never persisted) ---
@@ -877,17 +958,22 @@ export function Spatial3DViewport({
     // Immediate synchronous procedural fallback
     const fallbackCarcass = createParentCarcassMesh(
       parentData,
-      parentDimensions,
+      carcassDimensions,
       {
         isSelected: selectedLocationId === parentData.location.id,
         needsAttention: !isChildInteractionEnabled,
+        structure: parentGeometry.structure,
+        wallThicknessMm: parentGeometry.wallThicknessMm,
+        postWidthMm: parentGeometry.postWidthMm,
+        beamHeightMm: parentGeometry.beamHeightMm,
       },
     );
     carcassContainer.add(fallbackCarcass);
     rootGroup.add(carcassContainer);
 
     // 2. Build Mapped Child Meshes
-    for (const child of childrenLayout) {
+    composedChildPositionsRef.current = new Map();
+    for (const child of composedChildren) {
       const summary = stockMap.get(child.locationId);
       const state = getSemanticVisualState(child.locationId, {
         selectedLocationId,
@@ -910,6 +996,20 @@ export function Spatial3DViewport({
         isOpen: openableChild && child.locationId === activeDrawerId,
       });
       rootGroup.add(childMesh);
+
+      // A warehouse overview composes floor-standing equipment: the child is
+      // built with its authoritative position, rotation, scale and geometry,
+      // then grounded on the warehouse floor from its own world-space bounding
+      // box. The persisted transforms are never rewritten, and every other
+      // parent composes children exactly as authored.
+      if (rendersWarehouseShell) {
+        groundObjectOnFloor(childMesh);
+        composedChildPositionsRef.current.set(child.locationId, {
+          x: childMesh.position.x,
+          y: childMesh.position.y,
+          z: childMesh.position.z,
+        });
+      }
 
       if (openableChild) {
         // Remember the resting transform and opening axis so the animation loop can
@@ -945,7 +1045,7 @@ export function Spatial3DViewport({
       // orphaned animation state behind.
       const { motions, removedLocationIds } = pruneDrawerMotions(
         drawerMotionsRef.current,
-        childrenLayout
+        composedChildren
           .filter((child) => isCompartmentOpenable(child.kind))
           .map((child) => child.locationId),
       );
@@ -973,7 +1073,7 @@ export function Spatial3DViewport({
         string,
         { code: string; locationId: string }
       >();
-      for (const child of childrenLayout) {
+      for (const child of composedChildren) {
         if (child.rawChild.anchor) {
           anchorChildMap.set(child.rawChild.anchor.id, {
             code: child.locationCode,
@@ -1092,9 +1192,12 @@ export function Spatial3DViewport({
   }, [
     parentData,
     parentDimensions,
+    carcassDimensions,
+    parentGeometry,
     isChildInteractionEnabled,
     sceneBounds,
-    childrenLayout,
+    composedChildren,
+    rendersWarehouseShell,
     selectedLocationId,
     highlightedLocationId,
     isAuthoringAnchors,

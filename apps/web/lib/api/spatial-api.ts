@@ -1,4 +1,5 @@
 import { apiClient } from "../api-client";
+import type { ParametricStorageConfig } from "@ananya/inventory";
 import type { InventoryProjectionDto } from "./inventory-projections-api";
 
 export interface SpatialModelDto {
@@ -78,6 +79,10 @@ export interface LocationSpatialMappingSummaryDto {
       heightMm: number;
       depthMm: number;
     } | null;
+    /** Parametric template that authored this layout's physical geometry. */
+    templateType?: string;
+    /** Authored parametric config (wall thickness, posts, beams, …). */
+    config?: ParametricStorageConfig | null;
   } | null;
   slotMapping: {
     layoutId: string;

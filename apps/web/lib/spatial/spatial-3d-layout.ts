@@ -4,6 +4,10 @@ import type {
   SpatialModelDto,
   SpatialNodeDto,
 } from "../api/spatial-api";
+import {
+  INCOMPATIBLE_COMPARTMENT_KINDS,
+  type ParametricStorageConfig,
+} from "@ananya/inventory";
 import type { CellStockSummary } from "./spatial-inventory-mapper";
 
 /**
@@ -211,8 +215,8 @@ export function resolveChildPosition(
 
   const isExplicitlyCentered = Boolean(
     anchor?.metadata &&
-      typeof anchor.metadata === "object" &&
-      (anchor.metadata as Record<string, unknown>).origin === "center",
+    typeof anchor.metadata === "object" &&
+    (anchor.metadata as Record<string, unknown>).origin === "center",
   );
 
   const rawX = (anchor?.localPositionX ?? 0) + (node?.positionX ?? 0);
@@ -267,9 +271,11 @@ export function resolveChildPosition(
 export function fitDimensionsToSlot(
   dimensions: Vector3D,
   scale: Vector3D,
-  slotDimensionsMm?:
-    | { widthMm: number; heightMm: number; depthMm: number }
-    | null,
+  slotDimensionsMm?: {
+    widthMm: number;
+    heightMm: number;
+    depthMm: number;
+  } | null,
 ): Vector3D {
   if (!slotDimensionsMm) return dimensions;
 
@@ -423,8 +429,10 @@ export function arrangeCollidingChildren(
       a.locationCode.localeCompare(b.locationCode),
     );
     const slotMeters =
-      ordered.reduce((widest, child) => Math.max(widest, child.dimensions.x), 0) +
-      gapMeters;
+      ordered.reduce(
+        (widest, child) => Math.max(widest, child.dimensions.x),
+        0,
+      ) + gapMeters;
     const centreX = group[0]!.position.x;
     const startX = centreX - (slotMeters * (ordered.length - 1)) / 2;
     ordered.forEach((child, index) => {
@@ -521,6 +529,577 @@ export function resolveContainerFrameDimensions(
 }
 
 /**
+ * Where a viewed parent's physical body comes from, most authoritative first:
+ * an explicit model, a published parametric layout, an explicit kind rule, or
+ * nothing at all (the location is only a scene context for its children).
+ */
+export type ParentGeometrySource = "model" | "layout" | "kind" | "overview";
+
+/**
+ * Structure a parent body is drawn with; `none` means no parent mesh.
+ *
+ * `"drawer"` is a sliding body (walls plus a closed front face); `"tray"` is the
+ * same shell with an open front, because a grid of compartments must stay
+ * visible and clickable. `"warehouse"` is scene context rather than inventory
+ * geometry: a cutaway shell (floor, back wall, partial side walls, pitched
+ * roof) whose front stays fully open so the contents read as equipment standing
+ * inside a space.
+ */
+export type ParentStructureShape =
+  "rack" | "tray" | "drawer" | "enclosure" | "warehouse" | "none";
+
+/**
+ * Kinds whose physical form is an explicit domain rule: they own a body even
+ * without an authored model or layout.
+ *
+ * This mirrors the only two kind-level facts the domain states — the kinds the
+ * spatial rules treat as compartment-level containers (`cabinet`, `drawer`,
+ * `shelf`, `bin`, `tray`, …) and `INCOMPATIBLE_COMPARTMENT_KINDS`, the kinds
+ * that are spaces rather than containers. Space kinds (warehouse, room,
+ * building, facility, zone) are deliberately absent: they are scenes that
+ * contain mapped children, not enclosures, unless a model or a published layout
+ * gives them geometry.
+ */
+export const PHYSICAL_CONTAINER_KINDS: ReadonlySet<string> = new Set([
+  "cabinet",
+  "cupboard",
+  "locker",
+  "drawer",
+  "shelf",
+  "rack",
+  "bin",
+  "tray",
+  "reel_slot",
+  "tube",
+  "slot",
+  "compartment",
+]);
+
+/**
+ * Space kinds that own no carcass: they are scenes that contain storage
+ * equipment. The viewer draws their cutaway shell instead of a compartment
+ * body, so a warehouse never reads as a giant cabinet.
+ */
+export const WAREHOUSE_SHELL_KINDS: ReadonlySet<string> = new Set([
+  "warehouse",
+  "facility",
+  "building",
+]);
+
+const TEMPLATE_STRUCTURES: Record<string, ParentStructureShape> = {
+  PALLET_RACK: "rack",
+  GRID_PARTS_TRAY: "tray",
+  SMD_DRAWER_CABINET: "enclosure",
+  OPEN_BIN_MATRIX: "enclosure",
+};
+
+/** Shape implied by a location kind alone (no authored model/layout). */
+export function resolveKindStructureShape(kind?: string): ParentStructureShape {
+  const normalized = (kind ?? "").trim().toLowerCase();
+  // A warehouse is a space, so its procedural body is the cutaway shell rather
+  // than a compartment carcass. An explicit model still wins (see
+  // `resolveParentGeometryOwnership`).
+  if (WAREHOUSE_SHELL_KINDS.has(normalized)) return "warehouse";
+  // The domain's own rule: these kinds are spaces, never compartment-level
+  // containers, so they must not acquire a container-shaped body.
+  if (!normalized || INCOMPATIBLE_COMPARTMENT_KINDS.has(normalized)) {
+    return "none";
+  }
+  if (normalized.includes("shelf") || normalized.includes("rack"))
+    return "rack";
+  if (normalized.includes("drawer")) return "drawer";
+  if (PHYSICAL_CONTAINER_KINDS.has(normalized)) return "enclosure";
+  // An unrecognized kind is not evidence of a physical container: render the
+  // location as the scene context for its children instead of inventing a body.
+  return "none";
+}
+
+export interface ParentGeometryOwnership {
+  source: ParentGeometrySource;
+  /** Body shape to render; `none` means the parent must not become a mesh. */
+  structure: ParentStructureShape;
+  /** Authored structure parameters (mm) when a layout defines them. */
+  wallThicknessMm: number | null;
+  postWidthMm: number | null;
+  beamHeightMm: number | null;
+}
+
+/**
+ * Decides whether (and how) a viewed parent owns visible physical geometry.
+ *
+ * The decision must never be "it has children" or "it is a container": a
+ * warehouse that merely contains mapped locations is a scene, and rendering a
+ * bounding box as a mesh made it read as a giant cabinet. Scene bounds are a
+ * camera concern (`computeSceneBoundingBox`) and are deliberately resolved
+ * separately from this ownership decision.
+ *
+ * Precedence: an explicit model is the location's own geometry and always wins.
+ * A space kind (`warehouse`, `facility`, `building`) owns the cutaway shell as
+ * its body — a published layout for a space is the bay plan its contents are
+ * arranged in, so it places children but never authors the space's own carcass.
+ * A physical container kind renders the layout's authored structure.
+ *
+ * `authoredLayoutBody` marks an authoring surface (the Inventory Builder
+ * preview): there the authored layout *is* the container being edited, so its
+ * structure and its authored elevations are rendered instead of the space
+ * overview the operational viewer shows for the same location.
+ */
+export function resolveParentGeometryOwnership(
+  parent: {
+    location?: { kind?: string } | null;
+    model?: SpatialModelDto | null;
+    mapping?: {
+      publishedLayout?: {
+        templateType?: string | null;
+        config?: ParametricStorageConfig | null;
+      } | null;
+    } | null;
+  },
+  options: { authoredLayoutBody?: boolean } = {},
+): ParentGeometryOwnership {
+  const published = parent.mapping?.publishedLayout ?? null;
+  const config = (published?.config ?? null) as Record<string, unknown> | null;
+  const readMm = (key: string): number | null => {
+    const value = config ? Number(config[key]) : NaN;
+    return Number.isFinite(value) && value > 0 ? value : null;
+  };
+  const authored = {
+    wallThicknessMm: readMm("wallThicknessMm"),
+    postWidthMm: readMm("uprightPostWidthMm"),
+    beamHeightMm: readMm("beamHeightMm"),
+  };
+
+  const kindShape = resolveKindStructureShape(parent.location?.kind);
+  // An explicit model authorizes a body even for kinds that do not own one, and
+  // a warehouse model is the warehouse's own geometry: the cutaway shell may
+  // never replace it, so the procedural body keeps the container shape.
+  const modelShape =
+    kindShape === "none" || kindShape === "warehouse" ? "enclosure" : kindShape;
+
+  if (parent.model) {
+    return { source: "model", structure: modelShape, ...authored };
+  }
+
+  // A warehouse is a space, not a carcass: its body is the cutaway shell, and
+  // the authored bay plan only places the equipment standing on its floor.
+  if (kindShape === "warehouse" && !options.authoredLayoutBody) {
+    return {
+      source: "overview",
+      structure: "warehouse",
+      wallThicknessMm: null,
+      postWidthMm: null,
+      beamHeightMm: null,
+    };
+  }
+
+  if (published) {
+    const template = (published.templateType ?? "").toUpperCase();
+    return {
+      source: "layout",
+      structure: TEMPLATE_STRUCTURES[template] ?? modelShape,
+      ...authored,
+    };
+  }
+
+  if (kindShape !== "none") {
+    return {
+      source: "kind",
+      structure: kindShape,
+      wallThicknessMm: null,
+      postWidthMm: null,
+      beamHeightMm: null,
+    };
+  }
+
+  return {
+    source: "overview",
+    structure: "none",
+    wallThicknessMm: null,
+    postWidthMm: null,
+    beamHeightMm: null,
+  };
+}
+
+/** Minimum cutaway shell footprint, so a lone warehouse still reads as a space. */
+export const WAREHOUSE_SHELL_MIN_DIMENSIONS: Vector3D = {
+  x: 1.2,
+  y: 1,
+  z: 0.6,
+};
+
+/**
+ * Elevation of the warehouse floor plane in the scene frame, in meters.
+ *
+ * Vertical axis: +Y (Three.js Y-up, the same axis the persisted spatial node
+ * positions and the container frames use). The warehouse scene owns this
+ * reference — it is deliberately not derived from any child, camera or
+ * bounding-box centre — and it is a rendering concern: a warehouse whose own
+ * model or published geometry states a floor elevation keeps that instead
+ * (this constant only drives the fallback cutaway shell).
+ */
+export const WAREHOUSE_FLOOR_ELEVATION_METERS = 0;
+
+/**
+ * Vertical clearance kept between a grounded object and the floor, so the
+ * shared floor plane never z-fights with the object's bottom face.
+ */
+export const WAREHOUSE_GROUNDING_CLEARANCE_METERS = 0.001;
+
+/**
+ * Rise of the shell's pitched roof for a shell of the given width, in meters.
+ * Shared by the shell geometry and the scene bounds so the roof is always
+ * framed by the camera fit.
+ */
+export function resolveWarehouseRoofRise(widthMeters: number): number {
+  return Math.max(0.18, Math.min(0.7, widthMeters * 0.12));
+}
+
+/**
+ * Upper bound of a box's axis-aligned footprint once rotated, so the shell that
+ * wraps it can never clip a rotated object. Exact for the axis-aligned case and
+ * a conservative bound otherwise.
+ */
+function resolveRotatedExtents(child: SceneChildLayout): Vector3D {
+  const { x: w, y: h, z: d } = child.dimensions;
+  const rx = Math.abs(Math.cos(child.rotation.x));
+  const rxs = Math.abs(Math.sin(child.rotation.x));
+  const ry = Math.abs(Math.cos(child.rotation.y));
+  const rys = Math.abs(Math.sin(child.rotation.y));
+  const rz = Math.abs(Math.cos(child.rotation.z));
+  const rzs = Math.abs(Math.sin(child.rotation.z));
+
+  return {
+    x: w * ry * rz + d * rys * rz + h * rxs,
+    y: h * rx * rz + d * rxs + w * rzs,
+    z: d * ry * rx + w * rys * rx + h * rxs,
+  };
+}
+
+/** Minimum horizontal clearance kept between neighbours in a grid row (m). */
+export const WAREHOUSE_GRID_GAP_METERS = 0.45;
+
+/** Aisle left between floor grid rows (m). Purely visual, not a vehicle clearance. */
+export const WAREHOUSE_AISLE_GAP_METERS = 0.9;
+
+/** Floor margin kept between the grid and the shell walls (m). */
+export const WAREHOUSE_GRID_MARGIN_METERS = 0.6;
+
+/** Headroom kept above the tallest floor-standing object, as a ratio. */
+export const WAREHOUSE_EAVES_HEADROOM_RATIO = 1.25;
+
+/** Lowest eaves height, so a small warehouse still reads as a building (m). */
+export const WAREHOUSE_MIN_EAVES_METERS = 2.2;
+
+/**
+ * Placement of a warehouse's floor-standing contents, in the scene frame.
+ *
+ * `generated` is false when the authored node coordinates already form a valid
+ * floor arrangement (every object standing on the warehouse floor with no
+ * horizontal overlap): that is an intentional arrangement and it is preserved
+ * verbatim. Otherwise the contents are arranged on a deterministic floor grid.
+ */
+export interface WarehouseFloorPlan {
+  children: SceneChildLayout[];
+  /** Horizontal extents of the placement, centred on the scene origin (m). */
+  width: number;
+  depth: number;
+  columns: number;
+  rows: number;
+  generated: boolean;
+}
+
+function round(value: number, digits: number): number {
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
+
+/** Rounded to sub-millimetre precision so ordering and spacing stay stable. */
+function footprintOf(child: SceneChildLayout): {
+  widthMeters: number;
+  depthMeters: number;
+  heightMeters: number;
+} {
+  const extents = resolveRotatedExtents(child);
+  return {
+    widthMeters: round(extents.x, 6),
+    depthMeters: round(extents.z, 6),
+    heightMeters: round(extents.y, 6),
+  };
+}
+
+/**
+ * Whether the child's coordinates were written by a parent layout plan rather
+ * than placed by hand: either the child carries an authored slot envelope, or
+ * its spatial node was written by the Inventory Builder (`source` metadata).
+ * Plan-written placements are bay plans, not a deliberate warehouse floor
+ * arrangement, so they are arranged rather than preserved verbatim.
+ */
+function hasPlanGeneratedPlacement(child: SceneChildLayout): boolean {
+  if (child.rawChild?.slotDimensionsMm) return true;
+  const metadata = child.rawChild?.node?.metadata as
+    | { source?: unknown }
+    | null
+    | undefined;
+  return metadata?.source === "inventory_builder";
+}
+
+/**
+ * Horizontal positions already represent a deliberate floor arrangement: they
+ * were authored rather than generated by a plan, every object already stands on
+ * the warehouse floor, and nothing overlaps.
+ */
+function isAuthoredFloorArrangement(children: SceneChildLayout[]): boolean {
+  if (children.length < 2) return true;
+  if (children.some(hasPlanGeneratedPlacement)) return false;
+  for (const child of children) {
+    const bottom = child.position.y - child.dimensions.y / 2;
+    if (bottom > WAREHOUSE_FLOOR_ELEVATION_METERS + 0.02) return false;
+  }
+  for (let i = 0; i < children.length; i += 1) {
+    for (let j = i + 1; j < children.length; j += 1) {
+      const a = children[i]!;
+      const b = children[j]!;
+      const aExtents = footprintOf(a);
+      const bExtents = footprintOf(b);
+      const overlapsX =
+        Math.abs(a.position.x - b.position.x) <
+        (aExtents.widthMeters + bExtents.widthMeters) / 2;
+      const overlapsZ =
+        Math.abs(a.position.z - b.position.z) <
+        (aExtents.depthMeters + bExtents.depthMeters) / 2;
+      if (overlapsX && overlapsZ) return false;
+    }
+  }
+  return true;
+}
+
+/** Deterministic placement order: location code, then location id. */
+function warehousePlacementOrder(
+  children: SceneChildLayout[],
+): SceneChildLayout[] {
+  return [...children].sort(
+    (a, b) =>
+      a.locationCode.localeCompare(b.locationCode) ||
+      a.locationId.localeCompare(b.locationId),
+  );
+}
+
+/**
+ * Adaptive column count: a roughly square grid, never fewer than three columns
+ * while there is something to fill them, so a growing warehouse reads as rows
+ * and aisles instead of one long line or one tall column.
+ */
+function resolveColumnCount(count: number): number {
+  if (count <= 1) return count;
+  return Math.min(count, Math.max(3, Math.ceil(Math.sqrt(count))));
+}
+
+/**
+ * Arranges warehouse contents into a floor grid of rows and aisles.
+ *
+ * Cell sizes come from each object's own rotated footprint (dimensions after
+ * scale and rotation) plus `WAREHOUSE_GRID_GAP_METERS`, and rows are separated
+ * by `WAREHOUSE_AISLE_GAP_METERS`. The column count adapts to the number of
+ * contents (and therefore to their widths), so the floor grows as rows and
+ * aisles instead of a single line. Only horizontal scene placement changes: the
+ * authored elevation is kept (the renderer grounds every object on the floor),
+ * and rotation, scale, dimensions and the persisted records are untouched.
+ */
+export function arrangeWarehouseFloorGrid(
+  children: SceneChildLayout[],
+): WarehouseFloorPlan {
+  if (children.length === 0) {
+    return {
+      children,
+      width: 0,
+      depth: 0,
+      columns: 0,
+      rows: 0,
+      generated: false,
+    };
+  }
+
+  const ordered = warehousePlacementOrder(children).map((child) => {
+    const footprint = footprintOf(child);
+    return { child, ...footprint };
+  });
+
+  const layoutFor = (
+    columns: number,
+  ): {
+    positions: Map<string, Vector3D>;
+    width: number;
+    depth: number;
+    rows: number;
+  } => {
+    const rows: Array<{
+      depth: number;
+      width: number;
+      entries: Array<{ child: SceneChildLayout; widthMeters: number }>;
+    }> = [];
+    for (let start = 0; start < ordered.length; start += columns) {
+      const row = ordered.slice(start, start + columns);
+      rows.push({
+        depth: row.reduce(
+          (deepest, entry) => Math.max(deepest, entry.depthMeters),
+          0,
+        ),
+        width:
+          row.reduce((sum, entry) => sum + entry.widthMeters, 0) +
+          WAREHOUSE_GRID_GAP_METERS * (row.length - 1),
+        entries: row,
+      });
+    }
+
+    const width = rows.reduce((widest, row) => Math.max(widest, row.width), 0);
+    const depth =
+      rows.reduce((total, row) => total + row.depth, 0) +
+      WAREHOUSE_AISLE_GAP_METERS * Math.max(0, rows.length - 1);
+
+    // Rows run left to right across the floor and the whole grid is centred, so
+    // the aisles read as deliberate lanes between the storage runs.
+    const positions = new Map<string, Vector3D>();
+    let cursorZ = -depth / 2;
+    for (const row of rows) {
+      let cursorX = -row.width / 2;
+      for (const entry of row.entries) {
+        positions.set(entry.child.locationId, {
+          x: round(cursorX + entry.widthMeters / 2, 6),
+          y: entry.child.position.y,
+          z: round(cursorZ + row.depth / 2, 6),
+        });
+        cursorX += entry.widthMeters + WAREHOUSE_GRID_GAP_METERS;
+      }
+      cursorZ += row.depth + WAREHOUSE_AISLE_GAP_METERS;
+    }
+
+    return { positions, width, depth, rows: rows.length };
+  };
+
+  const columns = resolveColumnCount(ordered.length);
+  const chosen = layoutFor(columns);
+
+  const placed = children.map((child) => {
+    const position = chosen.positions.get(child.locationId);
+    if (!position) return child;
+    return {
+      ...child,
+      position: { ...child.position, x: position.x, z: position.z },
+    };
+  });
+
+  return {
+    children: placed,
+    width: chosen.width,
+    depth: chosen.depth,
+    columns,
+    rows: chosen.rows,
+    generated: true,
+  };
+}
+
+/**
+ * Resolves the floor placement of a warehouse's contents: the authored
+ * arrangement when it already describes floor-standing equipment placed by
+ * hand, otherwise a deterministic generated floor grid. Render-time only —
+ * nothing is persisted.
+ */
+export function resolveWarehouseFloorPlan(
+  children: SceneChildLayout[],
+): WarehouseFloorPlan {
+  if (children.length === 0) {
+    return {
+      children,
+      width: 0,
+      depth: 0,
+      columns: 0,
+      rows: 0,
+      generated: false,
+    };
+  }
+
+  if (isAuthoredFloorArrangement(children)) {
+    const extents = measureFloorExtents(children);
+    return {
+      children,
+      width: extents.width,
+      depth: extents.depth,
+      columns: children.length,
+      rows: 1,
+      generated: false,
+    };
+  }
+
+  return arrangeWarehouseFloorGrid(children);
+}
+
+/** Horizontal extents of a set of children, in meters. */
+function measureFloorExtents(children: SceneChildLayout[]): {
+  width: number;
+  depth: number;
+} {
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minZ = Number.POSITIVE_INFINITY;
+  let maxZ = Number.NEGATIVE_INFINITY;
+  for (const child of children) {
+    const extents = footprintOf(child);
+    minX = Math.min(minX, child.position.x - extents.widthMeters / 2);
+    maxX = Math.max(maxX, child.position.x + extents.widthMeters / 2);
+    minZ = Math.min(minZ, child.position.z - extents.depthMeters / 2);
+    maxZ = Math.max(maxZ, child.position.z + extents.depthMeters / 2);
+  }
+  return {
+    width: Number.isFinite(minX) ? maxX - minX : 0,
+    depth: Number.isFinite(minZ) ? maxZ - minZ : 0,
+  };
+}
+
+/**
+ * Resolves the cutaway shell that visualizes a warehouse/root location.
+ *
+ * The returned box is the shell's outer envelope (width, total height including
+ * the pitched roof, depth). It is derived from the floor placement — the
+ * required grid width and depth, the aisle space already inside it, and the
+ * floor margins — so the warehouse grows with its contents and stays
+ * rectangular instead of becoming a single long line or an extremely tall box.
+ * It is scene context: callers size the shell, never the persisted child
+ * coordinates.
+ *
+ * The eaves keep headroom above the tallest object standing on the floor, and
+ * the authored frame's height stays a floor on that headroom. Contents are
+ * measured by their own rotated extents, because every floor-standing object
+ * rests on the shell floor: the authored elevation of a child never raises the
+ * roof.
+ */
+export function resolveWarehouseShellDimensions(
+  frame: Vector3D | null | undefined,
+  plan: WarehouseFloorPlan,
+): Vector3D {
+  const tallestContent = plan.children.reduce(
+    (tallest, child) => Math.max(tallest, footprintOf(child).heightMeters),
+    0,
+  );
+
+  const width = Math.max(
+    plan.width + 2 * WAREHOUSE_GRID_MARGIN_METERS,
+    WAREHOUSE_SHELL_MIN_DIMENSIONS.x,
+  );
+  const depth = Math.max(
+    plan.depth + 2 * WAREHOUSE_GRID_MARGIN_METERS,
+    WAREHOUSE_SHELL_MIN_DIMENSIONS.z,
+  );
+  const eaves = Math.max(
+    frame?.y ?? 0,
+    tallestContent * WAREHOUSE_EAVES_HEADROOM_RATIO,
+    WAREHOUSE_MIN_EAVES_METERS,
+    WAREHOUSE_SHELL_MIN_DIMENSIONS.y,
+  );
+
+  return { x: width, y: eaves + resolveWarehouseRoofRise(width), z: depth };
+}
+
+/**
  * Categorizes and positions children of a parent location for 3D visualization.
  *
  * A child is mapped when it has a spatial node — the authoritative definition
@@ -567,11 +1146,7 @@ export function layoutChildrenFor3D(
       const rotation = resolveChildRotation(child.node, child.anchor);
       const scale = resolveChildScale(child.node);
       const dimensions = fitDimensionsToSlot(
-        resolveObjectDimensions(
-          child.model,
-          child.anchor,
-          child.location.kind,
-        ),
+        resolveObjectDimensions(child.model, child.anchor, child.location.kind),
         scale,
         resolveChildSlotEnvelope(child),
       );
@@ -655,18 +1230,40 @@ export function resolveTargetChildLocationId(
 }
 
 /**
- * Calculates the bounding box enclosing a set of 3D objects or parent model dimensions.
+ * Calculates the mathematical bounding box used for camera fitting, centering,
+ * zoom and grid sizing.
+ *
+ * This box is a scene concern, never geometry: passing `null` for the parent
+ * frame means the inspected location owns no physical enclosure (a warehouse
+ * overview), so the bounds are the union of the visible children instead of an
+ * invented container. Callers must never turn the result into a mesh — the
+ * parent body is decided by `resolveParentGeometryOwnership`.
  */
 export function computeSceneBoundingBox(
-  parentDimensions: Vector3D,
+  parentDimensions: Vector3D | null | undefined,
   children: SceneChildLayout[],
 ): BoundingBox3D {
-  let minX = -parentDimensions.x / 2;
-  let maxX = parentDimensions.x / 2;
-  let minY = 0;
-  let maxY = parentDimensions.y;
-  let minZ = -parentDimensions.z / 2;
-  let maxZ = parentDimensions.z / 2;
+  const hasParentFrame = Boolean(
+    parentDimensions &&
+    parentDimensions.x > 0 &&
+    parentDimensions.y > 0 &&
+    parentDimensions.z > 0,
+  );
+
+  let minX = hasParentFrame
+    ? -parentDimensions!.x / 2
+    : Number.POSITIVE_INFINITY;
+  let maxX = hasParentFrame
+    ? parentDimensions!.x / 2
+    : Number.NEGATIVE_INFINITY;
+  let minY = hasParentFrame ? 0 : Number.POSITIVE_INFINITY;
+  let maxY = hasParentFrame ? parentDimensions!.y : Number.NEGATIVE_INFINITY;
+  let minZ = hasParentFrame
+    ? -parentDimensions!.z / 2
+    : Number.POSITIVE_INFINITY;
+  let maxZ = hasParentFrame
+    ? parentDimensions!.z / 2
+    : Number.NEGATIVE_INFINITY;
 
   for (const child of children) {
     const halfX = child.dimensions.x / 2;
@@ -686,6 +1283,23 @@ export function computeSceneBoundingBox(
     if (childMaxY > maxY) maxY = childMaxY;
     if (childMinZ < minZ) minZ = childMinZ;
     if (childMaxZ > maxZ) maxZ = childMaxZ;
+  }
+
+  // A scene with neither a parent frame nor a placed child still needs a
+  // finite stage so camera fitting can never receive NaN/Infinity.
+  if (!Number.isFinite(minX) || !Number.isFinite(maxX)) {
+    minX = -0.5;
+    maxX = 0.5;
+  }
+  if (!Number.isFinite(minZ) || !Number.isFinite(maxZ)) {
+    minZ = -0.5;
+    maxZ = 0.5;
+  }
+  if (!Number.isFinite(minY)) {
+    minY = 0;
+  }
+  if (!Number.isFinite(maxY) || maxY <= minY) {
+    maxY = minY + 1;
   }
 
   const size = {

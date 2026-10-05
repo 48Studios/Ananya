@@ -1108,7 +1108,7 @@ export function SpatialView({
                 className={cn(
                   "flex w-full min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card/60",
                   // Desktop: predictable inspector column beside the canvas.
-                  "lg:w-[380px] lg:shrink-0 xl:w-[400px]",
+                  "lg:w-[280px] lg:shrink-0 xl:w-[320px]",
                   // Mobile: the canvas stacks above a bounded inspector panel.
                   "max-h-[70vh] lg:max-h-none",
                 )}

@@ -57,6 +57,11 @@ export function ParametricPreview3D({
   // Construct synthetic parent container data representing the parametric carcass.
   // The carcass carries the assigned Ananya location identity for display, while
   // its interaction key stays synthetic so it can never be mistaken for a slot.
+  //
+  // Geometry ownership follows the authored layout, not a fake model: the
+  // template's config is the authoritative physical geometry (posts, beams,
+  // walls), so the preview and the operational viewer render the same structure
+  // for the same container instead of a kind-based generic enclosure.
   const parentData = React.useMemo<LocationOperationalViewDto["parent"]>(() => {
     return {
       location: {
@@ -68,20 +73,10 @@ export function ParametricPreview3D({
         isActive: containerIdentity?.isActive ?? true,
       },
       node: null,
-      model: {
-        id: "parametric-carcass-model",
-        code: config.templateType,
-        name: config.templateType,
-        format: "internal",
-        widthMm: config.dimensions.widthMm,
-        heightMm: config.dimensions.heightMm,
-        depthMm: config.dimensions.depthMm,
-        isActive: true,
-        metadata: {},
-      },
+      model: null,
       anchors: [],
       // The preview carcass is the container being authored: it is placed by
-      // construction, and its frame comes from the model dimensions above.
+      // construction, and its frame comes from the authored layout dimensions.
       mapping: {
         status: "MAPPED",
         isMappingEligible: false,
@@ -93,7 +88,19 @@ export function ParametricPreview3D({
           compartments.length - mappings.size,
         ),
         containerStatus: "NONE",
-        publishedLayout: null,
+        publishedLayout: {
+          id: "parametric-layout",
+          code: config.templateType,
+          revision: 1,
+          totalCompartments: compartments.length,
+          containerDimensionsMm: {
+            widthMm: config.dimensions.widthMm,
+            heightMm: config.dimensions.heightMm,
+            depthMm: config.dimensions.depthMm,
+          },
+          templateType: config.templateType,
+          config,
+        },
         slotMapping: null,
       },
     };
@@ -138,6 +145,7 @@ export function ParametricPreview3D({
           }
           onSelectLocation={handleSelectLocation}
           isParentSelectable={true}
+          isAuthoringLayout={true}
           isChildInteractionEnabled={childInteractionEnabled}
           enableDrawerOpening={true}
           onSwitchTo2D={onSwitchTo2D}
