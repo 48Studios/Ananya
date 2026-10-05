@@ -728,6 +728,12 @@ export const navigationModules: NavigationModule[] = [
             icon: <RotateCcw className="w-4 h-4" />,
           },
           {
+            id: "settings-backups",
+            title: "Backup & Restore",
+            href: "/settings/backups",
+            icon: <Archive className="w-4 h-4" />,
+          },
+          {
             id: "settings-data-packs",
             title: "Data Packs & Extensions",
             href: "/settings/data-packs",

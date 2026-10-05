@@ -61,3 +61,4 @@ export * from "./attribute-intelligence-findings";
 export * from "./consolidations";
 export * from "./ml-operations";
 export * from "./spatial";
+export * from "./backups";

@@ -25,6 +25,10 @@ export interface IStorageProvider {
   readFile(storageKey: string): Promise<Buffer>;
   deleteFile(storageKey: string): Promise<void>;
   exists(storageKey: string): Promise<boolean>;
+  storeFileFromPath?(
+    storageKey: string,
+    sourcePath: string,
+  ): Promise<StoredObject>;
 }
 
 export const STORAGE_PROVIDER = 'DOCUMENT_STORAGE_PROVIDER';
@@ -138,6 +142,18 @@ export class LocalStorageProvider implements IStorageProvider {
     return { storageKey: path.basename(target), sizeBytes: content.length };
   }
 
+  async storeFileFromPath(
+    storageKey: string,
+    sourcePath: string,
+  ): Promise<StoredObject> {
+    const target = this.resolvePath(storageKey);
+    const temporaryTarget = `${target}.tmp-${process.pid}-${Date.now()}`;
+    await fs.promises.copyFile(sourcePath, temporaryTarget);
+    await fs.promises.rename(temporaryTarget, target);
+    const stats = await fs.promises.stat(target);
+    return { storageKey: path.basename(target), sizeBytes: stats.size };
+  }
+
   async readFile(storageKey: string): Promise<Buffer> {
     const target = this.resolvePath(storageKey);
     if (!fs.existsSync(target)) {
@@ -227,5 +243,17 @@ export class StorageService implements IStorageProvider {
 
   exists(storageKey: string): Promise<boolean> {
     return this.provider.exists(storageKey);
+  }
+
+  storeFileFromPath(
+    storageKey: string,
+    sourcePath: string,
+  ): Promise<StoredObject> {
+    if (!this.provider.storeFileFromPath) {
+      return fs.promises
+        .readFile(sourcePath)
+        .then((content) => this.provider.storeFile(storageKey, content));
+    }
+    return this.provider.storeFileFromPath(storageKey, sourcePath);
   }
 }

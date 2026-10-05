@@ -88,12 +88,14 @@ import { AttributesModule } from './attributes/attributes.module';
 import { MlModule } from './ml/ml.module';
 import { DatabaseModule } from './database/database.module';
 import { SpatialModule } from './spatial/spatial.module';
+import { BackupsModule } from './backups/backups.module';
 
 @Module({
   imports: [
     MlModule,
     DatabaseModule,
     SpatialModule,
+    BackupsModule,
     LocationsModule,
     ComponentsModule,
     ManufacturersModule,
