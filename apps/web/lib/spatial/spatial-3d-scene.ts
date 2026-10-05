@@ -4,8 +4,10 @@ import {
   metersToMm,
   degToRad,
   isCornerAuthoredAnchorZ,
+  resolveChildSpatialRepresentation,
   resolveKindStructureShape,
   resolveWarehouseRoofRise,
+  type SpatialRepresentationSource,
   WAREHOUSE_FLOOR_ELEVATION_METERS,
   WAREHOUSE_GROUNDING_CLEARANCE_METERS,
   type ParentStructureShape,
@@ -28,6 +30,14 @@ export interface MeshUserData {
   hasStock: boolean;
   isMapped: boolean;
   isParent?: boolean;
+  /**
+   * Representation tier this instance was composed from — development/debug
+   * observability, so an unexpected downgrade to `fallback` is visible instead
+   * of silent.
+   */
+  representationSource?: SpatialRepresentationSource;
+  /** Why that tier won (debug only). */
+  representationReason?: string;
 }
 
 /**
@@ -708,11 +718,21 @@ export function createGenericBoxMesh(
 }
 
 /**
- * Creates child compartment mesh based on kind.
+ * Creates the rendered instance of a child location.
  *
- * `options.openable` swaps closed slab bodies for hollow open-top trays (drawers and
- * parts-tray slots) so the compartment can slide out and reveal an interior.
- * `options.isOpen` prints the transient OPEN indicator on the front plate label.
+ * The instance is composed from the child's **canonical representation** — the
+ * same resolution used when the child is the viewed parent — so a location
+ * never changes shape because of the scene it appears in. The parent supplies
+ * placement (position/rotation/scale), the semantic material and the label; it
+ * never substitutes a proxy box for an authoritative model or body.
+ *
+ * Only a location with no authoritative representation at all renders the
+ * explicit `fallback` compartment vocabulary, and that tier is observable via
+ * `userData.representationSource`.
+ *
+ * `options.openable` swaps a slidable body for a hollow open-top tray so the
+ * compartment can slide out and reveal an interior; `options.isOpen` prints the
+ * transient OPEN indicator on the label face.
  */
 export function createChildCompartmentMesh(
   child: SceneChildLayout,
@@ -720,6 +740,7 @@ export function createChildCompartmentMesh(
   badgeText?: string | null,
   options: CompartmentMeshOptions = {},
 ): THREE.Group {
+  const representation = resolveChildSpatialRepresentation(child.rawChild);
   const userData: MeshUserData = {
     locationId: child.locationId,
     locationCode: child.locationCode,
@@ -728,12 +749,47 @@ export function createChildCompartmentMesh(
     hasStock: child.hasStock,
     isMapped: child.isMapped,
     isParent: false,
+    representationSource: representation.source,
+    representationReason: representation.reason,
   };
 
   const kindLower = child.kind?.toLowerCase() || "";
   const openable = Boolean(options.openable);
   let group: THREE.Group;
 
+  if (
+    representation.source !== "fallback" &&
+    representation.structure !== "none"
+  ) {
+    // One geometry pipeline: the child instance is the child's own body.
+    const labelTexture = createCompartmentLabelTexture(
+      child.locationCode,
+      state,
+      badgeText,
+      Boolean(options.isOpen),
+    );
+    group = createStructureBodyMesh(
+      representation.structure,
+      child.dimensions,
+      userData,
+      {
+        wallThicknessMm: representation.wallThicknessMm,
+        postWidthMm: representation.postWidthMm,
+        beamHeightMm: representation.beamHeightMm,
+      },
+      {
+        body: createSemanticMaterial(state),
+        interior: createSemanticMaterial(state),
+      },
+      { openable, isOpen: options.isOpen, labelTexture },
+    );
+    if (group.userData.probePoint === undefined) {
+      group.userData.probePoint = { x: 0, y: 0, z: child.dimensions.z / 2 };
+    }
+    return positionChildGroup(group, child);
+  }
+
+  // Explicit fallback tier: no model, no authored geometry, no kind shape.
   if (
     kindLower.includes("drawer") ||
     (openable && kindLower.includes("slot"))
@@ -771,11 +827,26 @@ export function createChildCompartmentMesh(
     );
   }
 
-  // Set position, rotation & persisted scale
+  // The instance root carries the same identity as its meshes, including the
+  // representation tier, so a fallback instance is observable rather than
+  // silent.
+  group.userData = { ...userData, ...group.userData };
+
+  return positionChildGroup(group, child);
+}
+
+/**
+ * Applies the scene transform (persisted position, rotation and scale) to a
+ * composed child instance. Representation and transform stay separate: the same
+ * representation appears in any scene, only its transform differs.
+ */
+function positionChildGroup(
+  group: THREE.Group,
+  child: SceneChildLayout,
+): THREE.Group {
   group.position.set(child.position.x, child.position.y, child.position.z);
   group.rotation.set(child.rotation.x, child.rotation.y, child.rotation.z);
   group.scale.set(child.scale.x, child.scale.y, child.scale.z);
-
   return group;
 }
 
@@ -816,6 +887,7 @@ export interface ParentCarcassOptions {
 export function createWarehouseShellMesh(
   dimensions: Vector3D,
   userData: MeshUserData,
+  materials?: StructureBodyMaterials,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = `warehouse-shell-${userData.locationCode}`;
@@ -846,25 +918,25 @@ export function createWarehouseShellMesh(
   const ribDepth = Math.min(0.03, wall * 0.8);
   const ribSpacing = 0.36;
 
-  const wallMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(SPATIAL_3D_PALETTE.carcass.base),
-    roughness: SPATIAL_3D_PALETTE.carcass.roughness,
-    metalness: SPATIAL_3D_PALETTE.carcass.metalness,
-  });
-
-  const floorMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(SPATIAL_3D_PALETTE.carcassInterior.base),
-    roughness: SPATIAL_3D_PALETTE.carcassInterior.roughness,
-    metalness: SPATIAL_3D_PALETTE.carcassInterior.metalness,
-  });
+  const wallMat =
+    materials?.body ??
+    new THREE.MeshStandardMaterial({
+      color: new THREE.Color(SPATIAL_3D_PALETTE.carcass.base),
+      roughness: SPATIAL_3D_PALETTE.carcass.roughness,
+      metalness: SPATIAL_3D_PALETTE.carcass.metalness,
+    });
 
   // Panel seams and the exposed frame use the darker interior tone, so the
   // structure stays legible against the wall panels without any texture.
-  const structureMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(SPATIAL_3D_PALETTE.carcassInterior.base),
-    roughness: SPATIAL_3D_PALETTE.carcassInterior.roughness,
-    metalness: SPATIAL_3D_PALETTE.carcassInterior.metalness,
-  });
+  const structureMat =
+    materials?.interior ??
+    new THREE.MeshStandardMaterial({
+      color: new THREE.Color(SPATIAL_3D_PALETTE.carcassInterior.base),
+      roughness: SPATIAL_3D_PALETTE.carcassInterior.roughness,
+      metalness: SPATIAL_3D_PALETTE.carcassInterior.metalness,
+    });
+
+  const floorMat = structureMat;
 
   const addShellMesh = (
     name: string,
@@ -1070,60 +1142,98 @@ export function groundObjectOnFloor(
   return correction;
 }
 
+/** Materials a structure body is drawn with. */
+export interface StructureBodyMaterials {
+  /** Outer body material (carcass palette, or the semantic state material). */
+  body: THREE.Material;
+  /** Interior/backing material, drawn darker than the body. */
+  interior: THREE.Material;
+}
+
+/** Authored structure parameters in millimetres, when a layout defines them. */
+export interface StructureBodyParams {
+  wallThicknessMm?: number | null;
+  postWidthMm?: number | null;
+  beamHeightMm?: number | null;
+}
+
+export interface StructureBodyOptions {
+  /** Hollow, open-top body so a slidable compartment can reveal an interior. */
+  openable?: boolean;
+  /** Prints the transient OPEN indicator on the label face. */
+  isOpen?: boolean;
+  /**
+   * Label texture for the structure's label face. Parent scenes render bodies
+   * without labels (the page chrome names them); child instances carry their
+   * code so operators can identify what they are looking at.
+   */
+  labelTexture?: THREE.Texture | null;
+}
+
 /**
- * Creates the parent's visible body from the resolved structure: a container
- * carcass (rack frame, open tray, cabinet enclosure or sliding drawer front) or
- * the cutaway warehouse shell for a space kind. Passing `structure: "none"`
- * returns an empty group, so a location without authored geometry never grows
- * an invented body.
+ * Creates the body geometry for a resolved representation structure.
+ *
+ * This is the single geometry pipeline: the same call produces a location's
+ * body whether that location is the viewed parent or composed as a child inside
+ * another scene. Only the materials differ — a parent body uses the carcass
+ * palette, a child instance uses the semantic state material, which is the
+ * context/selection difference the representation invariant allows.
  */
-export function createParentCarcassMesh(
-  parent: LocationOperationalViewParent,
+export function createStructureBodyMesh(
+  structure: ParentStructureShape,
   dimensions: Vector3D,
-  options: ParentCarcassOptions = {},
+  userData: MeshUserData,
+  params: StructureBodyParams = {},
+  materials: StructureBodyMaterials = {
+    body: new THREE.MeshStandardMaterial({
+      color: new THREE.Color(SPATIAL_3D_PALETTE.carcass.base),
+      roughness: SPATIAL_3D_PALETTE.carcass.roughness,
+      metalness: SPATIAL_3D_PALETTE.carcass.metalness,
+    }),
+    interior: new THREE.MeshStandardMaterial({
+      color: new THREE.Color(SPATIAL_3D_PALETTE.carcassInterior.base),
+      roughness: SPATIAL_3D_PALETTE.carcassInterior.roughness,
+      metalness: SPATIAL_3D_PALETTE.carcassInterior.metalness,
+    }),
+  },
+  options: StructureBodyOptions = {},
 ): THREE.Group {
   const group = new THREE.Group();
-  group.name = `parent-carcass-${parent.location.code}`;
+  group.name = `structure-${structure}-${userData.locationCode}`;
+  // The instance root carries the same identity as its meshes, so callers and
+  // tests can read which representation tier produced it.
+  group.userData = { ...userData };
 
-  const kindLower = parent.location.kind?.toLowerCase() || "";
-  // Callers normally pass an authored structure; this kind-based default keeps
-  // direct callers consistent with the ownership rule.
-  const structure = options.structure ?? resolveKindStructureShape(kindLower);
-
-  // A location without authored physical geometry is a scene, not a body.
-  // Returning an empty group keeps every caller free of an invented enclosure.
+  // A location without a body (a space, an unrepresentable kind) contributes no
+  // geometry; the caller decides what, if anything, fallback rendering adds.
   if (structure === "none") return group;
 
-  const userData: MeshUserData = {
-    locationId: parent.location.id,
-    locationCode: parent.location.code,
-    locationName: parent.location.name,
-    kind: parent.location.kind,
-    hasStock: false,
-    isMapped: true,
-    isParent: true,
-  };
+  const bodyMat = materials.body;
+  const interiorMat = materials.interior;
+  const { x: W, y: H, z: D } = dimensions;
+  const minSpan = Math.min(W, D);
 
-  // 1. Warehouse / space shell: the location is scene context, so draw a
-  // cutaway shell with an open front instead of a compartment carcass.
   if (structure === "warehouse") {
-    group.add(createWarehouseShellMesh(dimensions, userData));
+    group.add(
+      createWarehouseShellMesh(dimensions, userData, {
+        body: bodyMat,
+        interior: interiorMat,
+      }),
+    );
     return group;
   }
 
-  const { x: W, y: H, z: D } = dimensions;
-  const minSpan = Math.min(W, D);
   const authoredWall =
-    options.wallThicknessMm != null && options.wallThicknessMm > 0
-      ? mmToMeters(options.wallThicknessMm)
+    params.wallThicknessMm != null && params.wallThicknessMm > 0
+      ? mmToMeters(params.wallThicknessMm)
       : null;
   const authoredPost =
-    options.postWidthMm != null && options.postWidthMm > 0
-      ? mmToMeters(options.postWidthMm)
+    params.postWidthMm != null && params.postWidthMm > 0
+      ? mmToMeters(params.postWidthMm)
       : null;
   const authoredBeam =
-    options.beamHeightMm != null && options.beamHeightMm > 0
-      ? mmToMeters(options.beamHeightMm)
+    params.beamHeightMm != null && params.beamHeightMm > 0
+      ? mmToMeters(params.beamHeightMm)
       : null;
   // Authored structure thickness wins over the generic proportional default.
   const wall = Math.min(
@@ -1131,19 +1241,19 @@ export function createParentCarcassMesh(
     minSpan * 0.25,
   );
 
-  const carcassMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(SPATIAL_3D_PALETTE.carcass.base),
-    roughness: SPATIAL_3D_PALETTE.carcass.roughness,
-    metalness: SPATIAL_3D_PALETTE.carcass.metalness,
-  });
+  const addWireFrame = (): void => {
+    const frameGeo = new THREE.BoxGeometry(W, H, D);
+    const edges = new THREE.EdgesGeometry(frameGeo);
+    const lineMat = new THREE.LineBasicMaterial({
+      color: SPATIAL_3D_PALETTE.edgeLines,
+      linewidth: 1,
+    });
+    const wireFrame = new THREE.LineSegments(edges, lineMat);
+    wireFrame.position.set(0, 0, 0);
+    group.add(wireFrame);
+  };
 
-  const interiorMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(SPATIAL_3D_PALETTE.carcassInterior.base),
-    roughness: SPATIAL_3D_PALETTE.carcassInterior.roughness,
-    metalness: SPATIAL_3D_PALETTE.carcassInterior.metalness,
-  });
-
-  // 2. Procedural Shelf / Pallet Rack: Upright corner posts and perimeter rails (open sides and front/back)
+  // 1. Rack / shelf frame: upright posts and perimeter rails, open on all sides.
   if (structure === "rack") {
     const postWidth = Math.min(
       authoredPost ?? Math.min(0.035, minSpan * 0.08),
@@ -1160,138 +1270,273 @@ export function createParentCarcassMesh(
     ];
 
     for (const pos of corners) {
-      const postMesh = new THREE.Mesh(postGeo, carcassMat);
-      postMesh.position.set(pos.x, H / 2, pos.z);
+      const postMesh = new THREE.Mesh(postGeo, bodyMat);
+      postMesh.position.set(pos.x, 0, pos.z);
       postMesh.userData = userData;
       postMesh.castShadow = true;
       group.add(postMesh);
     }
 
-    // Top & Bottom cross rails
     const railXGeo = new THREE.BoxGeometry(W, railThickness, railThickness);
-    for (const yPos of [railThickness / 2, H - railThickness / 2]) {
+    for (const yPos of [
+      -H / 2 + railThickness / 2,
+      H / 2 - railThickness / 2,
+    ]) {
       for (const zPos of [-D / 2 + postWidth / 2, D / 2 - postWidth / 2]) {
-        const rail = new THREE.Mesh(railXGeo, carcassMat);
+        const rail = new THREE.Mesh(railXGeo, bodyMat);
         rail.position.set(0, yPos, zPos);
         rail.userData = userData;
         group.add(rail);
       }
     }
 
-    // Wireframe bounding frame
-    const frameGeo = new THREE.BoxGeometry(W, H, D);
-    const edges = new THREE.EdgesGeometry(frameGeo);
-    const lineMat = new THREE.LineBasicMaterial({
-      color: SPATIAL_3D_PALETTE.edgeLines,
-      linewidth: 1,
-    });
-    const wireFrame = new THREE.LineSegments(edges, lineMat);
-    wireFrame.position.set(0, H / 2, 0);
-    group.add(wireFrame);
-
+    addWireFrame();
+    addStructureLabel(group, structure, dimensions, userData, options);
     return group;
   }
 
-  // 3. Procedural Open-Top Tray / Drawer body: Bottom plate + walls. The top is
-  // always open so nested compartments stay visible and clickable.
+  // 2. Open-top tray / slidable drawer body.
   if (structure === "tray" || structure === "drawer") {
-    // Bottom panel
-    const botGeo = new THREE.BoxGeometry(W, wall, D);
-    const botMesh = new THREE.Mesh(botGeo, carcassMat);
-    botMesh.position.set(0, wall / 2, 0);
-    botMesh.userData = userData;
-    botMesh.receiveShadow = true;
-    group.add(botMesh);
+    const openable = Boolean(options.openable);
+    const faceThickness = Math.min(0.015, D * 0.1);
 
-    // Left wall
+    if (openable) {
+      // A slidable body is hollow and open at the top so opening it reveals a
+      // real interior without inventing stored contents.
+      const tray = computeOpenTrayGeometry(dimensions, faceThickness);
+      for (const part of tray.parts) {
+        const partMesh = new THREE.Mesh(
+          new THREE.BoxGeometry(part.size.x, part.size.y, part.size.z),
+          part.name.includes("front") && options.labelTexture
+            ? createSemanticMaterialWithMap(bodyMat, options.labelTexture)
+            : bodyMat,
+        );
+        partMesh.name = part.name;
+        partMesh.position.set(
+          part.position.x,
+          part.position.y,
+          part.position.z,
+        );
+        partMesh.userData = userData;
+        partMesh.castShadow = true;
+        partMesh.receiveShadow = true;
+        group.add(partMesh);
+      }
+      group.userData.probePoint = { x: 0, y: 0, z: D / 2 };
+      addStructureLabel(group, structure, dimensions, userData, options, {
+        skipWhenApplied: true,
+      });
+      return group;
+    }
+
+    // Closed body: bottom plate, two sides and a back.
+    const bottomGeo = new THREE.BoxGeometry(W, wall, D);
+    const bottomMesh = new THREE.Mesh(bottomGeo, bodyMat);
+    bottomMesh.position.set(0, -H / 2 + wall / 2, 0);
+    bottomMesh.userData = userData;
+    bottomMesh.receiveShadow = true;
+    group.add(bottomMesh);
+
     const sideGeo = new THREE.BoxGeometry(wall, H - wall, D);
-    const leftMesh = new THREE.Mesh(sideGeo, carcassMat);
-    leftMesh.position.set(-W / 2 + wall / 2, H / 2 + wall / 2, 0);
-    leftMesh.userData = userData;
-    group.add(leftMesh);
+    for (const side of [-1, 1]) {
+      const sideMesh = new THREE.Mesh(sideGeo, bodyMat);
+      sideMesh.position.set(side * (W / 2 - wall / 2), wall / 2, 0);
+      sideMesh.userData = userData;
+      group.add(sideMesh);
+    }
 
-    // Right wall
-    const rightMesh = new THREE.Mesh(sideGeo, carcassMat);
-    rightMesh.position.set(W / 2 - wall / 2, H / 2 + wall / 2, 0);
-    rightMesh.userData = userData;
-    group.add(rightMesh);
-
-    // Back wall
     const backGeo = new THREE.BoxGeometry(W - 2 * wall, H - wall, wall);
     const backMesh = new THREE.Mesh(backGeo, interiorMat);
-    backMesh.position.set(0, H / 2 + wall / 2, -D / 2 + wall / 2);
+    backMesh.position.set(0, wall / 2, -D / 2 + wall / 2);
     backMesh.userData = userData;
     group.add(backMesh);
 
-    // Front face plate with pull handle. Only a sliding body (drawer) closes
-    // its front: a grid tray must keep its front open so its compartments
-    // remain visible and directly clickable.
     if (structure === "drawer") {
+      // A sliding drawer closes its front: the front face is its identity.
       const frontGeo = new THREE.BoxGeometry(W, H, wall);
-      const frontMesh = new THREE.Mesh(frontGeo, carcassMat);
-      frontMesh.position.set(0, H / 2, D / 2 - wall / 2);
+      const frontMesh = new THREE.Mesh(
+        frontGeo,
+        options.labelTexture
+          ? createSemanticMaterialWithMap(bodyMat, options.labelTexture)
+          : bodyMat,
+      );
+      frontMesh.position.set(0, 0, D / 2 - wall / 2);
       frontMesh.userData = userData;
       group.add(frontMesh);
+      group.userData.probePoint = { x: 0, y: 0, z: D / 2 };
+    } else {
+      // A tray keeps its front open so its contents stay visible; its code
+      // rides on a half-height front lip.
+      const frontHeight = (H - wall) * 0.55;
+      const lipMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(W, frontHeight, wall),
+        options.labelTexture
+          ? createSemanticMaterialWithMap(bodyMat, options.labelTexture)
+          : bodyMat,
+      );
+      lipMesh.position.set(
+        0,
+        -H / 2 + wall + frontHeight / 2,
+        D / 2 - wall / 2,
+      );
+      lipMesh.userData = userData;
+      group.add(lipMesh);
+      group.userData.probePoint = {
+        x: 0,
+        y: -H / 2 + wall + frontHeight / 2,
+        z: D / 2 - wall / 2,
+      };
     }
 
-    const frameGeo = new THREE.BoxGeometry(W, H, D);
-    const edges = new THREE.EdgesGeometry(frameGeo);
-    const lineMat = new THREE.LineBasicMaterial({
-      color: SPATIAL_3D_PALETTE.edgeLines,
-      linewidth: 1,
+    addWireFrame();
+    addStructureLabel(group, structure, dimensions, userData, options, {
+      skipWhenApplied: true,
     });
-    const wireFrame = new THREE.LineSegments(edges, lineMat);
-    wireFrame.position.set(0, H / 2, 0);
-    group.add(wireFrame);
-
     return group;
   }
 
-  // 4. Procedural Cabinet / Default Enclosure: Open front with top, bottom, sides, back
-  // Top panel
+  // 3. Cabinet / default enclosure: open front with top, bottom, sides and back.
   const topGeo = new THREE.BoxGeometry(W, wall, D);
-  const topMesh = new THREE.Mesh(topGeo, carcassMat);
-  topMesh.position.set(0, H - wall / 2, 0);
+  const topMesh = new THREE.Mesh(topGeo, bodyMat);
+  topMesh.position.set(0, H / 2 - wall / 2, 0);
   topMesh.userData = userData;
   group.add(topMesh);
 
-  // Bottom panel
-  const botMesh = new THREE.Mesh(topGeo, carcassMat);
-  botMesh.position.set(0, wall / 2, 0);
-  botMesh.userData = userData;
-  botMesh.receiveShadow = true;
-  group.add(botMesh);
+  const bottomMesh = new THREE.Mesh(topGeo, bodyMat);
+  bottomMesh.position.set(0, -H / 2 + wall / 2, 0);
+  bottomMesh.userData = userData;
+  bottomMesh.receiveShadow = true;
+  group.add(bottomMesh);
 
-  // Left panel
   const sideGeo = new THREE.BoxGeometry(wall, H - 2 * wall, D);
-  const leftMesh = new THREE.Mesh(sideGeo, carcassMat);
-  leftMesh.position.set(-W / 2 + wall / 2, H / 2, 0);
-  leftMesh.userData = userData;
-  group.add(leftMesh);
+  for (const side of [-1, 1]) {
+    const sideMesh = new THREE.Mesh(sideGeo, bodyMat);
+    sideMesh.position.set(side * (W / 2 - wall / 2), 0, 0);
+    sideMesh.userData = userData;
+    group.add(sideMesh);
+  }
 
-  // Right panel
-  const rightMesh = new THREE.Mesh(sideGeo, carcassMat);
-  rightMesh.position.set(W / 2 - wall / 2, H / 2, 0);
-  rightMesh.userData = userData;
-  group.add(rightMesh);
-
-  // Back panel
   const backGeo = new THREE.BoxGeometry(W - 2 * wall, H - 2 * wall, wall);
   const backMesh = new THREE.Mesh(backGeo, interiorMat);
-  backMesh.position.set(0, H / 2, -D / 2 + wall / 2);
+  backMesh.position.set(0, 0, -D / 2 + wall / 2);
   backMesh.userData = userData;
   group.add(backMesh);
 
-  // Wireframe bounding frame for crisp modern industrial appearance
-  const frameGeo = new THREE.BoxGeometry(W, H, D);
-  const edges = new THREE.EdgesGeometry(frameGeo);
-  const lineMat = new THREE.LineBasicMaterial({
-    color: SPATIAL_3D_PALETTE.edgeLines,
-    linewidth: 1,
+  addWireFrame();
+  addStructureLabel(group, structure, dimensions, userData, options);
+
+  return group;
+}
+
+/**
+ * Places the compartment's code on the structure's label face: the front plate
+ * when the body has one, otherwise a compact nameplate at the top of the open
+ * front, so identification never requires closing the opening.
+ */
+function addStructureLabel(
+  group: THREE.Group,
+  structure: ParentStructureShape,
+  dimensions: Vector3D,
+  userData: MeshUserData,
+  options: StructureBodyOptions,
+  { skipWhenApplied = false }: { skipWhenApplied?: boolean } = {},
+): void {
+  const texture = options.labelTexture;
+  if (!texture || skipWhenApplied) return;
+
+  const { x: W, y: H, z: D } = dimensions;
+  const plateWidth = Math.max(0.12, Math.min(W * 0.7, 0.5));
+  const plateHeight = Math.min(Math.max(0.06, H * 0.12), 0.12);
+  const thickness = Math.min(0.01, D * 0.05);
+  const plate = new THREE.Mesh(
+    new THREE.BoxGeometry(plateWidth, plateHeight, thickness),
+    new THREE.MeshStandardMaterial({ map: texture, transparent: true }),
+  );
+  plate.name = `structure-${structure}-label`;
+  plate.position.set(
+    0,
+    H / 2 - plateHeight / 2 - Math.min(0.02, H * 0.04),
+    D / 2 + thickness / 2,
+  );
+  plate.userData = userData;
+  group.add(plate);
+}
+
+/** Applies a texture map to a cloned material (semantic colour + structure map). */
+function createSemanticMaterialWithMap(
+  material: THREE.Material,
+  map: THREE.Texture,
+): THREE.Material {
+  const clone = material.clone();
+  const standard = clone as THREE.MeshStandardMaterial;
+  standard.map = map;
+  standard.transparent = true;
+  standard.needsUpdate = true;
+  return clone;
+}
+
+/**
+ * Creates the parent's visible body from the resolved structure: a container
+ * carcass (rack frame, open tray, cabinet enclosure or sliding drawer front) or
+ * the cutaway warehouse shell for a space kind. Passing `structure: "none"`
+ * returns an empty group, so a location without authored geometry never grows
+ * an invented body.
+ *
+ * The geometry comes from `createStructureBodyMesh`, the same pipeline a child
+ * instance uses, so a location never changes shape between scenes.
+ */
+export function createParentCarcassMesh(
+  parent: LocationOperationalViewParent,
+  dimensions: Vector3D,
+  options: ParentCarcassOptions = {},
+): THREE.Group {
+  const group = new THREE.Group();
+  group.name = `parent-carcass-${parent.location.code}`;
+
+  const kindLower = parent.location.kind?.toLowerCase() || "";
+  // Callers normally pass an authored structure; this kind-based default keeps
+  // direct callers consistent with the representation rules.
+  const structure = options.structure ?? resolveKindStructureShape(kindLower);
+
+  if (structure === "none") return group;
+
+  const userData: MeshUserData = {
+    locationId: parent.location.id,
+    locationCode: parent.location.code,
+    locationName: parent.location.name,
+    kind: parent.location.kind,
+    hasStock: false,
+    isMapped: true,
+    isParent: true,
+  };
+
+  const carcassMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(SPATIAL_3D_PALETTE.carcass.base),
+    roughness: SPATIAL_3D_PALETTE.carcass.roughness,
+    metalness: SPATIAL_3D_PALETTE.carcass.metalness,
   });
-  const wireFrame = new THREE.LineSegments(edges, lineMat);
-  wireFrame.position.set(0, H / 2, 0);
-  group.add(wireFrame);
+
+  const interiorMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(SPATIAL_3D_PALETTE.carcassInterior.base),
+    roughness: SPATIAL_3D_PALETTE.carcassInterior.roughness,
+    metalness: SPATIAL_3D_PALETTE.carcassInterior.metalness,
+  });
+
+  group.add(
+    createStructureBodyMesh(
+      structure,
+      dimensions,
+      userData,
+      {
+        wallThicknessMm: options.wallThicknessMm,
+        postWidthMm: options.postWidthMm,
+        beamHeightMm: options.beamHeightMm,
+      },
+      { body: carcassMat, interior: interiorMat },
+    ),
+  );
+
+  const { x: W, y: H, z: D } = dimensions;
 
   // Parent-first emphasis: the outer container is the required interaction
   // target until its Ananya location is assigned.
@@ -1308,7 +1553,6 @@ export function createParentCarcassMesh(
       attentionMat,
     );
     attentionOutline.name = "parent-attention-outline";
-    attentionOutline.position.set(0, H / 2, 0);
     attentionOutline.userData = { ...userData };
     group.add(attentionOutline);
   }
@@ -1328,7 +1572,6 @@ export function createParentCarcassMesh(
       selectionMat,
     );
     selectionOutline.name = "parent-selection-outline";
-    selectionOutline.position.set(0, H / 2, 0);
     selectionOutline.userData = { ...userData };
     group.add(selectionOutline);
   }

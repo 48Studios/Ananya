@@ -68,7 +68,9 @@ export function SpatialGrid({
                       isSelected={isSelected}
                       isHighlighted={isHighlighted}
                       onClick={() => onSelectCell(gridCell.child.location.id)}
-                      onDoubleClick={() => onEnterCell?.(gridCell.child.location.id)}
+                      onDoubleClick={() =>
+                        onEnterCell?.(gridCell.child.location.id)
+                      }
                       onEnter={() => onEnterCell?.(gridCell.child.location.id)}
                     />
                   );
@@ -97,6 +99,7 @@ export function SpatialGrid({
               <SpatialCell
                 key={gridCell.key}
                 summary={summary}
+                representation={gridCell.representation}
                 isSelected={isSelected}
                 isHighlighted={isHighlighted}
                 onClick={() => onSelectCell(gridCell.child.location.id)}

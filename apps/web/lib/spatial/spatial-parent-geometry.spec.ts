@@ -382,8 +382,9 @@ describe("Parent geometry ownership", () => {
       structure: ownership.structure,
       wallThicknessMm: ownership.wallThicknessMm,
     });
-    // Floor, two sides and a back wall — never a full-face front plate.
-    expect(countMeshes(group)).toBe(4);
+    // Floor, two sides, a back wall and a half-height front lip — never a
+    // full-face front plate.
+    expect(countMeshes(group)).toBe(5);
     expect(countFrontPlates(group, dims)).toBe(0);
   });
 

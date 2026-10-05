@@ -12,6 +12,18 @@ export interface SpatialCellProps {
   onClick?: () => void;
   onDoubleClick?: () => void;
   onEnter?: () => void;
+  /**
+   * Canonical representation metadata of this location, resolved by the same
+   * resolver the 3D scene uses. 2D reuses it as the cell's spatial identity
+   * instead of inventing its own geometry; it is surfaced as data attributes and
+   * in the accessible description.
+   */
+  representation?: {
+    source: string;
+    structure: string;
+    /** Authored footprint in metres (width × depth). */
+    footprint: { width: number; depth: number };
+  };
   className?: string;
 }
 
@@ -22,6 +34,7 @@ export function SpatialCell({
   onClick,
   onDoubleClick,
   onEnter,
+  representation,
   className,
 }: SpatialCellProps) {
   const {
@@ -37,7 +50,8 @@ export function SpatialCell({
 
   const hasDescendantStock = descendantProjections.length > 0;
   const isDirectOnly = directProjections.length > 0 && !hasDescendantStock;
-  const isDescendantOnly = descendantProjections.length > 0 && directProjections.length === 0;
+  const isDescendantOnly =
+    descendantProjections.length > 0 && directProjections.length === 0;
 
   // Single component preview
   const primaryComponent = components.length === 1 ? components[0] : null;
@@ -69,6 +83,13 @@ export function SpatialCell({
       ref={cellRef}
       type="button"
       data-spatial-location-id={summary.locationId}
+      data-spatial-representation={representation?.source}
+      data-spatial-structure={representation?.structure}
+      data-spatial-footprint={
+        representation
+          ? `${representation.footprint.width.toFixed(3)}x${representation.footprint.depth.toFixed(3)}`
+          : undefined
+      }
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onKeyDown={handleKeyDown}
@@ -127,8 +148,8 @@ export function SpatialCell({
                 isHighlighted
                   ? "bg-emerald-500"
                   : isSelected
-                  ? "bg-primary"
-                  : "bg-emerald-600 dark:bg-emerald-400",
+                    ? "bg-primary"
+                    : "bg-emerald-600 dark:bg-emerald-400",
               )}
             />
           )}
@@ -151,7 +172,8 @@ export function SpatialCell({
             <div className="flex items-center gap-1 text-[11px] font-medium text-foreground/80 truncate">
               <Package className="size-3 shrink-0 text-muted-foreground" />
               <span className="truncate">
-                {distinctComponentsCount} {distinctComponentsCount === 1 ? "part" : "parts"}
+                {distinctComponentsCount}{" "}
+                {distinctComponentsCount === 1 ? "part" : "parts"}
               </span>
             </div>
           )

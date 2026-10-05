@@ -39,7 +39,10 @@ import {
   computeSceneBoundingBox,
   getSemanticVisualState,
   getCompartmentBadgeText,
+  resolveChildSpatialRepresentation,
   resolveContainerFrameDimensions,
+  resolveParentSpatialRepresentation,
+  resolveFloorStandingChildren,
   resolveParentGeometryOwnership,
   resolveWarehouseFloorPlan,
   resolveWarehouseShellDimensions,
@@ -239,6 +242,14 @@ export function Spatial3DViewport({
   >(null);
   const customAssetLoadIdRef = React.useRef(0);
 
+  // Child instances of imported models: each is instantiated through the same
+  // asset loader (and its cache) as a directly viewed model, and every failure
+  // is recorded so it stays observable instead of silently degrading to a box.
+  const childAssetLoadIdRef = React.useRef(0);
+  const childAssetStatesRef = React.useRef<
+    Map<string, "placeholder" | "loading" | "loaded" | "error">
+  >(new Map());
+
   // References to keep animation loop & controls active across renders
   const rendererRef = React.useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = React.useRef<THREE.Scene | null>(null);
@@ -305,6 +316,24 @@ export function Spatial3DViewport({
 
   const rendersWarehouseShell = parentGeometry.structure === "warehouse";
 
+  // Development observability: report the viewed location's representation tier
+  // and structure, so a direct view and the same location composed inside a
+  // parent can be compared without guessing.
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const representation = resolveParentSpatialRepresentation(parentData);
+    console.debug(
+      "[spatial] viewed " +
+        JSON.stringify({
+          code: parentData.location.code,
+          source: representation.source,
+          structure: representation.structure,
+          dimensions: representation.dimensions,
+          reason: representation.reason,
+        }),
+    );
+  }, [parentData]);
+
   /**
    * Floor placement of a warehouse's contents: the authored arrangement when it
    * already describes floor-standing equipment, otherwise a deterministic floor
@@ -313,7 +342,11 @@ export function Spatial3DViewport({
    */
   const warehouseFloorPlan = React.useMemo(
     () =>
-      rendersWarehouseShell ? resolveWarehouseFloorPlan(childrenLayout) : null,
+      rendersWarehouseShell
+        ? resolveWarehouseFloorPlan(
+            resolveFloorStandingChildren(childrenLayout),
+          )
+        : null,
     [rendersWarehouseShell, childrenLayout],
   );
 
@@ -923,6 +956,71 @@ export function Spatial3DViewport({
     };
   }, []); // Mount renderer once and reuse context across hierarchical scene transitions
 
+  /**
+   * Instantiates a child location's imported model in place.
+   *
+   * The canonical body already composed by `createChildCompartmentMesh` stays
+   * visible until (and if) the asset arrives, so the location is never blank and
+   * never silently downgraded. A load failure is recorded on the instance and
+   * logged; the next scene composition retries.
+   */
+  const startChildAssetInstance = React.useCallback(
+    ({
+      assetUri,
+      dimensions,
+      child,
+      group,
+      loadId,
+    }: {
+      assetUri: string;
+      dimensions: Vector3D;
+      child: SceneChildLayout;
+      group: THREE.Group;
+      loadId: number;
+    }): (() => void) => {
+      const controller = new AbortController();
+      childAssetStatesRef.current.set(child.locationId, "loading");
+
+      loadAndNormalizeCustomAsset(assetUri, dimensions, {
+        locationId: child.locationId,
+        locationCode: child.locationCode,
+        isParent: false,
+        abortSignal: controller.signal,
+      })
+        .then((result) => {
+          if (
+            controller.signal.aborted ||
+            childAssetLoadIdRef.current < loadId ||
+            !group.parent
+          ) {
+            disposeThreeHierarchy(result.group);
+            return;
+          }
+          // Swap the placeholder body for the actual model, keeping the composed
+          // root transform, semantic userData and interaction affordances.
+          for (const existing of [...group.children]) group.remove(existing);
+          group.add(result.group);
+          childAssetStatesRef.current.set(child.locationId, "loaded");
+        })
+        .catch((error: unknown) => {
+          if (controller.signal.aborted) return;
+          const message =
+            error instanceof Error ? error.message : "Failed to load model";
+          childAssetStatesRef.current.set(child.locationId, "error");
+          group.userData.assetLoadError = message;
+          group.userData.representationReason = `${String(group.userData.representationReason ?? "")} | model load failed: ${message}`;
+          console.warn(
+            `[spatial] model asset failed for ${child.locationCode} (${assetUri}): ${message}`,
+          );
+          // The canonical body composed from the same representation stays in
+          // place as the visible fallback state until a later retry succeeds.
+        });
+
+      return () => controller.abort();
+    },
+    [],
+  );
+
   // Rebuild 3D Model hierarchy when layout, selection, or highlights update
   React.useEffect(() => {
     const scene = sceneRef.current;
@@ -973,6 +1071,8 @@ export function Spatial3DViewport({
 
     // 2. Build Mapped Child Meshes
     composedChildPositionsRef.current = new Map();
+    childAssetStatesRef.current = new Map();
+    const childAssetControllers: Array<() => void> = [];
     for (const child of composedChildren) {
       const summary = stockMap.get(child.locationId);
       const state = getSemanticVisualState(child.locationId, {
@@ -1009,6 +1109,26 @@ export function Spatial3DViewport({
           y: childMesh.position.y,
           z: childMesh.position.z,
         });
+      }
+
+      // An imported model is instantiated wherever the location appears, never
+      // downgraded to a proxy: the canonical body stays as the visible fallback
+      // until the asset arrives, and a failure is reported instead of hidden.
+      const childRepresentation = resolveChildSpatialRepresentation(
+        child.rawChild,
+      );
+      const childAssetUri = childRepresentation.model?.assetUri ?? null;
+      if (childAssetUri) {
+        const thisChildLoadId = ++childAssetLoadIdRef.current;
+        childAssetControllers.push(
+          startChildAssetInstance({
+            assetUri: childAssetUri,
+            dimensions: child.dimensions,
+            child,
+            group: childMesh,
+            loadId: thisChildLoadId,
+          }),
+        );
       }
 
       if (openableChild) {
@@ -1105,6 +1225,36 @@ export function Spatial3DViewport({
     scene.add(rootGroup);
     sceneRootRef.current = rootGroup;
 
+    // Development observability: every composed instance reports the
+    // representation tier it was drawn from, so an unexpected `fallback` (or a
+    // model that failed to load) is visible instead of silent.
+    if (process.env.NODE_ENV !== "production") {
+      console.debug(
+        "[spatial] children " +
+          JSON.stringify(
+            composedChildren.map((child) => {
+              const representation = child.rawChild
+                ? resolveChildSpatialRepresentation(child.rawChild)
+                : null;
+              const assetState = childAssetStatesRef.current.get(
+                child.locationId,
+              );
+              return {
+                code: child.locationCode,
+                source: representation?.source ?? "unknown",
+                structure: representation?.structure ?? "unknown",
+                dimensions: {
+                  x: Number(child.dimensions.x.toFixed(3)),
+                  y: Number(child.dimensions.y.toFixed(3)),
+                  z: Number(child.dimensions.z.toFixed(3)),
+                },
+                asset: assetState ?? null,
+              };
+            }),
+          ),
+      );
+    }
+
     // Compartment meshes are built and placed in this effect, so their world matrices
     // must be resolved immediately. Otherwise a pointer raycast that arrives before the
     // next render frame tests identity matrices and misses every freshly built mesh.
@@ -1188,6 +1338,7 @@ export function Spatial3DViewport({
 
     return () => {
       abortController.abort();
+      for (const dispose of childAssetControllers) dispose();
     };
   }, [
     parentData,
@@ -1198,6 +1349,7 @@ export function Spatial3DViewport({
     sceneBounds,
     composedChildren,
     rendersWarehouseShell,
+    startChildAssetInstance,
     selectedLocationId,
     highlightedLocationId,
     isAuthoringAnchors,

@@ -593,21 +593,58 @@ const TEMPLATE_STRUCTURES: Record<string, ParentStructureShape> = {
   OPEN_BIN_MATRIX: "enclosure",
 };
 
-/** Shape implied by a location kind alone (no authored model/layout). */
+/** Kind tokens whose physical form is an open-top tray. */
+const TRAY_SHAPED_TOKENS: ReadonlySet<string> = new Set([
+  "bin",
+  "tray",
+  "slot",
+  "tube",
+  "compartment",
+]);
+
+/** Kind tokens whose physical form is a sliding drawer body. */
+const DRAWER_SHAPED_TOKENS: ReadonlySet<string> = new Set(["drawer"]);
+
+/** Kind tokens whose physical form is an open rack/shelf frame. */
+const RACK_SHAPED_TOKENS: ReadonlySet<string> = new Set([
+  "rack",
+  "shelf",
+  "tier",
+  "crate",
+]);
+
+/**
+ * Shape implied by a location kind alone (no authored model/layout).
+ *
+ * This is the *generated/parametric* tier of the representation priority: it
+ * describes the physical form the domain states for a kind, and it is shared by
+ * every renderer — a location rendered directly and the same location rendered
+ * as a child of another scene resolve to the same shape.
+ */
 export function resolveKindStructureShape(kind?: string): ParentStructureShape {
   const normalized = (kind ?? "").trim().toLowerCase();
   // A warehouse is a space, so its procedural body is the cutaway shell rather
   // than a compartment carcass. An explicit model still wins (see
-  // `resolveParentGeometryOwnership`).
+  // `resolveSpatialRepresentation`).
   if (WAREHOUSE_SHELL_KINDS.has(normalized)) return "warehouse";
   // The domain's own rule: these kinds are spaces, never compartment-level
   // containers, so they must not acquire a container-shaped body.
   if (!normalized || INCOMPATIBLE_COMPARTMENT_KINDS.has(normalized)) {
     return "none";
   }
-  if (normalized.includes("shelf") || normalized.includes("rack"))
-    return "rack";
-  if (normalized.includes("drawer")) return "drawer";
+  // Kinds are compound names (`dry_cabinet`, `reel_slot`, `open_bin_wall`), so
+  // match whole tokens rather than substrings: "cabinet" must never match "bin".
+  const tokens = normalized.split(/[^a-z0-9]+/).filter(Boolean);
+  const hasToken = (set: ReadonlySet<string>): boolean =>
+    tokens.some((token) => set.has(token));
+
+  // Open-top containers read as trays; their lids are never implied.
+  if (hasToken(TRAY_SHAPED_TOKENS)) return "tray";
+  if (hasToken(DRAWER_SHAPED_TOKENS)) return "drawer";
+  if (hasToken(RACK_SHAPED_TOKENS)) return "rack";
+  if (tokens.includes("cabinet") || tokens.includes("cupboard")) {
+    return "enclosure";
+  }
   if (PHYSICAL_CONTAINER_KINDS.has(normalized)) return "enclosure";
   // An unrecognized kind is not evidence of a physical container: render the
   // location as the scene context for its children instead of inventing a body.
@@ -625,39 +662,97 @@ export interface ParentGeometryOwnership {
 }
 
 /**
- * Decides whether (and how) a viewed parent owns visible physical geometry.
+ * Where a location's visible representation comes from, most authoritative
+ * first. Every renderer resolves through these tiers; screens must never invent
+ * their own priority:
  *
- * The decision must never be "it has children" or "it is a container": a
- * warehouse that merely contains mapped locations is a scene, and rendering a
- * bounding box as a mesh made it read as a giant cabinet. Scene bounds are a
- * camera concern (`computeSceneBoundingBox`) and are deliberately resolved
- * separately from this ownership decision.
- *
- * Precedence: an explicit model is the location's own geometry and always wins.
- * A space kind (`warehouse`, `facility`, `building`) owns the cutaway shell as
- * its body — a published layout for a space is the bay plan its contents are
- * arranged in, so it places children but never authors the space's own carcass.
- * A physical container kind renders the layout's authored structure.
- *
- * `authoredLayoutBody` marks an authoring surface (the Inventory Builder
- * preview): there the authored layout *is* the container being edited, so its
- * structure and its authored elevations are rendered instead of the space
- * overview the operational viewer shows for the same location.
+ * 1. `model`    — an explicit 3D spatial model (imported asset or configured model)
+ * 2. `layout`   — published Inventory Builder geometry
+ * 3. `node`     — authored spatial node/anchor geometry (anchor envelope, node scale)
+ * 4. `kind`     — generated/parametric shape implied by the location kind
+ * 5. `fallback` — no authoritative geometry: the generic labelled compartment
  */
-export function resolveParentGeometryOwnership(
-  parent: {
-    location?: { kind?: string } | null;
-    model?: SpatialModelDto | null;
-    mapping?: {
-      publishedLayout?: {
-        templateType?: string | null;
-        config?: ParametricStorageConfig | null;
+export type SpatialRepresentationSource =
+  "model" | "layout" | "node" | "kind" | "fallback";
+
+export interface SpatialRepresentation {
+  locationId: string;
+  source: SpatialRepresentationSource;
+  /** Body shape the location is drawn with, in every scene. */
+  structure: ParentStructureShape;
+  /** Canonical dimensions in meters, from the same tier as `source`. */
+  dimensions: Vector3D;
+  /**
+   * Canonical model reference, when the location owns an explicit model. The
+   * asset (when present) must be instantiated wherever the location is drawn.
+   */
+  model: {
+    code: string;
+    format: string;
+    assetUri: string | null;
+  } | null;
+  /** Authored structure parameters (mm) when a layout defines them. */
+  wallThicknessMm: number | null;
+  postWidthMm: number | null;
+  beamHeightMm: number | null;
+  /** Why this tier won — development/debug observability only. */
+  reason: string;
+}
+
+export interface SpatialRepresentationInput {
+  location?: { id?: string; code?: string; kind?: string } | null;
+  model?: SpatialModelDto | null;
+  anchor?: SpatialAnchorDto | null;
+  node?: SpatialNodeDto | null;
+  mapping?: {
+    publishedLayout?: {
+      templateType?: string | null;
+      config?: ParametricStorageConfig | null;
+      containerDimensionsMm?: {
+        widthMm: number;
+        heightMm: number;
+        depthMm: number;
       } | null;
     } | null;
-  },
-  options: { authoredLayoutBody?: boolean } = {},
-): ParentGeometryOwnership {
-  const published = parent.mapping?.publishedLayout ?? null;
+  } | null;
+  /**
+   * Authoring surfaces (the Inventory Builder preview) render the container the
+   * authored layout describes, including for space kinds, because there the
+   * layout itself is what is being edited.
+   */
+  authoredLayoutBody?: boolean;
+}
+
+function readModelAsset(model: SpatialModelDto | null | undefined): {
+  code: string;
+  format: string;
+  assetUri: string | null;
+} | null {
+  if (!model) return null;
+  const assetUri = model.assetUri || model.assetReference || null;
+  const format = (model.format || "").toUpperCase();
+  const isAsset = Boolean(assetUri) && (format === "GLB" || format === "GLTF");
+  return {
+    code: model.code,
+    format: isAsset ? format : model.format || "PROCEDURAL",
+    assetUri: isAsset ? assetUri : null,
+  };
+}
+
+/**
+ * Resolves the canonical visual representation of a location.
+ *
+ * The result depends only on the location's own authoritative data — never on
+ * the scene it is being drawn into. A parent scene composes this representation
+ * and applies its own world transform; it never reinterprets the geometry.
+ */
+export function resolveSpatialRepresentation(
+  input: SpatialRepresentationInput,
+): SpatialRepresentation {
+  const kind = input.location?.kind;
+  const kindShape = resolveKindStructureShape(kind);
+  const locationId = input.location?.id ?? "";
+  const published = input.mapping?.publishedLayout ?? null;
   const config = (published?.config ?? null) as Record<string, unknown> | null;
   const readMm = (key: string): number | null => {
     const value = config ? Number(config[key]) : NaN;
@@ -669,54 +764,223 @@ export function resolveParentGeometryOwnership(
     beamHeightMm: readMm("beamHeightMm"),
   };
 
-  const kindShape = resolveKindStructureShape(parent.location?.kind);
-  // An explicit model authorizes a body even for kinds that do not own one, and
-  // a warehouse model is the warehouse's own geometry: the cutaway shell may
-  // never replace it, so the procedural body keeps the container shape.
-  const modelShape =
-    kindShape === "none" || kindShape === "warehouse" ? "enclosure" : kindShape;
-
-  if (parent.model) {
-    return { source: "model", structure: modelShape, ...authored };
-  }
-
-  // A warehouse is a space, not a carcass: its body is the cutaway shell, and
-  // the authored bay plan only places the equipment standing on its floor.
-  if (kindShape === "warehouse" && !options.authoredLayoutBody) {
+  // 1. An explicit model is the location's own geometry everywhere. A warehouse
+  // model is the warehouse's own body: the cutaway shell may not replace it.
+  if (input.model) {
+    const structure =
+      kindShape === "none" || kindShape === "warehouse"
+        ? "enclosure"
+        : kindShape;
     return {
-      source: "overview",
-      structure: "warehouse",
-      wallThicknessMm: null,
-      postWidthMm: null,
-      beamHeightMm: null,
+      locationId,
+      source: "model",
+      structure,
+      dimensions: resolveObjectDimensions(input.model, input.anchor, kind),
+      model: readModelAsset(input.model),
+      wallThicknessMm: authored.wallThicknessMm,
+      postWidthMm: authored.postWidthMm,
+      beamHeightMm: authored.beamHeightMm,
+      reason: `explicit model ${input.model.code}`,
     };
   }
 
+  // 2. A warehouse is a space: its own body is the cutaway shell, and a
+  // published layout for a space is a bay plan for its contents. An authoring
+  // surface keeps the authored container body instead.
+  if (kindShape === "warehouse" && !input.authoredLayoutBody) {
+    return {
+      locationId,
+      source: "kind",
+      structure: "warehouse",
+      dimensions: resolveObjectDimensions(null, null, kind),
+      model: null,
+      wallThicknessMm: null,
+      postWidthMm: null,
+      beamHeightMm: null,
+      reason: "space kind: cutaway scene context",
+    };
+  }
+
+  // 3. Published Inventory Builder geometry is the container's own body.
   if (published) {
     const template = (published.templateType ?? "").toUpperCase();
+    const layoutDimensions = published.containerDimensionsMm;
+    const dimensions =
+      layoutDimensions &&
+      layoutDimensions.widthMm > 0 &&
+      layoutDimensions.heightMm > 0 &&
+      layoutDimensions.depthMm > 0
+        ? {
+            x: mmToMeters(layoutDimensions.widthMm),
+            y: mmToMeters(layoutDimensions.heightMm),
+            z: mmToMeters(layoutDimensions.depthMm),
+          }
+        : resolveObjectDimensions(null, input.anchor, kind);
     return {
+      locationId,
       source: "layout",
-      structure: TEMPLATE_STRUCTURES[template] ?? modelShape,
-      ...authored,
+      structure: TEMPLATE_STRUCTURES[template] ?? kindShape,
+      dimensions,
+      model: null,
+      wallThicknessMm: authored.wallThicknessMm,
+      postWidthMm: authored.postWidthMm,
+      beamHeightMm: authored.beamHeightMm,
+      reason: `published layout ${published.templateType ?? "unknown template"}`,
     };
   }
 
-  if (kindShape !== "none") {
+  // 4. Authored node/anchor geometry: the anchor's envelope is the object's
+  // authored size even when no model or layout exists.
+  if (
+    input.anchor?.boundingWidthMm &&
+    input.anchor?.boundingHeightMm &&
+    input.anchor?.boundingDepthMm
+  ) {
     return {
-      source: "kind",
+      locationId,
+      source: "node",
       structure: kindShape,
+      dimensions: resolveObjectDimensions(null, input.anchor, kind),
+      model: null,
       wallThicknessMm: null,
       postWidthMm: null,
       beamHeightMm: null,
+      reason: `authored anchor envelope ${input.anchor.code}`,
     };
   }
 
+  // 5. Generated/parametric geometry implied by the kind.
+  if (kindShape !== "none") {
+    return {
+      locationId,
+      source: "kind",
+      structure: kindShape,
+      dimensions: resolveObjectDimensions(null, null, kind),
+      model: null,
+      wallThicknessMm: null,
+      postWidthMm: null,
+      beamHeightMm: null,
+      reason: `generated ${kindShape} shape for kind ${kind ?? "unknown"}`,
+    };
+  }
+
+  // 6. No authoritative representation: an explicit, observable fallback.
   return {
-    source: "overview",
+    locationId,
+    source: "fallback",
     structure: "none",
+    dimensions: resolveObjectDimensions(null, null, kind),
+    model: null,
     wallThicknessMm: null,
     postWidthMm: null,
     beamHeightMm: null,
+    reason: `no model, layout, anchor or kind shape for kind ${kind ?? "unknown"}`,
+  };
+}
+
+/**
+ * Canonical representation of a viewed location (the parent of the current
+ * scene): the same resolution a child instance uses, so a direct view and an
+ * in-scene instance can never disagree.
+ */
+export function resolveParentSpatialRepresentation(parent: {
+  location?: { id?: string; code?: string; kind?: string } | null;
+  model?: SpatialModelDto | null;
+  mapping?: {
+    publishedLayout?: {
+      templateType?: string | null;
+      config?: ParametricStorageConfig | null;
+      containerDimensionsMm?: {
+        widthMm: number;
+        heightMm: number;
+        depthMm: number;
+      } | null;
+    } | null;
+  } | null;
+}): SpatialRepresentation {
+  return resolveSpatialRepresentation({
+    location: parent.location,
+    model: parent.model,
+    mapping: parent.mapping,
+  });
+}
+
+/** Canonical representation of a location drawn as a child of another scene. */
+export function resolveChildSpatialRepresentation(
+  child: LocationOperationalViewChildDto,
+): SpatialRepresentation {
+  return resolveSpatialRepresentation({
+    location: child.location,
+    model: child.model,
+    anchor: child.anchor,
+    node: child.node,
+  });
+}
+
+export interface ParentGeometryOwnership {
+  source: ParentGeometrySource;
+  /** Body shape to render; `none` means the parent must not become a mesh. */
+  structure: ParentStructureShape;
+  /** Authored structure parameters (mm) when a layout defines them. */
+  wallThicknessMm: number | null;
+  postWidthMm: number | null;
+  beamHeightMm: number | null;
+}
+
+/**
+ * Decides whether (and how) a viewed parent owns visible physical geometry.
+ *
+ * A thin adapter over `resolveSpatialRepresentation` so the parent path and the
+ * child path can never disagree: the parent camera, the scene bounds and the
+ * body mesh all read the same resolved representation, and so does the same
+ * location rendered inside another scene.
+ *
+ * `authoredLayoutBody` marks an authoring surface (the Inventory Builder
+ * preview): there the authored layout *is* the container being edited, so its
+ * structure and its authored elevations are rendered instead of the space
+ * overview the operational viewer shows for the same location.
+ */
+export function resolveParentGeometryOwnership(
+  parent: {
+    location?: { id?: string; code?: string; kind?: string } | null;
+    model?: SpatialModelDto | null;
+    mapping?: {
+      publishedLayout?: {
+        templateType?: string | null;
+        config?: ParametricStorageConfig | null;
+        containerDimensionsMm?: {
+          widthMm: number;
+          heightMm: number;
+          depthMm: number;
+        } | null;
+      } | null;
+    } | null;
+  },
+  options: { authoredLayoutBody?: boolean } = {},
+): ParentGeometryOwnership {
+  const representation = resolveSpatialRepresentation({
+    location: parent.location,
+    model: parent.model,
+    mapping: parent.mapping,
+    authoredLayoutBody: options.authoredLayoutBody,
+  });
+
+  const source: ParentGeometrySource =
+    representation.source === "model"
+      ? "model"
+      : representation.source === "layout"
+        ? "layout"
+        : representation.source === "kind" &&
+            representation.structure !== "warehouse"
+          ? "kind"
+          : "overview";
+
+  return {
+    source,
+    structure: representation.structure,
+    wallThicknessMm: representation.wallThicknessMm,
+    postWidthMm: representation.postWidthMm,
+    beamHeightMm: representation.beamHeightMm,
   };
 }
 
@@ -837,9 +1101,7 @@ function footprintOf(child: SceneChildLayout): {
 function hasPlanGeneratedPlacement(child: SceneChildLayout): boolean {
   if (child.rawChild?.slotDimensionsMm) return true;
   const metadata = child.rawChild?.node?.metadata as
-    | { source?: unknown }
-    | null
-    | undefined;
+    { source?: unknown } | null | undefined;
   return metadata?.source === "inventory_builder";
 }
 
@@ -882,6 +1144,32 @@ function warehousePlacementOrder(
       a.locationCode.localeCompare(b.locationCode) ||
       a.locationId.localeCompare(b.locationId),
   );
+}
+
+/**
+ * Composes the floor-standing children of a warehouse overview.
+ *
+ * Nothing is contained by a warehouse floor, so slot containment does not apply:
+ * each object renders at its canonical representation dimensions (its model,
+ * layout or authored envelope), exactly as it does when viewed directly. A
+ * contained parent (cabinet, rack, tray) keeps its authored slot containment —
+ * that is a placement policy of the container, not a change of representation.
+ */
+export function resolveFloorStandingChildren(
+  children: SceneChildLayout[],
+): SceneChildLayout[] {
+  return children.map((child) => {
+    const canonical = resolveChildSpatialRepresentation(
+      child.rawChild,
+    ).dimensions;
+    if (canonical.x <= 0 || canonical.y <= 0 || canonical.z <= 0) return child;
+    const unchanged =
+      canonical.x === child.dimensions.x &&
+      canonical.y === child.dimensions.y &&
+      canonical.z === child.dimensions.z;
+    if (unchanged) return child;
+    return { ...child, dimensions: { ...canonical } };
+  });
 }
 
 /**

@@ -1,4 +1,9 @@
 import type { LocationOperationalViewChildDto } from "../api/spatial-api";
+import {
+  resolveChildSpatialRepresentation,
+  type ParentStructureShape,
+  type SpatialRepresentationSource,
+} from "./spatial-3d-layout";
 
 export interface SpatialGridCell {
   key: string;
@@ -9,6 +14,33 @@ export interface SpatialGridCell {
   posX?: number;
   posY?: number;
   source: "explicit" | "anchor" | "pattern" | "fallback";
+  /**
+   * Canonical spatial representation of this cell's location, resolved through
+   * the same resolver the 3D scene uses. 2D never invents its own geometry: it
+   * reports the authoritative footprint and the representation tier it came
+   * from, so the same location has the same identity in every view.
+   */
+  representation: {
+    source: SpatialRepresentationSource;
+    /** Authored footprint in meters (width × depth). */
+    footprint: { width: number; depth: number };
+    structure: ParentStructureShape;
+  };
+}
+
+/** Canonical 2D metadata of a child location. */
+function resolveCellRepresentation(
+  child: LocationOperationalViewChildDto,
+): SpatialGridCell["representation"] {
+  const representation = resolveChildSpatialRepresentation(child);
+  return {
+    source: representation.source,
+    footprint: {
+      width: representation.dimensions.x,
+      depth: representation.dimensions.z,
+    },
+    structure: representation.structure,
+  };
 }
 
 export interface SpatialGridRow {
@@ -30,8 +62,7 @@ export interface SpatialGridLayout {
  * - ROW-B-04 -> Row: "B", Col: 4
  * - D-C02 -> Row: "C", Col: 2
  */
-const MATRIX_PATTERN =
-  /^(?:.*[-_ ])?([A-Za-z]{1,2})[-_ ]?0*([0-9]+)$/;
+const MATRIX_PATTERN = /^(?:.*[-_ ])?([A-Za-z]{1,2})[-_ ]?0*([0-9]+)$/;
 
 /**
  * Computes the optimal 2D operational layout for child locations.
@@ -76,6 +107,7 @@ export function computeSpatialLayout(
       posX: c.node?.positionX ?? 0,
       posY: c.node?.positionY ?? 0,
       source: "explicit",
+      representation: resolveCellRepresentation(c),
     }));
 
     // Sort top-to-bottom (Y desc or asc), left-to-right (X asc)
@@ -88,7 +120,10 @@ export function computeSpatialLayout(
     return {
       type: "grid",
       cells,
-      columnCount: Math.min(10, Math.max(3, Math.ceil(Math.sqrt(cells.length)))),
+      columnCount: Math.min(
+        10,
+        Math.max(3, Math.ceil(Math.sqrt(cells.length))),
+      ),
     };
   }
 
@@ -100,6 +135,7 @@ export function computeSpatialLayout(
       posX: c.anchor?.localPositionX ?? 0,
       posY: c.anchor?.localPositionY ?? 0,
       source: "anchor",
+      representation: resolveCellRepresentation(c),
     }));
 
     cells.sort((a, b) => {
@@ -111,7 +147,10 @@ export function computeSpatialLayout(
     return {
       type: "grid",
       cells,
-      columnCount: Math.min(10, Math.max(3, Math.ceil(Math.sqrt(cells.length)))),
+      columnCount: Math.min(
+        10,
+        Math.max(3, Math.ceil(Math.sqrt(cells.length))),
+      ),
     };
   }
 
@@ -151,6 +190,7 @@ export function computeSpatialLayout(
     for (const item of parsedList) {
       if (item.rowStr) {
         const cell: SpatialGridCell = {
+          representation: resolveCellRepresentation(item.child),
           key: item.child.location.id,
           child: item.child,
           rowLabel: item.rowStr,
@@ -162,6 +202,7 @@ export function computeSpatialLayout(
         rowMap.set(item.rowStr, existing);
       } else {
         unparsedCells.push({
+          representation: resolveCellRepresentation(item.child),
           key: item.child.location.id,
           child: item.child,
           source: "fallback",
@@ -174,7 +215,10 @@ export function computeSpatialLayout(
       const aNum = Number(a);
       const bNum = Number(b);
       if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-      return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+      return a.localeCompare(b, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
     });
 
     const rows: SpatialGridRow[] = [];
@@ -223,6 +267,7 @@ export function computeSpatialLayout(
   );
 
   const fallbackCells: SpatialGridCell[] = sorted.map((child) => ({
+    representation: resolveCellRepresentation(child),
     key: child.location.id,
     child,
     source: "fallback",
