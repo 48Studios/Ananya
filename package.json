@@ -14,6 +14,7 @@
     "db:setup": "pnpm --filter @ananya/database db:setup",
     "db:bootstrap": "pnpm --filter @ananya/database db:bootstrap",
     "seed:spatial": "node tools/spatial-demo-dataset/seed.mjs",
+    "seed:spatial:verify": "node tools/spatial-demo-dataset/verify.mjs",
     "seed:spatial:reset": "node tools/spatial-demo-dataset/cleanup.mjs --execute",
     "ml:setup": "python3 -m venv apps/ml/.venv && ./apps/ml/.venv/bin/pip install -r apps/ml/requirements.txt",
     "ml:dev": "./apps/ml/.venv/bin/uvicorn apps.ml.app.main:app --host 0.0.0.0 --port 5001 --reload",

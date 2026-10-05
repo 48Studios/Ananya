@@ -68,6 +68,7 @@ export function SpatialCell({
     <button
       ref={cellRef}
       type="button"
+      data-spatial-location-id={summary.locationId}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onKeyDown={handleKeyDown}

@@ -166,6 +166,7 @@ describe("Spatial Anchor Authoring Logic", () => {
         totalQuantity: 0,
         position: { x: 0.1, y: 0.675, z: 0 },
         rotation: { x: 0, y: 0, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
         dimensions: { x: 0.18, y: 0.4, z: 0.38 },
         anchorCode: "A01",
         rawChild: mockChild,

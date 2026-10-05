@@ -91,13 +91,25 @@ describe("Spatial Hierarchy & Mapping Status Utilities", () => {
     expect(tree[0]?.children[0]?.children[0]?.children).toHaveLength(1); // BIN-01
   });
 
-  it("marks a node with no SpatialNode as UNMAPPED", () => {
+  it("reports a top-level facility with no SpatialNode as ROOT, never UNMAPPED", () => {
     const nodes: SpatialNodeDto[] = [];
     const tree = buildLocationTree(mockLocations, nodes);
 
     const whA = tree[0];
     expect(whA?.hasSpatialNode).toBe(false);
-    expect(whA?.status).toBe("UNMAPPED");
+    expect(whA?.isMappingEligible).toBe(false);
+    expect(whA?.status).toBe("ROOT");
+  });
+
+  it("reports a location with a parent and no SpatialNode as UNMAPPED", () => {
+    const nodes: SpatialNodeDto[] = [];
+    const tree = buildLocationTree(mockLocations, nodes);
+
+    const bin = tree[0]?.children[0]?.children[0]?.children[0];
+    expect(bin?.code).toBe("BIN-01");
+    expect(bin?.hasSpatialNode).toBe(false);
+    expect(bin?.isMappingEligible).toBe(true);
+    expect(bin?.status).toBe("UNMAPPED");
   });
 
   it("marks a node with a SpatialNode and all mapped children as MAPPED", () => {
@@ -287,8 +299,44 @@ describe("Spatial Hierarchy & Mapping Status Utilities", () => {
     const stats = calculateHierarchyStats(mockLocations, nodes);
     expect(stats.totalLocations).toBe(6);
     expect(stats.mappedCount).toBe(2); // cab-1 and draw-1
-    expect(stats.unmappedCount).toBe(4);
+    // Only locations that can be placed in a parent frame count as unmapped.
+    expect(stats.unmappedCount).toBe(2); // draw-2 and bin-1
+    expect(stats.rootCount).toBe(2); // wh-1 and wh-2 (no parent frame)
     expect(stats.partialCount).toBe(2); // cab-1 (draw-2 unmapped) and draw-1 (bin-1 unmapped)
+  });
+
+  it("reports a container's published layout without collapsing it into unmapped", () => {
+    const layouts = [
+      {
+        id: "layout-1",
+        parentLocationId: "cab-1",
+        status: "PUBLISHED" as const,
+      },
+    ] as unknown as Parameters<typeof buildLocationTree>[2];
+
+    const tree = buildLocationTree(mockLocations, [], layouts);
+    const whA = tree[0];
+    const cabA = whA?.children[0];
+
+    expect(whA?.containerStatus).toBe("NONE");
+    // The cabinet itself is not placed in a parent frame, but it configures a
+    // published layout for its compartments.
+    expect(cabA?.status).toBe("UNMAPPED");
+    expect(cabA?.containerStatus).toBe("PUBLISHED");
+  });
+
+  it("prefers a published layout over a coexisting draft", () => {
+    const layouts = [
+      { id: "layout-draft", parentLocationId: "cab-1", status: "DRAFT" as const },
+      {
+        id: "layout-published",
+        parentLocationId: "cab-1",
+        status: "PUBLISHED" as const,
+      },
+    ] as unknown as Parameters<typeof buildLocationTree>[2];
+
+    const tree = buildLocationTree(mockLocations, [], layouts);
+    expect(tree[0]?.children[0]?.containerStatus).toBe("PUBLISHED");
   });
 
   it("finds ancestor IDs correctly", () => {

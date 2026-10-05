@@ -39,7 +39,7 @@ import {
   computeSceneBoundingBox,
   getSemanticVisualState,
   getCompartmentBadgeText,
-  resolveObjectDimensions,
+  resolveContainerFrameDimensions,
   radToDeg,
   type SceneChildLayout,
   type SpatialVisualizationMode,
@@ -59,10 +59,10 @@ import {
 } from "@/lib/spatial/spatial-3d-scene";
 import { loadAndNormalizeCustomAsset } from "@/lib/spatial/spatial-3d-asset-loader";
 import {
+  computeDrawerExtension,
   DRAWER_CLOSE_DURATION_SECONDS,
   DRAWER_OPEN_DURATION_SECONDS,
   advanceDrawerMotion,
-  computeDrawerExtension,
   createDrawerMotion,
   drawerOffsetMeters,
   getDrawerMotionPhase,
@@ -73,6 +73,8 @@ import {
   type DrawerMotionPhase,
 } from "@/lib/spatial/drawer-opening";
 import type { DraftAnchor } from "@/lib/spatial/spatial-anchor-authoring";
+import type { Spatial3DAnchorApi } from "@/lib/spatial/inspector-placement";
+import { createScreenRect, type ScreenRect } from "@/lib/spatial/inspector-placement";
 
 export interface DrawerProbeState {
   phase: DrawerMotionPhase;
@@ -145,6 +147,13 @@ export interface Spatial3DViewportProps {
    * Defaults to false so the read-only spatial viewer is unchanged.
    */
   enableDrawerOpening?: boolean;
+  /**
+   * Restricts click-to-open to the given location kinds within a parent that
+   * contains mixed children (for example drawers inside a cabinet, while the
+   * cabinets themselves stay put inside a warehouse). Omit to make every
+   * compartment openable, which is what the parametric builder preview does.
+   */
+  openableKinds?: readonly string[];
   isAuthoringAnchors?: boolean;
   draftAnchors?: DraftAnchor[];
   selectedAnchorId?: string | null;
@@ -156,6 +165,12 @@ export interface Spatial3DViewportProps {
   ) => void;
   onGizmoModeChange?: (mode: "translate" | "rotate") => void;
   onSwitchTo2D?: () => void;
+  /**
+   * Optional bridge used by anchored overlays (the spatial inspector) to read a
+   * scene object's projected bounds, hit-test pointer positions, and follow
+   * camera movement. Purely read-only: it never mutates scene or layout state.
+   */
+  interactionApiRef?: React.RefObject<Spatial3DAnchorApi | null>;
   className?: string;
 }
 
@@ -175,6 +190,7 @@ export function Spatial3DViewport({
   visualizationMode = "standard",
   showBadges = true,
   enableDrawerOpening = false,
+  openableKinds,
   isAuthoringAnchors = false,
   draftAnchors = EMPTY_DRAFT_ANCHORS,
   selectedAnchorId,
@@ -182,6 +198,7 @@ export function Spatial3DViewport({
   onSelectAnchor,
   onAnchorTransformChange,
   onGizmoModeChange,
+  interactionApiRef,
   className,
 }: Spatial3DViewportProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -228,6 +245,21 @@ export function Spatial3DViewport({
   const animFrameIdRef = React.useRef<number | null>(null);
   const sceneRootRef = React.useRef<THREE.Group | null>(null);
 
+  // Anchored-overlay bridge: scene movement listeners + latest interaction
+  // flags, read at call time so the bridge object never goes stale across prop
+  // changes.
+  const sceneMovementListenersRef = React.useRef<Set<() => void>>(new Set());
+  const sceneMovementStateRef = React.useRef<{
+    position: Vector3D;
+    target: Vector3D;
+  } | null>(null);
+  const isParentSelectableRef = React.useRef(isParentSelectable);
+  isParentSelectableRef.current = isParentSelectable;
+  const isChildInteractionEnabledRef = React.useRef(isChildInteractionEnabled);
+  isChildInteractionEnabledRef.current = isChildInteractionEnabled;
+  const isAuthoringAnchorsRef = React.useRef(isAuthoringAnchors);
+  isAuthoringAnchorsRef.current = isAuthoringAnchors;
+
   const onAnchorTransformChangeRef = React.useRef(onAnchorTransformChange);
   onAnchorTransformChangeRef.current = onAnchorTransformChange;
   const draftAnchorsRef = React.useRef(draftAnchors);
@@ -260,21 +292,64 @@ export function Spatial3DViewport({
   const childrenLayoutRef = React.useRef(childrenLayout);
   childrenLayoutRef.current = childrenLayout;
 
-  // Compute scene bounds
+  // Compute scene bounds. The container frame is the published layout the
+  // child coordinates were authored in, falling back to the container's own
+  // model, then to kind defaults.
   const parentDimensions = React.useMemo<Vector3D>(() => {
-    return resolveObjectDimensions(
+    return resolveContainerFrameDimensions(
+      parentData.mapping,
       parentData.model,
-      null,
       parentData.location.kind,
     );
-  }, [parentData.model, parentData.location.kind]);
+  }, [parentData.mapping, parentData.model, parentData.location.kind]);
 
   const parentDimensionsRef = React.useRef(parentDimensions);
   parentDimensionsRef.current = parentDimensions;
 
+  /**
+   * Kind-restricted click-to-open gate. `openableKinds` is optional so the
+   * parametric builder keeps every compartment openable; container kinds
+   * (cabinets, racks, shelves) are never slidable.
+   */
+  const openableKindsKey = openableKinds ? [...openableKinds].join("|") : null;
+  const openableKindSet = React.useMemo(
+    () => (openableKindsKey ? new Set(openableKindsKey.split("|")) : null),
+    [openableKindsKey],
+  );
+  const isCompartmentOpenable = React.useCallback(
+    (kind: string) =>
+      enableDrawerOpening && (!openableKindSet || openableKindSet.has(kind)),
+    [enableDrawerOpening, openableKindSet],
+  );
   const sceneBounds = React.useMemo(() => {
-    return computeSceneBoundingBox(parentDimensions, childrenLayout);
-  }, [parentDimensions, childrenLayout]);
+    const bounds = computeSceneBoundingBox(parentDimensions, childrenLayout);
+    if (!enableDrawerOpening) return bounds;
+    // A compartment opens towards the viewer, which would push bottom rows of a
+    // fitted scene past the canvas edge. Leave headroom for the deepest possible
+    // extension so an opened compartment stays fully framed.
+    const frontClearanceMeters = childrenLayout.reduce(
+      (widest, child) =>
+        isCompartmentOpenable(child.kind)
+          ? Math.max(widest, computeDrawerExtension(child.dimensions.z))
+          : widest,
+      0,
+    );
+    if (frontClearanceMeters <= 0) return bounds;
+    return {
+      min: bounds.min,
+      max: { ...bounds.max, z: bounds.max.z + frontClearanceMeters },
+      size: { ...bounds.size, z: bounds.size.z + frontClearanceMeters },
+      center: {
+        ...bounds.center,
+        z: bounds.center.z + frontClearanceMeters / 2,
+      },
+    };
+  }, [
+    parentDimensions,
+    childrenLayout,
+    enableDrawerOpening,
+    isCompartmentOpenable,
+  ]);
 
   const sceneBoundsRef = React.useRef(sceneBounds);
   sceneBoundsRef.current = sceneBounds;
@@ -734,6 +809,33 @@ export function Spatial3DViewport({
         controls.update();
       }
 
+      // Notify anchored overlays only when projected geometry actually moved, so
+      // idle frames never trigger React work.
+      if (sceneMovementListenersRef.current.size > 0) {
+        const previous = sceneMovementStateRef.current;
+        const position = camera.position;
+        const target = controls.target;
+        const cameraMoved =
+          previous === null ||
+          Math.abs(previous.position.x - position.x) > 1e-4 ||
+          Math.abs(previous.position.y - position.y) > 1e-4 ||
+          Math.abs(previous.position.z - position.z) > 1e-4 ||
+          Math.abs(previous.target.x - target.x) > 1e-4 ||
+          Math.abs(previous.target.y - target.y) > 1e-4 ||
+          Math.abs(previous.target.z - target.z) > 1e-4;
+        // An in-flight drawer animation moves geometry without moving the camera.
+        const drawerMoving = drawerMotionsRef.current.size > 0;
+        if (cameraMoved || drawerMoving) {
+          sceneMovementStateRef.current = {
+            position: { x: position.x, y: position.y, z: position.z },
+            target: { x: target.x, y: target.y, z: target.z },
+          };
+          for (const listener of sceneMovementListenersRef.current) {
+            listener();
+          }
+        }
+      }
+
       renderer.render(scene, camera);
     };
     animFrameIdRef.current = requestAnimationFrame(animate);
@@ -853,13 +955,14 @@ export function Spatial3DViewport({
         ? getCompartmentBadgeText(visualizationMode, state, summary)
         : null;
 
+      const openableChild = isCompartmentOpenable(child.kind);
       const childMesh = createChildCompartmentMesh(child, state, badgeText, {
-        openable: enableDrawerOpening,
-        isOpen: enableDrawerOpening && child.locationId === activeDrawerId,
+        openable: openableChild,
+        isOpen: openableChild && child.locationId === activeDrawerId,
       });
       rootGroup.add(childMesh);
 
-      if (enableDrawerOpening) {
+      if (openableChild) {
         // Remember the resting transform and opening axis so the animation loop can
         // slide this compartment without re-deriving parametric geometry.
         childMesh.userData.drawerBasePosition = {
@@ -893,7 +996,9 @@ export function Spatial3DViewport({
       // orphaned animation state behind.
       const { motions, removedLocationIds } = pruneDrawerMotions(
         drawerMotionsRef.current,
-        childrenLayout.map((child) => child.locationId),
+        childrenLayout
+          .filter((child) => isCompartmentOpenable(child.kind))
+          .map((child) => child.locationId),
       );
       // Keep the same Map instance alive for the whole viewport lifetime.
       drawerMotionsRef.current.clear();
@@ -1050,9 +1155,129 @@ export function Spatial3DViewport({
     showBadges,
     stockMap,
     enableDrawerOpening,
+    isCompartmentOpenable,
     activeDrawerId,
     applyDrawerMotionOffset,
   ]);
+
+  // Read-only bridge for anchored overlays (the spatial inspector). Overlays ask
+  // the scene for real projected geometry instead of duplicating layout math, so
+  // the inspector always tracks the same object the renderer draws.
+  React.useEffect(() => {
+    if (!interactionApiRef) return;
+    const host = containerRef.current;
+    if (!host) return;
+
+    const findLocationObject = (locationId: string): THREE.Object3D | null => {
+      const group = drawerGroupsRef.current.get(locationId);
+      if (group) return group;
+      const root = sceneRootRef.current;
+      if (!root) return null;
+      let match: THREE.Object3D | null = null;
+      root.traverse((object) => {
+        if (match || !object.visible) return;
+        const userData = object.userData as Partial<MeshUserData> | undefined;
+        if (userData?.locationId === locationId) match = object;
+      });
+      return match;
+    };
+
+    const projectLocationBounds = (locationId: string): ScreenRect | null => {
+      const camera = cameraRef.current;
+      const rect = host.getBoundingClientRect();
+      if (!camera || rect.width === 0 || rect.height === 0) return null;
+      const target = findLocationObject(locationId);
+      if (!target) return null;
+
+      target.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(target);
+      if (box.isEmpty()) return null;
+
+      // A box behind the camera projects to mirrored coordinates, which would
+      // place the overlay on the wrong side of the screen.
+      const center = box.getCenter(new THREE.Vector3());
+      const toCenter = center.clone().sub(camera.position);
+      const forward = new THREE.Vector3();
+      camera.getWorldDirection(forward);
+      if (toCenter.dot(forward) <= 0) return null;
+
+      let left = Number.POSITIVE_INFINITY;
+      let top = Number.POSITIVE_INFINITY;
+      let right = Number.NEGATIVE_INFINITY;
+      let bottom = Number.NEGATIVE_INFINITY;
+      const corner = new THREE.Vector3();
+      for (let index = 0; index < 8; index += 1) {
+        corner.set(
+          index & 1 ? box.max.x : box.min.x,
+          index & 2 ? box.max.y : box.min.y,
+          index & 4 ? box.max.z : box.min.z,
+        );
+        corner.project(camera);
+        if (!Number.isFinite(corner.x) || !Number.isFinite(corner.y)) continue;
+        const x = rect.left + ((corner.x + 1) / 2) * rect.width;
+        const y = rect.top + ((1 - corner.y) / 2) * rect.height;
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+      }
+      if (!Number.isFinite(left) || !Number.isFinite(top)) return null;
+      return createScreenRect(top, left, right, bottom);
+    };
+
+    const hitTestSpatialObject = (
+      clientX: number,
+      clientY: number,
+    ): boolean => {
+      const camera = cameraRef.current;
+      const scene = sceneRef.current;
+      if (!camera || !scene) return false;
+      const rect = host.getBoundingClientRect();
+      if (
+        clientX < rect.left ||
+        clientX > rect.right ||
+        clientY < rect.top ||
+        clientY > rect.bottom
+      ) {
+        return false;
+      }
+      const pointer = new THREE.Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(pointer, camera);
+      const intersects = raycaster.intersectObjects(scene.children, true);
+      for (const hit of intersects) {
+        const userData = findInteractiveUserData(hit.object);
+        if (!userData) continue;
+        if (userData.isParent && !isParentSelectableRef.current) continue;
+        if (!userData.isParent && !isChildInteractionEnabledRef.current) {
+          continue;
+        }
+        return true;
+      }
+      return false;
+    };
+
+    const subscribeSceneMovement = (listener: () => void) => {
+      sceneMovementListenersRef.current.add(listener);
+      return () => {
+        sceneMovementListenersRef.current.delete(listener);
+      };
+    };
+
+    interactionApiRef.current = {
+      projectLocationBounds,
+      hitTestSpatialObject,
+      subscribeSceneMovement,
+    };
+    return () => {
+      if (interactionApiRef.current?.projectLocationBounds === projectLocationBounds) {
+        interactionApiRef.current = null;
+      }
+    };
+  }, [interactionApiRef]);
 
   // Canvas-only 3D content has no DOM representation, so expose a non-visual probe
   // for automated 3D interaction tests while drawer opening is enabled. The probe
@@ -1219,7 +1444,7 @@ export function Spatial3DViewport({
 
       // Clicking a compartment toggles its view-only open state; selecting another
       // compartment closes the previously opened drawer.
-      if (!userData.isParent && enableDrawerOpening) {
+      if (!userData.isParent && isCompartmentOpenable(userData.kind)) {
         if (activeDrawerIdRef.current === userData.locationId) {
           closeActiveDrawer();
         } else {
@@ -1856,7 +2081,13 @@ export function Spatial3DViewport({
                   role="option"
                   aria-selected={isSelected}
                   tabIndex={0}
-                  onClick={() => onSelectLocation?.(child.location.id)}
+                  onClick={() => {
+                    onSelectLocation?.(child.location.id);
+                    // The inspector that opens for the selection occupies the
+                    // same canvas region; yield the transient picker so it can
+                    // never sit on top of the panel the operator needs next.
+                    setIsUnmappedDrawerOpen(false);
+                  }}
                   onDoubleClick={() => onEnterLocation?.(child.location.id)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {

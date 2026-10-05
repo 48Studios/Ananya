@@ -141,10 +141,11 @@ describe("Phase 4.5: Centralized Spatial Inventory Workspace", () => {
 
       const tree = buildLocationTree(mockLocations, mockNodes);
 
-      // Top level: WH-MAIN has no SpatialNode -> UNMAPPED
+      // Top level: WH-MAIN has no SpatialNode and no parent frame -> ROOT
       const whMain = tree.find((t) => t.id === "wh-main");
-      expect(whMain?.status).toBe("UNMAPPED");
+      expect(whMain?.status).toBe("ROOT");
       expect(whMain?.hasSpatialNode).toBe(false);
+      expect(whMain?.isMappingEligible).toBe(false);
 
       // CAB-01 has SpatialNode and 1 of 2 children mapped -> PARTIAL
       const cab01 = whMain?.children.find((c) => c.id === "cab-01");
@@ -163,9 +164,9 @@ describe("Phase 4.5: Centralized Spatial Inventory Workspace", () => {
       expect(drw02?.status).toBe("UNMAPPED");
       expect(drw02?.hasSpatialNode).toBe(false);
 
-      // WH-SEC has no SpatialNode -> UNMAPPED
+      // WH-SEC has no SpatialNode and no parent frame -> ROOT
       const whSec = tree.find((t) => t.id === "wh-secondary");
-      expect(whSec?.status).toBe("UNMAPPED");
+      expect(whSec?.status).toBe("ROOT");
     });
 
     it("preserves full ancestor expansion chain for selected sub-location", () => {
@@ -215,7 +216,9 @@ describe("Phase 4.5: Centralized Spatial Inventory Workspace", () => {
       const stats = calculateHierarchyStats(mockLocations, mockNodes);
       expect(stats.totalLocations).toBe(5);
       expect(stats.mappedCount).toBe(1);
-      expect(stats.unmappedCount).toBe(4);
+      // Only locations with a parent frame are mapping candidates.
+      expect(stats.unmappedCount).toBe(2); // drw-01 and drw-02
+      expect(stats.rootCount).toBe(2); // wh-main and wh-secondary
       expect(stats.partialCount).toBe(1); // cab-01 has 2 children, both unmapped
     });
   });

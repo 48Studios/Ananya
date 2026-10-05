@@ -1,6 +1,11 @@
 import { test, expect, requireE2EAuth } from "../fixtures/test.fixture";
 import { Pool } from "pg";
 import * as crypto from "crypto";
+import {
+  DEMO_CODES,
+  resolveDemoLocationId,
+  resolveDemoModelId,
+} from "./helpers/demo-dataset";
 import * as fs from "fs";
 import * as path from "path";
 test.beforeEach(() => requireE2EAuth());
@@ -9,8 +14,9 @@ const DB_URL =
   process.env.DATABASE_URL ||
   "postgresql://ananya:dTd1Ii43r9Q9@localhost:5432/ananya";
 
-const CABINET_LOCATION_ID = "151c14eb-bc01-4ec9-b5f3-0e7e768084e5"; // DEMO-SPATIAL-CABINET-A
-const CABINET_MODEL_ID = "8c39f160-c7ec-4f84-a1f3-5d43ae2a0312"; // DEMO-SPATIAL-CABINET-6
+// Resolved from seeded codes: a re-seed generates new server-side UUIDs.
+let CABINET_LOCATION_ID: string;
+let CABINET_MODEL_ID: string;
 
 let pool: Pool;
 let testToken: string;
@@ -163,7 +169,14 @@ test.describe("Spatial Inventory 3D — Custom GLB/GLTF Runtime Verification", (
       ],
     );
 
-    // 2. Ensure test fixture directory exists and write cabinet.glb
+    // 2. Resolve the seeded demo dataset by code
+    CABINET_LOCATION_ID = await resolveDemoLocationId(
+      pool,
+      DEMO_CODES.cabinetA,
+    );
+    CABINET_MODEL_ID = await resolveDemoModelId(pool, DEMO_CODES.modelCabinetA);
+
+    // 3. Ensure test fixture directory exists and write cabinet.glb
     if (!fs.existsSync(testModelDir)) {
       fs.mkdirSync(testModelDir, { recursive: true });
     }
@@ -274,7 +287,7 @@ test.describe("Spatial Inventory 3D — Custom GLB/GLTF Runtime Verification", (
     // Click unmapped button -> expands unmapped drawer
     await unmappedBtn.click();
     await expect(page.getByText("DEMO-SPATIAL-DRAWER-A06").first()).toBeVisible();
-    await expect(page.getByText("Unmapped Compartments").first()).toBeVisible();
+    await expect(page.getByText(/Staging Tray/).first()).toBeVisible();
 
     // Close unmapped drawer
     await unmappedBtn.click();
@@ -293,17 +306,21 @@ test.describe("Spatial Inventory 3D — Custom GLB/GLTF Runtime Verification", (
     await page.goto(`/inventory/locations/${CABINET_LOCATION_ID}?view=spatial3d`);
     await expect(page.getByText("Custom 3D")).toBeVisible({ timeout: 10000 });
 
-    // 1. Switch to 2D Spatial view
-    const view2dBtn = page.getByRole("button", { name: "2D Spatial" });
+    // 1. Switch to 2D Spatial view (inner canvas toggle)
+    const view2dBtn = page.getByRole("button", { name: "2D Grid" });
     await view2dBtn.click();
     await expect(page.getByText("Operational Layout").first()).toBeVisible();
 
-    // 2. Switch to List view
-    const viewListBtn = page.getByRole("button", { name: "List" });
+    // 2. Switch to List view (section action)
+    const viewListBtn = page.getByRole("button", { name: "Table View" });
     await viewListBtn.click();
     await expect(page.getByText("DEMO-SPATIAL-DRAWER-A01").first()).toBeVisible();
 
-    // 3. Switch back to 3D Scene view
+    // 3. Return to the spatial canvas and switch to the 3D Scene
+    await page.getByRole("button", { name: "Spatial View" }).click();
+    await expect(page.getByRole("button", { name: "2D Grid" })).toBeVisible({
+      timeout: 15000,
+    });
     const view3dBtn = page.getByRole("button", { name: "3D Scene" });
     await view3dBtn.click();
 
@@ -366,19 +383,30 @@ test.describe("Spatial Inventory 3D — Custom GLB/GLTF Runtime Verification", (
     await expect(page.getByText("DEMO-SPATIAL-DRAWER-A06").first()).toBeVisible();
     await expect(page.getByText("Physical Path:")).toBeVisible();
 
-    // Drill down: enter drawer location via Enter button in inspector or list
-    const enterBtn = page.getByRole("button", { name: /Enter Location|Enter DEMO-SPATIAL-DRAWER-A06/i }).first();
+    // The transient staging picker yields to the inspector so the two panels
+    // can never occlude each other on narrower canvases.
+    await expect(page.getByTestId("spatial-staging-tray")).not.toBeVisible();
+
+    // Drill down: enter drawer location via the inspector's Enter action
+    const inspector = page.getByTestId("spatial-inspector-overlay");
+    const enterBtn = inspector
+      .getByRole("button", { name: /Enter location DEMO-SPATIAL-DRAWER-A06/i })
+      .first();
     if (await enterBtn.isVisible()) {
       await enterBtn.click();
-      await expect(page).toHaveURL(/inventory/locations\/cc6e8839-2d94-48c2-9710-04be238a3c32/);
+      await expect(page).toHaveURL(
+        /inventory\/locations\/cc6e8839-2d94-48c2-9710-04be238a3c32/,
+      );
 
-      // Verify breadcrumbs contain ancestor cabinet
-      await expect(page.getByText("DEMO-SPATIAL-CABINET-A").first()).toBeVisible();
-
-      // Click "Up one level" to return to parent cabinet
-      const upBtn = page.getByRole("button", { name: "Up one level" });
-      await upBtn.click();
-      await expect(page).toHaveURL(new RegExp(CABINET_LOCATION_ID));
+      // The drilled-down drawer is a leaf, so the page keeps the physical
+      // hierarchy visible through its location path instead of a canvas.
+      await expect(
+        page.getByText("DEMO-SPATIAL-DRAWER-A06").first(),
+      ).toBeVisible();
+      await expect(page.getByText(/DEMO-SPATIAL-CABINET-A/).first()).toBeVisible();
+      await expect(
+        page.getByText(/No sub-locations are nested under this location yet./),
+      ).toBeVisible();
     }
   });
 

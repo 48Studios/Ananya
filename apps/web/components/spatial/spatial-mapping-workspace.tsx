@@ -137,12 +137,21 @@ export function SpatialMappingWorkspace({
     );
   }
 
-  const { location, node, model, anchor, parentLocation, children, modelAnchors } =
-    context;
-  const isMapped = Boolean(node);
+  const {
+    location,
+    node,
+    model,
+    anchor,
+    parentLocation,
+    children,
+    modelAnchors,
+    mapping,
+  } = context;
+  const isMapped = mapping.hasSpatialNode;
   const totalChildren = children.length;
   const mappedChildren = children.filter((c) => c.isMapped).length;
-  const isPartial = isMapped && totalChildren > 0 && mappedChildren < totalChildren;
+  const isPartial =
+    mapping.status === "PARTIAL";
 
   // Build anchor -> child mapping for 2D Preview
   const anchorChildMap = new Map<
@@ -192,6 +201,46 @@ export function SpatialMappingWorkspace({
                   <span>Mapped</span>
                 </span>
               )
+            ) : mapping.status === "ROOT" ? (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground border border-border"
+                title="Top-level facility — it has no parent frame to be placed in"
+              >
+                <MapPin className="size-3" />
+                <span>Facility root</span>
+              </span>
+            ) : mapping.slotMapping?.isStale ? (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+                title={`Mapped to slot ${mapping.slotMapping.slotCode} of layout ${mapping.slotMapping.layoutCode}, which is flagged for review`}
+              >
+                <AlertTriangle className="size-3" />
+                <span>Mapping needs review</span>
+              </span>
+            ) : mapping.slotMapping?.layoutStatus === "DRAFT" ? (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+                title={`Mapped to slot ${mapping.slotMapping.slotCode} of draft layout ${mapping.slotMapping.layoutCode}; not published yet`}
+              >
+                <span className="font-mono">◐</span>
+                <span>Draft slot mapping</span>
+              </span>
+            ) : mapping.containerStatus === "PUBLISHED" ? (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20"
+                title="This location configures a published layout for its compartments, but is not itself placed in a parent frame"
+              >
+                <Layers className="size-3" />
+                <span>Container configured</span>
+              </span>
+            ) : mapping.containerStatus === "DRAFT" ? (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground border border-border"
+                title="This location has a draft layout for its compartments; the layout is not published yet"
+              >
+                <Layers className="size-3" />
+                <span>Draft layout only</span>
+              </span>
             ) : (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground border border-border">
                 <AlertTriangle className="size-3 text-amber-500" />
@@ -344,10 +393,18 @@ export function SpatialMappingWorkspace({
           ) : (
             <div className="py-2 text-xs text-muted-foreground space-y-1">
               <p>Location is not currently positioned inside a spatial parent.</p>
-              <p className="text-[11px] text-muted-foreground/80">
-                Click &ldquo;Map Location&rdquo; above to assign this location to an
-                anchor in its parent container.
-              </p>
+              {mapping.isMappingEligible ? (
+                <p className="text-[11px] text-muted-foreground/80">
+                  Click &ldquo;Map Location&rdquo; above to assign this location
+                  to an anchor in its parent container.
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground/80">
+                  This is a top-level facility, so it has no parent frame to be
+                  placed in. Configure a spatial model and layout to map its
+                  compartments.
+                </p>
+              )}
             </div>
           )}
         </div>

@@ -202,19 +202,25 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await expect(page.locator("h1").getByText("DRAFT")).toBeVisible();
     await expect(page.getByText("Unsaved Edits")).not.toBeVisible();
 
-    // Reload the page and verify state is fully restored
+    // Reload the page and verify state is fully restored. The restore issues
+    // several master-data requests, so allow a wider window when suites run in
+    // parallel against the shared dev server.
     await page.reload();
-    await expect(page.getByText("Revision: 1")).toBeVisible();
+    await expect(page.getByText("Revision: 1")).toBeVisible({
+      timeout: 15000,
+    });
     await expect(page.getByText("Mapped: 1 /")).toBeVisible();
     await expect(page.locator("h1").getByText("DRAFT")).toBeVisible();
 
     // The persisted template configuration is restored (720 mm, not the 600 mm default)
-    await expect(page.getByText(/720 × 900 × 300 mm/)).toBeVisible();
+    await expect(page.getByText(/720 × 900 × 300 mm/)).toBeVisible({
+      timeout: 15000,
+    });
 
     // The persisted slot-to-location mapping is restored to the same physical location
     await expect(
       page.getByText(`Code: ${testChildACode}`).first(),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15000 });
   });
 
   // --------------------------------------------------------------------------
@@ -823,7 +829,7 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     await mapSelectTrigger.click();
     await page.getByRole("option", { name: /Slot A01/i }).click();
 
-    // Intercept POST /inventory/locations/spatial/layouts once to simulate server error
+    // Intercept POST /spatial/layouts once to simulate server error
     let failureTriggered = false;
     await page.route("**/spatial/layouts", async (route) => {
       if (route.request().method() === "POST" && !failureTriggered) {
@@ -963,5 +969,68 @@ test.describe("Phase 3.3: Inventory Builder Persistence & Concurrency E2E Audit"
     expect(new Date(dbRevisionAfter.rows[0].updated_at).toISOString()).toBe(
       new Date(dbRevisionBefore.rows[0].updated_at).toISOString(),
     );
+  });
+
+  // --------------------------------------------------------------------------
+  // Scenario 11: background refetches must never discard unsaved edits
+  // --------------------------------------------------------------------------
+  test("11. background layout refetches never overwrite unsaved workspace edits", async ({
+    page,
+  }) => {
+    await page.goto(
+      `/inventory/locations/spatial-builder?location=${testParentId}`,
+    );
+    await expect(page.getByText("Loading layouts...")).not.toBeVisible();
+
+    // Start from a clean draft so earlier scenarios' persisted layouts cannot
+    // auto-load over this scenario's geometry.
+    await page.getByRole("button", { name: "New Draft" }).click();
+    await expect(page.getByText("Mapped: 0 /")).toBeVisible();
+
+    // Persist a draft at 720 mm so a server-side layout exists to be refetched.
+    await page.getByLabel("Width").fill("720");
+    await expect(page.getByText(/720 × 900 × 300 mm/)).toBeVisible();
+    await page.getByRole("button", { name: "2. Map" }).click();
+    const mapTrigger = page
+      .locator("button")
+      .filter({ hasText: "Map to slot..." })
+      .first();
+    await expect(mapTrigger).toBeVisible();
+    await mapTrigger.click();
+    await page.getByRole("option", { name: /Slot A01/i }).click();
+    await page.getByRole("button", { name: "Save as Draft" }).click();
+    await page.getByLabel("Layout Code *").fill(`LAYOUT-REFETCH-${testParentCode}`);
+    await page.getByLabel("Layout Name *").fill("Refetch Guard Layout");
+    await page.getByRole("button", { name: "Create Draft" }).click();
+    await expect(page.getByText(/created successfully/i)).toBeVisible();
+
+    // Make an unsaved geometry edit on the loaded draft.
+    await page.getByRole("button", { name: "1. Build" }).click();
+    await page.getByLabel("Width").fill("777");
+    await expect(page.getByText(/777 × 900 × 300 mm/)).toBeVisible();
+    await expect(page.getByText("Unsaved Edits")).toBeVisible();
+
+    // Switching workspace tabs re-writes the URL and re-runs the layouts
+    // fetch. That background refresh must not reload the persisted 720 mm
+    // configuration over the operator's unsaved 777 mm edit.
+    await page.getByRole("button", { name: "2. Map" }).click();
+    await page.getByRole("button", { name: "1. Build" }).click();
+
+    await expect(page.getByText(/777 × 900 × 300 mm/)).toBeVisible();
+    await expect(page.getByText("Unsaved Edits")).toBeVisible();
+
+    const persisted = await pool.query(
+      "SELECT code, config FROM spatial_layouts WHERE parent_location_id = $1;",
+      [testParentId],
+    );
+    const refetchLayout = persisted.rows.find((row) =>
+      String(row.code).toUpperCase().includes("REFETCH"),
+    );
+    expect(refetchLayout).toBeDefined();
+    // The background refetch must not have written the unsaved edit either.
+    expect(
+      (refetchLayout!.config as { dimensions: { widthMm: number } }).dimensions
+        .widthMm,
+    ).toBe(720);
   });
 });

@@ -22,7 +22,12 @@ import {
   SpatialModelConflictError,
   SpatialAnchorConflictError,
   InvalidSpatialAnchorCodeError,
+  computeSpatialMappingStatus,
   type InventoryProjection,
+  type SpatialContainerStatus,
+  type SpatialLayoutRepository,
+  type SpatialLayoutStatus,
+  type SpatialMappingStatus,
 } from '@ananya/inventory';
 import { db, type DbExecutor } from '@ananya/database';
 import {
@@ -34,6 +39,7 @@ import {
   SPATIAL_MODEL_REPOSITORY,
   SPATIAL_ANCHOR_REPOSITORY,
   SPATIAL_NODE_REPOSITORY,
+  SPATIAL_LAYOUT_REPOSITORY,
 } from './spatial.tokens';
 import { LOCATION_REPOSITORY } from '../locations/location.tokens';
 import { InventoryProjectionsService } from '../inventory-projections/inventory-projections.service';
@@ -67,6 +73,49 @@ export interface LocationSpatialContext {
   model: SpatialModel | null;
   anchor: SpatialAnchor | null;
   parentSpatialNode: SpatialNode | null;
+  mapping: LocationSpatialMappingSummary;
+}
+
+/**
+ * Authoritative mapping state of one location, shared by every spatial read
+ * model so Location Details, the Spatial Inventory tree, the mapping
+ * workspace/dialog, and the 2D/3D viewers cannot disagree.
+ */
+export interface LocationSpatialMappingSummary {
+  status: SpatialMappingStatus;
+  isMappingEligible: boolean;
+  hasSpatialNode: boolean;
+  directChildCount: number;
+  mappedDirectChildCount: number;
+  unmappedDirectChildCount: number;
+  containerStatus: SpatialContainerStatus;
+  /**
+   * The published (operational) layout of this location as a container. Its
+   * configured dimensions are the physical frame the builder wrote child
+   * spatial-node coordinates in, so 3D rendering must use them.
+   */
+  publishedLayout: {
+    id: string;
+    code: string;
+    revision: number;
+    totalCompartments: number;
+    containerDimensionsMm: {
+      widthMm: number;
+      heightMm: number;
+      depthMm: number;
+    } | null;
+  } | null;
+  /**
+   * Slot mapping of this location into an ancestor's layout. A draft mapping is
+   * not yet operational; a stale mapping needs operator review.
+   */
+  slotMapping: {
+    layoutId: string;
+    layoutCode: string;
+    layoutStatus: SpatialLayoutStatus;
+    slotCode: string;
+    isStale: boolean;
+  } | null;
 }
 
 export interface LocationOperationalViewChild {
@@ -98,6 +147,11 @@ export interface LocationOperationalView {
     node: SpatialNode | null;
     model: SpatialModel | null;
     anchors: SpatialAnchor[];
+    /**
+     * Authoritative mapping state of this location as a container, including
+     * the published layout framing the child coordinates.
+     */
+    mapping: LocationSpatialMappingSummary;
   };
   children: LocationOperationalViewChild[];
   descendantLocations: Array<{
@@ -180,6 +234,7 @@ export interface LocationMappingContext {
   modelAnchors: SpatialAnchor[];
   children: LocationMappingChildItem[];
   availableModels: SpatialModel[];
+  mapping: LocationSpatialMappingSummary;
 }
 
 @Injectable()
@@ -193,6 +248,8 @@ export class SpatialService {
     private readonly nodeRepo: SpatialNodeRepository,
     @Inject(LOCATION_REPOSITORY)
     private readonly locationRepo: LocationRepository,
+    @Inject(SPATIAL_LAYOUT_REPOSITORY)
+    private readonly layoutRepo: SpatialLayoutRepository,
     private readonly inventoryProjectionsService: InventoryProjectionsService,
     @Optional()
     private readonly customTransactionRunner?: SpatialTransactionRunner,
@@ -624,6 +681,78 @@ export class SpatialService {
     await this.nodeRepo.delete(id);
   }
 
+  /**
+   * Builds the authoritative mapping summary for one location from the
+   * location, node, and layout records. Every spatial read model routes
+   * through here so the same location can never report two different statuses.
+   */
+  private async buildMappingSummary(
+    location: Location,
+    allLocations: Location[],
+    nodesByLocationId: ReadonlyMap<string, SpatialNode>,
+  ): Promise<LocationSpatialMappingSummary> {
+    const directChildIds = allLocations
+      .filter((candidate) => candidate.parentId === location.id)
+      .map((candidate) => candidate.id);
+    const mappedDirectChildCount = directChildIds.filter((childId) =>
+      nodesByLocationId.has(childId),
+    ).length;
+
+    const layouts = await this.layoutRepo.findByParentLocationId(location.id);
+    const layoutStatuses = layouts.map((layout) => layout.status);
+    const publishedLayout = layouts.find(
+      (layout) => layout.status === 'PUBLISHED',
+    );
+    const slotMappings = await this.layoutRepo.findMappingsByLocationId(
+      location.id,
+    );
+    // Prefer the operational (published) mapping, then the newest draft, then
+    // the archived history: that is the mapping the operator's view describes.
+    const slotMapping =
+      slotMappings.find((mapping) => mapping.layoutStatus === 'PUBLISHED') ??
+      slotMappings.find((mapping) => mapping.layoutStatus === 'DRAFT') ??
+      slotMappings[0] ??
+      null;
+
+    const statusResult = computeSpatialMappingStatus({
+      parentId: location.parentId,
+      hasSpatialNode: nodesByLocationId.has(location.id),
+      directChildCount: directChildIds.length,
+      mappedDirectChildCount,
+      layoutStatuses,
+    });
+
+    const layoutDimensions = publishedLayout?.config?.dimensions;
+
+    return {
+      ...statusResult,
+      publishedLayout: publishedLayout
+        ? {
+            id: publishedLayout.id,
+            code: publishedLayout.code,
+            revision: publishedLayout.revision,
+            totalCompartments: publishedLayout.totalCompartments,
+            containerDimensionsMm: layoutDimensions
+              ? {
+                  widthMm: layoutDimensions.widthMm,
+                  heightMm: layoutDimensions.heightMm,
+                  depthMm: layoutDimensions.depthMm,
+                }
+              : null,
+          }
+        : null,
+      slotMapping: slotMapping
+        ? {
+            layoutId: slotMapping.layoutId,
+            layoutCode: slotMapping.layoutCode,
+            layoutStatus: slotMapping.layoutStatus,
+            slotCode: slotMapping.slotCode,
+            isStale: Boolean(slotMapping.isStale),
+          }
+        : null,
+    };
+  }
+
   async getLocationMappingContext(
     locationId: string,
   ): Promise<LocationMappingContext> {
@@ -727,6 +856,12 @@ export class SpatialService {
 
     const availableModels = await this.modelRepo.findMany({ isActive: true });
 
+    const mapping = await this.buildMappingSummary(
+      location,
+      allLocations,
+      nodesByLocId,
+    );
+
     return {
       location: {
         id: location.id,
@@ -755,6 +890,7 @@ export class SpatialService {
       modelAnchors,
       children,
       availableModels,
+      mapping,
     };
   }
 
@@ -771,6 +907,19 @@ export class SpatialService {
     }
 
     const node = await this.nodeRepo.findByLocationId(locationId);
+
+    const [directChildren, allNodes] = await Promise.all([
+      this.locationRepo.findByParentId(locationId),
+      this.nodeRepo.findMany(),
+    ]);
+    const nodesByLocationId = new Map(
+      allNodes.map((candidate) => [candidate.locationId, candidate]),
+    );
+    const mapping = await this.buildMappingSummary(
+      location,
+      [location, ...directChildren],
+      nodesByLocationId,
+    );
 
     let model: SpatialModel | null = null;
     let anchor: SpatialAnchor | null = null;
@@ -802,6 +951,7 @@ export class SpatialService {
       model,
       anchor,
       parentSpatialNode,
+      mapping,
     };
   }
 
@@ -906,6 +1056,12 @@ export class SpatialService {
     const projections =
       await this.inventoryProjectionsService.getByLocation(locationId);
 
+    const mapping = await this.buildMappingSummary(
+      location,
+      allLocations,
+      nodesByLocId,
+    );
+
     return {
       parent: {
         location: {
@@ -920,6 +1076,7 @@ export class SpatialService {
         node: parentNode,
         model: parentModel,
         anchors: parentAnchors,
+        mapping,
       },
       children,
       descendantLocations: subtreeLocations.map((l) => ({

@@ -288,6 +288,22 @@ describe("Spatial Navigation & Breadcrumb Engine", () => {
     const spatialGridSrc = readWebFile("components/spatial/spatial-grid.tsx");
     const spatialInspectorSrc = readWebFile("components/spatial/spatial-inspector.tsx");
     const spatial3DViewportSrc = readWebFile("components/spatial/spatial-3d-viewport.tsx");
+    const anchorHookSrc = readWebFile("lib/spatial/use-anchored-inspector.ts");
+    const placementSrc = readWebFile("lib/spatial/inspector-placement.ts");
+
+    it("gives card rings room inside the scrolling grid so outlines are never clipped", () => {
+      // The grid wrapper is an overflow container: it clips at its padding box,
+      // and a card's outer `ring-2` paints 2px outside its border box. Without
+      // padding the top/left band of an active outline was sliced off.
+      expect(spatialGridSrc).toContain("overflow-x-auto p-1 pb-3 -m-1");
+      expect(spatialGridSrc).not.toContain("overflow-x-auto pb-2");
+      // The negative margin keeps the cards exactly where they were.
+      expect(spatialGridSrc).not.toContain("overflow-x-auto p-1 -m-1");
+
+      // The rings that need that room.
+      expect(spatialCellSrc).toContain("ring-2 ring-primary");
+      expect(spatialCellSrc).toContain("ring-2 ring-emerald-500");
+    });
 
     it("ensures selecting a cell never modifies the canvas grid column span or container width", () => {
       // Must not dynamically toggle between 8 and 12 columns
@@ -299,21 +315,136 @@ describe("Spatial Navigation & Breadcrumb Engine", () => {
       expect(spatialViewSrc).toContain('<div className="w-full">');
     });
 
-    it("renders the inspector as a floating overlay on desktop and bottom sheet on mobile with viewport-relative sizing", () => {
+    it("anchors the inspector next to the selected spatial object instead of docking it", () => {
       expect(spatialViewSrc).toContain('data-testid="spatial-inspector-overlay"');
-      expect(spatialViewSrc).toContain("sm:absolute sm:top-14 sm:right-4 sm:z-20 sm:w-84");
-      expect(spatialViewSrc).toContain("fixed inset-x-0 bottom-0 z-50");
+      expect(spatialViewSrc).toContain('data-testid="spatial-canvas-region"');
+      expect(spatialViewSrc).toContain("useAnchoredInspector({");
+      expect(spatialViewSrc).toContain("ref={inspectorWrapperRef}");
+      expect(spatialViewSrc).toContain('data-placement={inspector.placement ?? "pending"}');
 
-      // Must not compute max-height against parent canvas container (prevents squishing on short 1-row grids)
+      // Non-modal: a labelled region, never a dialog, so background interaction stays live.
+      expect(spatialViewSrc).toContain('role="region"');
+      expect(spatialInspectorSrc).not.toContain('role="dialog"');
+
+      // `fixed` (not `absolute`): the canvas region sits far down the scrollable
+      // page, so a canvas-relative panel could run past the viewport and over
+      // the footer.
+      expect(spatialViewSrc).toContain('"fixed z-40 flex flex-col"');
+      expect(spatialViewSrc).not.toContain("sm:absolute sm:top-14");
+      expect(spatialViewSrc).not.toContain("fixed inset-x-0 bottom-0 z-50");
+
+      // The single 2D anchor source is the rendered card, not logical grid math.
+      expect(spatialCellSrc).toContain("data-spatial-location-id={summary.locationId}");
+      expect(spatialViewSrc).toContain("data-spatial-location-id=");
+
+      // Must not compute max-height against the parent canvas container.
       expect(spatialViewSrc).not.toContain("calc(100%-4.5rem)");
-      expect(spatialViewSrc).toContain("sm:max-h-[min(640px,calc(100vh-10rem))]");
+      expect(spatialViewSrc).not.toContain("sm:max-h-[min(640px,calc(100vh-10rem))]");
+    });
+
+    it("computes placement from measured bounds with the documented preference order", () => {
+      // Preferred order: right → left → below → above → constrained fallback.
+      expect(placementSrc).toContain('placement: "right"');
+      expect(placementSrc).toContain('placement: "left"');
+      expect(placementSrc).toContain('placement: "below"');
+      expect(placementSrc).toContain('placement: "above"');
+      expect(placementSrc).toContain('placement: "fallback"');
+      expect(placementSrc).toContain("containWithinBounds(");
+      expect(placementSrc).toContain("clampScreenRectToViewport(");
+
+      // The 3D anchor is the scene object's projected box, never invented coordinates.
+      expect(spatial3DViewportSrc).toContain("projectLocationBounds = (");
+      expect(spatial3DViewportSrc).toContain("hitTestSpatialObject = (");
+      expect(spatial3DViewportSrc).toContain("subscribeSceneMovement");
+      expect(spatial3DViewportSrc).toContain("sceneMovementListenersRef");
+      expect(anchorHookSrc).toContain("projectLocationBounds(selectedLocationId)");
+      expect(spatialViewSrc).toContain("interactionApiRef={interactionApiRef}");
+
+      // Real measurement + observation, throttled to one frame with a movement threshold.
+      expect(anchorHookSrc).toContain("getBoundingClientRect()");
+      expect(anchorHookSrc).toContain("new ResizeObserver(");
+      expect(anchorHookSrc).toContain('document.addEventListener("scroll", schedule, true)');
+      expect(anchorHookSrc).toContain("anchorEquals(lastAnchorRef.current, anchor)");
+    });
+
+    it("dismisses the inspector from outside pointer activity without stealing spatial selections", () => {
+      // `click`, not `pointerdown`: an orbit drag must not dismiss the inspector.
+      expect(anchorHookSrc).toContain('document.addEventListener("click", handleClick, true)');
+      expect(anchorHookSrc).toContain("const handleClick = (event: MouseEvent) => {");
+      expect(anchorHookSrc).toContain("wrapperRef.current?.contains(target)");
+      expect(anchorHookSrc).toContain('target.closest("[data-spatial-location-id]")');
+      expect(anchorHookSrc).toContain("hitTestSpatialObject(");
+      expect(anchorHookSrc).toContain("onDismiss()");
+      // Controls (camera presets, view toggles, cards) never dismiss the panel.
+      expect(anchorHookSrc).toContain('"button, a, input, select, textarea,');
+      expect(anchorHookSrc).toContain(
+        "[role='button'], [role='menuitem'], [role='tab'], [role='switch'], [role='checkbox']",
+      );
+    });
+
+    it("keeps the inspector header pinned while a single body container scrolls", () => {
+      expect(spatialInspectorSrc).toContain('data-testid="spatial-inspector-body"');
+      expect(spatialInspectorSrc).toContain(
+        "min-h-0 flex-1 space-y-3.5 overflow-x-hidden overflow-y-auto",
+      );
+      // The header must not scroll away with the body.
+      expect(spatialInspectorSrc).toContain(
+        "flex shrink-0 flex-col gap-2 border-b border-border/60 px-4 py-3",
+      );
+      // Identity (code + name) owns the full width on its own row, so long
+      // identifiers truncate instead of painting over the action controls.
+      expect(spatialInspectorSrc).toContain(
+        "flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5",
+      );
+      expect(spatialInspectorSrc).toContain("min-w-0 max-w-full truncate");
+      expect(spatialInspectorSrc).toContain("min-w-0 flex-1 truncate text-xs");
+      // Badges and actions share the row below, with the actions pushed right.
+      expect(spatialInspectorSrc).toContain(
+        "flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-2",
+      );
+      expect(spatialInspectorSrc).toContain(
+        "ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1.5",
+      );
+    });
+
+    it("closes the inspector through one authoritative state transition", () => {
+      // `selectedLocationId === null` is the closed state; there is no second
+      // open/closed flag that could drift out of sync with it.
+      expect(spatialViewSrc).toContain("const [selectedLocationId, setSelectedLocationId] = React.useState<");
+      expect(spatialViewSrc).toContain(
+        "const handleCloseInspector = React.useCallback(() => {",
+      );
+      expect(spatialViewSrc).toContain("setSelectedLocationId(null);");
+      // Close button, Escape, and outside clicks all route through it.
+      expect(spatialViewSrc).toContain("onClose={handleCloseInspector}");
+      expect(spatialViewSrc).toContain("handleCloseInspector();");
+      expect(spatialViewSrc).toContain(
+        "const handleInspectorDismiss = React.useCallback(() => {",
+      );
+
+      // The close control itself never bubbles into a card/canvas handler.
+      expect(spatialInspectorSrc).toContain("event.stopPropagation();");
+
+      // Locate/QR deep-link targets are consumed once per value: the reveal rule
+      // must not re-select on every dismissal (that made the inspector
+      // impossible to close).
+      expect(spatialViewSrc).toContain("consumedFocusTargetRef");
+      expect(spatialViewSrc).not.toContain("if (effectiveHighlightedLocationId && !selectedLocationId)");
+      expect(spatialViewSrc).toContain(
+        "if (consumedFocusTargetRef.current === effectiveHighlightedLocationId) {",
+      );
+
+      // A selection that no longer resolves under this parent is dropped.
+      expect(spatialViewSrc).toContain("isKnownChild");
+      expect(spatialViewSrc).toContain("setSelectedLocationId(null);\n    }\n  }, [data, selectedLocationId]);");
     });
 
     it("provides explicit Enter/Open and Details actions with accessible labels in the inspector", () => {
-      // Enter action for drill-down
+      // Enter action for drill-down, pinned in the footer outside the scroll body.
       expect(spatialInspectorSrc).toContain("onEnterLocation");
       expect(spatialInspectorSrc).toContain("<CornerDownRight");
-      expect(spatialInspectorSrc).toContain("<span>Enter</span>");
+      expect(spatialInspectorSrc).toContain("Enter Location");
+      expect(spatialInspectorSrc).toContain('data-testid="spatial-inspector-footer"');
       expect(spatialInspectorSrc).toContain("aria-label={`Enter location ${locationCode}`}");
 
       // Details action for master data page
@@ -324,10 +455,19 @@ describe("Spatial Navigation & Breadcrumb Engine", () => {
       expect(spatialInspectorSrc).toContain('aria-label="Close inspector (Esc)"');
     });
 
-    it("displays keyboard shortcut affordances in the inspector", () => {
-      expect(spatialInspectorSrc).toContain("<kbd");
-      expect(spatialInspectorSrc).toContain("Enter");
-      expect(spatialInspectorSrc).toContain("Esc");
+    it("displays keyboard shortcut affordances in the inspector footer", () => {
+      const footerIndex = spatialInspectorSrc.indexOf(
+        'data-testid="spatial-inspector-footer"',
+      );
+      expect(footerIndex).toBeGreaterThan(-1);
+      const footer = spatialInspectorSrc.slice(footerIndex);
+      expect(footer).toContain("<kbd");
+      expect(footer).toContain("Enter");
+      expect(footer).toContain("Esc");
+      // Actions live outside the scrolling body so they stay reachable.
+      const bodyIndex = spatialInspectorSrc.indexOf('data-testid="spatial-inspector-body"');
+      expect(bodyIndex).toBeGreaterThan(-1);
+      expect(bodyIndex).toBeLessThan(footerIndex);
     });
 
     it("supports double-click and keyboard Enter for child navigation in 2D with stopPropagation", () => {
@@ -353,9 +493,10 @@ describe("Spatial Navigation & Breadcrumb Engine", () => {
     });
 
     it("unifies keyboard shortcuts without hijacking interactive controls or open dialogs", () => {
-      // Escape clears selection when no modal dialog is active
+      // Escape closes the inspector through the single authoritative close path
+      // (when no modal dialog/menu owns the key).
       expect(spatialViewSrc).toContain('e.key === "Escape"');
-      expect(spatialViewSrc).toContain("setSelectedLocationId(null)");
+      expect(spatialViewSrc).toContain("handleCloseInspector();");
       expect(spatialViewSrc).toContain("hasActiveModalOrMenu");
 
       // Enter navigates to selected location only when focus is not on an interactive button or link

@@ -1,32 +1,64 @@
 /**
  * Spatial Demo dataset seeder.
  *
- * Safe, idempotent seed script that establishes a complete Spatial Inventory demo dataset.
+ * Safe, deterministic, idempotent seed that establishes a complete Spatial
+ * Inventory demo dataset:
+ *
+ *   1. Spatial models (+ anchors), with dimensions derived from the parametric
+ *      engine so operational 2D/3D render exactly the authored slots.
+ *   2. Location hierarchy under DEMO-SPATIAL-WAREHOUSE.
+ *   3. Parametric layouts created, published and archived through the same REST
+ *      endpoints the Inventory Builder uses (draft -> publish -> archive), which
+ *      produces builder-owned spatial nodes with real ownership metadata.
+ *   4. Node enrichment: container/drawer models attached to builder-owned
+ *      nodes, plus deep-hierarchy bins mapped to drawer anchors.
+ *   5. Demo components and baseline stock through the immutable ledger.
  *
  * Usage:
  *   node tools/spatial-demo-dataset/seed.mjs
- *   node tools/spatial-demo-dataset/seed.mjs --reset
+ *   node tools/spatial-demo-dataset/seed.mjs --reset       # cleanup then seed
+ *   node tools/spatial-demo-dataset/seed.mjs --no-verify   # skip verification
  */
 import {
   API_BASE,
-  del,
+  generateCompartmentMap,
   get,
   log,
   patch,
   post,
+  put,
   readManifest,
   writeManifest,
 } from './lib.mjs';
 import {
   COMPONENTS,
   INVENTORY_TRANSACTIONS,
+  LAYOUTS,
   LOCATIONS_HIERARCHY,
-  MODELS,
-  SPATIAL_MAPPINGS,
+  MODEL_SPECS,
+  NESTED_NODE_MAPPINGS,
+  NODE_MODEL_ASSIGNMENTS,
 } from './dataset.mjs';
 
 const args = process.argv.slice(2);
 const SHOULD_RESET_FIRST = args.includes('--reset');
+const SHOULD_VERIFY = !args.includes('--no-verify');
+
+const round2 = (value) => Math.round(value * 100) / 100;
+
+/** Stable JSON stringification (Postgres jsonb does not preserve key order). */
+function canonicalJson(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
 
 async function verifyEnvironment() {
   log('🔍 Verifying target environment...');
@@ -51,7 +83,77 @@ async function verifyEnvironment() {
   }
 }
 
-async function ensureModelsAndAnchors(manifest) {
+/**
+ * Computes every layout's generated geometry once. The same engine build the
+ * API uses produces the slots, so derived model dimensions cannot drift.
+ */
+async function buildLayoutGeometry() {
+  log('\n📐 0. Generating parametric geometry from the storage engine...');
+  const geometry = new Map();
+  for (const spec of LAYOUTS) {
+    const generated = await generateCompartmentMap(spec.config);
+    geometry.set(spec.code, {
+      config: spec.config,
+      compartments: generated.compartments,
+      byCode: generated.byCode,
+      bySlotId: generated.bySlotId,
+    });
+    const sample = generated.compartments[0];
+    log(
+      `  ${spec.code}: ${generated.compartments.length} slots, cell ${sample.dimensions.widthMm} x ${sample.dimensions.heightMm} x ${sample.dimensions.depthMm} mm`,
+    );
+  }
+  return geometry;
+}
+
+/** Derives concrete model records (mm + anchors) from layout geometry. */
+function deriveModels(layoutGeometry) {
+  return MODEL_SPECS.map((spec) => {
+    const layout = layoutGeometry.get(spec.from.layoutCode);
+    if (!layout) {
+      throw new Error(
+        `Model '${spec.code}' references unknown layout '${spec.from.layoutCode}'.`,
+      );
+    }
+
+    let dimensions;
+    if (spec.from.use === 'container') {
+      dimensions = layout.config.dimensions;
+    } else {
+      const slot = layout.compartments[0];
+      dimensions = {
+        widthMm: slot.dimensions.widthMm * (spec.from.widthRatio ?? 1),
+        heightMm: slot.dimensions.heightMm * (spec.from.heightRatio ?? 1),
+        depthMm: slot.dimensions.depthMm * (spec.from.depthRatio ?? 1),
+      };
+    }
+
+    const model = {
+      code: spec.code,
+      name: spec.name,
+      format: 'PROCEDURAL',
+      widthMm: round2(dimensions.widthMm),
+      heightMm: round2(dimensions.heightMm),
+      depthMm: round2(dimensions.depthMm),
+    };
+
+    const anchors = (spec.anchors ?? []).map((anchor) => ({
+      code: anchor.code,
+      name: anchor.name,
+      anchorType: anchor.anchorType,
+      localPositionX: round2(model.widthMm * anchor.xRatio),
+      localPositionY: round2(model.heightMm * anchor.yRatio),
+      localPositionZ: round2(anchor.zMm ?? 0),
+      boundingWidthMm: round2(model.widthMm * anchor.boundingWidthRatio),
+      boundingHeightMm: round2(model.heightMm * anchor.boundingHeightRatio),
+      boundingDepthMm: round2(model.depthMm * anchor.boundingDepthRatio),
+    }));
+
+    return { ...model, anchors };
+  });
+}
+
+async function ensureModelsAndAnchors(manifest, models) {
   log('\n📦 1. Setting up Spatial Models & Anchors...');
   const existingModels = await get('/spatial/models');
   const modelByCode = new Map(existingModels.map((m) => [m.code, m]));
@@ -59,9 +161,10 @@ async function ensureModelsAndAnchors(manifest) {
   const modelsMap = new Map(); // code -> modelDto
   const anchorsMap = new Map(); // `${modelCode}:${anchorCode}` -> anchorDto
 
-  for (const modelSpec of MODELS) {
+  for (const modelSpec of models) {
     let model = modelByCode.get(modelSpec.code);
     let created = false;
+    let updated = false;
 
     if (!model) {
       model = await post('/spatial/models', {
@@ -75,12 +178,33 @@ async function ensureModelsAndAnchors(manifest) {
       created = true;
       log(`  ➕ Created model ${model.code} (${model.id})`);
     } else {
-      log(`  ✓ Reusing existing model ${model.code} (${model.id})`);
+      const needsUpdate =
+        Number(model.widthMm) !== modelSpec.widthMm ||
+        Number(model.heightMm) !== modelSpec.heightMm ||
+        Number(model.depthMm) !== modelSpec.depthMm;
+      if (needsUpdate) {
+        model = await patch(`/spatial/models/${model.id}`, {
+          widthMm: modelSpec.widthMm,
+          heightMm: modelSpec.heightMm,
+          depthMm: modelSpec.depthMm,
+        });
+        updated = true;
+        log(
+          `  🔄 Updated model dimensions for ${model.code} -> ${modelSpec.widthMm} x ${modelSpec.heightMm} x ${modelSpec.depthMm} mm`,
+        );
+      } else {
+        log(`  ✓ Reusing existing model ${model.code} (${model.id})`);
+      }
     }
 
     modelsMap.set(modelSpec.code, model);
     if (!manifest.models.some((m) => m.id === model.id)) {
-      manifest.models.push({ id: model.id, code: model.code, created });
+      manifest.models.push({
+        id: model.id,
+        code: model.code,
+        created,
+        updated,
+      });
     }
 
     // Anchors for this model
@@ -131,6 +255,7 @@ async function ensureLocations(manifest) {
   const locationByCode = new Map(existingLocations.map((l) => [l.code, l]));
   const locationsMap = new Map(); // code -> locationDto
 
+  let createdCount = 0;
   for (const locSpec of LOCATIONS_HIERARCHY) {
     let loc = locationByCode.get(locSpec.code);
     let created = false;
@@ -147,6 +272,9 @@ async function ensureLocations(manifest) {
     }
 
     if (!loc) {
+      // CreateLocationDto declares metadata as a string (API DTO constraint);
+      // the free-form metadata (capacity hints) is applied through the update
+      // route below, which accepts an object.
       loc = await post('/locations', {
         code: locSpec.code,
         name: locSpec.name,
@@ -154,9 +282,21 @@ async function ensureLocations(manifest) {
         parentId: parentId || undefined,
       });
       created = true;
+      createdCount++;
       log(`  ➕ Created location [${loc.kind}] ${loc.code} -> ${loc.id}`);
     } else {
       log(`  ✓ Reusing location [${loc.kind}] ${loc.code} -> ${loc.id}`);
+    }
+
+    if (locSpec.metadata) {
+      const desired = canonicalJson(locSpec.metadata);
+      const current = canonicalJson(loc.metadata ?? {});
+      if (desired !== current) {
+        loc = await put(`/locations/${loc.id}`, {
+          metadata: locSpec.metadata,
+        });
+        log(`  🔄 Applied metadata for ${loc.code}`);
+      }
     }
 
     locationsMap.set(locSpec.code, loc);
@@ -170,111 +310,304 @@ async function ensureLocations(manifest) {
     }
   }
 
+  log(`  → ${createdCount} locations created, ${locationsMap.size} in the demo tree.`);
   return locationsMap;
 }
 
-async function ensureSpatialMappings(manifest, { modelsMap, anchorsMap, locationsMap }) {
-  log('\n🗺️  3. Setting up Spatial Nodes & Mappings...');
-  const existingNodes = await get('/spatial/nodes');
-  const nodeByLocationId = new Map(existingNodes.map((n) => [n.locationId, n]));
-  const nodesMap = new Map(); // locationCode -> nodeDto
+/**
+ * Ensures one layout reaches its desired state through the builder endpoints.
+ *
+ * Idempotency rules:
+ * - an existing layout that already matches the spec is reused untouched
+ *   (no revision churn, no node rewrites);
+ * - a DRAFT layout that drifted from the spec is repaired before publishing;
+ * - a PUBLISHED/ARCHIVED layout is never silently rewritten, because an
+ *   operator may have edited it after seeding.
+ */
+async function ensureLayouts(manifest, { locationsMap, layoutGeometry }) {
+  log('\n🗂️  3. Creating & publishing parametric layouts (Inventory Builder path)...');
+  const existingLayouts = await get('/spatial/layouts');
+  const layoutsMap = new Map(); // layoutCode -> layoutDto
 
-  for (const mapping of SPATIAL_MAPPINGS) {
-    const loc = locationsMap.get(mapping.locationCode);
-    if (!loc) {
-      throw new Error(`Location '${mapping.locationCode}' not found for spatial mapping.`);
+  for (const spec of LAYOUTS) {
+    const parent = locationsMap.get(spec.parentCode);
+    if (!parent) {
+      throw new Error(
+        `Layout '${spec.code}' parent '${spec.parentCode}' not found.`,
+      );
     }
+    const geometry = layoutGeometry.get(spec.code);
 
-    let modelId = null;
-    if (mapping.modelCode) {
-      const model = modelsMap.get(mapping.modelCode);
-      if (!model) throw new Error(`Model '${mapping.modelCode}' not found.`);
-      modelId = model.id;
-    }
-
-    let parentSpatialNodeId = null;
-    let anchorId = null;
-
-    if (mapping.parentLocationCode) {
-      const parentNode = nodesMap.get(mapping.parentLocationCode);
-      if (!parentNode) {
+    const desiredMappings = spec.mappings.map((mapping) => {
+      const compartment = geometry.byCode.get(mapping.slotCode);
+      if (!compartment) {
         throw new Error(
-          `Parent spatial node for location '${mapping.parentLocationCode}' not found before child '${mapping.locationCode}'.`,
+          `Layout '${spec.code}' has no slot '${mapping.slotCode}'. Available: ${[...geometry.byCode.keys()].join(', ')}`,
         );
       }
-      parentSpatialNodeId = parentNode.id;
+      const location = locationsMap.get(mapping.locationCode);
+      if (!location) {
+        throw new Error(
+          `Layout '${spec.code}' mapping target '${mapping.locationCode}' not found.`,
+        );
+      }
+      return {
+        slotId: compartment.slotId,
+        slotCode: compartment.code,
+        locationId: location.id,
+        logicalRow: compartment.logicalIndex.row,
+        logicalCol: compartment.logicalIndex.col,
+      };
+    });
 
-      if (mapping.anchorCode) {
-        // Find parent's model code
-        const parentMapping = SPATIAL_MAPPINGS.find(
-          (m) => m.locationCode === mapping.parentLocationCode,
-        );
-        if (!parentMapping || !parentMapping.modelCode) {
-          throw new Error(
-            `Parent mapping for '${mapping.parentLocationCode}' has no modelCode for anchor resolution.`,
-          );
-        }
-        const anchorKey = `${parentMapping.modelCode}:${mapping.anchorCode}`;
-        const anchor = anchorsMap.get(anchorKey);
-        if (!anchor) {
-          throw new Error(`Anchor '${anchorKey}' not found.`);
-        }
-        anchorId = anchor.id;
-      }
+    const candidates = existingLayouts.filter(
+      (layout) => layout.parentLocationId === parent.id,
+    );
+    let layout =
+      candidates.find((candidate) => candidate.code === spec.code) ??
+      candidates[0] ??
+      null;
+
+    if (layout && layout.code !== spec.code) {
+      log(
+        `  ⚠️  Parent ${parent.code} already has layout '${layout.code}' (not '${spec.code}'); adopting it.`,
+      );
     }
 
-    let node = nodeByLocationId.get(loc.id);
-    let created = false;
+    const configMatches =
+      layout && canonicalJson(layout.config) === canonicalJson(spec.config);
+    const mappingKey = (list) =>
+      list
+        .map((m) => `${m.slotCode}->${m.locationId}`)
+        .sort()
+        .join('|');
+    const mappingsMatch =
+      layout &&
+      layout.mappings.length === desiredMappings.length &&
+      mappingKey(layout.mappings) === mappingKey(desiredMappings);
 
-    if (!node) {
-      node = await post('/spatial/nodes', {
-        locationId: loc.id,
-        modelId: modelId || undefined,
-        parentSpatialNodeId: parentSpatialNodeId || undefined,
-        anchorId: anchorId || undefined,
-        positionX: 0,
-        positionY: 0,
-        positionZ: 0,
+    let created = false;
+    let publishedNow = false;
+    let archivedNow = false;
+
+    if (!layout) {
+      layout = await post('/spatial/layouts', {
+        parentLocationId: parent.id,
+        code: spec.code,
+        name: spec.name,
+        templateType: spec.templateType,
+        description: `Demo seed layout for ${parent.code}`,
+        config: spec.config,
+        mappings: desiredMappings,
       });
       created = true;
-      log(
-        `  ➕ Mapped ${mapping.locationCode}${mapping.anchorCode ? ` -> anchor ${mapping.anchorCode}` : ''}${mapping.modelCode ? ` [model: ${mapping.modelCode}]` : ''} (Node ${node.id})`,
-      );
-    } else {
-      // Ensure existing node matches configuration
-      const needsUpdate =
-        (modelId && node.modelId !== modelId) ||
-        (parentSpatialNodeId && node.parentSpatialNodeId !== parentSpatialNodeId) ||
-        (anchorId && node.anchorId !== anchorId);
-
-      if (needsUpdate) {
-        node = await patch(`/spatial/nodes/${node.id}`, {
-          modelId: modelId || undefined,
-          parentSpatialNodeId: parentSpatialNodeId || undefined,
-          anchorId: anchorId || undefined,
-        });
-        log(`  🔄 Updated mapping for ${mapping.locationCode} (Node ${node.id})`);
+      log(`  ➕ Created DRAFT layout ${layout.code} (${layout.id})`);
+    } else if (layout.status === 'PUBLISHED' || layout.status === 'ARCHIVED') {
+      if (!configMatches || !mappingsMatch) {
+        log(
+          `  ⚠️  Layout ${layout.code} is ${layout.status} and differs from the seed spec; leaving operator state untouched.`,
+        );
       } else {
-        log(`  ✓ Mapping already active for ${mapping.locationCode}`);
+        log(`  ✓ Layout ${layout.code} already ${layout.status}`);
+      }
+    } else {
+      // Draft: repair drift, then continue to the desired end state.
+      if (!configMatches || !mappingsMatch) {
+        layout = await put(`/spatial/layouts/${layout.id}`, {
+          expectedRevision: layout.revision,
+          name: spec.name,
+          templateType: spec.templateType,
+          config: spec.config,
+          mappings: desiredMappings,
+          changeDescription: spec.changeDescription ?? 'Demo seed repair',
+        });
+        log(`  🔄 Repaired DRAFT layout ${layout.code} (rev ${layout.revision})`);
+      } else {
+        log(`  ✓ Layout ${layout.code} already DRAFT`);
       }
     }
 
-    nodesMap.set(mapping.locationCode, node);
-    if (!manifest.nodes.some((n) => n.id === node.id)) {
-      manifest.nodes.push({
-        id: node.id,
-        locationId: loc.id,
-        locationCode: mapping.locationCode,
+    // Reach the desired end state
+    if (spec.status === 'PUBLISHED' && layout.status !== 'PUBLISHED') {
+      layout = await post(`/spatial/layouts/${layout.id}/publish`, {
+        expectedRevision: layout.revision,
+        changeDescription: spec.changeDescription ?? 'Demo seed publication',
+      });
+      publishedNow = true;
+      log(`  🚀 Published layout ${layout.code} (rev ${layout.revision})`);
+    } else if (spec.status === 'ARCHIVED') {
+      if (layout.status === 'DRAFT') {
+        layout = await post(`/spatial/layouts/${layout.id}/publish`, {
+          expectedRevision: layout.revision,
+          changeDescription: 'Demo seed: publish before archiving',
+        });
+        publishedNow = true;
+        log(`  🚀 Published layout ${layout.code} (rev ${layout.revision})`);
+      }
+      if (layout.status !== 'ARCHIVED') {
+        layout = await post(`/spatial/layouts/${layout.id}/archive`, {
+          expectedRevision: layout.revision,
+          changeDescription:
+            spec.changeDescription ?? 'Demo seed: archived example',
+        });
+        archivedNow = true;
+        log(`  🗄️  Archived layout ${layout.code} (rev ${layout.revision})`);
+      }
+    }
+
+    layoutsMap.set(spec.code, layout);
+    const manifestEntry = manifest.layouts.find((l) => l.id === layout.id);
+    if (manifestEntry) {
+      manifestEntry.status = layout.status;
+      manifestEntry.revision = layout.revision;
+    } else {
+      manifest.layouts.push({
+        id: layout.id,
+        code: layout.code,
+        parentLocationCode: spec.parentCode,
+        templateType: layout.templateType,
+        status: layout.status,
+        revision: layout.revision,
         created,
+        publishedNow,
+        archivedNow,
       });
     }
   }
 
-  return nodesMap;
+  return layoutsMap;
+}
+
+/** Attaches models to builder-owned nodes so operational sizes match the slots. */
+async function ensureNodeModelAssignments(manifest, { modelsMap, locationsMap }) {
+  log('\n🧩 4. Attaching authored models to builder-owned nodes...');
+  let updatedCount = 0;
+
+  for (const assignment of NODE_MODEL_ASSIGNMENTS) {
+    const location = locationsMap.get(assignment.locationCode);
+    if (!location) {
+      throw new Error(
+        `Node model assignment target '${assignment.locationCode}' not found.`,
+      );
+    }
+    const model = modelsMap.get(assignment.modelCode);
+    if (!model) {
+      throw new Error(
+        `Node model assignment model '${assignment.modelCode}' not found.`,
+      );
+    }
+
+    const node = await get(`/spatial/nodes/location/${location.id}`);
+    if (!node) {
+      log(
+        `  ⚠️  ${location.code} has no spatial node (layout not published?); skipping model attachment.`,
+      );
+      continue;
+    }
+    if (node.modelId === model.id) {
+      log(`  ✓ ${location.code} already uses ${model.code}`);
+      continue;
+    }
+
+    await patch(`/spatial/nodes/${node.id}`, { modelId: model.id });
+    updatedCount++;
+    log(`  🔧 ${location.code} -> model ${model.code}`);
+  }
+
+  log(`  → ${updatedCount} nodes enriched with authored models.`);
+}
+
+/** Creates deep-hierarchy child nodes placed on a parent model anchor. */
+async function ensureNestedNodes(manifest, { modelsMap, anchorsMap, locationsMap }) {
+  log('\n🪆 5. Creating deep-hierarchy child nodes (anchor flow)...');
+  let createdCount = 0;
+
+  for (const mapping of NESTED_NODE_MAPPINGS) {
+    const location = locationsMap.get(mapping.locationCode);
+    const parentLocation = locationsMap.get(mapping.parentLocationCode);
+    if (!location || !parentLocation) {
+      throw new Error(
+        `Nested mapping ${mapping.locationCode} -> ${mapping.parentLocationCode} references an unknown location.`,
+      );
+    }
+
+    const parentNode = await get(
+      `/spatial/nodes/location/${parentLocation.id}`,
+    );
+    if (!parentNode?.modelId) {
+      log(
+        `  ⚠️  Parent ${parentLocation.code} has no model; cannot place ${location.code}.`,
+      );
+      continue;
+    }
+    const parentModel = modelsMap.get(
+      NODE_MODEL_ASSIGNMENTS.find(
+        (assignment) => assignment.locationCode === mapping.parentLocationCode,
+      )?.modelCode,
+    );
+    if (!parentModel) {
+      log(
+        `  ⚠️  Parent model for ${parentLocation.code} is not a demo model; cannot resolve anchor.`,
+      );
+      continue;
+    }
+    const anchor = anchorsMap.get(`${parentModel.code}:${mapping.anchorCode}`);
+    if (!anchor) {
+      throw new Error(
+        `Anchor '${mapping.anchorCode}' not found on model ${parentModel.code}.`,
+      );
+    }
+
+    const existing = await get(`/spatial/nodes/location/${location.id}`);
+    if (existing) {
+      if (
+        existing.parentSpatialNodeId === parentNode.id &&
+        existing.anchorId === anchor.id
+      ) {
+        log(`  ✓ ${location.code} already mapped to ${anchor.code}`);
+      } else {
+        await patch(`/spatial/nodes/${existing.id}`, {
+          parentSpatialNodeId: parentNode.id,
+          anchorId: anchor.id,
+        });
+        log(`  🔄 ${location.code} re-mapped to ${anchor.code}`);
+      }
+      if (!manifest.nodes.some((n) => n.id === existing.id)) {
+        manifest.nodes.push({
+          id: existing.id,
+          locationId: location.id,
+          locationCode: location.code,
+          anchorCode: anchor.code,
+          created: false,
+        });
+      }
+      continue;
+    }
+
+    const node = await post('/spatial/nodes', {
+      locationId: location.id,
+      parentSpatialNodeId: parentNode.id,
+      anchorId: anchor.id,
+      positionX: 0,
+      positionY: 0,
+      positionZ: 0,
+    });
+    createdCount++;
+    log(`  ➕ ${location.code} -> ${anchor.code} (Node ${node.id})`);
+    manifest.nodes.push({
+      id: node.id,
+      locationId: location.id,
+      locationCode: location.code,
+      anchorCode: anchor.code,
+      created: true,
+    });
+  }
+
+  log(`  → ${createdCount} nested nodes created.`);
 }
 
 async function ensureComponents(manifest) {
-  log('\n🧩 4. Setting up Demo Components...');
+  log('\n🧾 6. Setting up Demo Components...');
   const existingComponents = await get('/components');
   const compBySku = new Map(existingComponents.map((c) => [c.sku, c]));
   const componentsMap = new Map(); // sku -> compDto
@@ -307,7 +640,7 @@ async function ensureComponents(manifest) {
 }
 
 async function ensureInventoryTransactions(manifest, { componentsMap, locationsMap }) {
-  log('\n📊 5. Recording Demo Inventory Transactions...');
+  log('\n📊 7. Recording Demo Inventory Transactions...');
   const existingTx = await get('/inventory-transactions');
   const txByRef = new Map(existingTx.map((t) => [t.reference, t]));
 
@@ -315,12 +648,16 @@ async function ensureInventoryTransactions(manifest, { componentsMap, locationsM
   for (const txSpec of INVENTORY_TRANSACTIONS) {
     const comp = componentsMap.get(txSpec.componentSku);
     if (!comp) {
-      throw new Error(`Component '${txSpec.componentSku}' not found for transaction.`);
+      throw new Error(
+        `Component '${txSpec.componentSku}' not found for transaction.`,
+      );
     }
 
     const loc = locationsMap.get(txSpec.locationCode);
     if (!loc) {
-      throw new Error(`Location '${txSpec.locationCode}' not found for transaction.`);
+      throw new Error(
+        `Location '${txSpec.locationCode}' not found for transaction.`,
+      );
     }
 
     const existing = txByRef.get(txSpec.reference);
@@ -364,7 +701,7 @@ async function ensureInventoryTransactions(manifest, { componentsMap, locationsM
     });
   }
 
-  log('\n⚡ 6. Rebuilding Inventory Projections...');
+  log('\n⚡ 8. Rebuilding Inventory Projections...');
   try {
     await post('/inventory-projections/rebuild');
     log('  ✅ Inventory projections rebuilt successfully across location hierarchy.');
@@ -391,23 +728,31 @@ async function main() {
     manifest = readManifest();
   }
 
+  const layoutGeometry = await buildLayoutGeometry();
+  const models = deriveModels(layoutGeometry);
+
   // 1. Models & Anchors
-  const { modelsMap, anchorsMap } = await ensureModelsAndAnchors(manifest);
+  const { modelsMap, anchorsMap } = await ensureModelsAndAnchors(
+    manifest,
+    models,
+  );
 
   // 2. Locations Hierarchy
   const locationsMap = await ensureLocations(manifest);
 
-  // 3. Spatial Nodes & Mappings
-  const nodesMap = await ensureSpatialMappings(manifest, {
-    modelsMap,
-    anchorsMap,
-    locationsMap,
-  });
+  // 3. Layouts through the real builder persistence path
+  await ensureLayouts(manifest, { locationsMap, layoutGeometry });
 
-  // 4. Components
+  // 4. Models on builder-owned nodes
+  await ensureNodeModelAssignments(manifest, { modelsMap, locationsMap });
+
+  // 5. Deep-hierarchy nodes anchored on parent models
+  await ensureNestedNodes(manifest, { modelsMap, anchorsMap, locationsMap });
+
+  // 6. Components
   const componentsMap = await ensureComponents(manifest);
 
-  // 5. Inventory Ledger Transactions & Projections
+  // 7. Inventory Ledger Transactions & Projections
   await ensureInventoryTransactions(manifest, {
     componentsMap,
     locationsMap,
@@ -421,10 +766,16 @@ async function main() {
   log(`Total Spatial Models   : ${manifest.models.length}`);
   log(`Total Spatial Anchors  : ${manifest.anchors.length}`);
   log(`Total Locations        : ${manifest.locations.length}`);
-  log(`Total Spatial Mappings : ${manifest.nodes.length}`);
+  log(`Total Layouts          : ${manifest.layouts.length}`);
+  log(`Anchored Child Nodes   : ${manifest.nodes.length}`);
   log(`Total Demo Components  : ${manifest.components.length}`);
   log(`Total Transactions     : ${manifest.transactions.length}`);
   log('================================================================\n');
+
+  if (SHOULD_VERIFY) {
+    const { runVerification } = await import('./verify.mjs');
+    await runVerification({ manifest });
+  }
 }
 
 main().catch((err) => {

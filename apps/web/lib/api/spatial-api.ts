@@ -60,6 +60,42 @@ export interface SpatialNodeDto {
   updatedAt?: string;
 }
 
+export interface LocationSpatialMappingSummaryDto {
+  status: SpatialMappingStatusDto;
+  isMappingEligible: boolean;
+  hasSpatialNode: boolean;
+  directChildCount: number;
+  mappedDirectChildCount: number;
+  unmappedDirectChildCount: number;
+  containerStatus: SpatialContainerStatusDto;
+  publishedLayout: {
+    id: string;
+    code: string;
+    revision: number;
+    totalCompartments: number;
+    containerDimensionsMm: {
+      widthMm: number;
+      heightMm: number;
+      depthMm: number;
+    } | null;
+  } | null;
+  slotMapping: {
+    layoutId: string;
+    layoutCode: string;
+    layoutStatus: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+    slotCode: string;
+    isStale: boolean;
+  } | null;
+}
+
+export type SpatialMappingStatusDto = "MAPPED" | "PARTIAL" | "UNMAPPED" | "ROOT";
+
+export type SpatialContainerStatusDto =
+  | "NONE"
+  | "DRAFT"
+  | "PUBLISHED"
+  | "ARCHIVED";
+
 export interface LocationSpatialContextDto {
   location: {
     id: string;
@@ -72,6 +108,7 @@ export interface LocationSpatialContextDto {
   model: SpatialModelDto | null;
   anchor: SpatialAnchorDto | null;
   parentSpatialNode: SpatialNodeDto | null;
+  mapping: LocationSpatialMappingSummaryDto;
 }
 
 export interface LocationOperationalViewChildDto {
@@ -103,6 +140,7 @@ export interface LocationOperationalViewDto {
     node: SpatialNodeDto | null;
     model: SpatialModelDto | null;
     anchors: SpatialAnchorDto[];
+    mapping: LocationSpatialMappingSummaryDto;
   };
   children: LocationOperationalViewChildDto[];
   descendantLocations: Array<{
@@ -185,6 +223,7 @@ export interface LocationMappingContextDto {
   modelAnchors: SpatialAnchorDto[];
   children: LocationMappingChildItemDto[];
   availableModels: SpatialModelDto[];
+  mapping: LocationSpatialMappingSummaryDto;
 }
 
 export interface CreateSpatialModelDto {

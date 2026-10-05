@@ -63,6 +63,16 @@ export interface ArchiveSpatialLayoutPayload {
 
 export const spatialLayoutsApi = {
   /**
+   * Fetches every spatial layout with its mappings.
+   *
+   * The mapping status of a location depends on whether it is the parent of a
+   * published or draft layout, so read models that report status for a whole
+   * location tree load the layouts in one pass.
+   */
+  getAll: (): Promise<SpatialLayoutWithMappings[]> =>
+    apiClient.get<SpatialLayoutWithMappings[]>("/spatial/layouts"),
+
+  /**
    * Fetches all layouts associated with a parent physical container location.
    */
   getByParent: (parentLocationId: string): Promise<SpatialLayoutWithMappings[]> =>

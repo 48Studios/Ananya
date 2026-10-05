@@ -17,6 +17,8 @@ import {
   List,
   Box,
   Sliders,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +46,10 @@ import { LocationForm } from "@/components/locations/location-form";
 import { PrintLabelDialog } from "@/components/barcodes/print-label-dialog";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 import {
+  spatialApi,
+  type LocationSpatialMappingSummaryDto,
+} from "@/lib/api/spatial-api";
+import {
   inventoryProjectionsApi,
   type InventoryProjectionDto,
 } from "@/lib/api/inventory-projections-api";
@@ -51,6 +57,102 @@ import { componentsApi, type ComponentDto } from "@/lib/api/components-api";
 import { categoriesApi, type CategoryDto } from "@/lib/api/categories-api";
 import { getRelativeLocationPath } from "@/lib/location-provenance";
 import { SpatialView, SpatialMappingDialog } from "@/components/spatial";
+
+/**
+ * Placement state of a location inside a parent spatial frame, plus the state
+ * of its own container configuration. Both facts come from the API's
+ * authoritative mapping summary, so the badge can never disagree with the
+ * Spatial Inventory tree, the mapping dialog, or the 2D/3D viewers.
+ */
+function LocationMappingStatusChips({
+  mapping,
+}: {
+  mapping: LocationSpatialMappingSummaryDto | null;
+}) {
+  if (!mapping) return null;
+
+  const placementChip =
+    mapping.status === "MAPPED" ? (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400"
+        title="This location is placed inside its parent's spatial frame"
+      >
+        <CheckCircle2 className="size-3" />
+        <span>Mapped</span>
+      </span>
+    ) : mapping.status === "PARTIAL" ? (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-400"
+        title={`${mapping.unmappedDirectChildCount} direct sub-location(s) have no spatial node`}
+      >
+        <span className="font-mono text-[10px]">◐</span>
+        <span>
+          Mapped · {mapping.mappedDirectChildCount}/{mapping.directChildCount}{" "}
+          compartments
+        </span>
+      </span>
+    ) : mapping.status === "ROOT" ? (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"
+        title="Top-level facility: it has no parent frame to be placed in"
+      >
+        <MapPin className="size-3" />
+        <span>Facility root</span>
+      </span>
+    ) : mapping.slotMapping?.isStale ? (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-400"
+        title={`Mapped to slot ${mapping.slotMapping.slotCode} of ${mapping.slotMapping.layoutCode}, flagged for review`}
+      >
+        <AlertTriangle className="size-3" />
+        <span>Mapping needs review</span>
+      </span>
+    ) : mapping.slotMapping?.layoutStatus === "DRAFT" ? (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-400"
+        title={`Mapped to slot ${mapping.slotMapping.slotCode} of draft layout ${mapping.slotMapping.layoutCode}; not published yet`}
+      >
+        <span className="font-mono text-[10px]">◐</span>
+        <span>Draft slot mapping</span>
+      </span>
+    ) : (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"
+        title="No spatial node: this location is not placed in its parent's frame"
+      >
+        <AlertTriangle className="size-3 text-amber-500" />
+        <span>Unmapped</span>
+      </span>
+    );
+
+  const containerChip =
+    mapping.containerStatus === "NONE" ? null : (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-700 dark:text-violet-300"
+        title={
+          mapping.publishedLayout
+            ? `Configures published layout ${mapping.publishedLayout.code} · revision ${mapping.publishedLayout.revision} · ${mapping.publishedLayout.totalCompartments} compartments`
+            : "Configures a draft spatial layout for its compartments"
+        }
+      >
+        <Layers className="size-3" />
+        <span>
+          {mapping.containerStatus === "PUBLISHED"
+            ? "Layout published"
+            : mapping.containerStatus === "DRAFT"
+              ? "Layout draft"
+              : "Layout archived"}
+        </span>
+      </span>
+    );
+
+  return (
+    <>
+      {placementChip}
+      {containerChip}
+    </>
+  );
+}
 
 /**
  * One storage location, as a master-data record.
@@ -78,8 +180,22 @@ export default function ViewLocationPage() {
     "spatial" | "spatial3d" | "list"
   >(initialView);
 
+  /**
+   * Latest view the operator selected through the canvas toggle.
+   *
+   * The App Router applies URL writes asynchronously, so a write from an earlier
+   * click can land after a later one. Without this guard the stale query string
+   * re-applies the previous view and the canvas silently switches back.
+   */
+  const pendingViewRef = React.useRef<"spatial" | "spatial3d" | "list" | null>(
+    null,
+  );
+
   const handleViewChange = React.useCallback(
     (newView: "spatial" | "spatial3d" | "list") => {
+      // Remember the operator's latest choice: the URL write is asynchronous and
+      // an earlier navigation can land after this one.
+      pendingViewRef.current = newView;
       setSubLocationView(newView);
       const params = new URLSearchParams(searchParams?.toString() || "");
       if (newView === "spatial3d") {
@@ -115,14 +231,36 @@ export default function ViewLocationPage() {
   // Synchronize view mode with query parameters (e.g. from QR scan deep links)
   React.useEffect(() => {
     const viewParam = searchParams?.get("view");
+    const urlView: "spatial" | "spatial3d" | "list" =
+      viewParam === "spatial3d" || viewParam === "3d"
+        ? "spatial3d"
+        : viewParam === "list"
+          ? "list"
+          : "spatial";
+
+    const pending = pendingViewRef.current;
+    if (pending) {
+      if (urlView === pending) {
+        // The URL caught up with the operator's choice.
+        pendingViewRef.current = null;
+      } else {
+        // A stale write from an earlier click landed; drop it and restore the
+        // operator's latest view instead of following the URL backwards.
+        handleViewChange(pending);
+        return;
+      }
+    }
+
     if (viewParam === "spatial3d" || viewParam === "3d") {
       setSubLocationView("spatial3d");
-    } else if (viewParam === "spatial" || focusLocationId || focusComponentId) {
-      setSubLocationView("spatial");
     } else if (viewParam === "list") {
       setSubLocationView("list");
+    } else if (viewParam === "spatial" || focusLocationId || focusComponentId) {
+      // A focused location/component deep link opens the spatial canvas, but an
+      // explicit `view` parameter always wins.
+      setSubLocationView("spatial");
     }
-  }, [searchParams, focusLocationId, focusComponentId]);
+  }, [searchParams, focusLocationId, focusComponentId, handleViewChange]);
 
   const [location, setLocation] = React.useState<LocationDto | null>(null);
   const [allLocations, setAllLocations] = React.useState<LocationDto[]>([]);
@@ -131,6 +269,8 @@ export default function ViewLocationPage() {
   >([]);
   const [components, setComponents] = React.useState<ComponentDto[]>([]);
   const [categories, setCategories] = React.useState<CategoryDto[]>([]);
+  const [mappingSummary, setMappingSummary] =
+    React.useState<LocationSpatialMappingSummaryDto | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -153,19 +293,23 @@ export default function ViewLocationPage() {
     setLoading(true);
     setError(null);
     try {
-      const [locData, locList, locProjections, compList, catList] =
+      const [locData, locList, locProjections, compList, catList, spatialCtx] =
         await Promise.all([
           locationsApi.getById(id),
           locationsApi.getAll().catch(() => []),
           inventoryProjectionsApi.getByLocation(id).catch(() => []),
           componentsApi.getAll().catch(() => []),
           categoriesApi.getAll().catch(() => []),
+          spatialApi
+            .getLocationSpatialContext(id)
+            .catch(() => null),
         ]);
       setLocation(locData);
       setAllLocations(locList);
       setProjections(locProjections);
       setComponents(compList);
       setCategories(catList);
+      setMappingSummary(spatialCtx?.mapping ?? null);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -510,6 +654,8 @@ export default function ViewLocationPage() {
       title="Sub-Locations & Spatial Layout"
       description="Physical storage compartments and nested zones under this location."
       icon={Layers}
+      // The detail panel is a viewport-fixed overlay (it is not clipped by this
+      // card), so the card keeps its standard surface.
       contentClassName={subLocationView !== "list" && childLocations.length > 0 ? "p-4" : "p-0"}
       actions={
         childLocations.length > 0 ? (
@@ -627,6 +773,11 @@ export default function ViewLocationPage() {
       ) : (
         <p className="px-6 py-5 text-xs text-muted-foreground">
           No sub-locations are nested under this location yet.
+          {mappingSummary?.hasSpatialNode
+            ? mappingSummary.slotMapping
+              ? ` This location is mapped into layout ${mappingSummary.slotMapping.layoutCode} (slot ${mappingSummary.slotMapping.slotCode}, ${mappingSummary.slotMapping.layoutStatus.toLowerCase()} layout).`
+              : " This location has a spatial node, so it is placed inside its parent's frame."
+            : ""}
         </p>
       )}
     </SectionCard>
@@ -639,13 +790,10 @@ export default function ViewLocationPage() {
         backHref="/inventory/locations"
         backLabel="Back to Locations"
         title={location.name}
-        description={
-          parentLocation && (childLocations.length === 0 || subLocationView === "list")
-            ? locationPath
-            : `Code: ${location.code}`
-        }
+        description={parentLocation ? locationPath : `Code: ${location.code}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <LocationMappingStatusChips mapping={mappingSummary} />
             <Button
               variant="outline"
               size="sm"
@@ -700,22 +848,15 @@ export default function ViewLocationPage() {
         </div>
       )}
 
-      {/* When child compartments exist, render the spatial canvas immediately below header */}
-      {childLocations.length > 0 ? (
-        <>
-          {subLocationsSection}
-          {storageSummary}
-          {containingComponentsSection}
-          {locationInfoSection}
-        </>
-      ) : (
-        <>
-          {storageSummary}
-          {locationInfoSection}
-          {containingComponentsSection}
-          {subLocationsSection}
-        </>
-      )}
+      {/*
+       * One canonical section order regardless of the location's kind or data.
+       * Empty sections keep their card and state the fact in one line; they
+       * never move later sections or reorder the page.
+       */}
+      {storageSummary}
+      {locationInfoSection}
+      {containingComponentsSection}
+      {subLocationsSection}
 
       {/* Edit Form Modal */}
       <DialogShell

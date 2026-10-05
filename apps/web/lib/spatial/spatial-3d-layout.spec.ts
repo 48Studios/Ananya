@@ -8,11 +8,17 @@ import {
   metersToMm,
   mmToMeters,
   radToDeg,
+  resolveAuthoredContainerDimensions,
   resolveChildPosition,
   resolveChildRotation,
   resolveObjectDimensions,
   resolveTargetChildLocationId,
 } from "./spatial-3d-layout";
+import { convertGeneratedToSceneLayout } from "./inventory-builder-state";
+import {
+  createDefaultSmdCabinetConfig,
+  generateStorageCompartments,
+} from "@ananya/inventory";
 import type {
   LocationOperationalViewChildDto,
   SpatialAnchorDto,
@@ -340,6 +346,265 @@ describe("Spatial 3D Layout & Scene Engine", () => {
     });
   });
 
+  describe("Canonical Mapping Definition and Coordinate Agreement", () => {
+    it("treats a child with a spatial node but no anchor or model as mapped", () => {
+      // Builder-published mappings carry exact node coordinates and no anchor
+      // or model; the API and the 2D views call these mapped, so 3D must too.
+      const builderChild = createMockChild("c1", "SLOT-A01", {
+        isMapped: true,
+        nodePos: { x: 100, y: 50, z: 20 },
+      });
+
+      const result = layoutChildrenFor3D([builderChild], null, new Map());
+
+      expect(result.unmapped).toHaveLength(0);
+      expect(result.mapped).toHaveLength(1);
+      expect(result.mapped[0]!.isMapped).toBe(true);
+      // No authored container frame: coordinates are used verbatim in meters.
+      expect(result.mapped[0]!.position.x).toBeCloseTo(0.1, 6);
+      expect(result.mapped[0]!.position.y).toBeCloseTo(0.05, 6);
+      expect(result.mapped[0]!.position.z).toBeCloseTo(0.02, 6);
+    });
+
+    it("treats a child with no spatial node as unmapped", () => {
+      const unmapped = createMockChild("c2", "SLOT-A02", { isMapped: false });
+
+      const result = layoutChildrenFor3D([unmapped], null, new Map());
+
+      expect(result.mapped).toHaveLength(0);
+      expect(result.unmapped).toHaveLength(1);
+    });
+
+    it("renders a builder-published node exactly where the builder preview places it", () => {
+      const config = {
+        ...createDefaultSmdCabinetConfig(),
+        dimensions: { widthMm: 720, heightMm: 900, depthMm: 300 },
+      };
+      const { compartments } = generateStorageCompartments(config);
+      const first = compartments[0]!;
+
+      // The builder preview renders the generated compartments in the frame the
+      // template was configured with.
+      const builderPreview = convertGeneratedToSceneLayout(
+        compartments,
+        new Map(),
+        config.dimensions,
+      );
+      const previewFirst = builderPreview[0]!;
+
+      // Publishing persists the same corner-origin millimetre coordinates on
+      // the child's spatial node.
+      const publishedChild = createMockChild(first.slotId, first.code, {
+        kind: first.kind,
+        isMapped: true,
+        nodePos: {
+          x: first.position.x,
+          y: first.position.y,
+          z: first.position.z,
+        },
+      });
+
+      const authoredFrame = resolveAuthoredContainerDimensions(
+        { publishedLayout: { containerDimensionsMm: config.dimensions } },
+        null,
+      );
+      expect(authoredFrame).not.toBeNull();
+
+      const operational = layoutChildrenFor3D(
+        [publishedChild],
+        null,
+        new Map(),
+        authoredFrame,
+      );
+
+      expect(operational.unmapped).toHaveLength(0);
+      expect(operational.mapped).toHaveLength(1);
+      const rendered = operational.mapped[0]!.position;
+      expect(rendered.x).toBeCloseTo(previewFirst.position.x, 6);
+      expect(rendered.y).toBeCloseTo(previewFirst.position.y, 6);
+      expect(rendered.z).toBeCloseTo(previewFirst.position.z, 6);
+    });
+
+    it("centers a published node with the layout frame, not a differing model frame", () => {
+      const config = {
+        ...createDefaultSmdCabinetConfig(),
+        dimensions: { widthMm: 720, heightMm: 900, depthMm: 300 },
+      };
+      const { compartments } = generateStorageCompartments(config);
+      const first = compartments[0]!;
+
+      const publishedChild = createMockChild(first.slotId, first.code, {
+        kind: first.kind,
+        isMapped: true,
+        nodePos: {
+          x: first.position.x,
+          y: first.position.y,
+          z: first.position.z,
+        },
+      });
+
+      // A container model narrower than the layout would shift the same node by
+      // 60 mm if it were used as the frame.
+      const modelFrame = { x: 0.6, y: 0.9, z: 0.4 };
+      const layoutFrame = resolveAuthoredContainerDimensions(
+        { publishedLayout: { containerDimensionsMm: config.dimensions } },
+        null,
+      );
+
+      const withLayoutFrame = resolveChildPosition(
+        publishedChild.node,
+        null,
+        layoutFrame,
+      );
+      const withModelFrame = resolveChildPosition(
+        publishedChild.node,
+        null,
+        modelFrame,
+      );
+
+      expect(
+        Math.abs(withModelFrame.x - withLayoutFrame.x),
+      ).toBeCloseTo(mmToMeters(60), 6);
+
+      const operational = layoutChildrenFor3D(
+        [publishedChild],
+        null,
+        new Map(),
+        layoutFrame,
+      );
+      expect(operational.mapped[0]!.position.x).toBeCloseTo(
+        withLayoutFrame.x,
+        6,
+      );
+      expect(operational.mapped[0]!.position.z).toBeCloseTo(
+        withLayoutFrame.z,
+        6,
+      );
+    });
+
+    it("preserves a persisted node scale for the renderer", () => {
+      const scaled = createMockChild("c1", "SLOT-A01", {
+        isMapped: true,
+        nodePos: { x: 100, y: 50, z: 20 },
+      });
+      scaled.node!.scaleX = 0.5;
+      scaled.node!.scaleY = 2;
+      scaled.node!.scaleZ = 1;
+
+      const result = layoutChildrenFor3D([scaled], null, new Map());
+
+      expect(result.mapped[0]!.scale).toEqual({ x: 0.5, y: 2, z: 1 });
+    });
+
+    it("sanitizes a malformed node scale to 1 so geometry never collapses", () => {
+      const malformed = createMockChild("c1", "SLOT-A01", { isMapped: true });
+      malformed.node!.scaleX = 0;
+      malformed.node!.scaleY = Number.NaN;
+      malformed.node!.scaleZ = -2;
+
+      const result = layoutChildrenFor3D([malformed], null, new Map());
+
+      expect(result.mapped[0]!.scale).toEqual({ x: 1, y: 1, z: 1 });
+    });
+
+    it("falls back to model dimensions when no layout is published", () => {
+      const frame = resolveAuthoredContainerDimensions(null, {
+        id: "m1",
+        code: "MODEL",
+        name: "Model",
+        format: "procedural",
+        assetReference: null,
+        widthMm: 600,
+        heightMm: 900,
+        depthMm: 400,
+        isActive: true,
+        metadata: {},
+      });
+
+      expect(frame).toEqual({ x: 0.6, y: 0.9, z: 0.4 });
+    });
+
+  });
+
+  describe("Colliding Placements Are Fanned Out Instead of Stacked", () => {
+    it("fans out siblings that share an unauthored origin into a readable row", () => {
+      // Mirrors containers whose children were mapped without anchors or node
+      // coordinates: every sibling resolves to the same point.
+      const a = createMockChild("w1", "CABINET-A", {
+        kind: "cabinet",
+        modelDims: { w: 600, h: 900, d: 400 },
+      });
+      const b = createMockChild("w2", "CABINET-B", {
+        kind: "cabinet",
+        modelDims: { w: 600, h: 900, d: 400 },
+      });
+      const c = createMockChild("w3", "SHELF-C", {
+        kind: "shelf",
+        modelDims: { w: 1000, h: 1500, d: 350 },
+      });
+
+      const result = layoutChildrenFor3D([a, b, c], null, new Map());
+
+      expect(result.unmapped).toHaveLength(0);
+      const xs = result.mapped.map((child) => child.position.x);
+      expect(new Set(xs).size).toBe(3);
+      expect(result.mapped.every((child) => child.isAutoArranged)).toBe(true);
+
+      // Ordered by location code, centred on the shared point, spaced by the
+      // widest sibling plus the fixed gap.
+      expect(result.mapped.map((child) => child.locationCode)).toEqual([
+        "CABINET-A",
+        "CABINET-B",
+        "SHELF-C",
+      ]);
+      const slot = 1.0 + 0.05;
+      expect(result.mapped[0]!.position.x).toBeCloseTo(-slot, 6);
+      expect(result.mapped[1]!.position.x).toBeCloseTo(0, 6);
+      expect(result.mapped[2]!.position.x).toBeCloseTo(slot, 6);
+      // Auto-arrangement is horizontal only.
+      expect(result.mapped.every((child) => child.position.y === 0)).toBe(true);
+    });
+
+    it("never moves siblings that are stacked vertically", () => {
+      const lower = createMockChild("s1", "SHELF-LOW", {
+        kind: "shelf",
+        nodePos: { x: 0, y: 0, z: 0 },
+        modelDims: { w: 1000, h: 400, d: 350 },
+      });
+      const upper = createMockChild("s2", "SHELF-UP", {
+        kind: "shelf",
+        nodePos: { x: 0, y: 800, z: 0 },
+        modelDims: { w: 1000, h: 400, d: 350 },
+      });
+
+      const result = layoutChildrenFor3D([lower, upper], null, new Map());
+
+      expect(result.mapped).toHaveLength(2);
+      expect(result.mapped.every((child) => child.isAutoArranged)).toBeFalsy();
+      const byCode = new Map(
+        result.mapped.map((child) => [child.locationCode, child.position]),
+      );
+      expect(byCode.get("SHELF-LOW")).toEqual({ x: 0, y: 0, z: 0 });
+      expect(byCode.get("SHELF-UP")).toEqual({ x: 0, y: 0.8, z: 0 });
+    });
+
+    it("leaves distinct authored anchor placements untouched", () => {
+      const left = createMockChild("a1", "DRAWER-01", {
+        anchorPos: { x: -100, y: 200, z: 0 },
+      });
+      const right = createMockChild("a2", "DRAWER-02", {
+        anchorPos: { x: 100, y: 200, z: 0 },
+      });
+
+      const result = layoutChildrenFor3D([left, right], null, new Map());
+
+      expect(result.mapped.map((child) => child.position.x)).toEqual([
+        -0.1, 0.1,
+      ]);
+      expect(result.mapped.every((child) => child.isAutoArranged)).toBeFalsy();
+    });
+  });
+
   describe("Deterministic Handling of Incomplete Spatial Data", () => {
     it("handles null anchors and null models without throwing", () => {
       const child = createMockChild("c-null", "UNKNOWN", {
@@ -371,6 +636,7 @@ describe("Spatial 3D Layout & Scene Engine", () => {
           totalQuantity: 0,
           position: { x: -0.15, y: 0.7, z: 0 },
           rotation: { x: 0, y: 0, z: 0 },
+          scale: { x: 1, y: 1, z: 1 },
           dimensions: { x: 0.27, y: 0.27, z: 0.38 },
           rawChild: {} as unknown as LocationOperationalViewChildDto,
         },

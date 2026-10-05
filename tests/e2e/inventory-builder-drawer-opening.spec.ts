@@ -532,13 +532,16 @@ test.describe("Inventory Builder 3D — Interactive Drawer Opening", () => {
       "SELECT count(*)::int AS count FROM spatial_layout_mappings WHERE layout_id IN (SELECT id FROM spatial_layouts WHERE parent_location_id = $1)";
     const revisionCountSql =
       "SELECT count(*)::int AS count FROM spatial_layout_revisions WHERE layout_id IN (SELECT id FROM spatial_layouts WHERE parent_location_id = $1)";
-    const locationCountSql = "SELECT count(*)::int AS count FROM locations";
+    // Scoped to this fixture's container: a global row count would race with
+    // other specs that provision and clean up their own locations.
+    const locationCountSql =
+      "SELECT count(*)::int AS count FROM locations WHERE id = $1 OR parent_id = $1";
 
     const before = {
       layouts: await countRows(layoutCountSql, [parentId]),
       mappings: await countRows(mappingCountSql, [parentId]),
       revisions: await countRows(revisionCountSql, [parentId]),
-      locations: await countRows(locationCountSql, []),
+      locations: await countRows(locationCountSql, [parentId]),
     };
 
     await page.goto(
@@ -590,7 +593,7 @@ test.describe("Inventory Builder 3D — Interactive Drawer Opening", () => {
       layouts: await countRows(layoutCountSql, [parentId]),
       mappings: await countRows(mappingCountSql, [parentId]),
       revisions: await countRows(revisionCountSql, [parentId]),
-      locations: await countRows(locationCountSql, []),
+      locations: await countRows(locationCountSql, [parentId]),
     };
     expect(after).toEqual(before);
   });

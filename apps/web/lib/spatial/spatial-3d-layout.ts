@@ -54,11 +54,19 @@ export interface SceneChildLayout {
   position: Vector3D;
   // Local rotation in radians
   rotation: Vector3D;
+  // Local scale multiplier applied by the renderer (1 = authored dimensions)
+  scale: Vector3D;
   // Dimensions in meters
   dimensions: Vector3D;
   anchorCode?: string;
   modelCode?: string;
   format?: string;
+  /**
+   * True when the child carries no authored placement (no anchor and no node
+   * coordinates) and was therefore fanned out into a readable row by
+   * `layoutChildrenFor3D` instead of being stacked on its siblings.
+   */
+  isAutoArranged?: boolean;
   rawChild: LocationOperationalViewChildDto;
 }
 
@@ -191,6 +199,26 @@ export function resolveChildPosition(
 }
 
 /**
+ * Resolves the local scale multiplier persisted on a spatial node. A missing,
+ * non-finite, or non-positive scale is treated as 1 so a malformed row can
+ * never collapse a compartment to nothing.
+ */
+export function resolveChildScale(
+  node: SpatialNodeDto | null | undefined,
+): Vector3D {
+  const sanitize = (value: unknown): number => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : 1;
+  };
+
+  return {
+    x: sanitize(node?.scaleX),
+    y: sanitize(node?.scaleY),
+    z: sanitize(node?.scaleZ),
+  };
+}
+
+/**
  * Resolves rotation angles in radians.
  */
 export function resolveChildRotation(
@@ -217,10 +245,151 @@ export function resolveChildRotation(
 }
 
 /**
+ * Horizontal gap kept between auto-arranged compartments (meters).
+ */
+export const AUTO_ARRANGE_GAP_METERS = 0.05;
+
+/**
+ * Fans out mapped children whose resolved transforms are identical in all three
+ * axes — typically children mapped to a container without authored anchors or
+ * node coordinates. Rendering them as-is stacks every sibling on the same point,
+ * which reads as one broken model.
+ *
+ * The arrangement is deterministic (children are ordered by location code), keeps
+ * the shared anchor point as the row centre and spaces the compartments by the
+ * widest sibling. Children carrying distinct authored positions — including
+ * siblings stacked vertically — are never moved.
+ */
+export function arrangeCollidingChildren(
+  children: SceneChildLayout[],
+  gapMeters: number = AUTO_ARRANGE_GAP_METERS,
+): SceneChildLayout[] {
+  const groups = new Map<string, SceneChildLayout[]>();
+  for (const child of children) {
+    const key = [
+      child.position.x.toFixed(6),
+      child.position.y.toFixed(6),
+      child.position.z.toFixed(6),
+    ].join("|");
+    const list = groups.get(key);
+    if (list) {
+      list.push(child);
+    } else {
+      groups.set(key, [child]);
+    }
+  }
+
+  const resolvedX = new Map<string, number>();
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const ordered = [...group].sort((a, b) =>
+      a.locationCode.localeCompare(b.locationCode),
+    );
+    const slotMeters =
+      ordered.reduce((widest, child) => Math.max(widest, child.dimensions.x), 0) +
+      gapMeters;
+    const centreX = group[0]!.position.x;
+    const startX = centreX - (slotMeters * (ordered.length - 1)) / 2;
+    ordered.forEach((child, index) => {
+      resolvedX.set(child.locationId, startX + slotMeters * index);
+    });
+  }
+
+  if (resolvedX.size === 0) return children;
+
+  return children.map((child) => {
+    const x = resolvedX.get(child.locationId);
+    if (x === undefined) return child;
+    return {
+      ...child,
+      position: { ...child.position, x },
+      isAutoArranged: true,
+    };
+  });
+}
+
+/**
+ * Resolves the physical container frame that child node coordinates were
+ * authored in, in meters.
+ *
+ * A published layout is the frame the builder wrote child coordinates in, so it
+ * takes precedence over the container's own 3D model. Without a published
+ * layout, the model's configured dimensions are the authored frame; without
+ * either, coordinates cannot be re-centred and are used as-is.
+ */
+export function resolveAuthoredContainerDimensions(
+  mapping:
+    | {
+        publishedLayout?: {
+          containerDimensionsMm: {
+            widthMm: number;
+            heightMm: number;
+            depthMm: number;
+          } | null;
+        } | null;
+      }
+    | null
+    | undefined,
+  model: SpatialModelDto | null | undefined,
+): Vector3D | null {
+  const layoutDimensions = mapping?.publishedLayout?.containerDimensionsMm;
+  if (
+    layoutDimensions &&
+    layoutDimensions.widthMm > 0 &&
+    layoutDimensions.heightMm > 0 &&
+    layoutDimensions.depthMm > 0
+  ) {
+    return {
+      x: mmToMeters(layoutDimensions.widthMm),
+      y: mmToMeters(layoutDimensions.heightMm),
+      z: mmToMeters(layoutDimensions.depthMm),
+    };
+  }
+
+  if (model?.widthMm && model?.heightMm && model?.depthMm) {
+    return {
+      x: mmToMeters(model.widthMm),
+      y: mmToMeters(model.heightMm),
+      z: mmToMeters(model.depthMm),
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Resolves the container frame to render the carcass at: the authored frame
+ * when known, otherwise the model, otherwise the kind's fallback dimensions.
+ */
+export function resolveContainerFrameDimensions(
+  mapping:
+    | {
+        publishedLayout?: {
+          containerDimensionsMm: {
+            widthMm: number;
+            heightMm: number;
+            depthMm: number;
+          } | null;
+        } | null;
+      }
+    | null
+    | undefined,
+  model: SpatialModelDto | null | undefined,
+  kind?: string,
+): Vector3D {
+  return (
+    resolveAuthoredContainerDimensions(mapping, model) ??
+    resolveObjectDimensions(model, null, kind)
+  );
+}
+
+/**
  * Categorizes and positions children of a parent location for 3D visualization.
  *
- * Mapped children (assigned to an anchor or carrying valid spatial positions)
- * receive exact scene transforms.
+ * A child is mapped when it has a spatial node — the authoritative definition
+ * shared with the API and the 2D views. A mapped child carries exact scene
+ * transforms (anchor + node, or node coordinates alone for builder-published
+ * mappings).
  *
  * Unmapped children are segregated cleanly and reported without inventing false coordinates.
  */
@@ -247,7 +416,7 @@ export function layoutChildrenFor3D(
   const unmapped: LocationOperationalViewChildDto[] = [];
 
   for (const child of children) {
-    const isMapped = Boolean(child.node && (child.anchor || child.model));
+    const isMapped = child.node !== null;
     const stock = stockMap.get(child.location.id);
     const hasStock = Boolean(stock && stock.hasStock);
     const totalQuantity = stock?.totalQuantity || 0;
@@ -275,6 +444,7 @@ export function layoutChildrenFor3D(
         totalQuantity,
         position,
         rotation,
+        scale: resolveChildScale(child.node),
         dimensions,
         anchorCode: child.anchor?.code,
         modelCode: child.model?.code,
@@ -286,7 +456,7 @@ export function layoutChildrenFor3D(
     }
   }
 
-  return { mapped, unmapped };
+  return { mapped: arrangeCollidingChildren(mapped), unmapped };
 }
 
 /**

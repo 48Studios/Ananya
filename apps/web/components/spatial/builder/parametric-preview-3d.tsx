@@ -12,6 +12,7 @@ import {
   convertGeneratedToSceneLayout,
 } from "@/lib/spatial/inventory-builder-state";
 import { DynamicSpatial3DViewport } from "@/components/spatial/spatial-3d-view";
+import type { LocationOperationalViewDto } from "@/lib/api/spatial-api";
 import { cn } from "@/lib/utils";
 import type { ContainerIdentity } from "./parametric-preview-2d";
 import { ParentFirstCallout } from "./parent-first-callout";
@@ -56,7 +57,7 @@ export function ParametricPreview3D({
   // Construct synthetic parent container data representing the parametric carcass.
   // The carcass carries the assigned Ananya location identity for display, while
   // its interaction key stays synthetic so it can never be mistaken for a slot.
-  const parentData = React.useMemo(() => {
+  const parentData = React.useMemo<LocationOperationalViewDto["parent"]>(() => {
     return {
       location: {
         id: BUILDER_CARCASS_LOCATION_ID,
@@ -79,8 +80,24 @@ export function ParametricPreview3D({
         metadata: {},
       },
       anchors: [],
+      // The preview carcass is the container being authored: it is placed by
+      // construction, and its frame comes from the model dimensions above.
+      mapping: {
+        status: "MAPPED",
+        isMappingEligible: false,
+        hasSpatialNode: false,
+        directChildCount: compartments.length,
+        mappedDirectChildCount: mappings.size,
+        unmappedDirectChildCount: Math.max(
+          0,
+          compartments.length - mappings.size,
+        ),
+        containerStatus: "NONE",
+        publishedLayout: null,
+        slotMapping: null,
+      },
     };
-  }, [config, containerIdentity]);
+  }, [config, containerIdentity, compartments.length, mappings.size]);
 
   const emptyStockMap = React.useMemo(() => new Map(), []);
 

@@ -177,6 +177,13 @@ export function InventoryBuilderWorkspace({
     return computeIsWorkspaceDirty(state, currentLoadedLayout);
   }, [state, currentLoadedLayout]);
 
+  // Read by async layout refetches: a response that arrives after the operator
+  // started editing must never replace the workspace.
+  const isDirtyRef = React.useRef(isDirty);
+  React.useEffect(() => {
+    isDirtyRef.current = isDirty;
+  }, [isDirty]);
+
   // Warn on tab/window close when uncommitted edits exist
   React.useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -252,9 +259,16 @@ export function InventoryBuilderWorkspace({
         }
 
         if (matching) {
-          setState((prev) =>
-            loadLayoutIntoWorkspace(prev, matching, locations),
-          );
+          // A background refetch (triggered by a URL or master-data change)
+          // must never overwrite unsaved workspace edits. Re-loading the
+          // already-open layout while the workspace is clean is still useful:
+          // it re-resolves mapping labels once master data arrives.
+          const alreadyLoaded = loadedLayoutIdRef.current === matching.id;
+          if (!alreadyLoaded || !isDirtyRef.current) {
+            setState((prev) =>
+              loadLayoutIntoWorkspace(prev, matching, locations),
+            );
+          }
         }
         return data;
       } catch (err) {

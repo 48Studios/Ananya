@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Plus, Trash2, Edit2, Loader2, Anchor as AnchorIcon, AlertCircle } from "lucide-react";
-import { DialogShell } from "@/components/ui/dialog-shell";
+import { DialogShell, DialogShellBody } from "@/components/ui/dialog-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -191,7 +191,7 @@ export function SpatialAnchorsDialog({
       description={`Manage compartment snap targets and physical coordinate slots for this model (Model dimensions: ${model.widthMm} × ${model.heightMm} × ${model.depthMm} mm).`}
       size="lg"
     >
-      <div className="space-y-5">
+      <DialogShellBody className="space-y-5">
         {error && (
           <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -468,7 +468,7 @@ export function SpatialAnchorsDialog({
             </table>
           )}
         </div>
-      </div>
+      </DialogShellBody>
     </DialogShell>
   );
 }

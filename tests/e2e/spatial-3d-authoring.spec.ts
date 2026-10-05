@@ -1,13 +1,19 @@
 import { test, expect, requireE2EAuth } from "../fixtures/test.fixture";
 import { Pool } from "pg";
 import crypto from "crypto";
+import {
+  DEMO_CODES,
+  resolveDemoLocationId,
+} from "./helpers/demo-dataset";
 test.beforeEach(() => requireE2EAuth());
 
 const DB_CONN =
   process.env.DATABASE_URL ||
   "postgresql://ananya:dTd1Ii43r9Q9@localhost:5432/ananya";
-const CABINET_LOCATION_ID = "151c14eb-bc01-4ec9-b5f3-0e7e768084e5"; // DEMO-SPATIAL-CAB-A
 const ADMIN_USER_ID = "e941c06c-f461-4cac-88ed-d2197617d06b"; // admin@48studios.in
+
+// Resolved from the seeded code: a re-seed generates a new server-side UUID.
+let CABINET_LOCATION_ID: string;
 
 test.describe.configure({ mode: "serial" });
 
@@ -32,6 +38,11 @@ test.describe("Spatial Inventory 3D — Visual Anchor Authoring Runtime", () => 
         "Headless Chromium",
         expiresAt,
       ],
+    );
+
+    CABINET_LOCATION_ID = await resolveDemoLocationId(
+      pool,
+      DEMO_CODES.cabinetA,
     );
   });
 

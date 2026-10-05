@@ -6,6 +6,7 @@ import {
   Package,
   Search,
   Box,
+  CheckCircle2,
   LayoutGrid,
   Anchor as AnchorIcon,
   Gauge,
@@ -33,6 +34,7 @@ import {
 } from "@/lib/spatial/spatial-inventory-mapper";
 import {
   layoutChildrenFor3D,
+  resolveAuthoredContainerDimensions,
   resolveTargetChildLocationId,
   resolveObjectDimensions,
   type Vector3D,
@@ -49,6 +51,13 @@ import {
   type DraftAnchor,
 } from "@/lib/spatial/spatial-anchor-authoring";
 import { buildSpatialBreadcrumbs } from "@/lib/spatial/spatial-hierarchy";
+import {
+  type Spatial3DAnchorApi,
+} from "@/lib/spatial/inspector-placement";
+import {
+  DEFAULT_INSPECTOR_STYLE,
+  useAnchoredInspector,
+} from "@/lib/spatial/use-anchored-inspector";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 import { SpatialGrid } from "./spatial-grid";
@@ -56,6 +65,41 @@ import { SpatialInspector } from "./spatial-inspector";
 import { DynamicSpatial3DViewport } from "./spatial-3d-view";
 import { SpatialBreadcrumbs } from "./spatial-breadcrumbs";
 import { SpatialAnchorEditor } from "./spatial-anchor-editor";
+
+/**
+ * Segmented-control styling for the spatial canvas toolbar. The track is a solid
+ * muted surface and the selected segment a raised card, so the active mode is
+ * unambiguous in both themes (a translucent muted track plus the near-identical
+ * `secondary` surface used to render the selected and unselected segments the
+ * same colour).
+ */
+const TOOLBAR_TRACK_CLASS =
+  "flex h-[30px] items-center gap-0.5 rounded-lg border border-border bg-muted p-0.5";
+/**
+ * Standalone toolbar controls (toggles and actions) reserve the same outer band
+ * as a segmented track — 1px borders + 2px padding around the 24px segments — so
+ * the whole toolbar row reads as one height instead of mixing 24px and 30px
+ * blocks.
+ */
+const TOOLBAR_CONTROL_CLASS =
+  "h-[30px] gap-1 rounded-lg px-2.5 text-xs font-medium";
+const TOOLBAR_SEGMENT_CLASS =
+  "flex h-6 items-center gap-1 rounded-md px-2 text-xs font-medium transition-colors";
+const TOOLBAR_SEGMENT_ACTIVE_CLASS = "bg-card text-foreground shadow-xs";
+const TOOLBAR_SEGMENT_INACTIVE_CLASS =
+  "text-muted-foreground hover:text-foreground";
+
+/**
+ * Location kinds that may slide open along their front axis. Container kinds
+ * (warehouse, room, rack, shelf, cabinet) are never slidable.
+ */
+const OPERATIONAL_OPENABLE_KINDS = [
+  "drawer",
+  "bin",
+  "tray",
+  "reel_slot",
+  "tube",
+] as const;
 
 export interface SpatialViewProps {
   locationId: string;
@@ -92,17 +136,54 @@ export function SpatialView({
   const [components, setComponents] = React.useState<ComponentDto[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-
   // Visualization modes: standard, provenance (direct vs descendant), occupancy
   const [visualizationMode, setVisualizationMode] =
     React.useState<SpatialVisualizationMode>("standard");
   const [showBadges, setShowBadges] = React.useState(true);
 
-  // Interaction states
+  // Interaction states. `selectedLocationId` is the single source of truth for
+  // the inspector: `null` means closed, and every close path only clears it.
   const [selectedLocationId, setSelectedLocationId] = React.useState<
     string | null
   >(focusLocationId || null);
+  /**
+   * Locate/QR deep-link targets already revealed for this mount. Without it the
+   * "reveal the deep-link target" rule would re-select on every dismissal.
+   */
+  const consumedFocusTargetRef = React.useRef<string | null>(null);
+
+  /**
+   * The one authoritative close path: clearing the selection *is* closing the
+   * inspector. It never touches mapping, layout, inventory, drawer motion, or
+   * navigation, and the inspector's own controls stop propagation so a dismissal
+   * can never bubble into a card/canvas selection handler.
+   */
+  const handleCloseInspector = React.useCallback(() => {
+    setSelectedLocationId(null);
+  }, []);
+
   const [filterQuery, setFilterQuery] = React.useState("");
+
+  // Anchored inspector geometry: the panel is placed next to the selected object
+  // using its real rendered bounds (2D card DOM rect / projected 3D box).
+  const canvasRegionRef = React.useRef<HTMLDivElement>(null);
+  const inspectorWrapperRef = React.useRef<HTMLDivElement>(null);
+  const interactionApiRef = React.useRef<Spatial3DAnchorApi | null>(null);
+
+  const getAnchorElement = React.useCallback(
+    (locationId: string): HTMLElement | null => {
+      const region = canvasRegionRef.current;
+      if (!region) return null;
+      const escaped =
+        typeof CSS !== "undefined" && typeof CSS.escape === "function"
+          ? CSS.escape(locationId)
+          : locationId;
+      return region.querySelector<HTMLElement>(
+        `[data-spatial-location-id="${escaped}"]`,
+      );
+    },
+    [],
+  );
 
   // Mode state: 2D Operational Matrix or 3D Digital Twin
   const [internalMode, setInternalMode] = React.useState<"2d" | "3d">(
@@ -249,7 +330,7 @@ export function SpatialView({
 
         if (selectedLocationId) {
           e.preventDefault();
-          setSelectedLocationId(null);
+          handleCloseInspector();
         }
       } else if (e.key === "Enter") {
         // Do not hijack Enter if focus is on any interactive control
@@ -277,6 +358,7 @@ export function SpatialView({
     isAuthoringAnchors,
     unsavedNavConfirmOpen,
     handleNavigate,
+    handleCloseInspector,
   ]);
 
   const handleUpOneLevel = React.useCallback(() => {
@@ -317,13 +399,6 @@ export function SpatialView({
     fetchData();
   }, [fetchData]);
 
-  // Synchronize focus props
-  React.useEffect(() => {
-    if (focusLocationId) {
-      setSelectedLocationId(focusLocationId);
-    }
-  }, [focusLocationId]);
-
   // Build component lookup map
   const componentMap = React.useMemo(() => {
     const map = new Map<string, ComponentDto>();
@@ -357,12 +432,32 @@ export function SpatialView({
     );
   }, [focusLocationId, focusComponentId, data, inventoryMapping]);
 
-  // Auto-select focused location on initial data arrival
+  // Locate/QR deep links arrive with a target to reveal. The target is consumed
+  // once per value: re-selecting whenever the selection is empty would undo every
+  // dismissal (close button, Escape, outside click) and make the inspector
+  // impossible to close, so the effect deliberately does not depend on
+  // `selectedLocationId`.
   React.useEffect(() => {
-    if (effectiveHighlightedLocationId && !selectedLocationId) {
-      setSelectedLocationId(effectiveHighlightedLocationId);
+    if (!effectiveHighlightedLocationId) return;
+    if (consumedFocusTargetRef.current === effectiveHighlightedLocationId) {
+      return;
     }
-  }, [effectiveHighlightedLocationId, selectedLocationId]);
+    consumedFocusTargetRef.current = effectiveHighlightedLocationId;
+    setSelectedLocationId((prev) => prev ?? effectiveHighlightedLocationId);
+  }, [effectiveHighlightedLocationId]);
+
+  // A selection that no longer resolves to a child of this parent (location
+  // deleted, moved, or otherwise unavailable after a refetch) is dropped so the
+  // inspector cannot linger on stale state.
+  React.useEffect(() => {
+    if (!data || !selectedLocationId) return;
+    const isKnownChild = data.children.some(
+      (child) => child.location.id === selectedLocationId,
+    );
+    if (!isKnownChild) {
+      setSelectedLocationId(null);
+    }
+  }, [data, selectedLocationId]);
 
   // Filter children based on query (by code, name, or stored SKU)
   const filteredChildren = React.useMemo(() => {
@@ -404,10 +499,18 @@ export function SpatialView({
     if (!data || !inventoryMapping) {
       return { mapped: [], unmapped: [] };
     }
+    // The published layout's configured dimensions are the frame the builder
+    // authored the child coordinates in. Prefer them over the container's own
+    // model so the same node lands in the same place in every viewer.
+    const authoredFrame = resolveAuthoredContainerDimensions(
+      data.parent.mapping,
+      data.parent.model,
+    );
     return layoutChildrenFor3D(
       filteredChildren,
       data.parent.model,
       inventoryMapping.cellStockMap,
+      authoredFrame,
     );
   }, [filteredChildren, data, inventoryMapping]);
 
@@ -498,6 +601,23 @@ export function SpatialView({
     return inventoryMapping.cellStockMap.get(selectedLocationId) || null;
   }, [inventoryMapping, selectedLocationId]);
 
+  const isInspectorOpen = Boolean(
+    selectedLocationId && selectedChild && selectedSummary && !isAuthoringAnchors,
+  );
+  const handleInspectorDismiss = React.useCallback(() => {
+    handleCloseInspector();
+  }, [handleCloseInspector]);
+  const inspector = useAnchoredInspector({
+    isOpen: isInspectorOpen,
+    selectedLocationId: isAuthoringAnchors ? null : selectedLocationId,
+    mode: currentMode,
+    containerRef: canvasRegionRef,
+    wrapperRef: inspectorWrapperRef,
+    getAnchorElement,
+    projectionRef: interactionApiRef,
+    onDismiss: handleInspectorDismiss,
+  });
+
   const handleCellSelect = (id: string) => {
     setSelectedLocationId((prev) => (prev === id ? null : id));
     if (onLocationSelect) {
@@ -525,8 +645,14 @@ export function SpatialView({
     );
   }
 
-  // Empty state: no child locations exist
+  // Empty state: no child locations exist. A location that is itself mapped
+  // must never read as "no spatial layout": its placement does not require it
+  // to own a nested layout.
   if (data.children.length === 0) {
+    const parentMapping = data.parent.mapping;
+    const isPlaced = parentMapping.hasSpatialNode;
+    const slotMapping = parentMapping.slotMapping;
+
     return (
       <div className={`space-y-4 ${className || ""}`}>
         {breadcrumbs.length > 0 && (
@@ -538,12 +664,38 @@ export function SpatialView({
           />
         )}
         <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 p-8 text-center">
-          <Box className="mx-auto size-9 text-muted-foreground/60 mb-2.5" />
+          {isPlaced ? (
+            <CheckCircle2 className="mx-auto size-9 text-emerald-600/70 mb-2.5" />
+          ) : (
+            <Box className="mx-auto size-9 text-muted-foreground/60 mb-2.5" />
+          )}
           <h3 className="font-semibold text-sm text-foreground">
-            No Spatial Layout Available
+            {isPlaced ? "Spatially Mapped" : "No Spatial Layout Available"}
           </h3>
           <p className="mt-1 text-xs text-muted-foreground max-w-md mx-auto">
-            Location <span className="font-mono font-bold">{data.parent.location.code}</span> does not have any nested sub-locations. Create drawers, shelves, or sub-bins under this location to view an operational layout.
+            {isPlaced ? (
+              <>
+                Location{" "}
+                <span className="font-mono font-bold">
+                  {data.parent.location.code}
+                </span>{" "}
+                is placed inside its parent&apos;s spatial frame
+                {slotMapping
+                  ? ` (slot ${slotMapping.slotCode} of layout ${slotMapping.layoutCode}).`
+                  : "."}{" "}
+                It has no nested sub-locations of its own yet.
+              </>
+            ) : (
+              <>
+                Location{" "}
+                <span className="font-mono font-bold">
+                  {data.parent.location.code}
+                </span>{" "}
+                {parentMapping.isMappingEligible
+                  ? "does not have any nested sub-locations. Create drawers, shelves, or sub-bins under this location to view an operational layout."
+                  : "is a top-level facility with no nested sub-locations and no spatial node. Configure a spatial model and layout to map its compartments."}
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -667,46 +819,66 @@ export function SpatialView({
                     variant="ghost"
                     size="xs"
                     onClick={() => setFilterQuery("")}
-                    className="text-xs text-muted-foreground hover:text-foreground h-6 px-1.5"
+                    className={cn(
+                      TOOLBAR_CONTROL_CLASS,
+                      "text-muted-foreground hover:text-foreground",
+                    )}
                   >
                     Clear filter
                   </Button>
                 )}
 
-                <div className="flex items-center gap-0.5 bg-muted/60 p-0.5 rounded-lg border border-border/40">
+                <div className={TOOLBAR_TRACK_CLASS}>
                   <Button
-                    variant={currentMode === "2d" ? "secondary" : "ghost"}
+                    variant="ghost"
                     size="xs"
                     onClick={() => handleSafeModeChange("2d")}
-                    className="h-6 px-2 text-xs font-medium gap-1"
+                    aria-pressed={currentMode === "2d"}
+                    className={cn(
+                      TOOLBAR_SEGMENT_CLASS,
+                      currentMode === "2d"
+                        ? `${TOOLBAR_SEGMENT_ACTIVE_CLASS} hover:bg-card`
+                        : `${TOOLBAR_SEGMENT_INACTIVE_CLASS} hover:bg-transparent`,
+                    )}
                     title="Switch to 2D operational layout"
                   >
-                    <LayoutGrid className="size-3" />
+                    <LayoutGrid className="size-3.5" />
                     <span>2D Grid</span>
                   </Button>
                   <Button
-                    variant={currentMode === "3d" ? "secondary" : "ghost"}
+                    variant="ghost"
                     size="xs"
                     onClick={() => handleSafeModeChange("3d")}
-                    className="h-6 px-2 text-xs font-medium gap-1"
+                    aria-pressed={currentMode === "3d"}
+                    className={cn(
+                      TOOLBAR_SEGMENT_CLASS,
+                      currentMode === "3d"
+                        ? `${TOOLBAR_SEGMENT_ACTIVE_CLASS} hover:bg-card`
+                        : `${TOOLBAR_SEGMENT_INACTIVE_CLASS} hover:bg-transparent`,
+                    )}
                     title="Switch to 3D digital twin"
                   >
-                    <Box className="size-3" />
+                    <Box className="size-3.5" />
                     <span>3D Scene</span>
                   </Button>
                 </div>
 
                 {currentMode === "3d" && (
                   <>
-                    <div className="flex items-center rounded-md bg-muted/60 p-0.5 border border-border/60 text-xs">
+                    <div
+                      className={TOOLBAR_TRACK_CLASS}
+                      role="group"
+                      aria-label="3D visualization mode"
+                    >
                       <button
                         type="button"
                         onClick={() => setVisualizationMode("standard")}
+                        aria-pressed={visualizationMode === "standard"}
                         className={cn(
-                          "px-2 py-0.5 rounded text-[11px] font-medium transition-colors",
+                          TOOLBAR_SEGMENT_CLASS,
                           visualizationMode === "standard"
-                            ? "bg-card text-foreground shadow-2xs"
-                            : "text-muted-foreground hover:text-foreground",
+                            ? TOOLBAR_SEGMENT_ACTIVE_CLASS
+                            : TOOLBAR_SEGMENT_INACTIVE_CLASS,
                         )}
                         title="Standard 3D inventory view"
                       >
@@ -715,42 +887,50 @@ export function SpatialView({
                       <button
                         type="button"
                         onClick={() => setVisualizationMode("provenance")}
+                        aria-pressed={visualizationMode === "provenance"}
                         className={cn(
-                          "flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors",
+                          TOOLBAR_SEGMENT_CLASS,
                           visualizationMode === "provenance"
-                            ? "bg-card text-foreground shadow-2xs"
-                            : "text-muted-foreground hover:text-foreground",
+                            ? TOOLBAR_SEGMENT_ACTIVE_CLASS
+                            : TOOLBAR_SEGMENT_INACTIVE_CLASS,
                         )}
                         title="Show direct inventory distinctly separated from nested sub-compartment inventory"
                       >
-                        <GitFork className="size-3" />
+                        <GitFork className="size-3.5" />
                         <span>Provenance</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setVisualizationMode("occupancy")}
+                        aria-pressed={visualizationMode === "occupancy"}
                         className={cn(
-                          "flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors",
+                          TOOLBAR_SEGMENT_CLASS,
                           visualizationMode === "occupancy"
-                            ? "bg-card text-foreground shadow-2xs"
-                            : "text-muted-foreground hover:text-foreground",
+                            ? TOOLBAR_SEGMENT_ACTIVE_CLASS
+                            : TOOLBAR_SEGMENT_INACTIVE_CLASS,
                         )}
                         title="Visualize physical occupancy thresholds where configured, or presence where unspecified"
                       >
-                        <Gauge className="size-3" />
+                        <Gauge className="size-3.5" />
                         <span>Occupancy</span>
                       </button>
                     </div>
 
                     <Button
                       type="button"
-                      variant={showBadges ? "secondary" : "ghost"}
+                      variant="ghost"
                       size="xs"
                       onClick={() => setShowBadges((prev) => !prev)}
-                      className="h-6 px-2 text-[11px] gap-1 font-medium"
+                      aria-pressed={showBadges}
+                      className={cn(
+                        TOOLBAR_CONTROL_CLASS,
+                        showBadges
+                          ? "bg-muted text-foreground shadow-xs hover:bg-muted"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
                       title="Toggle accessible text badges on 3D compartment face plates"
                     >
-                      <Tags className="size-3" />
+                      <Tags className="size-3.5" />
                       <span className="hidden sm:inline">Labels</span>
                     </Button>
 
@@ -764,11 +944,12 @@ export function SpatialView({
                           : handleEnterAuthoring
                       }
                       disabled={!canEditAnchors || (!isAuthoringAnchors && !data.parent.model)}
-                      className={`h-6 px-2 text-xs font-medium gap-1 ${
+                      className={cn(
+                        TOOLBAR_CONTROL_CLASS,
                         isAuthoringAnchors
-                          ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/50"
-                          : ""
-                      }`}
+                          ? "bg-amber-500/20 text-amber-700 border-amber-500/50 dark:text-amber-300"
+                          : "",
+                      )}
                       title={
                         !canEditAnchors
                           ? "You need the Inventory.Update permission to edit spatial anchors"
@@ -787,116 +968,160 @@ export function SpatialView({
               </div>
             </div>
 
-            {currentMode === "2d" ? (
-              <SpatialGrid
-                layout={layout}
-                stockMap={inventoryMapping.cellStockMap}
-                selectedLocationId={selectedLocationId}
-                highlightedLocationId={effectiveHighlightedLocationId}
-                onSelectCell={handleCellSelect}
-                onEnterCell={handleNavigate}
-              />
-            ) : (
-              <DynamicSpatial3DViewport
-                parentData={data.parent}
-                childrenLayout={previewChildrenLayout}
-                unmappedChildren={layout3D.unmapped}
-                stockMap={inventoryMapping.cellStockMap}
-                selectedLocationId={selectedLocationId}
-                highlightedLocationId={effectiveHighlightedLocationId}
-                onSelectLocation={handleCellSelect}
-                onEnterLocation={handleNavigate}
-                onOpenMapping={onOpenMapping}
-                onSwitchTo2D={() => handleSafeModeChange("2d")}
-                visualizationMode={visualizationMode}
-                showBadges={showBadges}
-                isAuthoringAnchors={isAuthoringAnchors}
-                draftAnchors={draftAnchors}
-                selectedAnchorId={selectedAnchorId}
-                authoringGizmoMode={authoringGizmoMode}
-                onSelectAnchor={(id) => setSelectedAnchorId(id)}
-                onAnchorTransformChange={(anchorId, updates) => {
-                  setDraftAnchors((prev) =>
-                    prev.map((a) =>
-                      a.id === anchorId
-                        ? { ...a, ...updates, isModified: true }
-                        : a,
-                    ),
-                  );
-                }}
-                onGizmoModeChange={(mode) => setAuthoringGizmoMode(mode)}
-              />
-            )}
+            {/* Canvas positioning context: the floating overlays are
+                anchored inside the canvas region so a wrapped toolbar
+                can never be covered by them. */}
+            <div
+              ref={canvasRegionRef}
+              data-testid="spatial-canvas-region"
+              className="relative w-full"
+            >
+              {currentMode === "2d" ? (
+                <SpatialGrid
+                  layout={layout}
+                  stockMap={inventoryMapping.cellStockMap}
+                  selectedLocationId={selectedLocationId}
+                  highlightedLocationId={effectiveHighlightedLocationId}
+                  onSelectCell={handleCellSelect}
+                  onEnterCell={handleNavigate}
+                />
+              ) : (
+                <DynamicSpatial3DViewport
+                  parentData={data.parent}
+                  childrenLayout={previewChildrenLayout}
+                  unmappedChildren={layout3D.unmapped}
+                  stockMap={inventoryMapping.cellStockMap}
+                  selectedLocationId={selectedLocationId}
+                  highlightedLocationId={effectiveHighlightedLocationId}
+                  onSelectLocation={handleCellSelect}
+                  onEnterLocation={handleNavigate}
+                  onOpenMapping={onOpenMapping}
+                  onSwitchTo2D={() => handleSafeModeChange("2d")}
+                  visualizationMode={visualizationMode}
+                  showBadges={showBadges}
+                  enableDrawerOpening
+                  openableKinds={OPERATIONAL_OPENABLE_KINDS}
+                  interactionApiRef={interactionApiRef}
+                  isAuthoringAnchors={isAuthoringAnchors}
+                  draftAnchors={draftAnchors}
+                  selectedAnchorId={selectedAnchorId}
+                  authoringGizmoMode={authoringGizmoMode}
+                  onSelectAnchor={(id) => setSelectedAnchorId(id)}
+                  onAnchorTransformChange={(anchorId, updates) => {
+                    setDraftAnchors((prev) =>
+                      prev.map((a) =>
+                        a.id === anchorId
+                          ? { ...a, ...updates, isModified: true }
+                          : a,
+                      ),
+                    );
+                  }}
+                  onGizmoModeChange={(mode) => setAuthoringGizmoMode(mode)}
+                />
+              )}
+
+              {/* Selected Cell Inspector: a non-modal floating inspector anchored
+                  next to the selected spatial object. Geometry is measured from
+                  the card's DOM rect (2D) or the object's projected bounds (3D)
+                  and clamped inside the spatial viewport, so the panel can never
+                  run past the viewport, cover the footer, or push the page into
+                  horizontal scroll. Before the first measurement (and if it is
+                  impossible) the fallback docking style keeps it constrained. */}
+              {isInspectorOpen && (
+                <div
+                  ref={inspectorWrapperRef}
+                  data-testid="spatial-inspector-overlay"
+                  data-placement={inspector.placement ?? "pending"}
+                  role="region"
+                  aria-label={`Selected location inspector: ${
+                    selectedSummary?.locationCode ?? "location"
+                  }`}
+                  style={inspector.style ?? DEFAULT_INSPECTOR_STYLE}
+                  className={cn(
+                    "fixed z-40 flex flex-col",
+                    // Fade/slide in on open and animate the short reposition
+                    // between selections; continuous camera or scroll tracking
+                    // never animates so the panel cannot lag behind the object.
+                    "animate-in fade-in-0 duration-150 motion-reduce:animate-none",
+                    !inspector.isFollowing &&
+                      "transition-[top,left] duration-150 ease-out motion-reduce:transition-none",
+                    inspector.placement === "right" && "slide-in-from-left-2",
+                    inspector.placement === "left" && "slide-in-from-right-2",
+                    inspector.placement === "below" && "slide-in-from-top-2",
+                    inspector.placement === "above" && "slide-in-from-bottom-2",
+                    inspector.placement === "sheet" && "slide-in-from-bottom-4",
+                  )}
+                >
+                  <SpatialInspector
+                    summary={selectedSummary}
+                    childDto={selectedChild}
+                    focusComponentId={focusComponentId}
+                    onClose={handleCloseInspector}
+                    onEnterLocation={handleNavigate}
+                    className="min-h-0 flex-1 shadow-xl"
+                  />
+                </div>
+              )}
+
+              {/* Anchor Authoring Panel: the same viewport-constrained overlay
+                  contract as the detail panel — anchored to the shell chrome
+                  instead of the canvas region so it can never run past the
+                  viewport or over the footer. */}
+              {isAuthoringAnchors && data.parent.model && (
+                <div
+                  data-testid="spatial-anchor-editor-overlay"
+                  className={cn(
+                    "fixed inset-x-2 bottom-[calc(var(--app-footer-height,3.5rem)+1rem)] z-40 flex flex-col",
+                    "sm:left-auto sm:right-4 sm:bottom-auto sm:top-[calc(var(--app-header-height,3.5rem)+1rem)] sm:w-96 sm:max-w-[calc(100vw-2rem)]",
+                    "max-h-[calc(100dvh-var(--app-header-height,3.5rem)-var(--app-footer-height,3.5rem)-2rem)]",
+                  )}
+                >
+                  <SpatialAnchorEditor
+                    className="min-h-0"
+                    model={data.parent.model}
+                    draftAnchors={draftAnchors}
+                    selectedAnchorId={selectedAnchorId}
+                    initialAnchors={data.parent.anchors || []}
+                    childrenLayout={previewChildrenLayout}
+                    onSelectAnchor={(id) => setSelectedAnchorId(id)}
+                    onAddAnchor={() => {
+                      const newDraft = createDefaultDraftAnchor(
+                        data.parent.model!.id,
+                        draftAnchors,
+                        data.parent.model,
+                      );
+                      setDraftAnchors((prev) => [...prev, newDraft]);
+                      setSelectedAnchorId(newDraft.id);
+                    }}
+                    onUpdateAnchor={(anchorId, updates) => {
+                      setDraftAnchors((prev) =>
+                        prev.map((a) =>
+                          a.id === anchorId
+                            ? { ...a, ...updates, isModified: true }
+                            : a,
+                        ),
+                      );
+                    }}
+                    onDeleteAnchor={(anchorId) => {
+                      setDraftAnchors((prev) =>
+                        prev.filter((a) => a.id !== anchorId),
+                      );
+                      if (selectedAnchorId === anchorId) {
+                        setSelectedAnchorId(null);
+                      }
+                    }}
+                    onSave={handleSaveAnchors}
+                    onCancel={handleExitAuthoring}
+                    saving={savingAnchors}
+                    saveError={saveAnchorError}
+                    authoringGizmoMode={authoringGizmoMode}
+                    onGizmoModeChange={setAuthoringGizmoMode}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Selected Cell Inspector: Floating Overlay on Desktop, Bottom Sheet on Mobile */}
-        {selectedLocationId && selectedChild && selectedSummary && !isAuthoringAnchors && (
-          <div
-            data-testid="spatial-inspector-overlay"
-            className={cn(
-              // Desktop & tablet: Floating overlay positioned top-right over canvas without resizing canvas
-              "sm:absolute sm:top-14 sm:right-4 sm:z-20 sm:w-84 sm:max-w-[calc(100%-2rem)] sm:max-h-[min(640px,calc(100vh-10rem))] sm:overflow-y-auto sm:shadow-xl",
-              // Mobile (<sm): Fixed bottom sheet overlay
-              "fixed inset-x-0 bottom-0 z-50 p-2 bg-background/80 backdrop-blur-sm sm:p-0 sm:bg-transparent sm:backdrop-blur-none",
-            )}
-          >
-            <SpatialInspector
-              summary={selectedSummary}
-              childDto={selectedChild}
-              focusComponentId={focusComponentId}
-              onClose={() => setSelectedLocationId(null)}
-              onEnterLocation={handleNavigate}
-              className="shadow-xl border-border bg-card/95 backdrop-blur-md max-h-[70vh] sm:max-h-[min(640px,calc(100vh-10rem))] overflow-y-auto"
-            />
-          </div>
-        )}
-
-        {/* Anchor Authoring Panel (preserved for 3D authoring mode) */}
-        {isAuthoringAnchors && data.parent.model && (
-          <div className="mt-4 lg:mt-0 lg:absolute lg:top-14 lg:right-4 lg:z-20 lg:w-96 lg:max-h-[min(640px,calc(100vh-10rem))] lg:overflow-y-auto lg:shadow-xl">
-            <SpatialAnchorEditor
-              model={data.parent.model}
-              draftAnchors={draftAnchors}
-              selectedAnchorId={selectedAnchorId}
-              initialAnchors={data.parent.anchors || []}
-              childrenLayout={previewChildrenLayout}
-              onSelectAnchor={(id) => setSelectedAnchorId(id)}
-              onAddAnchor={() => {
-                const newDraft = createDefaultDraftAnchor(
-                  data.parent.model!.id,
-                  draftAnchors,
-                  data.parent.model,
-                );
-                setDraftAnchors((prev) => [...prev, newDraft]);
-                setSelectedAnchorId(newDraft.id);
-              }}
-              onUpdateAnchor={(anchorId, updates) => {
-                setDraftAnchors((prev) =>
-                  prev.map((a) =>
-                    a.id === anchorId
-                      ? { ...a, ...updates, isModified: true }
-                      : a,
-                  ),
-                );
-              }}
-              onDeleteAnchor={(anchorId) => {
-                setDraftAnchors((prev) =>
-                  prev.filter((a) => a.id !== anchorId),
-                );
-                if (selectedAnchorId === anchorId) {
-                  setSelectedAnchorId(null);
-                }
-              }}
-              onSave={handleSaveAnchors}
-              onCancel={handleExitAuthoring}
-              saving={savingAnchors}
-              saveError={saveAnchorError}
-              authoringGizmoMode={authoringGizmoMode}
-              onGizmoModeChange={setAuthoringGizmoMode}
-            />
-          </div>
-        )}
       </div>
 
       {/* Discard Changes Navigation Guard Dialog */}

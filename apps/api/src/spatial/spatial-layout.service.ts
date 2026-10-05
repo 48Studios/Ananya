@@ -162,6 +162,10 @@ export class SpatialLayoutService {
     return layout;
   }
 
+  async getAllLayouts(): Promise<SpatialLayoutWithMappings[]> {
+    return this.layoutRepo.findAll();
+  }
+
   async getLayoutsByParent(
     parentLocationId: string,
   ): Promise<SpatialLayoutWithMappings[]> {

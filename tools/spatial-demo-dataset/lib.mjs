@@ -104,37 +104,85 @@ export const put = (path, body) => api('PUT', path, body);
 export const del = (path) => api('DELETE', path);
 
 export function readManifest() {
+  const empty = {
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    models: [],
+    anchors: [],
+    locations: [],
+    layouts: [],
+    nodes: [],
+    components: [],
+    transactions: [],
+  };
   if (!existsSync(MANIFEST_PATH)) {
-    return {
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      models: [],
-      anchors: [],
-      locations: [],
-      nodes: [],
-      components: [],
-      transactions: [],
-    };
+    return empty;
   }
   try {
-    return JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'));
+    const parsed = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'));
+    return { ...empty, ...parsed, layouts: parsed.layouts ?? [] };
   } catch {
-    return {
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      models: [],
-      anchors: [],
-      locations: [],
-      nodes: [],
-      components: [],
-      transactions: [],
-    };
+    return empty;
   }
 }
 
+/**
+ * Persists the manifest so cleanup and re-runs can identify demo records even
+ * after the dataset is adopted by code prefix.
+ */
 export function writeManifest(manifest) {
   manifest.updatedAt = new Date().toISOString();
   writeFileSync(MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`);
+}
+
+/**
+ * Loads the parametric storage engine from the workspace build.
+ *
+ * The demo dataset derives every slot-derived model dimension from this engine
+ * so the seeded geometry can never drift from the geometry the API and the
+ * Inventory Builder generate for the same layout config.
+ */
+let enginePromise = null;
+export function loadEngine() {
+  enginePromise =
+    enginePromise ??
+    import(new URL('../../packages/inventory/dist/index.js', import.meta.url))
+      .then((engine) => {
+        if (typeof engine.generateStorageCompartments !== 'function') {
+          throw new Error(
+            'The @ananya/inventory build does not export generateStorageCompartments.',
+          );
+        }
+        return engine;
+      })
+      .catch((error) => {
+        throw new Error(
+          `Unable to load the parametric storage engine from packages/inventory/dist. ` +
+            `Run 'pnpm --filter @ananya/inventory build' first. (${error.message})`,
+        );
+      });
+  return enginePromise;
+}
+
+/**
+ * Generates the compartments for a layout spec and fails loudly when the
+ * seeded config is not a valid parametric template.
+ */
+export async function generateCompartmentMap(config) {
+  const engine = await loadEngine();
+  const validation = engine.validateParametricConfig(config);
+  if (!validation.isValid) {
+    throw new Error(
+      `Invalid parametric config for template ${config.templateType}: ${validation.errors.join('; ')}`,
+    );
+  }
+  const result = engine.generateStorageCompartments(config);
+  return {
+    engine,
+    compartments: result.compartments,
+    byCode: new Map(result.compartments.map((c) => [c.code, c])),
+    bySlotId: new Map(result.compartments.map((c) => [c.slotId, c])),
+  };
 }
 
 export function log(...args) {

@@ -12,6 +12,7 @@ import type {
   SpatialLayoutRepository,
   SpatialLayoutWithMappings,
   SpatialLayoutMappingItem,
+  SpatialLayoutMappingWithStatus,
   SpatialLayoutRevisionRecordProps,
   SpatialLayoutStatus,
 } from '@ananya/inventory';
@@ -121,6 +122,77 @@ export class DrizzleSpatialLayoutRepository implements SpatialLayoutRepository {
     }
 
     return results;
+  }
+
+  async findAll(): Promise<SpatialLayoutWithMappings[]> {
+    const layouts = await this.client
+      .select()
+      .from(spatialLayouts)
+      .orderBy(desc(spatialLayouts.createdAt));
+
+    if (layouts.length === 0) {
+      return [];
+    }
+
+    const mappings = await this.client
+      .select()
+      .from(spatialLayoutMappings)
+      .orderBy(
+        spatialLayoutMappings.logicalRow,
+        spatialLayoutMappings.logicalCol,
+        spatialLayoutMappings.slotId,
+      );
+
+    const mappingsByLayoutId = new Map<string, SpatialLayoutMappingRecord[]>();
+    for (const mapping of mappings) {
+      const list = mappingsByLayoutId.get(mapping.layoutId);
+      if (list) {
+        list.push(mapping);
+      } else {
+        mappingsByLayoutId.set(mapping.layoutId, [mapping]);
+      }
+    }
+
+    return layouts.map((layout) =>
+      rowToLayoutWithMappings(layout, mappingsByLayoutId.get(layout.id) ?? []),
+    );
+  }
+
+  async findMappingsByLocationId(
+    locationId: string,
+  ): Promise<SpatialLayoutMappingWithStatus[]> {
+    const rows = await this.client
+      .select({
+        mapping: spatialLayoutMappings,
+        layoutCode: spatialLayouts.code,
+        layoutStatus: spatialLayouts.status,
+      })
+      .from(spatialLayoutMappings)
+      .innerJoin(
+        spatialLayouts,
+        eq(spatialLayoutMappings.layoutId, spatialLayouts.id),
+      )
+      .where(eq(spatialLayoutMappings.locationId, locationId));
+
+    return rows.map((row): SpatialLayoutMappingWithStatus => {
+      const m = row.mapping;
+      return {
+        id: m.id,
+        layoutId: m.layoutId,
+        layoutCode: row.layoutCode,
+        layoutStatus: row.layoutStatus as SpatialLayoutStatus,
+        slotId: m.slotId,
+        slotCode: m.slotCode,
+        locationId: m.locationId,
+        logicalRow: m.logicalRow,
+        logicalCol: m.logicalCol,
+        isStale: m.isStale,
+        staleReason: m.staleReason,
+        acknowledgedChangeSignature: m.acknowledgedChangeSignature,
+        mappedAt: m.mappedAt,
+        updatedAt: m.updatedAt,
+      };
+    });
   }
 
   async findActiveByParentLocationId(

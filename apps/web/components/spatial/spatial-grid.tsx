@@ -34,7 +34,11 @@ export function SpatialGrid({
   }
 
   return (
-    <div className={cn("w-full overflow-x-auto pb-2", className)}>
+    // The wrapper is a scroll container, so it also clips: an outer `ring-2` on a
+    // card is painted 2px outside its border box and would be sliced off at the
+    // grid edges. 4px of padding gives every ring (and its pulse) room to render,
+    // while the matching negative margin keeps the cards exactly where they were.
+    <div className={cn("w-full overflow-x-auto p-1 pb-3 -m-1", className)}>
       {layout.type === "matrix" && layout.rows ? (
         // Matrix presentation (e.g. Row A, Row B, ...)
         <div className="flex flex-col gap-3 min-w-[500px]">

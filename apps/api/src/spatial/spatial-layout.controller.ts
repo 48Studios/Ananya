@@ -53,7 +53,7 @@ export class SpatialLayoutController {
     if (parentLocationId) {
       return this.layoutService.getLayoutsByParent(parentLocationId);
     }
-    return [];
+    return this.layoutService.getAllLayouts();
   }
 
   @Get('parent/:parentLocationId')

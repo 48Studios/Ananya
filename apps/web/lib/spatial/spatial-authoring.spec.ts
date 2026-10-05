@@ -146,6 +146,17 @@ describe("Spatial Authoring & Mapping UX", () => {
         },
       ],
       availableModels: [],
+      mapping: {
+        status: "MAPPED",
+        isMappingEligible: false,
+        hasSpatialNode: true,
+        directChildCount: 2,
+        mappedDirectChildCount: 1,
+        unmappedDirectChildCount: 1,
+        containerStatus: "NONE",
+        publishedLayout: null,
+        slotMapping: null,
+      },
     };
 
     // Calculate occupied anchors set

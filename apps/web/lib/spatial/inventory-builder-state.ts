@@ -831,6 +831,7 @@ export function convertGeneratedToSceneLayout(
       totalQuantity: 0,
       position,
       rotation,
+      scale: { x: 1, y: 1, z: 1 },
       dimensions,
       anchorCode: comp.code,
       modelCode: comp.metadata.templateType as string,

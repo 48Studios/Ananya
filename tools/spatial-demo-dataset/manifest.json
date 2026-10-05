@@ -1,805 +1,689 @@
 {
-  "createdAt": "2026-10-01T14:23:00.000Z",
-  "updatedAt": "2026-10-01T08:55:15.072Z",
+  "createdAt": "2026-10-05T09:12:51.352Z",
+  "updatedAt": "2026-10-05T09:14:24.409Z",
   "models": [
     {
-      "id": "33865179-406c-449a-bd0f-f04e9ddb7235",
-      "code": "DEMO-SPATIAL-CABINET-6",
-      "created": true
+      "id": "9201d1cb-1d4a-44ad-8654-bcdb93248616",
+      "code": "DEMO-SPATIAL-MODEL-CABINET-A",
+      "created": true,
+      "updated": false
     },
     {
-      "id": "0a13b6d4-8824-49c5-b2de-5ab72847c931",
-      "code": "DEMO-SPATIAL-DRAWER",
-      "created": true
+      "id": "5b608b86-6be2-42a1-b385-b65de53f19a9",
+      "code": "DEMO-SPATIAL-MODEL-CABINET-B",
+      "created": true,
+      "updated": false
     },
     {
-      "id": "33ec81d4-6bdf-434e-8849-f43aef8319fb",
-      "code": "DEMO-SPATIAL-SHELF",
-      "created": true
+      "id": "c5b31011-5ba9-476c-9662-97de8fabb7a9",
+      "code": "DEMO-SPATIAL-MODEL-OPEN-BINS",
+      "created": true,
+      "updated": false
     },
     {
-      "id": "8c39f160-c7ec-4f84-a1f3-5d43ae2a0312",
-      "code": "DEMO-SPATIAL-CABINET-6",
-      "created": true
+      "id": "2dadc3dc-557b-492b-af57-11e69ee90dbe",
+      "code": "DEMO-SPATIAL-MODEL-RACK",
+      "created": true,
+      "updated": false
     },
     {
-      "id": "5398738a-34ff-4162-bf78-f3773bb8e5b3",
-      "code": "DEMO-SPATIAL-DRAWER",
-      "created": true
+      "id": "c0f55da6-9c81-42f9-99bc-c208bf6b0d3f",
+      "code": "DEMO-SPATIAL-MODEL-DRAWER-DEEP",
+      "created": true,
+      "updated": false
     },
     {
-      "id": "9f6d9215-edbd-4d69-b093-bf11517c1823",
-      "code": "DEMO-SPATIAL-SHELF",
-      "created": true
+      "id": "270a3c15-2678-4ece-aaab-829298add9c8",
+      "code": "DEMO-SPATIAL-MODEL-DRAWER-SHALLOW",
+      "created": true,
+      "updated": false
+    },
+    {
+      "id": "2af0fbe8-2ad3-48fb-9220-b47fe1caa4cb",
+      "code": "DEMO-SPATIAL-MODEL-DRAWER-B",
+      "created": true,
+      "updated": false
+    },
+    {
+      "id": "2c66f231-b630-4672-bb0c-bb3b80008e64",
+      "code": "DEMO-SPATIAL-MODEL-OPEN-BIN",
+      "created": true,
+      "updated": false
+    },
+    {
+      "id": "308ce195-7e70-4f8a-a15b-23ad4d23f531",
+      "code": "DEMO-SPATIAL-MODEL-RACK-BAY",
+      "created": true,
+      "updated": false
     }
   ],
   "anchors": [
     {
-      "id": "bbb49939-4031-456a-a8a9-7a973729f67a",
-      "modelId": "33865179-406c-449a-bd0f-f04e9ddb7235",
-      "code": "A01",
-      "created": true
-    },
-    {
-      "id": "c510a4c1-e21b-45a2-9fb6-c7054a053cc9",
-      "modelId": "33865179-406c-449a-bd0f-f04e9ddb7235",
-      "code": "A02",
-      "created": true
-    },
-    {
-      "id": "33a6a9e6-5852-46c4-ab4c-3004c9eea292",
-      "modelId": "33865179-406c-449a-bd0f-f04e9ddb7235",
-      "code": "A03",
-      "created": true
-    },
-    {
-      "id": "5b92a765-5a19-41aa-926a-9ed1da04881f",
-      "modelId": "33865179-406c-449a-bd0f-f04e9ddb7235",
-      "code": "A04",
-      "created": true
-    },
-    {
-      "id": "e5c8204d-f41c-44a4-8167-bd330d3bfb45",
-      "modelId": "33865179-406c-449a-bd0f-f04e9ddb7235",
-      "code": "A05",
-      "created": true
-    },
-    {
-      "id": "7efa66c0-cc7c-4ec7-a355-d0ba017d079f",
-      "modelId": "33865179-406c-449a-bd0f-f04e9ddb7235",
-      "code": "A06",
-      "created": true
-    },
-    {
-      "id": "8c39c698-93da-4e1c-90d8-d9626bb14c05",
-      "modelId": "0a13b6d4-8824-49c5-b2de-5ab72847c931",
+      "id": "477b92e7-003d-449d-9455-5fdb66e6e10e",
+      "modelId": "c0f55da6-9c81-42f9-99bc-c208bf6b0d3f",
       "code": "BIN01",
       "created": true
     },
     {
-      "id": "97af40ff-e9b0-4c11-ae9b-d75ecf64b000",
-      "modelId": "0a13b6d4-8824-49c5-b2de-5ab72847c931",
+      "id": "09ff817b-ee66-4571-8b6b-af3d961a76cb",
+      "modelId": "c0f55da6-9c81-42f9-99bc-c208bf6b0d3f",
       "code": "BIN02",
-      "created": true
-    },
-    {
-      "id": "6ddc4f57-e870-48d6-98b7-08246f498340",
-      "modelId": "33ec81d4-6bdf-434e-8849-f43aef8319fb",
-      "code": "S01",
-      "created": true
-    },
-    {
-      "id": "7b373dd7-3abd-4bae-8171-dfc4c3229bab",
-      "modelId": "33ec81d4-6bdf-434e-8849-f43aef8319fb",
-      "code": "S02",
-      "created": true
-    },
-    {
-      "id": "f91a2838-6899-4b7b-9063-9cdc63db5824",
-      "modelId": "33ec81d4-6bdf-434e-8849-f43aef8319fb",
-      "code": "S03",
-      "created": true
-    },
-    {
-      "id": "663415ce-2ec7-4b1f-a702-219ef9251418",
-      "modelId": "8c39f160-c7ec-4f84-a1f3-5d43ae2a0312",
-      "code": "A01",
-      "created": true
-    },
-    {
-      "id": "2566ff9f-11b6-444c-a2ee-98eaa4032f11",
-      "modelId": "8c39f160-c7ec-4f84-a1f3-5d43ae2a0312",
-      "code": "A02",
-      "created": true
-    },
-    {
-      "id": "64efaed3-149f-4d8c-b8d8-b11650c50f6d",
-      "modelId": "8c39f160-c7ec-4f84-a1f3-5d43ae2a0312",
-      "code": "A03",
-      "created": true
-    },
-    {
-      "id": "e3e7a931-1fde-4df9-9465-3b64f58f8272",
-      "modelId": "8c39f160-c7ec-4f84-a1f3-5d43ae2a0312",
-      "code": "A04",
-      "created": true
-    },
-    {
-      "id": "20f18685-46e6-4653-a9a1-77c741586fe9",
-      "modelId": "8c39f160-c7ec-4f84-a1f3-5d43ae2a0312",
-      "code": "A05",
-      "created": true
-    },
-    {
-      "id": "b5606d62-53cf-4c81-8062-1184283ba6af",
-      "modelId": "8c39f160-c7ec-4f84-a1f3-5d43ae2a0312",
-      "code": "A06",
-      "created": true
-    },
-    {
-      "id": "495d1a34-d290-451a-a5c7-faf8d37b4e7e",
-      "modelId": "5398738a-34ff-4162-bf78-f3773bb8e5b3",
-      "code": "BIN01",
-      "created": true
-    },
-    {
-      "id": "ff32265d-9bf8-4d55-bbbf-6e5af4dd97a7",
-      "modelId": "5398738a-34ff-4162-bf78-f3773bb8e5b3",
-      "code": "BIN02",
-      "created": true
-    },
-    {
-      "id": "5d5c90d1-41aa-46ac-8e61-aca20c2d82a6",
-      "modelId": "9f6d9215-edbd-4d69-b093-bf11517c1823",
-      "code": "S01",
-      "created": true
-    },
-    {
-      "id": "7f1a4dd8-0aba-4fa0-bdc9-508e8d780989",
-      "modelId": "9f6d9215-edbd-4d69-b093-bf11517c1823",
-      "code": "S02",
-      "created": true
-    },
-    {
-      "id": "27ce7ab8-efe0-4fb8-bca4-7cc646991cf5",
-      "modelId": "9f6d9215-edbd-4d69-b093-bf11517c1823",
-      "code": "S03",
       "created": true
     }
   ],
   "locations": [
     {
-      "id": "692b2e42-4816-49b0-9204-5e0cf262356b",
+      "id": "374e5e9e-decf-4197-9845-b51e3bcedace",
       "code": "DEMO-SPATIAL-WAREHOUSE",
       "kind": "warehouse",
       "created": true
     },
     {
-      "id": "b59aa642-0133-4939-8dd0-bf598c481ff7",
+      "id": "85b5434e-e283-4ab4-84d9-0380c590a416",
       "code": "DEMO-SPATIAL-CABINET-A",
       "kind": "cabinet",
       "created": true
     },
     {
-      "id": "92fa8f70-bee7-45bf-b08f-f558f87758e3",
+      "id": "3d856a51-9545-44f9-ba2d-08fb05fb9572",
       "code": "DEMO-SPATIAL-CABINET-B",
       "kind": "cabinet",
       "created": true
     },
     {
-      "id": "3e7fdf73-8e7d-4baf-888f-1e80eb23cf74",
-      "code": "DEMO-SPATIAL-SHELF-C",
+      "id": "4e388fd8-0d57-4310-904a-b96bdea039cf",
+      "code": "DEMO-SPATIAL-CABINET-C",
+      "kind": "cabinet",
+      "created": true
+    },
+    {
+      "id": "b55a8077-fa7d-4d9c-9a21-85e1b79fcdf3",
+      "code": "DEMO-SPATIAL-OPEN-BINS",
+      "kind": "cabinet",
+      "created": true
+    },
+    {
+      "id": "c1814552-4247-4437-bc0d-a4aa63e895fa",
+      "code": "DEMO-SPATIAL-RACK",
+      "kind": "rack",
+      "created": true
+    },
+    {
+      "id": "cce7ab22-8cc9-4989-bdb1-d6f4fb5db156",
+      "code": "DEMO-SPATIAL-TRAY",
+      "kind": "tray",
+      "created": true
+    },
+    {
+      "id": "00a3ef8d-4840-4efb-a9e6-df8aa73b28b6",
+      "code": "DEMO-SPATIAL-SHELF",
       "kind": "shelf",
       "created": true
     },
     {
-      "id": "40653379-a7c5-4f6c-8bdb-aa0930739bf9",
+      "id": "0751ba71-587d-45b9-94c6-9de733d9e4ae",
       "code": "DEMO-SPATIAL-DRAWER-A01",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "302ccd34-4312-44d1-a025-fa3a4dde9c29",
+      "id": "17efe33f-9985-4338-8343-6b076bc4c11f",
       "code": "DEMO-SPATIAL-DRAWER-A02",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "b2ba9efa-f3dd-4a0c-a556-751742c96241",
+      "id": "e437cfe4-89ba-4b29-a015-e461cc719cbb",
       "code": "DEMO-SPATIAL-DRAWER-A03",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "ac942318-4092-4dfa-9d80-750cc928ef02",
+      "id": "e52e277e-e62a-4279-bc2c-738c64bb15fb",
       "code": "DEMO-SPATIAL-DRAWER-A04",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "f513ec10-0b6c-4337-bd13-60fb31f1876d",
-      "code": "DEMO-SPATIAL-DRAWER-A05",
-      "kind": "drawer",
-      "created": true
-    },
-    {
-      "id": "8bbd62b5-9590-4fdb-a358-9a708141cc32",
-      "code": "DEMO-SPATIAL-DRAWER-A06",
-      "kind": "drawer",
-      "created": true
-    },
-    {
-      "id": "879a32be-6fc5-4042-b44f-c8fdb77ff5c3",
-      "code": "DEMO-SPATIAL-BIN-A01-01",
-      "kind": "bin",
-      "created": true
-    },
-    {
-      "id": "3cfa85a1-1d88-4106-80ad-b2bdac31980e",
-      "code": "DEMO-SPATIAL-BIN-A01-02",
-      "kind": "bin",
-      "created": true
-    },
-    {
-      "id": "afa8e807-513c-4086-81e8-7577c067780e",
-      "code": "DEMO-SPATIAL-BIN-A02-01",
-      "kind": "bin",
-      "created": true
-    },
-    {
-      "id": "0750d636-adaa-4517-8de5-0dae899f1a6e",
-      "code": "DEMO-SPATIAL-BIN-A02-02",
-      "kind": "bin",
-      "created": true
-    },
-    {
-      "id": "eb0f9c56-c74f-44e8-92ee-68ba65509690",
-      "code": "DEMO-SPATIAL-BIN-A03-01",
-      "kind": "bin",
-      "created": true
-    },
-    {
-      "id": "195a1ac5-b5d8-4946-9f89-d13451623af4",
-      "code": "DEMO-SPATIAL-BIN-A03-02",
-      "kind": "bin",
-      "created": true
-    },
-    {
-      "id": "34cafef2-641c-4c00-9574-dcfa8bc6018b",
+      "id": "1b733a04-4b55-4cdf-82cc-2e8eddafda75",
       "code": "DEMO-SPATIAL-DRAWER-B01",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "d167774e-e596-4297-904b-ab8bf9cdc543",
+      "id": "291a477f-93cd-41d7-ba97-f564e4bcbb6c",
       "code": "DEMO-SPATIAL-DRAWER-B02",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "aeab3a14-15a2-4849-8343-73bdc48b1a21",
+      "id": "8011c7ae-7719-4aab-9335-4e3f835cd168",
       "code": "DEMO-SPATIAL-DRAWER-B03",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "c8c61194-f362-4e1b-80e1-161be92ec958",
-      "code": "DEMO-SPATIAL-SHELF-C01",
-      "kind": "shelf",
-      "created": true
-    },
-    {
-      "id": "43867afc-34a5-46c1-b211-81f0dbc33130",
-      "code": "DEMO-SPATIAL-SHELF-C02",
-      "kind": "shelf",
-      "created": true
-    },
-    {
-      "id": "501d2210-6dfd-41ca-99af-b3ec1059d207",
-      "code": "DEMO-SPATIAL-SHELF-C03",
-      "kind": "shelf",
-      "created": true
-    },
-    {
-      "id": "959adbb5-6ab1-4147-a6f4-349940b142b0",
-      "code": "DEMO-SPATIAL-WAREHOUSE",
-      "kind": "warehouse",
-      "created": true
-    },
-    {
-      "id": "151c14eb-bc01-4ec9-b5f3-0e7e768084e5",
-      "code": "DEMO-SPATIAL-CABINET-A",
-      "kind": "cabinet",
-      "created": true
-    },
-    {
-      "id": "5887d29e-dcd5-41d5-b887-ba33e076f3f9",
-      "code": "DEMO-SPATIAL-CABINET-B",
-      "kind": "cabinet",
-      "created": true
-    },
-    {
-      "id": "c4bc224c-99be-4ef2-acb5-c8175ab7123a",
-      "code": "DEMO-SPATIAL-SHELF-C",
-      "kind": "shelf",
-      "created": true
-    },
-    {
-      "id": "2b54d85f-5a48-4b8d-ad13-bf05ad7b3a7b",
-      "code": "DEMO-SPATIAL-DRAWER-A01",
+      "id": "6376ef1f-cadf-4c92-a789-65141ecf96a4",
+      "code": "DEMO-SPATIAL-DRAWER-B04",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "b21cf695-c20c-41f5-9292-4817b525f89c",
-      "code": "DEMO-SPATIAL-DRAWER-A02",
+      "id": "7ccc40cf-2339-4feb-8f2c-7bad2c751416",
+      "code": "DEMO-SPATIAL-DRAWER-C01",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "54ba201f-18de-4e09-b0dc-15a374f23951",
-      "code": "DEMO-SPATIAL-DRAWER-A03",
+      "id": "d0059cc4-dc11-4ed5-ba61-adb045a60da1",
+      "code": "DEMO-SPATIAL-DRAWER-C02",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "5cfa2049-e8bc-46e7-b8c1-90c88875d646",
-      "code": "DEMO-SPATIAL-DRAWER-A04",
+      "id": "1dfd1432-b853-444d-ac18-67b1a54fdfb9",
+      "code": "DEMO-SPATIAL-DRAWER-C03",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "e32c02ca-15a5-473e-a429-921c6f2ec29b",
-      "code": "DEMO-SPATIAL-DRAWER-A05",
+      "id": "bba98068-58b2-4971-9cc2-4b6cbc54a77e",
+      "code": "DEMO-SPATIAL-DRAWER-C04",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "cc6e8839-2d94-48c2-9710-04be238a3c32",
-      "code": "DEMO-SPATIAL-DRAWER-A06",
-      "kind": "drawer",
-      "created": true
-    },
-    {
-      "id": "27fd8258-e9c1-4d5e-ae29-d1521890da17",
+      "id": "6d7469ce-bae7-413b-a107-3a9ee86530cf",
       "code": "DEMO-SPATIAL-BIN-A01-01",
       "kind": "bin",
       "created": true
     },
     {
-      "id": "853d8ca1-4918-4f66-ac41-fb66aeaa5343",
+      "id": "e63a1393-6be0-48ca-9f38-65a199d88436",
       "code": "DEMO-SPATIAL-BIN-A01-02",
       "kind": "bin",
       "created": true
     },
     {
-      "id": "eb0241ca-75e2-4a5c-b33d-a73d9f317e5e",
-      "code": "DEMO-SPATIAL-BIN-A02-01",
-      "kind": "bin",
-      "created": true
-    },
-    {
-      "id": "a43d80a0-4df8-4ef9-9a70-69a25e715bbe",
-      "code": "DEMO-SPATIAL-BIN-A02-02",
-      "kind": "bin",
-      "created": true
-    },
-    {
-      "id": "ee7db153-a353-4efa-9345-b892584900d0",
-      "code": "DEMO-SPATIAL-BIN-A03-01",
-      "kind": "bin",
-      "created": true
-    },
-    {
-      "id": "9e73a0de-e95b-4614-828f-fbb325e698f1",
-      "code": "DEMO-SPATIAL-BIN-A03-02",
-      "kind": "bin",
-      "created": true
-    },
-    {
-      "id": "885ba29a-5b82-42b3-87a5-3fdcd10a19f3",
-      "code": "DEMO-SPATIAL-DRAWER-B01",
+      "id": "49bab41a-739e-4526-bba4-619ebb17b4ab",
+      "code": "DEMO-SPATIAL-DRAWER-D01",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "c8d04c6c-1213-47a1-8028-219bc81f4ef4",
-      "code": "DEMO-SPATIAL-DRAWER-B02",
+      "id": "025a2524-f0f6-4f3d-9625-4c899ed9c5fc",
+      "code": "DEMO-SPATIAL-DRAWER-D02",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "2b1f1d5b-0316-48eb-a12d-0da58c5b069b",
-      "code": "DEMO-SPATIAL-DRAWER-B03",
+      "id": "758557bd-7b87-4a6a-bf79-57e3e5350c35",
+      "code": "DEMO-SPATIAL-DRAWER-D03",
       "kind": "drawer",
       "created": true
     },
     {
-      "id": "746631af-55d1-4736-af5b-39e040816668",
-      "code": "DEMO-SPATIAL-SHELF-C01",
+      "id": "4157ba97-fa61-4567-b189-2ff89b2e2bee",
+      "code": "DEMO-SPATIAL-DRAWER-E01",
+      "kind": "drawer",
+      "created": true
+    },
+    {
+      "id": "758859aa-e316-4631-bc65-627f64864b3a",
+      "code": "DEMO-SPATIAL-DRAWER-E02",
+      "kind": "drawer",
+      "created": true
+    },
+    {
+      "id": "b834c5de-3a39-4b61-94cd-012bce64ae36",
+      "code": "DEMO-SPATIAL-DRAWER-E03",
+      "kind": "drawer",
+      "created": true
+    },
+    {
+      "id": "0675e3ce-637c-48b7-8865-2b6859e6037a",
+      "code": "DEMO-SPATIAL-DRAWER-F01",
+      "kind": "drawer",
+      "created": true
+    },
+    {
+      "id": "fafe6560-8069-47b7-857f-d9b4e79a8a85",
+      "code": "DEMO-SPATIAL-DRAWER-F02",
+      "kind": "drawer",
+      "created": true
+    },
+    {
+      "id": "6a6bdef6-6fd1-4d1f-9d46-b3c5f8a66f01",
+      "code": "DEMO-SPATIAL-DRAWER-G01",
+      "kind": "drawer",
+      "created": true
+    },
+    {
+      "id": "415f9770-685a-450c-b776-821228f6d030",
+      "code": "DEMO-SPATIAL-DRAWER-G02",
+      "kind": "drawer",
+      "created": true
+    },
+    {
+      "id": "e0df5ce2-27d3-457d-80c9-13867dce5f7a",
+      "code": "DEMO-SPATIAL-BIN-OB-A01",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "4e13fc31-61d6-4a17-a035-cdadacd91fe6",
+      "code": "DEMO-SPATIAL-BIN-OB-A02",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "292bd6c7-ee16-451b-8a05-ea6b3b7149c2",
+      "code": "DEMO-SPATIAL-BIN-OB-A03",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "5a7b4b26-14e7-4547-bfc4-c6a9780979c2",
+      "code": "DEMO-SPATIAL-BIN-OB-A04",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "c94de86b-1ea5-4067-a7c1-5f3686da7b22",
+      "code": "DEMO-SPATIAL-BIN-OB-A05",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "c8e5c147-b755-4816-a6db-a770ac4ce230",
+      "code": "DEMO-SPATIAL-BIN-OB-B01",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "3890dd22-591a-4bf9-a285-10ff94908837",
+      "code": "DEMO-SPATIAL-BIN-OB-B02",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "8c323172-35cf-44c8-ab4e-67f57b5ecda5",
+      "code": "DEMO-SPATIAL-BIN-OB-B03",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "5ec5b0b1-720d-451a-ac6b-b0f5e113c616",
+      "code": "DEMO-SPATIAL-BIN-OB-B04",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "c2998828-29fa-4584-9d54-b770a98f931f",
+      "code": "DEMO-SPATIAL-BIN-OB-B05",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "816651d8-a2db-4f83-ac5a-6f42eb385c1b",
+      "code": "DEMO-SPATIAL-BIN-OB-C01",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "04b114ca-edaa-4875-add4-7aea33bd37ee",
+      "code": "DEMO-SPATIAL-BIN-OB-C02",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "974b0cba-72f8-4ebc-9ccc-3a275fcb17f7",
+      "code": "DEMO-SPATIAL-BIN-OB-C03",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "5a56504b-dfca-4ad0-bbda-44e6bc4d7b29",
+      "code": "DEMO-SPATIAL-BIN-OB-C04",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "c446c502-e848-4dda-82b4-fe3cad46cc51",
+      "code": "DEMO-SPATIAL-BIN-OB-C05",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "38a2d33a-0dda-4ac0-bbee-ef1381d064b2",
+      "code": "DEMO-SPATIAL-RACK-L1B1",
       "kind": "shelf",
       "created": true
     },
     {
-      "id": "2a9f2247-363a-4905-972b-9c2521e83309",
-      "code": "DEMO-SPATIAL-SHELF-C02",
+      "id": "7f976669-bb56-4939-b61b-86aebfc0355e",
+      "code": "DEMO-SPATIAL-RACK-L1B2",
       "kind": "shelf",
       "created": true
     },
     {
-      "id": "83987176-996b-4bee-af8f-7ff1e30fabca",
-      "code": "DEMO-SPATIAL-SHELF-C03",
+      "id": "b9cde703-09c8-4ac6-ac75-d979b1deff64",
+      "code": "DEMO-SPATIAL-RACK-L2B1",
+      "kind": "shelf",
+      "created": true
+    },
+    {
+      "id": "d7d3ddae-fac2-4529-85d2-8b6c532a4383",
+      "code": "DEMO-SPATIAL-RACK-L2B2",
+      "kind": "shelf",
+      "created": true
+    },
+    {
+      "id": "e61cec1e-1782-4146-867a-667b88c293ef",
+      "code": "DEMO-SPATIAL-RACK-L3B1",
+      "kind": "shelf",
+      "created": true
+    },
+    {
+      "id": "598005d2-555a-486f-a498-03d48a3a82c5",
+      "code": "DEMO-SPATIAL-RACK-L3B2",
+      "kind": "shelf",
+      "created": true
+    },
+    {
+      "id": "74802c52-a160-4ad9-a423-9324712141ca",
+      "code": "DEMO-SPATIAL-TRAY-A01",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "2d7e16b9-b5c9-41e1-9729-bb24d65da802",
+      "code": "DEMO-SPATIAL-TRAY-A02",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "449937a4-4668-484c-b7d9-90124c679701",
+      "code": "DEMO-SPATIAL-TRAY-A03",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "20ea7483-6838-4191-a633-c4e55cc70f62",
+      "code": "DEMO-SPATIAL-TRAY-A04",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "9d3a10f9-f580-4253-8585-7baf332c83e1",
+      "code": "DEMO-SPATIAL-TRAY-B01",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "9fb7cfb5-fe05-4ca0-889e-cc94d5bb7fc7",
+      "code": "DEMO-SPATIAL-TRAY-B02",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "bdb63623-2497-4e22-a86f-6c5622460cc3",
+      "code": "DEMO-SPATIAL-TRAY-B03",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "b1c790a8-1132-4a8c-b048-549008fc3907",
+      "code": "DEMO-SPATIAL-TRAY-B04",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "74986e2e-4ad3-44fa-bea1-824ca80f7c4d",
+      "code": "DEMO-SPATIAL-TRAY-C01",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "ad1dbd33-a3fe-4aa5-afb4-da7da33211f6",
+      "code": "DEMO-SPATIAL-TRAY-C02",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "3ce9a24c-8c7c-4ceb-b11e-f5fba0ab6d02",
+      "code": "DEMO-SPATIAL-TRAY-C03",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "e28900cc-0efb-407c-824d-9b9f8fce21e9",
+      "code": "DEMO-SPATIAL-TRAY-C04",
+      "kind": "bin",
+      "created": true
+    },
+    {
+      "id": "c954dcd9-3a0c-43f0-8f72-84e7c632c950",
+      "code": "DEMO-SPATIAL-SHELF-L1",
+      "kind": "shelf",
+      "created": true
+    },
+    {
+      "id": "5a88fa8a-8add-4764-8e7e-dc4f5c4c5de9",
+      "code": "DEMO-SPATIAL-SHELF-L2",
+      "kind": "shelf",
+      "created": true
+    },
+    {
+      "id": "0008358c-9c4a-4cc5-a00e-4a9da29d76ef",
+      "code": "DEMO-SPATIAL-SHELF-L3",
       "kind": "shelf",
       "created": true
     }
   ],
+  "layouts": [
+    {
+      "id": "0a6974a1-f3df-4b76-a2ea-b2e63d8c9e40",
+      "code": "DEMO-SPATIAL-LAYOUT-WAREHOUSE",
+      "parentLocationCode": "DEMO-SPATIAL-WAREHOUSE",
+      "templateType": "PALLET_RACK",
+      "status": "PUBLISHED",
+      "revision": 2,
+      "created": true,
+      "publishedNow": true,
+      "archivedNow": false
+    },
+    {
+      "id": "f427da04-1b2e-4960-80a9-35b91ac491a4",
+      "code": "DEMO-SPATIAL-LAYOUT-CAB-A",
+      "parentLocationCode": "DEMO-SPATIAL-CABINET-A",
+      "templateType": "SMD_DRAWER_CABINET",
+      "status": "PUBLISHED",
+      "revision": 2,
+      "created": true,
+      "publishedNow": true,
+      "archivedNow": false
+    },
+    {
+      "id": "0f183cb9-3ec7-434b-91ea-b6b85af5ca90",
+      "code": "DEMO-SPATIAL-LAYOUT-CAB-B",
+      "parentLocationCode": "DEMO-SPATIAL-CABINET-B",
+      "templateType": "SMD_DRAWER_CABINET",
+      "status": "PUBLISHED",
+      "revision": 2,
+      "created": true,
+      "publishedNow": true,
+      "archivedNow": false
+    },
+    {
+      "id": "33fc3186-510f-409f-a65f-f0ef3629963b",
+      "code": "DEMO-SPATIAL-LAYOUT-CAB-C",
+      "parentLocationCode": "DEMO-SPATIAL-CABINET-C",
+      "templateType": "SMD_DRAWER_CABINET",
+      "status": "DRAFT",
+      "revision": 1,
+      "created": true,
+      "publishedNow": false,
+      "archivedNow": false
+    },
+    {
+      "id": "a6adb2e7-7425-477a-ac4e-86b4e266bf30",
+      "code": "DEMO-SPATIAL-LAYOUT-OPEN-BINS",
+      "parentLocationCode": "DEMO-SPATIAL-OPEN-BINS",
+      "templateType": "OPEN_BIN_MATRIX",
+      "status": "PUBLISHED",
+      "revision": 2,
+      "created": true,
+      "publishedNow": true,
+      "archivedNow": false
+    },
+    {
+      "id": "b3dd4a0c-8fea-4d12-93fc-88d2dbe44ef1",
+      "code": "DEMO-SPATIAL-LAYOUT-RACK",
+      "parentLocationCode": "DEMO-SPATIAL-RACK",
+      "templateType": "PALLET_RACK",
+      "status": "PUBLISHED",
+      "revision": 2,
+      "created": true,
+      "publishedNow": true,
+      "archivedNow": false
+    },
+    {
+      "id": "a3ceecb3-5e06-497a-be2a-6243d60f0e24",
+      "code": "DEMO-SPATIAL-LAYOUT-TRAY",
+      "parentLocationCode": "DEMO-SPATIAL-TRAY",
+      "templateType": "GRID_PARTS_TRAY",
+      "status": "ARCHIVED",
+      "revision": 3,
+      "created": true,
+      "publishedNow": true,
+      "archivedNow": true
+    }
+  ],
   "nodes": [
     {
-      "id": "8808151e-05a1-4fac-b864-ab5f9784b53d",
-      "locationId": "b59aa642-0133-4939-8dd0-bf598c481ff7",
-      "locationCode": "DEMO-SPATIAL-CABINET-A",
-      "created": true
-    },
-    {
-      "id": "45cda068-6748-432f-8c93-e77b070dc933",
-      "locationId": "40653379-a7c5-4f6c-8bdb-aa0930739bf9",
-      "locationCode": "DEMO-SPATIAL-DRAWER-A01",
-      "created": true
-    },
-    {
-      "id": "9f1ffa4a-5274-4ca3-8e18-5e132fa7c6fa",
-      "locationId": "879a32be-6fc5-4042-b44f-c8fdb77ff5c3",
+      "id": "8140f43c-696e-4243-80f9-5c099711b6db",
+      "locationId": "6d7469ce-bae7-413b-a107-3a9ee86530cf",
       "locationCode": "DEMO-SPATIAL-BIN-A01-01",
+      "anchorCode": "BIN01",
       "created": true
     },
     {
-      "id": "65820819-b0fe-4e35-8611-90ad8f070057",
-      "locationId": "3cfa85a1-1d88-4106-80ad-b2bdac31980e",
+      "id": "7bcbe841-b23c-43df-804f-dd4fc3edfb62",
+      "locationId": "e63a1393-6be0-48ca-9f38-65a199d88436",
       "locationCode": "DEMO-SPATIAL-BIN-A01-02",
-      "created": true
-    },
-    {
-      "id": "e7516297-0640-49e9-b0f6-0699b4aa3d05",
-      "locationId": "302ccd34-4312-44d1-a025-fa3a4dde9c29",
-      "locationCode": "DEMO-SPATIAL-DRAWER-A02",
-      "created": true
-    },
-    {
-      "id": "5cfd00e7-80e9-4998-80df-c7cb72386463",
-      "locationId": "afa8e807-513c-4086-81e8-7577c067780e",
-      "locationCode": "DEMO-SPATIAL-BIN-A02-01",
-      "created": true
-    },
-    {
-      "id": "e00dcaaa-1963-4810-93a4-2318b3da4531",
-      "locationId": "0750d636-adaa-4517-8de5-0dae899f1a6e",
-      "locationCode": "DEMO-SPATIAL-BIN-A02-02",
-      "created": true
-    },
-    {
-      "id": "a9b95b09-6783-4c7b-8bf3-6f37fa6d77bd",
-      "locationId": "b2ba9efa-f3dd-4a0c-a556-751742c96241",
-      "locationCode": "DEMO-SPATIAL-DRAWER-A03",
-      "created": true
-    },
-    {
-      "id": "b0c5f524-9388-4a76-bb68-e9a34595aa62",
-      "locationId": "ac942318-4092-4dfa-9d80-750cc928ef02",
-      "locationCode": "DEMO-SPATIAL-DRAWER-A04",
-      "created": true
-    },
-    {
-      "id": "5378a073-fbd0-46ab-a6e7-cc5034190006",
-      "locationId": "f513ec10-0b6c-4337-bd13-60fb31f1876d",
-      "locationCode": "DEMO-SPATIAL-DRAWER-A05",
-      "created": true
-    },
-    {
-      "id": "24477dc8-be0c-43bd-841b-777f0f1b225a",
-      "locationId": "92fa8f70-bee7-45bf-b08f-f558f87758e3",
-      "locationCode": "DEMO-SPATIAL-CABINET-B",
-      "created": true
-    },
-    {
-      "id": "e65ac990-091e-4f13-bc13-a1bda8d4d776",
-      "locationId": "34cafef2-641c-4c00-9574-dcfa8bc6018b",
-      "locationCode": "DEMO-SPATIAL-DRAWER-B01",
-      "created": true
-    },
-    {
-      "id": "53b1d1cf-2989-41fe-9757-ab2014d38e56",
-      "locationId": "d167774e-e596-4297-904b-ab8bf9cdc543",
-      "locationCode": "DEMO-SPATIAL-DRAWER-B02",
-      "created": true
-    },
-    {
-      "id": "4c35001b-775f-469b-8c3d-1800e6c05964",
-      "locationId": "3e7fdf73-8e7d-4baf-888f-1e80eb23cf74",
-      "locationCode": "DEMO-SPATIAL-SHELF-C",
-      "created": true
-    },
-    {
-      "id": "ec4af711-a667-4245-b7b4-9eafb02f1d98",
-      "locationId": "c8c61194-f362-4e1b-80e1-161be92ec958",
-      "locationCode": "DEMO-SPATIAL-SHELF-C01",
-      "created": true
-    },
-    {
-      "id": "51048fa6-518f-4e20-97b9-f9c84c2c3325",
-      "locationId": "43867afc-34a5-46c1-b211-81f0dbc33130",
-      "locationCode": "DEMO-SPATIAL-SHELF-C02",
-      "created": true
-    },
-    {
-      "id": "33a4be83-0b4c-4c3f-a4b2-e5a4c899aa36",
-      "locationId": "151c14eb-bc01-4ec9-b5f3-0e7e768084e5",
-      "locationCode": "DEMO-SPATIAL-CABINET-A",
-      "created": true
-    },
-    {
-      "id": "db02c026-e591-4f59-abf6-db7528217509",
-      "locationId": "2b54d85f-5a48-4b8d-ad13-bf05ad7b3a7b",
-      "locationCode": "DEMO-SPATIAL-DRAWER-A01",
-      "created": true
-    },
-    {
-      "id": "14864572-9d06-46a5-9850-5835ca3ca37b",
-      "locationId": "27fd8258-e9c1-4d5e-ae29-d1521890da17",
-      "locationCode": "DEMO-SPATIAL-BIN-A01-01",
-      "created": true
-    },
-    {
-      "id": "cf9b5417-16f2-4a88-9b7e-f12b166b6de1",
-      "locationId": "853d8ca1-4918-4f66-ac41-fb66aeaa5343",
-      "locationCode": "DEMO-SPATIAL-BIN-A01-02",
-      "created": true
-    },
-    {
-      "id": "90e713dd-1983-40da-87c3-76df2e97c629",
-      "locationId": "b21cf695-c20c-41f5-9292-4817b525f89c",
-      "locationCode": "DEMO-SPATIAL-DRAWER-A02",
-      "created": true
-    },
-    {
-      "id": "9d662fd8-f5de-45e4-8dc0-8327e970f77a",
-      "locationId": "eb0241ca-75e2-4a5c-b33d-a73d9f317e5e",
-      "locationCode": "DEMO-SPATIAL-BIN-A02-01",
-      "created": true
-    },
-    {
-      "id": "a37d393a-1fe7-4fe3-93a0-389136bcf10c",
-      "locationId": "a43d80a0-4df8-4ef9-9a70-69a25e715bbe",
-      "locationCode": "DEMO-SPATIAL-BIN-A02-02",
-      "created": true
-    },
-    {
-      "id": "cb42962f-5266-4492-87f6-f83fba4187da",
-      "locationId": "54ba201f-18de-4e09-b0dc-15a374f23951",
-      "locationCode": "DEMO-SPATIAL-DRAWER-A03",
-      "created": true
-    },
-    {
-      "id": "e33b3f3e-e894-4ef5-9978-c44e0c3df3e8",
-      "locationId": "5cfa2049-e8bc-46e7-b8c1-90c88875d646",
-      "locationCode": "DEMO-SPATIAL-DRAWER-A04",
-      "created": true
-    },
-    {
-      "id": "cf1e4df6-6fe2-4084-9a49-2d66cd999890",
-      "locationId": "e32c02ca-15a5-473e-a429-921c6f2ec29b",
-      "locationCode": "DEMO-SPATIAL-DRAWER-A05",
-      "created": true
-    },
-    {
-      "id": "c5963e98-57ea-4b04-96e3-8f7d202131b2",
-      "locationId": "5887d29e-dcd5-41d5-b887-ba33e076f3f9",
-      "locationCode": "DEMO-SPATIAL-CABINET-B",
-      "created": true
-    },
-    {
-      "id": "0dae271a-f819-4c24-a0eb-0fc00b823211",
-      "locationId": "885ba29a-5b82-42b3-87a5-3fdcd10a19f3",
-      "locationCode": "DEMO-SPATIAL-DRAWER-B01",
-      "created": true
-    },
-    {
-      "id": "f7da8bab-2b5d-4af6-9afb-bc1490fbc1d2",
-      "locationId": "c8d04c6c-1213-47a1-8028-219bc81f4ef4",
-      "locationCode": "DEMO-SPATIAL-DRAWER-B02",
-      "created": true
-    },
-    {
-      "id": "57de7ed2-53b1-41d2-b5d7-42f63e2b247b",
-      "locationId": "c4bc224c-99be-4ef2-acb5-c8175ab7123a",
-      "locationCode": "DEMO-SPATIAL-SHELF-C",
-      "created": true
-    },
-    {
-      "id": "461acc25-c145-402c-b77d-2ad1d5d1af5f",
-      "locationId": "746631af-55d1-4736-af5b-39e040816668",
-      "locationCode": "DEMO-SPATIAL-SHELF-C01",
-      "created": true
-    },
-    {
-      "id": "7c221dae-e788-460f-beba-75b582c029e9",
-      "locationId": "2a9f2247-363a-4905-972b-9c2521e83309",
-      "locationCode": "DEMO-SPATIAL-SHELF-C02",
+      "anchorCode": "BIN02",
       "created": true
     }
   ],
   "components": [
     {
-      "id": "9ab77da0-8426-48ac-bdbc-e9d9c4b30c0d",
+      "id": "31c0cf11-6e6a-4107-aa03-868b0b1513c2",
       "sku": "DEMO-R-10K-0805",
       "created": true
     },
     {
-      "id": "9a7eff26-6b40-4180-b16f-b23daf806923",
+      "id": "af337589-8cdc-4a25-99e4-95bdfb650e4d",
       "sku": "DEMO-C-100N-0805",
       "created": true
     },
     {
-      "id": "15d5708c-1368-4cbd-aa32-712bf67a8966",
+      "id": "7b773513-3795-462b-872f-251ffeb3f53d",
       "sku": "DEMO-R-100K-0603",
       "created": true
     },
     {
-      "id": "36cb3f1a-04f4-46d4-b87b-9176d3ff3227",
+      "id": "57b8fcc4-5377-4033-b038-d83a8b42a24c",
       "sku": "DEMO-LED-GREEN-0805",
       "created": true
     },
     {
-      "id": "f20176d7-5461-4a48-a2a3-3b03e62f4a36",
+      "id": "5dda4e33-b069-4705-8c67-f4ca310dd6d1",
       "sku": "DEMO-IC-ATTINY",
       "created": true
     },
     {
-      "id": "b0a6b146-cacf-48e0-ae79-aac0aaf922f8",
+      "id": "54f1fe61-c5fd-4962-bb7c-66496628a320",
       "sku": "DEMO-CONN-JST",
       "created": true
     },
     {
-      "id": "d3eccc9e-6811-4d97-8419-468bea567500",
-      "sku": "DEMO-R-10K-0805",
-      "created": true
-    },
-    {
-      "id": "e5459725-2b09-4986-bf7c-15a314130616",
-      "sku": "DEMO-C-100N-0805",
-      "created": true
-    },
-    {
-      "id": "c18f20ed-18c2-4dc5-a081-6a7fd6473157",
-      "sku": "DEMO-R-100K-0603",
-      "created": true
-    },
-    {
-      "id": "dc100707-639a-4727-b404-bd6894eab2db",
-      "sku": "DEMO-LED-GREEN-0805",
-      "created": true
-    },
-    {
-      "id": "de05cf0a-619a-4437-9968-d37c0c26e53a",
-      "sku": "DEMO-IC-ATTINY",
-      "created": true
-    },
-    {
-      "id": "bb98f202-7097-4930-b371-3644c412de7f",
-      "sku": "DEMO-CONN-JST",
+      "id": "8df91a98-caa2-457c-8e5f-120d67be47c6",
+      "sku": "DEMO-FAST-M3",
       "created": true
     }
   ],
   "transactions": [
     {
-      "id": "2e739547-8d0a-452b-98d5-cce2a28e43c7",
+      "id": "84a4d1a1-53c2-434b-a96b-59a7cd91443e",
       "reference": "DEMO-TX-INIT-001",
-      "componentId": "9ab77da0-8426-48ac-bdbc-e9d9c4b30c0d",
-      "locationId": "879a32be-6fc5-4042-b44f-c8fdb77ff5c3",
+      "componentId": "31c0cf11-6e6a-4107-aa03-868b0b1513c2",
+      "locationId": "6d7469ce-bae7-413b-a107-3a9ee86530cf",
       "quantity": 5000,
       "created": true
     },
     {
-      "id": "3f7d0a18-e473-4aa0-910b-2f57c9b005bf",
+      "id": "01e0d911-17ba-4103-9e9b-299bc69d2c6f",
       "reference": "DEMO-TX-INIT-002",
-      "componentId": "9a7eff26-6b40-4180-b16f-b23daf806923",
-      "locationId": "3cfa85a1-1d88-4106-80ad-b2bdac31980e",
+      "componentId": "af337589-8cdc-4a25-99e4-95bdfb650e4d",
+      "locationId": "e63a1393-6be0-48ca-9f38-65a199d88436",
       "quantity": 3000,
       "created": true
     },
     {
-      "id": "32e6d039-ba34-4885-be73-3b842df2a43f",
+      "id": "49ec15f7-17ae-48cc-8e98-a53e8feced67",
       "reference": "DEMO-TX-INIT-003",
-      "componentId": "15d5708c-1368-4cbd-aa32-712bf67a8966",
-      "locationId": "afa8e807-513c-4086-81e8-7577c067780e",
+      "componentId": "7b773513-3795-462b-872f-251ffeb3f53d",
+      "locationId": "17efe33f-9985-4338-8343-6b076bc4c11f",
       "quantity": 2500,
       "created": true
     },
     {
-      "id": "d64245fb-5fef-410a-b7ba-56d6ae9cadeb",
+      "id": "37cb65d3-84c6-4f90-9382-ca931efc95ca",
       "reference": "DEMO-TX-INIT-004",
-      "componentId": "36cb3f1a-04f4-46d4-b87b-9176d3ff3227",
-      "locationId": "0750d636-adaa-4517-8de5-0dae899f1a6e",
+      "componentId": "57b8fcc4-5377-4033-b038-d83a8b42a24c",
+      "locationId": "1b733a04-4b55-4cdf-82cc-2e8eddafda75",
       "quantity": 1000,
       "created": true
     },
     {
-      "id": "71c4126d-b1f6-418f-b46d-eb49756345e5",
+      "id": "7723f6b6-7394-4d2c-9369-021377c03bcc",
       "reference": "DEMO-TX-INIT-005",
-      "componentId": "9ab77da0-8426-48ac-bdbc-e9d9c4b30c0d",
-      "locationId": "34cafef2-641c-4c00-9574-dcfa8bc6018b",
-      "quantity": 2000,
-      "created": true
-    },
-    {
-      "id": "6062b344-a130-4881-8efc-7a2752f79c3b",
-      "reference": "DEMO-TX-INIT-006",
-      "componentId": "f20176d7-5461-4a48-a2a3-3b03e62f4a36",
-      "locationId": "eb0f9c56-c74f-44e8-92ee-68ba65509690",
+      "componentId": "5dda4e33-b069-4705-8c67-f4ca310dd6d1",
+      "locationId": "7ccc40cf-2339-4feb-8f2c-7bad2c751416",
       "quantity": 50,
       "created": true
     },
     {
-      "id": "1a59d3d1-2466-4f90-9247-a603ab7c732a",
-      "reference": "DEMO-TX-INIT-007",
-      "componentId": "b0a6b146-cacf-48e0-ae79-aac0aaf922f8",
-      "locationId": "c8c61194-f362-4e1b-80e1-161be92ec958",
+      "id": "43821a9b-505f-4fd6-870e-29a1fcd876da",
+      "reference": "DEMO-TX-INIT-006",
+      "componentId": "54f1fe61-c5fd-4962-bb7c-66496628a320",
+      "locationId": "38a2d33a-0dda-4ac0-bbee-ef1381d064b2",
       "quantity": 500,
       "created": true
     },
     {
-      "id": "504043f3-4e1f-40b8-ad5b-15f18ba268d5",
-      "reference": "DEMO-TX-INIT-001",
-      "componentId": "d3eccc9e-6811-4d97-8419-468bea567500",
-      "locationId": "27fd8258-e9c1-4d5e-ae29-d1521890da17",
-      "quantity": 5000,
+      "id": "1845c2ce-776f-4061-8e77-0b2a2d5ad7fd",
+      "reference": "DEMO-TX-INIT-007",
+      "componentId": "8df91a98-caa2-457c-8e5f-120d67be47c6",
+      "locationId": "5a88fa8a-8add-4764-8e7e-dc4f5c4c5de9",
+      "quantity": 1200,
       "created": true
     },
     {
-      "id": "231cb016-5f44-4a24-b6ad-4a47f40bba3c",
-      "reference": "DEMO-TX-INIT-002",
-      "componentId": "e5459725-2b09-4986-bf7c-15a314130616",
-      "locationId": "853d8ca1-4918-4f66-ac41-fb66aeaa5343",
-      "quantity": 3000,
-      "created": true
-    },
-    {
-      "id": "be094c80-5524-422a-b853-b34263d34f80",
-      "reference": "DEMO-TX-INIT-003",
-      "componentId": "c18f20ed-18c2-4dc5-a081-6a7fd6473157",
-      "locationId": "eb0241ca-75e2-4a5c-b33d-a73d9f317e5e",
-      "quantity": 2500,
-      "created": true
-    },
-    {
-      "id": "6b76d068-519b-4d6e-a997-f4aa5d7b0e1f",
-      "reference": "DEMO-TX-INIT-004",
-      "componentId": "dc100707-639a-4727-b404-bd6894eab2db",
-      "locationId": "a43d80a0-4df8-4ef9-9a70-69a25e715bbe",
-      "quantity": 1000,
-      "created": true
-    },
-    {
-      "id": "e0365993-4a5b-40ad-a2ee-f80e23812b56",
-      "reference": "DEMO-TX-INIT-005",
-      "componentId": "d3eccc9e-6811-4d97-8419-468bea567500",
-      "locationId": "885ba29a-5b82-42b3-87a5-3fdcd10a19f3",
+      "id": "f6a72793-badd-4b48-bc3d-04af2685c1f2",
+      "reference": "DEMO-TX-INIT-008",
+      "componentId": "31c0cf11-6e6a-4107-aa03-868b0b1513c2",
+      "locationId": "49bab41a-739e-4526-bba4-619ebb17b4ab",
       "quantity": 2000,
       "created": true
     },
     {
-      "id": "ccaa2791-5782-4877-97a4-eb12c17cc400",
-      "reference": "DEMO-TX-INIT-006",
-      "componentId": "de05cf0a-619a-4437-9968-d37c0c26e53a",
-      "locationId": "ee7db153-a353-4efa-9345-b892584900d0",
-      "quantity": 50,
-      "created": true
-    },
-    {
-      "id": "3fd600fc-94a9-485e-8b72-ac7f0022e73d",
-      "reference": "DEMO-TX-INIT-007",
-      "componentId": "bb98f202-7097-4930-b371-3644c412de7f",
-      "locationId": "746631af-55d1-4736-af5b-39e040816668",
-      "quantity": 500,
+      "id": "acc9ca0e-beeb-4710-a197-25f2dcfb98e5",
+      "reference": "DEMO-TX-INIT-009",
+      "componentId": "af337589-8cdc-4a25-99e4-95bdfb650e4d",
+      "locationId": "c8e5c147-b755-4816-a6db-a770ac4ce230",
+      "quantity": 800,
       "created": true
     }
   ]

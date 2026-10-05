@@ -1,7 +1,13 @@
 import type { LocationDto } from "../api/locations-api";
 import type { SpatialNodeDto } from "../api/spatial-api";
+import type { SpatialLayoutDto } from "../api/spatial-layouts-api";
+import {
+  computeSpatialMappingStatus,
+  type SpatialContainerStatus,
+  type SpatialMappingStatus,
+} from "@ananya/inventory";
 
-export type SpatialMappingStatus = "MAPPED" | "PARTIAL" | "UNMAPPED";
+export type { SpatialMappingStatus, SpatialContainerStatus };
 
 export interface LocationTreeNode {
   id: string;
@@ -13,6 +19,10 @@ export interface LocationTreeNode {
   hasSpatialNode: boolean;
   spatialNodeId?: string;
   status: SpatialMappingStatus;
+  /** A parent exists, so this location can be placed inside a parent frame. */
+  isMappingEligible: boolean;
+  /** State of this location's own layout (the container it configures). */
+  containerStatus: SpatialContainerStatus;
   mappedChildrenCount: number;
   totalChildrenCount: number;
   children: LocationTreeNode[];
@@ -23,20 +33,44 @@ export interface HierarchyStats {
   mappedCount: number;
   unmappedCount: number;
   partialCount: number;
+  /**
+   * Top-level facilities without a spatial node. They are not mapping
+   * candidates (no parent frame exists), so they are reported separately
+   * instead of inflating the unmapped count.
+   */
+  rootCount: number;
 }
 
 /**
- * Builds an authoritative hierarchical tree from a flat list of locations and spatial nodes.
- * Accurately determines whether each node is Mapped (has SpatialNode),
- * Partial (has SpatialNode, but some children unmapped), or Unmapped (no SpatialNode).
+ * Builds the authoritative hierarchical tree from a flat list of locations,
+ * spatial nodes, and spatial layouts.
+ *
+ * Status semantics are defined once in `computeSpatialMappingStatus`
+ * (@ananya/inventory): MAPPED (node + all direct children placed), PARTIAL
+ * (node + some children unplaced), UNMAPPED (no node, but has a parent), and
+ * ROOT (no node and no parent — a top-level facility, not a missing mapping).
+ * Container configuration is reported separately from placement so a location
+ * that configures its children through a layout is never shown as bare
+ * "unmapped".
  */
 export function buildLocationTree(
   locations: LocationDto[],
   nodes: SpatialNodeDto[],
+  layouts: SpatialLayoutDto[] = [],
 ): LocationTreeNode[] {
   const nodeMap = new Map<string, SpatialNodeDto>();
   for (const node of nodes) {
     nodeMap.set(node.locationId, node);
+  }
+
+  const layoutStatusesByParent = new Map<
+    string,
+    SpatialLayoutDto["status"][]
+  >();
+  for (const layout of layouts) {
+    const statuses = layoutStatusesByParent.get(layout.parentLocationId) ?? [];
+    statuses.push(layout.status);
+    layoutStatusesByParent.set(layout.parentLocationId, statuses);
   }
 
   // Group children by parentId
@@ -66,18 +100,13 @@ export function buildLocationTree(
         (c) => c.hasSpatialNode,
       ).length;
 
-      let status: SpatialMappingStatus;
-      if (!hasSpatialNode) {
-        // Even if an ancestor has a spatial node, the location itself is unmapped
-        status = "UNMAPPED";
-      } else if (
-        totalChildrenCount > 0 &&
-        mappedChildrenCount < totalChildrenCount
-      ) {
-        status = "PARTIAL";
-      } else {
-        status = "MAPPED";
-      }
+      const mapping = computeSpatialMappingStatus({
+        parentId: loc.parentId,
+        hasSpatialNode,
+        directChildCount: totalChildrenCount,
+        mappedDirectChildCount: mappedChildrenCount,
+        layoutStatuses: layoutStatusesByParent.get(loc.id) ?? [],
+      });
 
       return {
         id: loc.id,
@@ -88,7 +117,9 @@ export function buildLocationTree(
         isActive: loc.isActive,
         hasSpatialNode,
         spatialNodeId: spatialNode?.id,
-        status,
+        status: mapping.status,
+        isMappingEligible: mapping.isMappingEligible,
+        containerStatus: mapping.containerStatus,
         mappedChildrenCount,
         totalChildrenCount,
         children: childTreeNodes,
@@ -183,10 +214,7 @@ export function calculateHierarchyStats(
   nodes: SpatialNodeDto[],
 ): HierarchyStats {
   const nodeLocationIds = new Set(nodes.map((n) => n.locationId));
-  const mappedCount = locations.filter((l) => nodeLocationIds.has(l.id)).length;
-  const unmappedCount = locations.length - mappedCount;
 
-  // Partial: location has spatial node, has children, and at least 1 child is unmapped
   const childrenMap = new Map<string, string[]>();
   for (const l of locations) {
     if (l.parentId) {
@@ -196,16 +224,33 @@ export function calculateHierarchyStats(
     }
   }
 
+  // Count through the same authoritative status derivation as the tree, so
+  // the KPI strip can never disagree with the badges below it.
+  let mappedCount = 0;
+  let unmappedCount = 0;
+  let rootCount = 0;
   let partialCount = 0;
-  for (const l of locations) {
-    if (nodeLocationIds.has(l.id)) {
-      const childIds = childrenMap.get(l.id) || [];
-      if (childIds.length > 0) {
-        const unmappedChildren = childIds.filter((cid) => !nodeLocationIds.has(cid));
-        if (unmappedChildren.length > 0) {
-          partialCount++;
-        }
-      }
+
+  for (const location of locations) {
+    const childIds = childrenMap.get(location.id) || [];
+    const mapping = computeSpatialMappingStatus({
+      parentId: location.parentId,
+      hasSpatialNode: nodeLocationIds.has(location.id),
+      directChildCount: childIds.length,
+      mappedDirectChildCount: childIds.filter((childId) =>
+        nodeLocationIds.has(childId),
+      ).length,
+    });
+
+    if (mapping.status === "MAPPED") {
+      mappedCount++;
+    } else if (mapping.status === "PARTIAL") {
+      mappedCount++;
+      partialCount++;
+    } else if (mapping.status === "UNMAPPED") {
+      unmappedCount++;
+    } else {
+      rootCount++;
     }
   }
 
@@ -214,6 +259,7 @@ export function calculateHierarchyStats(
     mappedCount,
     unmappedCount,
     partialCount,
+    rootCount,
   };
 }
 

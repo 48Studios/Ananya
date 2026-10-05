@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
-import { NAV_TOKENS, NAV_WIDTHS_PX } from "./tokens";
+import { NAV_TOKENS, NAV_WIDTHS_PX, SHELL_HEIGHTS_PX } from "./tokens";
 
 /**
  * The navigation widths exist twice on purpose: as Tailwind classes (what the
@@ -72,5 +72,39 @@ describe("content area offset", () => {
     expect(read("components/dashboard-layout.tsx")).toContain(
       'className="hidden md:block print:hidden"',
     );
+  });
+});
+
+describe("shell height tokens", () => {
+  it("keeps the numeric heights in step with the classes that render them", () => {
+    // The header class and the footer class are the on-screen source of truth;
+    // the numbers exist only so `fixed` overlays can reserve the bands.
+    expect(NAV_TOKENS.HEADER_HEIGHT).toContain(
+      `min-h-[${SHELL_HEIGHTS_PX.HEADER}px]`,
+    );
+    expect(NAV_TOKENS.HEADER_HEIGHT).toContain("h-14");
+    expect(read("components/app-footer.tsx")).toContain("h-14");
+    expect(SHELL_HEIGHTS_PX.FOOTER).toBe(SHELL_HEIGHTS_PX.HEADER);
+  });
+
+  it("is published by the layout for viewport-constrained overlays", () => {
+    const layout = read("components/dashboard-layout.tsx");
+    expect(layout).toContain('"--app-header-height"');
+    expect(layout).toContain('"--app-footer-height"');
+    expect(layout).toContain("SHELL_HEIGHTS_PX.HEADER");
+    expect(layout).toContain("SHELL_HEIGHTS_PX.FOOTER");
+  });
+
+  it("is consumed by the spatial detail inspector", () => {
+    // The inspector must reserve the header and footer bands rather than
+    // guessing its own viewport arithmetic, and the anchored placement must be
+    // bounded by the spatial viewport instead of the page.
+    const hook = read("lib/spatial/use-anchored-inspector.ts");
+    expect(hook).toContain("--app-header-height");
+    expect(hook).toContain("--app-footer-height");
+    const view = read("components/spatial/spatial-view.tsx");
+    expect(view).toContain("useAnchoredInspector({");
+    // The old canvas-relative cap must not come back for the inspector.
+    expect(view).not.toContain("sm:max-h-[min(640px,calc(100vh-10rem))]");
   });
 });

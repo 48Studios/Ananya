@@ -7,7 +7,7 @@ test.beforeEach(() => requireE2EAuth());
  * Phase 3.4.7 §2 — Inactive-parent publication UX, end to end in the browser.
  *
  * Flow: create draft + map + save (normal persistence) → deactivate the parent
- * via the supported location workflow (PATCH /inventory/locations/:id) → attempt publish
+ * via the supported location workflow (PUT /locations/:id) → attempt publish
  * → assert the API returns HTTP 422 { error: INACTIVE_LAYOUT_PARENT,
  * parentLocationId } → assert the distinct "Parent Location Inactive" dialog
  * names the parent → assert draft/mappings/revision/unsaved state preserved and
@@ -171,7 +171,7 @@ test.describe("Phase 3.4.7: Inactive-Parent Publication UX (browser + API)", () 
     );
 
     // 3. Deactivate the parent via the supported location workflow
-    // (PUT /inventory/locations/:id, the same route the Storage Locations UI uses;
+    // (PUT /locations/:id, the same route the Storage Locations UI uses;
     // Bearer auth, matching the web api-client).
     const deactivateRes = await request.put(
       `${API_BASE}/locations/${testParentId}`,
@@ -205,9 +205,8 @@ test.describe("Phase 3.4.7: Inactive-Parent Publication UX (browser + API)", () 
         (res) =>
           res
             .url()
-            .includes(
-              `/inventory/locations/spatial/layouts/${layoutId}/publish`,
-            ) && res.request().method() === "POST",
+            .includes(`/spatial/layouts/${layoutId}/publish`) &&
+          res.request().method() === "POST",
       ),
       page.getByRole("button", { name: "Publish Layout" }).click(),
     ]);

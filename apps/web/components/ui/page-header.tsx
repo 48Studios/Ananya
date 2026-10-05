@@ -45,6 +45,7 @@ export function PageHeader({
               className="shrink-0 print:hidden"
               aria-label={backTitle}
               title={backTitle}
+              nativeButton={false}
               render={<Link href={backHref} />}
             >
               <ArrowLeft className="size-4" />

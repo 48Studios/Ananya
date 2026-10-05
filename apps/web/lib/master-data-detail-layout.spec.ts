@@ -168,6 +168,48 @@ describe("Component Details remains the reference", () => {
   });
 });
 
+describe("Location Details uses one canonical section order", () => {
+  it("keeps the canonical order for every location, with or without data", () => {
+    const locationPage = FULL_PAGES.Location!;
+
+    const storageIndex = locationPage.indexOf("{storageSummary}");
+    const informationIndex = locationPage.indexOf("{locationInfoSection}");
+    const componentsIndex = locationPage.indexOf("{containingComponentsSection}");
+    const subLocationsIndex = locationPage.indexOf("{subLocationsSection}");
+
+    expect(storageIndex).toBeGreaterThan(-1);
+    expect(informationIndex).toBeGreaterThan(storageIndex);
+    expect(componentsIndex).toBeGreaterThan(informationIndex);
+    expect(subLocationsIndex).toBeGreaterThan(componentsIndex);
+
+    // The order is fixed: no branch may reorder the page when a location has
+    // children (or any other data difference).
+    expect(locationPage).not.toMatch(
+      /childLocations\.length > 0 \? \(\s*<>\s*\{subLocationsSection\}/,
+    );
+    // Each section is rendered exactly once.
+    expect(locationPage.match(/\{subLocationsSection\}/g) ?? []).toHaveLength(1);
+    expect(locationPage.match(/\{locationInfoSection\}/g) ?? []).toHaveLength(1);
+    expect(
+      locationPage.match(/\{containingComponentsSection\}/g) ?? [],
+    ).toHaveLength(1);
+  });
+
+  it("keeps empty sections inside their card with a one-line state", () => {
+    const locationPage = FULL_PAGES.Location!;
+
+    // The empty sub-locations card keeps its header and states the fact; it is
+    // not replaced by a placeholder that hides the section.
+    expect(locationPage).toContain(
+      "No sub-locations are nested under this location yet.",
+    );
+    expect(locationPage).toContain(
+      "No components are stored in this location. Inward stock using Goods",
+    );
+    expect(locationPage).not.toMatch(/border-dashed/);
+  });
+});
+
 describe("Location Details preserves component location provenance", () => {
   it("labels direct components and links inherited components to their relative path", () => {
     const locationPage = FULL_PAGES.Location;

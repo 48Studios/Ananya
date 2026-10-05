@@ -47,6 +47,19 @@ export interface SpatialLayoutWithMappings extends SpatialLayoutProps {
   mappings: SpatialLayoutMappingItem[];
 }
 
+/**
+ * A slot mapping together with the status of the layout that owns it.
+ *
+ * Answers "is this location mapped into a parent's layout, and is that mapping
+ * published, still a draft, or historical?" without loading every layout of
+ * every ancestor.
+ */
+export interface SpatialLayoutMappingWithStatus extends SpatialLayoutMappingItem {
+  layoutId: string;
+  layoutCode: string;
+  layoutStatus: SpatialLayoutStatus;
+}
+
 export interface SpatialLayoutRevisionRecordProps {
   id: string;
   layoutId: string;

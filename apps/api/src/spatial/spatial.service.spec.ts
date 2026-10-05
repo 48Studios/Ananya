@@ -23,6 +23,38 @@ import {
   InvalidSpatialAnchorCodeError,
 } from '@ananya/inventory';
 import type { InventoryProjectionsService } from '../inventory-projections/inventory-projections.service';
+import type { SpatialLayoutRepository } from '@ananya/inventory';
+import type { SpatialLayoutWithMappings } from '@ananya/inventory';
+
+function makePublishedLayout(
+  parentLocationId: string,
+): SpatialLayoutWithMappings {
+  return {
+    id: 'layout-published-1',
+    parentLocationId,
+    code: 'CAB-LAYOUT',
+    name: 'Cabinet layout',
+    description: null,
+    templateType: 'SMD_DRAWER_CABINET',
+    engineVersion: '1.0.0',
+    config: {
+      templateType: 'SMD_DRAWER_CABINET',
+      dimensions: { widthMm: 720, heightMm: 900, depthMm: 300 },
+      wallThicknessMm: 12,
+      rows: 2,
+      columns: 2,
+    },
+    revision: 3,
+    status: 'PUBLISHED',
+    totalCompartments: 4,
+    metadata: {},
+    createdBy: null,
+    updatedBy: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    mappings: [],
+  } as unknown as SpatialLayoutWithMappings;
+}
 
 function makeLocation(
   id: string,
@@ -48,6 +80,7 @@ describe('SpatialService', () => {
   let anchorRepo: jest.Mocked<SpatialAnchorRepository>;
   let nodeRepo: jest.Mocked<SpatialNodeRepository>;
   let locationRepo: jest.Mocked<LocationRepository>;
+  let layoutRepo: jest.Mocked<SpatialLayoutRepository>;
   let mockProjectionsService: {
     getByLocation: jest.Mock;
     getByComponent: jest.Mock;
@@ -78,7 +111,7 @@ describe('SpatialService', () => {
       findByLocationId: jest.fn(),
       findByParentId: jest.fn(),
       findByAnchorId: jest.fn().mockResolvedValue([]),
-      findMany: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
       save: jest.fn().mockImplementation((n) => Promise.resolve(n)),
       update: jest.fn().mockImplementation((n) => Promise.resolve(n)),
       delete: jest.fn().mockResolvedValue(undefined),
@@ -87,7 +120,7 @@ describe('SpatialService', () => {
     locationRepo = {
       findById: jest.fn(),
       findByCode: jest.fn(),
-      findByParentId: jest.fn(),
+      findByParentId: jest.fn().mockResolvedValue([]),
       findMany: jest.fn(),
       save: jest.fn(),
       update: jest.fn(),
@@ -100,11 +133,23 @@ describe('SpatialService', () => {
       getByComponent: jest.fn().mockResolvedValue([]),
     };
 
+    layoutRepo = {
+      findById: jest.fn(),
+      findAll: jest.fn().mockResolvedValue([]),
+      findByParentLocationId: jest.fn().mockResolvedValue([]),
+      findActiveByParentLocationId: jest.fn().mockResolvedValue(null),
+      findMappingsByLocationId: jest.fn().mockResolvedValue([]),
+      findRevisions: jest.fn().mockResolvedValue([]),
+      findRevisionByNumber: jest.fn().mockResolvedValue(null),
+      delete: jest.fn().mockResolvedValue(undefined),
+    };
+
     service = new SpatialService(
       modelRepo,
       anchorRepo,
       nodeRepo,
       locationRepo,
+      layoutRepo,
       mockProjectionsService as unknown as InventoryProjectionsService,
       (op) => op({ modelRepo, anchorRepo, nodeRepo }),
     );
@@ -524,6 +569,86 @@ describe('SpatialService', () => {
       expect(contextAny['projections']).toBeUndefined();
     });
 
+    it('reports a root facility as ROOT, never as an unmapped candidate', async () => {
+      const rootLoc = makeLocation('loc-root', 'WH-1', null);
+      locationRepo.findById.mockResolvedValue(rootLoc);
+      nodeRepo.findByLocationId.mockResolvedValue(null);
+      locationRepo.findByParentId.mockResolvedValue([]);
+      nodeRepo.findMany.mockResolvedValue([]);
+
+      const context = await service.getLocationSpatialContext(rootLoc.id);
+
+      expect(context.mapping.status).toBe('ROOT');
+      expect(context.mapping.isMappingEligible).toBe(false);
+      expect(context.mapping.containerStatus).toBe('NONE');
+      expect(context.mapping.publishedLayout).toBeNull();
+    });
+
+    it('exposes a published layout as the container frame without calling the location mapped', async () => {
+      const rootLoc = makeLocation('loc-root-2', 'WH-2', null);
+      const childLoc = makeLocation('loc-child-1', 'A01', rootLoc.id);
+      const publishedLayout = makePublishedLayout(rootLoc.id);
+
+      locationRepo.findById.mockResolvedValue(rootLoc);
+      nodeRepo.findByLocationId.mockResolvedValue(null);
+      locationRepo.findByParentId.mockResolvedValue([childLoc]);
+      nodeRepo.findMany.mockResolvedValue([
+        SpatialNode.create({ locationId: childLoc.id }),
+      ]);
+      layoutRepo.findByParentLocationId.mockResolvedValue([publishedLayout]);
+
+      const context = await service.getLocationSpatialContext(rootLoc.id);
+
+      expect(context.mapping.status).toBe('ROOT');
+      expect(context.mapping.containerStatus).toBe('PUBLISHED');
+      expect(context.mapping.publishedLayout?.id).toBe(publishedLayout.id);
+      expect(context.mapping.publishedLayout?.containerDimensionsMm).toEqual({
+        widthMm: 720,
+        heightMm: 900,
+        depthMm: 300,
+      });
+      expect(context.mapping.mappedDirectChildCount).toBe(1);
+      expect(context.mapping.directChildCount).toBe(1);
+    });
+
+    it('distinguishes a stale draft slot mapping from an operational published one', async () => {
+      const parentLoc = makeLocation('loc-parent-x', 'CAB-X', null);
+      const childLoc = makeLocation('loc-child-x', 'A01', parentLoc.id);
+
+      locationRepo.findById.mockResolvedValue(childLoc);
+      nodeRepo.findByLocationId.mockResolvedValue(null);
+      locationRepo.findByParentId.mockResolvedValue([]);
+      nodeRepo.findMany.mockResolvedValue([]);
+      layoutRepo.findMappingsByLocationId.mockResolvedValue([
+        {
+          id: 'mapping-1',
+          layoutId: 'layout-draft-1',
+          layoutCode: 'DRAFT-LAYOUT',
+          layoutStatus: 'DRAFT',
+          slotId: 'drawer_slot_r0_c0',
+          slotCode: 'A01',
+          locationId: childLoc.id,
+          logicalRow: 0,
+          logicalCol: 0,
+          isStale: true,
+          staleReason: 'Slot topology changed',
+        },
+      ]);
+
+      const context = await service.getLocationSpatialContext(childLoc.id);
+
+      // The location itself is not placed until the draft is published.
+      expect(context.mapping.status).toBe('UNMAPPED');
+      expect(context.mapping.containerStatus).toBe('NONE');
+      expect(context.mapping.slotMapping).toEqual({
+        layoutId: 'layout-draft-1',
+        layoutCode: 'DRAFT-LAYOUT',
+        layoutStatus: 'DRAFT',
+        slotCode: 'A01',
+        isStale: true,
+      });
+    });
+
     it('returns location mapping context with child mapped status and anchor occupancy', async () => {
       const cabLoc = makeLocation('loc-cab', 'CAB-1', null);
       const drw1Loc = makeLocation('loc-drw-1', 'DRW-1', cabLoc.id);
@@ -652,6 +777,10 @@ describe('SpatialService', () => {
       expect(view.parent.location.code).toBe('CAB-A');
       expect(view.parent.model?.code).toBe('CAB-60D');
       expect(view.parent.anchors).toHaveLength(1);
+      // Parent is placed and one of its two children is not.
+      expect(view.parent.mapping.status).toBe('PARTIAL');
+      expect(view.parent.mapping.mappedDirectChildCount).toBe(1);
+      expect(view.parent.mapping.directChildCount).toBe(2);
 
       // Verify children
       expect(view.children).toHaveLength(2);

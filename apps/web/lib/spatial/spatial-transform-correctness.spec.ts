@@ -22,6 +22,18 @@ import type {
   SpatialAnchorDto,
 } from "../api/spatial-api";
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const sceneSource = fs.readFileSync(
+  path.resolve(
+    fileURLToPath(new URL(".", import.meta.url)),
+    "spatial-3d-scene.ts",
+  ),
+  "utf8",
+);
+
 describe("Spatial Transform Correctness and Bijective Invariance", () => {
   const cabinetDimensions: Vector3D = {
     x: 0.6, // 600 mm
@@ -117,6 +129,16 @@ describe("Spatial Transform Correctness and Bijective Invariance", () => {
       expect(restoredMm.x).toBe(-50);
       expect(restoredMm.y).toBe(300);
       expect(restoredMm.z).toBe(25);
+    });
+  });
+
+  describe("Persisted Scale Application", () => {
+    it("applies the persisted node scale to the rendered compartment group", () => {
+      // The renderer must not silently drop a persisted node scale: the same
+      // physical location has to occupy the same box in every viewer.
+      expect(sceneSource).toContain(
+        "group.scale.set(child.scale.x, child.scale.y, child.scale.z);",
+      );
     });
   });
 
@@ -259,6 +281,7 @@ describe("Spatial Transform Correctness and Bijective Invariance", () => {
             totalQuantity: 0,
             position: persistedPos,
             rotation: persistedRot,
+            scale: { x: 1, y: 1, z: 1 },
             dimensions: { x: 0.18, y: 0.07, z: 0.35 },
             anchorCode: persistedAnchor.code,
             modelCode: rawChild.model?.code,

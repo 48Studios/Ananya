@@ -66,39 +66,91 @@ export function SpatialTree({
     };
 
     const renderStatusBadge = () => {
+      const containerBadge =
+        node.containerStatus !== "NONE" ? (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border shrink-0",
+              node.containerStatus === "PUBLISHED"
+                ? "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20"
+                : "bg-muted text-muted-foreground border-border",
+            )}
+            title={
+              node.containerStatus === "PUBLISHED"
+                ? "Configures its compartments through a published spatial layout"
+                : node.containerStatus === "DRAFT"
+                  ? "Has a draft spatial layout that is not published yet"
+                  : "Has an archived spatial layout only"
+            }
+          >
+            <Layers className="size-2.5" />
+            <span>
+              {node.containerStatus === "PUBLISHED"
+                ? "Layout"
+                : node.containerStatus === "DRAFT"
+                  ? "Draft layout"
+                  : "Archived layout"}
+            </span>
+          </span>
+        ) : null;
+
       if (node.status === "MAPPED") {
         return (
-          <span
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0"
-            title="Location has a direct SpatialNode mapping"
-          >
-            <CheckCircle2 className="size-2.5" />
-            <span>Mapped</span>
+          <span className="inline-flex items-center gap-1">
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0"
+              title="Location has a direct SpatialNode mapping"
+            >
+              <CheckCircle2 className="size-2.5" />
+              <span>Mapped</span>
+            </span>
+            {containerBadge}
           </span>
         );
       }
 
       if (node.status === "PARTIAL") {
         return (
-          <span
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0"
-            title={`Mapped, but ${node.totalChildrenCount - node.mappedChildrenCount} child locations unmapped`}
-          >
-            <span className="font-mono text-[9px]">◐</span>
-            <span>
-              {node.mappedChildrenCount}/{node.totalChildrenCount}
+          <span className="inline-flex items-center gap-1">
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0"
+              title={`Mapped, but ${node.totalChildrenCount - node.mappedChildrenCount} child locations unmapped`}
+            >
+              <span className="font-mono text-[9px]">◐</span>
+              <span>
+                {node.mappedChildrenCount}/{node.totalChildrenCount}
+              </span>
             </span>
+            {containerBadge}
+          </span>
+        );
+      }
+
+      if (node.status === "ROOT") {
+        return (
+          <span className="inline-flex items-center gap-1">
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border shrink-0"
+              title="Top-level facility — it has no parent frame to be placed in. Configure a layout to map its compartments."
+            >
+              <Folder className="size-2.5" />
+              <span>Facility root</span>
+            </span>
+            {containerBadge}
           </span>
         );
       }
 
       return (
-        <span
-          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border shrink-0"
-          title="No direct SpatialNode mapped for this location"
-        >
-          <AlertTriangle className="size-2.5 text-amber-500" />
-          <span>Unmapped</span>
+        <span className="inline-flex items-center gap-1">
+          <span
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border shrink-0"
+            title="No direct SpatialNode mapped for this location"
+          >
+            <AlertTriangle className="size-2.5 text-amber-500" />
+            <span>Unmapped</span>
+          </span>
+          {containerBadge}
         </span>
       );
     };

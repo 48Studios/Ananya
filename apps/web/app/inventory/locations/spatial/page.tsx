@@ -25,6 +25,10 @@ import {
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 import { spatialApi, type SpatialNodeDto } from "@/lib/api/spatial-api";
 import {
+  spatialLayoutsApi,
+  type SpatialLayoutDto,
+} from "@/lib/api/spatial-layouts-api";
+import {
   buildLocationTree,
   filterLocationTree,
   getAncestorIds,
@@ -39,6 +43,7 @@ function SpatialInventoryContent() {
 
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
   const [nodes, setNodes] = React.useState<SpatialNodeDto[]>([]);
+  const [layouts, setLayouts] = React.useState<SpatialLayoutDto[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -60,12 +65,14 @@ function SpatialInventoryContent() {
     setLoading(true);
     setError(null);
     try {
-      const [allLocs, allNodes] = await Promise.all([
+      const [allLocs, allNodes, allLayouts] = await Promise.all([
         locationsApi.getAll(),
         spatialApi.getAllNodes().catch(() => []),
+        spatialLayoutsApi.getAll().catch(() => []),
       ]);
       setLocations(allLocs);
       setNodes(allNodes);
+      setLayouts(allLayouts);
 
       // Auto-expand ancestors of the selected or default location
       const initialTarget = queryLocationId || (allLocs.length > 0 ? allLocs[0]?.id : null);
@@ -158,8 +165,8 @@ function SpatialInventoryContent() {
 
   // Compute hierarchical tree and filter by search
   const rawTree = React.useMemo(() => {
-    return buildLocationTree(locations, nodes);
-  }, [locations, nodes]);
+    return buildLocationTree(locations, nodes, layouts);
+  }, [locations, nodes, layouts]);
 
   const filteredTree = React.useMemo(() => {
     return filterLocationTree(rawTree, searchQuery);
@@ -254,7 +261,7 @@ function SpatialInventoryContent() {
         <StatCard
           title="Unmapped Locations"
           value={stats.unmappedCount}
-          subtitle="No SpatialNode assigned"
+          subtitle="Sub-locations with no SpatialNode"
           icon={AlertTriangle}
         />
         <StatCard
@@ -264,6 +271,16 @@ function SpatialInventoryContent() {
           icon={Layers}
         />
       </div>
+
+      {stats.rootCount > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {stats.rootCount} top-level{" "}
+          {stats.rootCount === 1 ? "facility is" : "facilities are"} not placed
+          in a parent frame, so{" "}
+          {stats.rootCount === 1 ? "it is" : "they are"} excluded from the
+          unmapped count.
+        </p>
+      )}
 
       {/* 3. Two-Pane Workspace Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-270px)] min-h-[580px]">

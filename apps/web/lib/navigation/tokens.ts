@@ -14,6 +14,19 @@ export const NAV_WIDTHS_PX = {
   SIDEBAR_COLLAPSED: 72,
 } as const;
 
+/**
+ * Shell chrome heights in pixels, published by `dashboard-layout` as CSS
+ * variables so viewport-constrained overlays (the spatial detail panel) can
+ * reserve the header and footer bands instead of inventing their own numbers.
+ *
+ * `HEADER` must stay in step with {@link NAV_TOKENS.HEADER_HEIGHT} and `FOOTER`
+ * with the `h-14` footer; `navigation-metrics.spec.ts` asserts the pair.
+ */
+export const SHELL_HEIGHTS_PX = {
+  HEADER: 56,
+  FOOTER: 56,
+} as const;
+
 export const NAV_TOKENS = {
   // Shared Header Height across Rail, Sidebar, and Top App Bar (56px)
   HEADER_HEIGHT: "h-14 min-h-[56px]",

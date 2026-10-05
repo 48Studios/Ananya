@@ -765,9 +765,10 @@ export function createChildCompartmentMesh(
     );
   }
 
-  // Set position & rotation
+  // Set position, rotation & persisted scale
   group.position.set(child.position.x, child.position.y, child.position.z);
   group.rotation.set(child.rotation.x, child.rotation.y, child.rotation.z);
+  group.scale.set(child.scale.x, child.scale.y, child.scale.z);
 
   return group;
 }

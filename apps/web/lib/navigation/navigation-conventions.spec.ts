@@ -338,6 +338,13 @@ describe("route migration completeness", () => {
     const API_ENDPOINT_SPEC_ALLOWLIST = new Set([
       "apps/web/lib/component-documentation.spec.ts",
       "apps/web/lib/spatial/inventory-builder-persistence.spec.ts",
+      // End-to-end specs that assert raw HTTP API paths. The API is mounted at
+      // the server root (`/spatial/...`, `/locations/...`) and shares segment
+      // names with retired frontend routes, so their request URLs must not be
+      // read as stale internal links.
+      "tests/e2e/inventory-builder-inactive-parent.spec.ts",
+      "tests/e2e/inventory-builder-persistence.spec.ts",
+      "tests/e2e/spatial-3d-visualization.spec.ts",
     ]);
     for (const file of sourceFiles) {
       const relative = path.relative(repoRoot, file);

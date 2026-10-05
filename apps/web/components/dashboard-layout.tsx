@@ -10,7 +10,7 @@ import { TopHeader } from "@/lib/navigation/components/top-header";
 import { MobileDrawer } from "@/lib/navigation/components/mobile-drawer";
 import { CommandPalette } from "@/lib/navigation/components/command-palette";
 import { AppFooter } from "@/components/app-footer";
-import { NAV_WIDTHS_PX } from "@/lib/navigation/tokens";
+import { NAV_WIDTHS_PX, SHELL_HEIGHTS_PX } from "@/lib/navigation/tokens";
 
 const PUBLIC_ROUTES = [
   "/login",
@@ -75,21 +75,28 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   const { sidebarWidth } = useNavigation();
 
   /*
-    Publish where the content area begins.
-    
+    Publish where the content area begins, and how tall the shell chrome is.
+
     The content column holds the two navigation regions (`60px` rail plus the
     sidebar at `280px` expanded / `72px` collapsed, both hidden below `md`), so
-    an overlay that is `fixed` — such as the batch action bar — cannot discover
-    this geometry from its own box the way an in-flow element could. The values
-    come from `NAV_WIDTHS_PX`, the same numbers `NAV_TOKENS` renders as classes,
-    so the offset cannot drift from the widths on screen.
+    an overlay that is `fixed` — such as the batch action bar or the spatial
+    detail panel — cannot discover this geometry from its own box the way an
+    in-flow element could. The values come from `NAV_WIDTHS_PX` and
+    `SHELL_HEIGHTS_PX`, the same numbers `NAV_TOKENS` and the footer render as
+    classes, so the offsets cannot drift from what is on screen.
   */
   const contentAreaLeft = NAV_WIDTHS_PX.RAIL + sidebarWidth;
 
   return (
     <div
       className="flex h-screen overflow-hidden bg-background text-foreground print:h-auto print:overflow-visible"
-      style={{ "--content-area-left": `${contentAreaLeft}px` } as React.CSSProperties}
+      style={
+        {
+          "--content-area-left": `${contentAreaLeft}px`,
+          "--app-header-height": `${SHELL_HEIGHTS_PX.HEADER}px`,
+          "--app-footer-height": `${SHELL_HEIGHTS_PX.FOOTER}px`,
+        } as React.CSSProperties
+      }
     >
         {/* Desktop Region 1: Global Navigation Rail (Fixed 60px) */}
         <div className="hidden md:block print:hidden">

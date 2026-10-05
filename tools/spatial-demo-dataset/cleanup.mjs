@@ -97,8 +97,17 @@ export async function runCleanup(execute = EXECUTE) {
   );
   const transactionIds = dbTransactions.map(([id]) => id);
 
+  // 6. Identify Demo Spatial Layouts (with their mappings and revisions).
+  // A layout blocks location deletion (FK RESTRICT), so it must be removed
+  // before the demo locations; deleting it cascades mappings and revisions.
+  const dbLayouts = sql(
+    "SELECT id, code, status FROM spatial_layouts WHERE code LIKE 'DEMO-SPATIAL-%' OR parent_location_id IN (SELECT id FROM locations WHERE code LIKE 'DEMO-SPATIAL-%') ORDER BY code;",
+  );
+  const layoutIds = dbLayouts.map(([id]) => id);
+
   log(`Found entities targeted for cleanup:`);
   log(`  - Inventory Transactions : ${dbTransactions.length}`);
+  log(`  - Spatial Layouts        : ${dbLayouts.length}`);
   log(`  - Spatial Nodes          : ${dbNodes.length}`);
   log(`  - Spatial Models         : ${dbModels.length}`);
   log(`  - Demo Components        : ${dbComponents.length}`);
@@ -132,7 +141,15 @@ export async function runCleanup(execute = EXECUTE) {
     log(`  ✅ Removed inventory projections for demo locations.`);
   }
 
-  // Step B: Delete Spatial Nodes (bottom up: children first)
+  // Step B: Delete Demo Spatial Layouts (cascades mappings and revisions).
+  // Must run before locations: spatial_layouts.parent_location_id is RESTRICT.
+  if (layoutIds.length > 0) {
+    const list = layoutIds.map((id) => `'${id}'`).join(',');
+    sql(`DELETE FROM spatial_layouts WHERE id IN (${list});`);
+    log(`  ✅ Removed ${layoutIds.length} spatial layouts (with mappings and revisions).`);
+  }
+
+  // Step C: Delete Spatial Nodes (bottom up: children first)
   if (nodeIds.length > 0) {
     // Break parent references first to avoid foreign key constraints
     const list = nodeIds.map((id) => `'${id}'`).join(',');
@@ -141,14 +158,14 @@ export async function runCleanup(execute = EXECUTE) {
     log(`  ✅ Removed ${nodeIds.length} spatial nodes.`);
   }
 
-  // Step C: Delete Spatial Models (cascades to anchors)
+  // Step D: Delete Spatial Models (cascades to anchors)
   if (modelIds.length > 0) {
     const list = modelIds.map((id) => `'${id}'`).join(',');
     sql(`DELETE FROM spatial_models WHERE id IN (${list});`);
     log(`  ✅ Removed ${modelIds.length} spatial models and associated anchors.`);
   }
 
-  // Step D: Delete Demo Components
+  // Step E: Delete Demo Components
   for (const [id, sku] of dbComponents) {
     try {
       await del(`/components/${id}`);
@@ -160,7 +177,7 @@ export async function runCleanup(execute = EXECUTE) {
     }
   }
 
-  // Step E: Delete Demo Locations in true topological order (leaf nodes first)
+  // Step F: Delete Demo Locations in true topological order (leaf nodes first)
   while (true) {
     const leaves = sql(
       "SELECT id, code FROM locations WHERE code LIKE 'DEMO-SPATIAL-%' AND id NOT IN (SELECT parent_id FROM locations WHERE parent_id IS NOT NULL);",
@@ -177,7 +194,7 @@ export async function runCleanup(execute = EXECUTE) {
     }
   }
 
-  // Step F: Rebuild inventory projections to ensure consistency
+  // Step G: Rebuild inventory projections to ensure consistency
   try {
     await post('/inventory-projections/rebuild');
     log('  ✅ Rebuilt inventory projections.');
@@ -185,13 +202,14 @@ export async function runCleanup(execute = EXECUTE) {
     // Ignore if stack offline
   }
 
-  // Step G: Reset manifest
+  // Step H: Reset manifest
   writeManifest({
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     models: [],
     anchors: [],
     locations: [],
+    layouts: [],
     nodes: [],
     components: [],
     transactions: [],
