@@ -51,6 +51,11 @@ import {
   type DraftAnchor,
 } from "@/lib/spatial/spatial-anchor-authoring";
 import { buildSpatialBreadcrumbs } from "@/lib/spatial/spatial-hierarchy";
+import {
+  hasOwnSpatialFrame,
+  resolveSpatialViewContext,
+  type SpatialViewContextResolution,
+} from "@/lib/spatial/spatial-view-context";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 import { SpatialGrid } from "./spatial-grid";
@@ -128,6 +133,13 @@ export function SpatialView({
     null,
   );
   const [components, setComponents] = React.useState<ComponentDto[]>([]);
+  /**
+   * Requested-vs-rendered resolution: which frame is on screen and which
+   * location inside it the operator asked for. `locationId` stays the requested
+   * location even when an ancestor frame is rendered.
+   */
+  const [viewResolution, setViewResolution] =
+    React.useState<SpatialViewContextResolution | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   // Visualization modes: standard, provenance (direct vs descendant), occupancy
@@ -210,12 +222,19 @@ export function SpatialView({
   const effectiveLocations =
     allLocations && allLocations.length > 0 ? allLocations : internalLocations;
 
+  const requestedLocation = React.useMemo(
+    () => effectiveLocations.find((loc) => loc.id === locationId) || null,
+    [effectiveLocations, locationId],
+  );
+
   const breadcrumbs = React.useMemo(() => {
     return buildSpatialBreadcrumbs(locationId, effectiveLocations);
   }, [locationId, effectiveLocations]);
 
-  const canGoUp = Boolean(data?.parent.location.parentId);
-  const parentLocationId = data?.parent.location.parentId || undefined;
+  // "Up one level" always steps from the requested location, never from the
+  // ancestor frame that may be rendered on its behalf.
+  const canGoUp = Boolean(requestedLocation?.parentId);
+  const parentLocationId = requestedLocation?.parentId || undefined;
 
   // Track anchor diff for unsaved state
   const anchorDiff = React.useMemo(() => {
@@ -351,10 +370,30 @@ export function SpatialView({
     setLoading(true);
     setError(null);
     try {
-      const [viewData, compList] = await Promise.all([
+      const [requestedView, locateTarget, compList] = await Promise.all([
         spatialApi.getLocationOperationalView(locationId),
+        spatialApi.resolveLocationLocate(locationId).catch(() => null),
         componentsApi.getAll().catch(() => []),
       ]);
+
+      // The requested location keeps priority: an ancestor frame is only
+      // rendered when the requested location has no frame of its own and is
+      // placed inside one. Even then the requested location stays selected.
+      const resolution = resolveSpatialViewContext({
+        requestedLocationId: locationId,
+        requestedHasOwnFrame: hasOwnSpatialFrame(requestedView),
+        resolvedSpatialRootLocationId: locateTarget?.spatialRootLocationId,
+        resolvedFocusLocationId: locateTarget?.focusLocationId,
+      });
+
+      const viewData =
+        resolution.contextLocationId === locationId
+          ? requestedView
+          : await spatialApi.getLocationOperationalView(
+              resolution.contextLocationId,
+            );
+
+      setViewResolution(resolution);
       setData(viewData);
       setComponents(compList);
     } catch (err: unknown) {
@@ -393,17 +432,27 @@ export function SpatialView({
     );
   }, [data, componentMap]);
 
+  /**
+   * The location to reveal inside the rendered frame: an explicit focus
+   * (locate/QR deep link) wins, otherwise a leaf request selects itself inside
+   * the ancestor frame rendered on its behalf. This keeps the requested
+   * location visible without ever redefining it as the ancestor.
+   */
+  const revealTargetId =
+    focusLocationId ||
+    (viewResolution?.isContextView ? locationId : undefined);
+
   // Resolve target location if focusing a specific component or deep descendant
   const effectiveHighlightedLocationId = React.useMemo(() => {
     if (!data) return null;
     return resolveTargetChildLocationId(
-      focusLocationId,
+      revealTargetId,
       focusComponentId,
       data.children,
       data.descendantLocations,
       inventoryMapping?.cellStockMap,
     );
-  }, [focusLocationId, focusComponentId, data, inventoryMapping]);
+  }, [revealTargetId, focusComponentId, data, inventoryMapping]);
 
   // Locate/QR deep links arrive with a target to reveal. The target is consumed
   // once per value: re-selecting whenever the selection is empty would undo every
@@ -772,6 +821,14 @@ export function SpatialView({
                 <span className="text-xs text-muted-foreground hidden sm:inline">
                   ({filteredChildren.length} compartments)
                 </span>
+                {viewResolution?.isContextView && (
+                  <span
+                    className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-primary"
+                    title={`${requestedLocation?.name ?? locationId} is selected inside its parent's spatial frame`}
+                  >
+                    {requestedLocation?.code ?? locationId} selected
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-1.5 flex-wrap">

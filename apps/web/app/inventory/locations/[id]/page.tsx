@@ -47,6 +47,7 @@ import { PrintLabelDialog } from "@/components/barcodes/print-label-dialog";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 import {
   spatialApi,
+  type LocationSpatialContextDto,
   type LocationSpatialMappingSummaryDto,
 } from "@/lib/api/spatial-api";
 import {
@@ -269,8 +270,8 @@ export default function ViewLocationPage() {
   >([]);
   const [components, setComponents] = React.useState<ComponentDto[]>([]);
   const [categories, setCategories] = React.useState<CategoryDto[]>([]);
-  const [mappingSummary, setMappingSummary] =
-    React.useState<LocationSpatialMappingSummaryDto | null>(null);
+  const [spatialContext, setSpatialContext] =
+    React.useState<LocationSpatialContextDto | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -309,7 +310,7 @@ export default function ViewLocationPage() {
       setProjections(locProjections);
       setComponents(compList);
       setCategories(catList);
-      setMappingSummary(spatialCtx?.mapping ?? null);
+      setSpatialContext(spatialCtx);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -350,6 +351,17 @@ export default function ViewLocationPage() {
     if (!location?.id) return [];
     return allLocations.filter((l) => l.parentId === location.id);
   }, [location, allLocations]);
+
+  const mappingSummary = spatialContext?.mapping ?? null;
+
+  /**
+   * The spatial canvas is mounted for any location that has something to show:
+   * its own nested compartments, or a spatial node that places it inside an
+   * ancestor's frame (the canvas resolves that ancestor and keeps this location
+   * selected). Locations with neither keep the explanatory fallback.
+   */
+  const hasSpatialView =
+    childLocations.length > 0 || Boolean(spatialContext?.node);
 
   const locationPath = React.useMemo(() => {
     if (!location) return "";
@@ -656,7 +668,7 @@ export default function ViewLocationPage() {
       icon={Layers}
       // The detail panel is a viewport-fixed overlay (it is not clipped by this
       // card), so the card keeps its standard surface.
-      contentClassName={subLocationView !== "list" && childLocations.length > 0 ? "p-4" : "p-0"}
+      contentClassName={subLocationView !== "list" && hasSpatialView ? "p-4" : "p-0"}
       actions={
         childLocations.length > 0 ? (
           <div className="flex items-center gap-2">
@@ -691,8 +703,10 @@ export default function ViewLocationPage() {
         ) : null
       }
     >
-      {childLocations.length > 0 ? (
-        subLocationView === "spatial" || subLocationView === "spatial3d" ? (
+      {hasSpatialView ? (
+        childLocations.length === 0 ||
+        subLocationView === "spatial" ||
+        subLocationView === "spatial3d" ? (
           <SpatialView
             key={`${location.id}-${spatialViewVersion}`}
             locationId={location.id}
@@ -772,12 +786,8 @@ export default function ViewLocationPage() {
         )
       ) : (
         <p className="px-6 py-5 text-xs text-muted-foreground">
-          No sub-locations are nested under this location yet.
-          {mappingSummary?.hasSpatialNode
-            ? mappingSummary.slotMapping
-              ? ` This location is mapped into layout ${mappingSummary.slotMapping.layoutCode} (slot ${mappingSummary.slotMapping.slotCode}, ${mappingSummary.slotMapping.layoutStatus.toLowerCase()} layout).`
-              : " This location has a spatial node, so it is placed inside its parent's frame."
-            : ""}
+          No sub-locations are nested under this location yet. Map this location
+          into its parent&apos;s frame to give it a spatial view.
         </p>
       )}
     </SectionCard>

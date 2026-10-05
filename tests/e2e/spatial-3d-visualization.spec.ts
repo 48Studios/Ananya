@@ -1354,7 +1354,7 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     }
   });
 
-  test("14. A mapped leaf location states its mapping instead of looking unmapped", async ({
+  test("14. A mapped leaf location renders its containing frame instead of looking unmapped", async ({
     page,
   }) => {
     await page.goto(`/inventory/locations/${MAPPED_BIN_ID}`);
@@ -1364,15 +1364,16 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
 
     // Authoritative status chip in the header.
     await expect(page.getByText("Mapped", { exact: true }).first()).toBeVisible();
-    // The empty sub-locations section explains why the bin is nevertheless mapped.
+    // The mapped leaf renders inside its drawer's frame and stays the selected
+    // location, so it never looks unmapped.
     await expect(
-      page.getByText(
-        "No sub-locations are nested under this location yet. This location has a spatial node",
-        { exact: false },
-      ),
+      page.getByText(/DEMO-SPATIAL-DRAWER-A01\s+OPERATIONAL LAYOUT/i),
+    ).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByText("DEMO-SPATIAL-BIN-A01-01 selected"),
     ).toBeVisible();
 
-    // The unmapped sibling reports the opposite, and does not claim a mapping.
+    // The unmapped sibling reports the opposite and has no containing frame.
     await page.goto(`/inventory/locations/${UNMAPPED_DRAWER_ID}`);
     await expect(page.locator("main h1")).toContainText("Demo Drawer C01", {
       timeout: 15000,
@@ -1380,12 +1381,7 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     await expect(
       page.getByText("Unmapped", { exact: true }).first(),
     ).toBeVisible();
-    await expect(
-      page.getByText(
-        "No sub-locations are nested under this location yet. This location has a spatial node",
-        { exact: false },
-      ),
-    ).toHaveCount(0);
+    await expect(page.getByText(/OPERATIONAL LAYOUT/i)).toHaveCount(0);
   });
 
   test("15. 2D and 3D views agree on the mapped compartment count", async ({

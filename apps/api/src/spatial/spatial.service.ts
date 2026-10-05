@@ -1172,6 +1172,12 @@ export class SpatialService {
       }
     }
 
+    /**
+     * A location can render a spatial frame when it owns a model (it is a
+     * renderable object with its own anchors) or when at least one direct child
+     * is mapped into it. Locations whose own layout has no mapped children
+     * render nothing, so they are deliberately not treated as frames.
+     */
     const isSpatialContainer = (locId: string): boolean => {
       const node = nodesByLocId.get(locId);
       if (node?.modelId) return true;
@@ -1200,21 +1206,25 @@ export class SpatialService {
     let focusLocation = targetLoc;
     let hasSpatialView = false;
 
-    for (let i = 1; i < chain.length; i++) {
-      const ancestor = chain[i];
-      const childInChain = chain[i - 1];
-      if (ancestor && childInChain && isSpatialContainer(ancestor.id)) {
-        spatialRoot = ancestor;
-        focusLocation = childInChain;
-        hasSpatialView = true;
-        break;
-      }
-    }
-
-    if (!hasSpatialView && isSpatialContainer(targetLoc.id)) {
-      spatialRoot = targetLoc;
-      focusLocation = targetLoc;
+    // The requested location is authoritative. A location that can render a
+    // frame of its own (an own model or mapped children) stays the spatial root
+    // even though it is also placed inside an ancestor's frame — the parent may
+    // provide context but must never replace the requested location. Only a
+    // location without a frame of its own resolves upward, and then to the
+    // nearest ancestor whose frame directly contains it.
+    if (isSpatialContainer(targetLoc.id)) {
       hasSpatialView = true;
+    } else {
+      for (let i = 1; i < chain.length; i++) {
+        const ancestor = chain[i];
+        const childInChain = chain[i - 1];
+        if (ancestor && childInChain && isSpatialContainer(ancestor.id)) {
+          spatialRoot = ancestor;
+          focusLocation = childInChain;
+          hasSpatialView = true;
+          break;
+        }
+      }
     }
 
     const queryParams = new URLSearchParams();

@@ -970,6 +970,93 @@ describe('SpatialService', () => {
       expect(target.locateUrl).toBe(`/locations/${shelf.id}`);
     });
 
+    it('keeps a requested spatial container as its own root instead of resolving to its parent frame', async () => {
+      const warehouse = makeLocation('loc-wh', 'WH-MAIN', null);
+      const cabinet = makeLocation('loc-cab', 'CAB-1', 'loc-wh');
+
+      locationRepo.findMany.mockResolvedValue([warehouse, cabinet]);
+
+      const warehouseNode = SpatialNode.create({
+        locationId: warehouse.id,
+        modelId: 'model-wh',
+      });
+      const cabinetNode = SpatialNode.create({
+        locationId: cabinet.id,
+        modelId: 'model-cab',
+        parentSpatialNodeId: warehouseNode.id,
+      });
+      nodeRepo.findMany.mockResolvedValue([warehouseNode, cabinetNode]);
+
+      const target = await service.resolveLocationLocate(cabinet.id);
+
+      expect(target.spatialRootLocationId).toBe(cabinet.id);
+      expect(target.focusLocationId).toBe(cabinet.id);
+      expect(target.hasSpatialView).toBe(true);
+      expect(target.locateUrl).toBe(
+        `/locations/${cabinet.id}?view=spatial&focusLocation=${cabinet.id}`,
+      );
+    });
+
+    it('keeps a requested drawered location with its own model as its own root', async () => {
+      const cabinet = makeLocation('loc-cab', 'CAB-1', null);
+      const drawer = makeLocation('loc-drw', 'DRW-1', 'loc-cab');
+
+      locationRepo.findMany.mockResolvedValue([cabinet, drawer]);
+
+      const cabinetNode = SpatialNode.create({
+        locationId: cabinet.id,
+        modelId: 'model-cab',
+      });
+      const drawerNode = SpatialNode.create({
+        locationId: drawer.id,
+        modelId: 'model-drawer-deep',
+        parentSpatialNodeId: cabinetNode.id,
+      });
+      nodeRepo.findMany.mockResolvedValue([cabinetNode, drawerNode]);
+
+      const target = await service.resolveLocationLocate(drawer.id);
+
+      expect(target.spatialRootLocationId).toBe(drawer.id);
+      expect(target.focusLocationId).toBe(drawer.id);
+      expect(target.hasSpatialView).toBe(true);
+      expect(target.locateUrl).toBe(
+        `/locations/${drawer.id}?view=spatial&focusLocation=${drawer.id}`,
+      );
+    });
+
+    it('resolves a leaf bin to the drawer frame that directly contains it', async () => {
+      const cabinet = makeLocation('loc-cab', 'CAB-1', null);
+      const drawer = makeLocation('loc-drw', 'DRW-1', 'loc-cab');
+      const bin = makeLocation('loc-bin', 'BIN-1', 'loc-drw');
+
+      locationRepo.findMany.mockResolvedValue([cabinet, drawer, bin]);
+
+      const cabinetNode = SpatialNode.create({
+        locationId: cabinet.id,
+        modelId: 'model-cab',
+      });
+      const drawerNode = SpatialNode.create({
+        locationId: drawer.id,
+        modelId: 'model-drawer-deep',
+        parentSpatialNodeId: cabinetNode.id,
+      });
+      const binNode = SpatialNode.create({
+        locationId: bin.id,
+        parentSpatialNodeId: drawerNode.id,
+      });
+      nodeRepo.findMany.mockResolvedValue([cabinetNode, drawerNode, binNode]);
+
+      const target = await service.resolveLocationLocate(bin.id);
+
+      expect(target.locationId).toBe(bin.id);
+      expect(target.spatialRootLocationId).toBe(drawer.id);
+      expect(target.focusLocationId).toBe(bin.id);
+      expect(target.hasSpatialView).toBe(true);
+      expect(target.locateUrl).toBe(
+        `/locations/${drawer.id}?view=spatial&focusLocation=${bin.id}`,
+      );
+    });
+
     it('throws LocationNotFoundError when target location does not exist', async () => {
       locationRepo.findMany.mockResolvedValue([]);
       await expect(
