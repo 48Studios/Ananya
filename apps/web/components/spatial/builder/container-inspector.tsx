@@ -12,7 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import type { Dimensions3D, ParametricTemplateType } from "@ananya/inventory";
+import {
+  checkSpatialMappingCompatibility,
+  isTemplateRootCompatible,
+  type CompartmentKind,
+  type Dimensions3D,
+  type ParametricTemplateType,
+} from "@ananya/inventory";
 import type { LocationDto } from "@/lib/api/locations-api";
 import type { SlotMappingRecord } from "@/lib/spatial/inventory-builder-state";
 import { cn } from "@/lib/utils";
@@ -31,6 +37,7 @@ export interface ContainerInspectorProps {
   locations: LocationDto[];
   selectedParentId: string | null;
   mappings: Map<string, SlotMappingRecord>;
+  slotKindsBySlotId?: ReadonlyMap<string, CompartmentKind>;
   onSelectParentId: (id: string) => void;
   /** Clears the container assignment (draft state only; mappings are kept for review). */
   onClearParent?: () => void;
@@ -52,6 +59,7 @@ export function ContainerInspector({
   locations,
   selectedParentId,
   mappings,
+  slotKindsBySlotId,
   onSelectParentId,
   onClearParent,
   className,
@@ -73,25 +81,57 @@ export function ContainerInspector({
 
   const parentOptions = React.useMemo(() => {
     return locations.map((loc) => {
+      const isCompatibleRoot = isTemplateRootCompatible(templateType, loc.kind);
       const isMappedToCompartment = compartmentLocationIds.has(loc.id);
+      const hasIncompatibleMapping = [...mappings.values()].some((record) => {
+        const slotKind = slotKindsBySlotId?.get(record.slotId);
+        return !checkSpatialMappingCompatibility({
+          rootKind: loc.kind,
+          candidateKind: record.locationKind,
+          slotKind,
+        }).compatible;
+      });
       const details = [loc.kind];
       if (!loc.isActive) details.push("inactive");
       if (isMappedToCompartment) details.push("mapped to a compartment");
+      if (hasIncompatibleMapping) details.push("incompatible with mapped slots");
+      if (!isCompatibleRoot) details.push("incompatible root type");
 
       return {
         value: loc.id,
         label: `${loc.name} (${loc.code})`,
         sublabel: details.filter(Boolean).join(" • "),
         chip: loc.code,
-        disabled: isMappedToCompartment,
+        disabled:
+          !isCompatibleRoot || isMappedToCompartment || hasIncompatibleMapping,
       };
     });
-  }, [locations, compartmentLocationIds]);
+  }, [
+    locations,
+    compartmentLocationIds,
+    mappings,
+    slotKindsBySlotId,
+    templateType,
+  ]);
 
   const handleAssignParent = (locId: string) => {
     if (!locId || locId === selectedParentId) return;
     const loc = locations.find((candidate) => candidate.id === locId);
     if (loc && compartmentLocationIds.has(loc.id)) return;
+    if (loc && !isTemplateRootCompatible(templateType, loc.kind)) return;
+    if (
+      loc &&
+      [...mappings.values()].some((record) => {
+        const slotKind = slotKindsBySlotId?.get(record.slotId);
+        return !checkSpatialMappingCompatibility({
+          rootKind: loc.kind,
+          candidateKind: record.locationKind,
+          slotKind,
+        }).compatible;
+      })
+    ) {
+      return;
+    }
     onSelectParentId(locId);
   };
 

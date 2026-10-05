@@ -1,4 +1,8 @@
 import {
+  checkSpatialMappingCompatibility,
+  isTemplateRootCompatible,
+  findSpatialMappingIncompatibilities,
+  INCOMPATIBLE_MAPPING_STALE_PREFIX,
   createDefaultGridPartsTrayConfig,
   createDefaultOpenBinMatrixConfig,
   createDefaultPalletRackConfig,
@@ -6,6 +10,7 @@ import {
   diffParametricCompartments,
   generateStorageCompartments,
   validateParametricConfig,
+  INCOMPATIBLE_COMPARTMENT_KINDS,
   type Dimensions3D,
   type GeneratedCompartment,
   type GeneratedStorageResult,
@@ -65,13 +70,11 @@ function resolveParentFirstSelection(
   return { selectedContainer: false, selectedSlotId: fallbackSlotId };
 }
 
-export const INCOMPATIBLE_COMPARTMENT_KINDS = new Set([
-  "warehouse",
-  "room",
-  "building",
-  "facility",
-  "zone",
-]);
+/**
+ * Re-exported from the domain package: the authoritative "kinds that are
+ * spaces, not compartments" rule lives in `@ananya/inventory`.
+ */
+export { INCOMPATIBLE_COMPARTMENT_KINDS };
 
 export interface SlotMappingRecord {
   slotId: string;
@@ -381,6 +384,19 @@ export function setSelectedParentLocation(
     return state;
   }
 
+  const selectedParent = newParentId
+    ? locations.find((location) => location.id === newParentId)
+    : undefined;
+  if (
+    selectedParent &&
+    !isTemplateRootCompatible(state.config.templateType, selectedParent.kind) &&
+    !Array.from(state.mappings.values()).some(
+      (mapping) => mapping.locationId === selectedParent.id,
+    )
+  ) {
+    return state;
+  }
+
   const newMappings = new Map<string, SlotMappingRecord>();
   const validDescendantIds = newParentId
     ? getDescendantLocationIds(locations, newParentId)
@@ -410,10 +426,28 @@ export function setSelectedParentLocation(
         staleReason: `${PARENT_CONFLICT_STALE_PREFIX}: location ${parentLabel} is assigned as the top-level container and cannot also be a compartment slot.`,
       });
     } else if (validDescendantIds.has(record.locationId)) {
-      // Retain or restore compatible mapping
-      if (
+      const parentKind = locations.find((l) => l.id === newParentId)?.kind;
+      const slotKind = state.generatedResult?.compartments.find(
+        (compartment) => compartment.slotId === slotId,
+      )?.kind;
+      const kindCompatibility = checkSpatialMappingCompatibility({
+        rootKind: parentKind,
+        candidateKind: record.locationKind,
+        slotKind,
+      });
+
+      if (!kindCompatibility.compatible) {
+        // Keep historical data in the draft, but make the invalid combination
+        // explicit and require repair before save/publish.
+        newMappings.set(slotId, {
+          ...record,
+          isStale: true,
+          staleReason: kindCompatibility.reason ?? "Incompatible location kind",
+        });
+      } else if (
         record.staleReason?.startsWith("Hierarchy mismatch") ||
-        record.staleReason?.startsWith("No parent container")
+        record.staleReason?.startsWith("No parent container") ||
+        record.staleReason?.startsWith(INCOMPATIBLE_MAPPING_STALE_PREFIX)
       ) {
         newMappings.set(slotId, {
           ...record,
@@ -490,13 +524,62 @@ export function unmapIncompatibleHierarchySlots(
 }
 
 /**
+ * Unlinks mappings whose location kind can no longer occupy the slot it targets
+ * (same domain rule the API enforces), leaving every compatible mapping intact.
+ * Repair path for drafts built before a container or template changed.
+ */
+export function unmapKindIncompatibleSlots(
+  state: BuilderWorkspaceState,
+  locations: LocationDto[],
+): BuilderWorkspaceState {
+  if (!state.generatedResult || state.mappings.size === 0) {
+    return state;
+  }
+
+  const violations = findSpatialMappingIncompatibilities(
+    [...state.mappings.values()].map((record) => ({
+      slotId: record.slotId,
+      locationId: record.locationId,
+    })),
+    {
+      rootKind: locations.find(
+        (loc) => loc.id === state.selectedParentLocationId,
+      )?.kind,
+      kindsByLocationId: new Map(locations.map((loc) => [loc.id, loc.kind])),
+      slotKindsBySlotId: new Map(
+        state.generatedResult.compartments.map((c) => [c.slotId, c.kind]),
+      ),
+    },
+  );
+
+  if (violations.length === 0) {
+    return state;
+  }
+
+  const incompatibleSlotIds = new Set(violations.map((v) => v.slotId));
+  const newMappings = new Map<string, SlotMappingRecord>();
+  for (const [slotId, record] of state.mappings.entries()) {
+    if (!incompatibleSlotIds.has(slotId)) {
+      newMappings.set(slotId, record);
+    }
+  }
+
+  return {
+    ...state,
+    mappings: newMappings,
+  };
+}
+
+/**
  * Associates an in-memory draft mapping between a generated slot and an existing Ananya location.
  * Pure client-side state operation. Does not trigger network or database mutations.
  *
  * Enforces:
  * 1. 1:1 bijection between physical locations and generated slots.
  * 2. Selected parent container itself cannot be mapped as an individual slot.
- * 3. Incompatible structural container kinds (warehouse, room, etc.) cannot be mapped.
+ * 3. Kind compatibility with the target slot (`@ananya/inventory`
+ *    `checkSpatialMappingCompatibility`), so spaces and kinds the template does
+ *    not declare can never enter the draft.
  * 4. Locations from unrelated parent hierarchies are rejected when locations list is provided.
  */
 export function mapSlotToLocation(
@@ -519,9 +602,13 @@ export function mapSlotToLocation(
     return state;
   }
 
-  // Reject macro structural kinds (warehouse, room, building, facility, zone)
-  const kind = (location.kind || "").toLowerCase().trim();
-  if (INCOMPATIBLE_COMPARTMENT_KINDS.has(kind)) {
+  // Reject kinds the domain does not allow inside a compartment (spaces).
+  const compatibility = checkSpatialMappingCompatibility({
+    rootKind: locations?.find((l) => l.id === state.selectedParentLocationId)?.kind,
+    candidateKind: location.kind,
+    slotKind: state.generatedResult?.compartments.find((c) => c.slotId === slotId)?.kind,
+  });
+  if (!compatibility.compatible) {
     return state;
   }
 

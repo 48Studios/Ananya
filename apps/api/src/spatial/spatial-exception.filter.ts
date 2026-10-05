@@ -35,6 +35,8 @@ import {
   DuplicateLocationMappingError,
   DuplicateSlotMappingError,
   IncompatibleLocationKindError,
+  IncompatibleSlotKindMappingError,
+  IncompatibleLayoutRootKindError,
   InvalidSlotIdError,
   PublishedLayoutAlreadyExistsError,
   CannotDeleteNonDraftLayoutError,
@@ -184,6 +186,17 @@ export class SpatialExceptionFilter implements ExceptionFilter {
       exception instanceof ConcurrentHierarchyMutationError ||
       exception instanceof InactiveLocationMappingError
     ) {
+      status = HttpStatus.UNPROCESSABLE_ENTITY;
+      message = exception.message;
+    } else if (exception instanceof IncompatibleSlotKindMappingError) {
+      response.status(HttpStatus.UNPROCESSABLE_ENTITY).json({
+        statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        error: exception.code,
+        message: exception.message,
+        violations: exception.violations,
+      });
+      return;
+    } else if (exception instanceof IncompatibleLayoutRootKindError) {
       status = HttpStatus.UNPROCESSABLE_ENTITY;
       message = exception.message;
     } else if (isPostgresErrorCode(exception, POSTGRES_UNIQUE_VIOLATION)) {

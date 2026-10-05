@@ -17,6 +17,12 @@ import {
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
+import {
+  isSpatiallyCompatible,
+  isTemplateRootCompatible,
+  type CompartmentKind,
+  type ParametricTemplateType,
+} from "@ananya/inventory";
 import type { LocationDto } from "@/lib/api/locations-api";
 import {
   spatialApi,
@@ -26,16 +32,18 @@ import type { SlotMappingRecord } from "@/lib/spatial/inventory-builder-state";
 import { cn } from "@/lib/utils";
 
 export interface LocationMappingPanelProps {
+  templateType: ParametricTemplateType;
   locations: LocationDto[];
   selectedParentId: string | null;
   onSelectParentId: (id: string) => void;
   mappings: Map<string, SlotMappingRecord>;
   onMapToSlot: (slotId: string, location: LocationDto) => void;
-  availableSlots: Array<{ slotId: string; code: string }>;
+  availableSlots: Array<{ slotId: string; code: string; kind?: CompartmentKind }>;
   className?: string;
 }
 
 export function LocationMappingPanel({
+  templateType,
   locations,
   selectedParentId,
   onSelectParentId,
@@ -60,13 +68,15 @@ export function LocationMappingPanel({
   }, [mappings]);
 
   const parentOptions = React.useMemo(() => {
-    return locations.map((loc) => ({
-      value: loc.id,
-      label: `${loc.name} (${loc.code})`,
-      sublabel: loc.kind,
-      chip: loc.code,
-    }));
-  }, [locations]);
+    return locations
+      .filter((loc) => isTemplateRootCompatible(templateType, loc.kind))
+      .map((loc) => ({
+        value: loc.id,
+        label: `${loc.name} (${loc.code})`,
+        sublabel: loc.kind,
+        chip: loc.code,
+      }));
+  }, [locations, templateType]);
 
   // Fetch operational view when parent location is selected
   React.useEffect(() => {
@@ -122,6 +132,28 @@ export function LocationMappingPanel({
   const unassignedSlots = React.useMemo(() => {
     return availableSlots.filter((slot) => !mappings.has(slot.slotId));
   }, [availableSlots, mappings]);
+
+  const parentKind = React.useMemo(
+    () => locations.find((loc) => loc.id === selectedParentId)?.kind,
+    [locations, selectedParentId],
+  );
+
+  /**
+   * Reverse-direction filter: once a candidate location is picked, only slots
+   * whose compartment kind accepts it are offered — the same rule the API
+   * enforces, so an invalid combination can never be assembled here.
+   */
+  const compatibleSlotsFor = React.useCallback(
+    (candidateKind: string | null | undefined) =>
+      unassignedSlots.filter((slot) =>
+        isSpatiallyCompatible({
+          rootKind: parentKind,
+          candidateKind,
+          slotKind: slot.kind ?? null,
+        }),
+      ),
+    [unassignedSlots, parentKind],
+  );
 
   return (
     <div className={cn("space-y-4 text-xs", className)}>
@@ -187,6 +219,7 @@ export function LocationMappingPanel({
             <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
               {filteredChildren.map((child) => {
                 const isMappedInBuilder = mappedLocationIds.has(child.location.id);
+                const candidateSlots = compatibleSlotsFor(child.location.kind);
 
                 return (
                   <div
@@ -217,7 +250,7 @@ export function LocationMappingPanel({
                         <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                           Draft Mapped
                         </span>
-                      ) : unassignedSlots.length > 0 ? (
+                      ) : candidateSlots.length > 0 ? (
                         <Select
                           onValueChange={(slotId) => {
                             if (typeof slotId === "string") {
@@ -234,13 +267,20 @@ export function LocationMappingPanel({
                             <SelectValue placeholder="Map to slot..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {unassignedSlots.map((s) => (
+                            {candidateSlots.map((s) => (
                               <SelectItem key={s.slotId} value={s.slotId}>
                                 Slot {s.code}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                      ) : unassignedSlots.length > 0 ? (
+                        <span
+                          className="text-[10px] text-amber-700 dark:text-amber-400 italic text-right max-w-[140px]"
+                          title={`Kinds this template cannot store: ${child.location.kind}`}
+                        >
+                          No compatible slot
+                        </span>
                       ) : (
                         <span className="text-[10px] text-muted-foreground italic">
                           No free slots

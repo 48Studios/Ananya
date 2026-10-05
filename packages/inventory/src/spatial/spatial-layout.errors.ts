@@ -161,6 +161,65 @@ export class InvalidSlotIdError extends DomainError {
   }
 }
 
+/**
+ * Raised when a mapping pairs a location with a generated compartment that
+ * cannot physically hold its kind (see `checkSpatialMappingCompatibility`).
+ *
+ * Distinct from `IncompatibleLocationKindError`, which covers space kinds that
+ * can never be a compartment at all.
+ */
+export class IncompatibleSlotKindMappingError extends DomainError {
+  public readonly code = "INCOMPATIBLE_SLOT_KIND_MAPPING";
+  public readonly violations: Array<{
+    slotId: string;
+    slotCode: string;
+    locationCode: string;
+    candidateKind: string;
+    slotKind: string;
+  }>;
+
+  constructor(
+    violations: Array<{
+      slotId: string;
+      slotCode: string;
+      locationCode: string;
+      candidateKind: string;
+      slotKind: string;
+    }>,
+  ) {
+    const summary = violations
+      .map(
+        (v) =>
+          `${v.locationCode} (${v.candidateKind}) -> ${v.slotCode} (${v.slotKind})`,
+      )
+      .join(', ');
+    super(
+      `Incompatible slot-kind mapping: ${summary}. Compartments only accept the kinds declared by their parametric template.`,
+    );
+    this.violations = violations;
+  }
+}
+
+export class IncompatibleLayoutRootKindError extends DomainError {
+  public readonly code = "INCOMPATIBLE_LAYOUT_ROOT_KIND";
+  public readonly templateType: string;
+  public readonly locationCode: string;
+  public readonly locationKind: string;
+
+  constructor(
+    templateType: string,
+    locationCode: string,
+    locationKind: string,
+  ) {
+    super(
+      `Location '${locationCode}' of kind '${locationKind}' is not a compatible root for template '${templateType}'.`,
+    );
+    this.templateType = templateType;
+    this.locationCode = locationCode;
+    this.locationKind = locationKind;
+  }
+}
+
 export class PublishedLayoutAlreadyExistsError extends DomainError {
   public readonly code = "PUBLISHED_LAYOUT_ALREADY_EXISTS";
   public readonly parentLocationId: string;
@@ -216,4 +275,3 @@ export class MalformedSupersededGeometryError extends DomainError {
     this.reason = reason;
   }
 }
-

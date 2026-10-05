@@ -16,6 +16,7 @@ import type {
   SpatialModelDto,
 } from "../api/spatial-api";
 import type { SceneChildLayout } from "./spatial-3d-layout";
+import { classifySpatialKind } from "@ananya/inventory";
 
 /**
  * Global fidelity invariant: a location's visual representation is identical
@@ -281,6 +282,67 @@ describe("Canonical spatial representation", () => {
     for (const [kind, structure] of expectations) {
       const child = makeChild({ kind, model: CABINET_MODEL });
       expect(resolveAsChildInScene(child).structure).toBe(structure);
+    }
+  });
+
+  /**
+   * Kind audit matrix: every kind the location form can produce resolves to a
+   * declared representation in both rendering contexts (or is explicitly scene
+   * context), and every kind is classified by the domain compatibility rule.
+   * A new kind added to the form without a decision here fails this test.
+   */
+  it("classifies every location-form kind", () => {
+    const expected: Record<
+      string,
+      { structure: string; source: string; kindClass: string }
+    > = {
+      warehouse: { structure: "warehouse", source: "kind", kindClass: "space" },
+      building: { structure: "warehouse", source: "kind", kindClass: "space" },
+      facility: { structure: "warehouse", source: "kind", kindClass: "space" },
+      room: { structure: "none", source: "fallback", kindClass: "space" },
+      zone: { structure: "none", source: "fallback", kindClass: "space" },
+      aisle: { structure: "none", source: "fallback", kindClass: "space" },
+      rack: { structure: "rack", source: "kind", kindClass: "container" },
+      shelf: { structure: "rack", source: "kind", kindClass: "container" },
+      cabinet: { structure: "enclosure", source: "kind", kindClass: "container" },
+      dry_cabinet: {
+        structure: "enclosure",
+        source: "kind",
+        kindClass: "container",
+      },
+      reel_rack: { structure: "rack", source: "kind", kindClass: "container" },
+      drawer: { structure: "drawer", source: "kind", kindClass: "compartment" },
+      bin: { structure: "tray", source: "kind", kindClass: "compartment" },
+      compartment: { structure: "tray", source: "kind", kindClass: "compartment" },
+      tray: { structure: "tray", source: "kind", kindClass: "compartment" },
+      tube: { structure: "tray", source: "kind", kindClass: "compartment" },
+      reel_slot: { structure: "tray", source: "kind", kindClass: "compartment" },
+    };
+
+    for (const [kind, expectation] of Object.entries(expected)) {
+      const child = makeChild({ kind });
+      const direct = resolveAsDirectView(child);
+      const nested = resolveAsChildInScene(child);
+
+      expect(
+        { kind, structure: direct.structure, source: direct.source },
+        `direct ${kind}`,
+      ).toEqual({
+        kind,
+        structure: expectation.structure,
+        source: expectation.source,
+      });
+      expect(
+        { kind, structure: nested.structure, source: nested.source },
+        `nested ${kind}`,
+      ).toEqual({
+        kind,
+        structure: expectation.structure,
+        source: expectation.source,
+      });
+      expect(classifySpatialKind(kind), `class ${kind}`).toBe(
+        expectation.kindClass,
+      );
     }
   });
 

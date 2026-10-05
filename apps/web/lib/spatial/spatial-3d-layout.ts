@@ -5,7 +5,7 @@ import type {
   SpatialNodeDto,
 } from "../api/spatial-api";
 import {
-  INCOMPATIBLE_COMPARTMENT_KINDS,
+  isSpatialSpaceKind,
   type ParametricStorageConfig,
 } from "@ananya/inventory";
 import type { CellStockSummary } from "./spatial-inventory-mapper";
@@ -629,7 +629,7 @@ export function resolveKindStructureShape(kind?: string): ParentStructureShape {
   if (WAREHOUSE_SHELL_KINDS.has(normalized)) return "warehouse";
   // The domain's own rule: these kinds are spaces, never compartment-level
   // containers, so they must not acquire a container-shaped body.
-  if (!normalized || INCOMPATIBLE_COMPARTMENT_KINDS.has(normalized)) {
+  if (!normalized || isSpatialSpaceKind(normalized)) {
     return "none";
   }
   // Kinds are compound names (`dry_cabinet`, `reel_slot`, `open_bin_wall`), so

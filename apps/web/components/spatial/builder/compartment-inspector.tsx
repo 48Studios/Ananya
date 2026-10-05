@@ -12,11 +12,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import type { GeneratedCompartment } from "@ananya/inventory";
+import {
+  checkSpatialMappingCompatibility,
+  isSpatiallyCompatible,
+  resolveSlotCandidateKinds,
+  type GeneratedCompartment,
+} from "@ananya/inventory";
 import type { LocationDto } from "@/lib/api/locations-api";
 import {
   getDescendantLocationIds,
-  INCOMPATIBLE_COMPARTMENT_KINDS,
   type SlotMappingRecord,
 } from "@/lib/spatial/inventory-builder-state";
 import { cn } from "@/lib/utils";
@@ -68,19 +72,48 @@ export function CompartmentInspector({
   // Filter available locations:
   // 1. Must be a valid descendant of the selected parent container
   // 2. Must not be the selected parent container itself
-  // 3. Exclude incompatible structural container kinds (warehouse, room, etc.)
+  // 3. Must be kind-compatible with this slot (domain rule)
   // 4. Exclude locations already mapped to other slots
   const eligibleLocations = React.useMemo(() => {
     if (!selectedParentId) return [];
+    const rootKind = availableLocations.find((loc) => loc.id === selectedParentId)?.kind;
     return availableLocations.filter((loc) => {
       if (loc.id === selectedParentId) return false;
       if (!descendantIds.has(loc.id)) return false;
-      const kind = (loc.kind || "").toLowerCase().trim();
-      if (INCOMPATIBLE_COMPARTMENT_KINDS.has(kind)) return false;
+      const verdict = checkSpatialMappingCompatibility({
+        rootKind,
+        candidateKind: loc.kind,
+        slotKind: compartment?.kind ?? null,
+      });
+      if (!verdict.compatible) return false;
       if (mappedLocationIds.has(loc.id)) return false;
       return true;
     });
-  }, [availableLocations, selectedParentId, descendantIds, mappedLocationIds]);
+  }, [
+    availableLocations,
+    selectedParentId,
+    descendantIds,
+    mappedLocationIds,
+    compartment?.kind,
+  ]);
+
+  /**
+   * Candidates that exist in the hierarchy but cannot be mapped into this slot,
+   * kept so the operator sees why a location is missing instead of guessing.
+   */
+  const rejectedByKind = React.useMemo(() => {
+    if (!selectedParentId || !compartment) return [];
+    const rootKind = availableLocations.find((loc) => loc.id === selectedParentId)?.kind;
+    return availableLocations.filter((loc) => {
+      if (loc.id === selectedParentId || !descendantIds.has(loc.id)) return false;
+      if (mappedLocationIds.has(loc.id)) return false;
+      return !isSpatiallyCompatible({
+        rootKind,
+        candidateKind: loc.kind,
+        slotKind: compartment.kind,
+      });
+    });
+  }, [availableLocations, selectedParentId, descendantIds, mappedLocationIds, compartment]);
 
   const locationOptions = React.useMemo(() => {
     return eligibleLocations.map((loc) => ({
@@ -283,7 +316,11 @@ export function CompartmentInspector({
                   !selectedParentId
                     ? "Select a parent storage container first to see eligible locations."
                     : eligibleLocations.length === 0
-                      ? "No eligible unmapped descendant locations found under selected parent."
+                      ? rejectedByKind.length > 0
+                        ? `No compatible locations: this ${compartment.kind} compartment only accepts ${resolveSlotCandidateKinds(
+                            compartment.kind,
+                          ).join(", ")} locations.`
+                        : "No eligible unmapped descendant locations found under selected parent."
                       : "No matching locations found."
                 }
               />
@@ -291,6 +328,23 @@ export function CompartmentInspector({
             <p className="text-[10px] text-muted-foreground leading-snug">
               Associates this slot with a physical master-data location record in the workspace draft.
             </p>
+            <p className="text-[10px] text-muted-foreground leading-snug">
+              Accepts {compartment.kind} locations:{" "}
+              {resolveSlotCandidateKinds(compartment.kind).join(", ")}.
+            </p>
+            {rejectedByKind.length > 0 && (
+              <p
+                className="text-[10px] text-amber-700 dark:text-amber-400 leading-snug"
+                data-testid="compartment-incompatible-candidates"
+              >
+                Hidden as incompatible with a {compartment.kind} compartment:{" "}
+                {rejectedByKind
+                  .slice(0, 4)
+                  .map((loc) => `${loc.name} (${loc.kind})`)
+                  .join(", ")}
+                {rejectedByKind.length > 4 ? ` +${rejectedByKind.length - 4} more` : ""}
+              </p>
+            )}
           </div>
         )}
       </div>

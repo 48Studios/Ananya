@@ -15,13 +15,17 @@ import {
   computeSlotAcknowledgmentSignature,
   getAncestorChainIds,
   getDescendantLocationIds,
-  INCOMPATIBLE_COMPARTMENT_KINDS,
+  findSpatialMappingIncompatibilities,
+  isTemplateRootCompatible,
+  isSpatialSpaceKind,
   type SpatialLayoutRepository,
   type LocationRepository,
   type SpatialNodeRepository,
   type SpatialLayoutWithMappings,
   type SpatialLayoutRevisionRecordProps,
   type ParametricStorageConfig,
+  type ParametricTemplateType,
+  type CompartmentKind,
   type GeneratedCompartment,
   type SpatialLayoutStatus,
   InactiveLayoutParentError,
@@ -35,6 +39,8 @@ import {
   DuplicateLocationMappingError,
   DuplicateSlotMappingError,
   IncompatibleLocationKindError,
+  IncompatibleSlotKindMappingError,
+  IncompatibleLayoutRootKindError,
   InvalidSlotIdError,
   PublishedLayoutAlreadyExistsError,
   CannotDeleteNonDraftLayoutError,
@@ -261,6 +267,11 @@ export class SpatialLayoutService {
       if (!parentLoc) {
         throw new LocationNotFoundError(dto.parentLocationId);
       }
+      this.assertTemplateRootCompatibility(
+        dto.templateType as ParametricTemplateType,
+        parentLoc.code,
+        parentLoc.kind,
+      );
 
       if (mappings.length > 0) {
         await this.validateMappingsHierarchyAndActivity(
@@ -365,6 +376,23 @@ export class SpatialLayoutService {
       const effectiveConfig = (dto.config ??
         layout.config) as unknown as ParametricStorageConfig;
       const effectiveTemplateType = dto.templateType ?? layout.templateType;
+
+      const [parentLoc] = await tx
+        .select({
+          code: locations.code,
+          kind: locations.kind,
+        })
+        .from(locations)
+        .where(eq(locations.id, layout.parentLocationId))
+        .for('share');
+      if (!parentLoc) {
+        throw new LocationNotFoundError(layout.parentLocationId);
+      }
+      this.assertTemplateRootCompatibility(
+        effectiveTemplateType as ParametricTemplateType,
+        parentLoc.code,
+        parentLoc.kind,
+      );
 
       const validation = validateParametricConfig(effectiveConfig);
       if (!validation.isValid) {
@@ -573,7 +601,12 @@ export class SpatialLayoutService {
       // is safe — deactivation-then-publish rejects, publish-then-deactivation
       // commits first and the deactivation lands afterwards.
       const [parentLoc] = await tx
-        .select({ id: locations.id, isActive: locations.isActive })
+        .select({
+          id: locations.id,
+          code: locations.code,
+          kind: locations.kind,
+          isActive: locations.isActive,
+        })
         .from(locations)
         .where(eq(locations.id, layout.parentLocationId))
         .for('update');
@@ -581,6 +614,11 @@ export class SpatialLayoutService {
       if (!parentLoc) {
         throw new LocationNotFoundError(layout.parentLocationId);
       }
+      this.assertTemplateRootCompatibility(
+        layout.templateType as ParametricTemplateType,
+        parentLoc.code,
+        parentLoc.kind,
+      );
 
       // 2c. Enforce the approved parent-activity policy (Phase 3.4.4): drafts
       // may live under an inactive parent, but publication operationalizes the
@@ -916,9 +954,9 @@ export class SpatialLayoutService {
         throw new InactiveLocationMappingError([loc.code]);
       }
 
-      // Must not be macro incompatible structural kind
-      const normalizedKind = (loc.kind || '').toLowerCase().trim();
-      if (INCOMPATIBLE_COMPARTMENT_KINDS.has(normalizedKind)) {
+      // Must be a space kind? Spaces (warehouse, room, aisle, …) are walkable
+      // volume, never a compartment, so they can never be mapped as a slot.
+      if (isSpatialSpaceKind(loc.kind)) {
         throw new IncompatibleLocationKindError(loc.code, loc.kind);
       }
 
@@ -926,6 +964,64 @@ export class SpatialLayoutService {
       if (!membership.has(m.locationId)) {
         throw new ConcurrentHierarchyMutationError([loc.code]);
       }
+    }
+
+    // 4. Kind compatibility against the generated slot each mapping targets.
+    //    Server-side authority: the builder UI filters candidates with the same
+    //    domain rule, but filtering is not an integrity boundary.
+    this.assertSlotKindCompatibility(parentLoc.kind, mappings, locMap, slotMap);
+  }
+
+  /**
+   * Rejects mappings whose location kind cannot occupy its generated slot
+   * (e.g. a `rack` mapped into a `drawer` compartment).
+   */
+  private assertSlotKindCompatibility(
+    parentKind: string | null | undefined,
+    mappings: ReadonlyArray<{ slotId: string; locationId: string }>,
+    locMap: ReadonlyMap<string, { code: string; kind: string }>,
+    slotMap: ReadonlyMap<string, GeneratedCompartment>,
+  ): void {
+    const kindsByLocationId = new Map<string, string>();
+    for (const [id, loc] of locMap) {
+      kindsByLocationId.set(id, loc.kind);
+    }
+    const slotKindsBySlotId = new Map<string, CompartmentKind>();
+    for (const [slotId, compartment] of slotMap) {
+      slotKindsBySlotId.set(slotId, compartment.kind);
+    }
+
+    const violations = findSpatialMappingIncompatibilities(mappings, {
+      rootKind: parentKind,
+      kindsByLocationId,
+      slotKindsBySlotId,
+    });
+
+    if (violations.length > 0) {
+      throw new IncompatibleSlotKindMappingError(
+        violations.map((violation) => ({
+          slotId: violation.slotId,
+          slotCode: slotMap.get(violation.slotId)?.code ?? violation.slotId,
+          locationCode:
+            locMap.get(violation.locationId)?.code ?? violation.locationId,
+          candidateKind: violation.candidateKind,
+          slotKind: violation.slotKind ?? 'unknown',
+        })),
+      );
+    }
+  }
+
+  private assertTemplateRootCompatibility(
+    templateType: ParametricStorageConfig['templateType'],
+    locationCode: string,
+    locationKind: string,
+  ): void {
+    if (!isTemplateRootCompatible(templateType, locationKind)) {
+      throw new IncompatibleLayoutRootKindError(
+        templateType,
+        locationCode,
+        locationKind,
+      );
     }
   }
 

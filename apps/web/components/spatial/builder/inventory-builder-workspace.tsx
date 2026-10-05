@@ -48,6 +48,7 @@ import {
   acknowledgeStaleMapping,
   setSelectedParentLocation,
   unmapIncompatibleHierarchySlots,
+  unmapKindIncompatibleSlots,
   selectContainer,
   selectCompartment,
   PARENT_CONFLICT_STALE_PREFIX,
@@ -67,6 +68,7 @@ import type {
   ParametricTemplateType,
   SpatialLayoutWithMappings,
 } from "@ananya/inventory";
+import { findSpatialMappingIncompatibilities } from "@ananya/inventory";
 import { ParametricConfigPanel } from "./parametric-config-panel";
 import { ParametricDiffPanel } from "./parametric-diff-panel";
 import { ParametricPreview2D } from "./parametric-preview-2d";
@@ -820,7 +822,12 @@ export function InventoryBuilderWorkspace({
   }, [handleSelectParentLocation]);
 
   const handleUnlinkIncompatible = React.useCallback(() => {
-    setState((prev) => unmapIncompatibleHierarchySlots(prev, locations));
+    setState((prev) =>
+      unmapKindIncompatibleSlots(
+        unmapIncompatibleHierarchySlots(prev, locations),
+        locations,
+      ),
+    );
   }, [locations]);
 
   // Count of mappings with hierarchy mismatch relative to selected parent
@@ -838,6 +845,37 @@ export function InventoryBuilderWorkspace({
     }
     return list;
   }, [state.mappings]);
+
+  // Second invalidation source: kind compatibility against the draft's slots.
+  // Computed with the same domain rule the API enforces, so a mapping shown as
+  // valid here can never be rejected on save (and vice versa).
+  const kindIncompatibleMappings = React.useMemo(() => {
+    if (!state.generatedResult || state.mappings.size === 0) {
+      return [] as Array<{ record: SlotMappingRecord; reason: string }>;
+    }
+    const kindsByLocationId = new Map(
+      locations.map((loc) => [loc.id, loc.kind] as const),
+    );
+    const slotKindsBySlotId = new Map(
+      state.generatedResult.compartments.map((c) => [c.slotId, c.kind] as const),
+    );
+    const violations = findSpatialMappingIncompatibilities(
+      [...state.mappings.values()].map((record) => ({
+        slotId: record.slotId,
+        locationId: record.locationId,
+      })),
+      {
+        rootKind: locations.find((loc) => loc.id === state.selectedParentLocationId)
+          ?.kind,
+        kindsByLocationId,
+        slotKindsBySlotId,
+      },
+    );
+    return violations.flatMap((violation) => {
+      const record = state.mappings.get(violation.slotId);
+      return record ? [{ record, reason: violation.reason }] : [];
+    });
+  }, [state.mappings, state.generatedResult, state.selectedParentLocationId, locations]);
 
   // Selected compartment object from generated result
   const selectedCompartment = React.useMemo(() => {
@@ -1142,14 +1180,32 @@ export function InventoryBuilderWorkspace({
       )}
 
       {/* Hierarchy Mismatch Warning Banner */}
-      {incompatibleMappings.length > 0 && (
+      {(incompatibleMappings.length > 0 || kindIncompatibleMappings.length > 0) && (
         <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
           <div className="flex items-center gap-2">
             <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <span>
-              Hierarchy Mismatch: {incompatibleMappings.length} mapped{" "}
-              {incompatibleMappings.length === 1 ? "slot does" : "slots do"} not
-              belong to the selected parent container hierarchy.
+              {incompatibleMappings.length > 0 && (
+                <>
+                  Hierarchy Mismatch: {incompatibleMappings.length} mapped{" "}
+                  {incompatibleMappings.length === 1 ? "slot does" : "slots do"}{" "}
+                  not belong to the selected parent container hierarchy.{" "}
+                </>
+              )}
+              {kindIncompatibleMappings.length > 0 && (
+                <span data-testid="kind-incompatible-banner">
+                  Incompatible kinds: {kindIncompatibleMappings.length} mapped{" "}
+                  {kindIncompatibleMappings.length === 1 ? "slot holds a" : "slots hold"}{" "}
+                  location{" "}
+                  {kindIncompatibleMappings.length === 1 ? "kind" : "kinds"} this
+                  template cannot store (
+                  {kindIncompatibleMappings[0]?.record.locationName}
+                  {kindIncompatibleMappings.length > 1
+                    ? ` +${kindIncompatibleMappings.length - 1} more`
+                    : ""}
+                  ). The server rejects these on save.
+                </span>
+              )}
             </span>
           </div>
           <Button
@@ -1295,6 +1351,7 @@ export function InventoryBuilderWorkspace({
             </>
           ) : (
             <LocationMappingPanel
+              templateType={state.config.templateType}
               locations={locations}
               mappings={state.mappings}
               selectedParentId={state.selectedParentLocationId}
@@ -1304,6 +1361,7 @@ export function InventoryBuilderWorkspace({
                 state.generatedResult?.compartments.map((c) => ({
                   slotId: c.slotId,
                   code: c.code,
+                  kind: c.kind,
                 })) ?? []
               }
             />
@@ -1354,6 +1412,14 @@ export function InventoryBuilderWorkspace({
               locations={locations}
               selectedParentId={state.selectedParentLocationId}
               mappings={state.mappings}
+              slotKindsBySlotId={
+                new Map(
+                  state.generatedResult.compartments.map((compartment) => [
+                    compartment.slotId,
+                    compartment.kind,
+                  ]),
+                )
+              }
               onSelectParentId={handleSelectParentLocation}
               onClearParent={handleClearParentLocation}
             />
