@@ -288,8 +288,9 @@ describe("Spatial Navigation & Breadcrumb Engine", () => {
     const spatialGridSrc = readWebFile("components/spatial/spatial-grid.tsx");
     const spatialInspectorSrc = readWebFile("components/spatial/spatial-inspector.tsx");
     const spatial3DViewportSrc = readWebFile("components/spatial/spatial-3d-viewport.tsx");
-    const anchorHookSrc = readWebFile("lib/spatial/use-anchored-inspector.ts");
-    const placementSrc = readWebFile("lib/spatial/inspector-placement.ts");
+    const emptyStateSrc = readWebFile(
+      "components/spatial/spatial-inspector-empty-state.tsx",
+    );
 
     it("gives card rings room inside the scrolling grid so outlines are never clipped", () => {
       // The grid wrapper is an overflow container: it clips at its padding box,
@@ -315,71 +316,72 @@ describe("Spatial Navigation & Breadcrumb Engine", () => {
       expect(spatialViewSrc).toContain('<div className="w-full">');
     });
 
-    it("anchors the inspector next to the selected spatial object instead of docking it", () => {
-      expect(spatialViewSrc).toContain('data-testid="spatial-inspector-overlay"');
+    it("renders the inspector as an in-flow right sidebar, never a floating overlay", () => {
+      expect(spatialViewSrc).toContain('data-testid="spatial-inspector-sidebar"');
       expect(spatialViewSrc).toContain('data-testid="spatial-canvas-region"');
-      expect(spatialViewSrc).toContain("useAnchoredInspector({");
-      expect(spatialViewSrc).toContain("ref={inspectorWrapperRef}");
-      expect(spatialViewSrc).toContain('data-placement={inspector.placement ?? "pending"}');
 
-      // Non-modal: a labelled region, never a dialog, so background interaction stays live.
-      expect(spatialViewSrc).toContain('role="region"');
+      // Visualization and inspector are layout siblings: canvas takes the
+      // remaining width, the inspector is a fixed-width column.
+      expect(spatialViewSrc).toContain(
+        '"flex flex-col gap-4 lg:min-h-[520px] lg:flex-row lg:items-stretch"',
+      );
+      expect(spatialViewSrc).toContain('className="relative min-w-0 flex-1"');
+      expect(spatialViewSrc).toContain("lg:w-[380px] lg:shrink-0 xl:w-[400px]");
+      expect(spatialViewSrc).toContain('"flex w-full min-w-0 flex-col overflow-hidden');
+
+      // Non-modal: a labelled complementary surface, never a dialog/backdrop.
+      expect(spatialViewSrc).toContain('<aside');
+      expect(spatialViewSrc).toContain('aria-label="Spatial location inspector"');
       expect(spatialInspectorSrc).not.toContain('role="dialog"');
+      expect(emptyStateSrc).not.toContain('role="dialog"');
+      expect(spatialViewSrc).not.toContain('role="dialog"\n');
 
-      // `fixed` (not `absolute`): the canvas region sits far down the scrollable
-      // page, so a canvas-relative panel could run past the viewport and over
-      // the footer.
-      expect(spatialViewSrc).toContain('"fixed z-40 flex flex-col"');
-      expect(spatialViewSrc).not.toContain("sm:absolute sm:top-14");
-      expect(spatialViewSrc).not.toContain("fixed inset-x-0 bottom-0 z-50");
+      // No floating positioning, no portal, no placement math remains.
+      expect(spatialViewSrc).not.toContain("fixed z-40 flex flex-col");
+      expect(spatialViewSrc).not.toContain("data-placement=");
+      expect(spatialViewSrc).not.toContain("inspector.style");
+      expect(spatialViewSrc).not.toContain("DEFAULT_INSPECTOR_STYLE");
+      expect(spatialViewSrc).not.toContain("useAnchoredInspector");
+      expect(spatialViewSrc).not.toContain("createPortal");
 
-      // The single 2D anchor source is the rendered card, not logical grid math.
-      expect(spatialCellSrc).toContain("data-spatial-location-id={summary.locationId}");
-      expect(spatialViewSrc).toContain("data-spatial-location-id=");
-
-      // Must not compute max-height against the parent canvas container.
+      // The old canvas-relative caps must not come back.
       expect(spatialViewSrc).not.toContain("calc(100%-4.5rem)");
       expect(spatialViewSrc).not.toContain("sm:max-h-[min(640px,calc(100vh-10rem))]");
     });
 
-    it("computes placement from measured bounds with the documented preference order", () => {
-      // Preferred order: right → left → below → above → constrained fallback.
-      expect(placementSrc).toContain('placement: "right"');
-      expect(placementSrc).toContain('placement: "left"');
-      expect(placementSrc).toContain('placement: "below"');
-      expect(placementSrc).toContain('placement: "above"');
-      expect(placementSrc).toContain('placement: "fallback"');
-      expect(placementSrc).toContain("containWithinBounds(");
-      expect(placementSrc).toContain("clampScreenRectToViewport(");
-
-      // The 3D anchor is the scene object's projected box, never invented coordinates.
-      expect(spatial3DViewportSrc).toContain("projectLocationBounds = (");
-      expect(spatial3DViewportSrc).toContain("hitTestSpatialObject = (");
-      expect(spatial3DViewportSrc).toContain("subscribeSceneMovement");
-      expect(spatial3DViewportSrc).toContain("sceneMovementListenersRef");
-      expect(anchorHookSrc).toContain("projectLocationBounds(selectedLocationId)");
-      expect(spatialViewSrc).toContain("interactionApiRef={interactionApiRef}");
-
-      // Real measurement + observation, throttled to one frame with a movement threshold.
-      expect(anchorHookSrc).toContain("getBoundingClientRect()");
-      expect(anchorHookSrc).toContain("new ResizeObserver(");
-      expect(anchorHookSrc).toContain('document.addEventListener("scroll", schedule, true)');
-      expect(anchorHookSrc).toContain("anchorEquals(lastAnchorRef.current, anchor)");
+    it("keeps one mounted sidebar with an empty state instead of destroying it", () => {
+      // Single source of truth: `selectedLocationId` decides content vs empty
+      // state, and the sidebar itself is always rendered.
+      expect(spatialViewSrc).toContain('data-state={isInspectorOpen ? "selected" : "empty"}');
+      expect(spatialViewSrc).toContain(
+        "{isInspectorOpen && selectedSummary && selectedChild ? (",
+      );
+      expect(spatialViewSrc).toContain("<SpatialInspectorEmptyState isAuthoring={isAuthoringAnchors} />");
+      expect(emptyStateSrc).toContain("Select a location");
+      expect(emptyStateSrc).toContain(
+        "Select a drawer, bin, cabinet, or other spatial location to inspect its inventory and mapping details.",
+      );
+      expect(emptyStateSrc).toContain('data-testid="spatial-inspector-empty"');
     });
 
-    it("dismisses the inspector from outside pointer activity without stealing spatial selections", () => {
-      // `click`, not `pointerdown`: an orbit drag must not dismiss the inspector.
-      expect(anchorHookSrc).toContain('document.addEventListener("click", handleClick, true)');
-      expect(anchorHookSrc).toContain("const handleClick = (event: MouseEvent) => {");
-      expect(anchorHookSrc).toContain("wrapperRef.current?.contains(target)");
-      expect(anchorHookSrc).toContain('target.closest("[data-spatial-location-id]")');
-      expect(anchorHookSrc).toContain("hitTestSpatialObject(");
-      expect(anchorHookSrc).toContain("onDismiss()");
-      // Controls (camera presets, view toggles, cards) never dismiss the panel.
-      expect(anchorHookSrc).toContain('"button, a, input, select, textarea,');
-      expect(anchorHookSrc).toContain(
-        "[role='button'], [role='menuitem'], [role='tab'], [role='switch'], [role='checkbox']",
-      );
+    it("removed every floating-inspector positioning and dismissal path", () => {
+      // No anchor measurement, collision, observer, or outside-click handling
+      // survives the migration.
+      expect(spatialViewSrc).not.toContain("getBoundingClientRect");
+      expect(spatialViewSrc).not.toContain("ResizeObserver");
+      expect(spatialViewSrc).not.toContain("requestAnimationFrame");
+      expect(spatialViewSrc).not.toContain("addEventListener(\"click\"");
+      expect(spatialViewSrc).not.toContain("addEventListener(\"pointerdown\"");
+      expect(spatialViewSrc).not.toContain("onDismiss");
+
+      // The 3D viewport no longer exposes a projection/hit-test bridge for it.
+      expect(spatial3DViewportSrc).not.toContain("projectLocationBounds");
+      expect(spatial3DViewportSrc).not.toContain("hitTestSpatialObject");
+      expect(spatial3DViewportSrc).not.toContain("subscribeSceneMovement");
+      expect(spatial3DViewportSrc).not.toContain("interactionApiRef");
+
+      // The 2D anchor attribute stays only as a stable card identifier.
+      expect(spatialCellSrc).toContain("data-spatial-location-id={summary.locationId}");
     });
 
     it("keeps the inspector header pinned while a single body container scrolls", () => {
@@ -418,9 +420,6 @@ describe("Spatial Navigation & Breadcrumb Engine", () => {
       // Close button, Escape, and outside clicks all route through it.
       expect(spatialViewSrc).toContain("onClose={handleCloseInspector}");
       expect(spatialViewSrc).toContain("handleCloseInspector();");
-      expect(spatialViewSrc).toContain(
-        "const handleInspectorDismiss = React.useCallback(() => {",
-      );
 
       // The close control itself never bubbles into a card/canvas handler.
       expect(spatialInspectorSrc).toContain("event.stopPropagation();");

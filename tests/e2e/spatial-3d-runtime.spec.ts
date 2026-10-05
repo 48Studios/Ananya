@@ -383,12 +383,8 @@ test.describe("Spatial Inventory 3D — Custom GLB/GLTF Runtime Verification", (
     await expect(page.getByText("DEMO-SPATIAL-DRAWER-A06").first()).toBeVisible();
     await expect(page.getByText("Physical Path:")).toBeVisible();
 
-    // The transient staging picker yields to the inspector so the two panels
-    // can never occlude each other on narrower canvases.
-    await expect(page.getByTestId("spatial-staging-tray")).not.toBeVisible();
-
-    // Drill down: enter drawer location via the inspector's Enter action
-    const inspector = page.getByTestId("spatial-inspector-overlay");
+    // Drill down: enter drawer location via the sidebar's Enter action
+    const inspector = page.getByTestId("spatial-inspector-sidebar");
     const enterBtn = inspector
       .getByRole("button", { name: /Enter location DEMO-SPATIAL-DRAWER-A06/i })
       .first();

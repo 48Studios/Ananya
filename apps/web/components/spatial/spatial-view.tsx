@@ -51,17 +51,11 @@ import {
   type DraftAnchor,
 } from "@/lib/spatial/spatial-anchor-authoring";
 import { buildSpatialBreadcrumbs } from "@/lib/spatial/spatial-hierarchy";
-import {
-  type Spatial3DAnchorApi,
-} from "@/lib/spatial/inspector-placement";
-import {
-  DEFAULT_INSPECTOR_STYLE,
-  useAnchoredInspector,
-} from "@/lib/spatial/use-anchored-inspector";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 import { SpatialGrid } from "./spatial-grid";
 import { SpatialInspector } from "./spatial-inspector";
+import { SpatialInspectorEmptyState } from "./spatial-inspector-empty-state";
 import { DynamicSpatial3DViewport } from "./spatial-3d-view";
 import { SpatialBreadcrumbs } from "./spatial-breadcrumbs";
 import { SpatialAnchorEditor } from "./spatial-anchor-editor";
@@ -163,27 +157,6 @@ export function SpatialView({
   }, []);
 
   const [filterQuery, setFilterQuery] = React.useState("");
-
-  // Anchored inspector geometry: the panel is placed next to the selected object
-  // using its real rendered bounds (2D card DOM rect / projected 3D box).
-  const canvasRegionRef = React.useRef<HTMLDivElement>(null);
-  const inspectorWrapperRef = React.useRef<HTMLDivElement>(null);
-  const interactionApiRef = React.useRef<Spatial3DAnchorApi | null>(null);
-
-  const getAnchorElement = React.useCallback(
-    (locationId: string): HTMLElement | null => {
-      const region = canvasRegionRef.current;
-      if (!region) return null;
-      const escaped =
-        typeof CSS !== "undefined" && typeof CSS.escape === "function"
-          ? CSS.escape(locationId)
-          : locationId;
-      return region.querySelector<HTMLElement>(
-        `[data-spatial-location-id="${escaped}"]`,
-      );
-    },
-    [],
-  );
 
   // Mode state: 2D Operational Matrix or 3D Digital Twin
   const [internalMode, setInternalMode] = React.useState<"2d" | "3d">(
@@ -604,20 +577,6 @@ export function SpatialView({
   const isInspectorOpen = Boolean(
     selectedLocationId && selectedChild && selectedSummary && !isAuthoringAnchors,
   );
-  const handleInspectorDismiss = React.useCallback(() => {
-    handleCloseInspector();
-  }, [handleCloseInspector]);
-  const inspector = useAnchoredInspector({
-    isOpen: isInspectorOpen,
-    selectedLocationId: isAuthoringAnchors ? null : selectedLocationId,
-    mode: currentMode,
-    containerRef: canvasRegionRef,
-    wrapperRef: inspectorWrapperRef,
-    getAnchorElement,
-    projectionRef: interactionApiRef,
-    onDismiss: handleInspectorDismiss,
-  });
-
   const handleCellSelect = (id: string) => {
     setSelectedLocationId((prev) => (prev === id ? null : id));
     if (onLocationSelect) {
@@ -799,7 +758,9 @@ export function SpatialView({
         </div>
       )}
 
-      {/* Main Spatial Canvas Area (Always stable full-width; selecting a cell never resizes or reflows the canvas) */}
+      {/* Main Spatial Workspace. The canvas keeps a stable width for a given
+          sidebar state: selecting a cell swaps the inspector contents instead of
+          resizing or reflowing the visualization. */}
       <div className="relative w-full">
         <div className="w-full">
           <div className="bg-card rounded-xl border border-border p-4 shadow-xs">
@@ -968,132 +929,47 @@ export function SpatialView({
               </div>
             </div>
 
-            {/* Canvas positioning context: the floating overlays are
-                anchored inside the canvas region so a wrapped toolbar
-                can never be covered by them. */}
-            <div
-              ref={canvasRegionRef}
-              data-testid="spatial-canvas-region"
-              className="relative w-full"
-            >
-              {currentMode === "2d" ? (
-                <SpatialGrid
-                  layout={layout}
-                  stockMap={inventoryMapping.cellStockMap}
-                  selectedLocationId={selectedLocationId}
-                  highlightedLocationId={effectiveHighlightedLocationId}
-                  onSelectCell={handleCellSelect}
-                  onEnterCell={handleNavigate}
-                />
-              ) : (
-                <DynamicSpatial3DViewport
-                  parentData={data.parent}
-                  childrenLayout={previewChildrenLayout}
-                  unmappedChildren={layout3D.unmapped}
-                  stockMap={inventoryMapping.cellStockMap}
-                  selectedLocationId={selectedLocationId}
-                  highlightedLocationId={effectiveHighlightedLocationId}
-                  onSelectLocation={handleCellSelect}
-                  onEnterLocation={handleNavigate}
-                  onOpenMapping={onOpenMapping}
-                  onSwitchTo2D={() => handleSafeModeChange("2d")}
-                  visualizationMode={visualizationMode}
-                  showBadges={showBadges}
-                  enableDrawerOpening
-                  openableKinds={OPERATIONAL_OPENABLE_KINDS}
-                  interactionApiRef={interactionApiRef}
-                  isAuthoringAnchors={isAuthoringAnchors}
-                  draftAnchors={draftAnchors}
-                  selectedAnchorId={selectedAnchorId}
-                  authoringGizmoMode={authoringGizmoMode}
-                  onSelectAnchor={(id) => setSelectedAnchorId(id)}
-                  onAnchorTransformChange={(anchorId, updates) => {
-                    setDraftAnchors((prev) =>
-                      prev.map((a) =>
-                        a.id === anchorId
-                          ? { ...a, ...updates, isModified: true }
-                          : a,
-                      ),
-                    );
-                  }}
-                  onGizmoModeChange={(mode) => setAuthoringGizmoMode(mode)}
-                />
-              )}
-
-              {/* Selected Cell Inspector: a non-modal floating inspector anchored
-                  next to the selected spatial object. Geometry is measured from
-                  the card's DOM rect (2D) or the object's projected bounds (3D)
-                  and clamped inside the spatial viewport, so the panel can never
-                  run past the viewport, cover the footer, or push the page into
-                  horizontal scroll. Before the first measurement (and if it is
-                  impossible) the fallback docking style keeps it constrained. */}
-              {isInspectorOpen && (
-                <div
-                  ref={inspectorWrapperRef}
-                  data-testid="spatial-inspector-overlay"
-                  data-placement={inspector.placement ?? "pending"}
-                  role="region"
-                  aria-label={`Selected location inspector: ${
-                    selectedSummary?.locationCode ?? "location"
-                  }`}
-                  style={inspector.style ?? DEFAULT_INSPECTOR_STYLE}
-                  className={cn(
-                    "fixed z-40 flex flex-col",
-                    // Fade/slide in on open and animate the short reposition
-                    // between selections; continuous camera or scroll tracking
-                    // never animates so the panel cannot lag behind the object.
-                    "animate-in fade-in-0 duration-150 motion-reduce:animate-none",
-                    !inspector.isFollowing &&
-                      "transition-[top,left] duration-150 ease-out motion-reduce:transition-none",
-                    inspector.placement === "right" && "slide-in-from-left-2",
-                    inspector.placement === "left" && "slide-in-from-right-2",
-                    inspector.placement === "below" && "slide-in-from-top-2",
-                    inspector.placement === "above" && "slide-in-from-bottom-2",
-                    inspector.placement === "sheet" && "slide-in-from-bottom-4",
-                  )}
-                >
-                  <SpatialInspector
-                    summary={selectedSummary}
-                    childDto={selectedChild}
-                    focusComponentId={focusComponentId}
-                    onClose={handleCloseInspector}
-                    onEnterLocation={handleNavigate}
-                    className="min-h-0 flex-1 shadow-xl"
+            {/* Spatial workspace: the visualization and the inspector are
+                layout siblings. The inspector is part of the workspace grid
+                rather than an overlay, which is what keeps it from ever
+                covering the canvas, the page chrome, or the footer, and lets
+                the visualization use exactly the remaining width. */}
+            <div className="flex flex-col gap-4 lg:min-h-[520px] lg:flex-row lg:items-stretch">
+              <div
+                data-testid="spatial-canvas-region"
+                className="relative min-w-0 flex-1"
+              >
+                {currentMode === "2d" ? (
+                  <SpatialGrid
+                    layout={layout}
+                    stockMap={inventoryMapping.cellStockMap}
+                    selectedLocationId={selectedLocationId}
+                    highlightedLocationId={effectiveHighlightedLocationId}
+                    onSelectCell={handleCellSelect}
+                    onEnterCell={handleNavigate}
                   />
-                </div>
-              )}
-
-              {/* Anchor Authoring Panel: the same viewport-constrained overlay
-                  contract as the detail panel — anchored to the shell chrome
-                  instead of the canvas region so it can never run past the
-                  viewport or over the footer. */}
-              {isAuthoringAnchors && data.parent.model && (
-                <div
-                  data-testid="spatial-anchor-editor-overlay"
-                  className={cn(
-                    "fixed inset-x-2 bottom-[calc(var(--app-footer-height,3.5rem)+1rem)] z-40 flex flex-col",
-                    "sm:left-auto sm:right-4 sm:bottom-auto sm:top-[calc(var(--app-header-height,3.5rem)+1rem)] sm:w-96 sm:max-w-[calc(100vw-2rem)]",
-                    "max-h-[calc(100dvh-var(--app-header-height,3.5rem)-var(--app-footer-height,3.5rem)-2rem)]",
-                  )}
-                >
-                  <SpatialAnchorEditor
-                    className="min-h-0"
-                    model={data.parent.model}
+                ) : (
+                  <DynamicSpatial3DViewport
+                    parentData={data.parent}
+                    childrenLayout={previewChildrenLayout}
+                    unmappedChildren={layout3D.unmapped}
+                    stockMap={inventoryMapping.cellStockMap}
+                    selectedLocationId={selectedLocationId}
+                    highlightedLocationId={effectiveHighlightedLocationId}
+                    onSelectLocation={handleCellSelect}
+                    onEnterLocation={handleNavigate}
+                    onOpenMapping={onOpenMapping}
+                    onSwitchTo2D={() => handleSafeModeChange("2d")}
+                    visualizationMode={visualizationMode}
+                    showBadges={showBadges}
+                    enableDrawerOpening
+                    openableKinds={OPERATIONAL_OPENABLE_KINDS}
+                    isAuthoringAnchors={isAuthoringAnchors}
                     draftAnchors={draftAnchors}
                     selectedAnchorId={selectedAnchorId}
-                    initialAnchors={data.parent.anchors || []}
-                    childrenLayout={previewChildrenLayout}
+                    authoringGizmoMode={authoringGizmoMode}
                     onSelectAnchor={(id) => setSelectedAnchorId(id)}
-                    onAddAnchor={() => {
-                      const newDraft = createDefaultDraftAnchor(
-                        data.parent.model!.id,
-                        draftAnchors,
-                        data.parent.model,
-                      );
-                      setDraftAnchors((prev) => [...prev, newDraft]);
-                      setSelectedAnchorId(newDraft.id);
-                    }}
-                    onUpdateAnchor={(anchorId, updates) => {
+                    onAnchorTransformChange={(anchorId, updates) => {
                       setDraftAnchors((prev) =>
                         prev.map((a) =>
                           a.id === anchorId
@@ -1102,23 +978,97 @@ export function SpatialView({
                         ),
                       );
                     }}
-                    onDeleteAnchor={(anchorId) => {
-                      setDraftAnchors((prev) =>
-                        prev.filter((a) => a.id !== anchorId),
-                      );
-                      if (selectedAnchorId === anchorId) {
-                        setSelectedAnchorId(null);
-                      }
-                    }}
-                    onSave={handleSaveAnchors}
-                    onCancel={handleExitAuthoring}
-                    saving={savingAnchors}
-                    saveError={saveAnchorError}
-                    authoringGizmoMode={authoringGizmoMode}
-                    onGizmoModeChange={setAuthoringGizmoMode}
+                    onGizmoModeChange={(mode) => setAuthoringGizmoMode(mode)}
                   />
-                </div>
-              )}
+                )}
+
+                {/* Anchor Authoring Panel: a transient editing surface for
+                    anchor authoring, pinned to the shell chrome instead of the
+                    canvas region so it can never run past the viewport or over
+                    the footer. */}
+                {isAuthoringAnchors && data.parent.model && (
+                  <div
+                    data-testid="spatial-anchor-editor-overlay"
+                    className={cn(
+                      "fixed inset-x-2 bottom-[calc(var(--app-footer-height,3.5rem)+1rem)] z-40 flex flex-col",
+                      "sm:left-auto sm:right-4 sm:bottom-auto sm:top-[calc(var(--app-header-height,3.5rem)+1rem)] sm:w-96 sm:max-w-[calc(100vw-2rem)]",
+                      "max-h-[calc(100dvh-var(--app-header-height,3.5rem)-var(--app-footer-height,3.5rem)-2rem)]",
+                    )}
+                  >
+                    <SpatialAnchorEditor
+                      className="min-h-0"
+                      model={data.parent.model}
+                      draftAnchors={draftAnchors}
+                      selectedAnchorId={selectedAnchorId}
+                      initialAnchors={data.parent.anchors || []}
+                      childrenLayout={previewChildrenLayout}
+                      onSelectAnchor={(id) => setSelectedAnchorId(id)}
+                      onAddAnchor={() => {
+                        const newDraft = createDefaultDraftAnchor(
+                          data.parent.model!.id,
+                          draftAnchors,
+                          data.parent.model,
+                        );
+                        setDraftAnchors((prev) => [...prev, newDraft]);
+                        setSelectedAnchorId(newDraft.id);
+                      }}
+                      onUpdateAnchor={(anchorId, updates) => {
+                        setDraftAnchors((prev) =>
+                          prev.map((a) =>
+                            a.id === anchorId
+                              ? { ...a, ...updates, isModified: true }
+                              : a,
+                          ),
+                        );
+                      }}
+                      onDeleteAnchor={(anchorId) => {
+                        setDraftAnchors((prev) =>
+                          prev.filter((a) => a.id !== anchorId),
+                        );
+                        if (selectedAnchorId === anchorId) {
+                          setSelectedAnchorId(null);
+                        }
+                      }}
+                      onSave={handleSaveAnchors}
+                      onCancel={handleExitAuthoring}
+                      saving={savingAnchors}
+                      saveError={saveAnchorError}
+                      authoringGizmoMode={authoringGizmoMode}
+                      onGizmoModeChange={setAuthoringGizmoMode}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Spatial Location Inspector: a fixed-width, in-flow sidebar. It
+                  stays mounted and shows an empty state when nothing is
+                  selected, so selection changes only swap its contents - no
+                  positioning, dismissal, or collision logic exists. */}
+              <aside
+                data-testid="spatial-inspector-sidebar"
+                data-state={isInspectorOpen ? "selected" : "empty"}
+                aria-label="Spatial location inspector"
+                className={cn(
+                  "flex w-full min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card/60",
+                  // Desktop: predictable inspector column beside the canvas.
+                  "lg:w-[380px] lg:shrink-0 xl:w-[400px]",
+                  // Mobile: the canvas stacks above a bounded inspector panel.
+                  "max-h-[70vh] lg:max-h-none",
+                )}
+              >
+                {isInspectorOpen && selectedSummary && selectedChild ? (
+                  <SpatialInspector
+                    summary={selectedSummary}
+                    childDto={selectedChild}
+                    focusComponentId={focusComponentId}
+                    onClose={handleCloseInspector}
+                    onEnterLocation={handleNavigate}
+                    className="min-h-0 flex-1 rounded-none border-0 bg-transparent shadow-none backdrop-blur-none"
+                  />
+                ) : (
+                  <SpatialInspectorEmptyState isAuthoring={isAuthoringAnchors} />
+                )}
+              </aside>
             </div>
           </div>
         </div>

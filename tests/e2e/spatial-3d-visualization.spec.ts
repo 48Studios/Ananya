@@ -1,5 +1,4 @@
 import { test, expect, requireE2EAuth } from "../fixtures/test.fixture";
-import type { Locator, Page } from "@playwright/test";
 import { Pool } from "pg";
 import * as crypto from "crypto";
 import {
@@ -20,19 +19,10 @@ let DEMO_WAREHOUSE_ID: string;
 let DEMO_RACK_ID: string;
 let MAPPED_BIN_ID: string;
 let UNMAPPED_DRAWER_ID: string;
+let DRAWER_A01_ID: string;
 
 let pool: Pool;
 let testToken: string;
-
-/** Asserts the inspector stays unmounted for a moment (no delayed reopen). */
-async function expectStaysClosed(
-  page: Page,
-  panel: Locator,
-): Promise<void> {
-  await expect(panel).toHaveCount(0);
-  await page.waitForTimeout(600);
-  await expect(panel).toHaveCount(0);
-}
 
 test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualization", () => {
   test.describe.configure({ mode: "serial" });
@@ -73,12 +63,14 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
       DEMO_CODES.rack,
       DEMO_CODES.binA0101,
       DEMO_CODES.drawerC01,
+      DEMO_CODES.drawerA01,
     ]);
     CABINET_LOCATION_ID = demoIds[DEMO_CODES.cabinetA];
     DEMO_WAREHOUSE_ID = demoIds[DEMO_CODES.warehouse];
     DEMO_RACK_ID = demoIds[DEMO_CODES.rack];
     CABINET_B_LOCATION_ID = demoIds[DEMO_CODES.cabinetB];
     MAPPED_BIN_ID = demoIds[DEMO_CODES.binA0101];
+    DRAWER_A01_ID = demoIds[DEMO_CODES.drawerA01];
     UNMAPPED_DRAWER_ID = demoIds[DEMO_CODES.drawerC01];
   });
 
@@ -774,216 +766,102 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     await expect(page).not.toHaveURL(/view=list/);
   });
 
-  test("12. Inspector is an anchored, viewport-constrained inspector", async ({
+  test("12. Spatial inspector is an in-flow right sidebar with an empty state", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 810 });
-    await page.goto(
-      `/inventory/locations/${DEMO_WAREHOUSE_ID}?view=spatial`,
-    );
-    await expect(
-      page.locator("[data-testid='spatial-operational-bar']"),
-    ).toBeVisible({ timeout: 15000 });
-
-    // Selecting a card opens the detail panel.
-    await page
-      .locator('main button[aria-label^="Storage location DEMO-SPATIAL-RACK"]')
-      .click();
-    await expect(page.getByTestId("spatial-inspector-overlay")).toBeVisible();
-
-    // Scroll the content container to the end so the footer is on screen.
-    await page.evaluate(() => {
-      const main = document.querySelector("main");
-      if (main) main.scrollTop = main.scrollHeight;
-    });
-
-    const geometry = await page.evaluate(() => {
-      const panel = document.querySelector(
-        '[data-testid="spatial-inspector-overlay"]',
-      )!;
-      const body = document.querySelector(
-        '[data-testid="spatial-inspector-body"]',
-      )!;
-      const header = panel.firstElementChild!.firstElementChild!;
-      const footer = document.querySelector("footer")!;
-      const rect = panel.getBoundingClientRect();
-      const footerRect = footer.getBoundingClientRect();
-      const headerRect = header.getBoundingClientRect();
-      return {
-        viewport: { w: window.innerWidth, h: window.innerHeight },
-        rect: {
-          top: rect.top,
-          bottom: rect.bottom,
-          left: rect.left,
-          right: rect.right,
-          width: rect.width,
-        },
-        footerTop: footerRect.top,
-        headerTop: headerRect.top,
-        headerWidth: headerRect.width,
-        panelScrollWidth: panel.scrollWidth,
-        panelClientWidth: panel.clientWidth,
-        bodyScrollWidth: body.scrollWidth,
-        bodyClientWidth: body.clientWidth,
-        bodyScrollHeight: body.scrollHeight,
-        bodyClientHeight: body.clientHeight,
-      };
-    });
-
-    // Fully inside the usable viewport, and never over the footer.
-    expect(geometry.rect.top).toBeGreaterThanOrEqual(0);
-    expect(geometry.rect.left).toBeGreaterThanOrEqual(0);
-    expect(geometry.rect.right).toBeLessThanOrEqual(geometry.viewport.w);
-    expect(geometry.rect.bottom).toBeLessThanOrEqual(geometry.viewport.h);
-    expect(geometry.rect.bottom).toBeLessThanOrEqual(geometry.footerTop);
-    // Compact inspector width (360-440px band) rather than a page-wide panel.
-    expect(geometry.rect.width).toBeLessThanOrEqual(440);
-
-    // No horizontal scrollbar anywhere in the panel.
-    expect(geometry.panelScrollWidth).toBeLessThanOrEqual(
-      geometry.panelClientWidth,
-    );
-    expect(geometry.bodyScrollWidth).toBeLessThanOrEqual(
-      geometry.bodyClientWidth,
-    );
-
-    // Header and its controls fit the panel width.
-    expect(geometry.headerWidth).toBeLessThanOrEqual(geometry.rect.width + 1);
-
-    // The header stays pinned while the body scrolls.
-    const before = geometry.headerTop;
-    await page.evaluate(() => {
-      const body = document.querySelector(
-        '[data-testid="spatial-inspector-body"]',
-      )!;
-      body.scrollTop = body.scrollHeight;
-    });
-    const afterScroll = await page.evaluate(() => {
-      const panel = document.querySelector(
-        '[data-testid="spatial-inspector-overlay"]',
-      )!;
-      const body = document.querySelector(
-        '[data-testid="spatial-inspector-body"]',
-      )!;
-      const header = panel.firstElementChild!.firstElementChild!;
-      const closeButton = panel.querySelector(
-        'button[aria-label="Close inspector (Esc)"]',
-      )!;
-      const closeRect = closeButton.getBoundingClientRect();
-      const panelRect = panel.getBoundingClientRect();
-      return {
-        headerTop: header.getBoundingClientRect().top,
-        bodyScrollTop: body.scrollTop,
-        closeInside:
-          closeRect.top >= panelRect.top &&
-          closeRect.bottom <= panelRect.bottom &&
-          closeRect.left >= panelRect.left &&
-          closeRect.right <= panelRect.right,
-      };
-    });
-    expect(Math.abs(afterScroll.headerTop - before)).toBeLessThanOrEqual(1);
-    expect(afterScroll.bodyScrollTop).toBeGreaterThan(0);
-    expect(afterScroll.closeInside).toBe(true);
-
-    // Anchoring: the panel sits beside the selected card, not docked to a corner.
-    await expect(page.getByTestId("spatial-inspector-overlay")).toHaveAttribute(
-      "data-placement",
-      "right",
-    );
-  });
-
-  test("16. Detail panel behaves as a controlled drawer across selection, closing and small viewports", async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 1280, height: 600 });
     await page.goto(`/inventory/locations/${DEMO_WAREHOUSE_ID}?view=spatial`);
     await expect(
       page.locator("[data-testid='spatial-operational-bar']"),
     ).toBeVisible({ timeout: 15000 });
 
-    const panel = page.getByTestId("spatial-inspector-overlay");
-    const panelCode = () =>
-      panel.evaluate(
-        (el) =>
-          el.querySelector(".font-mono.text-sm")?.textContent?.trim() ?? "",
-      );
+    const sidebar = page.getByTestId("spatial-inspector-sidebar");
 
-    // 1 + 10: opening on a mapped container preserves its mapping status.
-    await page
-      .locator('main button[aria-label^="Storage location DEMO-SPATIAL-RACK"]')
-      .click();
-    await expect(panel).toBeVisible();
-    await expect(panel).toContainText("DEMO-SPATIAL-RACK");
-    await expect(panel).toContainText("Model: DEMO-SPATIAL-MODEL-RACK");
+    // Empty state: the sidebar is always mounted and explains what to do.
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
+    await expect(sidebar).toContainText("Select a location");
+    await expect(sidebar).toContainText(
+      "Select a drawer, bin, cabinet, or other spatial location",
+    );
 
-    // 2 + 3 + 5: bounded inside the viewport, no horizontal overflow, and the
-    // body owns the vertical scroll.
-    const bounds = await panel.evaluate((el) => {
-      const body = el.querySelector(
-        '[data-testid="spatial-inspector-body"]',
+    // Non-modal: no dialog, no backdrop, no floating overlay left behind.
+    await expect(page.locator('[role="dialog"]')).toHaveCount(0);
+    // The floating overlay is gone for good.
+    await expect(page.locator('[data-testid="spatial-inspector-overlay"]')).toHaveCount(0);
+    const layout = await page.evaluate(() => {
+      const el = document.querySelector(
+        '[data-testid="spatial-inspector-sidebar"]',
       ) as HTMLElement;
-      const rect = el.getBoundingClientRect();
+      const canvas = document.querySelector(
+        '[data-testid="spatial-canvas-region"]',
+      ) as HTMLElement;
+      const workspace = canvas.parentElement as HTMLElement;
+      const sr = el.getBoundingClientRect();
+      const cr = canvas.getBoundingClientRect();
+      const wr = workspace.getBoundingClientRect();
       return {
-        rect: {
-          top: rect.top,
-          bottom: rect.bottom,
-          left: rect.left,
-          right: rect.right,
-        },
-        viewport: { w: window.innerWidth, h: window.innerHeight },
-        bodyScrolls: body.scrollHeight > body.clientHeight,
-        bodyOverflowX: getComputedStyle(body).overflowX,
-        bodyOverflowY: getComputedStyle(body).overflowY,
+        position: getComputedStyle(el).position,
+        sidebar: { left: sr.left, right: sr.right, width: sr.width, height: sr.height },
+        canvas: { left: cr.left, right: cr.right, width: cr.width },
+        workspace: { width: wr.width },
       };
     });
-    expect(bounds.rect.top).toBeGreaterThanOrEqual(0);
-    expect(bounds.rect.left).toBeGreaterThanOrEqual(0);
-    expect(bounds.rect.right).toBeLessThanOrEqual(bounds.viewport.w);
-    expect(bounds.rect.bottom).toBeLessThanOrEqual(bounds.viewport.h);
-    expect(bounds.bodyScrolls).toBe(true);
-    expect(bounds.bodyOverflowX).toBe("hidden");
-    expect(bounds.bodyOverflowY).toBe("auto");
+    // In flow (not fixed/absolute) and beside the canvas, not over it.
+    expect(layout.position).toBe("static");
+    expect(layout.canvas.right).toBeLessThanOrEqual(layout.sidebar.left + 1);
+    // Widths add up: canvas + gap + sidebar == workspace.
+    expect(
+      Math.abs(layout.canvas.width + layout.sidebar.width - layout.workspace.width),
+    ).toBeLessThanOrEqual(24);
+    expect(layout.sidebar.width).toBeGreaterThanOrEqual(360);
+    expect(layout.sidebar.width).toBeLessThanOrEqual(440);
 
-    // 7: with the footer on screen the panel still clears it.
-    await page.evaluate(() => {
-      const main = document.querySelector("main");
-      if (main) main.scrollTop = main.scrollHeight;
-    });
-    const footerClearance = await page.evaluate(() => {
-      const panelEl = document.querySelector(
-        '[data-testid="spatial-inspector-overlay"]',
-      )!;
-      const footer = document.querySelector("footer")!;
-      return footer.getBoundingClientRect().top - panelEl.getBoundingClientRect().bottom;
-    });
-    expect(footerClearance).toBeGreaterThan(0);
-
-    // 8: selecting another container updates the same panel instance.
-    const panelHandleBefore = await panel.elementHandle();
+    // Selection fills the same sidebar and highlights the card.
     await page
-      .locator(
-        'main button[aria-label^="Storage location DEMO-SPATIAL-CABINET-B"]',
-      )
+      .locator('main button[aria-label^="Storage location DEMO-SPATIAL-RACK"]')
       .click();
-    await expect.poll(panelCode).toBe("DEMO-SPATIAL-CABINET-B");
-    const panelHandleAfter = await panel.elementHandle();
-    expect(panelHandleAfter).toBe(panelHandleBefore);
+    await expect(sidebar).toHaveAttribute("data-state", "selected");
+    await expect(sidebar).toContainText("DEMO-SPATIAL-RACK");
+    await expect(sidebar).toContainText("Model: DEMO-SPATIAL-MODEL-RACK");
+    await expect(
+      page.locator(
+        'main button[aria-label^="Storage location DEMO-SPATIAL-RACK"][aria-pressed="true"]',
+      ),
+    ).toHaveCount(1);
+    // The visualization keeps its width: the sidebar is not an overlay.
+    const afterSelect = await page.evaluate(() => {
+      const kanvas = document
+        .querySelector('[data-testid="spatial-canvas-region"]')!
+        .getBoundingClientRect();
+      const side = document
+        .querySelector('[data-testid="spatial-inspector-sidebar"]')!
+        .getBoundingClientRect();
+      return { canvasRight: kanvas.right, sidebarLeft: side.left };
+    });
+    expect(afterSelect.canvasRight).toBeLessThanOrEqual(
+      afterSelect.sidebarLeft + 1,
+    );
 
-    // 9: closing removes the panel (X button and Escape both work).
+    // Body owns the vertical scroll; nothing scrolls sideways.
+    const body = page.getByTestId("spatial-inspector-body");
+    await expect(body).toBeVisible();
+    const overflow = await body.evaluate((el) => ({
+      x: el.scrollWidth <= el.clientWidth,
+      scrollable: el.scrollHeight >= el.clientHeight,
+      overflowX: getComputedStyle(el).overflowX,
+    }));
+    expect(overflow.x).toBe(true);
+    expect(overflow.overflowX).toBe("hidden");
+
+    // Close returns to the empty state instead of removing the sidebar.
     await page.locator('button[aria-label="Close inspector (Esc)"]').click();
-    await expect(panel).toHaveCount(0);
-
-    await page
-      .locator('main button[aria-label^="Storage location DEMO-SPATIAL-SHELF"]')
-      .click();
-    await expect(panel).toBeVisible();
-    // 10: an unmapped container keeps reporting Unmapped.
-    await expect(panel).toContainText("Unmapped");
-    await page.keyboard.press("Escape");
-    await expect(panel).toHaveCount(0);
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
+    await expect(sidebar).toContainText("Select a location");
+    await expect(page.locator('[data-spatial-location-id][aria-pressed="true"]')).toHaveCount(0);
   });
 
-  test("17. Inspector anchors to the selected object, follows the scene, and dismisses on outside clicks", async ({
+  test("16. Sidebar updates in place across selection, close and viewport sizes", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 810 });
@@ -992,152 +870,142 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
       page.locator("[data-testid='spatial-operational-bar']"),
     ).toBeVisible({ timeout: 15000 });
 
-    const panel = page.getByTestId("spatial-inspector-overlay");
+    const sidebar = page.getByTestId("spatial-inspector-sidebar");
     const cardFor = (code: string) =>
       page.locator(`main button[aria-label^="Storage location ${code},"]`);
 
-    /** Panel rect, anchor rect, placement, and overflow facts in one round trip. */
-    const readGeometry = () =>
-      page.evaluate(() => {
-        const panelEl = document.querySelector(
-          '[data-testid="spatial-inspector-overlay"]',
-        ) as HTMLElement | null;
-        const body = document.querySelector(
-          '[data-testid="spatial-inspector-body"]',
-        ) as HTMLElement | null;
-        if (!panelEl || !body) return null;
-        const rect = panelEl.getBoundingClientRect();
-        const code =
-          panelEl
-            .querySelector(".font-mono.text-sm")
-            ?.textContent?.trim() ?? "";
-        const card = document.querySelector(
-          `main button[aria-label^="Storage location ${code},"]`,
-        );
-        const cardRect = card ? card.getBoundingClientRect() : null;
-        const footer = document.querySelector("footer");
-        return {
-          placement: panelEl.getAttribute("data-placement"),
-          panel: {
-            top: rect.top,
-            bottom: rect.bottom,
-            left: rect.left,
-            right: rect.right,
-            width: rect.width,
-            height: rect.height,
-          },
-          card: cardRect
-            ? { top: cardRect.top, bottom: cardRect.bottom, left: cardRect.left, right: cardRect.right }
-            : null,
-          footerTop: footer ? footer.getBoundingClientRect().top : null,
-          viewport: { w: window.innerWidth, h: window.innerHeight },
-          panelScrollWidth: panelEl.scrollWidth,
-          panelClientWidth: panelEl.clientWidth,
-          bodyScrollWidth: body.scrollWidth,
-          bodyClientWidth: body.clientWidth,
-        };
-      });
-
-    // 1 + 2: a card in the middle of the layout opens the inspector beside it.
+    // Selecting another container reuses the same sidebar element.
     await cardFor(DEMO_CODES.rack).click();
-    await expect(panel).toBeVisible();
-    const middle = (await readGeometry())!;
-    expect(middle.placement).toBe("right");
-    expect(middle.card).not.toBeNull();
-    // 12px-16px gutter, and the inspector overlaps the object vertically so the
-    // selection stays visible and attributable.
-    const gutter = middle.panel.left - middle.card!.right;
-    expect(gutter).toBeGreaterThanOrEqual(12);
-    expect(gutter).toBeLessThanOrEqual(16);
-    expect(middle.panel.bottom).toBeGreaterThan(middle.card!.top);
-    expect(middle.panel.top).toBeLessThan(middle.card!.bottom);
-    expect(middle.panel.width).toBeGreaterThanOrEqual(300);
-    expect(middle.panel.width).toBeLessThanOrEqual(440);
-
-    // 3 + 4: a card near the trailing edge flips the inspector to its left.
-    await cardFor(DEMO_CODES.tray).click();
-    await expect.poll(async () => (await readGeometry())!.placement).toBe("left");
-    const flipped = (await readGeometry())!;
-    const flippedGutter = flipped.card!.left - flipped.panel.right;
-    expect(flippedGutter).toBeGreaterThanOrEqual(12);
-    expect(flippedGutter).toBeLessThanOrEqual(16);
-    expect(flipped.panel.right).toBeLessThanOrEqual(flipped.viewport.w);
-
-    // 5 + 6 + 10: always inside the viewport, never over the footer, and never
-    // horizontally scrollable.
-    expect(flipped.panel.top).toBeGreaterThanOrEqual(0);
-    expect(flipped.panel.bottom).toBeLessThanOrEqual(flipped.viewport.h);
-    expect(flipped.panel.left).toBeGreaterThanOrEqual(0);
-    expect(flipped.panelScrollWidth).toBeLessThanOrEqual(flipped.panelClientWidth);
-    expect(flipped.bodyScrollWidth).toBeLessThanOrEqual(flipped.bodyClientWidth);
-
-    // 8: switching selection reuses the same inspector instance.
+    await expect(sidebar).toContainText("DEMO-SPATIAL-RACK");
+    const instanceBefore = await sidebar.elementHandle();
     await cardFor(DEMO_CODES.cabinetB).click();
-    await expect(panel).toContainText("DEMO-SPATIAL-CABINET-B");
-    const reused = (await readGeometry())!;
-    expect(reused.panel.left).toBeGreaterThanOrEqual(0);
-    expect(reused.panel.right).toBeLessThanOrEqual(reused.viewport.w);
+    await expect(sidebar).toContainText("DEMO-SPATIAL-CABINET-B");
+    expect(await sidebar.elementHandle()).toBe(instanceBefore);
+    await expect(sidebar).toHaveCount(1);
 
-    // 7: the footer stays clear once the scroll container is at its end.
-    await page.evaluate(() => {
-      const main = document.querySelector("main");
-      if (main) main.scrollTop = main.scrollHeight;
-    });
-    const scrolled = (await readGeometry())!;
-    expect(scrolled.footerTop).not.toBeNull();
-    expect(scrolled.panel.bottom).toBeLessThanOrEqual(scrolled.footerTop!);
-    expect(scrolled.panel.bottom).toBeLessThanOrEqual(scrolled.viewport.h);
-
-    // 17: the inspector repositions when the viewport shrinks.
-    await page.setViewportSize({ width: 1280, height: 620 });
-    await expect
-      .poll(async () => {
-        const geometry = await readGeometry();
-        return geometry ? Math.round(geometry.viewport.w) : 0;
-      })
-      .toBe(1280);
-    const resized = (await readGeometry())!;
-    expect(resized.panel.right).toBeLessThanOrEqual(resized.viewport.w);
-    expect(resized.panel.bottom).toBeLessThanOrEqual(resized.viewport.h);
-    await page.setViewportSize({ width: 1440, height: 810 });
-
-    // 13 + 14: clicking a non-interactive area outside closes it; Escape closes
-    // it; clicking inside the inspector does not.
-    await page.locator("h1").first().click();
-    await expect(panel).toHaveCount(0);
-
+    // An unmapped container reports Unmapped; a mapped one keeps its model.
+    await cardFor(DEMO_CODES.shelf).click();
+    await expect(sidebar).toContainText("Unmapped");
     await cardFor(DEMO_CODES.rack).click();
-    await expect(panel).toBeVisible();
+    await expect(sidebar).toContainText("Model: DEMO-SPATIAL-MODEL-RACK");
+
+    // Closing clears the selection and keeps the sidebar mounted.
+    await page.locator('button[aria-label="Close inspector (Esc)"]').click();
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
+
+    // Escape also returns it to the empty state.
+    await cardFor(DEMO_CODES.rack).click();
+    await expect(sidebar).toHaveAttribute("data-state", "selected");
+    await page.keyboard.press("Escape");
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
+
+    // Smaller laptop viewport: still in flow, usable, no page overflow.
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await cardFor(DEMO_CODES.rack).click();
+    await expect(sidebar).toHaveAttribute("data-state", "selected");
+    const laptop = await page.evaluate(() => {
+      const side = document
+        .querySelector('[data-testid="spatial-inspector-sidebar"]')!
+        .getBoundingClientRect();
+      const kanvas = document
+        .querySelector('[data-testid="spatial-canvas-region"]')!
+        .getBoundingClientRect();
+      return {
+        stacked: kanvas.bottom <= side.top + 1,
+        sideBySide: kanvas.right <= side.left + 1,
+        width: side.width,
+        insideViewport: side.left >= 0 && side.right <= window.innerWidth,
+        pageOverflow:
+          document.scrollingElement!.scrollWidth >
+          document.scrollingElement!.clientWidth,
+      };
+    });
+    expect(laptop.stacked || laptop.sideBySide).toBe(true);
+    expect(laptop.insideViewport).toBe(true);
+    expect(laptop.pageOverflow).toBe(false);
+
+    // Narrow viewport: the sidebar stacks below the canvas, still non-modal.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(400);
+    const narrow = await page.evaluate(() => {
+      const side = document
+        .querySelector('[data-testid="spatial-inspector-sidebar"]')!
+        .getBoundingClientRect();
+      const kanvas = document
+        .querySelector('[data-testid="spatial-canvas-region"]')!
+        .getBoundingClientRect();
+      return {
+        stacked: kanvas.bottom <= side.top + 1,
+        width: side.width,
+        canvasWidth: kanvas.width,
+        pageOverflow:
+          document.scrollingElement!.scrollWidth >
+          document.scrollingElement!.clientWidth,
+      };
+    });
+    expect(narrow.stacked).toBe(true);
+    expect(Math.abs(narrow.width - narrow.canvasWidth)).toBeLessThanOrEqual(2);
+    expect(narrow.pageOverflow).toBe(false);
+    await expect(sidebar).toHaveAttribute("data-state", "selected");
+    await expect(page.locator('[role="dialog"]')).toHaveCount(0);
+    await page.setViewportSize({ width: 1440, height: 810 });
+  });
+
+  test("17. Spatial layout stays interactive and selection updates the same sidebar", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 810 });
+    await page.goto(`/inventory/locations/${DEMO_WAREHOUSE_ID}?view=spatial`);
+    await expect(
+      page.locator("[data-testid='spatial-operational-bar']"),
+    ).toBeVisible({ timeout: 15000 });
+
+    const sidebar = page.getByTestId("spatial-inspector-sidebar");
+    const cardFor = (code: string) =>
+      page.locator(`main button[aria-label^="Storage location ${code},"]`);
+
+    // A -> B: same sidebar instance, both highlight states consistent.
+    await cardFor(DEMO_CODES.rack).click();
+    await expect(sidebar).toContainText("DEMO-SPATIAL-RACK");
+    await cardFor(DEMO_CODES.tray).click();
+    await expect(sidebar).toContainText("DEMO-SPATIAL-TRAY");
+    await expect(
+      page.locator('[data-spatial-location-id][aria-pressed="true"]'),
+    ).toHaveCount(1);
+
+    // No outside-click dismissal: clicking the canvas/grid background keeps it.
+    await page
+      .locator("[data-testid='spatial-canvas-region']")
+      .click({ position: { x: 8, y: 8 } });
+    await expect(sidebar).toHaveAttribute("data-state", "selected");
+
+    // Clicking inside the sidebar never changes the underlying selection.
     const bodyBox = (await page.getByTestId("spatial-inspector-body").boundingBox())!;
     await page.mouse.click(bodyBox.x + bodyBox.width / 2, bodyBox.y + 20);
-    await expect(panel).toBeVisible();
-    await expect(panel).toContainText("DEMO-SPATIAL-RACK");
-    await page.keyboard.press("Escape");
-    await expect(panel).toHaveCount(0);
+    await expect(sidebar).toContainText("DEMO-SPATIAL-TRAY");
 
-    // 15: Enter/Open still navigates into the selected location.
+    // Enter/Open still navigates into the selected location.
     await cardFor(DEMO_CODES.rack).click();
     await page
       .locator('button[aria-label="Enter location DEMO-SPATIAL-RACK"]')
       .click();
     await expect(page).toHaveURL(new RegExp(`/inventory/locations/${DEMO_RACK_ID}`));
 
-    // 18 + 19 + 20: the 3D view anchors to the projected object, survives camera
-    // movement, never treats an inspector click as a scene click, and keeps the
-    // authoritative mapping status.
+    // 3D: selecting a compartment fills the sidebar, keeps the drawer
+    // interaction, and leaves camera controls functional.
     await page.goto(
       `/inventory/locations/${CABINET_B_LOCATION_ID}?view=spatial3d`,
     );
     const surface = page.getByTestId("spatial-3d-interaction-surface");
     await expect(surface).toBeVisible({ timeout: 15000 });
     await surface.scrollIntoViewIfNeeded();
-
     const drawerCenters = await page.evaluate(() => {
       const host = document.querySelector(
         '[data-testid="spatial-3d-interaction-surface"]',
       ) as (HTMLElement & {
         __ananyaDrawerProbe?: {
           getDrawerLocationIds(): string[];
+          getActiveDrawerId(): string | null;
           projectCompartmentCenter(
             id: string,
           ): { clientX: number; clientY: number } | null;
@@ -1149,181 +1017,141 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
         .getDrawerLocationIds()
         .map((id) => {
           const center = probe.projectCompartmentCenter(id);
-          return center
-            ? { id, x: center.clientX, y: center.clientY }
-            : null;
+          return center ? { id, x: center.clientX, y: center.clientY } : null;
         })
         .filter((entry): entry is { id: string; x: number; y: number } =>
           Boolean(entry),
         );
     });
-    expect(drawerCenters.length).toBeGreaterThan(0);
+    expect(drawerCenters.length).toBeGreaterThan(1);
 
-    const targetDrawer = drawerCenters[drawerCenters.length - 1];
-    await page.mouse.click(targetDrawer.x, targetDrawer.y);
-    await expect(panel).toBeVisible();
-    const projected = await readGeometry();
-    expect(projected).not.toBeNull();
-    expect(projected!.panel.left).toBeGreaterThanOrEqual(0);
-    expect(projected!.panel.right).toBeLessThanOrEqual(projected!.viewport.w);
-    expect(projected!.panel.bottom).toBeLessThanOrEqual(projected!.viewport.h);
-    expect(projected!.panel.width).toBeLessThanOrEqual(440);
+    await page.mouse.click(drawerCenters[0].x, drawerCenters[0].y);
+    await expect(sidebar).toHaveAttribute("data-state", "selected");
+    await expect(sidebar).toContainText("DEMO-SPATIAL-DRAWER-D01");
+    expect(
+      await page.evaluate(() => {
+        const probe = (
+          document.querySelector(
+            '[data-testid="spatial-3d-interaction-surface"]',
+          ) as HTMLElement & {
+            __ananyaDrawerProbe?: { getActiveDrawerId(): string | null };
+          }
+        ).__ananyaDrawerProbe;
+        return probe?.getActiveDrawerId() ?? null;
+      }),
+    ).toBe(drawerCenters[0].id);
 
-    // Clicking inside the inspector must not reach the 3D scene.
-    const projectedBody = (await page
-      .getByTestId("spatial-inspector-body")
-      .boundingBox())!;
-    const labelBefore = await panel.getAttribute("aria-label");
+    // Camera control while the sidebar shows the drawer.
+    await page.locator('button[aria-label="Zoom in camera"]').click();
+    await page.locator('button[aria-label="Front elevation camera view"]').click();
+    await expect(sidebar).toContainText("DEMO-SPATIAL-DRAWER-D01");
+
+    // Another drawer: previous closes, new one opens, sidebar follows.
+    await page.mouse.click(drawerCenters[1].x, drawerCenters[1].y);
+    await expect(sidebar).not.toContainText("DEMO-SPATIAL-DRAWER-D01");
+    const activeAfterSwitch = await page.evaluate(() => {
+      const probe = (
+        document.querySelector(
+          '[data-testid="spatial-3d-interaction-surface"]',
+        ) as HTMLElement & {
+          __ananyaDrawerProbe?: { getActiveDrawerId(): string | null };
+        }
+      ).__ananyaDrawerProbe;
+      return probe?.getActiveDrawerId() ?? null;
+    });
+    expect(activeAfterSwitch).toBe(drawerCenters[1].id);
+
+    // Clicking the sidebar must not reach the canvas raycast handler.
+    const label = await sidebar.textContent();
+    const bodyBox3d = (await page.getByTestId("spatial-inspector-body").boundingBox())!;
     await page.mouse.click(
-      projectedBody.x + projectedBody.width / 2,
-      projectedBody.y + 20,
+      bodyBox3d.x + bodyBox3d.width / 2,
+      bodyBox3d.y + 20,
     );
-    await expect(panel).toBeVisible();
-    expect(await panel.getAttribute("aria-label")).toBe(labelBefore);
-    await expect(panel).toContainText("Model: DEMO-SPATIAL-MODEL-DRAWER-B");
-
-    // Orbiting the camera must never dismiss the inspector, and the panel must
-    // follow the projected object without leaving the viewport.
-    const beforeOrbit = (await readGeometry())!;
-    const surfaceBox = (await surface.boundingBox())!;
-    await page.mouse.move(surfaceBox.x + 80, surfaceBox.y + 60);
-    await page.mouse.down();
-    for (let step = 0; step < 8; step += 1) {
-      await page.mouse.move(
-        surfaceBox.x + 80 + step * 16,
-        surfaceBox.y + 60 + step * 5,
-      );
-    }
-    await page.mouse.up();
-    await expect(panel).toBeVisible();
-    await expect
-      .poll(async () => {
-        const geometry = await readGeometry();
-        return geometry ? Math.round(geometry.panel.left) : beforeOrbit.panel.left;
-      })
-      .not.toBe(Math.round(beforeOrbit.panel.left));
-    const afterOrbit = (await readGeometry())!;
-    expect(afterOrbit.panel.left).toBeGreaterThanOrEqual(0);
-    expect(afterOrbit.panel.right).toBeLessThanOrEqual(afterOrbit.viewport.w);
-    expect(afterOrbit.panel.bottom).toBeLessThanOrEqual(afterOrbit.viewport.h);
-    expect(afterOrbit.placement).toBe("right");
-
-    // A real click on empty scene space closes the inspector.
-    await page.mouse.click(surfaceBox.x + 20, surfaceBox.y + 20);
-    await expect(panel).toHaveCount(0);
+    expect(await sidebar.textContent()).toBe(label);
   });
 
-  test("18. Inspector lifecycle closes through every path, including locate deep links", async ({
+  test("18. Sidebar lifecycle: close paths, locate deep links and navigation", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 810 });
-    const panel = page.getByTestId("spatial-inspector-overlay");
+    const sidebar = page.getByTestId("spatial-inspector-sidebar");
     const closeButton = page.locator('button[aria-label="Close inspector (Esc)"]');
     const cardFor = (code: string) =>
       page.locator(`main button[aria-label^="Storage location ${code},"]`);
-    const openCount = () => panel.count();
 
-    // Regression: a locate deep link (?focusLocation=) used to make the inspector
-    // impossible to close — the "reveal the focus target" effect re-selected it
-    // whenever the selection was cleared.
+    // A locate deep link used to make the inspector impossible to close.
     await page.goto(
       `/inventory/locations/${DEMO_WAREHOUSE_ID}?view=spatial&focusLocation=${DEMO_RACK_ID}`,
     );
     await expect(
       page.locator("[data-testid='spatial-operational-bar']"),
     ).toBeVisible({ timeout: 15000 });
-    await expect(panel).toBeVisible();
-    await expect(panel).toContainText("DEMO-SPATIAL-RACK");
+    await expect(sidebar).toHaveAttribute("data-state", "selected");
+    await expect(sidebar).toContainText("DEMO-SPATIAL-RACK");
 
-    // 1 + 2: the explicit close button closes it and it stays closed.
+    // Close button, Escape and outside clicks all reach the empty state and it
+    // stays empty (no stale selection resurrecting the contents).
     await closeButton.click();
-    await expect(panel).toHaveCount(0);
-    await page.waitForTimeout(700);
-    await expect(panel).toHaveCount(0);
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
+    await page.waitForTimeout(600);
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
+    await expect(page.locator('[data-spatial-location-id][aria-pressed="true"]')).toHaveCount(0);
 
-    // The underlying layout stays interactive and no card stays selected.
-    await expect(
-      page.locator('[data-spatial-location-id][aria-pressed="true"]'),
-    ).toHaveCount(0);
     await cardFor(DEMO_CODES.cabinetB).click();
-    await expect(panel).toBeVisible();
-    await expect(panel).toContainText("DEMO-SPATIAL-CABINET-B");
-
-    // 3: Escape closes it.
+    await expect(sidebar).toHaveAttribute("data-state", "selected");
     await page.keyboard.press("Escape");
-    await expect(panel).toHaveCount(0);
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
     await page.waitForTimeout(500);
-    await expect(panel).toHaveCount(0);
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
 
-    // 4: an outside click closes it (a non-interactive page area).
+    // Outside clicks are inert on purpose: no dismissal logic exists anymore.
     await cardFor(DEMO_CODES.rack).click();
-    await expect(panel).toBeVisible();
+    await expect(sidebar).toHaveAttribute("data-state", "selected");
     await page
       .locator("main")
       .getByRole("heading", { name: "Sub-Locations & Spatial Layout" })
       .click();
-    await expect(panel).toHaveCount(0);
+    await expect(sidebar).toHaveAttribute("data-state", "selected");
 
-    // 5: selecting another location replaces the contents of the same instance
-    // without ever creating a second inspector.
-    await cardFor(DEMO_CODES.rack).click();
-    const instanceBefore = await panel.elementHandle();
-    await cardFor(DEMO_CODES.tray).click();
-    await expect.poll(async () => openCount()).toBe(1);
-    await expect(panel).toContainText("DEMO-SPATIAL-TRAY");
-    expect(await panel.elementHandle()).toBe(instanceBefore);
+    // 2D -> 3D -> 2D: a closed sidebar stays closed.
     await closeButton.click();
-    await expect(panel).toHaveCount(0);
-
-    // 6: 2D/3D switching keeps the state coherent; a closed inspector stays closed.
-    await cardFor(DEMO_CODES.cabinetB).click();
-    await expect(panel).toBeVisible();
-    await closeButton.click();
-    await expect(panel).toHaveCount(0);
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
     await page.getByRole("button", { name: "3D Scene", exact: true }).click();
     await expect(page.getByTestId("spatial-3d-interaction-surface")).toBeVisible({
       timeout: 15000,
     });
-    await expectStaysClosed(page, panel);
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
     await page.getByRole("button", { name: "2D Grid", exact: true }).click();
-    await expect(page.locator("[data-testid='spatial-operational-bar']")).toBeVisible();
-    await expectStaysClosed(page, panel);
+    await expect(
+      page.locator("[data-testid='spatial-operational-bar']"),
+    ).toBeVisible();
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
 
-    // 7: navigating away clears the inspector and returning does not resurrect it.
+    // Navigating away and back leaves no orphaned selection.
     await cardFor(DEMO_CODES.rack).click();
-    await expect(panel).toBeVisible();
-    await panel.locator('a[href^="/inventory/locations/"]').first().click();
+    await expect(sidebar).toHaveAttribute("data-state", "selected");
+    await sidebar.locator('a[href^="/inventory/locations/"]').first().click();
     await expect(page).toHaveURL(new RegExp("/inventory/locations/[0-9a-f-]{36}"));
-    await expect(panel).toHaveCount(0);
+    await expect(page.getByTestId("spatial-inspector-sidebar")).toHaveAttribute(
+      "data-state",
+      "empty",
+    );
     await page.goBack();
     await expect(
       page.locator("[data-testid='spatial-operational-bar']"),
     ).toBeVisible({ timeout: 15000 });
-    await awaitClosed(panel);
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
 
-    // 8: deep links still reveal a valid child target ...
-    await page.goto(
-      `/inventory/locations/${DEMO_WAREHOUSE_ID}?view=spatial&focusLocation=${CABINET_B_LOCATION_ID}`,
-    );
-    await expect(
-      page.locator("[data-testid='spatial-operational-bar']"),
-    ).toBeVisible({ timeout: 15000 });
-    await expect(panel).toBeVisible();
-    await expect(panel).toContainText("DEMO-SPATIAL-CABINET-B");
-    await closeButton.click();
-    await expectStaysClosed(page, panel);
-
-    // ... while a target that does not resolve under this parent never opens one.
+    // A locate target that does not resolve under this parent stays empty.
     await page.goto(
       `/inventory/locations/${CABINET_B_LOCATION_ID}?view=spatial&focusLocation=${DEMO_RACK_ID}`,
     );
     await expect(
       page.locator("[data-testid='spatial-operational-bar']"),
     ).toBeVisible({ timeout: 15000 });
-    await expectStaysClosed(page, panel);
-    await expect(
-      page.locator('[data-spatial-location-id][aria-pressed="true"]'),
-    ).toHaveCount(0);
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
+    await expect(page.locator('[data-spatial-location-id][aria-pressed="true"]')).toHaveCount(0);
   });
 
   test("19. Selected and locate-highlighted 2D cards render their full outline inside the grid", async ({
@@ -1338,7 +1166,10 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     await page
       .locator('main button[aria-label^="Storage location DEMO-SPATIAL-RACK"]')
       .click();
-    await expect(page.getByTestId("spatial-inspector-overlay")).toBeVisible();
+    await expect(page.getByTestId("spatial-inspector-sidebar")).toHaveAttribute(
+      "data-state",
+      "selected",
+    );
 
     /** Outer-ring room for every card, measured against the grid clip region. */
     const readRingRoom = () =>
@@ -1408,6 +1239,82 @@ test.describe("Spatial Inventory 3D — Phase 7: Inventory-Aware 3D Visualizatio
     }
   });
 
+  test("20. Sidebar is part of the layout: no overlap, no page overflow, canvas fits the remainder", async ({
+    page,
+  }) => {
+    const sidebar = page.getByTestId("spatial-inspector-sidebar");
+    const cardFor = (code: string) =>
+      page.locator(`main button[aria-label^="Storage location ${code},"]`);
+
+    const readLayout = () =>
+      page.evaluate(() => {
+        const side = document
+          .querySelector('[data-testid="spatial-inspector-sidebar"]')!
+          .getBoundingClientRect();
+        const kanvas = document
+          .querySelector('[data-testid="spatial-canvas-region"]')!
+          .getBoundingClientRect();
+        const workspace = document
+          .querySelector('[data-testid="spatial-canvas-region"]')!.parentElement!
+          .getBoundingClientRect();
+        const footer = document
+          .querySelector('[data-testid="app-footer"]')!
+          .getBoundingClientRect();
+        const overlaps = (a: DOMRect, b: DOMRect) =>
+          a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom;
+        return {
+          sideBySide: kanvas.right <= side.left + 1,
+          stacked: kanvas.bottom <= side.top + 1,
+          gap: Math.abs(workspace.width - kanvas.width - side.width),
+          sidebarInsideWorkspace:
+            side.left >= workspace.left - 1 && side.right <= workspace.right + 1,
+          overlapsFooter: overlaps(side, footer),
+          pageOverflow:
+            document.scrollingElement!.scrollWidth >
+            document.scrollingElement!.clientWidth,
+          canvasWidth: kanvas.width,
+          sidebarWidth: side.width,
+          viewportWidth: window.innerWidth,
+          pagePosition: getComputedStyle(
+            document.querySelector('[data-testid="spatial-inspector-sidebar"]')!,
+          ).position,
+        };
+      });
+
+    for (const [width, height] of [
+      [1920, 1080],
+      [1440, 900],
+      [1280, 800],
+      [390, 844],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto(`/inventory/locations/${DEMO_WAREHOUSE_ID}?view=spatial`);
+      await expect(
+        page.locator("[data-testid='spatial-operational-bar']"),
+      ).toBeVisible({ timeout: 15000 });
+      await cardFor(DEMO_CODES.rack).click();
+      await expect(sidebar).toHaveAttribute("data-state", "selected");
+
+      const layout = await readLayout();
+      const label = `${width}x${height}`;
+      expect(layout.pagePosition, label).toBe("static");
+      expect(layout.pageOverflow, label).toBe(false);
+      expect(layout.sidebarInsideWorkspace, label).toBe(true);
+      expect(layout.sideBySide || layout.stacked, label).toBe(true);
+      expect(layout.gap, label).toBeLessThanOrEqual(24);
+      expect(layout.overlapsFooter, label).toBe(false);
+      expect(layout.canvasWidth, label).toBeGreaterThan(0);
+      expect(layout.sidebarWidth, label).toBeLessThanOrEqual(
+        layout.viewportWidth,
+      );
+      await expect(sidebar).toContainText("DEMO-SPATIAL-RACK");
+
+      // Footer remains reachable and unobstructed.
+      await expect(page.getByTestId("app-footer")).toHaveCount(1);
+    }
+
+    await page.setViewportSize({ width: 1440, height: 810 });
+  });
   test("13. Location Details keeps one canonical section order with and without children", async ({
     page,
   }) => {

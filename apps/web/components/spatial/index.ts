@@ -1,6 +1,7 @@
 export * from "./spatial-cell";
 export * from "./spatial-grid";
 export * from "./spatial-inspector";
+export * from "./spatial-inspector-empty-state";
 export * from "./spatial-view";
 export * from "./locate-dialog";
 export * from "./locate-button";

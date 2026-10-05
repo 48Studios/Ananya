@@ -29,6 +29,7 @@ export function AppFooter({ className }: AppFooterProps) {
 
   return (
     <footer
+      data-testid="app-footer"
       className={cn(
         "border-t border-border bg-card/50 px-4 lg:px-6 h-14 flex items-center justify-between text-xs text-muted-foreground select-none shrink-0",
         className,

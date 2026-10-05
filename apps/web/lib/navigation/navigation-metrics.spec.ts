@@ -95,16 +95,26 @@ describe("shell height tokens", () => {
     expect(layout).toContain("SHELL_HEIGHTS_PX.FOOTER");
   });
 
-  it("is consumed by the spatial detail inspector", () => {
-    // The inspector must reserve the header and footer bands rather than
-    // guessing its own viewport arithmetic, and the anchored placement must be
-    // bounded by the spatial viewport instead of the page.
-    const hook = read("lib/spatial/use-anchored-inspector.ts");
-    expect(hook).toContain("--app-header-height");
-    expect(hook).toContain("--app-footer-height");
+  it("is no longer needed by the spatial inspector", () => {
+    // The inspector is an in-flow sidebar inside the spatial workspace now, so
+    // it must not reserve shell bands or compute its own viewport arithmetic.
     const view = read("components/spatial/spatial-view.tsx");
-    expect(view).toContain("useAnchoredInspector({");
-    // The old canvas-relative cap must not come back for the inspector.
+    expect(view).toContain('data-testid="spatial-inspector-sidebar"');
+    // The inspector content and its empty state must not do viewport math.
+    // (Only the transient anchor-authoring editor still pins itself to the
+    // shell chrome, which is a separate feature.)
+    expect(read("components/spatial/spatial-inspector.tsx")).not.toContain(
+      "--app-header-height",
+    );
+    expect(read("components/spatial/spatial-inspector.tsx")).not.toContain(
+      "--app-footer-height",
+    );
+    expect(
+      read("components/spatial/spatial-inspector-empty-state.tsx"),
+    ).not.toContain("--app-footer-height");
+    // The old floating caps must not come back for the inspector.
+    expect(view).not.toContain("useAnchoredInspector");
     expect(view).not.toContain("sm:max-h-[min(640px,calc(100vh-10rem))]");
+    expect(view).not.toContain("fixed z-40 flex flex-col");
   });
 });

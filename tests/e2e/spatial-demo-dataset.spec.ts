@@ -159,12 +159,14 @@ test.describe("Spatial Demo Dataset — end-to-end playground", () => {
       )
       .toBeGreaterThan(0);
 
-    // Selecting a compartment opens the inspector without mutating persistence.
+    // Selecting a compartment fills the sidebar without mutating persistence.
+    const sidebar = page.getByTestId("spatial-inspector-sidebar");
+    await expect(sidebar).toHaveAttribute("data-state", "empty");
     await page
       .locator('main button[aria-label^="Storage location"]')
       .first()
       .click();
-    await expect(page.getByTestId("spatial-inspector-overlay")).toBeVisible();
+    await expect(sidebar).toHaveAttribute("data-state", "selected");
   });
 
   test("3. Mapping states across the dataset: MAPPED, PARTIAL, DRAFT, ARCHIVED, NONE", async ({
