@@ -10,6 +10,8 @@ import {
   createDefaultOpenBinMatrixConfig,
   createDefaultPalletRackConfig,
   createDefaultGridPartsTrayConfig,
+  createDefaultReelRackConfig,
+  createDefaultDryCabinetConfig,
 } from "./parametric-storage-engine";
 import {
   InvalidParametricDimensionError,
@@ -25,6 +27,58 @@ import type {
 } from "./parametric-template.types";
 
 describe("Parametric Storage Engine", () => {
+  describe("Dry Cabinet preset", () => {
+    it.each(["drawer", "shelf", "matrix_tray"] as const)("lays out canonical %s children inside its dimension-derived clear volume", (childCategory) => {
+      const config = { ...createDefaultDryCabinetConfig(), dimensions: { widthMm: 940, heightMm: 1970, depthMm: 640 }, rows: 3, columns: 2, childCategory };
+      const first = generateStorageCompartments(config);
+      const second = generateStorageCompartments(config);
+      expect(first.compartments).toHaveLength(6);
+      expect(first.compartments).toEqual(second.compartments);
+      expect(first.compartments.every((item) => item.kind === childCategory)).toBe(true);
+      expect(first.outerDimensions).toEqual(config.dimensions);
+      expect(first.usableDimensions).toEqual({ widthMm: 892, heightMm: 1922, depthMm: 616 });
+      assertCompartmentsWithinBounds(first.compartments, first.outerDimensions);
+      assertNoCompartmentOverlaps(first.compartments);
+    });
+
+    it("rejects noncanonical direct children", () => {
+      const result = validateParametricConfig({ ...createDefaultDryCabinetConfig(), childCategory: "bin" as never });
+      expect(result.isValid).toBe(false);
+      expect(result.errors.join(" ")).toContain("canonical containment graph");
+    });
+  });
+  describe("Reel Rack template", () => {
+    it("generates deterministic Reel Slot positions within custom rack dimensions", () => {
+      const config = {
+        ...createDefaultReelRackConfig(),
+        dimensions: { widthMm: 1250, heightMm: 2050, depthMm: 520 },
+        rows: 3,
+        columns: 4,
+      };
+      const first = generateStorageCompartments(config);
+      const second = generateStorageCompartments(config);
+      expect(first.compartments).toHaveLength(12);
+      expect(first.compartments).toEqual(second.compartments);
+      expect(first.compartments[0]).toMatchObject({
+        kind: "reel_slot",
+        code: "R1-C1",
+      });
+      expect(first.compartments[0]!.dimensions).toEqual(
+        expect.objectContaining({ widthMm: expect.any(Number), depthMm: 450 }),
+      );
+      assertCompartmentsWithinBounds(first.compartments, first.outerDimensions);
+      assertNoCompartmentOverlaps(first.compartments);
+      for (const slot of first.compartments) {
+        expect(slot.position.y - slot.dimensions.heightMm / 2).toBeGreaterThanOrEqual(0);
+      }
+    });
+
+    it("rejects rows and columns that cannot fit between structural supports", () => {
+      const config = { ...createDefaultReelRackConfig(), rows: 100, columns: 100 };
+      expect(validateParametricConfig(config).isValid).toBe(false);
+      expect(() => generateStorageCompartments(config)).toThrow();
+    });
+  });
   // ==========================================================================
   // 1. SMD Drawer Cabinet Template
   // ==========================================================================
@@ -222,16 +276,42 @@ describe("Parametric Storage Engine", () => {
 
       expect(result.templateType).toBe("GRID_PARTS_TRAY");
       expect(result.totalCompartments).toBe(24);
-      expect(result.compartments.every((c) => c.kind === "slot")).toBe(true);
+      expect(result.compartments.every((c) => c.kind === "compartment")).toBe(true);
 
       const first = result.compartments[0]!;
-      expect(first.slotId).toBe("tray_slot_r0_c0");
+      expect(first.slotId).toBe("tray_compartment_r0_c0");
       expect(first.code).toBe("A01");
       expect(first.name).toBe("Compartment A01");
 
       const last = result.compartments[23]!;
-      expect(last.slotId).toBe("tray_slot_r3_c5");
+      expect(last.slotId).toBe("tray_compartment_r3_c5");
       expect(last.code).toBe("D06");
+    });
+
+    it("lays out the custom 4 by 6 compartment grid inside the clear interior deterministically", () => {
+      const config = { ...createDefaultGridPartsTrayConfig(), dimensions: { widthMm: 300, heightMm: 25, depthMm: 200 }, wallThicknessMm: 3, rows: 4, columns: 6, dividerThicknessMm: 2 };
+      const result = generateStorageCompartments(config);
+      expect(result.compartments).toHaveLength(24);
+      expect(result.compartments).toEqual(generateStorageCompartments(config).compartments);
+      expect(result.usableDimensions).toEqual({ widthMm: 294, heightMm: 22, depthMm: 197 });
+      expect(result.compartments[0]!.dimensions).toEqual({ widthMm: 47.33, heightMm: 22, depthMm: 47.75 });
+      expect(result.compartments[23]!.dimensions).toEqual({ widthMm: 47.33, heightMm: 22, depthMm: 47.75 });
+      assertCompartmentsWithinBounds(result.compartments, result.outerDimensions);
+      assertNoCompartmentOverlaps(result.compartments);
+    });
+
+    it.each([
+      { rows: 200 },
+      { columns: 300 },
+      { dimensions: { widthMm: 20, heightMm: 25, depthMm: 200 } },
+      { dimensions: { widthMm: 300, heightMm: 2, depthMm: 200 } },
+      { dimensions: { widthMm: 300, heightMm: 25, depthMm: 4 } },
+      { dividerThicknessMm: -1 },
+      { dimensions: { widthMm: 0, heightMm: 25, depthMm: 200 } },
+    ])("rejects malformed matrix tray configuration %#", (override) => {
+      const config = { ...createDefaultGridPartsTrayConfig(), ...override } as GridPartsTrayConfig;
+      expect(validateParametricConfig(config).isValid).toBe(false);
+      expect(() => generateStorageCompartments(config)).toThrow(InvalidParametricDimensionError);
     });
   });
 

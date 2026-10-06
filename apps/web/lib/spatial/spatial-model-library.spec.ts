@@ -20,25 +20,21 @@ import {
 describe("Spatial Model Library", () => {
   it("registers the authoritative physical and context taxonomy", () => {
     expect(SUPPORTED_PHYSICAL_LOCATION_KINDS).toEqual([
-      "cabinet",
-      "dry_cabinet",
       "rack",
       "shelf",
-      "reel_rack",
-      "drawer",
+      "cabinet",
+      "dry_cabinet",
       "bin",
-      "tray",
-      "tube",
-      "reel_slot",
+      "drawer",
       "compartment",
-      "slot",
+      "reel_rack",
+      "reel_slot",
+      "matrix_tray",
+      "ic_tube_rail",
     ]);
     expect(SUPPORTED_CONTEXT_LOCATION_KINDS).toEqual([
       "warehouse",
-      "building",
-      "facility",
-      "room",
-      "zone",
+      "room_area",
       "aisle",
     ]);
   });
@@ -178,17 +174,172 @@ describe("Spatial Model Library", () => {
     expect(resolveSpatialModel("reel-rack")?.structure).toBe("reel-rack");
   });
 
+  it("resolves a Dry Cabinet model instance from persisted dimensions", () => {
+    const representation = resolveSpatialRepresentation({
+      location: { id: "dry-cabinet-custom", kind: "dry_cabinet" },
+      model: {
+        id: "dry-cabinet-model-custom",
+        code: "MSD-CUSTOM",
+        name: "Custom MSD cabinet",
+        format: "PROCEDURAL",
+        widthMm: 940,
+        heightMm: 1970,
+        depthMm: 640,
+        isActive: true,
+        metadata: {},
+      },
+    });
+    expect(representation.source).toBe("model");
+    expect(representation.modelInstance).toMatchObject({
+      category: "dry_cabinet",
+      modelId: "dry_cabinet-model",
+      dimensions: { widthMm: 940, heightMm: 1970, depthMm: 640 },
+    });
+    expect(representation.dimensions.x).toBeCloseTo(0.94, 10);
+    expect(representation.dimensions.y).toBeCloseTo(1.97, 10);
+    expect(representation.dimensions.z).toBeCloseTo(0.64, 10);
+    expect(representation.structure).toBe("dry-cabinet");
+  });
+
+  it("resolves Rack and Shelf instances from their canonical category and persisted dimensions", () => {
+    const rack = resolveSpatialRepresentation({
+      location: { id: "rack-custom", kind: "rack" },
+      model: {
+        id: "rack-model-custom",
+        code: "RACK-CUSTOM",
+        name: "Rack custom model",
+        format: "PROCEDURAL",
+        widthMm: 1200,
+        heightMm: 2200,
+        depthMm: 600,
+        isActive: true,
+        metadata: {},
+      },
+    });
+    const shelf = resolveSpatialRepresentation({
+      location: { id: "shelf-custom", kind: "shelf" },
+      model: {
+        id: "shelf-model-custom",
+        code: "SHELF-CUSTOM",
+        name: "Shelf custom model",
+        format: "PROCEDURAL",
+        widthMm: 1100,
+        heightMm: 40,
+        depthMm: 550,
+        isActive: true,
+        metadata: {},
+      },
+    });
+
+    expect(rack.modelInstance?.category).toBe("rack");
+    expect(rack.dimensions).toEqual({ x: 1.2, y: 2.2, z: 0.6 });
+    expect(shelf.modelInstance?.category).toBe("shelf");
+    expect(shelf.dimensions).toEqual({ x: 1.1, y: 0.04, z: 0.55 });
+    expect(resolveSpatialModel("shelf")?.structure).toBe("shelf");
+  });
+
+  it("renders Shelf as a physical deck within exact custom dimensions", () => {
+    const dimensions = { x: 1.1, y: 0.04, z: 0.55 };
+    const mesh = createStructureBodyMesh("shelf", dimensions, {
+      locationId: "shelf-custom",
+      locationCode: "SHELF-CUSTOM",
+      locationName: "Shelf custom",
+      kind: "shelf",
+      hasStock: false,
+      isMapped: true,
+    });
+    mesh.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(mesh);
+    const size = bounds.getSize(new THREE.Vector3());
+    expect(size.x).toBeCloseTo(dimensions.x, 6);
+    expect(size.y).toBeCloseTo(dimensions.y, 6);
+    expect(size.z).toBeCloseTo(dimensions.z, 6);
+    expect(mesh.children.some((child) => child instanceof THREE.Mesh)).toBe(true);
+  });
+
+  it("renders the Rack frame and authored shelf support levels within exact bounds", () => {
+    const dimensions = { x: 1.2, y: 2.2, z: 0.6 };
+    const mesh = createStructureBodyMesh(
+      "rack",
+      dimensions,
+      {
+        locationId: "rack-custom",
+        locationCode: "RACK-CUSTOM",
+        locationName: "Rack custom",
+        kind: "rack",
+        hasStock: false,
+        isMapped: true,
+      },
+      { postWidthMm: 50, beamHeightMm: 40, shelfLevels: 4 },
+    );
+    mesh.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(mesh);
+    const size = bounds.getSize(new THREE.Vector3());
+    const structuralMembers = mesh.children.filter(
+      (child) => child instanceof THREE.Mesh,
+    );
+    expect(size.x).toBeCloseTo(dimensions.x, 6);
+    expect(size.y).toBeCloseTo(dimensions.y, 6);
+    expect(size.z).toBeCloseTo(dimensions.z, 6);
+    // Four posts, four perimeter rails, and two support beams at each level.
+    expect(structuralMembers).toHaveLength(16);
+  });
+
+  it.each([
+    ["reel-rack", { x: 1.25, y: 2.05, z: 0.52 }],
+    ["reel-slot", { x: 0.16, y: 0.18, z: 0.14 }],
+  ] as const)("renders custom %s geometry at its declared physical bounds", (structure, dimensions) => {
+    const mesh = createStructureBodyMesh(structure, dimensions, {
+      locationId: `custom-${structure}`,
+      locationCode: structure.toUpperCase(),
+      locationName: structure,
+      kind: structure,
+      hasStock: false,
+      isMapped: true,
+    }, { reelRows: 3, reelSlotSpacingMm: 12 });
+    mesh.updateMatrixWorld(true);
+    const size = new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3());
+    expect(size.x).toBeCloseTo(dimensions.x, 6);
+    expect(size.y).toBeCloseTo(dimensions.y, 6);
+    expect(size.z).toBeCloseTo(dimensions.z, 6);
+    expect(mesh.children.filter((child) => child instanceof THREE.Mesh).length).toBeGreaterThan(2);
+  });
+
+  it.each([
+    ["matrix-tray", { x: 0.3, y: 0.025, z: 0.2 }],
+    ["compartment", { x: 0.045, y: 0.02, z: 0.035 }],
+  ] as const)("renders canonical %s geometry at custom dimensions", (structure, dimensions) => {
+    const mesh = createStructureBodyMesh(structure, dimensions, {
+      locationId: `custom-${structure}`, locationCode: structure,
+      locationName: structure, kind: structure, hasStock: false, isMapped: true,
+    }, { wallThicknessMm: 2, gridRows: 4, gridColumns: 6, gridDividerThicknessMm: 2 });
+    mesh.updateMatrixWorld(true);
+    const size = new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3());
+    expect(size.x).toBeCloseTo(dimensions.x, 6);
+    expect(size.y).toBeCloseTo(dimensions.y, 6);
+    expect(size.z).toBeCloseTo(dimensions.z, 6);
+    expect(mesh.children.filter((child) => child instanceof THREE.Mesh).length).toBeGreaterThan(4);
+  });
+
   it.each([
     ["SMD_DRAWER_CABINET", "cabinet", "enclosure"],
-    ["OPEN_BIN_MATRIX", "dry_cabinet", "dry-cabinet"],
-    ["PALLET_RACK", "reel_rack", "reel-rack"],
-    ["GRID_PARTS_TRAY", "tray", "tray"],
+    ["OPEN_BIN_MATRIX", "bin", "tray"],
+    ["PALLET_RACK", "rack", "rack"],
+    ["GRID_PARTS_TRAY", "matrix_tray", "matrix-tray"],
+    ["REEL_RACK", "reel_rack", "reel-rack"],
   ] as const)(
-    "resolves template %s through the canonical %s model family",
+    "resolves preset %s through its canonical %s root model",
     (templateType, rootKind, structure) => {
       const model = resolveTemplateSpatialModel(templateType, rootKind);
+      expect(model).toBeTruthy();
       expect(model?.isFallback).toBe(false);
       expect(model?.structure).toBe(structure);
     },
   );
+
+  it("rejects a preset model lookup for a different physical root category", () => {
+    expect(
+      resolveTemplateSpatialModel("OPEN_BIN_MATRIX", "cabinet"),
+    ).toBeNull();
+  });
 });

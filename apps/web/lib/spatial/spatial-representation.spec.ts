@@ -209,8 +209,409 @@ describe("Canonical spatial representation", () => {
 
     expect(direct.source).toBe("model");
     expect(nested.source).toBe("model");
+    expect(direct.modelInstance).toEqual(nested.modelInstance);
     expect(direct.model?.code).toBe(CABINET_MODEL.code);
     expect(direct.structure).toBe("enclosure");
+  });
+
+  it("keeps a custom Drawer instance dimension-identical in Builder, Location Details, and published views", () => {
+    const drawerModel: SpatialModelDto = {
+      ...CABINET_MODEL,
+      id: "drawer-model-instance-1",
+      code: "CUSTOM-DRAWER-01",
+      name: "Custom Drawer",
+      widthMm: 321,
+      heightMm: 87,
+      depthMm: 407,
+    };
+    const child = makeChild({ kind: "drawer", model: drawerModel });
+    const publishedMapping = {
+      status: "MAPPED" as const,
+      isMappingEligible: true,
+      hasSpatialNode: true,
+      directChildCount: 2,
+      mappedDirectChildCount: 2,
+      unmappedDirectChildCount: 0,
+      containerStatus: "PUBLISHED" as const,
+      publishedLayout: PUBLISHED_LAYOUT,
+      slotMapping: null,
+    };
+    child.mapping = publishedMapping;
+
+    const builder = resolveChildSpatialRepresentation(child);
+    const locationDetails = resolveSpatialRepresentation({
+      location: child.location,
+      model: drawerModel,
+    });
+    const published = resolveSpatialRepresentation({
+      location: child.location,
+      model: drawerModel,
+      mapping: { publishedLayout: PUBLISHED_LAYOUT },
+    });
+
+    expect(builder.modelInstance).toEqual({
+      locationId: "loc-drawer",
+      category: "drawer",
+      modelId: "drawer-model",
+      dimensions: { widthMm: 321, heightMm: 87, depthMm: 407 },
+    });
+    expect(locationDetails.modelInstance).toEqual(builder.modelInstance);
+    expect(published.modelInstance).toEqual(builder.modelInstance);
+    expect(builder.dimensions.x).toBeCloseTo(0.321, 6);
+    expect(builder.dimensions.y).toBeCloseTo(0.087, 6);
+    expect(builder.dimensions.z).toBeCloseTo(0.407, 6);
+    expect(locationDetails.dimensions).toEqual(builder.dimensions);
+    expect(published.dimensions).toEqual(builder.dimensions);
+
+    const builderMesh = createChildCompartmentMesh(
+      toSceneChild(child, { dimensions: builder.dimensions }),
+      "empty-mapped",
+    );
+    const detailsMesh = createParentCarcassMesh(
+      {
+        location: child.location,
+        node: child.node,
+        model: drawerModel,
+        mapping: publishedMapping,
+        anchors: [],
+      },
+      locationDetails.dimensions,
+      { structure: locationDetails.structure },
+    );
+    const builderBounds = new THREE.Box3().setFromObject(builderMesh);
+    const detailsBounds = new THREE.Box3().setFromObject(detailsMesh);
+    const builderSize = builderBounds.getSize(new THREE.Vector3());
+    const detailsSize = detailsBounds.getSize(new THREE.Vector3());
+    expect(builderSize.x).toBeCloseTo(detailsSize.x, 6);
+    expect(builderSize.y).toBeCloseTo(detailsSize.y, 6);
+    expect(builderSize.z).toBeCloseTo(detailsSize.z, 6);
+  });
+
+  it("keeps a custom Shelf instance dimension-identical across Builder, Location Details, and published views", () => {
+    const shelfModel: SpatialModelDto = {
+      ...CABINET_MODEL,
+      id: "shelf-model-instance-1",
+      code: "CUSTOM-SHELF-01",
+      name: "Custom Shelf",
+      widthMm: 1100,
+      heightMm: 40,
+      depthMm: 550,
+    };
+    const child = makeChild({ kind: "shelf", model: shelfModel });
+    const shelfPublishedMapping = {
+      status: "MAPPED" as const,
+      isMappingEligible: true,
+      hasSpatialNode: true,
+      directChildCount: 0,
+      mappedDirectChildCount: 0,
+      unmappedDirectChildCount: 0,
+      containerStatus: "PUBLISHED" as const,
+      publishedLayout: PUBLISHED_LAYOUT,
+      slotMapping: null,
+    };
+    child.mapping = shelfPublishedMapping;
+    const builder = resolveChildSpatialRepresentation(child);
+    const details = resolveSpatialRepresentation({
+      location: child.location,
+      model: shelfModel,
+    });
+    const published = resolveSpatialRepresentation({
+      location: child.location,
+      model: shelfModel,
+      mapping: { publishedLayout: PUBLISHED_LAYOUT },
+    });
+
+    expect(builder.structure).toBe("shelf");
+    expect(details.structure).toBe(builder.structure);
+    expect(published.structure).toBe(builder.structure);
+    expect(builder.modelInstance).toEqual({
+      locationId: "loc-shelf",
+      category: "shelf",
+      modelId: "shelf-model",
+      dimensions: { widthMm: 1100, heightMm: 40, depthMm: 550 },
+    });
+    expect(details.modelInstance).toEqual(builder.modelInstance);
+    expect(published.modelInstance).toEqual(builder.modelInstance);
+
+    const builderMesh = createChildCompartmentMesh(
+      toSceneChild(child, { dimensions: builder.dimensions }),
+      "empty-mapped",
+    );
+    const detailsMesh = createParentCarcassMesh(
+      {
+        location: child.location,
+        node: child.node,
+        model: shelfModel,
+        mapping: shelfPublishedMapping,
+        anchors: [],
+      },
+      details.dimensions,
+      { structure: details.structure },
+    );
+    const builderBody = builderMesh.getObjectByName("structure-shelf-DEMO-SHELF");
+    const detailsBody = detailsMesh.getObjectByName("structure-shelf-DEMO-SHELF");
+    expect(builderBody).toBeDefined();
+    expect(detailsBody).toBeDefined();
+    // Labels are scene affordances with context-specific presentation; compare
+    // the shared physical model body itself.
+    const builderLabel = builderBody!.getObjectByName("structure-shelf-label");
+    const detailsLabel = detailsBody!.getObjectByName("structure-shelf-label");
+    if (builderLabel) builderBody!.remove(builderLabel);
+    if (detailsLabel) detailsBody!.remove(detailsLabel);
+    const builderBounds = new THREE.Box3().setFromObject(builderBody!);
+    const detailsBounds = new THREE.Box3().setFromObject(detailsBody!);
+    const builderSize = builderBounds.getSize(new THREE.Vector3());
+    const detailsSize = detailsBounds.getSize(new THREE.Vector3());
+    expect(builderSize.x).toBeCloseTo(detailsSize.x, 6);
+    expect(builderSize.y).toBeCloseTo(detailsSize.y, 6);
+    expect(builderSize.z).toBeCloseTo(detailsSize.z, 6);
+  });
+
+  it("keeps a custom Rack instance and authored support levels consistent across contexts", () => {
+    const rackModel: SpatialModelDto = {
+      ...CABINET_MODEL,
+      id: "rack-model-instance-1",
+      code: "CUSTOM-RACK-01",
+      name: "Custom Rack",
+      widthMm: 1200,
+      heightMm: 2200,
+      depthMm: 600,
+    };
+    const rackLayout = {
+      ...PUBLISHED_LAYOUT,
+      templateType: "PALLET_RACK",
+      containerDimensionsMm: { widthMm: 1200, heightMm: 2200, depthMm: 600 },
+      config: {
+        templateType: "PALLET_RACK" as const,
+        dimensions: { widthMm: 1200, heightMm: 2200, depthMm: 600 },
+        wallThicknessMm: 50,
+        uprightPostWidthMm: 50,
+        beamHeightMm: 40,
+        levels: 3,
+        baysPerLevel: 2,
+      },
+    };
+    const mapping = {
+      status: "MAPPED" as const,
+      isMappingEligible: true,
+      hasSpatialNode: true,
+      directChildCount: 1,
+      mappedDirectChildCount: 1,
+      unmappedDirectChildCount: 0,
+      containerStatus: "PUBLISHED" as const,
+      publishedLayout: rackLayout,
+      slotMapping: null,
+    };
+    const child = makeChild({ kind: "rack", model: rackModel });
+    child.mapping = mapping;
+    const builder = resolveChildSpatialRepresentation(child);
+    const details = resolveSpatialRepresentation({
+      location: child.location,
+      model: rackModel,
+      mapping,
+    });
+    const published = resolveSpatialRepresentation({
+      location: child.location,
+      model: rackModel,
+      mapping,
+    });
+
+    expect(builder.modelInstance?.category).toBe("rack");
+    expect(builder.dimensions).toEqual({ x: 1.2, y: 2.2, z: 0.6 });
+    expect(details.modelInstance).toEqual(builder.modelInstance);
+    expect(published.modelInstance).toEqual(builder.modelInstance);
+    expect(details.dimensions).toEqual(builder.dimensions);
+    expect(published.dimensions).toEqual(builder.dimensions);
+    expect(details.shelfLevels).toBe(3);
+
+    const builderMesh = createChildCompartmentMesh(
+      toSceneChild(child, { dimensions: builder.dimensions }),
+      "empty-mapped",
+    );
+    const detailsMesh = createParentCarcassMesh(
+      {
+        location: child.location,
+        node: child.node,
+        model: rackModel,
+        mapping,
+        anchors: [],
+      },
+      details.dimensions,
+      {
+        structure: details.structure,
+        postWidthMm: details.postWidthMm,
+        beamHeightMm: details.beamHeightMm,
+        shelfLevels: details.shelfLevels,
+      },
+    );
+    const builderBody = builderMesh.getObjectByName("structure-rack-DEMO-RACK");
+    const detailsBody = detailsMesh.getObjectByName("structure-rack-DEMO-RACK");
+    expect(builderBody).toBeDefined();
+    expect(detailsBody).toBeDefined();
+    const builderLabel = builderBody!.getObjectByName("structure-rack-label");
+    if (builderLabel) builderBody!.remove(builderLabel);
+    const builderSize = new THREE.Box3()
+      .setFromObject(builderBody!)
+      .getSize(new THREE.Vector3());
+    const detailsSize = new THREE.Box3()
+      .setFromObject(detailsBody!)
+      .getSize(new THREE.Vector3());
+    expect(builderSize.x).toBeCloseTo(detailsSize.x, 6);
+    expect(builderSize.y).toBeCloseTo(detailsSize.y, 6);
+    expect(builderSize.z).toBeCloseTo(detailsSize.z, 6);
+  });
+
+  it("uses identical custom Reel Rack and Reel Slot instances in Builder, Details, and published contexts", () => {
+    for (const [kind, dims, structure] of [
+      ["reel_rack", [1250, 2050, 520], "reel-rack"],
+      ["reel_slot", [160, 180, 140], "reel-slot"],
+    ] as const) {
+      const model: SpatialModelDto = {
+        ...CABINET_MODEL,
+        id: `${kind}-instance`,
+        code: kind.toUpperCase(),
+        name: kind,
+        widthMm: dims[0],
+        heightMm: dims[1],
+        depthMm: dims[2],
+      };
+      const layout = {
+        ...PUBLISHED_LAYOUT,
+        templateType: "REEL_RACK",
+        containerDimensionsMm: { widthMm: 1250, heightMm: 2050, depthMm: 520 },
+        config: {
+          templateType: "REEL_RACK" as const,
+          dimensions: { widthMm: 1250, heightMm: 2050, depthMm: 520 },
+          wallThicknessMm: 20,
+          rows: 3,
+          columns: 4,
+          slotSpacingMm: 12,
+        },
+      };
+      const child = makeChild({ kind, model });
+      child.location.id = `${kind}-loc`;
+      child.mapping = {
+        status: "MAPPED",
+        isMappingEligible: true,
+        hasSpatialNode: true,
+        directChildCount: 1,
+        mappedDirectChildCount: 1,
+        unmappedDirectChildCount: 0,
+        containerStatus: "PUBLISHED",
+        publishedLayout: layout,
+        slotMapping: null,
+      };
+      const builder = resolveChildSpatialRepresentation(child);
+      const details = resolveSpatialRepresentation({ location: child.location, model });
+      const published = resolveSpatialRepresentation({ location: child.location, model, mapping: child.mapping });
+      expect(builder.structure).toBe(structure);
+      expect(details.modelInstance).toEqual(builder.modelInstance);
+      expect(published.modelInstance).toEqual(builder.modelInstance);
+      expect(details.dimensions).toEqual(builder.dimensions);
+      expect(published.dimensions).toEqual(builder.dimensions);
+      const builderMesh = createChildCompartmentMesh(toSceneChild(child, { dimensions: builder.dimensions }), "empty-mapped");
+      const detailsMesh = createParentCarcassMesh({
+        location: child.location,
+        model,
+        node: child.node,
+        anchors: [],
+        mapping: child.mapping!,
+      }, details.dimensions, {
+        structure: details.structure,
+        reelRows: details.reelRows,
+        reelSlotSpacingMm: details.reelSlotSpacingMm,
+      });
+      const bodyName = `structure-${structure}-${child.location.code}`;
+      const builderBody = builderMesh.getObjectByName(bodyName)!;
+      const detailsBody = detailsMesh.getObjectByName(bodyName)!;
+      expect(builderBody).toBeDefined();
+      expect(detailsBody).toBeDefined();
+      const builderLabel = builderBody.getObjectByName(`structure-${structure}-label`);
+      const detailsLabel = detailsBody.getObjectByName(`structure-${structure}-label`);
+      if (builderLabel) builderBody.remove(builderLabel);
+      if (detailsLabel) detailsBody.remove(detailsLabel);
+      const builderSize = new THREE.Box3().setFromObject(builderBody).getSize(new THREE.Vector3());
+      const detailsSize = new THREE.Box3().setFromObject(detailsBody).getSize(new THREE.Vector3());
+      expect(builderSize.x).toBeCloseTo(detailsSize.x, 6);
+      expect(builderSize.y).toBeCloseTo(detailsSize.y, 6);
+      expect(builderSize.z).toBeCloseTo(detailsSize.z, 6);
+      expect(builderSize.x).toBeCloseTo(dims[0] / 1000, 6);
+    }
+  });
+
+  it("uses the same custom Dry Cabinet model instance and body geometry across contexts", () => {
+    const model: SpatialModelDto = {
+      ...CABINET_MODEL,
+      id: "dry-cabinet-custom-instance",
+      code: "MSD-CUSTOM",
+      name: "Custom Dry Cabinet",
+      widthMm: 940,
+      heightMm: 1970,
+      depthMm: 640,
+    };
+    const location = { id: "dry-cabinet-custom-location", code: "MSD-CUSTOM", name: "Custom Dry Cabinet", kind: "dry_cabinet", parentId: null, isActive: true };
+    const child = makeChild({ kind: "dry_cabinet", model });
+    child.location = location;
+    const builder = resolveChildSpatialRepresentation(child);
+    const details = resolveSpatialRepresentation({ location, model });
+    const published = resolveSpatialRepresentation({ location, model, mapping: child.mapping! });
+    expect(builder.structure).toBe("dry-cabinet");
+    expect(details.modelInstance).toEqual(builder.modelInstance);
+    expect(published.modelInstance).toEqual(builder.modelInstance);
+    const builderMesh = createChildCompartmentMesh(toSceneChild(child, { dimensions: builder.dimensions }), "empty-mapped");
+    const detailsMesh = createParentCarcassMesh({ location, model, node: child.node, anchors: [], mapping: child.mapping! }, details.dimensions, { structure: details.structure });
+    const builderBody = builderMesh.getObjectByName("structure-dry-cabinet-MSD-CUSTOM")!;
+    const detailsBody = detailsMesh.getObjectByName("structure-dry-cabinet-MSD-CUSTOM")!;
+    expect(builderBody).toBeDefined();
+    expect(detailsBody).toBeDefined();
+    const builderSize = new THREE.Box3().setFromObject(builderBody).getSize(new THREE.Vector3());
+    const detailsSize = new THREE.Box3().setFromObject(detailsBody).getSize(new THREE.Vector3());
+    expect(builderSize.x).toBeCloseTo(0.94, 6);
+    expect(builderSize.y).toBeCloseTo(1.97, 6);
+    expect(builderSize.z).toBeCloseTo(0.64, 6);
+    expect(detailsSize.x).toBeCloseTo(builderSize.x, 6);
+    expect(detailsSize.y).toBeCloseTo(builderSize.y, 6);
+    expect(detailsSize.z).toBeCloseTo(builderSize.z, 6);
+  });
+
+  it.each([
+    ["matrix_tray", "matrix-tray", 300, 25, 200],
+    ["compartment", "compartment", 45, 20, 35],
+  ] as const)("uses the same custom %s model instance and bounds across Builder, Details, and published views", (kind, structure, widthMm, heightMm, depthMm) => {
+    const model: SpatialModelDto = { ...CABINET_MODEL, id: `${kind}-custom`, code: kind.toUpperCase(), widthMm, heightMm, depthMm };
+    const child = makeChild({ kind, model });
+    child.location = { id: `${kind}-loc`, code: kind.toUpperCase(), name: kind, kind, parentId: null, isActive: true };
+    child.mapping = {
+      status: "MAPPED", isMappingEligible: true, hasSpatialNode: true,
+      directChildCount: 1, mappedDirectChildCount: 1, unmappedDirectChildCount: 0,
+      containerStatus: "PUBLISHED", publishedLayout: {
+        ...PUBLISHED_LAYOUT,
+        templateType: "GRID_PARTS_TRAY",
+        containerDimensionsMm: { widthMm: 300, heightMm: 25, depthMm: 200 },
+        config: { templateType: "GRID_PARTS_TRAY", dimensions: { widthMm: 300, heightMm: 25, depthMm: 200 }, wallThicknessMm: 3, rows: 4, columns: 6, dividerThicknessMm: 2 },
+      }, slotMapping: null,
+    };
+    const builder = resolveChildSpatialRepresentation(child);
+    const details = resolveSpatialRepresentation({ location: child.location, model });
+    const published = resolveSpatialRepresentation({ location: child.location, model, mapping: child.mapping });
+    expect(builder.structure).toBe(structure);
+    expect(details.modelInstance).toEqual(builder.modelInstance);
+    expect(published.modelInstance).toEqual(builder.modelInstance);
+    expect(details.dimensions).toEqual(builder.dimensions);
+    expect(published.dimensions).toEqual(builder.dimensions);
+    const dimensions = { x: widthMm / 1000, y: heightMm / 1000, z: depthMm / 1000 };
+    const builderMesh = createChildCompartmentMesh(toSceneChild(child, { dimensions: builder.dimensions }), "empty-mapped");
+    const detailsMesh = createParentCarcassMesh({ location: child.location, model, node: child.node, anchors: [], mapping: child.mapping }, details.dimensions, { structure: details.structure, wallThicknessMm: details.wallThicknessMm, gridRows: details.gridRows, gridColumns: details.gridColumns, gridDividerThicknessMm: details.gridDividerThicknessMm });
+    const builderBody = builderMesh.getObjectByName(`structure-${structure}-${child.location.code}`)!;
+    const detailsBody = detailsMesh.getObjectByName(`structure-${structure}-${child.location.code}`)!;
+    const builderBounds = new THREE.Box3().setFromObject(builderBody).getSize(new THREE.Vector3());
+    const detailsBounds = new THREE.Box3().setFromObject(detailsBody).getSize(new THREE.Vector3());
+    expect(builderBounds.x).toBeCloseTo(dimensions.x, 6);
+    expect(builderBounds.y).toBeCloseTo(dimensions.y, 6);
+    expect(builderBounds.z).toBeCloseTo(dimensions.z, 6);
+    expect(detailsBounds.x).toBeCloseTo(builderBounds.x, 6);
+    expect(detailsBounds.y).toBeCloseTo(builderBounds.y, 6);
+    expect(detailsBounds.z).toBeCloseTo(builderBounds.z, 6);
   });
 
   it("keeps an imported (GLB) model instance available when nested", () => {
@@ -271,7 +672,7 @@ describe("Canonical spatial representation", () => {
       ["cabinet", "enclosure"],
       ["dry_cabinet", "dry-cabinet"],
       ["rack", "rack"],
-      ["shelf", "rack"],
+      ["shelf", "shelf"],
       ["reel_rack", "reel-rack"],
       ["drawer", "drawer"],
       ["bin", "tray"],
@@ -304,20 +705,37 @@ describe("Canonical spatial representation", () => {
       zone: { structure: "none", source: "fallback", kindClass: "space" },
       aisle: { structure: "none", source: "fallback", kindClass: "space" },
       rack: { structure: "rack", source: "kind", kindClass: "container" },
-      shelf: { structure: "rack", source: "kind", kindClass: "container" },
-      cabinet: { structure: "enclosure", source: "kind", kindClass: "container" },
+      shelf: { structure: "shelf", source: "kind", kindClass: "container" },
+      cabinet: {
+        structure: "enclosure",
+        source: "kind",
+        kindClass: "container",
+      },
       dry_cabinet: {
         structure: "dry-cabinet",
         source: "kind",
         kindClass: "container",
       },
-      reel_rack: { structure: "reel-rack", source: "kind", kindClass: "container" },
+      reel_rack: {
+        structure: "reel-rack",
+        source: "kind",
+        kindClass: "container",
+      },
+      matrix_tray: { structure: "matrix-tray", source: "kind", kindClass: "container" },
       drawer: { structure: "drawer", source: "kind", kindClass: "compartment" },
       bin: { structure: "tray", source: "kind", kindClass: "compartment" },
-      compartment: { structure: "tray", source: "kind", kindClass: "compartment" },
+      compartment: {
+        structure: "compartment",
+        source: "kind",
+        kindClass: "compartment",
+      },
       tray: { structure: "tray", source: "kind", kindClass: "compartment" },
       tube: { structure: "tube", source: "kind", kindClass: "compartment" },
-      reel_slot: { structure: "reel-slot", source: "kind", kindClass: "compartment" },
+      reel_slot: {
+        structure: "reel-slot",
+        source: "kind",
+        kindClass: "compartment",
+      },
     };
 
     for (const [kind, expectation] of Object.entries(expected)) {

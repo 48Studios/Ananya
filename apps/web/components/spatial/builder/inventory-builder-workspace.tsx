@@ -32,6 +32,10 @@ import {
 } from "@/components/ui/select";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 import {
+  spatialApi,
+  type LocationOperationalViewDto,
+} from "@/lib/api/spatial-api";
+import {
   spatialLayoutsApi,
   type CreateSpatialLayoutPayload,
   type UpdateSpatialLayoutPayload,
@@ -59,6 +63,7 @@ import {
   resetWorkspaceToDraft,
   formatWorkspaceMappingsForApi,
   computeIsWorkspaceDirty,
+  findMappedModelFitIssues,
   type BuilderWorkspaceMode,
   type PreviewViewMode,
   type SlotMappingRecord,
@@ -69,6 +74,7 @@ import type {
   SpatialLayoutWithMappings,
 } from "@ananya/inventory";
 import {
+  BUILDER_PRESET_DEFINITIONS,
   findSpatialMappingIncompatibilities,
   resolveTemplateTypesForRootKind,
 } from "@ananya/inventory";
@@ -118,6 +124,13 @@ export function InventoryBuilderWorkspace({
   const [locationsError, setLocationsError] = React.useState<string | null>(
     null,
   );
+  const [selectedParentOperationalView, setSelectedParentOperationalView] =
+    React.useState<LocationOperationalViewDto | null>(null);
+  const [loadingParentOperationalView, setLoadingParentOperationalView] =
+    React.useState(false);
+  const [parentOperationalViewError, setParentOperationalViewError] =
+    React.useState<string | null>(null);
+  const appliedRootModelDimensionsRef = React.useRef<string | null>(null);
 
   // 3. Persisted layouts for the selected parent container
   const [layouts, setLayouts] = React.useState<SpatialLayoutWithMappings[]>([]);
@@ -176,6 +189,102 @@ export function InventoryBuilderWorkspace({
     if (!state.loadedLayoutId) return null;
     return layouts.find((l) => l.id === state.loadedLayoutId) ?? null;
   }, [layouts, state.loadedLayoutId]);
+
+  React.useEffect(() => {
+    const parentId = state.selectedParentLocationId;
+    if (!parentId) {
+      setSelectedParentOperationalView(null);
+      setParentOperationalViewError(null);
+      setLoadingParentOperationalView(false);
+      return;
+    }
+    let cancelled = false;
+    setSelectedParentOperationalView(null);
+    setLoadingParentOperationalView(true);
+    setParentOperationalViewError(null);
+    spatialApi
+      .getLocationOperationalView(parentId)
+      .then((view) => {
+        if (!cancelled) setSelectedParentOperationalView(view);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setSelectedParentOperationalView(null);
+          setParentOperationalViewError(
+            error instanceof Error
+              ? error.message
+              : "Failed to load location operational view.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingParentOperationalView(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    state.selectedParentLocationId,
+    state.loadedStatus,
+    state.loadedRevision,
+  ]);
+
+  React.useEffect(() => {
+    const parentId = state.selectedParentLocationId;
+    const model = selectedParentOperationalView?.parent.model;
+    if (!parentId || !model || state.loadedLayoutId) return;
+    if (
+      model.widthMm == null ||
+      model.heightMm == null ||
+      model.depthMm == null ||
+      ![model.widthMm, model.heightMm, model.depthMm].every(
+        (dimension) => Number.isFinite(dimension) && dimension > 0,
+      )
+    ) {
+      return;
+    }
+    const dimensionsKey = `${parentId}:${model.widthMm}:${model.heightMm}:${model.depthMm}`;
+    if (appliedRootModelDimensionsRef.current === dimensionsKey) return;
+    appliedRootModelDimensionsRef.current = dimensionsKey;
+    setState((previous) => {
+      if (
+        previous.selectedParentLocationId !== parentId ||
+        previous.loadedLayoutId
+      ) {
+        return previous;
+      }
+      const dimensions = {
+        widthMm: model.widthMm!,
+        heightMm: model.heightMm!,
+        depthMm: model.depthMm!,
+      };
+      if (
+        previous.config.dimensions.widthMm === dimensions.widthMm &&
+        previous.config.dimensions.heightMm === dimensions.heightMm &&
+        previous.config.dimensions.depthMm === dimensions.depthMm
+      ) {
+        return previous;
+      }
+      return updateParametricConfig(previous, {
+        ...previous.config,
+        dimensions,
+      } as ParametricStorageConfig);
+    });
+  }, [
+    selectedParentOperationalView,
+    state.selectedParentLocationId,
+    state.loadedLayoutId,
+  ]);
+
+  const mappedModelFitIssues = React.useMemo(
+    () =>
+      findMappedModelFitIssues(
+        state.generatedResult?.compartments ?? [],
+        state.mappings,
+        selectedParentOperationalView,
+      ),
+    [state.generatedResult, state.mappings, selectedParentOperationalView],
+  );
 
   // Dirty check: has the workspace drifted from the loaded layout?
   const isDirty = React.useMemo(() => {
@@ -572,6 +681,15 @@ export function InventoryBuilderWorkspace({
   // Publishing layout
   const handlePublishConfirm = async (overwriteManualNodes = false) => {
     if (!state.loadedLayoutId) return;
+    if (mappedModelFitIssues.length > 0) {
+      setIsPublishConfirmOpen(false);
+      setNotification({
+        type: "warning",
+        message:
+          "Publication is blocked because a configured location model exceeds its physical slot.",
+      });
+      return;
+    }
 
     setIsPublishing(true);
     setNotification(null);
@@ -895,7 +1013,9 @@ export function InventoryBuilderWorkspace({
       locations.map((loc) => [loc.id, loc.kind] as const),
     );
     const slotKindsBySlotId = new Map(
-      state.generatedResult.compartments.map((c) => [c.slotId, c.kind] as const),
+      state.generatedResult.compartments.map(
+        (c) => [c.slotId, c.kind] as const,
+      ),
     );
     const violations = findSpatialMappingIncompatibilities(
       [...state.mappings.values()].map((record) => ({
@@ -903,8 +1023,9 @@ export function InventoryBuilderWorkspace({
         locationId: record.locationId,
       })),
       {
-        rootKind: locations.find((loc) => loc.id === state.selectedParentLocationId)
-          ?.kind,
+        rootKind: locations.find(
+          (loc) => loc.id === state.selectedParentLocationId,
+        )?.kind,
         kindsByLocationId,
         slotKindsBySlotId,
       },
@@ -913,7 +1034,12 @@ export function InventoryBuilderWorkspace({
       const record = state.mappings.get(violation.slotId);
       return record ? [{ record, reason: violation.reason }] : [];
     });
-  }, [state.mappings, state.generatedResult, state.selectedParentLocationId, locations]);
+  }, [
+    state.mappings,
+    state.generatedResult,
+    state.selectedParentLocationId,
+    locations,
+  ]);
 
   // Selected compartment object from generated result
   const selectedCompartment = React.useMemo(() => {
@@ -949,7 +1075,6 @@ export function InventoryBuilderWorkspace({
 
   const totalSlots = state.generatedResult?.totalCompartments ?? 0;
   const mappedCount = state.mappings.size;
-
   return (
     <div className={cn("space-y-4", className)}>
       {/* 1. Header & Duplex Controls */}
@@ -1014,7 +1139,9 @@ export function InventoryBuilderWorkspace({
                 variant="outline"
                 size="sm"
                 onClick={() => setIsPublishConfirmOpen(true)}
-                disabled={isPublishing || isSaving}
+                disabled={
+                  isPublishing || isSaving || mappedModelFitIssues.length > 0
+                }
                 className="h-7 text-xs px-2.5 border-emerald-500/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 font-medium"
               >
                 {isPublishing ? (
@@ -1218,7 +1345,8 @@ export function InventoryBuilderWorkspace({
       )}
 
       {/* Hierarchy Mismatch Warning Banner */}
-      {(incompatibleMappings.length > 0 || kindIncompatibleMappings.length > 0) && (
+      {(incompatibleMappings.length > 0 ||
+        kindIncompatibleMappings.length > 0) && (
         <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
           <div className="flex items-center gap-2">
             <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
@@ -1233,10 +1361,12 @@ export function InventoryBuilderWorkspace({
               {kindIncompatibleMappings.length > 0 && (
                 <span data-testid="kind-incompatible-banner">
                   Incompatible kinds: {kindIncompatibleMappings.length} mapped{" "}
-                  {kindIncompatibleMappings.length === 1 ? "slot holds a" : "slots hold"}{" "}
+                  {kindIncompatibleMappings.length === 1
+                    ? "slot holds a"
+                    : "slots hold"}{" "}
                   location{" "}
-                  {kindIncompatibleMappings.length === 1 ? "kind" : "kinds"} this
-                  template cannot store (
+                  {kindIncompatibleMappings.length === 1 ? "kind" : "kinds"}{" "}
+                  this preset cannot contain (
                   {kindIncompatibleMappings[0]?.record.locationName}
                   {kindIncompatibleMappings.length > 1
                     ? ` +${kindIncompatibleMappings.length - 1} more`
@@ -1396,6 +1526,9 @@ export function InventoryBuilderWorkspace({
               selectedParentId={state.selectedParentLocationId}
               onSelectParentId={handleSelectParentLocation}
               onMapToSlot={handleMapToLocation}
+              operationalView={selectedParentOperationalView}
+              isLoadingOperationalView={loadingParentOperationalView}
+              operationalViewError={parentOperationalViewError}
               availableSlots={
                 state.generatedResult?.compartments.map((c) => ({
                   slotId: c.slotId,
@@ -1436,6 +1569,10 @@ export function InventoryBuilderWorkspace({
                 onSelectContainer={handleSelectContainer}
                 childInteractionEnabled={childInteractionEnabled}
                 containerIdentity={containerIdentity}
+                operationalView={selectedParentOperationalView}
+                modelFitIssues={mappedModelFitIssues.map(
+                  (issue) => issue.message,
+                )}
                 onSwitchTo2D={() => handleViewModeChange("2d")}
                 className="h-full"
               />
@@ -1562,12 +1699,12 @@ export function InventoryBuilderWorkspace({
         }}
       />
 
-      {/* Destructive Template Change Confirmation Dialog */}
+      {/* Destructive Builder Preset Change Confirmation Dialog */}
       <ConfirmDialog
         isOpen={pendingTemplateType !== null}
-        title="Change Storage Template"
-        description={`Changing template to ${pendingTemplateType} will reset the compartment layout. You currently have ${state.mappings.size} active draft location ${state.mappings.size === 1 ? "mapping" : "mappings"} that will be cleared. Are you sure you want to proceed?`}
-        confirmText="Change Template"
+        title="Change Builder Preset"
+        description={`Changing preset to ${pendingTemplateType ? BUILDER_PRESET_DEFINITIONS[pendingTemplateType].name : ""} will reset the compartment layout. You currently have ${state.mappings.size} active draft location ${state.mappings.size === 1 ? "mapping" : "mappings"} that will be cleared. Are you sure you want to proceed?`}
+        confirmText="Change Preset"
         cancelText="Keep Current"
         variant="destructive"
         onConfirm={() => {

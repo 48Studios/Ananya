@@ -9,6 +9,8 @@ import {
   Sliders,
   Type,
   AlertCircle,
+  Disc3,
+  Wind,
 } from "lucide-react";
 import {
   Select,
@@ -27,10 +29,15 @@ import {
   type OpenBinMatrixConfig,
   type PalletRackConfig,
   type GridPartsTrayConfig,
+  type ReelRackConfig,
+  type DryCabinetConfig,
+  PARAMETRIC_TEMPLATE_TYPES,
+  BUILDER_PRESET_DEFINITIONS,
+  SPATIAL_CATEGORY_DEFINITIONS,
+  CANONICAL_SPATIAL_MODEL_DEFINITIONS,
   isTemplateRootCompatible,
 } from "@ananya/inventory";
 import { cn } from "@/lib/utils";
-import { SPATIAL_TEMPLATE_MODEL_DEFINITIONS } from "@/lib/spatial/spatial-model-library";
 
 /** Naming pattern options; also used for the trigger tooltip when truncated. */
 const NAMING_PATTERN_OPTIONS = [
@@ -59,37 +66,22 @@ export interface ParametricConfigPanelProps {
   className?: string;
 }
 
-const TEMPLATE_OPTIONS: Array<{
-  type: ParametricTemplateType;
-  title: string;
-  subtitle: string;
-  icon: React.ComponentType<{ className?: string }>;
-}> = [
-  {
-    type: "SMD_DRAWER_CABINET",
-    title: "SMD Cabinet",
-    subtitle: "Matrix drawer unit",
-    icon: Box,
-  },
-  {
-    type: "OPEN_BIN_MATRIX",
-    title: "Open Bins",
-    subtitle: "Tiered parts matrix",
-    icon: Layers,
-  },
-  {
-    type: "PALLET_RACK",
-    title: "Pallet Rack",
-    subtitle: "Heavy-duty levels & bays",
-    icon: Sliders,
-  },
-  {
-    type: "GRID_PARTS_TRAY",
-    title: "Parts Tray",
-    subtitle: "Low-profile grid slots",
-    icon: Grid,
-  },
-];
+const PRESET_ICONS: Record<
+  ParametricTemplateType,
+  React.ComponentType<{ className?: string }>
+> = {
+  SMD_DRAWER_CABINET: Box,
+  OPEN_BIN_MATRIX: Layers,
+  PALLET_RACK: Sliders,
+  GRID_PARTS_TRAY: Grid,
+  REEL_RACK: Disc3,
+  DRY_CABINET: Wind,
+};
+
+const TEMPLATE_OPTIONS = PARAMETRIC_TEMPLATE_TYPES.map((type) => ({
+  type,
+  icon: PRESET_ICONS[type],
+}));
 
 export function ParametricConfigPanel({
   config,
@@ -198,11 +190,11 @@ export function ParametricConfigPanel({
 
   return (
     <div className={cn("space-y-6 text-sm", className)}>
-      {/* 1. Template Type Selector */}
+      {/* 1. Builder Preset Selector */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Storage Template
+            Builder Presets
           </Label>
           <Button
             type="button"
@@ -220,8 +212,13 @@ export function ParametricConfigPanel({
         <div className="grid grid-cols-2 gap-2">
           {TEMPLATE_OPTIONS.map((tmpl) => {
             const Icon = tmpl.icon;
+            const preset = BUILDER_PRESET_DEFINITIONS[tmpl.type];
+            const rootCategory =
+              SPATIAL_CATEGORY_DEFINITIONS[preset.rootCategory];
             const modelDefinition =
-              SPATIAL_TEMPLATE_MODEL_DEFINITIONS[tmpl.type];
+              CANONICAL_SPATIAL_MODEL_DEFINITIONS[
+                preset.rootCategory as keyof typeof CANONICAL_SPATIAL_MODEL_DEFINITIONS
+              ];
             const isSelected = config.templateType === tmpl.type;
             const isCompatible =
               !rootKind || isTemplateRootCompatible(tmpl.type, rootKind);
@@ -253,10 +250,13 @@ export function ParametricConfigPanel({
                 </div>
                 <div>
                   <div className="text-xs font-semibold leading-tight">
-                    {tmpl.title}
+                    {preset.name}
                   </div>
                   <div className="text-[11px] text-muted-foreground leading-snug">
-                    {tmpl.subtitle}
+                    {preset.description}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground/80 leading-snug">
+                    Root: {rootCategory.displayName}
                   </div>
                   <div className="text-[10px] text-muted-foreground/80 leading-snug">
                     Model: {modelDefinition.displayName}
@@ -437,7 +437,7 @@ export function ParametricConfigPanel({
           </div>
         )}
 
-        {/* Open Bin Matrix */}
+        {/* Open Bin preset */}
         {config.templateType === "OPEN_BIN_MATRIX" && (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2.5">
@@ -573,6 +573,47 @@ export function ParametricConfigPanel({
                   className="h-8 text-xs font-mono"
                 />
               </div>
+            </div>
+          </div>
+        )}
+
+        {config.templateType === "REEL_RACK" && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Rows</Label>
+                <Input type="number" min={1} step={1} value={(config as ReelRackConfig).rows || ""} onChange={(e) => onChangeConfig({ ...config, rows: Number.parseInt(e.target.value, 10) || 0 } as ReelRackConfig)} className="h-8 text-xs font-mono" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Slots per row</Label>
+                <Input type="number" min={1} step={1} value={(config as ReelRackConfig).columns || ""} onChange={(e) => onChangeConfig({ ...config, columns: Number.parseInt(e.target.value, 10) || 0 } as ReelRackConfig)} className="h-8 text-xs font-mono" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Slot spacing (mm)</Label>
+                <Input type="number" min={0} step={1} value={(config as ReelRackConfig).slotSpacingMm ?? 12} onChange={(e) => onChangeConfig({ ...config, slotSpacingMm: Number(e.target.value) } as ReelRackConfig)} className="h-8 text-xs font-mono" />
+              </div>
+            </div>
+          </div>
+        )}
+        {config.templateType === "DRY_CABINET" && (
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Direct child category</Label>
+              <Select value={(config as DryCabinetConfig).childCategory} onValueChange={(value) => onChangeConfig({ ...config, childCategory: value as DryCabinetConfig["childCategory"] } as DryCabinetConfig)}>
+                <SelectTrigger className="h-8 w-full text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SPATIAL_CATEGORY_DEFINITIONS[BUILDER_PRESET_DEFINITIONS.DRY_CABINET.rootCategory].allowedChildren.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {SPATIAL_CATEGORY_DEFINITIONS[category].displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1"><Label className="text-[11px] text-muted-foreground">Rows</Label><Input type="number" min={1} step={1} value={(config as DryCabinetConfig).rows || ""} onChange={(e) => onChangeConfig({ ...config, rows: Number.parseInt(e.target.value, 10) || 0 } as DryCabinetConfig)} className="h-8 text-xs font-mono" /></div>
+              <div className="space-y-1"><Label className="text-[11px] text-muted-foreground">Columns</Label><Input type="number" min={1} step={1} value={(config as DryCabinetConfig).columns || ""} onChange={(e) => onChangeConfig({ ...config, columns: Number.parseInt(e.target.value, 10) || 0 } as DryCabinetConfig)} className="h-8 text-xs font-mono" /></div>
+              <div className="space-y-1"><Label className="text-[11px] text-muted-foreground">Child spacing (mm)</Label><Input type="number" min={0} step={1} value={(config as DryCabinetConfig).childSpacingMm ?? 16} onChange={(e) => onChangeConfig({ ...config, childSpacingMm: Number(e.target.value) } as DryCabinetConfig)} className="h-8 text-xs font-mono" /></div>
             </div>
           </div>
         )}

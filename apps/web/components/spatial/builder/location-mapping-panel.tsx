@@ -1,10 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  MapPin,
-  Layers,
-} from "lucide-react";
+import { MapPin, Layers } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -25,10 +22,7 @@ import {
   type SpatialLayoutStatus,
 } from "@ananya/inventory";
 import type { LocationDto } from "@/lib/api/locations-api";
-import {
-  spatialApi,
-  type LocationOperationalViewDto,
-} from "@/lib/api/spatial-api";
+import { type LocationOperationalViewDto } from "@/lib/api/spatial-api";
 import type { SlotMappingRecord } from "@/lib/spatial/inventory-builder-state";
 import { cn } from "@/lib/utils";
 
@@ -39,11 +33,16 @@ export interface LocationMappingPanelProps {
   onSelectParentId: (id: string) => void;
   mappings: Map<string, SlotMappingRecord>;
   onMapToSlot: (slotId: string, location: LocationDto) => void;
-  availableSlots: Array<{ slotId: string; code: string; kind?: CompartmentKind }>;
+  operationalView: LocationOperationalViewDto | null;
+  isLoadingOperationalView: boolean;
+  operationalViewError: string | null;
+  availableSlots: Array<{
+    slotId: string;
+    code: string;
+    kind?: CompartmentKind;
+  }>;
   className?: string;
-  loadedLayoutId?: string | null;
   loadedStatus?: SpatialLayoutStatus | null;
-  loadedRevision?: number | null;
   isDirty?: boolean;
 }
 
@@ -54,17 +53,14 @@ export function LocationMappingPanel({
   onSelectParentId,
   mappings,
   onMapToSlot,
+  operationalView,
+  isLoadingOperationalView: loading,
+  operationalViewError: error,
   availableSlots,
   className,
-  loadedLayoutId,
   loadedStatus,
-  loadedRevision,
   isDirty,
 }: LocationMappingPanelProps) {
-  const [operationalView, setOperationalView] =
-    React.useState<LocationOperationalViewDto | null>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
   const [searchFilter, setSearchFilter] = React.useState("");
 
   // Map of locationId to mapped slot record in builder state
@@ -86,43 +82,6 @@ export function LocationMappingPanel({
         chip: loc.code,
       }));
   }, [locations, templateType]);
-
-  // Fetch operational view when parent location is selected or layout status/revision changes
-  React.useEffect(() => {
-    if (!selectedParentId) {
-      setOperationalView(null);
-      return;
-    }
-
-    let isCancelled = false;
-    async function loadView() {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await spatialApi.getLocationOperationalView(selectedParentId!);
-        if (!isCancelled) {
-          setOperationalView(data);
-        }
-      } catch (err: unknown) {
-        if (!isCancelled) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Failed to load location operational view.",
-          );
-        }
-      } finally {
-        if (!isCancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadView();
-    return () => {
-      isCancelled = true;
-    };
-  }, [selectedParentId, loadedStatus, loadedRevision]);
 
   // Filter children based on search
   const filteredChildren = React.useMemo(() => {
@@ -182,7 +141,8 @@ export function LocationMappingPanel({
           emptyText="No locations found."
         />
         <p className="text-[11px] text-muted-foreground leading-snug">
-          Select an existing physical storage node to associate its sub-locations with the parametric template.
+          Select an existing physical storage node to associate its
+          sub-locations with this preset layout.
         </p>
       </div>
 
@@ -205,9 +165,7 @@ export function LocationMappingPanel({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 font-semibold text-foreground">
               <Layers className="size-3.5 text-muted-foreground" />
-              <span>
-                Child Locations ({operationalView.children.length})
-              </span>
+              <span>Child Locations ({operationalView.children.length})</span>
             </div>
             <div className="w-40">
               <Input
@@ -227,17 +185,21 @@ export function LocationMappingPanel({
           ) : (
             <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
               {filteredChildren.map((child) => {
-                const mappedRecord = mappedRecordByLocationId.get(child.location.id);
+                const mappedRecord = mappedRecordByLocationId.get(
+                  child.location.id,
+                );
                 const isMappedInBuilder = !!mappedRecord;
                 const candidateSlots = compatibleSlotsFor(child.location.kind);
 
                 // Authoritative lifecycle status:
                 // Distinguish Layout Lifecycle (PUBLISHED, DRAFT, ARCHIVED) from Mapping State (MAPPED, STALE, UNMAPPED)
-                let lifecycleStatus: "PUBLISHED" | "DRAFT" | "ARCHIVED" = "DRAFT";
+                let lifecycleStatus: "PUBLISHED" | "DRAFT" | "ARCHIVED" =
+                  "DRAFT";
                 if (isMappedInBuilder) {
                   if (loadedStatus === "PUBLISHED") {
                     const isServerPublished =
-                      child.mapping?.slotMapping?.layoutStatus === "PUBLISHED" ||
+                      child.mapping?.slotMapping?.layoutStatus ===
+                        "PUBLISHED" ||
                       child.node?.metadata?.publishedRevision != null;
                     if (isServerPublished || !isDirty) {
                       lifecycleStatus = "PUBLISHED";
@@ -368,9 +330,12 @@ export function LocationMappingPanel({
       {!loading && !operationalView && !error && (
         <div className="p-8 rounded-lg border border-dashed border-border bg-card text-center text-xs text-muted-foreground flex flex-col items-center justify-center">
           <MapPin className="size-8 text-muted-foreground/30 mb-2" />
-          <span className="font-medium text-foreground">No Parent Storage Selected</span>
+          <span className="font-medium text-foreground">
+            No Parent Storage Selected
+          </span>
           <span className="text-[11px] text-muted-foreground mt-0.5 max-w-sm">
-            Select a parent warehouse location above to inspect existing compartments and map them to the builder slots.
+            Select a parent warehouse location above to inspect existing
+            compartments and map them to the builder slots.
           </span>
         </div>
       )}

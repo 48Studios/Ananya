@@ -4,6 +4,7 @@ import {
   ParametricGeometryOutOfBoundsError,
   ParametricGeometryOverlapError,
 } from "./parametric-storage.errors";
+import { canContainLocation } from "../location-model";
 import type {
   Dimensions3D,
   GeneratedCompartment,
@@ -15,6 +16,8 @@ import type {
   ParametricCompartmentDiff,
   ParametricStorageConfig,
   ParametricValidationResult,
+  ReelRackConfig,
+  DryCabinetConfig,
   SmdDrawerCabinetConfig,
 } from "./parametric-template.types";
 
@@ -104,6 +107,14 @@ export function validateParametricConfig(
       validateGridSubdivisions(config, errors);
       break;
     }
+    case "REEL_RACK": {
+      validateReelRackSubdivisions(config, errors);
+      break;
+    }
+    case "DRY_CABINET": {
+      validateDryCabinetSubdivisions(config, errors);
+      break;
+    }
     default: {
       errors.push(`Unknown template type: ${(config as { templateType: string }).templateType}`);
     }
@@ -113,6 +124,41 @@ export function validateParametricConfig(
     isValid: errors.length === 0,
     errors,
   };
+}
+
+function validateDryCabinetSubdivisions(config: DryCabinetConfig, errors: string[]): void {
+  for (const [label, value] of [["Row count", config.rows], ["Column count", config.columns]] as const) {
+    if (!Number.isInteger(value) || value < 1) errors.push(`${label} must be an integer >= 1.`);
+  }
+  if (!["drawer", "shelf", "matrix_tray"].includes(config.childCategory)) errors.push("Dry Cabinet child category is not allowed.");
+  if (!canContainLocation("dry_cabinet", config.childCategory)) errors.push("Dry Cabinet child category is not allowed by the canonical containment graph.");
+  const spacing = config.childSpacingMm ?? 12;
+  if (!Number.isFinite(spacing) || spacing < 0) errors.push("Dry Cabinet child spacing must be a non-negative finite number.");
+  if (2 * config.wallThicknessMm >= config.dimensions.widthMm || 2 * config.wallThicknessMm >= config.dimensions.depthMm || 2 * config.wallThicknessMm >= config.dimensions.heightMm) errors.push("Dry Cabinet clear interior must remain positive after wall allowances.");
+  if (config.columns * 1 > 0 && config.dimensions.widthMm - 2 * config.wallThicknessMm - (config.columns - 1) * spacing <= 0) errors.push("Dry Cabinet child columns exceed the clear width.");
+  if (config.rows * 1 > 0 && config.dimensions.heightMm - 2 * config.wallThicknessMm - (config.rows - 1) * spacing <= 0) errors.push("Dry Cabinet child rows exceed the clear height.");
+}
+
+function validateReelRackSubdivisions(config: ReelRackConfig, errors: string[]): void {
+  for (const [label, value] of [["Row count", config.rows], ["Column count", config.columns]] as const) {
+    if (!Number.isInteger(value) || value < 1) errors.push(`${label} must be an integer >= 1.`);
+  }
+  const spacing = config.slotSpacingMm ?? 12;
+  const upright = config.uprightWidthMm ?? 35;
+  const crossbar = config.crossbarHeightMm ?? 25;
+  if (![spacing, upright, crossbar].every((value) => Number.isFinite(value) && value >= 0)) {
+    errors.push("Reel rack spacing and structural dimensions must be non-negative finite numbers.");
+    return;
+  }
+  if (config.dimensions.widthMm - (config.columns + 1) * upright - (config.columns - 1) * spacing <= 0) {
+    errors.push("Reel slot columns exceed the clear width between rack uprights.");
+  }
+  if (config.dimensions.heightMm - (config.rows + 1) * crossbar - (config.rows - 1) * spacing <= 0) {
+    errors.push("Reel slot rows exceed the clear height between rack crossbars.");
+  }
+  if (config.dimensions.depthMm <= upright * 2) {
+    errors.push("Reel rack depth must exceed the front and rear upright clearance.");
+  }
 }
 
 function validateGridSubdivisions(
@@ -134,7 +180,8 @@ function validateGridSubdivisions(
     errors.push("Column count must be an integer >= 1.");
   }
 
-  const divider = config.dividerThicknessMm ?? (config.templateType === "GRID_PARTS_TRAY" ? 2 : 3);
+  const isTray = config.templateType === "GRID_PARTS_TRAY";
+  const divider = config.dividerThicknessMm ?? (isTray ? 2 : 3);
   if (typeof divider !== "number" || !Number.isFinite(divider) || divider < 0) {
     errors.push("Divider thickness must be a non-negative finite number.");
   }
@@ -144,20 +191,24 @@ function validateGridSubdivisions(
       config.dimensions.widthMm -
       config.wallThicknessMm * 2 -
       (config.columns - 1) * divider;
-    const usableH =
-      config.dimensions.heightMm -
-      config.wallThicknessMm * 2 -
-      (config.rows - 1) * divider;
+    const usableRows = isTray
+      ? config.dimensions.depthMm - config.wallThicknessMm - (config.rows - 1) * divider
+      : config.dimensions.heightMm - config.wallThicknessMm * 2 - (config.rows - 1) * divider;
 
     if (usableW <= 0) {
       errors.push(
         `Configured columns (${config.columns}) and dividers (${divider}mm) exceed available internal width.`,
       );
     }
-    if (usableH <= 0) {
+    if (usableRows <= 0) {
       errors.push(
-        `Configured rows (${config.rows}) and dividers (${divider}mm) exceed available internal height.`,
+        isTray
+          ? `Configured rows (${config.rows}) and dividers (${divider}mm) exceed available internal depth.`
+          : `Configured rows (${config.rows}) and dividers (${divider}mm) exceed available internal height.`,
       );
+    }
+    if (isTray && config.dimensions.heightMm - config.wallThicknessMm <= 0) {
+      errors.push("Matrix Tray clear height must remain positive above its base.");
     }
   }
 }
@@ -270,7 +321,7 @@ function resolveCompartmentIdentity(
   totalRows: number,
   totalCols: number,
   naming: Partial<NamingConfig> | undefined,
-  kind: "drawer" | "bin" | "shelf" | "slot",
+  kind: "drawer" | "bin" | "shelf" | "slot" | "reel_slot" | "matrix_tray" | "compartment",
   slotPrefix: string,
 ): { code: string; name: string; slotId: string } {
   const pattern = naming?.pattern ?? "ROW_COL_ALPHA_NUM";
@@ -319,8 +370,14 @@ function resolveCompartmentIdentity(
       ? "Drawer"
       : kind === "bin"
         ? "Bin"
-        : kind === "shelf"
+      : kind === "shelf"
           ? "Shelf"
+      : kind === "compartment"
+        ? "Compartment"
+      : kind === "matrix_tray"
+            ? "Matrix Tray"
+            : kind === "reel_slot"
+            ? "Reel Slot"
           : "Compartment";
   const name = `${kindLabel} ${code}`;
 
@@ -352,24 +409,23 @@ export function generateStorageCompartments(
 
   switch (config.templateType) {
     case "SMD_DRAWER_CABINET":
-    case "GRID_PARTS_TRAY": {
-      const isTray = config.templateType === "GRID_PARTS_TRAY";
-      const kind = isTray ? "slot" : "drawer";
-      const slotPrefix = isTray ? "tray_slot" : "drawer_slot";
-      const divider = config.dividerThicknessMm ?? (isTray ? 2 : 3);
+    {
+      const kind = "drawer";
+      const slotPrefix = "drawer_slot";
+      const divider = config.dividerThicknessMm ?? 3;
 
       usableW = dimensions.widthMm - 2 * wallThicknessMm;
       usableH = dimensions.heightMm - 2 * wallThicknessMm;
-      usableD = dimensions.depthMm - (isTray ? 2 * wallThicknessMm : wallThicknessMm);
+      usableD = dimensions.depthMm - wallThicknessMm;
 
       const cellW = (usableW - (config.columns - 1) * divider) / config.columns;
       const cellH = (usableH - (config.rows - 1) * divider) / config.rows;
       const cellD = usableD;
 
       // Internal clear space (excluding drawer face plate and body wall thickness)
-      const clearW = roundMm(Math.max(1, isTray ? cellW : cellW - 4));
-      const clearH = roundMm(Math.max(1, isTray ? cellH : cellH - 4));
-      const clearD = roundMm(Math.max(1, isTray ? cellD : cellD - 6));
+      const clearW = roundMm(Math.max(1, cellW - 4));
+      const clearH = roundMm(Math.max(1, cellH - 4));
+      const clearD = roundMm(Math.max(1, cellD - 6));
 
       for (let r = 0; r < config.rows; r++) {
         // Top-to-bottom: r = 0 is highest Y (top row)
@@ -427,6 +483,101 @@ export function generateStorageCompartments(
               row: r,
               col: c,
             },
+          });
+        }
+      }
+      break;
+    }
+
+    case "GRID_PARTS_TRAY": {
+      const kind = "compartment";
+      const slotPrefix = "tray_compartment";
+      const divider = config.dividerThicknessMm ?? 2;
+      // Matrix Tray rows run along its depth; columns run across its width.
+      // Its clear height is above the base, while its physical top remains open.
+      usableW = dimensions.widthMm - 2 * wallThicknessMm;
+      usableH = dimensions.heightMm - wallThicknessMm;
+      usableD = dimensions.depthMm - wallThicknessMm;
+      const cellW = (usableW - (config.columns - 1) * divider) / config.columns;
+      const cellD = (usableD - (config.rows - 1) * divider) / config.rows;
+      for (let row = 0; row < config.rows; row++) {
+        const rowFromBack = rowOrder === "top_to_bottom" ? config.rows - 1 - row : row;
+        for (let col = 0; col < config.columns; col++) {
+          const { code, name, slotId } = resolveCompartmentIdentity(
+            row, col, config.rows, config.columns, naming, kind, slotPrefix,
+          );
+          compartments.push({
+            slotId, code, name, kind, logicalIndex: { row, col },
+            position: {
+              x: roundMm(wallThicknessMm + col * (cellW + divider) + cellW / 2),
+              y: roundMm(wallThicknessMm + usableH / 2),
+              z: roundMm(wallThicknessMm + rowFromBack * (cellD + divider) + cellD / 2),
+            },
+            rotation: { x: 0, y: 0, z: 0 },
+            dimensions: { widthMm: roundMm(cellW), heightMm: roundMm(usableH), depthMm: roundMm(cellD) },
+            clearDimensions: { widthMm: roundMm(cellW), heightMm: roundMm(usableH), depthMm: roundMm(cellD) },
+            metadata: { templateType: config.templateType, origin: "corner", row, col },
+          });
+        }
+      }
+      break;
+    }
+
+    case "REEL_RACK": {
+      const upright = config.uprightWidthMm ?? 35;
+      const crossbar = config.crossbarHeightMm ?? 25;
+      const spacing = config.slotSpacingMm ?? 12;
+      usableW = dimensions.widthMm - (config.columns + 1) * upright - (config.columns - 1) * spacing;
+      usableH = dimensions.heightMm - (config.rows + 1) * crossbar - (config.rows - 1) * spacing;
+      usableD = dimensions.depthMm - 2 * (config.uprightWidthMm ?? 35);
+      const cellW = usableW / config.columns;
+      const cellH = usableH / config.rows;
+      const slotD = usableD;
+      for (let row = 0; row < config.rows; row++) {
+        const rowFromBottom = rowOrder === "top_to_bottom" ? config.rows - 1 - row : row;
+        for (let col = 0; col < config.columns; col++) {
+          const cx = upright + col * (cellW + upright + spacing) + cellW / 2;
+          const cy = crossbar + rowFromBottom * (cellH + crossbar + spacing) + cellH / 2;
+          const { code, name, slotId } = resolveCompartmentIdentity(
+            row, col, config.rows, config.columns, naming ?? { pattern: "ROW_COL_NUMERIC" }, "reel_slot", "reel_slot",
+          );
+          compartments.push({
+            slotId,
+            code,
+            name,
+            kind: "reel_slot",
+            logicalIndex: { row, col },
+            position: { x: roundMm(cx), y: roundMm(cy), z: roundMm(slotD / 2 + wallThicknessMm / 2) },
+            rotation: { x: 0, y: 0, z: 0 },
+            dimensions: { widthMm: roundMm(cellW), heightMm: roundMm(cellH), depthMm: roundMm(slotD) },
+            clearDimensions: { widthMm: roundMm(cellW), heightMm: roundMm(cellH), depthMm: roundMm(slotD) },
+            metadata: { templateType: config.templateType, origin: "corner", row, col },
+          });
+        }
+      }
+      break;
+    }
+
+    case "DRY_CABINET": {
+      const spacing = config.childSpacingMm ?? 12;
+      usableW = dimensions.widthMm - 2 * wallThicknessMm;
+      usableH = dimensions.heightMm - 2 * wallThicknessMm;
+      usableD = dimensions.depthMm - wallThicknessMm;
+      const cellW = (usableW - (config.columns - 1) * spacing) / config.columns;
+      const cellH = (usableH - (config.rows - 1) * spacing) / config.rows;
+      const kind = config.childCategory;
+      const slotPrefix = `dry_cabinet_${kind}`;
+      for (let row = 0; row < config.rows; row++) {
+        const rowFromBottom = rowOrder === "top_to_bottom" ? config.rows - 1 - row : row;
+        for (let col = 0; col < config.columns; col++) {
+          const { code, name, slotId } = resolveCompartmentIdentity(row, col, config.rows, config.columns, config.naming ?? { pattern: "ROW_COL_ALPHA_NUM" }, kind, slotPrefix);
+          compartments.push({
+            slotId, code, name, kind, logicalIndex: { row, col },
+            position: { x: roundMm(wallThicknessMm + col * (cellW + spacing) + cellW / 2), y: roundMm(wallThicknessMm + rowFromBottom * (cellH + spacing) + cellH / 2), z: roundMm(wallThicknessMm + usableD / 2) },
+            rotation: { x: 0, y: 0, z: 0 },
+            dimensions: { widthMm: roundMm(cellW), heightMm: roundMm(cellH), depthMm: roundMm(usableD) },
+            clearDimensions: { widthMm: roundMm(cellW), heightMm: roundMm(cellH), depthMm: roundMm(usableD) },
+            metadata: { templateType: config.templateType, origin: "corner", row, col },
           });
         }
       }
@@ -903,5 +1054,32 @@ export function createDefaultGridPartsTrayConfig(): GridPartsTrayConfig {
       padDigits: 2,
       rowOrder: "top_to_bottom",
     },
+  };
+}
+
+export function createDefaultReelRackConfig(): ReelRackConfig {
+  return {
+    templateType: "REEL_RACK",
+    dimensions: { widthMm: 1000, heightMm: 1800, depthMm: 450 },
+    wallThicknessMm: 20,
+    rows: 4,
+    columns: 5,
+    slotSpacingMm: 12,
+    uprightWidthMm: 35,
+    crossbarHeightMm: 25,
+    naming: { pattern: "ROW_COL_NUMERIC", rowOrder: "bottom_to_top" },
+  };
+}
+
+export function createDefaultDryCabinetConfig(): DryCabinetConfig {
+  return {
+    templateType: "DRY_CABINET",
+    dimensions: { widthMm: 900, heightMm: 1800, depthMm: 600 },
+    wallThicknessMm: 24,
+    rows: 4,
+    columns: 1,
+    childCategory: "drawer",
+    childSpacingMm: 16,
+    naming: { pattern: "SEQUENTIAL", padDigits: 2, rowOrder: "bottom_to_top" },
   };
 }

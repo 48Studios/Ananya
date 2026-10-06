@@ -1068,6 +1068,12 @@ export function Spatial3DViewport({
         wallThicknessMm: parentGeometry.wallThicknessMm,
         postWidthMm: parentGeometry.postWidthMm,
         beamHeightMm: parentGeometry.beamHeightMm,
+        shelfLevels: parentGeometry.shelfLevels,
+        reelRows: parentGeometry.reelRows,
+        reelSlotSpacingMm: parentGeometry.reelSlotSpacingMm,
+        gridRows: parentGeometry.gridRows,
+        gridColumns: parentGeometry.gridColumns,
+        gridDividerThicknessMm: parentGeometry.gridDividerThicknessMm,
       },
     );
     const parentBodyOffset = resolveOperationalParentBodyOffset(

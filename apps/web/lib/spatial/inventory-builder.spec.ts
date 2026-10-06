@@ -21,6 +21,7 @@ import {
   unmapSlot,
   switchWorkspaceMode,
   convertGeneratedToSceneLayout,
+  findMappedModelFitIssues,
   acknowledgeStaleMapping,
   selectContainer,
   selectCompartment,
@@ -248,6 +249,50 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
       // Slot 1 is purely generated draft
       expect(sceneSlot1.isMapped).toBe(false);
       expect(sceneSlot1.rawChild.location.metadata?.isDraftSlot).toBe(true);
+    });
+
+    it("rejects an authoritative model instance that exceeds its generated physical slot", () => {
+      let state = withAssignedParent(createInitialBuilderState());
+      const slot = state.generatedResult!.compartments[0]!;
+      state = mapSlotToLocation(state, slot.slotId, mockLocation);
+      const child = {
+        location: {
+          id: mockLocation.id,
+          code: mockLocation.code,
+          name: mockLocation.name,
+          kind: "drawer",
+          parentId: state.selectedParentLocationId,
+          isActive: true,
+        },
+        model: {
+          id: "custom-drawer-model",
+          code: "CUSTOM-DRAWER",
+          name: "Custom Drawer",
+          format: "PROCEDURAL",
+          widthMm: slot.dimensions.widthMm + 1,
+          heightMm: slot.dimensions.heightMm,
+          depthMm: slot.dimensions.depthMm,
+          isActive: true,
+          metadata: {},
+        },
+      };
+      const view = { children: [child] } as unknown as Parameters<
+        typeof findMappedModelFitIssues
+      >[2];
+
+      expect(
+        findMappedModelFitIssues(
+          state.generatedResult!.compartments,
+          state.mappings,
+          view,
+        ),
+      ).toEqual([
+        expect.objectContaining({
+          slotId: slot.slotId,
+          locationId: mockLocation.id,
+          message: expect.stringContaining("exceeds slot"),
+        }),
+      ]);
     });
 
     it("allows unmapping an existing slot cleanly", () => {

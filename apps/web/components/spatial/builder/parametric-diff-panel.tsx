@@ -43,8 +43,14 @@ export function ParametricDiffPanel({
     );
   }
 
-  const { retained, added, removed, modified, isStructuralChange, meaningChangedSlots } =
-    diff;
+  const {
+    retained,
+    added,
+    removed,
+    modified,
+    isStructuralChange,
+    meaningChangedSlots,
+  } = diff;
 
   return (
     <div
@@ -80,9 +86,9 @@ export function ParametricDiffPanel({
             <span>Structural Changes Detected</span>
           </div>
           <p className="text-[11px] leading-relaxed opacity-90">
-            Compartments were added, removed, reordered, or template type changed.
-            Physical items mapped to shifted or deleted slots must be reviewed
-            prior to warehouse reconciliation.
+            Compartments were added, removed, reordered, or the Builder preset
+            changed. Physical items mapped to shifted or deleted slots must be
+            reviewed prior to warehouse reconciliation.
           </p>
         </div>
       )}
@@ -145,7 +151,9 @@ export function ParametricDiffPanel({
       {meaningChangedSlots && meaningChangedSlots.length > 0 && (
         <div className="space-y-1.5 pt-1">
           <div className="text-[11px] font-semibold text-foreground flex items-center justify-between">
-            <span>Semantic & Orientation Shifts ({meaningChangedSlots.length})</span>
+            <span>
+              Semantic & Orientation Shifts ({meaningChangedSlots.length})
+            </span>
           </div>
           <div className="max-h-24 overflow-y-auto space-y-1 pr-1 font-mono text-[11px]">
             {meaningChangedSlots.slice(0, 5).map((item, idx) => (
@@ -187,40 +195,55 @@ export function ParametricDiffPanel({
           <div
             className={cn(
               "space-y-1 font-mono text-[11px] pr-1",
-              showAllModified ? "max-h-48 overflow-y-auto" : "max-h-20 overflow-hidden",
+              showAllModified
+                ? "max-h-48 overflow-y-auto"
+                : "max-h-20 overflow-hidden",
             )}
           >
-            {modified.slice(0, showAllModified ? undefined : 3).map((item, idx) => {
-              const deltaW = item.current.dimensions.widthMm - item.previous.dimensions.widthMm;
-              const deltaH = item.current.dimensions.heightMm - item.previous.dimensions.heightMm;
-              const deltaD = item.current.dimensions.depthMm - item.previous.dimensions.depthMm;
+            {modified
+              .slice(0, showAllModified ? undefined : 3)
+              .map((item, idx) => {
+                const deltaW =
+                  item.current.dimensions.widthMm -
+                  item.previous.dimensions.widthMm;
+                const deltaH =
+                  item.current.dimensions.heightMm -
+                  item.previous.dimensions.heightMm;
+                const deltaD =
+                  item.current.dimensions.depthMm -
+                  item.previous.dimensions.depthMm;
 
-              const formatDelta = (d: number) =>
-                d === 0 ? "±0" : d > 0 ? `+${d.toFixed(1)}` : d.toFixed(1);
+                const formatDelta = (d: number) =>
+                  d === 0 ? "±0" : d > 0 ? `+${d.toFixed(1)}` : d.toFixed(1);
 
-              return (
-                <div
-                  key={idx}
-                  className="p-1.5 rounded bg-muted/20 border border-border/30 flex items-center justify-between"
-                >
-                  <span className="font-semibold text-foreground">{item.current.code}</span>
-                  <div className="flex items-center gap-2 text-muted-foreground text-[10px]">
-                    <span>
-                      {item.previous.dimensions.widthMm}×{item.previous.dimensions.heightMm}×
-                      {item.previous.dimensions.depthMm}mm
-                    </span>
-                    <span>→</span>
+                return (
+                  <div
+                    key={idx}
+                    className="p-1.5 rounded bg-muted/20 border border-border/30 flex items-center justify-between"
+                  >
                     <span className="font-semibold text-foreground">
-                      {item.current.dimensions.widthMm}×{item.current.dimensions.heightMm}×
-                      {item.current.dimensions.depthMm}mm
+                      {item.current.code}
                     </span>
-                    <span className="text-amber-600 dark:text-amber-400">
-                      ({formatDelta(deltaW)}w, {formatDelta(deltaH)}h, {formatDelta(deltaD)}d)
-                    </span>
+                    <div className="flex items-center gap-2 text-muted-foreground text-[10px]">
+                      <span>
+                        {item.previous.dimensions.widthMm}×
+                        {item.previous.dimensions.heightMm}×
+                        {item.previous.dimensions.depthMm}mm
+                      </span>
+                      <span>→</span>
+                      <span className="font-semibold text-foreground">
+                        {item.current.dimensions.widthMm}×
+                        {item.current.dimensions.heightMm}×
+                        {item.current.dimensions.depthMm}mm
+                      </span>
+                      <span className="text-amber-600 dark:text-amber-400">
+                        ({formatDelta(deltaW)}w, {formatDelta(deltaH)}h,{" "}
+                        {formatDelta(deltaD)}d)
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
             {!showAllModified && modified.length > 3 && (
               <div className="text-[10px] text-muted-foreground italic text-center pt-0.5">
                 + {modified.length - 3} more modified slots (expand to view all)

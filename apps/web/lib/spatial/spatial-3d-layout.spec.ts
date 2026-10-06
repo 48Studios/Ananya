@@ -31,6 +31,7 @@ import {
 } from "@ananya/inventory";
 import type {
   LocationOperationalViewChildDto,
+  LocationOperationalViewDto,
   SpatialAnchorDto,
   SpatialModelDto,
   SpatialNodeDto,
@@ -330,8 +331,8 @@ describe("Spatial 3D Layout & Scene Engine", () => {
 
       const shelfDims = resolveObjectDimensions(null, null, "shelf");
       expect(shelfDims.x).toBeCloseTo(0.95, 4);
-      expect(shelfDims.y).toBeCloseTo(0.3, 4);
-      expect(shelfDims.z).toBeCloseTo(0.35, 4);
+      expect(shelfDims.y).toBeCloseTo(0.04, 4);
+      expect(shelfDims.z).toBeCloseTo(0.55, 4);
     });
 
     it.each([
@@ -339,9 +340,10 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       ["dry_cabinet", "dry-cabinet", 0.8, 1.8, 0.6],
       ["reel_rack", "reel-rack", 1, 1.8, 0.45],
       ["tray", "tray", 0.6, 0.08, 0.3],
+      ["matrix_tray", "matrix-tray", 0.6, 0.08, 0.3],
       ["tube", "tube", 0.04, 0.04, 0.12],
       ["reel_slot", "reel-slot", 0.09, 0.09, 0.1],
-      ["compartment", "tray", 0.1, 0.08, 0.14],
+      ["compartment", "compartment", 0.1, 0.08, 0.14],
       ["slot", "tray", 0.1, 0.08, 0.14],
     ])(
       "resolves %s to a dedicated physical representation",
@@ -574,6 +576,59 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       );
     });
 
+    it("preserves configured model dimensions instead of shrinking a Drawer to its mapped slot", () => {
+      const drawer = createMockChild("drawer-1", "DRAWER-01", {
+        kind: "drawer",
+        modelDims: { w: 321, h: 87, d: 407 },
+      });
+      drawer.slotDimensionsMm = { widthMm: 300, heightMm: 80, depthMm: 390 };
+      const result = layoutChildrenFor3D([drawer], null, new Map(), {
+        x: mmToMeters(700),
+        y: mmToMeters(900),
+        z: mmToMeters(450),
+      });
+      expect(result.mapped[0]?.dimensions).toEqual({
+        x: mmToMeters(321),
+        y: mmToMeters(87),
+        z: mmToMeters(407),
+      });
+    });
+
+    it("uses a mapped Drawer location's persisted model as the Builder geometry instance", () => {
+      const config = createDefaultSmdCabinetConfig();
+      const compartment = generateStorageCompartments(config).compartments[0]!;
+      const drawer = createMockChild("drawer-real", "DRAWER-REAL", {
+        kind: "drawer",
+        modelDims: { w: 50, h: 60, d: 250 },
+      });
+      const operationalView = {
+        children: [drawer],
+      } as unknown as LocationOperationalViewDto;
+      const layout = convertGeneratedToSceneLayout(
+        [compartment],
+        new Map([
+          [
+            compartment.slotId,
+            {
+              slotId: compartment.slotId,
+              slotCode: compartment.code,
+              locationId: drawer.location.id,
+              locationCode: drawer.location.code,
+              locationName: drawer.location.name,
+              locationKind: drawer.location.kind,
+              mappedAt: "2026-10-06T00:00:00.000Z",
+            },
+          ],
+        ]),
+        config.dimensions,
+        operationalView,
+      );
+
+      expect(layout[0]?.dimensions).toEqual({ x: 0.05, y: 0.06, z: 0.25 });
+      expect(layout[0]?.rawChild.model?.id).toBe("model-drawer-real");
+      expect(layout[0]?.rawChild.location.kind).toBe("drawer");
+    });
+
     it("accounts for a persisted node scale when fitting", () => {
       const base = {
         x: mmToMeters(400),
@@ -621,7 +676,7 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       expect(resolveChildSlotEnvelope(bare)).toBeNull();
     });
 
-    it("fits a warehouse rack into its bay without moving it", () => {
+    it("preserves the configured rack dimensions and placement when its bay is undersized", () => {
       const rack = createMockChild("rack", "DEMO-SPATIAL-RACK", {
         kind: "rack",
         modelDims: { w: 2200, h: 2400, d: 900 },
@@ -641,11 +696,11 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       expect(placed.position.x).toBeCloseTo(mmToMeters(453.33 - 1300), 6);
       expect(placed.position.y).toBeCloseTo(mmToMeters(1780), 6);
       expect(placed.position.z).toBeCloseTo(0, 6);
-      expect(placed.dimensions.x).toBeLessThanOrEqual(
-        mmToMeters(786.67) + 1e-9,
-      );
-      expect(placed.dimensions.y).toBeLessThanOrEqual(mmToMeters(1080) + 1e-9);
-      expect(placed.dimensions.z).toBeLessThanOrEqual(mmToMeters(900) + 1e-9);
+      expect(placed.dimensions).toEqual({
+        x: mmToMeters(2200),
+        y: mmToMeters(2400),
+        z: mmToMeters(900),
+      });
     });
   });
 

@@ -2,7 +2,9 @@ export type ParametricTemplateType =
   | "SMD_DRAWER_CABINET"
   | "OPEN_BIN_MATRIX"
   | "PALLET_RACK"
-  | "GRID_PARTS_TRAY";
+  | "GRID_PARTS_TRAY"
+  | "REEL_RACK"
+  | "DRY_CABINET";
 
 /** Stable ordering used by Builder template pickers and persisted-config tooling. */
 export const PARAMETRIC_TEMPLATE_TYPES: readonly ParametricTemplateType[] = [
@@ -10,9 +12,11 @@ export const PARAMETRIC_TEMPLATE_TYPES: readonly ParametricTemplateType[] = [
   "OPEN_BIN_MATRIX",
   "PALLET_RACK",
   "GRID_PARTS_TRAY",
+  "REEL_RACK",
+  "DRY_CABINET",
 ];
 
-export type CompartmentKind = "drawer" | "bin" | "shelf" | "slot";
+export type CompartmentKind = "drawer" | "bin" | "shelf" | "slot" | "reel_slot" | "matrix_tray" | "compartment";
 
 export interface Dimensions3D {
   widthMm: number;
@@ -85,11 +89,30 @@ export interface GridPartsTrayConfig extends BaseParametricConfig {
   dividerThicknessMm?: number;
 }
 
+export interface ReelRackConfig extends BaseParametricConfig {
+  templateType: "REEL_RACK";
+  rows: number;
+  columns: number;
+  slotSpacingMm?: number;
+  uprightWidthMm?: number;
+  crossbarHeightMm?: number;
+}
+
+export interface DryCabinetConfig extends BaseParametricConfig {
+  templateType: "DRY_CABINET";
+  rows: number;
+  columns: number;
+  childCategory: "drawer" | "shelf" | "matrix_tray";
+  childSpacingMm?: number;
+}
+
 export type ParametricStorageConfig =
   | SmdDrawerCabinetConfig
   | OpenBinMatrixConfig
   | PalletRackConfig
-  | GridPartsTrayConfig;
+  | GridPartsTrayConfig
+  | ReelRackConfig
+  | DryCabinetConfig;
 
 export interface GeneratedCompartment {
   /** Stable topological identity, e.g. "drawer_slot_r0_c0" or "rack_bay_r0_c0" */

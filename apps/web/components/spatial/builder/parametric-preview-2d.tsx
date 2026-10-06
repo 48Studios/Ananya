@@ -5,7 +5,7 @@ import {
   type GeneratedCompartment,
   type ParametricCompartmentDiff,
   type ParametricStorageConfig,
-  type ParametricTemplateType,
+  BUILDER_PRESET_DEFINITIONS,
 } from "@ananya/inventory";
 import { Box, Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,13 +45,6 @@ export interface ParametricPreview2DProps {
   containerIdentity?: ContainerIdentity | null;
   className?: string;
 }
-
-const TEMPLATE_LABELS: Record<ParametricTemplateType, string> = {
-  SMD_DRAWER_CABINET: "SMD Cabinet",
-  OPEN_BIN_MATRIX: "Open Bins",
-  PALLET_RACK: "Pallet Rack",
-  GRID_PARTS_TRAY: "Parts Tray",
-};
 
 const CLICK_SUPPRESSION_PX = 4;
 
@@ -343,7 +336,7 @@ export function ParametricPreview2D({
       <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-border bg-muted/20">
         <div className="flex items-baseline gap-2 min-w-0">
           <span className="text-xs font-medium text-foreground truncate">
-            {TEMPLATE_LABELS[config.templateType]}
+            {BUILDER_PRESET_DEFINITIONS[config.templateType].name}
           </span>
           <span className="font-mono text-[10px] text-muted-foreground whitespace-nowrap">
             {outerWidthMm}×{outerHeightMm} mm
@@ -471,7 +464,7 @@ export function ParametricPreview2D({
           viewBox={viewBox}
           preserveAspectRatio="xMidYMid meet"
           role="group"
-          aria-label={`Front elevation of ${TEMPLATE_LABELS[config.templateType]}, ${projection.slots.length} compartments`}
+          aria-label={`Front elevation of ${BUILDER_PRESET_DEFINITIONS[config.templateType].name}, ${projection.slots.length} compartments`}
           style={{
             transform: `translate(${view.offsetXPx}px, ${view.offsetYPx}px) scale(${view.zoom})`,
             transformOrigin: "center center",
@@ -489,7 +482,7 @@ export function ParametricPreview2D({
             role="button"
             tabIndex={0}
             aria-pressed={isContainerSelected}
-            aria-label={`Top-level container, ${TEMPLATE_LABELS[config.templateType]}, ${outerWidthMm} by ${outerHeightMm} millimetres, ${
+            aria-label={`Top-level container, ${BUILDER_PRESET_DEFINITIONS[config.templateType].name}, ${outerWidthMm} by ${outerHeightMm} millimetres, ${
               containerIdentity
                 ? `assigned to ${containerIdentity.name} (${containerIdentity.code})${containerIdentity.isActive ? "" : ", inactive"}`
                 : "no Ananya location assigned"

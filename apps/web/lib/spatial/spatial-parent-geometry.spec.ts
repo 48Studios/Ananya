@@ -259,6 +259,21 @@ describe("Parent geometry ownership", () => {
     expect(countMeshes(group)).toBeGreaterThan(0);
   });
 
+  it("builds the Dry Cabinet body from its own parametric panels at exact custom bounds", () => {
+    const parent = makeParent({ kind: "dry_cabinet" });
+    const dimensions = { x: 0.94, y: 1.97, z: 0.64 };
+    const group = createParentCarcassMesh(parent, dimensions, { structure: "dry-cabinet" });
+    const bounds = new THREE.Box3().setFromObject(group);
+    const size = new THREE.Vector3();
+    bounds.getSize(size);
+    expect(size.x).toBeCloseTo(dimensions.x, 5);
+    expect(size.y).toBeCloseTo(dimensions.y, 5);
+    expect(size.z).toBeCloseTo(dimensions.z, 5);
+    expect(group.getObjectByName("structure-enclosure-LOC-1")).toBeFalsy();
+    expect(group.getObjectByName("dry-cabinet-back-wall-LOC-1")).toBeTruthy();
+    expect(group.getObjectByName("dry-cabinet-opening-header-LOC-1")).toBeTruthy();
+  });
+
   it("Case 1 — a root warehouse without model or layout owns a cutaway shell", () => {
     const parent = makeParent({ kind: "warehouse" });
     const ownership = resolveParentGeometryOwnership(parent);
@@ -396,7 +411,7 @@ describe("Parent geometry ownership", () => {
   it("a grid tray keeps its front open so compartments stay visible and clickable", () => {
     const dims = toMeters({ widthMm: 600, heightMm: 400, depthMm: 300 });
     const parent = makeParent({
-      kind: "cabinet",
+      kind: "matrix_tray",
       publishedLayout: {
         ...warehouseLayout,
         templateType: "GRID_PARTS_TRAY",
@@ -411,14 +426,16 @@ describe("Parent geometry ownership", () => {
     });
     const ownership = resolveParentGeometryOwnership(parent);
 
-    expect(ownership).toMatchObject({ source: "layout", structure: "tray" });
+    expect(ownership).toMatchObject({ source: "layout", structure: "matrix-tray", gridRows: 3, gridColumns: 4 });
     const group = createParentCarcassMesh(parent, dims, {
       structure: ownership.structure,
       wallThicknessMm: ownership.wallThicknessMm,
+      gridRows: ownership.gridRows,
+      gridColumns: ownership.gridColumns,
+      gridDividerThicknessMm: ownership.gridDividerThicknessMm,
     });
-    // Floor, two sides, a back wall and a half-height front lip — never a
-    // full-face front plate.
-    expect(countMeshes(group)).toBe(5);
+    // Base, perimeter walls and the authored row/column divider grid.
+    expect(countMeshes(group)).toBe(9);
     expect(countFrontPlates(group, dims)).toBe(0);
   });
 
@@ -454,7 +471,7 @@ describe("Parent geometry ownership", () => {
       resolveParentGeometryOwnership(parent, { authoredLayoutBody: true }),
     ).toMatchObject({
       source: "layout",
-      structure: "rack",
+      structure: "warehouse",
       postWidthMm: 60,
       beamHeightMm: 80,
     });
@@ -471,7 +488,7 @@ describe("Parent geometry ownership", () => {
       resolveParentGeometryOwnership(makeParent({ kind: "shelf" })),
     ).toMatchObject({
       source: "kind",
-      structure: "rack",
+      structure: "shelf",
     });
     expect(
       resolveParentGeometryOwnership(makeParent({ kind: "warehouse" })),
@@ -488,7 +505,7 @@ describe("Parent geometry ownership", () => {
     expect(
       resolveParentGeometryOwnership(
         makeParent({
-          kind: "zone",
+          kind: "matrix_tray",
           publishedLayout: {
             ...warehouseLayout,
             templateType: "GRID_PARTS_TRAY",
@@ -502,7 +519,7 @@ describe("Parent geometry ownership", () => {
           },
         }),
       ),
-    ).toMatchObject({ source: "layout", structure: "tray" });
+    ).toMatchObject({ source: "layout", structure: "matrix-tray" });
   });
 });
 
@@ -1011,4 +1028,3 @@ describe("Interactive mesh hit testing & child-selection inside selected contain
     expect(firstInteractiveUserData?.isParent).toBe(false);
   });
 });
-

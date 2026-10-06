@@ -4,6 +4,8 @@ import {
   findSpatialMappingIncompatibilities,
   INCOMPATIBLE_MAPPING_STALE_PREFIX,
   createDefaultGridPartsTrayConfig,
+  createDefaultReelRackConfig,
+  createDefaultDryCabinetConfig,
   createDefaultOpenBinMatrixConfig,
   createDefaultPalletRackConfig,
   createDefaultSmdCabinetConfig,
@@ -21,6 +23,7 @@ import {
   type SpatialLayoutStatus,
 } from "@ananya/inventory";
 import type { LocationDto } from "../api/locations-api";
+import type { LocationOperationalViewDto } from "../api/spatial-api";
 import type { SceneChildLayout, Vector3D } from "./spatial-3d-layout";
 import {
   cornerOriginToCenteredPosition,
@@ -81,6 +84,7 @@ export { INCOMPATIBLE_COMPARTMENT_KINDS };
 
 export interface SlotMappingRecord {
   slotId: string;
+  slotCode: string;
   locationId: string;
   locationCode: string;
   locationName: string;
@@ -343,6 +347,12 @@ export function setTemplateType(
       break;
     case "GRID_PARTS_TRAY":
       newConfig = createDefaultGridPartsTrayConfig();
+      break;
+    case "REEL_RACK":
+      newConfig = createDefaultReelRackConfig();
+      break;
+    case "DRY_CABINET":
+      newConfig = createDefaultDryCabinetConfig();
       break;
   }
 
@@ -641,6 +651,10 @@ export function mapSlotToLocation(
 
   newMappings.set(slotId, {
     slotId,
+    slotCode:
+      state.generatedResult?.compartments.find(
+        (compartment) => compartment.slotId === slotId,
+      )?.code ?? slotId,
     locationId: location.id,
     locationCode: location.code,
     locationName: location.name,
@@ -861,6 +875,7 @@ export function convertGeneratedToSceneLayout(
   compartments: GeneratedCompartment[],
   mappings: Map<string, SlotMappingRecord>,
   containerDimensions?: Dimensions3D,
+  operationalView?: LocationOperationalViewDto | null,
 ): SceneChildLayout[] {
   // Resolve parent container width and depth (in mm) for coordinate centering
   const containerW =
@@ -886,9 +901,35 @@ export function convertGeneratedToSceneLayout(
         )
       : 0);
 
+  const operationalChildren = new Map(
+    (operationalView?.children ?? []).map((child) => [
+      child.location.id,
+      child,
+    ]),
+  );
+
   return compartments.map((comp) => {
     const mapping = mappings.get(comp.slotId);
+    const operationalChild = mapping
+      ? operationalChildren.get(mapping.locationId)
+      : undefined;
     const isMapped = Boolean(mapping && !mapping.isStale);
+    const configuredModel = operationalChild?.model ?? null;
+    const instanceDimensions =
+      configuredModel?.widthMm &&
+      configuredModel.heightMm &&
+      configuredModel.depthMm &&
+      [
+        configuredModel.widthMm,
+        configuredModel.heightMm,
+        configuredModel.depthMm,
+      ].every((dimension) => Number.isFinite(dimension) && dimension > 0)
+        ? {
+            widthMm: configuredModel.widthMm,
+            heightMm: configuredModel.heightMm,
+            depthMm: configuredModel.depthMm,
+          }
+        : comp.dimensions;
 
     // Transform corner-origin coordinates [0, W] x [0, H] x [0, D]
     // into the centered parent carcass frame on all three axes.
@@ -909,9 +950,9 @@ export function convertGeneratedToSceneLayout(
 
     // Dimensions in meters
     const dimensions: Vector3D = {
-      x: mmToMeters(comp.dimensions.widthMm),
-      y: mmToMeters(comp.dimensions.heightMm),
-      z: mmToMeters(comp.dimensions.depthMm),
+      x: mmToMeters(instanceDimensions.widthMm),
+      y: mmToMeters(instanceDimensions.heightMm),
+      z: mmToMeters(instanceDimensions.depthMm),
     };
 
     const rotation: Vector3D = { x: 0, y: 0, z: 0 };
@@ -933,27 +974,97 @@ export function convertGeneratedToSceneLayout(
       anchorCode: comp.code,
       modelCode: comp.metadata.templateType as string,
       rawChild: {
-        location: {
-          id: mapping?.locationId ?? comp.slotId,
-          code: mapping?.locationCode ?? comp.code,
-          name: mapping?.locationName ?? comp.name,
-          kind: mapping?.locationKind ?? comp.kind,
-          parentId: null,
-          isActive: true,
-          metadata: {
-            isDraftSlot: !isMapped,
-            isStaleMapping: Boolean(mapping?.isStale),
-            staleReason: mapping?.staleReason,
-            templateType: comp.metadata.templateType,
-            clearDimensions: comp.clearDimensions,
-          },
-        },
+        location: operationalChild
+          ? {
+              ...operationalChild.location,
+              metadata: operationalChild.location.metadata ?? {},
+            }
+          : {
+              id: mapping?.locationId ?? comp.slotId,
+              code: mapping?.locationCode ?? comp.code,
+              name: mapping?.locationName ?? comp.name,
+              kind: mapping?.locationKind ?? comp.kind,
+              parentId: null,
+              isActive: true,
+              metadata: {
+                isDraftSlot: !isMapped,
+                isStaleMapping: Boolean(mapping?.isStale),
+                staleReason: mapping?.staleReason,
+                templateType: comp.metadata.templateType,
+                clearDimensions: comp.clearDimensions,
+              },
+            },
         node: null,
-        model: null,
+        model: configuredModel
+          ? configuredModel
+          : {
+              id: `builder-model-instance-${mapping?.locationId ?? comp.slotId}`,
+              code: `canonical-${comp.kind}`,
+              name: `Canonical ${comp.kind}`,
+              format: "PROCEDURAL",
+              widthMm: instanceDimensions.widthMm,
+              heightMm: instanceDimensions.heightMm,
+              depthMm: instanceDimensions.depthMm,
+              isActive: true,
+              metadata: {},
+            },
         anchor: null,
+        slotDimensionsMm: comp.dimensions,
       },
     };
   });
+}
+
+export interface BuilderModelFitIssue {
+  slotId: string;
+  locationId: string;
+  slotCode: string;
+  locationCode: string;
+  message: string;
+}
+
+/** Model dimensions are authoritative: mapped instances that exceed their generated physical slot invalidate publication. */
+export function findMappedModelFitIssues(
+  compartments: readonly GeneratedCompartment[],
+  mappings: ReadonlyMap<string, SlotMappingRecord>,
+  operationalView: LocationOperationalViewDto | null | undefined,
+): BuilderModelFitIssue[] {
+  if (!operationalView) return [];
+  const childrenById = new Map(
+    operationalView.children.map((child) => [child.location.id, child]),
+  );
+  const compartmentsById = new Map(
+    compartments.map((compartment) => [compartment.slotId, compartment]),
+  );
+  const issues: BuilderModelFitIssue[] = [];
+  for (const record of mappings.values()) {
+    if (record.isStale) continue;
+    const child = childrenById.get(record.locationId);
+    const compartment = compartmentsById.get(record.slotId);
+    const model = child?.model;
+    if (
+      !compartment ||
+      !model ||
+      model.widthMm == null ||
+      model.heightMm == null ||
+      model.depthMm == null
+    ) {
+      continue;
+    }
+    const overWidth = model.widthMm > compartment.dimensions.widthMm;
+    const overHeight = model.heightMm > compartment.dimensions.heightMm;
+    const overDepth = model.depthMm > compartment.dimensions.depthMm;
+    if (overWidth || overHeight || overDepth) {
+      issues.push({
+        slotId: record.slotId,
+        locationId: record.locationId,
+        slotCode: compartment.code,
+        locationCode: child.location.code,
+        message: `${child.location.code} (${model.widthMm} × ${model.heightMm} × ${model.depthMm} mm) exceeds slot ${compartment.code} (${compartment.dimensions.widthMm} × ${compartment.dimensions.heightMm} × ${compartment.dimensions.depthMm} mm).`,
+      });
+    }
+  }
+  return issues;
 }
 
 /**
@@ -978,6 +1089,7 @@ export function loadLayoutIntoWorkspace(
     const loc = locMap.get(item.locationId);
     mappings.set(item.slotId, {
       slotId: item.slotId,
+      slotCode: item.slotCode,
       locationId: item.locationId,
       locationCode: loc?.code ?? item.slotCode,
       locationName: loc?.name ?? item.slotCode,

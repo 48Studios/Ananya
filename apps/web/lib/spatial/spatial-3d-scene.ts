@@ -869,6 +869,12 @@ export interface ParentCarcassOptions {
   wallThicknessMm?: number | null;
   postWidthMm?: number | null;
   beamHeightMm?: number | null;
+  shelfLevels?: number | null;
+  reelRows?: number | null;
+  reelSlotSpacingMm?: number | null;
+  gridRows?: number | null;
+  gridColumns?: number | null;
+  gridDividerThicknessMm?: number | null;
 }
 
 /**
@@ -1155,6 +1161,12 @@ export interface StructureBodyParams {
   wallThicknessMm?: number | null;
   postWidthMm?: number | null;
   beamHeightMm?: number | null;
+  shelfLevels?: number | null;
+  reelRows?: number | null;
+  reelSlotSpacingMm?: number | null;
+  gridRows?: number | null;
+  gridColumns?: number | null;
+  gridDividerThicknessMm?: number | null;
 }
 
 export interface StructureBodyOptions {
@@ -1224,303 +1236,453 @@ export function createStructureBodyMesh(
   }
 
   if (structure === "dry-cabinet") {
-    const cabinet = createStructureBodyMesh(
-      "enclosure",
-      dimensions,
-      userData,
-      params,
-      materials,
-      options,
-    );
+    const cabinet = new THREE.Group();
     cabinet.name = `structure-dry-cabinet-${userData.locationCode}`;
-    const { x: W, y: H, z: D } = dimensions;
-    const frame = Math.min(0.012, Math.min(W, H) * 0.035);
-    const sealMaterial = materials.interior;
-    const bars = [
-      { x: 0, y: H / 2 - frame / 2, w: W, h: frame },
-      { x: 0, y: -H / 2 + frame / 2, w: W, h: frame },
-      { x: -W / 2 + frame / 2, y: 0, w: frame, h: H },
-      { x: W / 2 - frame / 2, y: 0, w: frame, h: H },
-    ];
-    for (const bar of bars) {
-      const seal = new THREE.Mesh(
-        new THREE.BoxGeometry(bar.w, bar.h, frame),
-        sealMaterial,
-      );
-      seal.position.set(bar.x, bar.y, D / 2 - frame / 2);
-      seal.userData = userData;
-      cabinet.add(seal);
-    }
-    const handle = new THREE.Mesh(
-      new THREE.BoxGeometry(Math.min(0.02, W * 0.04), H * 0.18, frame),
-      materials.body,
+    const authoredWall = params.wallThicknessMm;
+    const t = Math.min(
+      Math.min(W, H, D) * 0.15,
+      authoredWall != null && authoredWall > 0
+        ? mmToMeters(authoredWall)
+        : Math.min(W, H, D) * 0.035,
     );
-    handle.position.set(W / 2 - frame * 2, 0, D / 2 - frame / 2);
-    handle.userData = userData;
-    cabinet.add(handle);
+    const addPanel = (name: string, w: number, h: number, d: number, x: number, y: number, z: number) => {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bodyMat);
+      panel.name = `dry-cabinet-${name}-${userData.locationCode}`;
+      panel.position.set(x, y, z);
+      panel.userData = userData;
+      cabinet.add(panel);
+    };
+    // A dry-storage carcass: solid rear, insulated side walls and top/base,
+    // with a framed, open front so the storage volume remains visible.
+    addPanel("left-wall", t, H, D, -W / 2 + t / 2, 0, 0);
+    addPanel("right-wall", t, H, D, W / 2 - t / 2, 0, 0);
+    addPanel("back-wall", W - 2 * t, H, t, 0, 0, -D / 2 + t / 2);
+    addPanel("top", W - 2 * t, t, D - t, 0, H / 2 - t / 2, t / 2);
+    addPanel("base", W - 2 * t, t, D - t, 0, -H / 2 + t / 2, t / 2);
+    // Front stiles define the opening without adding a door that would obscure contents.
+    addPanel("front-left-stile", t, H, t, -W / 2 + t / 2, 0, D / 2 - t / 2);
+    addPanel("front-right-stile", t, H, t, W / 2 - t / 2, 0, D / 2 - t / 2);
+    addPanel("opening-header", W - 2 * t, t, t, 0, H / 2 - t / 2, D / 2 - t / 2);
+    addPanel("opening-sill", W - 2 * t, t, t, 0, -H / 2 + t / 2, D / 2 - t / 2);
     return cabinet;
   }
 
+  if (structure === "matrix-tray" || structure === "compartment") {
+    const authoredWall = params.wallThicknessMm != null && params.wallThicknessMm > 0
+      ? mmToMeters(params.wallThicknessMm)
+      : Math.min(0.018, minSpan * 0.05);
+    const t = Math.min(authoredWall, Math.min(W, H, D) * 0.25);
+    const addPanel = (name: string, w: number, h: number, d: number, x: number, y: number, z: number, material = bodyMat) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+      mesh.name = `${structure}-${name}-${userData.locationCode}`;
+      mesh.position.set(x, y, z);
+      mesh.userData = userData;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    };
+    // Both are open-top physical compartments. Matrix Tray has an open front;
+    // individual Compartment models retain four side walls around their base.
+    addPanel("base", W, t, D, 0, -H / 2 + t / 2, 0);
+    addPanel("left-wall", t, H - t, D, -W / 2 + t / 2, t / 2, 0);
+    addPanel("right-wall", t, H - t, D, W / 2 - t / 2, t / 2, 0);
+    if (structure === "matrix-tray") {
+      addPanel("back-wall", W - 2 * t, H - t, t, 0, t / 2, -D / 2 + t / 2, interiorMat);
+      const rows = Math.max(1, Math.floor(params.gridRows ?? 4));
+      const columns = Math.max(1, Math.floor(params.gridColumns ?? 6));
+      const divider = Math.min(
+        params.gridDividerThicknessMm != null && params.gridDividerThicknessMm > 0
+          ? mmToMeters(params.gridDividerThicknessMm)
+          : t * 0.65,
+        Math.min(W / (columns * 2), D / (rows * 2)),
+      );
+      const clearW = Math.max(0, W - 2 * t);
+      const clearD = Math.max(0, D - t);
+      const cellW = Math.max(0, (clearW - (columns - 1) * divider) / columns);
+      const cellD = Math.max(0, (clearD - (rows - 1) * divider) / rows);
+      for (let col = 1; col < columns; col++) {
+        const x = -W / 2 + t + col * cellW + (col - 1) * divider + divider / 2;
+        addPanel("column-divider", divider, H - t, clearD, x, t / 2, t / 2, interiorMat);
+      }
+      for (let row = 1; row < rows; row++) {
+        const z = -D / 2 + t + row * cellD + (row - 1) * divider + divider / 2;
+        addPanel("row-divider", clearW, H - t, divider, 0, t / 2, z, interiorMat);
+      }
+    } else {
+      addPanel("front-wall", W, H - t, t, 0, t / 2, D / 2 - t / 2, interiorMat);
+      addPanel("back-wall", W, H - t, t, 0, t / 2, -D / 2 + t / 2, interiorMat);
+    }
+    return group;
+  }
+
   if (structure === "tube" || structure === "reel-slot") {
-    const radius = Math.max(0.012, Math.min(W, H) * 0.42);
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(radius, radius, D, 24),
-      bodyMat,
-    );
-    body.rotation.x = Math.PI / 2;
-    body.userData = userData;
-    body.castShadow = true;
-    group.add(body);
     if (structure === "reel-slot") {
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(
-          radius * 0.88,
-          Math.max(0.004, radius * 0.08),
-          10,
-          24,
-        ),
+      const supportWidth = Math.min(W * 0.16, Math.max(0.008, W * 0.12));
+      const baseHeight = Math.min(H * 0.16, Math.max(0.008, H * 0.12));
+      const pegRadius = Math.max(0.003, Math.min(H, D) * 0.045);
+      const base = new THREE.Mesh(new THREE.BoxGeometry(W, baseHeight, D), bodyMat);
+      base.position.y = -H / 2 + baseHeight / 2;
+      base.userData = userData;
+      group.add(base);
+      for (const x of [-W / 2 + supportWidth / 2, W / 2 - supportWidth / 2]) {
+        const cheek = new THREE.Mesh(
+          new THREE.BoxGeometry(supportWidth, H, Math.min(D * 0.12, supportWidth)),
+          interiorMat,
+        );
+        cheek.position.set(x, 0, D / 2 - Math.min(D * 0.12, supportWidth) / 2);
+        cheek.userData = userData;
+        group.add(cheek);
+      }
+      const axle = new THREE.Mesh(
+        new THREE.CylinderGeometry(pegRadius, pegRadius, Math.max(0, W - 2 * supportWidth), 16),
+        bodyMat,
+      );
+      axle.rotation.z = Math.PI / 2;
+      axle.position.set(0, 0, D / 2 - pegRadius * 2);
+      axle.userData = userData;
+      group.add(axle);
+      const retainer = new THREE.Mesh(
+        new THREE.TorusGeometry(pegRadius * 1.35, Math.max(0.002, pegRadius * 0.18), 8, 16),
         interiorMat,
       );
-      ring.rotation.y = Math.PI / 2;
-      ring.position.z = D / 2 - radius * 0.88 - Math.max(0.004, radius * 0.08);
-      ring.userData = userData;
-      group.add(ring);
+      retainer.rotation.y = Math.PI / 2;
+      retainer.position.set(W / 2 - supportWidth, 0, D / 2 - pegRadius * 2);
+      retainer.userData = userData;
+      group.add(retainer);
+    } else {
+      // IC Tube / Rail (the ic_tube_rail model resolves to the "tube" structure):
+      // an open-top channel — base plus two side walls running the full depth.
+      const thickness = Math.min(W, H, D) * 0.08;
+      const addRailPanel = (name: string, w: number, h: number, x: number, y: number) => {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, D), bodyMat);
+        mesh.name = `tube-${name}-${userData.locationCode}`;
+        mesh.position.set(x, y, 0);
+        mesh.userData = userData;
+        mesh.castShadow = true;
+        group.add(mesh);
+      };
+      addRailPanel("base", W, thickness, 0, -H / 2 + thickness / 2);
+      addRailPanel("left-wall", thickness, H - thickness, -W / 2 + thickness / 2, thickness / 2);
+      addRailPanel("right-wall", thickness, H - thickness, W / 2 - thickness / 2, thickness / 2);
     }
     group.userData.probePoint = { x: 0, y: 0, z: D / 2 };
     addStructureLabel(group, structure, dimensions, userData, options);
     return group;
   }
 
-  if (structure === "reel-rack") {
-    const rack = createStructureBodyMesh(
-      "rack",
-      dimensions,
-      userData,
-      params,
-      materials,
-      options,
-    );
-    rack.name = `structure-reel-rack-${userData.locationCode}`;
-    const { x: W, y: H, z: D } = dimensions;
-    const spoolRadius = Math.min(W, H) * 0.13;
-    const spoolDepth = Math.min(D * 0.7, spoolRadius * 0.45);
-    for (const y of [-H * 0.22, H * 0.22]) {
-      const spool = new THREE.Mesh(
-        new THREE.CylinderGeometry(spoolRadius, spoolRadius, spoolDepth, 24),
-        materials.interior,
-      );
-      spool.rotation.z = Math.PI / 2;
-      spool.position.set(0, y, 0);
-      spool.userData = userData;
-      rack.add(spool);
+if (structure === "reel-rack") {
+  const rack = new THREE.Group();
+  rack.name = `structure-reel-rack-${userData.locationCode}`;
+  rack.userData = { ...userData };
+  const postWidth = Math.min(0.04, Math.min(W, D) * 0.09);
+  const railHeight = Math.min(0.03, H * 0.04);
+  const postGeo = new THREE.BoxGeometry(postWidth, H, postWidth);
+  for (const x of [-W / 2 + postWidth / 2, W / 2 - postWidth / 2]) {
+    for (const z of [-D / 2 + postWidth / 2, D / 2 - postWidth / 2]) {
+      const post = new THREE.Mesh(postGeo, bodyMat);
+      post.position.set(x, 0, z);
+      post.userData = userData;
+      post.castShadow = true;
+      rack.add(post);
     }
-    return rack;
   }
-
-  const authoredWall =
-    params.wallThicknessMm != null && params.wallThicknessMm > 0
-      ? mmToMeters(params.wallThicknessMm)
-      : null;
-  const authoredPost =
-    params.postWidthMm != null && params.postWidthMm > 0
-      ? mmToMeters(params.postWidthMm)
-      : null;
-  const authoredBeam =
+  const rows = Math.max(1, Math.floor(params.reelRows ?? 3));
+  const spacing = mmToMeters(params.reelSlotSpacingMm ?? 12);
+  const beam = Math.min(
     params.beamHeightMm != null && params.beamHeightMm > 0
       ? mmToMeters(params.beamHeightMm)
-      : null;
-  // Authored structure thickness wins over the generic proportional default.
-  const wall = Math.min(
-    authoredWall ?? Math.min(0.018, minSpan * 0.05),
-    minSpan * 0.25,
+      : railHeight,
+    H / (rows + 1),
   );
-
-  const addWireFrame = (): void => {
-    const frameGeo = new THREE.BoxGeometry(W, H, D);
-    const edges = new THREE.EdgesGeometry(frameGeo);
-    const lineMat = new THREE.LineBasicMaterial({
-      color: SPATIAL_3D_PALETTE.edgeLines,
-      linewidth: 1,
-    });
-    const wireFrame = new THREE.LineSegments(edges, lineMat);
-    wireFrame.position.set(0, 0, 0);
-    wireFrame.raycast = () => {};
-    group.add(wireFrame);
-  };
-
-  // 1. Rack / shelf frame: upright posts and perimeter rails, open on all sides.
-  if (structure === "rack") {
-    const postWidth = Math.min(
-      authoredPost ?? Math.min(0.035, minSpan * 0.08),
-      minSpan * 0.3,
-    );
-    const railThickness = Math.min(authoredBeam ?? postWidth * 0.7, H * 0.2);
-    const postGeo = new THREE.BoxGeometry(postWidth, H, postWidth);
-
-    const corners = [
-      { x: -W / 2 + postWidth / 2, z: -D / 2 + postWidth / 2 },
-      { x: W / 2 - postWidth / 2, z: -D / 2 + postWidth / 2 },
-      { x: -W / 2 + postWidth / 2, z: D / 2 - postWidth / 2 },
-      { x: W / 2 - postWidth / 2, z: D / 2 - postWidth / 2 },
-    ];
-
-    for (const pos of corners) {
-      const postMesh = new THREE.Mesh(postGeo, bodyMat);
-      postMesh.position.set(pos.x, 0, pos.z);
-      postMesh.userData = userData;
-      postMesh.castShadow = true;
-      group.add(postMesh);
+  const openHeight = Math.max(0, H - (rows + 1) * beam - (rows - 1) * spacing) / rows;
+  for (let row = 0; row <= rows; row++) {
+    const y = -H / 2 + beam / 2 + row * (openHeight + beam) + Math.max(0, row - 1) * spacing;
+    for (const z of [-D / 2 + postWidth / 2, D / 2 - postWidth / 2]) {
+      const crossbarMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(W - 2 * postWidth, beam, postWidth),
+        interiorMat,
+      );
+      crossbarMesh.position.set(0, y, z);
+      crossbarMesh.userData = userData;
+      rack.add(crossbarMesh);
     }
-
-    const railXGeo = new THREE.BoxGeometry(W, railThickness, railThickness);
-    for (const yPos of [
-      -H / 2 + railThickness / 2,
-      H / 2 - railThickness / 2,
-    ]) {
-      for (const zPos of [-D / 2 + postWidth / 2, D / 2 - postWidth / 2]) {
-        const rail = new THREE.Mesh(railXGeo, bodyMat);
-        rail.position.set(0, yPos, zPos);
-        rail.userData = userData;
-        group.add(rail);
-      }
+  }
+  const sideRail = new THREE.BoxGeometry(postWidth, railHeight, D - 2 * postWidth);
+  for (const x of [-W / 2 + postWidth / 2, W / 2 - postWidth / 2]) {
+    for (const y of [-H / 2 + railHeight / 2, H / 2 - railHeight / 2]) {
+      const rail = new THREE.Mesh(sideRail, bodyMat);
+      rail.position.set(x, y, 0);
+      rail.userData = userData;
+      rack.add(rail);
     }
+  }
+  addStructureLabel(rack, structure, dimensions, userData, options);
+  return rack;
+}
 
-    addWireFrame();
-    addStructureLabel(group, structure, dimensions, userData, options);
-    return group;
+const authoredWall =
+  params.wallThicknessMm != null && params.wallThicknessMm > 0
+    ? mmToMeters(params.wallThicknessMm)
+    : null;
+const authoredPost =
+  params.postWidthMm != null && params.postWidthMm > 0
+    ? mmToMeters(params.postWidthMm)
+    : null;
+const authoredBeam =
+  params.beamHeightMm != null && params.beamHeightMm > 0
+    ? mmToMeters(params.beamHeightMm)
+    : null;
+// Authored structure thickness wins over the generic proportional default.
+const wall = Math.min(
+  authoredWall ?? Math.min(0.018, minSpan * 0.05),
+  minSpan * 0.25,
+);
+
+const addWireFrame = (): void => {
+  const frameGeo = new THREE.BoxGeometry(W, H, D);
+  const edges = new THREE.EdgesGeometry(frameGeo);
+  const lineMat = new THREE.LineBasicMaterial({
+    color: SPATIAL_3D_PALETTE.edgeLines,
+    linewidth: 1,
+  });
+  const wireFrame = new THREE.LineSegments(edges, lineMat);
+  wireFrame.position.set(0, 0, 0);
+  wireFrame.raycast = () => { };
+  group.add(wireFrame);
+};
+
+// 1. Rack / shelf frame: upright posts and perimeter rails, open on all sides.
+if (structure === "rack") {
+  const postWidth = Math.min(
+    authoredPost ?? Math.min(0.035, minSpan * 0.08),
+    minSpan * 0.3,
+  );
+  const railThickness = Math.min(authoredBeam ?? postWidth * 0.7, H * 0.2);
+  const postGeo = new THREE.BoxGeometry(postWidth, H, postWidth);
+
+  const corners = [
+    { x: -W / 2 + postWidth / 2, z: -D / 2 + postWidth / 2 },
+    { x: W / 2 - postWidth / 2, z: -D / 2 + postWidth / 2 },
+    { x: -W / 2 + postWidth / 2, z: D / 2 - postWidth / 2 },
+    { x: W / 2 - postWidth / 2, z: D / 2 - postWidth / 2 },
+  ];
+
+  for (const pos of corners) {
+    const postMesh = new THREE.Mesh(postGeo, bodyMat);
+    postMesh.position.set(pos.x, 0, pos.z);
+    postMesh.userData = userData;
+    postMesh.castShadow = true;
+    group.add(postMesh);
   }
 
-  // 2. Open-top tray / slidable drawer body.
-  if (structure === "tray" || structure === "drawer") {
-    const openable = Boolean(options.openable);
-    const faceThickness = Math.min(0.015, D * 0.1);
-
-    if (openable) {
-      // A slidable body is hollow and open at the top so opening it reveals a
-      // real interior without inventing stored contents.
-      const tray = computeOpenTrayGeometry(dimensions, faceThickness);
-      for (const part of tray.parts) {
-        const partMesh = new THREE.Mesh(
-          new THREE.BoxGeometry(part.size.x, part.size.y, part.size.z),
-          part.name.includes("front") && options.labelTexture
-            ? createSemanticMaterialWithMap(bodyMat, options.labelTexture)
-            : bodyMat,
-        );
-        partMesh.name = part.name;
-        partMesh.position.set(
-          part.position.x,
-          part.position.y,
-          part.position.z,
-        );
-        partMesh.userData = userData;
-        partMesh.castShadow = true;
-        partMesh.receiveShadow = true;
-        group.add(partMesh);
-      }
-      group.userData.probePoint = { x: 0, y: 0, z: D / 2 };
-      addStructureLabel(group, structure, dimensions, userData, options, {
-        skipWhenApplied: true,
-      });
-      return group;
+  const railXGeo = new THREE.BoxGeometry(W, railThickness, railThickness);
+  for (const yPos of [
+    -H / 2 + railThickness / 2,
+    H / 2 - railThickness / 2,
+  ]) {
+    for (const zPos of [-D / 2 + postWidth / 2, D / 2 - postWidth / 2]) {
+      const rail = new THREE.Mesh(railXGeo, bodyMat);
+      rail.position.set(0, yPos, zPos);
+      rail.userData = userData;
+      group.add(rail);
     }
+  }
 
-    // Closed body: bottom plate, two sides and a back.
-    const bottomGeo = new THREE.BoxGeometry(W, wall, D);
-    const bottomMesh = new THREE.Mesh(bottomGeo, bodyMat);
-    bottomMesh.position.set(0, -H / 2 + wall / 2, 0);
-    bottomMesh.userData = userData;
-    bottomMesh.receiveShadow = true;
-    group.add(bottomMesh);
-
-    const sideGeo = new THREE.BoxGeometry(wall, H - wall, D);
-    for (const side of [-1, 1]) {
-      const sideMesh = new THREE.Mesh(sideGeo, bodyMat);
-      sideMesh.position.set(side * (W / 2 - wall / 2), wall / 2, 0);
-      sideMesh.userData = userData;
-      group.add(sideMesh);
+  const levelCount = Math.max(0, Math.floor(params.shelfLevels ?? 0));
+  const levelBeamHeight = Math.min(
+    params.beamHeightMm != null && params.beamHeightMm > 0
+      ? mmToMeters(params.beamHeightMm)
+      : railThickness,
+    H / Math.max(2, levelCount + 1),
+  );
+  const openLevelHeight =
+    levelCount > 0
+      ? Math.max(0, H - (levelCount + 1) * levelBeamHeight) / levelCount
+      : 0;
+  for (let level = 0; level < levelCount; level++) {
+    // Match the preset's authored beam/opening rhythm so support levels
+    // stay registered to the parametric Shelf placements.
+    const y =
+      -H / 2 +
+      levelBeamHeight +
+      level * (openLevelHeight + levelBeamHeight) +
+      openLevelHeight / 2;
+    for (const z of [-D / 2 + postWidth / 2, D / 2 - postWidth / 2]) {
+      const beam = new THREE.Mesh(railXGeo, bodyMat);
+      beam.position.set(0, y, z);
+      beam.userData = userData;
+      beam.castShadow = true;
+      group.add(beam);
     }
+  }
 
-    const backGeo = new THREE.BoxGeometry(W - 2 * wall, H - wall, wall);
-    const backMesh = new THREE.Mesh(backGeo, interiorMat);
-    backMesh.position.set(0, wall / 2, -D / 2 + wall / 2);
-    backMesh.userData = userData;
-    group.add(backMesh);
+  addWireFrame();
+  addStructureLabel(group, structure, dimensions, userData, options);
+  return group;
+}
 
-    if (structure === "drawer") {
-      // A sliding drawer closes its front: the front face is its identity.
-      const frontGeo = new THREE.BoxGeometry(W, H, wall);
-      const frontMesh = new THREE.Mesh(
-        frontGeo,
-        options.labelTexture
+// A canonical shelf is a load-bearing deck with a thin physical envelope,
+// not an enclosed storage box. Its outer X/Z bounds and declared height are
+// preserved exactly; the supports stay inside that envelope.
+if (structure === "shelf") {
+  const deckThickness = Math.min(H, Math.max(0.008, Math.min(H * 0.35, 0.02)));
+  const deck = new THREE.Mesh(
+    new THREE.BoxGeometry(W, deckThickness, D),
+    bodyMat,
+  );
+  deck.position.y = -H / 2 + deckThickness / 2;
+  deck.userData = userData;
+  deck.castShadow = true;
+  deck.receiveShadow = true;
+  group.add(deck);
+
+  const supportThickness = Math.min(deckThickness, Math.min(W, D) * 0.04);
+  const supportDepth = Math.min(D, Math.max(supportThickness, D * 0.08));
+  for (const x of [-W / 2 + supportThickness / 2, W / 2 - supportThickness / 2]) {
+    const support = new THREE.Mesh(
+      new THREE.BoxGeometry(supportThickness, deckThickness, supportDepth),
+      interiorMat,
+    );
+    support.position.set(x, -H / 2 + deckThickness / 2, 0);
+    support.userData = userData;
+    group.add(support);
+  }
+  addWireFrame();
+  addStructureLabel(group, structure, dimensions, userData, options);
+  return group;
+}
+
+// 2. Open-top tray / slidable drawer body.
+if (structure === "tray" || structure === "drawer") {
+  const openable = Boolean(options.openable);
+  const faceThickness = Math.min(0.015, D * 0.1);
+
+  if (openable) {
+    // A slidable body is hollow and open at the top so opening it reveals a
+    // real interior without inventing stored contents.
+    const tray = computeOpenTrayGeometry(dimensions, faceThickness);
+    for (const part of tray.parts) {
+      const partMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(part.size.x, part.size.y, part.size.z),
+        part.name.includes("front") && options.labelTexture
           ? createSemanticMaterialWithMap(bodyMat, options.labelTexture)
           : bodyMat,
       );
-      frontMesh.position.set(0, 0, D / 2 - wall / 2);
-      frontMesh.userData = userData;
-      group.add(frontMesh);
-      group.userData.probePoint = { x: 0, y: 0, z: D / 2 };
-    } else {
-      // A tray keeps its front open so its contents stay visible; its code
-      // rides on a half-height front lip.
-      const frontHeight = (H - wall) * 0.55;
-      const lipMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(W, frontHeight, wall),
-        options.labelTexture
-          ? createSemanticMaterialWithMap(bodyMat, options.labelTexture)
-          : bodyMat,
+      partMesh.name = part.name;
+      partMesh.position.set(
+        part.position.x,
+        part.position.y,
+        part.position.z,
       );
-      lipMesh.position.set(
-        0,
-        -H / 2 + wall + frontHeight / 2,
-        D / 2 - wall / 2,
-      );
-      lipMesh.userData = userData;
-      group.add(lipMesh);
-      group.userData.probePoint = {
-        x: 0,
-        y: -H / 2 + wall + frontHeight / 2,
-        z: D / 2 - wall / 2,
-      };
+      partMesh.userData = userData;
+      partMesh.castShadow = true;
+      partMesh.receiveShadow = true;
+      group.add(partMesh);
     }
-
-    addWireFrame();
+    group.userData.probePoint = { x: 0, y: 0, z: D / 2 };
     addStructureLabel(group, structure, dimensions, userData, options, {
       skipWhenApplied: true,
     });
     return group;
   }
 
-  // 3. Cabinet / default enclosure: open front with top, bottom, sides and back.
-  const topGeo = new THREE.BoxGeometry(W, wall, D);
-  const topMesh = new THREE.Mesh(topGeo, bodyMat);
-  topMesh.position.set(0, H / 2 - wall / 2, 0);
-  topMesh.userData = userData;
-  group.add(topMesh);
-
-  const bottomMesh = new THREE.Mesh(topGeo, bodyMat);
+  // Closed body: bottom plate, two sides and a back.
+  const bottomGeo = new THREE.BoxGeometry(W, wall, D);
+  const bottomMesh = new THREE.Mesh(bottomGeo, bodyMat);
   bottomMesh.position.set(0, -H / 2 + wall / 2, 0);
   bottomMesh.userData = userData;
   bottomMesh.receiveShadow = true;
   group.add(bottomMesh);
 
-  const sideGeo = new THREE.BoxGeometry(wall, H - 2 * wall, D);
+  const sideGeo = new THREE.BoxGeometry(wall, H - wall, D);
   for (const side of [-1, 1]) {
     const sideMesh = new THREE.Mesh(sideGeo, bodyMat);
-    sideMesh.position.set(side * (W / 2 - wall / 2), 0, 0);
+    sideMesh.position.set(side * (W / 2 - wall / 2), wall / 2, 0);
     sideMesh.userData = userData;
     group.add(sideMesh);
   }
 
-  const backGeo = new THREE.BoxGeometry(W - 2 * wall, H - 2 * wall, wall);
+  const backGeo = new THREE.BoxGeometry(W - 2 * wall, H - wall, wall);
   const backMesh = new THREE.Mesh(backGeo, interiorMat);
-  backMesh.position.set(0, 0, -D / 2 + wall / 2);
+  backMesh.position.set(0, wall / 2, -D / 2 + wall / 2);
   backMesh.userData = userData;
   group.add(backMesh);
 
-  addWireFrame();
-  addStructureLabel(group, structure, dimensions, userData, options);
+  if (structure === "drawer") {
+    // A sliding drawer closes its front: the front face is its identity.
+    const frontGeo = new THREE.BoxGeometry(W, H, wall);
+    const frontMesh = new THREE.Mesh(
+      frontGeo,
+      options.labelTexture
+        ? createSemanticMaterialWithMap(bodyMat, options.labelTexture)
+        : bodyMat,
+    );
+    frontMesh.position.set(0, 0, D / 2 - wall / 2);
+    frontMesh.userData = userData;
+    group.add(frontMesh);
+    group.userData.probePoint = { x: 0, y: 0, z: D / 2 };
+  } else {
+    // A tray keeps its front open so its contents stay visible; its code
+    // rides on a half-height front lip.
+    const frontHeight = (H - wall) * 0.55;
+    const lipMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(W, frontHeight, wall),
+      options.labelTexture
+        ? createSemanticMaterialWithMap(bodyMat, options.labelTexture)
+        : bodyMat,
+    );
+    lipMesh.position.set(
+      0,
+      -H / 2 + wall + frontHeight / 2,
+      D / 2 - wall / 2,
+    );
+    lipMesh.userData = userData;
+    group.add(lipMesh);
+    group.userData.probePoint = {
+      x: 0,
+      y: -H / 2 + wall + frontHeight / 2,
+      z: D / 2 - wall / 2,
+    };
+  }
 
+  addWireFrame();
+  addStructureLabel(group, structure, dimensions, userData, options, {
+    skipWhenApplied: true,
+  });
   return group;
+}
+
+// 3. Cabinet / default enclosure: open front with top, bottom, sides and back.
+const topGeo = new THREE.BoxGeometry(W, wall, D);
+const topMesh = new THREE.Mesh(topGeo, bodyMat);
+topMesh.position.set(0, H / 2 - wall / 2, 0);
+topMesh.userData = userData;
+group.add(topMesh);
+
+const bottomMesh = new THREE.Mesh(topGeo, bodyMat);
+bottomMesh.position.set(0, -H / 2 + wall / 2, 0);
+bottomMesh.userData = userData;
+bottomMesh.receiveShadow = true;
+group.add(bottomMesh);
+
+const sideGeo = new THREE.BoxGeometry(wall, H - 2 * wall, D);
+for (const side of [-1, 1]) {
+  const sideMesh = new THREE.Mesh(sideGeo, bodyMat);
+  sideMesh.position.set(side * (W / 2 - wall / 2), 0, 0);
+  sideMesh.userData = userData;
+  group.add(sideMesh);
+}
+
+const backGeo = new THREE.BoxGeometry(W - 2 * wall, H - 2 * wall, wall);
+const backMesh = new THREE.Mesh(backGeo, interiorMat);
+backMesh.position.set(0, 0, -D / 2 + wall / 2);
+backMesh.userData = userData;
+group.add(backMesh);
+
+addWireFrame();
+addStructureLabel(group, structure, dimensions, userData, options);
+
+return group;
 }
 
 /**
@@ -1540,8 +1702,19 @@ function addStructureLabel(
   if (!texture || skipWhenApplied) return;
 
   const { x: W, y: H, z: D } = dimensions;
-  const plateWidth = Math.max(0.12, Math.min(W * 0.7, 0.5));
-  const plateHeight = Math.min(Math.max(0.06, H * 0.12), 0.12);
+  // Readable default size, constrained to the model's own front face so a
+  // narrow body (e.g. a 60 mm IC rail) never carries an overhanging label.
+  const margin = Math.min(0.005, W * 0.05, H * 0.05);
+  const availableWidth = Math.max(0, W - 2 * margin);
+  const availableHeight = Math.max(0, H - 2 * margin);
+  const plateWidth = Math.min(
+    availableWidth,
+    Math.max(0.12, Math.min(W * 0.7, 0.5)),
+  );
+  const plateHeight = Math.min(
+    availableHeight,
+    Math.min(Math.max(0.06, H * 0.12), 0.12),
+  );
   const thickness = Math.min(0.01, D * 0.05);
   const plate = new THREE.Mesh(
     new THREE.BoxGeometry(plateWidth, plateHeight, thickness),
@@ -1550,7 +1723,10 @@ function addStructureLabel(
   plate.name = `structure-${structure}-label`;
   plate.position.set(
     0,
-    H / 2 - plateHeight / 2 - Math.min(0.02, H * 0.04),
+    Math.max(
+      -H / 2 + margin + plateHeight / 2,
+      H / 2 - plateHeight / 2 - Math.min(0.02, H * 0.04),
+    ),
     D / 2 + thickness / 2,
   );
   plate.userData = userData;
@@ -1626,6 +1802,12 @@ export function createParentCarcassMesh(
         wallThicknessMm: options.wallThicknessMm,
         postWidthMm: options.postWidthMm,
         beamHeightMm: options.beamHeightMm,
+        shelfLevels: options.shelfLevels,
+        reelRows: options.reelRows,
+        reelSlotSpacingMm: options.reelSlotSpacingMm,
+        gridRows: options.gridRows,
+        gridColumns: options.gridColumns,
+        gridDividerThicknessMm: options.gridDividerThicknessMm,
       },
       { body: carcassMat, interior: interiorMat },
     ),
@@ -1648,7 +1830,7 @@ export function createParentCarcassMesh(
       attentionMat,
     );
     attentionOutline.name = "parent-attention-outline";
-    attentionOutline.raycast = () => {};
+    attentionOutline.raycast = () => { };
     attentionOutline.userData = { ...userData };
     group.add(attentionOutline);
   }
@@ -1668,7 +1850,7 @@ export function createParentCarcassMesh(
       selectionMat,
     );
     selectionOutline.name = "parent-selection-outline";
-    selectionOutline.raycast = () => {};
+    selectionOutline.raycast = () => { };
     selectionOutline.userData = { ...userData };
     group.add(selectionOutline);
   }

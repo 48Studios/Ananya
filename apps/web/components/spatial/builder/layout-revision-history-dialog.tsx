@@ -12,7 +12,11 @@ import {
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { spatialLayoutsApi } from "@/lib/api/spatial-layouts-api";
-import type { SpatialLayoutRevisionRecordProps } from "@ananya/inventory";
+import {
+  BUILDER_PRESET_DEFINITIONS,
+  type ParametricTemplateType,
+  type SpatialLayoutRevisionRecordProps,
+} from "@ananya/inventory";
 
 export interface LayoutRevisionHistoryDialogProps {
   isOpen: boolean;
@@ -41,7 +45,9 @@ export function LayoutRevisionHistoryDialog({
     try {
       const data = await spatialLayoutsApi.getRevisions(layoutId);
       // Sort newest first
-      setRevisions([...data].sort((a, b) => b.revisionNumber - a.revisionNumber));
+      setRevisions(
+        [...data].sort((a, b) => b.revisionNumber - a.revisionNumber),
+      );
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load revision history.",
@@ -104,7 +110,8 @@ export function LayoutRevisionHistoryDialog({
         {!loading && !error && revisions.length > 0 && (
           <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
             {revisions.map((rev) => {
-              const diffAction = (rev.diffSummary as { action?: string })?.action;
+              const diffAction = (rev.diffSummary as { action?: string })
+                ?.action;
               const isPublish = diffAction === "PUBLISH";
               const isArchive = diffAction === "ARCHIVE";
               const isExpanded = expandedRevId === rev.id;
@@ -182,9 +189,14 @@ export function LayoutRevisionHistoryDialog({
 
                     <div className="flex items-center gap-4 text-muted-foreground text-[11px] pt-1 border-t border-border/50">
                       <span>
-                        Template:{" "}
+                        Builder preset:{" "}
                         <strong className="text-foreground font-mono">
-                          {rev.configSnapshot?.templateType}
+                          {rev.configSnapshot?.templateType
+                            ? (BUILDER_PRESET_DEFINITIONS[
+                                rev.configSnapshot
+                                  .templateType as ParametricTemplateType
+                              ]?.name ?? rev.configSnapshot.templateType)
+                            : "—"}
                         </strong>
                       </span>
                       <span>

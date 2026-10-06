@@ -12,6 +12,7 @@ import type { CellStockSummary } from "./spatial-inventory-mapper";
 import {
   resolveSpatialModel,
   resolveTemplateSpatialModel,
+  resolveLocationModelInstance,
   type SpatialModelStructure,
 } from "./spatial-model-library";
 
@@ -131,7 +132,17 @@ export function resolveObjectDimensions(
   anchor: SpatialAnchorDto | null | undefined,
   kind?: string,
 ): Vector3D {
-  if (model?.widthMm && model?.heightMm && model?.depthMm) {
+  if (model) {
+    if (
+      !model.widthMm ||
+      !model.heightMm ||
+      !model.depthMm ||
+      ![model.widthMm, model.heightMm, model.depthMm].every(
+        (dimension) => Number.isFinite(dimension) && dimension > 0,
+      )
+    ) {
+      return { x: 0, y: 0, z: 0 };
+    }
     return {
       x: mmToMeters(model.widthMm),
       y: mmToMeters(model.heightMm),
@@ -644,7 +655,10 @@ export function resolveKindStructureShape(kind?: string): ParentStructureShape {
   if (!normalized || isSpatialSpaceKind(normalized)) {
     return "none";
   }
-  const definition = resolveSpatialModel(normalized);
+  // Canonical first: the model resolver owns kind normalization (including
+  // separators such as "/"), so pass the raw value rather than this function's
+  // local token form. Token heuristics below only apply to unknown kinds.
+  const definition = resolveSpatialModel(kind);
   if (definition) return definition.structure;
   // Kinds are compound names (`dry_cabinet`, `reel_slot`, `open_bin_wall`), so
   // match whole tokens rather than substrings: "cabinet" must never match "bin".
@@ -672,6 +686,12 @@ export interface ParentGeometryOwnership {
   wallThicknessMm: number | null;
   postWidthMm: number | null;
   beamHeightMm: number | null;
+  shelfLevels: number | null;
+  reelRows: number | null;
+  reelSlotSpacingMm: number | null;
+  gridRows: number | null;
+  gridColumns: number | null;
+  gridDividerThicknessMm: number | null;
 }
 
 /**
@@ -704,10 +724,18 @@ export interface SpatialRepresentation {
     format: string;
     assetUri: string | null;
   } | null;
+  /** Location-scoped canonical model instance resolved from the persisted model row. */
+  modelInstance?: ReturnType<typeof resolveLocationModelInstance>;
   /** Authored structure parameters (mm) when a layout defines them. */
   wallThicknessMm: number | null;
   postWidthMm: number | null;
   beamHeightMm: number | null;
+  shelfLevels: number | null;
+  reelRows: number | null;
+  reelSlotSpacingMm: number | null;
+  gridRows: number | null;
+  gridColumns: number | null;
+  gridDividerThicknessMm: number | null;
   /** Why this tier won — development/debug observability only. */
   reason: string;
 }
@@ -773,8 +801,14 @@ export function resolveSpatialRepresentation(
   };
   const authored = {
     wallThicknessMm: readMm("wallThicknessMm"),
-    postWidthMm: readMm("uprightPostWidthMm"),
-    beamHeightMm: readMm("beamHeightMm"),
+    postWidthMm: readMm("uprightWidthMm") ?? readMm("uprightPostWidthMm"),
+    beamHeightMm: readMm("crossbarHeightMm") ?? readMm("beamHeightMm"),
+    shelfLevels: readMm("levels"),
+    reelRows: readMm("rows"),
+    reelSlotSpacingMm: readMm("slotSpacingMm"),
+    gridRows: readMm("rows"),
+    gridColumns: readMm("columns"),
+    gridDividerThicknessMm: readMm("dividerThicknessMm"),
   };
 
   // 1. An explicit model is the location's own geometry everywhere. A warehouse
@@ -790,9 +824,20 @@ export function resolveSpatialRepresentation(
       structure,
       dimensions: resolveObjectDimensions(input.model, input.anchor, kind),
       model: readModelAsset(input.model),
+      modelInstance: resolveLocationModelInstance({
+        locationId,
+        kind: kind ?? "",
+        model: input.model,
+      }),
       wallThicknessMm: authored.wallThicknessMm,
       postWidthMm: authored.postWidthMm,
       beamHeightMm: authored.beamHeightMm,
+      shelfLevels: authored.shelfLevels,
+      reelRows: authored.reelRows,
+      reelSlotSpacingMm: authored.reelSlotSpacingMm,
+      gridRows: authored.gridRows,
+      gridColumns: authored.gridColumns,
+      gridDividerThicknessMm: authored.gridDividerThicknessMm,
       reason: `explicit model ${input.model.code}`,
     };
   }
@@ -810,6 +855,12 @@ export function resolveSpatialRepresentation(
       wallThicknessMm: null,
       postWidthMm: null,
       beamHeightMm: null,
+      shelfLevels: null,
+      reelRows: null,
+      reelSlotSpacingMm: null,
+      gridRows: null,
+      gridColumns: null,
+      gridDividerThicknessMm: null,
       reason: "space kind: cutaway scene context",
     };
   }
@@ -839,6 +890,12 @@ export function resolveSpatialRepresentation(
       wallThicknessMm: authored.wallThicknessMm,
       postWidthMm: authored.postWidthMm,
       beamHeightMm: authored.beamHeightMm,
+      shelfLevels: authored.shelfLevels,
+      reelRows: authored.reelRows,
+      reelSlotSpacingMm: authored.reelSlotSpacingMm,
+      gridRows: authored.gridRows,
+      gridColumns: authored.gridColumns,
+      gridDividerThicknessMm: authored.gridDividerThicknessMm,
       reason: `published layout ${published.templateType ?? "unknown template"}`,
     };
   }
@@ -859,6 +916,12 @@ export function resolveSpatialRepresentation(
       wallThicknessMm: null,
       postWidthMm: null,
       beamHeightMm: null,
+      shelfLevels: null,
+      reelRows: null,
+      reelSlotSpacingMm: null,
+      gridRows: null,
+      gridColumns: null,
+      gridDividerThicknessMm: null,
       reason: `authored anchor envelope ${input.anchor.code}`,
     };
   }
@@ -874,6 +937,12 @@ export function resolveSpatialRepresentation(
       wallThicknessMm: null,
       postWidthMm: null,
       beamHeightMm: null,
+      shelfLevels: null,
+      reelRows: null,
+      reelSlotSpacingMm: null,
+      gridRows: null,
+      gridColumns: null,
+      gridDividerThicknessMm: null,
       reason: `generated ${kindShape} shape for kind ${kind ?? "unknown"}`,
     };
   }
@@ -888,6 +957,12 @@ export function resolveSpatialRepresentation(
     wallThicknessMm: null,
     postWidthMm: null,
     beamHeightMm: null,
+    shelfLevels: null,
+    reelRows: null,
+    reelSlotSpacingMm: null,
+    gridRows: null,
+    gridColumns: null,
+    gridDividerThicknessMm: null,
     reason: `no model, layout, anchor or kind shape for kind ${kind ?? "unknown"}`,
   };
 }
@@ -928,6 +1003,7 @@ export function resolveChildSpatialRepresentation(
     model: child.model,
     anchor: child.anchor,
     node: child.node,
+    mapping: child.mapping,
   });
 }
 
@@ -939,6 +1015,7 @@ export interface ParentGeometryOwnership {
   wallThicknessMm: number | null;
   postWidthMm: number | null;
   beamHeightMm: number | null;
+  shelfLevels: number | null;
 }
 
 /**
@@ -995,6 +1072,12 @@ export function resolveParentGeometryOwnership(
     wallThicknessMm: representation.wallThicknessMm,
     postWidthMm: representation.postWidthMm,
     beamHeightMm: representation.beamHeightMm,
+    shelfLevels: representation.shelfLevels,
+    reelRows: representation.reelRows,
+    reelSlotSpacingMm: representation.reelSlotSpacingMm,
+    gridRows: representation.gridRows,
+    gridColumns: representation.gridColumns,
+    gridDividerThicknessMm: representation.gridDividerThicknessMm,
   };
 }
 
@@ -1484,11 +1567,21 @@ export function layoutChildrenFor3D(
       );
       const rotation = resolveChildRotation(child.node, child.anchor);
       const scale = resolveChildScale(child.node);
-      const dimensions = fitDimensionsToSlot(
-        resolveObjectDimensions(child.model, child.anchor, child.location.kind),
-        scale,
-        resolveChildSlotEnvelope(child),
+      const modelDimensions = resolveObjectDimensions(
+        child.model,
+        child.anchor,
+        child.location.kind,
       );
+      // Configured model dimensions are authoritative. A slot that is too small
+      // is an invalid layout to surface through validation, not permission for
+      // a renderer to shrink a location's canonical model.
+      const dimensions = child.model
+        ? modelDimensions
+        : fitDimensionsToSlot(
+            modelDimensions,
+            scale,
+            resolveChildSlotEnvelope(child),
+          );
 
       mapped.push({
         locationId: child.location.id,

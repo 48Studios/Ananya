@@ -14,19 +14,14 @@ import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   isTemplateRootCompatible,
+  BUILDER_PRESET_DEFINITIONS,
+  CANONICAL_SPATIAL_MODEL_DEFINITIONS,
   type Dimensions3D,
   type ParametricTemplateType,
 } from "@ananya/inventory";
 import type { LocationDto } from "@/lib/api/locations-api";
 import type { SlotMappingRecord } from "@/lib/spatial/inventory-builder-state";
 import { cn } from "@/lib/utils";
-
-const TEMPLATE_LABELS: Record<ParametricTemplateType, string> = {
-  SMD_DRAWER_CABINET: "SMD Cabinet",
-  OPEN_BIN_MATRIX: "Open Bins",
-  PALLET_RACK: "Pallet Rack",
-  GRID_PARTS_TRAY: "Parts Tray",
-};
 
 export interface ContainerInspectorProps {
   templateType: ParametricTemplateType;
@@ -64,6 +59,11 @@ export function ContainerInspector({
     () => locations.find((loc) => loc.id === selectedParentId) ?? null,
     [locations, selectedParentId],
   );
+  const rootModel =
+    CANONICAL_SPATIAL_MODEL_DEFINITIONS[
+      BUILDER_PRESET_DEFINITIONS[templateType]
+        .rootCategory as keyof typeof CANONICAL_SPATIAL_MODEL_DEFINITIONS
+    ];
 
   // Locations already mapped to individual compartments cannot also be the
   // container: the API rejects that pairing (ParentCannotBeSlotError).
@@ -89,15 +89,10 @@ export function ContainerInspector({
         label: `${loc.name} (${loc.code})`,
         sublabel: details.filter(Boolean).join(" • "),
         chip: loc.code,
-        disabled:
-          !isCompatibleRoot || isMappedToCompartment,
+        disabled: !isCompatibleRoot || isMappedToCompartment,
       };
     });
-  }, [
-    locations,
-    compartmentLocationIds,
-    templateType,
-  ]);
+  }, [locations, compartmentLocationIds, templateType]);
 
   const handleAssignParent = (locId: string) => {
     if (!locId || locId === selectedParentId) return;
@@ -125,7 +120,7 @@ export function ContainerInspector({
             </span>
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
-            {TEMPLATE_LABELS[templateType]} ·{" "}
+            {rootModel.displayName} ·{" "}
             <span className="font-mono">
               {outerDimensions.widthMm} × {outerDimensions.heightMm} ×{" "}
               {outerDimensions.depthMm} mm
@@ -203,8 +198,8 @@ export function ContainerInspector({
           </div>
         ) : (
           <div className="p-2.5 rounded-md border border-dashed border-border bg-muted/20 text-[11px] text-muted-foreground">
-            No Ananya location is assigned to this container. Select one below to
-            enable saving and publishing the layout.
+            No Ananya location is assigned to this container. Select one below
+            to enable saving and publishing the layout.
           </div>
         )}
 

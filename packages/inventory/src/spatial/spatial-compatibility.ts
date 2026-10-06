@@ -4,6 +4,12 @@ import {
   type ParametricTemplateType,
 } from "./parametric";
 import { INCOMPATIBLE_COMPARTMENT_KINDS } from "./spatial-layout.types";
+import {
+  canContainLocationWithinHierarchy,
+  canContainLocation,
+  normalizeLocationCategory,
+  resolveBuilderRootCategories,
+} from "./location-model";
 
 /**
  * Kind vocabulary for spatial locations.
@@ -25,6 +31,7 @@ const CONTAINER_KINDS = new Set([
   "cabinet",
   "dry_cabinet",
   "reel_rack",
+  "matrix_tray",
 ]);
 const COMPARTMENT_KINDS = new Set([
   "drawer",
@@ -51,7 +58,9 @@ const COMPARTMENT_KINDS = new Set([
  *   * `GRID_PARTS_TRAY` generates `slot` cells, mapped to `bin` locations
  *     (`LAYOUT-TRAY`, where tray cells are recorded as `bin`).
  */
-export const SLOT_CANDIDATE_KINDS: Readonly<Record<CompartmentKind, readonly string[]>> = {
+export const SLOT_CANDIDATE_KINDS: Readonly<
+  Record<CompartmentKind, readonly string[]>
+> = {
   drawer: ["drawer", "bin", "compartment"],
   bin: ["bin", "compartment", "tray"],
   shelf: [
@@ -65,33 +74,30 @@ export const SLOT_CANDIDATE_KINDS: Readonly<Record<CompartmentKind, readonly str
     "compartment",
   ],
   slot: ["bin", "compartment", "slot", "tray", "tube", "reel_slot"],
+  reel_slot: ["reel_slot"],
+  matrix_tray: ["matrix_tray", "tray"],
+  compartment: ["compartment"],
 };
 
 /**
- * Root/container families accepted by each parametric template.
+ * Canonical physical root category selected by each Builder preset.
  *
  * This is deliberately separate from `SLOT_CANDIDATE_KINDS`: a root is the
  * physical structure that owns the generated layout, while a slot candidate is
  * a location stored inside one generated compartment.
  *
- * Warehouse/facility/building are allowed for the pallet-rack template because
- * the published warehouse bay plan is an intentional overview layout in the
- * demo and production model.
+ * Context categories and legacy location kinds are intentionally excluded from
+ * Builder roots. Warehouse composition is handled by the broader hierarchy.
  */
 export const ROOT_CANDIDATE_KINDS: Readonly<
   Record<ParametricTemplateType, readonly string[]>
 > = {
-  SMD_DRAWER_CABINET: ["cabinet", "dry_cabinet"],
-  OPEN_BIN_MATRIX: ["cabinet", "dry_cabinet"],
-  PALLET_RACK: [
-    "rack",
-    "shelf",
-    "reel_rack",
-    "warehouse",
-    "building",
-    "facility",
-  ],
-  GRID_PARTS_TRAY: ["tray"],
+  SMD_DRAWER_CABINET: resolveBuilderRootCategories("SMD_DRAWER_CABINET"),
+  OPEN_BIN_MATRIX: resolveBuilderRootCategories("OPEN_BIN_MATRIX"),
+  PALLET_RACK: resolveBuilderRootCategories("PALLET_RACK"),
+  GRID_PARTS_TRAY: resolveBuilderRootCategories("GRID_PARTS_TRAY"),
+  REEL_RACK: resolveBuilderRootCategories("REEL_RACK"),
+  DRY_CABINET: resolveBuilderRootCategories("DRY_CABINET"),
 };
 
 /**
@@ -99,14 +105,14 @@ export const ROOT_CANDIDATE_KINDS: Readonly<
  * longer kind-compatible. Shared so the API and the builder UI produce the same
  * text — the acknowledgment signature is computed over that text.
  */
-export const INCOMPATIBLE_MAPPING_STALE_PREFIX = "Incompatible compartment kind";
+export const INCOMPATIBLE_MAPPING_STALE_PREFIX =
+  "Incompatible compartment kind";
 
 /** Physical class of a location kind, used for compatibility decisions. */
-export type SpatialKindClass = "space" | "container" | "compartment" | "unclassified";
+export type SpatialKindClass =
+  "space" | "container" | "compartment" | "unclassified";
 
-export type SpatialMappingIncompatibilityCode =
-  | "SPACE_CANDIDATE"
-  | "SLOT_KIND";
+export type SpatialMappingIncompatibilityCode = "SPACE_CANDIDATE" | "SLOT_KIND";
 
 export type SpatialRootIncompatibilityCode = "ROOT_KIND";
 
@@ -133,12 +139,8 @@ export function checkRootTypeCompatibility(
   const compatible =
     Boolean(expectedRootKind) &&
     Boolean(candidate) &&
-    (expectedRootKind === candidate ||
-      (expectedRootKind === "rack" &&
-        ["rack", "shelf", "reel_rack"].includes(candidate)) ||
-      (expectedRootKind === "cabinet" &&
-        ["cabinet", "dry_cabinet"].includes(candidate)) ||
-      (expectedRootKind === "tray" && candidate === "tray"));
+    normalizeLocationCategory(expectedRootKind) ===
+      normalizeLocationCategory(candidate);
 
   return {
     compatible,
@@ -188,7 +190,13 @@ export function isTemplateRootCompatible(
   candidateRootKind: string | null | undefined,
 ): boolean {
   const candidate = normalizeSpatialKind(candidateRootKind);
-  return resolveRootCandidateKinds(templateType).includes(candidate);
+  const normalized = normalizeLocationCategory(candidate);
+  return (
+    normalized !== null &&
+    resolveRootCandidateKinds(templateType).some(
+      (kind) => normalizeLocationCategory(kind) === normalized,
+    )
+  );
 }
 
 export interface SpatialMappingCompatibilityInput {
@@ -215,10 +223,15 @@ export interface SpatialMappingCompatibility {
 
 /** Lowercases and normalizes separators so `Dry Cabinet`, `dry-cabinet` and `dry_cabinet` agree. */
 export function normalizeSpatialKind(kind: string | null | undefined): string {
-  return (kind ?? "").toLowerCase().trim().replace(/[\s-]+/g, "_");
+  return (kind ?? "")
+    .toLowerCase()
+    .trim()
+    .replace(/[\s-]+/g, "_");
 }
 
-export function classifySpatialKind(kind: string | null | undefined): SpatialKindClass {
+export function classifySpatialKind(
+  kind: string | null | undefined,
+): SpatialKindClass {
   const normalized = normalizeSpatialKind(kind);
   if (!normalized) return "unclassified";
   if (SPACE_KINDS.has(normalized)) return "space";
@@ -245,13 +258,10 @@ function describe(kind: string): string {
 }
 
 /**
- * Single source of truth for "may this child location be mapped into this slot".
+ * Shared compatibility decision used by the API and Builder.
  *
- * Space kinds are rejected outright. When a slot kind is known, only that
- * slot's declared candidate kinds are accepted — an `unclassified` kind is not
- * one of them, so it is reported as incompatible rather than silently allowed.
- * Without a slot kind (anchor-only mappings) no kind rule is applied beyond the
- * space check.
+ * Known physical root/child pairs use the canonical category graph. Legacy
+ * slot-kind checks remain for anchor-only or unclassified historical mappings.
  */
 export function checkSpatialMappingCompatibility(
   input: SpatialMappingCompatibilityInput,
@@ -272,6 +282,73 @@ export function checkSpatialMappingCompatibility(
       compatible: false,
       code: "SPACE_CANDIDATE",
       reason: spaceReason,
+      rootClass,
+      candidateClass,
+    };
+  }
+
+  // When the root is known, use the canonical category graph. Template slot
+  // topology is only a preset; it does not grant category containment.
+  if (
+    rootKind &&
+    candidateKind &&
+    normalizeLocationCategory(rootKind) &&
+    normalizeLocationCategory(candidateKind) &&
+    rootClass !== "space"
+  ) {
+    // Pallet Rack's generated `shelf` slots are the direct Rack → Shelf edge.
+    // Descendant categories belong in a Shelf's own layout and must not be
+    // offered as direct rack-level mappings.
+    if (
+      normalizeLocationCategory(rootKind) === "rack" &&
+      slotKind === "shelf" &&
+      normalizeLocationCategory(candidateKind) !== "shelf"
+    ) {
+      return {
+        compatible: false,
+        code: "SLOT_KIND",
+        reason: `${INCOMPATIBLE_MAPPING_STALE_PREFIX}: a shelf level in a Rack accepts Shelf locations`,
+        rootClass,
+        candidateClass,
+      };
+    }
+    if (
+      normalizeLocationCategory(rootKind) === "dry_cabinet" &&
+      !canContainLocation(rootKind, candidateKind)
+    ) {
+      return {
+        compatible: false,
+        code: "SLOT_KIND",
+        reason: `${INCOMPATIBLE_MAPPING_STALE_PREFIX}: Dry Cabinet roots accept only their canonical direct child categories`,
+        rootClass,
+        candidateClass,
+      };
+    }
+    if (
+      normalizeLocationCategory(rootKind) === "matrix_tray" &&
+      !canContainLocation(rootKind, candidateKind)
+    ) {
+      return {
+        compatible: false,
+        code: "SLOT_KIND",
+        reason: `${INCOMPATIBLE_MAPPING_STALE_PREFIX}: Matrix Tray roots accept only Compartment locations`,
+        rootClass,
+        candidateClass,
+      };
+    }
+    if (!canContainLocationWithinHierarchy(rootKind, candidateKind)) {
+      return {
+        compatible: false,
+        code: "SLOT_KIND",
+        reason: `${INCOMPATIBLE_MAPPING_STALE_PREFIX}: ${describe(rootKind)} cannot contain ${describe(candidateKind)}${slotKind ? ` in a ${describe(slotKind)} slot` : ""}`,
+        rootClass,
+        candidateClass,
+      };
+    }
+    return {
+      compatible: true,
+      code: null,
+      reason: null,
       rootClass,
       candidateClass,
     };

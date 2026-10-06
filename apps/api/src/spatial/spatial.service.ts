@@ -29,6 +29,7 @@ import {
   type SpatialContainerStatus,
   type SpatialLayoutRepository,
   type SpatialLayoutStatus,
+  type SpatialLayoutMappingWithStatus,
   type SpatialMappingStatus,
 } from '@ananya/inventory';
 import { db, type DbExecutor } from '@ananya/database';
@@ -1100,14 +1101,13 @@ export class SpatialService {
 
     // Resolve slot mappings for direct children
     const directChildIds = directChildren.map((c) => c.id);
-    const childMappings =
-      this.layoutRepo.findMappingsByLocationIds
-        ? await this.layoutRepo.findMappingsByLocationIds(directChildIds)
-        : await Promise.all(
-            directChildIds.map((id) =>
-              this.layoutRepo.findMappingsByLocationId(id),
-            ),
-          ).then((lists) => lists.flat());
+    const childMappings = this.layoutRepo.findMappingsByLocationIds
+      ? await this.layoutRepo.findMappingsByLocationIds(directChildIds)
+      : await Promise.all(
+          directChildIds.map((id) =>
+            this.layoutRepo.findMappingsByLocationId(id),
+          ),
+        ).then((lists) => lists.flat());
 
     const mappingsByChildId = new Map<
       string,

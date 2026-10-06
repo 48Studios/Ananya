@@ -1,10 +1,21 @@
 import { normalizeSpatialKind } from "@ananya/inventory";
-import type { ParametricTemplateType } from "@ananya/inventory";
+import {
+  BUILDER_PRESET_DEFINITIONS,
+  CANONICAL_SPATIAL_MODEL_DEFINITIONS,
+  SPATIAL_CATEGORY_DEFINITIONS,
+  SPATIAL_LOCATION_CATEGORIES,
+  createSpatialModelInstance,
+  normalizeLocationCategory,
+  type SpatialModelInstance,
+} from "@ananya/inventory";
 
 export type SpatialModelStructure =
   | "rack"
+  | "shelf"
   | "reel-rack"
   | "tray"
+  | "matrix-tray"
+  | "compartment"
   | "drawer"
   | "tube"
   | "reel-slot"
@@ -48,12 +59,38 @@ export interface SpatialModelDefinition {
   isFallback: false;
 }
 
-export interface SpatialTemplateModelDefinition {
-  templateType: ParametricTemplateType;
-  displayName: string;
-  supportedRootKinds: readonly string[];
-  modelKinds: readonly string[];
-  structure: SpatialModelStructure;
+export interface SpatialModelInstanceInput {
+  locationId: string;
+  kind: string;
+  model: {
+    id: string;
+    widthMm: number | null;
+    heightMm: number | null;
+    depthMm: number | null;
+  } | null;
+}
+
+/** Resolve a location against its configured persisted model dimensions. */
+export function resolveLocationModelInstance(
+  input: SpatialModelInstanceInput,
+): SpatialModelInstance | null {
+  const category = normalizeLocationCategory(input.kind);
+  const model = input.model;
+  if (
+    !category ||
+    !model ||
+    model.widthMm == null ||
+    model.heightMm == null ||
+    model.depthMm == null
+  ) {
+    return null;
+  }
+  const result = createSpatialModelInstance(input.locationId, category, {
+    widthMm: model.widthMm,
+    heightMm: model.heightMm,
+    depthMm: model.depthMm,
+  });
+  return result.valid ? result.instance : null;
 }
 
 const physical = (
@@ -131,8 +168,8 @@ export const SPATIAL_MODEL_DEFINITIONS: Readonly<
   shelf: physical(
     "shelf",
     "Shelf",
-    { widthMm: 950, heightMm: 300, depthMm: 350 },
-    "rack",
+    { widthMm: 950, heightMm: 40, depthMm: 550 },
+    "shelf",
   ),
   reel_rack: physical(
     "reel_rack",
@@ -152,6 +189,12 @@ export const SPATIAL_MODEL_DEFINITIONS: Readonly<
     { widthMm: 80, heightMm: 60, depthMm: 120 },
     "tray",
   ),
+  matrix_tray: physical(
+    "matrix_tray",
+    "Matrix Tray",
+    { widthMm: 600, heightMm: 80, depthMm: 300 },
+    "matrix-tray",
+  ),
   tray: physical(
     "tray",
     "Tray",
@@ -161,6 +204,12 @@ export const SPATIAL_MODEL_DEFINITIONS: Readonly<
   tube: physical(
     "tube",
     "Tube",
+    { widthMm: 40, heightMm: 40, depthMm: 120 },
+    "tube",
+  ),
+  ic_tube_rail: physical(
+    "ic_tube_rail",
+    "IC Tube / Rail",
     { widthMm: 40, heightMm: 40, depthMm: 120 },
     "tube",
   ),
@@ -174,7 +223,7 @@ export const SPATIAL_MODEL_DEFINITIONS: Readonly<
     "compartment",
     "Compartment",
     { widthMm: 100, heightMm: 80, depthMm: 140 },
-    "tray",
+    "compartment",
   ),
   slot: physical(
     "slot",
@@ -183,6 +232,7 @@ export const SPATIAL_MODEL_DEFINITIONS: Readonly<
     "tray",
   ),
   warehouse: context("warehouse", "Warehouse", "warehouse"),
+  room_area: context("room_area", "Room / Area", "none"),
   building: context("building", "Building", "warehouse"),
   facility: context("facility", "Facility", "warehouse"),
   room: context("room", "Room", "none"),
@@ -190,82 +240,49 @@ export const SPATIAL_MODEL_DEFINITIONS: Readonly<
   aisle: context("aisle", "Aisle", "none"),
 };
 
-/**
- * Parametric topology is separate from physical representation. These entries
- * describe which registered physical model family owns each template while
- * leaving slot generation to the inventory parametric engine.
- */
-export const SPATIAL_TEMPLATE_MODEL_DEFINITIONS: Readonly<
-  Record<ParametricTemplateType, SpatialTemplateModelDefinition>
-> = {
-  SMD_DRAWER_CABINET: {
-    templateType: "SMD_DRAWER_CABINET",
-    displayName: "Cabinet / Dry Cabinet",
-    supportedRootKinds: ["cabinet", "dry_cabinet"],
-    modelKinds: ["cabinet", "dry_cabinet"],
-    structure: "enclosure",
-  },
-  OPEN_BIN_MATRIX: {
-    templateType: "OPEN_BIN_MATRIX",
-    displayName: "Cabinet / Dry Cabinet bin matrix",
-    supportedRootKinds: ["cabinet", "dry_cabinet"],
-    modelKinds: ["cabinet", "dry_cabinet"],
-    structure: "enclosure",
-  },
-  PALLET_RACK: {
-    templateType: "PALLET_RACK",
-    displayName: "Rack / Shelf / Reel Rack",
-    supportedRootKinds: [
-      "rack",
-      "shelf",
-      "reel_rack",
-      "warehouse",
-      "building",
-      "facility",
-    ],
-    modelKinds: ["rack", "shelf", "reel_rack"],
-    structure: "rack",
-  },
-  GRID_PARTS_TRAY: {
-    templateType: "GRID_PARTS_TRAY",
-    displayName: "Tray",
-    supportedRootKinds: ["tray"],
-    modelKinds: ["tray"],
-    structure: "tray",
-  },
-};
-
 export function resolveTemplateSpatialModel(
-  templateType: ParametricTemplateType | string | null | undefined,
+  templateType: string | null | undefined,
   rootKind?: string | null,
 ): SpatialModelDefinition | null {
-  const template = templateType
-    ? SPATIAL_TEMPLATE_MODEL_DEFINITIONS[templateType as ParametricTemplateType]
+  const preset = templateType
+    ? BUILDER_PRESET_DEFINITIONS[
+        templateType as keyof typeof BUILDER_PRESET_DEFINITIONS
+      ]
     : undefined;
-  if (!template) return null;
-  const normalizedRoot = normalizeSpatialKind(rootKind);
-  const modelKind =
-    template.modelKinds.find((kind) => kind === normalizedRoot) ??
-    template.modelKinds[0];
-  return resolveSpatialModel(modelKind);
+  if (!preset) return null;
+  const requestedRoot = normalizeLocationCategory(rootKind);
+  if (rootKind && requestedRoot !== preset.rootCategory) return null;
+  const modelId =
+    CANONICAL_SPATIAL_MODEL_DEFINITIONS[
+      preset.rootCategory as keyof typeof CANONICAL_SPATIAL_MODEL_DEFINITIONS
+    ]?.modelId;
+  const model = resolveSpatialModel(preset.rootCategory);
+  return model && modelId ? { ...model, modelId } : null;
 }
 
 export const SUPPORTED_PHYSICAL_LOCATION_KINDS = Object.freeze(
-  Object.values(SPATIAL_MODEL_DEFINITIONS)
-    .filter((definition) => definition.category === "physical")
-    .map((definition) => definition.kind),
+  SPATIAL_LOCATION_CATEGORIES.filter(
+    (category) =>
+      SPATIAL_CATEGORY_DEFINITIONS[category].classification === "physical",
+  ),
 );
 
 export const SUPPORTED_CONTEXT_LOCATION_KINDS = Object.freeze(
-  Object.values(SPATIAL_MODEL_DEFINITIONS)
-    .filter((definition) => definition.category === "context")
-    .map((definition) => definition.kind),
+  SPATIAL_LOCATION_CATEGORIES.filter(
+    (category) =>
+      SPATIAL_CATEGORY_DEFINITIONS[category].classification === "context",
+  ),
 );
 
 export function resolveSpatialModel(
   kind: string | null | undefined,
 ): SpatialModelDefinition | null {
-  return SPATIAL_MODEL_DEFINITIONS[normalizeSpatialKind(kind)] ?? null;
+  const category = normalizeLocationCategory(kind);
+  return (
+    SPATIAL_MODEL_DEFINITIONS[normalizeSpatialKind(kind)] ??
+    (category ? SPATIAL_MODEL_DEFINITIONS[category] : null) ??
+    null
+  );
 }
 
 export function isSupportedPhysicalLocationKind(
