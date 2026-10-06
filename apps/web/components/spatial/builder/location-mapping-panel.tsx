@@ -22,6 +22,7 @@ import {
   isTemplateRootCompatible,
   type CompartmentKind,
   type ParametricTemplateType,
+  type SpatialLayoutStatus,
 } from "@ananya/inventory";
 import type { LocationDto } from "@/lib/api/locations-api";
 import {
@@ -40,6 +41,10 @@ export interface LocationMappingPanelProps {
   onMapToSlot: (slotId: string, location: LocationDto) => void;
   availableSlots: Array<{ slotId: string; code: string; kind?: CompartmentKind }>;
   className?: string;
+  loadedLayoutId?: string | null;
+  loadedStatus?: SpatialLayoutStatus | null;
+  loadedRevision?: number | null;
+  isDirty?: boolean;
 }
 
 export function LocationMappingPanel({
@@ -51,6 +56,10 @@ export function LocationMappingPanel({
   onMapToSlot,
   availableSlots,
   className,
+  loadedLayoutId,
+  loadedStatus,
+  loadedRevision,
+  isDirty,
 }: LocationMappingPanelProps) {
   const [operationalView, setOperationalView] =
     React.useState<LocationOperationalViewDto | null>(null);
@@ -58,13 +67,13 @@ export function LocationMappingPanel({
   const [error, setError] = React.useState<string | null>(null);
   const [searchFilter, setSearchFilter] = React.useState("");
 
-  // Set of locationIds that are currently mapped to slots in the builder
-  const mappedLocationIds = React.useMemo(() => {
-    const set = new Set<string>();
+  // Map of locationId to mapped slot record in builder state
+  const mappedRecordByLocationId = React.useMemo(() => {
+    const map = new Map<string, SlotMappingRecord>();
     for (const record of mappings.values()) {
-      set.add(record.locationId);
+      map.set(record.locationId, record);
     }
-    return set;
+    return map;
   }, [mappings]);
 
   const parentOptions = React.useMemo(() => {
@@ -78,7 +87,7 @@ export function LocationMappingPanel({
       }));
   }, [locations, templateType]);
 
-  // Fetch operational view when parent location is selected
+  // Fetch operational view when parent location is selected or layout status/revision changes
   React.useEffect(() => {
     if (!selectedParentId) {
       setOperationalView(null);
@@ -113,7 +122,7 @@ export function LocationMappingPanel({
     return () => {
       isCancelled = true;
     };
-  }, [selectedParentId]);
+  }, [selectedParentId, loadedStatus, loadedRevision]);
 
   // Filter children based on search
   const filteredChildren = React.useMemo(() => {
@@ -218,8 +227,29 @@ export function LocationMappingPanel({
           ) : (
             <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
               {filteredChildren.map((child) => {
-                const isMappedInBuilder = mappedLocationIds.has(child.location.id);
+                const mappedRecord = mappedRecordByLocationId.get(child.location.id);
+                const isMappedInBuilder = !!mappedRecord;
                 const candidateSlots = compatibleSlotsFor(child.location.kind);
+
+                // Authoritative lifecycle status:
+                // Distinguish Layout Lifecycle (PUBLISHED, DRAFT, ARCHIVED) from Mapping State (MAPPED, STALE, UNMAPPED)
+                let lifecycleStatus: "PUBLISHED" | "DRAFT" | "ARCHIVED" = "DRAFT";
+                if (isMappedInBuilder) {
+                  if (loadedStatus === "PUBLISHED") {
+                    const isServerPublished =
+                      child.mapping?.slotMapping?.layoutStatus === "PUBLISHED" ||
+                      child.node?.metadata?.publishedRevision != null;
+                    if (isServerPublished || !isDirty) {
+                      lifecycleStatus = "PUBLISHED";
+                    } else {
+                      lifecycleStatus = "DRAFT";
+                    }
+                  } else if (loadedStatus === "ARCHIVED") {
+                    lifecycleStatus = "ARCHIVED";
+                  } else {
+                    lifecycleStatus = "DRAFT";
+                  }
+                }
 
                 return (
                   <div
@@ -227,11 +257,13 @@ export function LocationMappingPanel({
                     className={cn(
                       "p-2 rounded-md border flex items-center justify-between text-xs transition-colors",
                       isMappedInBuilder
-                        ? "bg-emerald-500/5 border-emerald-500/30"
+                        ? lifecycleStatus === "PUBLISHED"
+                          ? "bg-emerald-500/5 border-emerald-500/30"
+                          : "bg-amber-500/5 border-amber-500/30"
                         : "bg-muted/30 border-border/50 hover:bg-muted/50",
                     )}
                   >
-                    <div className="space-y-0.5 max-w-[200px] truncate">
+                    <div className="space-y-0.5 max-w-[180px] truncate">
                       <div className="flex items-center gap-1.5">
                         <span className="font-mono font-semibold text-foreground">
                           {child.location.code}
@@ -245,11 +277,48 @@ export function LocationMappingPanel({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       {isMappedInBuilder ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-                          Draft Mapped
-                        </span>
+                        <>
+                          {lifecycleStatus === "PUBLISHED" ? (
+                            <span
+                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap"
+                              title="Published in active operational spatial layout"
+                            >
+                              Published
+                            </span>
+                          ) : lifecycleStatus === "ARCHIVED" ? (
+                            <span
+                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border whitespace-nowrap"
+                              title="Archived spatial layout mapping"
+                            >
+                              Archived
+                            </span>
+                          ) : (
+                            <span
+                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap"
+                              title="Draft spatial layout mapping"
+                            >
+                              Draft
+                            </span>
+                          )}
+
+                          {mappedRecord?.isStale ? (
+                            <span
+                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap"
+                              title={`Stale slot mapping to ${mappedRecord.slotCode}: topology changed`}
+                            >
+                              Stale ({mappedRecord.slotCode})
+                            </span>
+                          ) : (
+                            <span
+                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap"
+                              title={`Mapped to compartment slot ${mappedRecord?.slotCode ?? ""}`}
+                            >
+                              Mapped ({mappedRecord?.slotCode ?? ""})
+                            </span>
+                          )}
+                        </>
                       ) : candidateSlots.length > 0 ? (
                         <Select
                           onValueChange={(slotId) => {

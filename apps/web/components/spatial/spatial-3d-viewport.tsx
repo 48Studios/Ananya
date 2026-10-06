@@ -563,10 +563,11 @@ export function Spatial3DViewport({
       // Prefer the composed transform (grounded for a warehouse overview) so
       // the camera targets where the child actually is on screen.
       const composed = composedChildPositionsRef.current.get(locationId);
+      const rootPos = sceneRootRef.current?.position;
       const targetPos = new THREE.Vector3(
-        composed?.x ?? targetChild.position.x,
-        composed?.y ?? targetChild.position.y,
-        composed?.z ?? targetChild.position.z,
+        composed?.x ?? targetChild.position.x + (rootPos?.x ?? 0),
+        composed?.y ?? targetChild.position.y + (rootPos?.y ?? 0),
+        composed?.z ?? targetChild.position.z + (rootPos?.z ?? 0),
       );
 
       // Camera offset positioned at isometric viewpoint relative to target

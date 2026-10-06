@@ -11,10 +11,28 @@ import {
   type Vector3D,
 } from "./spatial-3d-layout";
 import {
+  createChildCompartmentMesh,
   createParentCarcassMesh,
+  findInteractiveUserData,
   groundObjectOnFloor,
 } from "./spatial-3d-scene";
 import type { LocationOperationalViewDto } from "../api/spatial-api";
+
+type CanvasStub = {
+  width: number;
+  height: number;
+  style: Record<string, unknown>;
+  getContext: (contextId: string) => null;
+};
+const documentStub = {
+  createElement: (): CanvasStub => ({
+    width: 0,
+    height: 0,
+    style: {},
+    getContext: () => null,
+  }),
+};
+(globalThis as unknown as { document?: unknown }).document ??= documentStub;
 
 type ParentDto = LocationOperationalViewDto["parent"];
 
@@ -888,3 +906,109 @@ describe("Scene bounds are not physical geometry", () => {
     expect(bounds.max.x).toBeCloseTo(2.2, 5);
   });
 });
+
+describe("Interactive mesh hit testing & child-selection inside selected container", () => {
+  it("rejects LineSegments, Lines, and non-Mesh objects from interactive selection", () => {
+    const geo = new THREE.BoxGeometry(1, 1, 1);
+    const edges = new THREE.EdgesGeometry(geo);
+    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial());
+    line.userData = {
+      locationId: "loc-wireframe",
+      isParent: true,
+    };
+
+    expect(findInteractiveUserData(line)).toBeNull();
+    expect(findInteractiveUserData(new THREE.GridHelper(10, 10))).toBeNull();
+  });
+
+  it("resolves userData for solid Mesh objects belonging to a location", () => {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(0.1, 0.1, 0.1),
+      new THREE.MeshBasicMaterial(),
+    );
+    mesh.userData = {
+      locationId: "drawer-1",
+      locationCode: "DRW-1",
+      kind: "drawer",
+      isParent: false,
+    };
+
+    const resolved = findInteractiveUserData(mesh);
+    expect(resolved).not.toBeNull();
+    expect(resolved?.locationId).toBe("drawer-1");
+    expect(resolved?.isParent).toBe(false);
+  });
+
+  it("allows selecting a child drawer inside a selected root container without carcass outline interception", () => {
+    const parent = makeParent({ kind: "cabinet" });
+    const carcassDimensions: Vector3D = { x: 0.8, y: 1.0, z: 0.4 };
+
+    // Parent container is currently selected
+    const carcass = createParentCarcassMesh(parent, carcassDimensions, {
+      isSelected: true,
+      needsAttention: false,
+      structure: "enclosure",
+    });
+
+    const childDrawer: SceneChildLayout = {
+      locationId: "child-drawer-slot-1",
+      locationCode: "D01",
+      locationName: "Drawer 1",
+      kind: "drawer",
+      isMapped: true,
+      hasStock: false,
+      totalQuantity: 0,
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: { x: 1, y: 1, z: 1 },
+      dimensions: { x: 0.2, y: 0.15, z: 0.35 },
+      rawChild: {
+        location: {
+          id: "child-drawer-slot-1",
+          code: "D01",
+          name: "Drawer 1",
+          kind: "drawer",
+          parentId: parent.location.id,
+          isActive: true,
+        },
+        node: null,
+        model: null,
+        anchor: null,
+      },
+    };
+
+    const drawerMesh = createChildCompartmentMesh(childDrawer, "empty-mapped", null, {
+      openable: true,
+    });
+
+    const scene = new THREE.Scene();
+    scene.add(carcass);
+    scene.add(drawerMesh);
+    scene.updateMatrixWorld(true);
+
+    // Cast a ray from the front (+Z) pointing straight into the drawer
+    const raycaster = new THREE.Raycaster(
+      new THREE.Vector3(0, 0, 2),
+      new THREE.Vector3(0, 0, -1),
+    );
+
+    const intersects = raycaster.intersectObjects(scene.children, true);
+    expect(intersects.length).toBeGreaterThan(0);
+
+    // Find the first interactive object hit
+    let firstInteractiveUserData = null;
+    for (const hit of intersects) {
+      const data = findInteractiveUserData(hit.object);
+      if (data) {
+        firstInteractiveUserData = data;
+        break;
+      }
+    }
+
+    // The hit must resolve to the child drawer, NOT the parent carcass selection outline
+    expect(firstInteractiveUserData).not.toBeNull();
+    expect(firstInteractiveUserData?.locationId).toBe("child-drawer-slot-1");
+    expect(firstInteractiveUserData?.isParent).toBe(false);
+  });
+});
+

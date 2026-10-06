@@ -7,7 +7,7 @@ import {
   type SpatialLayoutMappingRecord,
   type SpatialLayoutRevisionRecord,
 } from '@ananya/database/schema';
-import { eq, and, desc } from '@ananya/database/query';
+import { eq, and, desc, inArray } from '@ananya/database/query';
 import type {
   SpatialLayoutRepository,
   SpatialLayoutWithMappings,
@@ -173,6 +173,47 @@ export class DrizzleSpatialLayoutRepository implements SpatialLayoutRepository {
         eq(spatialLayoutMappings.layoutId, spatialLayouts.id),
       )
       .where(eq(spatialLayoutMappings.locationId, locationId));
+
+    return rows.map((row): SpatialLayoutMappingWithStatus => {
+      const m = row.mapping;
+      return {
+        id: m.id,
+        layoutId: m.layoutId,
+        layoutCode: row.layoutCode,
+        layoutStatus: row.layoutStatus as SpatialLayoutStatus,
+        slotId: m.slotId,
+        slotCode: m.slotCode,
+        locationId: m.locationId,
+        logicalRow: m.logicalRow,
+        logicalCol: m.logicalCol,
+        isStale: m.isStale,
+        staleReason: m.staleReason,
+        acknowledgedChangeSignature: m.acknowledgedChangeSignature,
+        mappedAt: m.mappedAt,
+        updatedAt: m.updatedAt,
+      };
+    });
+  }
+
+  async findMappingsByLocationIds(
+    locationIds: string[],
+  ): Promise<SpatialLayoutMappingWithStatus[]> {
+    if (locationIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.client
+      .select({
+        mapping: spatialLayoutMappings,
+        layoutCode: spatialLayouts.code,
+        layoutStatus: spatialLayouts.status,
+      })
+      .from(spatialLayoutMappings)
+      .innerJoin(
+        spatialLayouts,
+        eq(spatialLayoutMappings.layoutId, spatialLayouts.id),
+      )
+      .where(inArray(spatialLayoutMappings.locationId, locationIds));
 
     return rows.map((row): SpatialLayoutMappingWithStatus => {
       const m = row.mapping;

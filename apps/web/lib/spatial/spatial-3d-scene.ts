@@ -1344,6 +1344,7 @@ export function createStructureBodyMesh(
     });
     const wireFrame = new THREE.LineSegments(edges, lineMat);
     wireFrame.position.set(0, 0, 0);
+    wireFrame.raycast = () => {};
     group.add(wireFrame);
   };
 
@@ -1647,6 +1648,7 @@ export function createParentCarcassMesh(
       attentionMat,
     );
     attentionOutline.name = "parent-attention-outline";
+    attentionOutline.raycast = () => {};
     attentionOutline.userData = { ...userData };
     group.add(attentionOutline);
   }
@@ -1666,6 +1668,7 @@ export function createParentCarcassMesh(
       selectionMat,
     );
     selectionOutline.name = "parent-selection-outline";
+    selectionOutline.raycast = () => {};
     selectionOutline.userData = { ...userData };
     group.add(selectionOutline);
   }
@@ -1675,10 +1678,13 @@ export function createParentCarcassMesh(
 
 /**
  * Helper to traverse up the scene tree from an intersected mesh to find the associated locationId.
+ * Only Mesh objects represent interactive surfaces; wireframes, edge outlines, and grid lines
+ * are visual styling and never capture selection.
  */
 export function findInteractiveUserData(
   obj: THREE.Object3D | null,
 ): MeshUserData | null {
+  if (!obj || !(obj instanceof THREE.Mesh)) return null;
   let curr: THREE.Object3D | null = obj;
   while (curr) {
     if (curr.userData && curr.userData.locationId) {

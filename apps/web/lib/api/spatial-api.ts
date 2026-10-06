@@ -138,6 +138,7 @@ export interface LocationOperationalViewChildDto {
     heightMm: number;
     depthMm: number;
   } | null;
+  mapping?: LocationSpatialMappingSummaryDto | null;
 }
 
 export interface LocationOperationalViewDto {

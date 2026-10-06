@@ -1284,6 +1284,8 @@ export class SpatialLayoutService {
           Math.abs(Number(ownedNode.scaleX) - 1) < 0.0001 &&
           Math.abs(Number(ownedNode.scaleY) - 1) < 0.0001 &&
           Math.abs(Number(ownedNode.scaleZ) - 1) < 0.0001;
+        const matchesPublishedRevision =
+          ownedMeta.publishedRevision === publishedRevision;
 
         if (
           matchesX &&
@@ -1295,7 +1297,8 @@ export class SpatialLayoutService {
           matchesParent &&
           matchesSlotId &&
           matchesVisibility &&
-          matchesScale
+          matchesScale &&
+          matchesPublishedRevision
         ) {
           // Idempotent: 0 mutations needed for this node!
           continue;

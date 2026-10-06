@@ -21,6 +21,9 @@ export interface SpatialLayoutRepository {
   findMappingsByLocationId(
     locationId: string,
   ): Promise<SpatialLayoutMappingWithStatus[]>;
+  findMappingsByLocationIds?(
+    locationIds: string[],
+  ): Promise<SpatialLayoutMappingWithStatus[]>;
   findRevisions(layoutId: string): Promise<SpatialLayoutRevisionRecordProps[]>;
   findRevisionByNumber(
     layoutId: string,

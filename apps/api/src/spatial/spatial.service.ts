@@ -148,6 +148,7 @@ export interface LocationOperationalViewChild {
     heightMm: number;
     depthMm: number;
   } | null;
+  mapping?: LocationSpatialMappingSummary | null;
 }
 
 export interface LocationOperationalView {
@@ -1097,6 +1098,27 @@ export class SpatialService {
       anchorCache.set(anchor.id, anchor);
     }
 
+    // Resolve slot mappings for direct children
+    const directChildIds = directChildren.map((c) => c.id);
+    const childMappings =
+      this.layoutRepo.findMappingsByLocationIds
+        ? await this.layoutRepo.findMappingsByLocationIds(directChildIds)
+        : await Promise.all(
+            directChildIds.map((id) =>
+              this.layoutRepo.findMappingsByLocationId(id),
+            ),
+          ).then((lists) => lists.flat());
+
+    const mappingsByChildId = new Map<
+      string,
+      SpatialLayoutMappingWithStatus[]
+    >();
+    for (const m of childMappings) {
+      const list = mappingsByChildId.get(m.locationId) || [];
+      list.push(m);
+      mappingsByChildId.set(m.locationId, list);
+    }
+
     const children: LocationOperationalViewChild[] = [];
     for (const childLoc of directChildren) {
       const childNode = nodesByLocId.get(childLoc.id) || null;
@@ -1121,6 +1143,41 @@ export class SpatialService {
         }
       }
 
+      const childSlotMappings = mappingsByChildId.get(childLoc.id) || [];
+      const childSlotMapping =
+        childSlotMappings.find((m) => m.layoutStatus === 'PUBLISHED') ??
+        childSlotMappings.find((m) => m.layoutStatus === 'DRAFT') ??
+        childSlotMappings[0] ??
+        null;
+
+      const childDirectDescendants = childrenByParent.get(childLoc.id) || [];
+      const childDirectChildIds = childDirectDescendants.map((c) => c.id);
+      const childMappedDirectChildCount = childDirectChildIds.filter((id) =>
+        nodesByLocId.has(id),
+      ).length;
+
+      const childStatusResult = computeSpatialMappingStatus({
+        parentId: childLoc.parentId,
+        hasSpatialNode: nodesByLocId.has(childLoc.id),
+        directChildCount: childDirectChildIds.length,
+        mappedDirectChildCount: childMappedDirectChildCount,
+        layoutStatuses: [],
+      });
+
+      const childMapping: LocationSpatialMappingSummary = {
+        ...childStatusResult,
+        publishedLayout: null,
+        slotMapping: childSlotMapping
+          ? {
+              layoutId: childSlotMapping.layoutId,
+              layoutCode: childSlotMapping.layoutCode,
+              layoutStatus: childSlotMapping.layoutStatus,
+              slotCode: childSlotMapping.slotCode,
+              isStale: Boolean(childSlotMapping.isStale),
+            }
+          : null,
+      };
+
       children.push({
         location: {
           id: childLoc.id,
@@ -1134,6 +1191,7 @@ export class SpatialService {
         node: childNode,
         model: childModel,
         anchor: childAnchor,
+        mapping: childMapping,
         slotDimensionsMm: childNode
           ? (slotEnvelopes.get(childLoc.id) ?? null)
           : null,
