@@ -90,13 +90,16 @@ const TOOLBAR_SEGMENT_INACTIVE_CLASS =
 
 /**
  * Location kinds that may slide open along their front axis. Container kinds
- * (warehouse, room, rack, shelf, cabinet) are never slidable.
+ * (warehouse, room_area, rack, shelf, cabinet) are never slidable. The legacy
+ * aliases `tray`/`tube` are retained so existing persisted rows stay openable.
  */
 const OPERATIONAL_OPENABLE_KINDS = [
   "drawer",
   "bin",
-  "tray",
+  "matrix_tray",
   "reel_slot",
+  "ic_tube_rail",
+  "tray",
   "tube",
 ] as const;
 

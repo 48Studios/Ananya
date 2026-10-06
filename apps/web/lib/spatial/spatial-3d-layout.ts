@@ -6,6 +6,7 @@ import type {
 } from "../api/spatial-api";
 import {
   isSpatialSpaceKind,
+  normalizeSpatialKind,
   type ParametricStorageConfig,
 } from "@ananya/inventory";
 import type { CellStockSummary } from "./spatial-inventory-mapper";
@@ -613,12 +614,16 @@ export const WAREHOUSE_SHELL_KINDS: ReadonlySet<string> = new Set([
   "building",
 ]);
 
-/** Kind tokens whose physical form is an open-top tray. */
+/**
+ * Kind tokens whose physical form is an open-top tray (unknown kinds only).
+ * "tube" is deliberately absent: tube/IC rail kinds resolve canonically to the
+ * "tube" structure, and a heuristic must never contradict a canonical model by
+ * turning a tube-named value into tray geometry.
+ */
 const TRAY_SHAPED_TOKENS: ReadonlySet<string> = new Set([
   "bin",
   "tray",
   "slot",
-  "tube",
   "compartment",
 ]);
 
@@ -642,10 +647,7 @@ const RACK_SHAPED_TOKENS: ReadonlySet<string> = new Set([
  * as a child of another scene resolve to the same shape.
  */
 export function resolveKindStructureShape(kind?: string): ParentStructureShape {
-  const normalized = (kind ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
+  const normalized = normalizeSpatialKind(kind);
   // A warehouse is a space, so its procedural body is the cutaway shell rather
   // than a compartment carcass. An explicit model still wins (see
   // `resolveSpatialRepresentation`).
@@ -655,6 +657,21 @@ export function resolveKindStructureShape(kind?: string): ParentStructureShape {
   if (!normalized || isSpatialSpaceKind(normalized)) {
     return "none";
   }
+  // Legacy rendering override (GEOMETRY SAFETY, 2026-10).
+  //
+  // `tray` is an alias whose canonical CATEGORY is `matrix_tray`, so
+  // `resolveSpatialModel("tray")` now returns the Matrix Tray model and the
+  // `matrix-tray` structure. That is the correct canonical identity for NEW
+  // writes, but persisted legacy `tray` rows were authored against the
+  // open-top `tray` body. Rendering them with the divided Matrix Tray body
+  // would be a visible physical change for data that has not changed, which
+  // this task explicitly forbids.
+  //
+  // Canonical identity and legacy geometry are therefore deliberately split:
+  // the raw legacy token keeps its historical body, while canonical
+  // `matrix_tray` (and every new write, which persists `matrix_tray`) resolves
+  // to the canonical body.
+  if (normalized === "tray") return "tray";
   // Canonical first: the model resolver owns kind normalization (including
   // separators such as "/"), so pass the raw value rather than this function's
   // local token form. Token heuristics below only apply to unknown kinds.

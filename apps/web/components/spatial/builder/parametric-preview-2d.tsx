@@ -328,7 +328,7 @@ export function ParametricPreview2D({
   return (
     <div
       className={cn(
-        "flex flex-col w-full h-full min-h-[420px] border border-border rounded-lg overflow-hidden bg-card",
+        "flex flex-col w-full h-full border border-border rounded-lg overflow-hidden bg-card",
         className,
       )}
     >
@@ -453,7 +453,7 @@ export function ParametricPreview2D({
       <div
         ref={setViewportElement}
         data-testid="front-elevation-viewport"
-        className="relative flex-1 min-h-[300px] overflow-hidden bg-muted/10 cursor-grab active:cursor-grabbing touch-none"
+        className="relative flex-1 min-h-[550px] overflow-hidden bg-muted/10 cursor-grab active:cursor-grabbing touch-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}

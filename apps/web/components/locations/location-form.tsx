@@ -176,7 +176,7 @@ export function LocationForm({
                   <SelectGroup>
                     <SelectLabel>Facilities & Zones</SelectLabel>
                     <SelectItem value="warehouse">Warehouse / Facility</SelectItem>
-                    <SelectItem value="room">Room / Area</SelectItem>
+                    <SelectItem value="room_area">Room / Area</SelectItem>
                     <SelectItem value="aisle">Aisle</SelectItem>
                   </SelectGroup>
                   <SelectGroup>
@@ -193,8 +193,8 @@ export function LocationForm({
                     <SelectItem value="compartment">Compartment (Sub-bin)</SelectItem>
                     <SelectItem value="reel_rack">Reel Rack / Cart</SelectItem>
                     <SelectItem value="reel_slot">Reel Slot (Tape & Reel)</SelectItem>
-                    <SelectItem value="tray">Matrix Tray (JEDEC)</SelectItem>
-                    <SelectItem value="tube">IC Tube / Rail</SelectItem>
+                    <SelectItem value="matrix_tray">Matrix Tray (JEDEC)</SelectItem>
+                    <SelectItem value="ic_tube_rail">IC Tube / Rail</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>

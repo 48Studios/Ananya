@@ -1,4 +1,11 @@
-import { IsBoolean, IsObject, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsObject,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import { ACCEPTED_LOCATION_KINDS } from './create-location.dto';
 
 export class UpdateLocationDto {
   @IsOptional()
@@ -10,7 +17,7 @@ export class UpdateLocationDto {
   name?: string;
 
   @IsOptional()
-  @IsString()
+  @IsIn(ACCEPTED_LOCATION_KINDS)
   kind?: string;
 
   @IsOptional()

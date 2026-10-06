@@ -1,9 +1,47 @@
 import { ObjectId } from "@ananya/core";
 import {
+  SPATIAL_LOCATION_CATEGORIES,
+  normalizeLocationCategory,
+} from "../spatial/location-model";
+import {
   InvalidLocationCodeError,
   InvalidLocationNameError,
   InvalidLocationKindError,
 } from "./location.errors";
+
+/** Legacy spellings accepted on write and canonicalized. */
+export const LEGACY_LOCATION_KIND_ALIASES = [
+  "room",
+  "area",
+  "tray",
+  "tube",
+  "rail",
+  "ic_tube",
+] as const;
+
+/**
+ * Canonicalizes a location kind for persistence.
+ *
+ * The canonical taxonomy is authoritative: a legacy alias (`room`, `area`,
+ * `tray`, `tube`, `rail`, `ic_tube`) is accepted and normalized to its canonical
+ * category, and an unknown value (`pallet`, or a free-form string) is rejected.
+ * Only canonical categories are ever persisted.
+ */
+function resolveCanonicalKind(rawKind: string): string {
+  const trimmed = rawKind.trim();
+  if (!trimmed) {
+    throw new InvalidLocationKindError("Location kind is required");
+  }
+  const category = normalizeLocationCategory(trimmed);
+  if (category === null) {
+    throw new InvalidLocationKindError(
+      `Unknown location kind '${trimmed}'. Expected one of: ${SPATIAL_LOCATION_CATEGORIES.join(
+        ", ",
+      )}. Legacy aliases (${LEGACY_LOCATION_KIND_ALIASES.join(", ")}) are accepted.`,
+    );
+  }
+  return category;
+}
 
 export interface LocationProps {
   id: string;
@@ -68,8 +106,9 @@ export class Location {
     // Normalize name: trim
     const name = input.name.trim();
 
-    // Normalize kind: trim and lowercase
-    const kind = input.kind.trim().toLowerCase();
+    // Normalize and validate kind: legacy aliases are canonicalized, unknown
+    // values are rejected. Only a canonical category is persisted.
+    const kind = resolveCanonicalKind(input.kind);
 
     // Validate code
     if (!code) {
@@ -79,11 +118,6 @@ export class Location {
     // Validate name
     if (!name) {
       throw new InvalidLocationNameError("Location name is required");
-    }
-
-    // Validate kind
-    if (!kind) {
-      throw new InvalidLocationKindError("Location kind is required");
     }
 
     // Generate identity and timestamps
@@ -111,8 +145,10 @@ export class Location {
     const code =
       input.code !== undefined ? input.code.trim().toUpperCase() : this.code;
     const name = input.name !== undefined ? input.name.trim() : this.name;
+    // Kind changes go through the same canonicalization as creation; an
+    // unchanged kind keeps the (already canonical) persisted value.
     const kind =
-      input.kind !== undefined ? input.kind.trim().toLowerCase() : this.kind;
+      input.kind !== undefined ? resolveCanonicalKind(input.kind) : this.kind;
 
     if (!code) {
       throw new InvalidLocationCodeError("Location code is required");

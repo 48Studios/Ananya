@@ -1500,9 +1500,9 @@ export function InventoryBuilderWorkspace({
       </div>
 
       {/* 3. Main Workspace Split Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[640px]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left Column: Configuration or Location Mapping Panel */}
-        <div className="lg:col-span-4 xl:col-span-3 flex flex-col gap-4">
+        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4">
           {state.mode === "build" ? (
             <>
               <ParametricConfigPanel
@@ -1541,9 +1541,9 @@ export function InventoryBuilderWorkspace({
         </div>
 
         {/* Right Column: Interactive Preview (2D/3D) and Compartment Inspector */}
-        <div className="lg:col-span-8 xl:col-span-9 flex flex-col gap-4">
+        <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
           {/* Top: 2D or 3D Spatial Canvas */}
-          <div className="flex-1 min-h-[420px]">
+          <div>
             {state.viewMode === "2d" ? (
               <ParametricPreview2D
                 config={state.config}

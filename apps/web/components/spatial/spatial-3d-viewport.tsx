@@ -746,7 +746,7 @@ export function Spatial3DViewport({
     }
 
     const width = container.clientWidth || 800;
-    const height = Math.max(450, container.clientHeight || 500);
+    const height = Math.max(550, container.clientHeight || 550);
 
     // 1. Scene
     const scene = new THREE.Scene();
@@ -754,7 +754,7 @@ export function Spatial3DViewport({
     sceneRef.current = scene;
 
     // 2. Camera
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 100);
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     cameraRef.current = camera;
 
     // 3. Renderer
@@ -1708,7 +1708,7 @@ export function Spatial3DViewport({
 
   return (
     <div
-      className={`relative w-full h-[520px] rounded-xl overflow-hidden border border-border bg-[#090D16] select-none ${className || ""}`}
+      className={`relative w-full min-h-[550px] rounded-b-lg overflow-hidden border border-border bg-[#090D16] select-none ${className || ""}`}
     >
       {/* Three.js Canvas Container */}
       <div

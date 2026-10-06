@@ -13,6 +13,7 @@ import {
   LocationHasChildrenError,
   CannotParentToSelfError,
   LocationInUseError,
+  InvalidLocationKindError,
 } from '@ananya/inventory';
 import type { Response } from 'express';
 import {
@@ -49,6 +50,9 @@ export class LocationExceptionFilter implements ExceptionFilter {
       message = exception.message;
     } else if (exception instanceof LocationInUseError) {
       status = HttpStatus.CONFLICT;
+      message = exception.message;
+    } else if (exception instanceof InvalidLocationKindError) {
+      status = HttpStatus.BAD_REQUEST;
       message = exception.message;
     } else {
       if (isPostgresErrorCode(exception, POSTGRES_FOREIGN_KEY_VIOLATION)) {

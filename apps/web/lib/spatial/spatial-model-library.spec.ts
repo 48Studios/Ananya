@@ -174,6 +174,57 @@ describe("Spatial Model Library", () => {
     expect(resolveSpatialModel("reel-rack")?.structure).toBe("reel-rack");
   });
 
+  it("resolves every alias of a category to exactly one canonical identity", () => {
+    const matrixTray = SPATIAL_MODEL_DEFINITIONS.matrix_tray!;
+    const icTubeRail = SPATIAL_MODEL_DEFINITIONS.ic_tube_rail!;
+    const roomArea = SPATIAL_MODEL_DEFINITIONS.room_area!;
+
+    // `tray` is a legacy alias for the canonical Matrix Tray category; it must
+    // resolve to the canonical model identity, not the legacy `tray` row.
+    for (const alias of ["tray", "Tray", "matrix_tray", "Matrix Tray"]) {
+      const model = resolveSpatialModel(alias);
+      expect(model?.modelId).toBe(matrixTray.modelId);
+      expect(model?.kind).toBe(matrixTray.kind);
+      expect(model?.structure).toBe("matrix-tray");
+      expect(model?.isFallback).toBe(false);
+    }
+
+    // Every IC Tube / Rail spelling resolves to the same canonical model.
+    for (const alias of [
+      "tube",
+      "Tube",
+      "rail",
+      "ic_tube",
+      "ic_tube_rail",
+      "IC Tube / Rail",
+      "ic-tube/rail",
+    ]) {
+      const model = resolveSpatialModel(alias);
+      expect(model?.modelId).toBe(icTubeRail.modelId);
+      expect(model?.kind).toBe(icTubeRail.kind);
+      expect(model?.structure).toBe("tube");
+    }
+
+    // Room aliases resolve to the canonical context category.
+    for (const alias of ["room", "area", "room_area", "Room / Area"]) {
+      const model = resolveSpatialModel(alias);
+      expect(model?.modelId).toBe(roomArea.modelId);
+      expect(model?.kind).toBe("room_area");
+      expect(model?.category).toBe("context");
+    }
+  });
+
+  it("never lets a legacy row shadow the canonical category resolution", () => {
+    // Attack the old model-table-first lookup: `tray`/`tube` rows exist in the
+    // table, but they must not be selectable by any input.
+    expect(resolveSpatialModel("tray")?.modelId).not.toBe(
+      SPATIAL_MODEL_DEFINITIONS.tray?.modelId,
+    );
+    expect(resolveSpatialModel("tube")?.modelId).not.toBe(
+      SPATIAL_MODEL_DEFINITIONS.tube?.modelId,
+    );
+  });
+
   it("resolves a Dry Cabinet model instance from persisted dimensions", () => {
     const representation = resolveSpatialRepresentation({
       location: { id: "dry-cabinet-custom", kind: "dry_cabinet" },

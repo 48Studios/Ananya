@@ -13,6 +13,7 @@ import {
   findInteractiveUserData,
 } from "./spatial-3d-scene";
 import { resolveSpatialModel } from "./spatial-model-library";
+import { normalizeLocationCategory } from "@ananya/inventory";
 import type {
   LocationOperationalViewChildDto,
   SpatialModelDto,
@@ -128,6 +129,43 @@ describe("IC Tube / Rail canonical model", () => {
     }
   });
 
+  it("follows category → canonical model → structure for ids, legacy values and the label", () => {
+    for (const value of ["ic_tube_rail", "tube", "IC Tube / Rail"]) {
+      expect(normalizeLocationCategory(value)).toBe("ic_tube_rail");
+      expect(resolveSpatialModel(value)?.structure).toBe("tube");
+      expect(resolveKindStructureShape(value)).toBe("tube");
+    }
+    expect(resolveSpatialModel("ic_tube_rail")?.displayName).toBe("IC Tube / Rail");
+    expect(resolveSpatialModel("IC Tube / Rail")?.kind).toBe("ic_tube_rail");
+  });
+
+  it("never falls back to tray geometry for tube-named values the canonical lookup misses", () => {
+    // "ic_tube_/_rail" is the form the label took when pre-normalized without
+    // "/" — the path that previously reached the token heuristic as a tray.
+    for (const value of ["ic_tube_/_rail", "tube_holder", "glass tube"]) {
+      expect(resolveKindStructureShape(value)).not.toBe("tray");
+      expect(resolveKindStructureShape(value)).not.toBe("matrix-tray");
+    }
+  });
+
+  it("keeps the other migrated families on their canonical structures", () => {
+    expect(resolveKindStructureShape("Matrix Tray")).toBe("matrix-tray");
+    expect(resolveKindStructureShape("matrix_tray")).toBe("matrix-tray");
+    // GEOMETRY SAFETY: the raw legacy `tray` token keeps its historical open-tray
+    // body so persisted legacy rows do not visibly change; only canonical
+    // `matrix_tray` (what every new write persists) gets the divided body.
+    expect(resolveKindStructureShape("tray")).toBe("tray");
+    expect(resolveKindStructureShape("bin")).toBe("tray");
+    expect(resolveKindStructureShape("compartment")).toBe("compartment");
+    expect(resolveKindStructureShape("cabinet")).toBe("enclosure");
+    expect(resolveKindStructureShape("drawer")).toBe("drawer");
+    expect(resolveKindStructureShape("rack")).toBe("rack");
+    expect(resolveKindStructureShape("shelf")).toBe("shelf");
+    expect(resolveKindStructureShape("Reel Rack")).toBe("reel-rack");
+    expect(resolveKindStructureShape("reel_slot")).toBe("reel-slot");
+    expect(resolveKindStructureShape("Dry Cabinet")).toBe("dry-cabinet");
+  });
+
   it("resolves the canonical ic_tube_rail model metadata", () => {
     const model = resolveSpatialModel("ic_tube_rail");
     expect(model).toMatchObject({
@@ -214,6 +252,84 @@ describe("IC Tube / Rail geometry", () => {
     expect(bounds.x).toBeCloseTo(dimensions.x, 6);
     expect(bounds.y).toBeCloseTo(dimensions.y, 6);
     expect(bounds.z).toBeCloseTo(dimensions.z, 6);
+  });
+});
+
+describe("shared front label sizing", () => {
+  const labelled = (
+    structure: Parameters<typeof createStructureBodyMesh>[0],
+    dimensions: { x: number; y: number; z: number },
+  ) =>
+    createStructureBodyMesh(
+      structure,
+      dimensions,
+      {
+        locationId: "loc",
+        locationCode: "LOC-01",
+        locationName: "Loc",
+        kind: structure,
+        hasStock: false,
+        isMapped: true,
+        isParent: false,
+      },
+      {},
+      undefined,
+      { labelTexture: new THREE.Texture() },
+    );
+  const plateOf = (group: THREE.Group, structure: string) => {
+    const plate = group.getObjectByName(`structure-${structure}-label`) as THREE.Mesh;
+    expect(plate).toBeTruthy();
+    const box = new THREE.Box3().setFromObject(plate);
+    return { box, size: box.getSize(new THREE.Vector3()) };
+  };
+
+  it("keeps a 60 mm IC Tube / Rail label inside its available width", () => {
+    const { box, size } = plateOf(labelled("tube", RAIL_DIMS), "tube");
+    expect(size.x).toBeLessThan(RAIL_DIMS.x);
+    expect(box.min.x).toBeGreaterThanOrEqual(-RAIL_DIMS.x / 2);
+    expect(box.max.x).toBeLessThanOrEqual(RAIL_DIMS.x / 2);
+    expect(size.y).toBeLessThan(RAIL_DIMS.y);
+    // Previously the 120 mm readable minimum overhung the 60 mm rail.
+    expect(size.x).toBeLessThan(0.12);
+  });
+
+  it("keeps the IC rail child instance label inside the rail body", () => {
+    const group = createChildCompartmentMesh(
+      toSceneChild(makeRailChild()),
+      "empty-mapped",
+    );
+    const plate = group.getObjectByName("structure-tube-label")!;
+    const base = group.getObjectByName("tube-base-IC-RAIL-01")!;
+    group.updateMatrixWorld(true);
+    const plateBox = new THREE.Box3().setFromObject(plate);
+    const baseBox = new THREE.Box3().setFromObject(base);
+    expect(plateBox.min.x).toBeGreaterThanOrEqual(baseBox.min.x);
+    expect(plateBox.max.x).toBeLessThanOrEqual(baseBox.max.x);
+  });
+
+  it.each([
+    ["tube", { x: 0.04, y: 0.04, z: 0.12 }],
+    ["reel-slot", { x: 0.09, y: 0.09, z: 0.1 }],
+    ["tube", { x: 0.2, y: 0.05, z: 0.6 }],
+    ["shelf", { x: 0.95, y: 0.04, z: 0.55 }],
+    ["rack", { x: 1.2, y: 2.1, z: 0.6 }],
+    ["reel-rack", { x: 1, y: 1.8, z: 0.45 }],
+    ["enclosure", { x: 0.6, y: 0.9, z: 0.4 }],
+  ] as const)("%s %o label never exceeds the model width", (structure, dimensions) => {
+    const { box, size } = plateOf(labelled(structure, dimensions), structure);
+    expect(size.x).toBeLessThanOrEqual(dimensions.x);
+    expect(box.min.x).toBeGreaterThanOrEqual(-dimensions.x / 2);
+    expect(box.max.x).toBeLessThanOrEqual(dimensions.x / 2);
+  });
+
+  it.each([
+    ["rack", { x: 1.2, y: 2.1, z: 0.6 }, 0.5],
+    ["shelf", { x: 0.95, y: 0.04, z: 0.55 }, 0.5],
+    ["reel-rack", { x: 1, y: 1.8, z: 0.45 }, 0.5],
+    ["enclosure", { x: 0.6, y: 0.9, z: 0.4 }, 0.42],
+    ["tube", { x: 0.2, y: 0.05, z: 0.6 }, 0.14],
+  ] as const)("%s keeps its readable label width when the model is wide enough", (structure, dimensions, width) => {
+    expect(plateOf(labelled(structure, dimensions), structure).size.x).toBeCloseTo(width, 6);
   });
 });
 

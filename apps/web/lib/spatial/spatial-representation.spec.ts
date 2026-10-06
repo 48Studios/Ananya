@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import {
   resolveChildSpatialRepresentation,
+  resolveKindStructureShape,
   resolveSpatialRepresentation,
   type SpatialRepresentation,
 } from "./spatial-3d-layout";
@@ -16,7 +17,7 @@ import type {
   SpatialModelDto,
 } from "../api/spatial-api";
 import type { SceneChildLayout } from "./spatial-3d-layout";
-import { classifySpatialKind } from "@ananya/inventory";
+import { classifySpatialKind, SPATIAL_LOCATION_CATEGORIES } from "@ananya/inventory";
 
 /**
  * Global fidelity invariant: a location's visual representation is identical
@@ -688,21 +689,20 @@ describe("Canonical spatial representation", () => {
   });
 
   /**
-   * Kind audit matrix: every kind the location form can produce resolves to a
-   * declared representation in both rendering contexts (or is explicitly scene
-   * context), and every kind is classified by the domain compatibility rule.
-   * A new kind added to the form without a decision here fails this test.
+   * Canonical kind audit matrix: every one of the 14 canonical categories
+   * resolves to a declared representation in both rendering contexts (or is
+   * explicitly scene context), and is classified by the domain compatibility
+   * rule. A new canonical category added without a decision here fails this
+   * test. Legacy aliases are covered separately below, so an alias can never be
+   * mistaken for a canonical category.
    */
-  it("classifies every location-form kind", () => {
+  it("classifies every canonical category", () => {
     const expected: Record<
       string,
       { structure: string; source: string; kindClass: string }
     > = {
       warehouse: { structure: "warehouse", source: "kind", kindClass: "space" },
-      building: { structure: "warehouse", source: "kind", kindClass: "space" },
-      facility: { structure: "warehouse", source: "kind", kindClass: "space" },
-      room: { structure: "none", source: "fallback", kindClass: "space" },
-      zone: { structure: "none", source: "fallback", kindClass: "space" },
+      room_area: { structure: "none", source: "fallback", kindClass: "space" },
       aisle: { structure: "none", source: "fallback", kindClass: "space" },
       rack: { structure: "rack", source: "kind", kindClass: "container" },
       shelf: { structure: "shelf", source: "kind", kindClass: "container" },
@@ -716,29 +716,98 @@ describe("Canonical spatial representation", () => {
         source: "kind",
         kindClass: "container",
       },
-      reel_rack: {
-        structure: "reel-rack",
-        source: "kind",
-        kindClass: "container",
-      },
-      matrix_tray: { structure: "matrix-tray", source: "kind", kindClass: "container" },
-      drawer: { structure: "drawer", source: "kind", kindClass: "compartment" },
       bin: { structure: "tray", source: "kind", kindClass: "compartment" },
+      drawer: { structure: "drawer", source: "kind", kindClass: "compartment" },
       compartment: {
         structure: "compartment",
         source: "kind",
         kindClass: "compartment",
       },
-      tray: { structure: "tray", source: "kind", kindClass: "compartment" },
-      tube: { structure: "tube", source: "kind", kindClass: "compartment" },
+      reel_rack: {
+        structure: "reel-rack",
+        source: "kind",
+        kindClass: "container",
+      },
       reel_slot: {
         structure: "reel-slot",
         source: "kind",
         kindClass: "compartment",
       },
+      matrix_tray: {
+        structure: "matrix-tray",
+        source: "kind",
+        kindClass: "container",
+      },
+      ic_tube_rail: {
+        structure: "tube",
+        source: "kind",
+        kindClass: "compartment",
+      },
     };
 
+    // The matrix must cover the canonical taxonomy exactly — no more, no less.
+    expect(Object.keys(expected).sort()).toEqual(
+      [...SPATIAL_LOCATION_CATEGORIES].sort(),
+    );
+
     for (const [kind, expectation] of Object.entries(expected)) {
+      const child = makeChild({ kind });
+      const direct = resolveAsDirectView(child);
+      const nested = resolveAsChildInScene(child);
+
+      expect(
+        { kind, structure: direct.structure, source: direct.source },
+        `direct ${kind}`,
+      ).toEqual({
+        kind,
+        structure: expectation.structure,
+        source: expectation.source,
+      });
+      expect(
+        { kind, structure: nested.structure, source: nested.source },
+        `nested ${kind}`,
+      ).toEqual({
+        kind,
+        structure: expectation.structure,
+        source: expectation.source,
+      });
+      expect(classifySpatialKind(kind), `class ${kind}`).toBe(
+        expectation.kindClass,
+      );
+    }
+  });
+
+  /**
+   * Legacy aliases resolve to their canonical category's representation but keep
+   * their legacy compatibility class. Tested separately so the alias table can
+   * never be read as a set of canonical categories.
+   */
+  it("resolves legacy aliases through their canonical category", () => {
+    const aliases: Record<
+      string,
+      { structure: string; source: string; kindClass: string }
+    > = {
+      // Space aliases — read-compatible spellings of `room_area`.
+      room: { structure: "none", source: "fallback", kindClass: "space" },
+      area: { structure: "none", source: "fallback", kindClass: "space" },
+      // Legacy warehouse-shell spellings with no canonical category.
+      building: { structure: "warehouse", source: "kind", kindClass: "space" },
+      facility: { structure: "warehouse", source: "kind", kindClass: "space" },
+      zone: { structure: "none", source: "fallback", kindClass: "space" },
+      // Matrix Tray alias keeps its legacy open-tray body (geometry safety) but
+      // keeps its legacy compartment class.
+      tray: {
+        structure: "tray",
+        source: "kind",
+        kindClass: "compartment",
+      },
+      // IC Tube / Rail aliases all resolve to the canonical tube body.
+      tube: { structure: "tube", source: "kind", kindClass: "compartment" },
+      rail: { structure: "tube", source: "kind", kindClass: "compartment" },
+      ic_tube: { structure: "tube", source: "kind", kindClass: "compartment" },
+    };
+
+    for (const [kind, expectation] of Object.entries(aliases)) {
       const child = makeChild({ kind });
       const direct = resolveAsDirectView(child);
       const nested = resolveAsChildInScene(child);
@@ -901,8 +970,74 @@ describe("Rendered instance fidelity", () => {
     expect(fallback.userData.representationSource).toBe("fallback");
   });
 
-  it("preserves authored rotation and scale in the nested transform", () => {
-    const child = makeChild({ kind: "cabinet", model: CABINET_MODEL });
+  /**
+   * GEOMETRY SAFETY: `tray` is a legacy alias whose canonical category is
+   * `matrix_tray`. Canonicalising its IDENTITY must not silently change the
+   * visible body of persisted legacy rows, so the raw legacy token keeps its
+   * historical open-tray body while canonical `matrix_tray` gets the divided
+   * body. Dimensions are identical either way.
+   */
+  it("keeps legacy tray geometry distinct from canonical matrix_tray geometry", () => {
+    const legacy = resolveSpatialRepresentation({
+      location: { id: "legacy-tray", kind: "tray" },
+    });
+    const canonical = resolveSpatialRepresentation({
+      location: { id: "canonical-matrix-tray", kind: "matrix_tray" },
+    });
+
+    // Identity is shared (both are the Matrix Tray category), but the rendered
+    // body for the persisted legacy token is unchanged.
+    expect(legacy.structure).toBe("tray");
+    expect(canonical.structure).toBe("matrix-tray");
+    expect(legacy.structure).not.toBe(canonical.structure);
+    // Dimensions are identical, so only the body shape is preserved/changed.
+    expect(legacy.dimensions).toEqual(canonical.dimensions);
+
+    // The canonical category always resolves to the divided Matrix Tray body.
+    expect(resolveKindStructureShape("matrix_tray")).toBe("matrix-tray");
+    expect(resolveKindStructureShape("Matrix Tray")).toBe("matrix-tray");
+  });
+
+  it("never guesses a physical shape from substrings of an unknown kind", () => {    // Regression: the fallback tier previously used `kind.includes("bin")`,
+    // `includes("shelf")`, `includes("drawer")`. `cabinet` contains "bin", so a
+    // cabinet-named value could render as a tray; a tube-named value could render
+    // as a tray; and any arbitrary string could acquire geometry it never had.
+    // Shape selection is now canonical/token-safe.
+    for (const value of [
+      "cabinet", // contains "bin"
+      "ic_tube_/_rail",
+      "tube_holder",
+      "glass tube",
+      "shelfing",
+      "drawerless",
+      "arbitrary_unknown_kind",
+      "banana",
+    ]) {
+      const shape = resolveKindStructureShape(value);
+      expect(shape, value).not.toBe("tray");
+      expect(shape, value).not.toBe("drawer");
+      expect(shape, value).not.toBe("shelf");
+    }
+    // `cabinet` resolves to its own enclosure, never tray geometry.
+    expect(resolveKindStructureShape("cabinet")).toBe("enclosure");
+    // Unknown kinds resolve to no authored body.
+    expect(resolveKindStructureShape("arbitrary_unknown_kind")).toBe("none");
+    expect(resolveKindStructureShape("banana")).toBe("none");
+  });
+
+  it("renders an unknown-kind fallback as the generic body, not tray geometry", () => {
+    const fallback = createChildCompartmentMesh(
+      toSceneChild(makeChild({ kind: "arbitrary_unknown_kind" })),
+      "empty-mapped",
+      null,
+    );
+    expect(fallback.userData.representationSource).toBe("fallback");
+    // The generic box is a single mesh; tray/drawer/shelf fallbacks add their own
+    // affordances. Either way, the instance must not claim a tray structure.
+    expect(resolveKindStructureShape("arbitrary_unknown_kind")).toBe("none");
+  });
+
+  it("preserves authored rotation and scale in the nested transform", () => {    const child = makeChild({ kind: "cabinet", model: CABINET_MODEL });
     const instance = createChildCompartmentMesh(
       toSceneChild(child, {
         rotation: { x: 0, y: Math.PI / 4, z: 0 },

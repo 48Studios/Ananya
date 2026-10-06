@@ -159,7 +159,7 @@ export function ParametricPreview3D({
   return (
     <div
       className={cn(
-        "flex flex-col w-full h-full min-h-[460px] rounded-lg overflow-hidden border border-border bg-card",
+        "flex flex-col w-full h-full rounded-lg overflow-hidden border border-border bg-card",
         className,
       )}
     >
@@ -192,7 +192,7 @@ export function ParametricPreview3D({
         </div>
       )}
 
-      <div className="relative flex-1 min-h-[360px]">
+      <div className="relative">
         <DynamicSpatial3DViewport
           parentData={parentData}
           childrenLayout={childrenLayout}

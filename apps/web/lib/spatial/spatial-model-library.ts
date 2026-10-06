@@ -195,12 +195,23 @@ export const SPATIAL_MODEL_DEFINITIONS: Readonly<
     { widthMm: 600, heightMm: 80, depthMm: 300 },
     "matrix-tray",
   ),
+  /**
+   * Legacy row, retained as documented-dead (2026-10, vocabulary consolidation).
+   * It is unreachable: `tray` is an alias that `normalizeLocationCategory`
+   * resolves to `matrix_tray` before the raw-token fallback in
+   * `resolveSpatialModel`, so no input can select this row. Kept only so the
+   * table still describes every historical spelling; it is NOT a competing
+   * canonical identity. Dimensions are identical to `matrix_tray`, but the
+   * structure differs (`tray` open-top vs `matrix-tray` divided) — no persisted
+   * row reaches it, so no physical geometry changes.
+   */
   tray: physical(
     "tray",
     "Tray",
     { widthMm: 600, heightMm: 80, depthMm: 300 },
     "tray",
   ),
+  /** Legacy row, retained as documented-dead — see the `tray` note above. */
   tube: physical(
     "tube",
     "Tube",
@@ -225,6 +236,11 @@ export const SPATIAL_MODEL_DEFINITIONS: Readonly<
     { widthMm: 100, heightMm: 80, depthMm: 140 },
     "compartment",
   ),
+  /**
+   * Legacy read-compatibility row, still reachable: `slot` has no canonical
+   * category, so the raw-token fallback still selects it. Retained for existing
+   * persisted `slot` values.
+   */
   slot: physical(
     "slot",
     "Slot",
@@ -235,6 +251,12 @@ export const SPATIAL_MODEL_DEFINITIONS: Readonly<
   room_area: context("room_area", "Room / Area", "none"),
   building: context("building", "Building", "warehouse"),
   facility: context("facility", "Facility", "warehouse"),
+  /**
+   * Legacy read-compatibility row. Unreachable through
+   * `resolveSpatialModel` (`room` → `room_area`), but retained: it shares
+   * `room_area`'s `structure: "none"`, so even a direct table access cannot
+   * change a rendered body.
+   */
   room: context("room", "Room", "none"),
   zone: context("zone", "Zone", "none"),
   aisle: context("aisle", "Aisle", "none"),
@@ -277,12 +299,13 @@ export const SUPPORTED_CONTEXT_LOCATION_KINDS = Object.freeze(
 export function resolveSpatialModel(
   kind: string | null | undefined,
 ): SpatialModelDefinition | null {
+  // Category-first: the canonical taxonomy is the authoritative identity, so
+  // every alias of a category (`tray`/`tube`/`rail`/`ic_tube`/`room`/`area`)
+  // resolves to exactly one canonical model. The raw-token table below is a
+  // legacy fallback and can no longer shadow a canonical category.
   const category = normalizeLocationCategory(kind);
-  return (
-    SPATIAL_MODEL_DEFINITIONS[normalizeSpatialKind(kind)] ??
-    (category ? SPATIAL_MODEL_DEFINITIONS[category] : null) ??
-    null
-  );
+  if (category) return SPATIAL_MODEL_DEFINITIONS[category] ?? null;
+  return SPATIAL_MODEL_DEFINITIONS[normalizeSpatialKind(kind)] ?? null;
 }
 
 export function isSupportedPhysicalLocationKind(

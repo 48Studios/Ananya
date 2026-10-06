@@ -5,6 +5,7 @@ import {
 } from "./parametric";
 import { INCOMPATIBLE_COMPARTMENT_KINDS } from "./spatial-layout.types";
 import {
+  SPATIAL_CATEGORY_DEFINITIONS,
   canContainLocationWithinHierarchy,
   canContainLocation,
   normalizeLocationCategory,
@@ -14,34 +15,37 @@ import {
 /**
  * Kind vocabulary for spatial locations.
  *
- * The set of kinds an operator can assign comes from the location form
- * (`warehouse | room | aisle | rack | shelf | cabinet | dry_cabinet | bin |
- * drawer | compartment | reel_rack | reel_slot | tray | tube`). The classifier
- * only constrains kinds the domain has physical semantics for. Anything else is
- * reported as `unclassified` and deliberately left unconstrained instead of
- * inventing a rule the domain does not state.
+ * Canonical classification is derived from the canonical taxonomy
+ * (`SPATIAL_CATEGORY_DEFINITIONS`): a context category is a space, a physical
+ * category with no containment capability is a compartment, and every other
+ * physical category is a container. Only the legacy overrides below are stated
+ * locally.
  */
 const SPACE_KINDS = new Set([...INCOMPATIBLE_COMPARTMENT_KINDS, "aisle"]);
-const CONTAINER_KINDS = new Set([
-  "warehouse",
-  "room",
-  "aisle",
-  "rack",
-  "shelf",
-  "cabinet",
-  "dry_cabinet",
-  "reel_rack",
-  "matrix_tray",
-]);
-const COMPARTMENT_KINDS = new Set([
-  "drawer",
-  "bin",
-  "compartment",
-  "slot",
-  "reel_slot",
-  "tray",
-  "tube",
-]);
+
+/**
+ * Legacy classification overrides.
+ *
+ * Persisted data and existing mappings were classified with a hand-maintained
+ * vocabulary in which `drawer`, `bin`, `tray` and `slot` were compartment-level
+ * kinds. The canonical taxonomy describes most of them differently (`matrix_tray`
+ * and a `drawer`/`bin` are containers; `slot` is not a category at all), so
+ * deriving their class purely from the canonical category would change the
+ * verdict for data that has not changed. Their legacy class is therefore stated
+ * explicitly.
+ *
+ * This is the deliberate split between canonical IDENTITY (category-first model
+ * resolution) and legacy COMPATIBILITY semantics. Remove an entry only after the
+ * corresponding persisted rows and mapping snapshots have been canonicalized.
+ */
+const LEGACY_CLASSIFICATION_OVERRIDES: Readonly<
+  Record<string, SpatialKindClass>
+> = {
+  drawer: "compartment",
+  bin: "compartment",
+  tray: "compartment",
+  slot: "compartment",
+};
 
 /**
  * Storage kinds that may occupy a generated compartment slot.
@@ -62,7 +66,7 @@ export const SLOT_CANDIDATE_KINDS: Readonly<
   Record<CompartmentKind, readonly string[]>
 > = {
   drawer: ["drawer", "bin", "compartment"],
-  bin: ["bin", "compartment", "tray"],
+  bin: ["bin", "compartment", "tray", "matrix_tray"],
   shelf: [
     "shelf",
     "rack",
@@ -71,9 +75,19 @@ export const SLOT_CANDIDATE_KINDS: Readonly<
     "reel_rack",
     "bin",
     "tray",
+    "matrix_tray",
     "compartment",
   ],
-  slot: ["bin", "compartment", "slot", "tray", "tube", "reel_slot"],
+  slot: [
+    "bin",
+    "compartment",
+    "slot",
+    "tray",
+    "matrix_tray",
+    "tube",
+    "ic_tube_rail",
+    "reel_slot",
+  ],
   reel_slot: ["reel_slot"],
   matrix_tray: ["matrix_tray", "tray"],
   compartment: ["compartment"],
@@ -234,10 +248,18 @@ export function classifySpatialKind(
 ): SpatialKindClass {
   const normalized = normalizeSpatialKind(kind);
   if (!normalized) return "unclassified";
+  // Legacy overrides win first: their semantics must not drift with the
+  // canonical identity change (see LEGACY_CLASSIFICATION_OVERRIDES).
+  const override = LEGACY_CLASSIFICATION_OVERRIDES[normalized];
+  if (override) return override;
   if (SPACE_KINDS.has(normalized)) return "space";
-  if (CONTAINER_KINDS.has(normalized)) return "container";
-  if (COMPARTMENT_KINDS.has(normalized)) return "compartment";
-  return "unclassified";
+  // Every remaining class comes from the canonical taxonomy, so the classifier
+  // and the containment graph can never disagree.
+  const category = normalizeLocationCategory(normalized);
+  if (category === null) return "unclassified";
+  const definition = SPATIAL_CATEGORY_DEFINITIONS[category];
+  if (definition.classification === "context") return "space";
+  return definition.container === "no" ? "compartment" : "container";
 }
 
 /** True for kinds that represent walkable volume rather than physical equipment. */
@@ -357,16 +379,31 @@ export function checkSpatialMappingCompatibility(
   if (slotKind) {
     const allowed = resolveSlotCandidateKinds(slotKind);
     const normalizedCandidate = normalizeSpatialKind(candidateKind);
-    if (normalizedCandidate && !allowed.includes(normalizedCandidate)) {
-      return {
-        compatible: false,
-        code: "SLOT_KIND",
-        reason: `${INCOMPATIBLE_MAPPING_STALE_PREFIX}: a ${describe(
-          slotKind,
-        )} compartment cannot hold a ${describe(candidateKind ?? "")} location`,
-        rootClass,
-        candidateClass,
-      };
+    if (normalizedCandidate) {
+      // Canonical-aware comparison: a legacy token (`tray`, `tube`) and its
+      // canonical category (`matrix_tray`, `ic_tube_rail`) are the same kind, so
+      // a slot list may list either spelling and still accept both.
+      const candidateCategory = normalizeLocationCategory(normalizedCandidate);
+      const permitted = allowed.some((token) => {
+        if (token === normalizedCandidate) return true;
+        const tokenCategory = normalizeLocationCategory(token);
+        return (
+          candidateCategory !== null &&
+          tokenCategory !== null &&
+          tokenCategory === candidateCategory
+        );
+      });
+      if (!permitted) {
+        return {
+          compatible: false,
+          code: "SLOT_KIND",
+          reason: `${INCOMPATIBLE_MAPPING_STALE_PREFIX}: a ${describe(
+            slotKind,
+          )} compartment cannot hold a ${describe(candidateKind ?? "")} location`,
+          rootClass,
+          candidateClass,
+        };
+      }
     }
   }
 

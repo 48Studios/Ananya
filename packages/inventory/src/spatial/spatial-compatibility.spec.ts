@@ -104,7 +104,9 @@ describe("spatial kind classification", () => {
   it("classifies space kinds", () => {
     for (const kind of [
       "warehouse",
+      "room_area",
       "room",
+      "area",
       "building",
       "facility",
       "zone",
@@ -114,6 +116,10 @@ describe("spatial kind classification", () => {
       expect(isSpatialSpaceKind(kind)).toBe(true);
     }
     expect(isSpatialSpaceKind(" Aisle ")).toBe(true);
+    // The canonical room category is a space even though it has no dedicated
+    // legacy token of its own.
+    expect(classifySpatialKind("room_area")).toBe("space");
+    expect(isSpatialSpaceKind("room_area")).toBe(true);
   });
 
   it("classifies container and compartment kinds", () => {
@@ -145,6 +151,22 @@ describe("spatial kind classification", () => {
     expect(classifySpatialKind("")).toBe("unclassified");
     expect(classifySpatialKind(undefined)).toBe("unclassified");
   });
+
+  it("retains the legacy compartment class for drawer, bin, tray and slot", () => {
+    // Canonical identity now routes `tray` to `matrix_tray`, but the legacy
+    // COMPATIBILITY class must not drift with it: persisted rows and mappings
+    // were classified when `drawer`/`bin`/`tray`/`slot` were first-class
+    // compartment kinds, so changing the class would change
+    // slot-compatibility verdicts for data that has not changed.
+    for (const kind of ["drawer", "bin", "tray", "slot"]) {
+      expect(classifySpatialKind(kind)).toBe("compartment");
+    }
+    expect(classifySpatialKind(" Tray ")).toBe("compartment");
+    // Legacy tube aliases were and remain compartments too.
+    for (const kind of ["tube", "rail", "ic_tube", "ic_tube_rail"]) {
+      expect(classifySpatialKind(kind)).toBe("compartment");
+    }
+  });
 });
 
 describe("slot candidate kinds", () => {
@@ -158,9 +180,10 @@ describe("slot candidate kinds", () => {
       "bin",
       "compartment",
       "tray",
+      "matrix_tray",
     ]);
     expect(resolveSlotCandidateKinds("slot")).toEqual(
-      expect.arrayContaining(["bin", "tray", "compartment"]),
+      expect.arrayContaining(["bin", "tray", "compartment", "matrix_tray"]),
     );
     expect(resolveSlotCandidateKinds("shelf")).toEqual(
       expect.arrayContaining(["shelf", "rack", "cabinet"]),

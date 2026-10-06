@@ -339,11 +339,15 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       ["rack", "rack", 1.2, 2.1, 0.6],
       ["dry_cabinet", "dry-cabinet", 0.8, 1.8, 0.6],
       ["reel_rack", "reel-rack", 1, 1.8, 0.45],
+      // GEOMETRY SAFETY: the raw legacy `tray` token keeps its historical
+      // open-tray body; canonical `matrix_tray` (what new writes persist) gets
+      // the divided body. Dimensions are identical, only the body differs.
       ["tray", "tray", 0.6, 0.08, 0.3],
       ["matrix_tray", "matrix-tray", 0.6, 0.08, 0.3],
       ["tube", "tube", 0.04, 0.04, 0.12],
       ["reel_slot", "reel-slot", 0.09, 0.09, 0.1],
       ["compartment", "compartment", 0.1, 0.08, 0.14],
+      // `slot` has no canonical category, so it keeps its legacy compatible row.
       ["slot", "tray", 0.1, 0.08, 0.14],
     ])(
       "resolves %s to a dedicated physical representation",

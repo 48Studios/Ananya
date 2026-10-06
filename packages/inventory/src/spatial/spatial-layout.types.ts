@@ -2,8 +2,20 @@ import type { GeneratedCompartment, ParametricStorageConfig } from "./parametric
 
 export type SpatialLayoutStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
+/**
+ * Kinds that are walkable space, never a compartment.
+ *
+ * The first three are the canonical context categories (`warehouse`,
+ * `room_area`, `aisle`). The trailing entries are established persisted
+ * spellings retained for READ COMPATIBILITY only: `room` is a legacy alias for
+ * `room_area` (the write boundary canonicalizes it), and `building` /
+ * `facility` / `zone` are legacy values that have no canonical category but may
+ * still occur on existing rows. New writes never persist these spellings.
+ */
 export const INCOMPATIBLE_COMPARTMENT_KINDS = new Set([
   "warehouse",
+  "room_area",
+  "aisle",
   "room",
   "building",
   "facility",

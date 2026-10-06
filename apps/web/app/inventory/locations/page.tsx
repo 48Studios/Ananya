@@ -38,6 +38,8 @@ import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
 const kindBadgeColors: Record<string, string> = {
   warehouse:
     "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
+  room_area: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20",
+  // Legacy read-compatibility alias (persisted rows may still carry `room`).
   room: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20",
   aisle:
     "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20",
@@ -56,13 +58,15 @@ const kindBadgeColors: Record<string, string> = {
     "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20",
   reel_slot:
     "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  tray: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20",
-  tube: "bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-500/20",
+  matrix_tray:
+    "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20",
+  ic_tube_rail:
+    "bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-500/20",
 };
 
 const kindLabels: Record<string, string> = {
   warehouse: "Warehouse",
-  room: "Room / Area",
+  room_area: "Room / Area",
   aisle: "Aisle",
   rack: "Rack",
   shelf: "Shelf",
@@ -73,6 +77,10 @@ const kindLabels: Record<string, string> = {
   compartment: "Compartment",
   reel_rack: "Reel Rack",
   reel_slot: "Reel Slot",
+  matrix_tray: "Matrix Tray",
+  ic_tube_rail: "IC Tube / Rail",
+  // Legacy read-compatibility aliases for existing persisted rows.
+  room: "Room / Area",
   tray: "Matrix Tray",
   tube: "IC Tube / Rail",
 };
@@ -129,8 +137,9 @@ export default function LocationsPage() {
     () =>
       locations.filter(
         (l) =>
-          ["warehouse", "room", "aisle"].includes(l.kind.toLowerCase()) ||
-          !l.parentId,
+          ["warehouse", "room_area", "room", "aisle"].includes(
+            l.kind.toLowerCase(),
+          ) || !l.parentId,
       ).length,
     [locations],
   );
@@ -143,6 +152,9 @@ export default function LocationsPage() {
           "compartment",
           "reel_slot",
           "reel_rack",
+          "matrix_tray",
+          "ic_tube_rail",
+          // Legacy read-compatibility aliases so existing rows are still counted.
           "tray",
           "tube",
         ].includes(l.kind.toLowerCase()),
@@ -326,7 +338,7 @@ export default function LocationsPage() {
       title: "Kind",
       options: [
         { label: "Warehouse", value: "warehouse" },
-        { label: "Room / Area", value: "room" },
+        { label: "Room / Area", value: "room_area" },
         { label: "Aisle", value: "aisle" },
         { label: "Rack", value: "rack" },
         { label: "Shelf", value: "shelf" },
@@ -337,8 +349,12 @@ export default function LocationsPage() {
         { label: "Compartment", value: "compartment" },
         { label: "Reel Rack", value: "reel_rack" },
         { label: "Reel Slot", value: "reel_slot" },
-        { label: "Matrix Tray", value: "tray" },
-        { label: "IC Tube / Rail", value: "tube" },
+        { label: "Matrix Tray", value: "matrix_tray" },
+        { label: "IC Tube / Rail", value: "ic_tube_rail" },
+        // Legacy read-compatibility aliases so existing rows remain filterable.
+        { label: "Room / Area (legacy)", value: "room" },
+        { label: "Matrix Tray (legacy)", value: "tray" },
+        { label: "IC Tube / Rail (legacy)", value: "tube" },
       ],
     },
     {

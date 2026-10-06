@@ -50,7 +50,8 @@ export function SpatialTree({
 
     const getNodeIcon = () => {
       const k = node.kind.toLowerCase();
-      if (k === "warehouse" || k === "room") {
+      // `room` is retained as a legacy read-compatibility alias for `room_area`.
+      if (k === "warehouse" || k === "room_area" || k === "room") {
         return <Warehouse className="size-3.5 shrink-0 text-blue-500" />;
       }
       if (k === "aisle" || k === "rack") {

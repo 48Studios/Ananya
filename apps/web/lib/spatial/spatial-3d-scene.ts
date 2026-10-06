@@ -753,7 +753,6 @@ export function createChildCompartmentMesh(
     representationReason: representation.reason,
   };
 
-  const kindLower = child.kind?.toLowerCase() || "";
   const openable = Boolean(options.openable);
   let group: THREE.Group;
 
@@ -790,10 +789,22 @@ export function createChildCompartmentMesh(
   }
 
   // Explicit fallback tier: no model, no authored geometry, no kind shape.
-  if (
-    kindLower.includes("drawer") ||
-    (openable && kindLower.includes("slot"))
-  ) {
+  // Shape selection is canonical/token-safe (`resolveKindStructureShape` never
+  // substring-matches), so an unknown kind (`cabinet`, `ic_tube_/_rail`,
+  // `tube_holder`, `glass tube`, arbitrary strings) can never be misread as
+  // tray/bin/drawer geometry — it resolves to the generic box below.
+  const fallbackShape = resolveKindStructureShape(child.kind);
+  if (fallbackShape === "enclosure") {
+    // A cabinet-shaped fallback is a container, not a compartment body.
+    group = createGenericBoxMesh(
+      child.dimensions,
+      userData,
+      state,
+      badgeText,
+      options,
+    );
+  } else if (fallbackShape === "drawer" || (openable && fallbackShape === "tray")) {
+    // An openable tray-shaped fallback slides out as a drawer body.
     group = createDrawerMesh(
       child.dimensions,
       userData,
@@ -801,7 +812,7 @@ export function createChildCompartmentMesh(
       badgeText,
       options,
     );
-  } else if (kindLower.includes("bin")) {
+  } else if (fallbackShape === "tray") {
     group = createBinMesh(
       child.dimensions,
       userData,
@@ -809,7 +820,7 @@ export function createChildCompartmentMesh(
       badgeText,
       options,
     );
-  } else if (kindLower.includes("shelf") || kindLower.includes("tier")) {
+  } else if (fallbackShape === "shelf") {
     group = createShelfDeckMesh(
       child.dimensions,
       userData,
