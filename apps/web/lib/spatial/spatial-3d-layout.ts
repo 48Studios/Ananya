@@ -6,6 +6,7 @@ import type {
 } from "../api/spatial-api";
 import {
   isSpatialSpaceKind,
+  normalizeLocationCategory,
   normalizeSpatialKind,
   type ParametricStorageConfig,
 } from "@ananya/inventory";
@@ -132,6 +133,11 @@ export function resolveObjectDimensions(
   model: SpatialModelDto | null | undefined,
   anchor: SpatialAnchorDto | null | undefined,
   kind?: string,
+  slotDimensionsMm?: {
+    widthMm: number;
+    heightMm: number;
+    depthMm: number;
+  } | null,
 ): Vector3D {
   if (model) {
     if (
@@ -148,6 +154,23 @@ export function resolveObjectDimensions(
       x: mmToMeters(model.widthMm),
       y: mmToMeters(model.heightMm),
       z: mmToMeters(model.depthMm),
+    };
+  }
+
+  if (
+    slotDimensionsMm?.widthMm &&
+    slotDimensionsMm?.heightMm &&
+    slotDimensionsMm?.depthMm &&
+    [
+      slotDimensionsMm.widthMm,
+      slotDimensionsMm.heightMm,
+      slotDimensionsMm.depthMm,
+    ].every((dimension) => Number.isFinite(dimension) && dimension > 0)
+  ) {
+    return {
+      x: mmToMeters(slotDimensionsMm.widthMm),
+      y: mmToMeters(slotDimensionsMm.heightMm),
+      z: mmToMeters(slotDimensionsMm.depthMm),
     };
   }
 
@@ -610,6 +633,9 @@ export type { SpatialModelDefinition } from "./spatial-model-library";
  */
 export const WAREHOUSE_SHELL_KINDS: ReadonlySet<string> = new Set([
   "warehouse",
+  "room_area",
+  "room",
+  "area",
   "facility",
   "building",
 ]);
@@ -647,8 +673,18 @@ const RACK_SHAPED_TOKENS: ReadonlySet<string> = new Set([
  * as a child of another scene resolve to the same shape.
  */
 export function resolveKindStructureShape(kind?: string): ParentStructureShape {
+  const category = normalizeLocationCategory(kind);
+  // Warehouse and Room/Area are spaces that render a cutaway shell scene context.
+  if (category === "warehouse" || category === "room_area") {
+    return "warehouse";
+  }
+  // Aisle is an open space context with no structural carcass mesh.
+  if (category === "aisle") {
+    return "none";
+  }
+
   const normalized = normalizeSpatialKind(kind);
-  // A warehouse is a space, so its procedural body is the cutaway shell rather
+  // A warehouse or room is a space, so its procedural body is the cutaway shell rather
   // than a compartment carcass. An explicit model still wins (see
   // `resolveSpatialRepresentation`).
   if (WAREHOUSE_SHELL_KINDS.has(normalized)) return "warehouse";
@@ -762,6 +798,11 @@ export interface SpatialRepresentationInput {
   model?: SpatialModelDto | null;
   anchor?: SpatialAnchorDto | null;
   node?: SpatialNodeDto | null;
+  slotDimensionsMm?: {
+    widthMm: number;
+    heightMm: number;
+    depthMm: number;
+  } | null;
   mapping?: {
     publishedLayout?: {
       templateType?: string | null;
@@ -897,7 +938,7 @@ export function resolveSpatialRepresentation(
             y: mmToMeters(layoutDimensions.heightMm),
             z: mmToMeters(layoutDimensions.depthMm),
           }
-        : resolveObjectDimensions(null, input.anchor, kind);
+        : resolveObjectDimensions(null, input.anchor, kind, input.slotDimensionsMm);
     return {
       locationId,
       source: "layout",
@@ -917,7 +958,37 @@ export function resolveSpatialRepresentation(
     };
   }
 
-  // 4. Authored node/anchor geometry: the anchor's envelope is the object's
+  // 4. Authoritative mapped slot dimensions when the child is mapped and has no explicit physical dimensions.
+  if (
+    input.slotDimensionsMm &&
+    input.slotDimensionsMm.widthMm > 0 &&
+    input.slotDimensionsMm.heightMm > 0 &&
+    input.slotDimensionsMm.depthMm > 0
+  ) {
+    return {
+      locationId,
+      source: "layout",
+      structure: kindShape !== "none" ? kindShape : "compartment",
+      dimensions: {
+        x: mmToMeters(input.slotDimensionsMm.widthMm),
+        y: mmToMeters(input.slotDimensionsMm.heightMm),
+        z: mmToMeters(input.slotDimensionsMm.depthMm),
+      },
+      model: null,
+      wallThicknessMm: authored.wallThicknessMm,
+      postWidthMm: authored.postWidthMm,
+      beamHeightMm: authored.beamHeightMm,
+      shelfLevels: authored.shelfLevels,
+      reelRows: authored.reelRows,
+      reelSlotSpacingMm: authored.reelSlotSpacingMm,
+      gridRows: authored.gridRows,
+      gridColumns: authored.gridColumns,
+      gridDividerThicknessMm: authored.gridDividerThicknessMm,
+      reason: "authoritative mapped slot envelope",
+    };
+  }
+
+  // 5. Authored node/anchor geometry: the anchor's envelope is the object's
   // authored size even when no model or layout exists.
   if (
     input.anchor?.boundingWidthMm &&
@@ -1020,6 +1091,7 @@ export function resolveChildSpatialRepresentation(
     model: child.model,
     anchor: child.anchor,
     node: child.node,
+    slotDimensionsMm: child.slotDimensionsMm,
     mapping: child.mapping,
   });
 }
@@ -1539,6 +1611,59 @@ export function resolveWarehouseShellDimensions(
 }
 
 /**
+ * Resolves the effective 3D dimensions of a child location in meters following
+ * the strict precedence:
+ * 1. Explicit persisted child physical dimensions, when authoritative (preserved, never shrunk)
+ * 2. Authoritative mapped slot dimensions when the child is mapped and has no explicit physical dimensions
+ * 3. Canonical model default dimensions (constrained to slot envelope if an unauthored fallback exceeds it)
+ * 4. Generic fallback only as a last resort
+ */
+export function resolveChildDimensions(
+  child: LocationOperationalViewChildDto,
+  scale: Vector3D = { x: 1, y: 1, z: 1 },
+): Vector3D {
+  // 1. Explicit persisted child physical dimensions, when authoritative
+  const model = child.model;
+  if (
+    model?.widthMm &&
+    model?.heightMm &&
+    model?.depthMm &&
+    [model.widthMm, model.heightMm, model.depthMm].every(
+      (dimension) => Number.isFinite(dimension) && dimension > 0,
+    )
+  ) {
+    return {
+      x: mmToMeters(model.widthMm),
+      y: mmToMeters(model.heightMm),
+      z: mmToMeters(model.depthMm),
+    };
+  }
+
+  // 2. Authoritative mapped slot dimensions when the child is mapped and has no explicit physical dimensions
+  const slotEnvelope = resolveChildSlotEnvelope(child);
+  if (
+    slotEnvelope &&
+    slotEnvelope.widthMm > 0 &&
+    slotEnvelope.heightMm > 0 &&
+    slotEnvelope.depthMm > 0
+  ) {
+    return {
+      x: mmToMeters(slotEnvelope.widthMm),
+      y: mmToMeters(slotEnvelope.heightMm),
+      z: mmToMeters(slotEnvelope.depthMm),
+    };
+  }
+
+  // 3. Canonical model default dimensions (constrained to slot if oversized fallback)
+  const defaultDimensions = resolveObjectDimensions(
+    null,
+    child.anchor,
+    child.location?.kind,
+  );
+  return fitDimensionsToSlot(defaultDimensions, scale, slotEnvelope);
+}
+
+/**
  * Categorizes and positions children of a parent location for 3D visualization.
  *
  * A child is mapped when it has a spatial node — the authoritative definition
@@ -1584,21 +1709,7 @@ export function layoutChildrenFor3D(
       );
       const rotation = resolveChildRotation(child.node, child.anchor);
       const scale = resolveChildScale(child.node);
-      const modelDimensions = resolveObjectDimensions(
-        child.model,
-        child.anchor,
-        child.location.kind,
-      );
-      // Configured model dimensions are authoritative. A slot that is too small
-      // is an invalid layout to surface through validation, not permission for
-      // a renderer to shrink a location's canonical model.
-      const dimensions = child.model
-        ? modelDimensions
-        : fitDimensionsToSlot(
-            modelDimensions,
-            scale,
-            resolveChildSlotEnvelope(child),
-          );
+      const dimensions = resolveChildDimensions(child, scale);
 
       mapped.push({
         locationId: child.location.id,

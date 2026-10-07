@@ -11,9 +11,12 @@ import {
   mmToMeters,
   radToDeg,
   resolveAuthoredContainerDimensions,
+  resolveChildDimensions,
   resolveChildPosition,
   resolveChildRotation,
   resolveChildSlotEnvelope,
+  resolveChildSpatialRepresentation,
+  resolveKindStructureShape,
   resolveObjectDimensions,
   resolveOperationalParentBodyOffset,
   resolveSpatialRepresentation,
@@ -631,6 +634,112 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       expect(layout[0]?.dimensions).toEqual({ x: 0.05, y: 0.06, z: 0.25 });
       expect(layout[0]?.rawChild.model?.id).toBe("model-drawer-real");
       expect(layout[0]?.rawChild.location.kind).toBe("drawer");
+    });
+
+    it("uses mapped slot dimensions when child dimensions are absent, matching Builder envelope for SMD-CAB-01 drawer", () => {
+      // Production SMD-CAB-01: unmodeled drawer in a 189.5 x 89.5 x 190 mm slot
+      const smdSlot = { widthMm: 189.5, heightMm: 89.5, depthMm: 190 };
+      const unmodeledDrawer = createMockChild("drawer-prod", "SMD-DRW-01", {
+        kind: "drawer",
+      });
+      unmodeledDrawer.slotDimensionsMm = smdSlot;
+
+      // 1. resolveChildDimensions returns mapped slot envelope
+      const dims = resolveChildDimensions(unmodeledDrawer);
+      expect(dims.x).toBeCloseTo(mmToMeters(189.5), 6);
+      expect(dims.y).toBeCloseTo(mmToMeters(89.5), 6);
+      expect(dims.z).toBeCloseTo(mmToMeters(190), 6);
+
+      // 2. layoutChildrenFor3D (Location Details) resolves identical envelope
+      const { mapped } = layoutChildrenFor3D([unmodeledDrawer], null, new Map(), {
+        x: mmToMeters(600),
+        y: mmToMeters(900),
+        z: mmToMeters(200),
+      });
+      expect(mapped[0]?.dimensions.x).toBeCloseTo(mmToMeters(189.5), 6);
+      expect(mapped[0]?.dimensions.y).toBeCloseTo(mmToMeters(89.5), 6);
+      expect(mapped[0]?.dimensions.z).toBeCloseTo(mmToMeters(190), 6);
+
+      // 3. resolveChildSpatialRepresentation also reflects mapped slot envelope
+      const rep = resolveChildSpatialRepresentation(unmodeledDrawer);
+      expect(rep.dimensions.x).toBeCloseTo(mmToMeters(189.5), 6);
+      expect(rep.dimensions.y).toBeCloseTo(mmToMeters(89.5), 6);
+      expect(rep.dimensions.z).toBeCloseTo(mmToMeters(190), 6);
+      expect(rep.source).toBe("layout");
+
+      // 4. Builder (convertGeneratedToSceneLayout) resolves the exact same effective child envelope
+      const config = createDefaultSmdCabinetConfig();
+      const comp = generateStorageCompartments(config).compartments[0]!;
+      const builderLayout = convertGeneratedToSceneLayout(
+        [{ ...comp, dimensions: smdSlot }],
+        new Map([
+          [
+            comp.slotId,
+            {
+              slotId: comp.slotId,
+              slotCode: comp.code,
+              locationId: unmodeledDrawer.location.id,
+              locationCode: unmodeledDrawer.location.code,
+              locationName: unmodeledDrawer.location.name,
+              locationKind: unmodeledDrawer.location.kind,
+              mappedAt: "2026-10-06T00:00:00.000Z",
+            },
+          ],
+        ]),
+        config.dimensions,
+        { children: [unmodeledDrawer] } as unknown as LocationOperationalViewDto,
+      );
+      expect(builderLayout[0]?.dimensions.x).toBeCloseTo(mapped[0]!.dimensions.x, 6);
+      expect(builderLayout[0]?.dimensions.y).toBeCloseTo(mapped[0]!.dimensions.y, 6);
+      expect(builderLayout[0]?.dimensions.z).toBeCloseTo(mapped[0]!.dimensions.z, 6);
+    });
+
+    it("preserves explicit child dimensions when authoritative, avoiding silent overwriting", () => {
+      // Explicit physical dimensions must not be overwritten by slot envelope
+      const explicitDrawer = createMockChild("drw-custom", "DRW-CUSTOM", {
+        kind: "drawer",
+        modelDims: { w: 250, h: 75, d: 300 },
+      });
+      explicitDrawer.slotDimensionsMm = { widthMm: 190, heightMm: 80, depthMm: 190 };
+
+      const resolved = resolveChildDimensions(explicitDrawer);
+      expect(resolved.x).toBeCloseTo(mmToMeters(250), 6);
+      expect(resolved.y).toBeCloseTo(mmToMeters(75), 6);
+      expect(resolved.z).toBeCloseTo(mmToMeters(300), 6);
+    });
+
+    it("constrains an oversized fallback child correctly when unmodeled and exceeding slot constraint", () => {
+      // An oversized unmodeled child fitted via fitDimensionsToSlot
+      const oversizedDims = { x: mmToMeters(180), y: mmToMeters(70), z: mmToMeters(350) };
+      const slot = { widthMm: 190, heightMm: 90, depthMm: 190 };
+
+      const fitted = fitDimensionsToSlot(oversizedDims, { x: 1, y: 1, z: 1 }, slot);
+      // Scaled down uniformly so z fits within 190mm
+      expect(fitted.z).toBeLessThanOrEqual(mmToMeters(190) + 1e-9);
+      expect(fitted.x / oversizedDims.x).toBeCloseTo(fitted.z / oversizedDims.z, 6);
+    });
+
+    it("renders room_area and aliases using cutaway warehouse shell while aisle remains none", () => {
+      // Canonical normalized category check (no ad-hoc substring matching)
+      expect(resolveKindStructureShape("room_area")).toBe("warehouse");
+      expect(resolveKindStructureShape("room")).toBe("warehouse");
+      expect(resolveKindStructureShape("area")).toBe("warehouse");
+      expect(resolveKindStructureShape(" Room / Area ")).toBe("warehouse");
+      expect(resolveKindStructureShape("warehouse")).toBe("warehouse");
+      expect(resolveKindStructureShape("aisle")).toBe("none");
+      expect(resolveKindStructureShape(" Aisle ")).toBe("none");
+
+      // Verify room_area direct view representation has cutaway warehouse structure and non-1mm dimensions
+      const roomChild = createMockChild("room-1", "WRB", { kind: "room_area" });
+      const roomRep = resolveSpatialRepresentation({
+        location: roomChild.location,
+        model: null,
+      });
+      expect(roomRep.structure).toBe("warehouse");
+      expect(roomRep.source).toBe("kind");
+      expect(roomRep.dimensions.x).toBeGreaterThan(1);
+      expect(roomRep.dimensions.y).toBeGreaterThan(1);
+      expect(roomRep.dimensions.z).toBeGreaterThan(1);
     });
 
     it("accounts for a persisted node scale when fitting", () => {

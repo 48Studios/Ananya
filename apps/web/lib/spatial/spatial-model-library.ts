@@ -273,16 +273,16 @@ export const SPATIAL_MODEL_DEFINITIONS: Readonly<
     "tray",
   ),
   warehouse: context("warehouse", "Warehouse", "warehouse"),
-  room_area: context("room_area", "Room / Area", "none"),
+  room_area: context("room_area", "Room / Area", "warehouse"),
   building: context("building", "Building", "warehouse"),
   facility: context("facility", "Facility", "warehouse"),
   /**
    * Legacy read-compatibility row. Unreachable through
    * `resolveSpatialModel` (`room` → `room_area`), but retained: it shares
-   * `room_area`'s `structure: "none"`, so even a direct table access cannot
-   * change a rendered body.
+   * `room_area`'s `structure: "warehouse"`, so even a direct table access
+   * renders the cutaway room shell consistently.
    */
-  room: context("room", "Room", "none"),
+  room: context("room", "Room", "warehouse"),
   zone: context("zone", "Zone", "none"),
   aisle: context("aisle", "Aisle", "none"),
 };

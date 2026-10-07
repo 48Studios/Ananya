@@ -500,7 +500,7 @@ describe("Parent geometry ownership", () => {
       resolveParentGeometryOwnership(makeParent({ kind: "room" })),
     ).toMatchObject({
       source: "overview",
-      structure: "none",
+      structure: "warehouse",
     });
     expect(
       resolveParentGeometryOwnership(

@@ -702,7 +702,7 @@ describe("Canonical spatial representation", () => {
       { structure: string; source: string; kindClass: string }
     > = {
       warehouse: { structure: "warehouse", source: "kind", kindClass: "space" },
-      room_area: { structure: "none", source: "fallback", kindClass: "space" },
+      room_area: { structure: "warehouse", source: "kind", kindClass: "space" },
       aisle: { structure: "none", source: "fallback", kindClass: "space" },
       rack: { structure: "rack", source: "kind", kindClass: "container" },
       shelf: { structure: "shelf", source: "kind", kindClass: "container" },
@@ -788,8 +788,8 @@ describe("Canonical spatial representation", () => {
       { structure: string; source: string; kindClass: string }
     > = {
       // Space aliases — read-compatible spellings of `room_area`.
-      room: { structure: "none", source: "fallback", kindClass: "space" },
-      area: { structure: "none", source: "fallback", kindClass: "space" },
+      room: { structure: "warehouse", source: "kind", kindClass: "space" },
+      area: { structure: "warehouse", source: "kind", kindClass: "space" },
       // Legacy warehouse-shell spellings with no canonical category.
       building: { structure: "warehouse", source: "kind", kindClass: "space" },
       facility: { structure: "warehouse", source: "kind", kindClass: "space" },
