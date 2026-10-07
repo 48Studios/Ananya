@@ -283,6 +283,24 @@ describe("Spatial 2D Front Elevation Projection", () => {
           for (let b = a + 1; b < projection.slots.length; b++) {
             const first = projection.slots[a]!;
             const second = projection.slots[b]!;
+
+            // Compartments separated along the depth axis (Z) project onto the same
+            // front-elevation plane by design (orthographic line of sight, tested in Section 3).
+            // Only assert 2D non-overlap for compartments sharing the same depth plane.
+            const firstComp = generated.compartments.find(
+              (c) => c.slotId === first.slotId,
+            )!;
+            const secondComp = generated.compartments.find(
+              (c) => c.slotId === second.slotId,
+            )!;
+            const separatedInDepth =
+              Math.abs(firstComp.position.z - secondComp.position.z) >=
+              (firstComp.dimensions.depthMm + secondComp.dimensions.depthMm) / 2 -
+                TOLERANCE_MM;
+            if (separatedInDepth) {
+              continue;
+            }
+
             const overlaps =
               first.xMm < second.xMm + second.widthMm - TOLERANCE_MM &&
               second.xMm < first.xMm + first.widthMm - TOLERANCE_MM &&
