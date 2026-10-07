@@ -143,6 +143,39 @@ export function getAncestorChainIds(
 }
 
 /**
+ * Collects the physical ancestor chain for one mapped location: every location id on the
+ * path from the mapped location up to (but excluding) the layout container/parent.
+ * Traverses locations.containerId (RFC-0069 Phase 4C).
+ *
+ * If containerId is null, current is a physical root and traversal terminates.
+ * A parentId relationship alone never establishes physical containment.
+ * Cycle-safe: visited ids are never revisited.
+ */
+export function getPhysicalAncestorChainIds(
+  containerById: ReadonlyMap<string, string | null | undefined>,
+  containerLocationId: string,
+  mappedLocationId: string,
+): string[] {
+  const chain: string[] = [];
+  const visited = new Set<string>([containerLocationId]);
+  let current: string | null | undefined = mappedLocationId;
+  while (current && !visited.has(current)) {
+    visited.add(current);
+    if (current === containerLocationId) {
+      return chain;
+    }
+    chain.push(current);
+    current = containerById.get(current);
+    if (current === undefined || current === null) {
+      // Reached physical root or unobserved location row:
+      // report links collected so far so caller fails closed.
+      return chain;
+    }
+  }
+  return chain;
+}
+
+/**
  * Recursively retrieves all descendant location IDs under a given parent location.
  * Uses a cycle-safe breadth-first traversal over parentId relations.
  * Does NOT include the root parent location itself.
@@ -166,6 +199,50 @@ export function getDescendantLocationIds(
 
   const descendantIds = new Set<string>();
   const queue = [...(childrenMap.get(rootParentId) || [])];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift()!;
+    if (!descendantIds.has(currentId)) {
+      descendantIds.add(currentId);
+      const grandChildren = childrenMap.get(currentId);
+      if (grandChildren) {
+        for (const gcId of grandChildren) {
+          if (!descendantIds.has(gcId)) {
+            queue.push(gcId);
+          }
+        }
+      }
+    }
+  }
+
+  return descendantIds;
+}
+
+/**
+ * Recursively retrieves all physical descendant location IDs under a given container location.
+ * Uses a cycle-safe breadth-first traversal over containerId relations (RFC-0069 Phase 4B).
+ * Does NOT include the root container location itself.
+ * Locations with containerId = null are physical roots and are not descendants of anything.
+ */
+export function getPhysicalDescendantLocationIds(
+  locations: Array<{ id: string; containerId?: string | null }>,
+  rootContainerId: string | null | undefined,
+): Set<string> {
+  if (!rootContainerId || !locations || locations.length === 0) {
+    return new Set<string>();
+  }
+
+  const childrenMap = new Map<string, string[]>();
+  for (const loc of locations) {
+    if (loc.containerId) {
+      const list = childrenMap.get(loc.containerId) || [];
+      list.push(loc.id);
+      childrenMap.set(loc.containerId, list);
+    }
+  }
+
+  const descendantIds = new Set<string>();
+  const queue = [...(childrenMap.get(rootContainerId) || [])];
 
   while (queue.length > 0) {
     const currentId = queue.shift()!;

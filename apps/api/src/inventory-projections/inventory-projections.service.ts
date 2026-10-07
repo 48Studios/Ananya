@@ -55,17 +55,12 @@ export class InventoryProjectionsService {
   async getByLocation(locationId: string): Promise<InventoryProjection[]> {
     const allLocations = await this.locationRepository.findMany();
 
-    // RFC-0069 Phase 4: the physical rollup follows PHYSICAL containment
+    // RFC-0069 Phase 4A: the physical rollup follows PHYSICAL containment
     // (`containerId`), never the organizational hierarchy (`parentId`).
-    // `collectPhysicalSubtreeIds` reads `containerId` when present and falls
-    // back to a physically-valid `parentId` only while the database is
-    // partially backfilled; a physically-invalid organisation edge (a violation
-    // such as `cabinet → bin`) never creates a physical rollup. Traversal is
-    // cycle-safe. Set ANANYA_PHYSICAL_ROLLUP_STRICT=1 to drop the fallback
-    // (RFC-0069 Phase 5) once the backfill has populated `containerId`.
-    const subtreeIds = collectPhysicalSubtreeIds(locationId, allLocations, {
-      legacyParentFallback: process.env.ANANYA_PHYSICAL_ROLLUP_STRICT !== '1',
-    });
+    // `collectPhysicalSubtreeIds` is containerId-authoritative. A NULL containerId
+    // means the location is not physically contained in another location.
+    // Transitional fallback is removed from the production rollup path.
+    const subtreeIds = collectPhysicalSubtreeIds(locationId, allLocations);
 
     return this.projectionRepository.findManyByLocations(subtreeIds);
   }

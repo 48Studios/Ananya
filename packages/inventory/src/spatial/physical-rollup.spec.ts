@@ -31,22 +31,40 @@ describe("resolvePhysicalContainerId", () => {
     expect(resolvePhysicalContainerId(drw, byId([cab, drw]))).toBe("cab");
   });
 
-  it("falls back to a physically-valid parentId while un-backfilled", () => {
+  it("returns null by default when containerId is null even if parentId is canonical (Phase 4A)", () => {
     const cab = loc("cab", "cabinet");
-    const drw = loc("drw", "drawer", "cab"); // canonical, containerId null
-    expect(resolvePhysicalContainerId(drw, byId([cab, drw]))).toBe("cab");
+    const drw = loc("drw", "drawer", "cab", null); // canonical parent, but containerId is null
+    expect(resolvePhysicalContainerId(drw, byId([cab, drw]))).toBeNull();
   });
 
-  it("does NOT fall back along a violation edge (organizational parent ≠ physical)", () => {
+  it("falls back to a physically-valid parentId ONLY when legacyParentFallback: true is explicitly passed", () => {
     const cab = loc("cab", "cabinet");
-    const bin = loc("bin", "bin", "cab"); // cabinet → bin is a violation
-    expect(resolvePhysicalContainerId(bin, byId([cab, bin]))).toBeNull();
+    const drw = loc("drw", "drawer", "cab", null); // canonical, containerId null
+    expect(
+      resolvePhysicalContainerId(drw, byId([cab, drw]), {
+        legacyParentFallback: true,
+      }),
+    ).toBe("cab");
   });
 
-  it("does NOT fall back for shelf → shelf", () => {
+  it("does NOT fall back along a violation edge (cabinet → bin) even when legacyParentFallback: true", () => {
+    const cab = loc("cab", "cabinet");
+    const bin = loc("bin", "bin", "cab", null); // cabinet → bin is a violation
+    expect(
+      resolvePhysicalContainerId(bin, byId([cab, bin]), {
+        legacyParentFallback: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("does NOT fall back for shelf → shelf even when legacyParentFallback: true", () => {
     const s1 = loc("s1", "shelf");
-    const s2 = loc("s2", "shelf", "s1");
-    expect(resolvePhysicalContainerId(s2, byId([s1, s2]))).toBeNull();
+    const s2 = loc("s2", "shelf", "s1", null);
+    expect(
+      resolvePhysicalContainerId(s2, byId([s1, s2]), {
+        legacyParentFallback: true,
+      }),
+    ).toBeNull();
   });
 
   it("returns null for an unparented location with no containerId", () => {
@@ -54,31 +72,33 @@ describe("resolvePhysicalContainerId", () => {
     expect(resolvePhysicalContainerId(cab, byId([cab]))).toBeNull();
   });
 
-  it("returns null for a dangling parent", () => {
-    const drw = loc("drw", "drawer", "missing");
-    expect(resolvePhysicalContainerId(drw, byId([drw]))).toBeNull();
-  });
-
-  it("honours legacyParentFallback=false (Phase 5 behaviour)", () => {
-    const cab = loc("cab", "cabinet");
-    const drw = loc("drw", "drawer", "cab");
+  it("returns null for a dangling parent even when legacyParentFallback: true", () => {
+    const drw = loc("drw", "drawer", "missing", null);
     expect(
-      resolvePhysicalContainerId(drw, byId([cab, drw]), {
-        legacyParentFallback: false,
+      resolvePhysicalContainerId(drw, byId([drw]), {
+        legacyParentFallback: true,
       }),
     ).toBeNull();
   });
 
-  it("accepts a context-root fallback (warehouse owns a rack)", () => {
+  it("accepts a context-root fallback when legacyParentFallback: true (warehouse owns a rack)", () => {
     const wh = loc("wh", "warehouse");
-    const rack = loc("rack", "rack", "wh");
-    expect(resolvePhysicalContainerId(rack, byId([wh, rack]))).toBe("wh");
+    const rack = loc("rack", "rack", "wh", null);
+    expect(
+      resolvePhysicalContainerId(rack, byId([wh, rack]), {
+        legacyParentFallback: true,
+      }),
+    ).toBe("wh");
   });
 
-  it("accepts a legacy-compatible fallback (tray → bin)", () => {
+  it("accepts a legacy-compatible fallback when legacyParentFallback: true (tray → bin)", () => {
     const tray = loc("tray", "tray");
-    const bin = loc("bin", "bin", "tray");
-    expect(resolvePhysicalContainerId(bin, byId([tray, bin]))).toBe("tray");
+    const bin = loc("bin", "bin", "tray", null);
+    expect(
+      resolvePhysicalContainerId(bin, byId([tray, bin]), {
+        legacyParentFallback: true,
+      }),
+    ).toBe("tray");
   });
 });
 
@@ -88,77 +108,83 @@ describe("collectPhysicalSubtreeIds", () => {
     expect(collectPhysicalSubtreeIds("bin", [bin])).toEqual(["bin"]);
   });
 
-  it("rolls up a valid container subtree", () => {
+  it("Case A: Canonical physical hierarchy: cabinet → drawer → bin rolls up through containerId", () => {
     const cab = loc("cab", "cabinet", null, null);
-    const drw = loc("drw", "drawer", "org", "cab");
-    const bin = loc("bin", "bin", null, "drw");
+    const drw = loc("drw", "drawer", "some-org", "cab");
+    const bin = loc("bin", "bin", "some-org", "drw");
     const ids = collectPhysicalSubtreeIds("cab", [cab, drw, bin]);
     expect(new Set(ids)).toEqual(new Set(["cab", "drw", "bin"]));
   });
 
-  it("does NOT roll up across an organizational-only invalid edge", () => {
-    // A cabinet with an organizational child bin, no containerId anywhere.
-    // cabinet → bin is a violation, so no physical rollup may occur.
+  it("Case B: Organizational-only parent: parentId without containerId does NOT participate in physical containment", () => {
+    // drw has parentId = 'cab', but containerId is NULL.
+    // Under Phase 4A, cab must NOT roll up drw.
     const cab = loc("cab", "cabinet");
-    const bin = loc("bin", "bin", "cab");
+    const drw = loc("drw", "drawer", "cab", null);
+    const ids = collectPhysicalSubtreeIds("cab", [cab, drw]);
+    expect(ids).toEqual(["cab"]);
+
+    // drw still rolls up itself
+    expect(collectPhysicalSubtreeIds("drw", [cab, drw])).toEqual(["drw"]);
+  });
+
+  it("Case C: Invalid legacy relationship: cabinet → bin with containerId NULL does NOT cause physical rollup", () => {
+    const cab = loc("cab", "cabinet");
+    const bin = loc("bin", "bin", "cab", null);
     const ids = collectPhysicalSubtreeIds("cab", [cab, bin]);
     expect(ids).toEqual(["cab"]);
   });
 
-  it("does roll up once the physical container is populated, even with a violation parentId", () => {
-    // The backfill sets containerId; the organizational parentId stays a
-    // violation. Physical rollup follows containerId.
-    const cab = loc("cab", "cabinet");
-    const bin = loc("bin", "bin", "cab", "cab");
-    const ids = collectPhysicalSubtreeIds("cab", [cab, bin]);
-    expect(new Set(ids)).toEqual(new Set(["cab", "bin"]));
-  });
-
-  it("handles mixed organizational and physical hierarchies", () => {
-    // warehouse (context root) owns cabinet + rack physically.
-    // A drawer is physically in the cabinet; a bin is physically in the drawer.
-    // One cabinet is organizationally (but not physically) under the rack.
-    const wh = loc("wh", "warehouse");
-    const rack = loc("rack", "rack", "wh", "wh");
+  it("Case D: Context root: warehouse → cabinet/rack rolls up correctly through containerId", () => {
+    const wh = loc("wh", "warehouse", null, null);
     const cab = loc("cab", "cabinet", "wh", "wh");
-    const drw = loc("drw", "drawer", "cab", "cab");
-    const bin = loc("bin", "bin", "drw", "drw");
-    const strayCab = loc("stray", "cabinet", "rack", null); // org-only under rack
-
-    const ids = collectPhysicalSubtreeIds("wh", [wh, rack, cab, drw, bin, strayCab]);
-    // warehouse physically contains rack + cabinet, then drawer, then bin.
-    // `strayCab` is only organizationally under the rack, and `rack → cabinet`
-    // is NOT canonical (a rack's only canonical child is a shelf) and the rack
-    // is not a context root, so it has no physical container and is EXCLUDED.
-    expect(new Set(ids)).toEqual(
-      new Set(["wh", "rack", "cab", "drw", "bin"]),
-    );
-  });
-
-  it("excludes an organizational-only branch when the edge is a violation", () => {
-    const wh = loc("wh", "warehouse");
     const rack = loc("rack", "rack", "wh", "wh");
     const shelf = loc("shelf", "shelf", "rack", "rack");
-    const badBin = loc("bad", "bin", "rack", "rack"); // rack → bin violation, but containerId set by test
-    // Without a containerId, the rack-organizational bin has no physical parent.
-    const orgOnlyBin = loc("orgbin", "bin", "rack", null);
-
-    const ids = collectPhysicalSubtreeIds("rack", [
-      wh,
-      rack,
-      shelf,
-      badBin,
-      orgOnlyBin,
-    ]);
-    // badBin is physically in the rack (containerId), so included;
-    // orgOnlyBin is only organizationally under the rack → excluded.
-    expect(new Set(ids)).toEqual(new Set(["rack", "shelf", "bad"]));
+    const ids = collectPhysicalSubtreeIds("wh", [wh, cab, rack, shelf]);
+    expect(new Set(ids)).toEqual(new Set(["wh", "cab", "rack", "shelf"]));
   });
 
-  it("terminates on a malformed container cycle", () => {
+  it("Case E: Parent/container divergence: physical rollup follows containerId, NOT parentId", () => {
+    // Child is organizationally under orgRoot, but physically placed inside physContainer.
+    const orgRoot = loc("org-root", "warehouse", null, null);
+    const physContainer = loc("phys-cab", "cabinet", null, null);
+    const item = loc("item-bin", "bin", "org-root", "phys-cab");
+
+    // Rollup from orgRoot does NOT include item
+    const orgIds = collectPhysicalSubtreeIds("org-root", [orgRoot, physContainer, item]);
+    expect(orgIds).toEqual(["org-root"]);
+
+    // Rollup from physContainer DOES include item
+    const physIds = collectPhysicalSubtreeIds("phys-cab", [orgRoot, physContainer, item]);
+    expect(new Set(physIds)).toEqual(new Set(["phys-cab", "item-bin"]));
+  });
+
+  it("Case F: Cycle protection: containerId cycles are guarded and terminate safely", () => {
     const a = loc("a", "cabinet", null, "b");
     const b = loc("b", "shelf", null, "a");
     const ids = collectPhysicalSubtreeIds("a", [a, b]);
     expect(new Set(ids)).toEqual(new Set(["a", "b"]));
+  });
+
+  it("Case G: Existing stock totals remain unchanged when valid physical relationships are represented via containerId", () => {
+    const cab = loc("cab", "cabinet", null, null);
+    const drw1 = loc("drw1", "drawer", "cab", "cab");
+    const drw2 = loc("drw2", "drawer", "cab", "cab");
+    const bin = loc("bin", "bin", "drw1", "drw1");
+
+    const ids = collectPhysicalSubtreeIds("cab", [cab, drw1, drw2, bin]);
+    expect(new Set(ids)).toEqual(new Set(["cab", "drw1", "drw2", "bin"]));
+  });
+
+  it("Architecture constraint: fails if physical rollup reverts to parentId", () => {
+    // Location has canonical parentId 'cab', but containerId is explicitly null.
+    // If code ever mistakenly reads parentId as physical containment,
+    // collectPhysicalSubtreeIds('cab') would return ['cab', 'drw'].
+    // Under RFC-0069 Phase 4A, it MUST return ['cab'].
+    const cab = loc("cab", "cabinet", null, null);
+    const drw = loc("drw", "drawer", "cab", null);
+
+    const ids = collectPhysicalSubtreeIds("cab", [cab, drw]);
+    expect(ids).toEqual(["cab"]);
   });
 });

@@ -95,6 +95,7 @@ describe('Spatial Layout Persistence & Publication Integration', () => {
         name: `Drawer ${tag} ${testRunId}`,
         kind: 'drawer',
         parentId: parent.id,
+        containerId: parent.id,
         isActive: true,
       })
       .returning();
@@ -137,6 +138,7 @@ describe('Spatial Layout Persistence & Publication Integration', () => {
           name: `Drawer 1 ${testRunId}`,
           kind: 'drawer',
           parentId: parentLocationId,
+          containerId: parentLocationId,
           isActive: true,
         },
         {
@@ -144,6 +146,7 @@ describe('Spatial Layout Persistence & Publication Integration', () => {
           name: `Drawer 2 ${testRunId}`,
           kind: 'drawer',
           parentId: parentLocationId,
+          containerId: parentLocationId,
           isActive: true,
         },
         {
@@ -151,6 +154,7 @@ describe('Spatial Layout Persistence & Publication Integration', () => {
           name: `Drawer 3 ${testRunId}`,
           kind: 'drawer',
           parentId: parentLocationId,
+          containerId: parentLocationId,
           isActive: true,
         },
       ])
@@ -169,6 +173,7 @@ describe('Spatial Layout Persistence & Publication Integration', () => {
         name: `Inactive Drawer ${testRunId}`,
         kind: 'drawer',
         parentId: parentLocationId,
+        containerId: parentLocationId,
         isActive: false,
       })
       .returning();
@@ -212,6 +217,7 @@ describe('Spatial Layout Persistence & Publication Integration', () => {
         name: `Unrelated Drawer ${testRunId}`,
         kind: 'drawer',
         parentId: unrelatedParentId,
+        containerId: unrelatedParentId,
         isActive: true,
       })
       .returning();
@@ -785,6 +791,7 @@ describe('Spatial Layout Persistence & Publication Integration', () => {
           name: `Concurrency Drawer ${testRunId}`,
           kind: 'drawer',
           parentId: concParent?.id,
+          containerId: concParent?.id,
           isActive: true,
         })
         .returning();

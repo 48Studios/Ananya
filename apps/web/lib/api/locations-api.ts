@@ -6,6 +6,7 @@ export interface LocationDto {
   name: string;
   kind: string;
   parentId: string | null;
+  containerId?: string | null;
   isActive: boolean;
   metadata: Record<string, unknown>;
   createdAt: string;
@@ -17,6 +18,7 @@ export interface CreateLocationPayload {
   name: string;
   kind: string;
   parentId?: string | null;
+  containerId?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -25,6 +27,7 @@ export interface UpdateLocationPayload {
   name?: string;
   kind?: string;
   parentId?: string | null;
+  containerId?: string | null;
   isActive?: boolean;
   metadata?: Record<string, unknown>;
 }

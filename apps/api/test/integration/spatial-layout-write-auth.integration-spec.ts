@@ -182,6 +182,7 @@ describe('Spatial Layout API — authorization', () => {
         name: `Auth Drawer ${runTag}`,
         kind: 'drawer',
         parentId: parent.id,
+        containerId: parent.id,
         isActive: true,
       })
       .returning();

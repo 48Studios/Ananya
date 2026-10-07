@@ -13,8 +13,8 @@ import {
   generateStorageCompartments,
   diffParametricCompartments,
   computeSlotAcknowledgmentSignature,
-  getAncestorChainIds,
-  getDescendantLocationIds,
+  getPhysicalAncestorChainIds,
+  getPhysicalDescendantLocationIds,
   findSpatialMappingIncompatibilities,
   isTemplateRootCompatible,
   isSpatialSpaceKind,
@@ -890,7 +890,7 @@ export class SpatialLayoutService {
         id: locations.id,
         code: locations.code,
         kind: locations.kind,
-        parentId: locations.parentId,
+        containerId: locations.containerId,
         isActive: locations.isActive,
       })
       .from(locations)
@@ -1057,23 +1057,25 @@ export class SpatialLayoutService {
       attempt <= SpatialLayoutService.MAX_HIERARCHY_VERIFY_ATTEMPTS;
       attempt++
     ) {
-      // (a) Snapshot the parent links.
+      // (a) Snapshot the physical container links.
       const linkRows = await tx
         .select({
           id: locations.id,
-          parentId: locations.parentId,
+          containerId: locations.containerId,
         })
         .from(locations);
-      const parentById = new Map(linkRows.map((row) => [row.id, row.parentId]));
+      const containerById = new Map(
+        linkRows.map((row) => [row.id, row.containerId]),
+      );
 
-      // (b) Derive the union of ancestor chains from the snapshot.
+      // (b) Derive the union of physical ancestor chains from the snapshot.
       const chainIds = new Set<string>();
       for (const mappedId of mappedLocIds) {
         if (mappedId === parentLocationId) {
           continue;
         }
-        for (const linkId of getAncestorChainIds(
-          parentById,
+        for (const linkId of getPhysicalAncestorChainIds(
+          containerById,
           parentLocationId,
           mappedId,
         )) {
@@ -1081,7 +1083,7 @@ export class SpatialLayoutService {
         }
       }
 
-      // (c) Lock the whole chain FOR SHARE in deterministic id order.
+      // (c) Lock the whole physical chain FOR SHARE in deterministic id order.
       //
       // The chain always contains at least the mapped rows themselves, so this
       // statement is never empty when mappings are present. Re-locking rows the
@@ -1107,7 +1109,7 @@ export class SpatialLayoutService {
       const lockedLinkRows = await tx
         .select({
           id: locations.id,
-          parentId: locations.parentId,
+          containerId: locations.containerId,
         })
         .from(locations)
         .where(
@@ -1119,29 +1121,33 @@ export class SpatialLayoutService {
       const freshLinkRows = await tx
         .select({
           id: locations.id,
-          parentId: locations.parentId,
+          containerId: locations.containerId,
         })
         .from(locations);
-      const freshParentById = new Map(
-        freshLinkRows.map((row) => [row.id, row.parentId]),
+      const freshContainerById = new Map(
+        freshLinkRows.map((row) => [row.id, row.containerId]),
       );
 
       // Every chain row must still exist ...
       let stable = lockedLinkRows.length === orderedChainIds.length;
       if (stable) {
-        // ... and every mapped location must still reach the parent through
+        // ... and every mapped location must still reach the parent container through
         // locked state.
         for (const mappedId of mappedLocIds) {
           if (mappedId === parentLocationId) {
             continue;
           }
-          const chain = getAncestorChainIds(
-            freshParentById,
+          const chain = getPhysicalAncestorChainIds(
+            freshContainerById,
             parentLocationId,
             mappedId,
           );
           if (
-            !this.chainReachesParent(freshParentById, parentLocationId, chain)
+            !this.chainReachesParent(
+              freshContainerById,
+              parentLocationId,
+              chain,
+            )
           ) {
             stable = false;
             break;
@@ -1150,7 +1156,10 @@ export class SpatialLayoutService {
       }
 
       if (stable) {
-        return getDescendantLocationIds(freshLinkRows, parentLocationId);
+        return getPhysicalDescendantLocationIds(
+          freshLinkRows,
+          parentLocationId,
+        );
       }
       // Otherwise loop: re-derive chains from fresh state and try again.
     }
@@ -1159,12 +1168,13 @@ export class SpatialLayoutService {
   }
 
   /**
-   * Confirms an ancestor chain derived from locked state actually terminates at
-   * the layout parent: every link must be present, and following parent
-   * pointers from the outermost link must reach the layout parent.
+   * Confirms a physical ancestor chain derived from locked state actually terminates at
+   * the layout container/parent: every link must be present, and following containerId
+   * pointers from the outermost link must reach the layout container/parent.
+   * If containerId is null, current is a physical root and does not reach the parent.
    */
   private chainReachesParent(
-    parentById: ReadonlyMap<string, string | null>,
+    containerById: ReadonlyMap<string, string | null | undefined>,
     parentLocationId: string,
     chain: string[],
   ): boolean {
@@ -1172,15 +1182,15 @@ export class SpatialLayoutService {
       return true;
     }
     // The chain is ordered mapped -> ... -> outermost link. Walk it: every link
-    // must be present, and following parent pointers from the outermost link
+    // must be present, and following container pointers from the outermost link
     // must reach the layout parent.
     for (const linkId of chain) {
-      if (!parentById.has(linkId)) {
+      if (!containerById.has(linkId)) {
         return false;
       }
     }
     const outermost = chain[chain.length - 1] as string;
-    let current: string | null | undefined = parentById.get(outermost);
+    let current: string | null | undefined = containerById.get(outermost);
     const visited = new Set<string>(chain);
     while (current) {
       if (current === parentLocationId) {
@@ -1190,7 +1200,7 @@ export class SpatialLayoutService {
         return false;
       }
       visited.add(current);
-      const next = parentById.get(current);
+      const next = containerById.get(current);
       if (next === undefined) {
         return false;
       }

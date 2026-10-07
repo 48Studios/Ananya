@@ -142,6 +142,7 @@ describe('Spatial Layout Concurrency — hierarchy lock serialization', () => {
         name: `Race Drawer ${tag} ${runTag}`,
         kind: 'drawer',
         parentId,
+        containerId: parentId,
         isActive: true,
       })
       .returning();
@@ -167,6 +168,7 @@ describe('Spatial Layout Concurrency — hierarchy lock serialization', () => {
         name: `Race Sub-assembly ${tag} ${runTag}`,
         kind: 'drawer',
         parentId,
+        containerId: parentId,
         isActive: true,
       })
       .returning();
@@ -512,7 +514,7 @@ describe('Spatial Layout Concurrency — hierarchy lock serialization', () => {
     const blocker = holdUncommittedMutation(async (tx) => {
       await tx
         .update(locations)
-        .set({ parentId: otherParentId })
+        .set({ parentId: otherParentId, containerId: otherParentId })
         .where(eq(locations.id, ancestorId));
     });
     await blocker.locked;
@@ -585,7 +587,7 @@ describe('Spatial Layout Concurrency — hierarchy lock serialization', () => {
     const blocker = holdUncommittedMutation(async (tx) => {
       await tx
         .update(locations)
-        .set({ parentId: otherParentId })
+        .set({ parentId: otherParentId, containerId: otherParentId })
         .where(eq(locations.id, ancestorId));
     });
     await blocker.locked;
@@ -653,7 +655,7 @@ describe('Spatial Layout Concurrency — hierarchy lock serialization', () => {
     const blocker = holdUncommittedMutation(async (tx) => {
       await tx
         .update(locations)
-        .set({ parentId: otherParentId })
+        .set({ parentId: otherParentId, containerId: otherParentId })
         .where(eq(locations.id, ancestorId));
     });
     await blocker.locked;
@@ -692,6 +694,51 @@ describe('Spatial Layout Concurrency — hierarchy lock serialization', () => {
       .from(spatialNodes)
       .where(eq(spatialNodes.locationId, mappedId));
     expect(nodes).toHaveLength(0);
+  });
+
+  it('allows publication when intermediate ancestor undergoes organizational reparent (parentId only, containerId unchanged)', async () => {
+    if (!hasDbUrl) return;
+
+    const { parentId, ancestorId, mappedId, otherParentId } =
+      await createAncestorChain('CHAIN-ORG-REPARENT');
+    const layoutCode = `${runTag}-CHAIN-ORG-REPARENT`;
+
+    const created = await layoutService.createLayout({
+      parentLocationId: parentId,
+      code: layoutCode,
+      name: 'Organizational reparent layout (publish)',
+      templateType: 'SMD_DRAWER_CABINET',
+      config: smdConfig(1000),
+      mappings: [
+        {
+          slotId: 'drawer_slot_r0_c0',
+          slotCode: 'A01',
+          locationId: mappedId,
+        },
+      ],
+    });
+    createdLayoutIds.push(created.id);
+
+    // Reparent ONLY parentId, keeping physical containerId pointing to parentId
+    await db
+      .update(locations)
+      .set({ parentId: otherParentId })
+      .where(eq(locations.id, ancestorId));
+
+    // Publication succeeds because physical containment is containerId-authoritative
+    const published = await layoutService.publishLayout(created.id, {
+      expectedRevision: 1,
+      changeDescription: 'Publish after organizational-only reparent',
+    });
+
+    expect(published.status).toBe('PUBLISHED');
+    expect(published.revision).toBe(2);
+
+    const nodes = await db
+      .select()
+      .from(spatialNodes)
+      .where(eq(spatialNodes.locationId, mappedId));
+    expect(nodes).toHaveLength(1);
   });
 
   it('rejects publication when the parent location is inactive', async () => {

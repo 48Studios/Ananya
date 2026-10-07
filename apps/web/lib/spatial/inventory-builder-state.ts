@@ -13,6 +13,7 @@ import {
   generateStorageCompartments,
   validateParametricConfig,
   INCOMPATIBLE_COMPARTMENT_KINDS,
+  getPhysicalDescendantLocationIds,
   type Dimensions3D,
   type GeneratedCompartment,
   type GeneratedStorageResult,
@@ -133,47 +134,19 @@ export function computeSlotMeaningSignature(
 }
 
 /**
- * Recursively retrieves all descendant location IDs under a given parent location.
- * Uses a cycle-safe breadth-first traversal over parentId relations.
- * Note: Does NOT include the parent location itself.
+ * Recursively retrieves all physical descendant location IDs under a given container location.
+ * Uses a cycle-safe breadth-first traversal over containerId relations (RFC-0069 Phase 4B).
+ * Note: Does NOT include the root container location itself.
+ * Locations with containerId = null are physical roots and are NOT descendants of anything.
  */
 export function getDescendantLocationIds(
   locations: LocationDto[],
-  rootParentId: string | null | undefined,
+  rootContainerId: string | null | undefined,
 ): Set<string> {
-  if (!rootParentId || !locations || locations.length === 0) {
-    return new Set<string>();
-  }
-
-  const childrenMap = new Map<string, string[]>();
-  for (const loc of locations) {
-    if (loc.parentId) {
-      const list = childrenMap.get(loc.parentId) || [];
-      list.push(loc.id);
-      childrenMap.set(loc.parentId, list);
-    }
-  }
-
-  const descendantIds = new Set<string>();
-  const queue = [...(childrenMap.get(rootParentId) || [])];
-
-  while (queue.length > 0) {
-    const currentId = queue.shift()!;
-    if (!descendantIds.has(currentId)) {
-      descendantIds.add(currentId);
-      const grandChildren = childrenMap.get(currentId);
-      if (grandChildren) {
-        for (const gcId of grandChildren) {
-          if (!descendantIds.has(gcId)) {
-            queue.push(gcId);
-          }
-        }
-      }
-    }
-  }
-
-  return descendantIds;
+  return getPhysicalDescendantLocationIds(locations, rootContainerId);
 }
+
+export { getPhysicalDescendantLocationIds };
 
 /**
  * Creates the initial workspace state with default SMD Drawer Cabinet configuration.
@@ -985,6 +958,7 @@ export function convertGeneratedToSceneLayout(
               name: mapping?.locationName ?? comp.name,
               kind: mapping?.locationKind ?? comp.kind,
               parentId: null,
+              containerId: null,
               isActive: true,
               metadata: {
                 isDraftSlot: !isMapped,

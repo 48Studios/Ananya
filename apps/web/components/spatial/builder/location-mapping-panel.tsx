@@ -23,7 +23,10 @@ import {
 } from "@ananya/inventory";
 import type { LocationDto } from "@/lib/api/locations-api";
 import { type LocationOperationalViewDto } from "@/lib/api/spatial-api";
-import type { SlotMappingRecord } from "@/lib/spatial/inventory-builder-state";
+import {
+  getDescendantLocationIds,
+  type SlotMappingRecord,
+} from "@/lib/spatial/inventory-builder-state";
 import { cn } from "@/lib/utils";
 
 export interface LocationMappingPanelProps {
@@ -83,18 +86,51 @@ export function LocationMappingPanel({
       }));
   }, [locations, templateType]);
 
+  // Set of valid physical descendant location IDs under the selected parent container
+  const descendantIds = React.useMemo(() => {
+    if (!selectedParentId) return new Set<string>();
+    return getDescendantLocationIds(locations, selectedParentId);
+  }, [locations, selectedParentId]);
+
+  // Candidates under this parent container based on physical containment (RFC-0069 Phase 4B)
+  const candidateChildren = React.useMemo(() => {
+    if (!selectedParentId) return [];
+    return locations
+      .filter((loc) => descendantIds.has(loc.id))
+      .map((loc) => {
+        const opChild = operationalView?.children.find(
+          (c) => c.location.id === loc.id,
+        );
+        return {
+          location: {
+            id: loc.id,
+            code: loc.code,
+            name: loc.name,
+            kind: loc.kind,
+            parentId: loc.parentId,
+            containerId: loc.containerId,
+            isActive: loc.isActive,
+            metadata: loc.metadata,
+          },
+          node: opChild?.node ?? null,
+          model: opChild?.model ?? null,
+          anchor: opChild?.anchor ?? null,
+          mapping: opChild?.mapping ?? null,
+        };
+      });
+  }, [locations, selectedParentId, descendantIds, operationalView]);
+
   // Filter children based on search
   const filteredChildren = React.useMemo(() => {
-    if (!operationalView) return [];
     const query = searchFilter.toLowerCase().trim();
-    if (!query) return operationalView.children;
+    if (!query) return candidateChildren;
 
-    return operationalView.children.filter(
+    return candidateChildren.filter(
       (c) =>
         c.location.code.toLowerCase().includes(query) ||
         c.location.name.toLowerCase().includes(query),
     );
-  }, [operationalView, searchFilter]);
+  }, [candidateChildren, searchFilter]);
 
   // Available unmapped builder slots that can receive a location
   const unassignedSlots = React.useMemo(() => {
@@ -165,7 +201,7 @@ export function LocationMappingPanel({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 font-semibold text-foreground">
               <Layers className="size-3.5 text-muted-foreground" />
-              <span>Child Locations ({operationalView.children.length})</span>
+              <span>Child Locations ({candidateChildren.length})</span>
             </div>
             <div className="w-40">
               <Input

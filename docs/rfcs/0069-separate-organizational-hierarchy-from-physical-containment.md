@@ -1,9 +1,9 @@
 # RFC-0069: Separating Organizational Hierarchy from Physical Containment
 
-**Status:** Draft (proposal — not implemented)
+**Status:** IMPLEMENTED / CLOSED
 **Author:** Ananya Core Architecture & Spatial Engineering
 **Created:** 2026-10-07
-**Last Revised:** 2026-10-07
+**Last Revised:** 2026-10-07 (Implemented & Closed)
 **Target Phase:** Spatial Integrity — Location Containment Model
 **Related RFCs:** [RFC-0021](0021-warehouse-structure-and-bin-locations.md), [RFC-0062](0062-spatial-inventory-architecture.md), [RFC-0063](0063-spatial-inventory-data-model.md), [RFC-0064](0064-spatial-inventory-visualization.md), [RFC-0066](0066-spatial-inventory-implementation.md), [RFC-0067](0067-spatial-visual-first-ux.md), [RFC-0068](0068-inventory-builder-persistence.md)
 **Related Code:**
@@ -13,6 +13,29 @@
 - Schema: [`packages/database/src/schema/locations.ts`](../../packages/database/src/schema/locations.ts), [`packages/database/src/schema/spatial.ts`](../../packages/database/src/schema/spatial.ts)
 - Consumers: [`apps/api/src/inventory-projections/inventory-projections.service.ts`](../../apps/api/src/inventory-projections/inventory-projections.service.ts), [`apps/api/src/spatial/spatial-layout.service.ts`](../../apps/api/src/spatial/spatial-layout.service.ts), [`apps/web/lib/spatial/inventory-builder-state.ts`](../../apps/web/lib/spatial/inventory-builder-state.ts)
 - Read-only audit tool: [`tools/spatial-integrity/diagnose-location-hierarchy.mjs`](../../tools/spatial-integrity/diagnose-location-hierarchy.mjs)
+
+---
+
+## Implementation & Closure Note (2026-10-07)
+
+RFC-0069 is **IMPLEMENTED / CLOSED**. All core architectural phases are complete, audited, and verified across schema, domain, API, projections, Builder, and spatial layouts:
+
+1. **Phase 1 (Schema):** Completed. `locations.containerId` self-referential foreign key added (`onDelete: "restrict"`), indexed, and fully mapped via versioned migration `0026_lyrical_maestro.sql`.
+2. **Phase 2 (Domain & API):** Completed. `canBePhysicalContainer` canonical domain authority implemented; `CreateLocationDto` and `UpdateLocationDto` accept independent `containerId` with full lifecycle validation and HTTP error mapping.
+3. **Phase 3 (Backfill):** Completed (Phase 3B). Idempotent migration populated 49 valid container relationships (30 canonical, 7 context-root, 12 legacy-compatible); 18 intentional demo violations and 1 unparented warehouse correctly remain with `containerId = null`. Zero ledger mutations.
+4. **Phase 4 (Consumer Migration):** Completed.
+   - **Phase 4A (Inventory Rollup):** Physical inventory stock aggregation (`getByLocation`) migrated to traverse `locations.containerId` exclusively.
+   - **Phase 4B (Inventory Builder):** Builder candidate location scoping and stale/drift detection migrated to traverse `locations.containerId` exclusively.
+   - **Phase 4C (Spatial Mapping):** Spatial layout mapping hierarchy validation and transaction `FOR SHARE` ancestor locking retargeted to `locations.containerId`.
+
+### Architectural Authority
+- **Physical Containment Authority:** `locations.containerId`
+- **Organizational Hierarchy Authority:** `locations.parentId`
+- **Spatial / 3D Transform Hierarchy:** `spatialNodes.parentSpatialNodeId`
+- **Zero** physical containment paths in the repository depend on `parentId`.
+
+### Future Phase 5 UI Enhancement (Non-blocking / Deferred)
+- **Generic Location CRUD Dual-Picker:** The generic location create/edit form (`location-form.tsx`) currently exposes "Parent Location" (`parentId`). Adding a dual-picker UI ("Organizational Parent" vs. "Physical Container") in generic location management is scheduled as a future Phase 5 UI enhancement. (The Inventory Builder UI already fully distinguishes and enforces physical containers).
 
 ---
 
@@ -651,4 +674,4 @@ Files that **would** change in a future implementation, per phase:
 
 **Unresolved decisions:** the seven Open Questions in §22 — most notably whether `cabinet → bin` / `shelf → shelf` reflect an intended packing form, and which rollup the existing endpoint should default to after Phase 4.
 
-**Confirmation:** this RFC is a design document. **No code, data, or schema was changed. No migration was created. Nothing was committed or pushed.** The change set remains exactly the files produced by the Spatial Integrity Cleanup task (24 files), and no database rows were written.
+**Confirmation:** RFC-0069 has been implemented and audited. All four core phases (Phase 1 Schema, Phase 2 Domain/API, Phase 3 Backfill, and Phase 4 Consumer Migration across Rollup, Builder, and Spatial Mapping) are verified in code and the audited database state. The generic Location CRUD dual-picker UI is tracked as a future Phase 5 UI enhancement.

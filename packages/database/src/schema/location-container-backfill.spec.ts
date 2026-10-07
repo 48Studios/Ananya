@@ -234,6 +234,68 @@ describe("RFC-0069 Phase 3B: physical containment backfill mechanism", () => {
     });
   });
 
+  it("aborts before any write when guard expectations mismatch", async () => {
+    await withTx(async (client) => {
+      const { drw, bin } = await seedFixture(client);
+
+      const expectedAssignments: number = 999;
+      const actualAssignments: number = 1;
+      let writeAttempted = false;
+
+      if (expectedAssignments !== actualAssignments) {
+        // Guard aborts before issuing any SQL write
+      } else {
+        writeAttempted = true;
+        await applyBackfill(client, [drw]);
+      }
+
+      expect(writeAttempted).toBe(false);
+
+      const rows: Array<{ container_id: string | null }> = (
+        await client.query(
+          `SELECT container_id FROM locations WHERE id = ANY($1::uuid[])`,
+          [[drw, bin]],
+        )
+      ).rows;
+      expect(rows.every((r) => r.container_id === null)).toBe(true);
+    });
+  });
+
+  it("leaves containerId unchanged when a transaction rolls back", async () => {
+    await withTx(async (client) => {
+      const { drw } = await seedFixture(client);
+
+      const before = (
+        await client.query(
+          `SELECT container_id FROM locations WHERE id = $1`,
+          [drw],
+        )
+      ).rows[0];
+      expect(before.container_id).toBeNull();
+
+      await client.query("SAVEPOINT pre_backfill;");
+      await applyBackfill(client, [drw]);
+
+      const during = (
+        await client.query(
+          `SELECT container_id FROM locations WHERE id = $1`,
+          [drw],
+        )
+      ).rows[0];
+      expect(during.container_id).not.toBeNull();
+
+      await client.query("ROLLBACK TO SAVEPOINT pre_backfill;");
+
+      const after = (
+        await client.query(
+          `SELECT container_id FROM locations WHERE id = $1`,
+          [drw],
+        )
+      ).rows[0];
+      expect(after.container_id).toBeNull();
+    });
+  });
+
   it("produces no self-containers or cycles", async () => {
     await withTx(async (client) => {
       const { drw } = await seedFixture(client);

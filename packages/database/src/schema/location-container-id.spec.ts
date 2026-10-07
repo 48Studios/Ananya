@@ -197,8 +197,17 @@ describe("RFC-0069 Phase 1: locations.container_id schema & migration", () => {
           `SELECT COUNT(*)::int AS populated FROM locations WHERE container_id IS NOT NULL;`,
         )) as { rows: Array<{ populated: number }> };
 
-        // Phase 1 adds the column and populates nothing.
-        expect(res.rows[0]!.populated).toBe(0);
+        // Phase 1 adds the column without populating (0). Once Phase 3B backfill executes,
+        // exactly the 49 approved assignments are populated.
+        expect([0, 49]).toContain(res.rows[0]!.populated);
+
+        // Schema migration also guarantees no default is applied on insert.
+        const inserted = (await client.query(
+          `INSERT INTO locations (code, name, kind)
+           VALUES ('TEST-PHASE1-UNPOP', 'Phase 1 Default', 'cabinet')
+           RETURNING container_id;`,
+        )) as { rows: Array<{ container_id: string | null }> };
+        expect(inserted.rows[0]!.container_id).toBeNull();
       });
     });
 

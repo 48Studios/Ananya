@@ -42,35 +42,50 @@ export interface PhysicalRollupLocation {
 export interface PhysicalRollupOptions {
   /**
    * Transition compatibility: when `containerId` is null, fall back to a
-   * physically-valid `parentId`. Defaults to `true` while the database is only
-   * partially backfilled. Phase 5 sets this to `false` (or removes the branch).
+   * physically-valid `parentId`. Defaults to `false` in Phase 4A now that
+   * `containerId` is authoritative data. Only set to `true` in explicit
+   * legacy migration or backward-compatibility tests.
    */
   readonly legacyParentFallback?: boolean;
 }
 
 /**
- * Resolves the physical container of one location under the staged rule above.
- * Pure and cycle-agnostic (it resolves a single edge; traversal is separate).
+ * Resolves the physical container of one location.
+ *
+ * Under RFC-0069 Phase 4A, `containerId` is AUTHORITATIVE for physical containment.
+ * A null `containerId` means the location is NOT physically contained inside another
+ * location. It does NOT fall back to `parentId`.
+ *
+ * `legacyParentFallback` is isolated strictly for test/migration compatibility
+ * and defaults to `false`.
  */
 export function resolvePhysicalContainerId(
   location: PhysicalRollupLocation,
-  parentById: ReadonlyMap<string, PhysicalRollupLocation>,
+  parentById?: ReadonlyMap<string, PhysicalRollupLocation>,
   options: PhysicalRollupOptions = {},
 ): string | null {
   if (location.containerId !== null) return location.containerId;
-  if (options.legacyParentFallback === false) return null;
-  if (location.parentId === null) return null;
 
-  const parent = parentById.get(location.parentId);
-  // A dangling parent cannot be proven physically valid → no fallback.
-  if (!parent) return null;
+  // Transitional fallback is disabled by default.
+  // It is only used if explicitly requested (e.g. legacy test suites).
+  if (
+    options.legacyParentFallback === true &&
+    location.parentId !== null &&
+    parentById
+  ) {
+    const parent = parentById.get(location.parentId);
+    // A dangling parent cannot be proven physically valid → no fallback.
+    if (!parent) return null;
 
-  const relationship = classifyLocationHierarchyRelationship(
-    parent.kind,
-    location.kind,
-  );
-  // Violations are not physically representable; never used as a container.
-  return relationship.violation ? null : location.parentId;
+    const relationship = classifyLocationHierarchyRelationship(
+      parent.kind,
+      location.kind,
+    );
+    // Violations are not physically representable; never used as a container.
+    return relationship.violation ? null : location.parentId;
+  }
+
+  return null;
 }
 
 /**

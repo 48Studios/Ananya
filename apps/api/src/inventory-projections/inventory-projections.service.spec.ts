@@ -299,15 +299,75 @@ describe('InventoryProjectionsService.getByLocation (physical rollup)', () => {
     expect(result[0]!.componentId).toBe('comp-1');
   });
 
-  it('a physically-valid organizational parent still works while containerId is unpopulated (staged fallback)', async () => {
-    // cabinet → drawer IS canonical, so the parentId fallback applies.
+  it('organizational parent WITHOUT containerId does NOT create a physical rollup (even for canonical pair)', async () => {
+    // cabinet → drawer is canonical organizationally, but containerId is NULL.
+    // Under Phase 4A containerId-authoritative rollup, the drawer does NOT roll up into the cabinet.
     const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
-    const drw = makeLocation('B', 'DRW', { kind: 'drawer', parentId: 'A' });
+    const drw = makeLocation('B', 'DRW', {
+      kind: 'drawer',
+      parentId: 'A',
+      containerId: null,
+    });
     const proj = makeProjection('comp-1', 'B');
 
     const service = createService([proj], [cab, drw]);
-    const result = await service.getByLocation('A');
+    expect(await service.getByLocation('A')).toEqual([]);
+    expect(await service.getByLocation('B')).toHaveLength(1);
+  });
+
+  it('parent/container divergence: physical rollup follows containerId, NOT parentId', async () => {
+    const orgRoot = makeLocation('ORG', 'ORG-ROOT', { kind: 'warehouse' });
+    const physRoot = makeLocation('PHYS', 'PHYS-CAB', { kind: 'cabinet' });
+    const drw = makeLocation('DRW', 'DRW', {
+      kind: 'drawer',
+      parentId: 'ORG',
+      containerId: 'PHYS',
+    });
+    const proj = makeProjection('comp-1', 'DRW');
+
+    const service = createService([proj], [orgRoot, physRoot, drw]);
+
+    // Rollup from organizational parent contains nothing
+    expect(await service.getByLocation('ORG')).toEqual([]);
+
+    // Rollup from physical container contains the projection
+    const physResult = await service.getByLocation('PHYS');
+    expect(physResult).toHaveLength(1);
+    expect(physResult[0]!.componentId).toBe('comp-1');
+  });
+
+  it('context root (warehouse) rolls up physical descendants via containerId', async () => {
+    const wh = makeLocation('WH', 'WH', { kind: 'warehouse' });
+    const cab = makeLocation('CAB', 'CAB', {
+      kind: 'cabinet',
+      containerId: 'WH',
+    });
+    const drw = makeLocation('DRW', 'DRW', {
+      kind: 'drawer',
+      containerId: 'CAB',
+    });
+    const proj = makeProjection('comp-1', 'DRW');
+
+    const service = createService([proj], [wh, cab, drw]);
+    const result = await service.getByLocation('WH');
     expect(result).toHaveLength(1);
+    expect(result[0]!.componentId).toBe('comp-1');
+  });
+
+  it('architecture constraint: fails if getByLocation reverts to parentId', async () => {
+    // Location has canonical parentId 'A', but containerId is null.
+    // If getByLocation reverted to parentId, getByLocation('A') would return 1 item.
+    // Under RFC-0069 Phase 4A, it MUST return [].
+    const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
+    const drw = makeLocation('B', 'DRW', {
+      kind: 'drawer',
+      parentId: 'A',
+      containerId: null,
+    });
+    const proj = makeProjection('comp-1', 'B');
+
+    const service = createService([proj], [cab, drw]);
+    expect(await service.getByLocation('A')).toEqual([]);
   });
 
   it('mixed organizational and physical hierarchies behave correctly', async () => {

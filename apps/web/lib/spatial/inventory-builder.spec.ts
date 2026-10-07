@@ -59,6 +59,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
     name: "SMD Drawer A01 (0805 Resistors)",
     kind: "drawer",
     parentId: "loc-cabinet-01",
+    containerId: "loc-cabinet-01",
     isActive: true,
     metadata: {},
     createdAt: "2026-01-01T00:00:00Z",
@@ -612,6 +613,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         name: "Main Production Warehouse",
         kind: "warehouse",
         parentId: null,
+        containerId: null,
         isActive: true,
         metadata: {},
         createdAt: "2026-01-01T00:00:00Z",
@@ -623,6 +625,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         name: "SMD Cabinet 01",
         kind: "cabinet",
         parentId: "loc-warehouse-main",
+        containerId: "loc-warehouse-main",
         isActive: true,
         metadata: {},
         createdAt: "2026-01-01T00:00:00Z",
@@ -634,6 +637,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         name: "Drawer A01 (0805 Resistors)",
         kind: "drawer",
         parentId: "loc-cabinet-01",
+        containerId: "loc-cabinet-01",
         isActive: true,
         metadata: {},
         createdAt: "2026-01-01T00:00:00Z",
@@ -645,6 +649,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         name: "Sub-bin A01-1",
         kind: "bin",
         parentId: "loc-drawer-a01",
+        containerId: "loc-drawer-a01",
         isActive: true,
         metadata: {},
         createdAt: "2026-01-01T00:00:00Z",
@@ -656,6 +661,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         name: "Through-Hole Cabinet 02",
         kind: "cabinet",
         parentId: "loc-warehouse-main",
+        containerId: "loc-warehouse-main",
         isActive: true,
         metadata: {},
         createdAt: "2026-01-01T00:00:00Z",
@@ -667,6 +673,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         name: "Drawer B01 (Electrolytic Caps)",
         kind: "drawer",
         parentId: "loc-cabinet-02",
+        containerId: "loc-cabinet-02",
         isActive: true,
         metadata: {},
         createdAt: "2026-01-01T00:00:00Z",
@@ -696,8 +703,8 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
 
         // Cycle tolerance test
         const cyclicLocations: LocationDto[] = [
-          { ...hierarchyLocations[0]!, id: "node-a", parentId: "node-b" },
-          { ...hierarchyLocations[1]!, id: "node-b", parentId: "node-a" },
+          { ...hierarchyLocations[0]!, id: "node-a", containerId: "node-b" },
+          { ...hierarchyLocations[1]!, id: "node-b", containerId: "node-a" },
         ];
         const cycleResult = getDescendantLocationIds(cyclicLocations, "node-a");
         expect(cycleResult.has("node-b")).toBe(true);
@@ -1477,6 +1484,194 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         expect(inactiveMapped.mappings.get(slotId)?.locationId).toBe(
           "loc-drawer-inactive",
         );
+      });
+    });
+
+    // ------------------------------------------------------------------------
+    // RFC-0069 Phase 4B: Physical Containment Regression Tests (Cases A - J)
+    // ------------------------------------------------------------------------
+    describe("RFC-0069 Phase 4B: Physical Containment Regression Tests", () => {
+      const baseLoc = (partial: Partial<LocationDto> & { id: string; code: string; kind: string }): LocationDto => ({
+        name: partial.code,
+        parentId: null,
+        containerId: null,
+        isActive: true,
+        metadata: {},
+        createdAt: "2026-01-01T00:00:00Z",
+        updatedAt: "2026-01-01T00:00:00Z",
+        ...partial,
+      });
+
+      it("A. Cabinet → Drawer → Bin: Builder sees Drawer/Bin as physical descendants through containerId", () => {
+        const dataset: LocationDto[] = [
+          baseLoc({ id: "cab-1", code: "CAB-1", kind: "cabinet", containerId: null }),
+          baseLoc({ id: "drw-1", code: "DRW-1", kind: "drawer", containerId: "cab-1" }),
+          baseLoc({ id: "bin-1", code: "BIN-1", kind: "bin", containerId: "drw-1" }),
+        ];
+
+        const descendants = getDescendantLocationIds(dataset, "cab-1");
+        expect(descendants.has("drw-1")).toBe(true);
+        expect(descendants.has("bin-1")).toBe(true);
+        expect(descendants.has("cab-1")).toBe(false);
+      });
+
+      it("B. Parent-only relationship: parentId set, containerId NULL -> child is NOT physically contained", () => {
+        const dataset: LocationDto[] = [
+          baseLoc({ id: "parent-x", code: "PAR-X", kind: "cabinet", parentId: null, containerId: null }),
+          baseLoc({ id: "child-y", code: "CHD-Y", kind: "drawer", parentId: "parent-x", containerId: null }),
+        ];
+
+        const descendants = getDescendantLocationIds(dataset, "parent-x");
+        expect(descendants.has("child-y")).toBe(false);
+        expect(descendants.size).toBe(0);
+      });
+
+      it("C. Parent/container divergence: parentId = A, containerId = B -> physical scope follows B", () => {
+        const dataset: LocationDto[] = [
+          baseLoc({ id: "org-a", code: "ORG-A", kind: "cabinet", parentId: null, containerId: null }),
+          baseLoc({ id: "phys-b", code: "PHYS-B", kind: "cabinet", parentId: null, containerId: null }),
+          baseLoc({ id: "item-c", code: "ITEM-C", kind: "drawer", parentId: "org-a", containerId: "phys-b" }),
+        ];
+
+        const scopeA = getDescendantLocationIds(dataset, "org-a");
+        expect(scopeA.has("item-c")).toBe(false);
+
+        const scopeB = getDescendantLocationIds(dataset, "phys-b");
+        expect(scopeB.has("item-c")).toBe(true);
+      });
+
+      it("D. Invalid legacy relationship: cabinet → bin with containerId NULL -> Bin is not a physical candidate under Cabinet", () => {
+        const dataset: LocationDto[] = [
+          baseLoc({ id: "cab-legacy", code: "CAB-LEG", kind: "cabinet", parentId: null, containerId: null }),
+          baseLoc({ id: "bin-legacy", code: "BIN-LEG", kind: "bin", parentId: "cab-legacy", containerId: null }),
+        ];
+
+        const descendants = getDescendantLocationIds(dataset, "cab-legacy");
+        expect(descendants.has("bin-legacy")).toBe(false);
+
+        let state = createInitialBuilderState("map", "cab-legacy");
+        const slot0 = state.generatedResult!.compartments[0]!.slotId;
+        state = mapSlotToLocation(state, slot0, dataset[1]!, dataset);
+        expect(state.mappings.has(slot0)).toBe(false);
+      });
+
+      it("E. Context root: Warehouse → Cabinet/Rack/Shelf/Matrix Tray -> physical descendants work correctly", () => {
+        const dataset: LocationDto[] = [
+          baseLoc({ id: "wh-1", code: "WH-1", kind: "warehouse", parentId: null, containerId: null }),
+          baseLoc({ id: "cab-1", code: "CAB-1", kind: "cabinet", parentId: "wh-1", containerId: "wh-1" }),
+          baseLoc({ id: "drw-1", code: "DRW-1", kind: "drawer", parentId: "cab-1", containerId: "cab-1" }),
+          baseLoc({ id: "rack-1", code: "RCK-1", kind: "rack", parentId: "wh-1", containerId: "wh-1" }),
+          baseLoc({ id: "shelf-1", code: "SHF-1", kind: "shelf", parentId: "rack-1", containerId: "rack-1" }),
+        ];
+
+        const whDescendants = getDescendantLocationIds(dataset, "wh-1");
+        expect(whDescendants.has("cab-1")).toBe(true);
+        expect(whDescendants.has("drw-1")).toBe(true);
+        expect(whDescendants.has("rack-1")).toBe(true);
+        expect(whDescendants.has("shelf-1")).toBe(true);
+
+        const cabDescendants = getDescendantLocationIds(dataset, "cab-1");
+        expect(cabDescendants.has("drw-1")).toBe(true);
+        expect(cabDescendants.has("shelf-1")).toBe(false);
+      });
+
+      it("F. Category compatibility: a physically descendant location with an incompatible category remains ineligible", () => {
+        const dataset: LocationDto[] = [
+          baseLoc({ id: "cab-1", code: "CAB-1", kind: "cabinet", containerId: null }),
+          baseLoc({ id: "rack-desc", code: "RCK-D", kind: "rack", containerId: "cab-1" }),
+        ];
+
+        const descendants = getDescendantLocationIds(dataset, "cab-1");
+        expect(descendants.has("rack-desc")).toBe(true);
+
+        let state = createInitialBuilderState("map", "cab-1");
+        const slot0 = state.generatedResult!.compartments[0]!.slotId;
+        state = mapSlotToLocation(state, slot0, dataset[1]!, dataset);
+        expect(state.mappings.has(slot0)).toBe(false);
+      });
+
+      it("G. Existing mapping: already mapped locations remain correctly handled", () => {
+        const dataset: LocationDto[] = [
+          baseLoc({ id: "cab-1", code: "CAB-1", kind: "cabinet", containerId: null }),
+          baseLoc({ id: "drw-1", code: "DRW-1", kind: "drawer", containerId: "cab-1" }),
+        ];
+
+        let state = createInitialBuilderState("map", "cab-1");
+        const slot0 = state.generatedResult!.compartments[0]!.slotId;
+        const slot1 = state.generatedResult!.compartments[1]!.slotId;
+
+        state = mapSlotToLocation(state, slot0, dataset[1]!, dataset);
+        expect(state.mappings.get(slot0)?.locationId).toBe("drw-1");
+
+        // Re-mapping the same location to slot1 clears slot0
+        state = mapSlotToLocation(state, slot1, dataset[1]!, dataset);
+        expect(state.mappings.has(slot0)).toBe(false);
+        expect(state.mappings.get(slot1)?.locationId).toBe("drw-1");
+      });
+
+      it("H. Inactive locations: inactive locations remain excluded according to current Builder rules", () => {
+        const dataset: LocationDto[] = [
+          baseLoc({ id: "cab-1", code: "CAB-1", kind: "cabinet", containerId: null }),
+          baseLoc({ id: "drw-inactive", code: "DRW-INACT", kind: "drawer", containerId: "cab-1", isActive: false }),
+        ];
+
+        // Inactive location is still in physical containment graph
+        const descendants = getDescendantLocationIds(dataset, "cab-1");
+        expect(descendants.has("drw-inactive")).toBe(true);
+
+        // Draft mapping allows mapping inactive descendant (enforced at publish per Builder rules)
+        let state = createInitialBuilderState("map", "cab-1");
+        const slot0 = state.generatedResult!.compartments[0]!.slotId;
+        state = mapSlotToLocation(state, slot0, dataset[1]!, dataset);
+        expect(state.mappings.get(slot0)?.locationId).toBe("drw-inactive");
+      });
+
+      it("I. Stale mapping: changing containerId ancestry produces the correct stale/drift state", () => {
+        const datasetInitial: LocationDto[] = [
+          baseLoc({ id: "cab-1", code: "CAB-1", kind: "cabinet", containerId: null }),
+          baseLoc({ id: "cab-2", code: "CAB-2", kind: "cabinet", containerId: null }),
+          baseLoc({ id: "drw-1", code: "DRW-1", kind: "drawer", containerId: "cab-1" }),
+        ];
+
+        let state = createInitialBuilderState("map", "cab-1");
+        const slot0 = state.generatedResult!.compartments[0]!.slotId;
+        state = mapSlotToLocation(state, slot0, datasetInitial[2]!, datasetInitial);
+        expect(state.mappings.get(slot0)?.isStale).toBeFalsy();
+
+        // Switch parent container to cab-2 where drw-1 is not a physical descendant
+        state = setSelectedParentLocation(state, "cab-2", datasetInitial);
+        expect(state.mappings.get(slot0)?.isStale).toBe(true);
+        expect(state.mappings.get(slot0)?.staleReason).toContain("Hierarchy mismatch");
+      });
+
+      it("J. Organizational-only change: changing parentId without changing containerId must not create physical containment drift", () => {
+        const datasetInitial: LocationDto[] = [
+          baseLoc({ id: "cab-1", code: "CAB-1", kind: "cabinet", parentId: "wh-1", containerId: null }),
+          baseLoc({ id: "drw-1", code: "DRW-1", kind: "drawer", parentId: "wh-1", containerId: "cab-1" }),
+        ];
+
+        let state = createInitialBuilderState("map", "cab-1");
+        const slot0 = state.generatedResult!.compartments[0]!.slotId;
+        state = mapSlotToLocation(state, slot0, datasetInitial[1]!, datasetInitial);
+        expect(state.mappings.get(slot0)?.isStale).toBeFalsy();
+
+        // Change organizational parentId only (e.g. reparented under a department room in ERP)
+        const datasetOrgChanged: LocationDto[] = [
+          baseLoc({ id: "cab-1", code: "CAB-1", kind: "cabinet", parentId: "room-99", containerId: null }),
+          baseLoc({ id: "drw-1", code: "DRW-1", kind: "drawer", parentId: "room-99", containerId: "cab-1" }),
+        ];
+
+        // Validating descendants under cab-1 remains identical
+        const descendants = getDescendantLocationIds(datasetOrgChanged, "cab-1");
+        expect(descendants.has("drw-1")).toBe(true);
+
+        // Re-evaluating state under cab-1 preserves non-stale mapping
+        const reevaluated = setSelectedParentLocation(
+          setSelectedParentLocation(state, null, datasetOrgChanged),
+          "cab-1",
+          datasetOrgChanged,
+        );
+        expect(reevaluated.mappings.get(slot0)?.isStale).toBe(false);
       });
     });
   });
