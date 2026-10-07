@@ -34,6 +34,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LocationForm } from "@/components/locations/location-form";
 import { PrintLabelDialog } from "@/components/barcodes/print-label-dialog";
 import { locationsApi, type LocationDto } from "@/lib/api/locations-api";
+import { isContextRootCategory } from "@ananya/inventory";
 
 const kindBadgeColors: Record<string, string> = {
   warehouse:
@@ -136,10 +137,7 @@ export default function LocationsPage() {
   const facilityCount = React.useMemo(
     () =>
       locations.filter(
-        (l) =>
-          ["warehouse", "room_area", "room", "aisle"].includes(
-            l.kind.toLowerCase(),
-          ) || !l.parentId,
+        (l) => isContextRootCategory(l.kind) || !l.parentId,
       ).length,
     [locations],
   );

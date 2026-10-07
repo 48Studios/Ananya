@@ -270,6 +270,258 @@ export function resolveBuilderRootCategories(
   return definition ? [definition.rootCategory] : [];
 }
 
+/**
+ * The context ("space") categories that may own physical equipment.
+ *
+ * A *context root* is not a physical container: it has no carcass and no
+ * `allowedChildren` in the direct containment graph, yet in the product a
+ * warehouse / room / aisle legitimately roots physical equipment (cabinets,
+ * racks, shelves) that compose into a scene. This predicate states that
+ * relation explicitly so a rule can answer "may this space own physical
+ * equipment?" without hard-coded `kind === "warehouse"` checks.
+ *
+ * It is deliberately separate from `allowedChildren` and `canContainLocation`:
+ * adding physical categories to `allowedChildren` would change containment
+ * verdicts, and this predicate must not. It is descriptive infrastructure only.
+ */
+export const CONTEXT_ROOT_CATEGORIES: ReadonlySet<SpatialLocationCategory> =
+  new Set<SpatialLocationCategory>(["warehouse", "room_area", "aisle"]);
+
+/**
+ * True when a context/space category may root physical equipment for spatial
+ * composition. Accepts canonical categories and legacy aliases (`room`, `area`).
+ */
+export function isContextRootCategory(
+  category: string | null | undefined,
+): boolean {
+  const resolved = normalizeLocationCategory(category);
+  return resolved !== null && CONTEXT_ROOT_CATEGORIES.has(resolved);
+}
+
+/** Alias for {@link isContextRootCategory} — the ownership question reads better at call sites. */
+export function canRootPhysicalEquipment(
+  category: string | null | undefined,
+): boolean {
+  return isContextRootCategory(category);
+}
+
+/**
+ * True when a category is a canonical physical ROOT: a physical category that
+ * may stand alone and own its own child structure.
+ *
+ * Derived from the canonical taxonomy (`classification === "physical"` and
+ * `root === "yes"`), never from a hard-coded list. A `compartment` or
+ * `reel_slot` is physical but `root: "conditional"`, so it is NOT a physical
+ * root; a `rack` / `cabinet` / `bin` / `matrix_tray` is.
+ */
+export function isPhysicalRootCategory(
+  category: string | null | undefined,
+): boolean {
+  const resolved = normalizeLocationCategory(category);
+  if (resolved === null) return false;
+  const definition = SPATIAL_CATEGORY_DEFINITIONS[resolved];
+  return definition.classification === "physical" && definition.root === "yes";
+}
+
+export type PhysicalContainmentIssue =
+  | "PARENT_UNKNOWN"
+  | "CHILD_UNKNOWN"
+  | "NOT_PHYSICAL_CONTAINER"
+  | "NOT_PHYSICAL_ROOT"
+  | "CONTEXT_CHILD_NOT_ROOT";
+
+/**
+ * Explains why `parent` may NOT physically contain `child`, or `null` when it may.
+ *
+ * Returns a stable machine code plus a human-readable reason so the write
+ * boundary can raise a precise domain error without re-deriving the rule.
+ */
+export function explainPhysicalContainmentRejection(
+  parent: string | null | undefined,
+  child: string | null | undefined,
+): { code: PhysicalContainmentIssue; reason: string } | null {
+  if (canBePhysicalContainer(parent, child)) return null;
+
+  const parentCategory = normalizeLocationCategory(parent);
+  const childCategory = normalizeLocationCategory(child);
+
+  if (parentCategory === null) {
+    return {
+      code: "PARENT_UNKNOWN",
+      reason: `Container kind '${parent ?? ""}' is not a canonical location category.`,
+    };
+  }
+  if (childCategory === null) {
+    return {
+      code: "CHILD_UNKNOWN",
+      reason: `Location kind '${child ?? ""}' is not a canonical location category.`,
+    };
+  }
+
+  // A context root may own context roots and physical ROOT categories only.
+  if (isContextRootCategory(parentCategory)) {
+    return {
+      code: "NOT_PHYSICAL_ROOT",
+      reason: `'${parentCategory}' is a space and can physically contain only physical root categories (rack, cabinet, shelf, bin, drawer, dry_cabinet, reel_rack, matrix_tray) or another space — not '${childCategory}'.`,
+    };
+  }
+
+  const parentDefinition = SPATIAL_CATEGORY_DEFINITIONS[parentCategory];
+  if (parentDefinition.classification !== "physical") {
+    // Unreachable while context roots are the only context categories, but kept
+    // so a future context category cannot slip through.
+    return {
+      code: "NOT_PHYSICAL_CONTAINER",
+      reason: `'${parentCategory}' is not a physical container and cannot contain '${childCategory}'.`,
+    };
+  }
+
+  if (isContextRootCategory(childCategory)) {
+    return {
+      code: "CONTEXT_CHILD_NOT_ROOT",
+      reason: `'${parentCategory}' cannot physically contain the space '${childCategory}'.`,
+    };
+  }
+
+  return {
+    code: "NOT_PHYSICAL_ROOT",
+    reason: `'${parentCategory}' cannot physically contain '${childCategory}': a physical container may contain only its canonical direct child categories.`,
+  };
+}
+
+/**
+ * THE canonical authority for physical containment (RFC-0069, Phase 2).
+ *
+ * Determines whether the location with kind `parent` may PHYSICALLY contain the
+ * location with kind `child`. This is the single rule the `containerId` write
+ * boundary uses; no consumer may re-implement it or add a parallel matrix.
+ *
+ *   canBePhysicalContainer(parent, child) =
+ *       canContainLocation(parent, child)                     # canonical direct edge
+ *    OR ( isContextRootCategory(parent)                      # a space owning equipment
+ *         AND ( isContextRootCategory(child)                 # a space inside a space
+ *            OR isPhysicalRootCategory(child) ) )            # equipment / structure
+ *
+ * `SPATIAL_CATEGORY_DEFINITIONS[*].allowedChildren` remains the authority for
+ * canonical direct physical child compatibility; context-root ownership is the
+ * separate second clause and is deliberately NOT added to `allowedChildren`.
+ */
+export function canBePhysicalContainer(
+  parent: string | null | undefined,
+  child: string | null | undefined,
+): boolean {
+  if (canContainLocation(parent, child)) return true;
+  if (!isContextRootCategory(parent)) return false;
+  return isContextRootCategory(child) || isPhysicalRootCategory(child);
+}
+
+/**
+ * Documented legacy parent → child kind pairs.
+ *
+ * These relationships are not derivable from the canonical graph but are known,
+ * intentional legacy compatibility patterns. They are listed explicitly (rather
+ * than folded into `allowedChildren`) so a read-only audit can distinguish a
+ * *known* legacy relationship from a genuinely unexpected one, without changing
+ * any containment verdict.
+ *
+ * `matrix_tray → bin`: the archived `GRID_PARTS_TRAY` layout recorded its tray
+ * cells as `bin` locations, so bins nested under a legacy tray are expected.
+ */
+const LEGACY_COMPATIBLE_HIERARCHY_PAIRS: ReadonlyArray<
+  readonly [SpatialLocationCategory, SpatialLocationCategory]
+> = [["matrix_tray", "bin"]];
+
+export type LocationHierarchyRelationshipKind =
+  | "canonical"
+  | "context-root"
+  | "legacy-compatible"
+  | "violation";
+
+export interface LocationHierarchyRelationshipClassification {
+  /** True when the child category is a canonical direct child of the parent. */
+  canonical: boolean;
+  /** True when the parent is a context root that may own physical equipment. */
+  contextRoot: boolean;
+  /** True for a documented legacy compatibility pair. */
+  legacyCompatible: boolean;
+  /** True when none of the above holds. */
+  violation: boolean;
+  kind: LocationHierarchyRelationshipKind;
+  /** Human-readable reason, always populated for a violation. */
+  reason: string | null;
+  parentCategory: SpatialLocationCategory | null;
+  childCategory: SpatialLocationCategory | null;
+}
+
+/**
+ * Classifies a `parent.kind` / `child.kind` pair for the read-only hierarchy
+ * audit. This never mutates anything and never changes a containment verdict —
+ * it only *describes* whether a persisted relationship is canonical, a
+ * context-root relationship, a documented legacy pattern, or a violation.
+ *
+ * A relationship is a violation only when the parent resolves to a *physical*
+ * category and none of the three accepted reasons apply. When either side is
+ * unresolved the relationship is reported as a violation with an explicit
+ * reason, so nothing is silently skipped.
+ */
+export function classifyLocationHierarchyRelationship(
+  parentKind: string | null | undefined,
+  childKind: string | null | undefined,
+): LocationHierarchyRelationshipClassification {
+  const parentCategory = normalizeLocationCategory(parentKind);
+  const childCategory = normalizeLocationCategory(childKind);
+
+  const canonical =
+    parentCategory !== null &&
+    childCategory !== null &&
+    SPATIAL_CATEGORY_DEFINITIONS[parentCategory].allowedChildren.includes(
+      childCategory,
+    );
+
+  const contextRoot = isContextRootCategory(parentCategory);
+
+  const legacyCompatible =
+    parentCategory !== null &&
+    childCategory !== null &&
+    LEGACY_COMPATIBLE_HIERARCHY_PAIRS.some(
+      ([parent, child]) => parent === parentCategory && child === childCategory,
+    );
+
+  let kind: LocationHierarchyRelationshipKind;
+  let reason: string | null = null;
+
+  if (canonical) {
+    kind = "canonical";
+  } else if (contextRoot) {
+    kind = "context-root";
+  } else if (legacyCompatible) {
+    kind = "legacy-compatible";
+  } else {
+    kind = "violation";
+    if (parentCategory === null) {
+      reason = `Parent kind '${parentKind ?? ""}' is not a canonical category.`;
+    } else if (childCategory === null) {
+      reason = `Child kind '${childKind ?? ""}' is not a canonical category.`;
+    } else if (SPATIAL_CATEGORY_DEFINITIONS[parentCategory].classification === "context") {
+      // A non-context context category (none today) — kept for completeness.
+      reason = `Context category '${parentCategory}' may not own '${childCategory}'.`;
+    } else {
+      reason = `'${parentCategory}' is not a canonical parent of '${childCategory}'${isContextRootCategory(childCategory) ? " (a context category cannot be a child)" : ""}.`;
+    }
+  }
+
+  return {
+    canonical,
+    contextRoot,
+    legacyCompatible,
+    violation: kind === "violation",
+    kind,
+    reason,
+    parentCategory,
+    childCategory,
+  };
+}
+
 export interface SpatialModelInstance {
   readonly locationId: string;
   readonly category: SpatialLocationCategory;

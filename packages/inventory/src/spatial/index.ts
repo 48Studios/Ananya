@@ -10,3 +10,6 @@ export * from "./spatial-layout.errors";
 export * from "./spatial-layout.repository";
 export * from "./spatial-mapping-status";
 export * from "./location-model";
+export * from "./physical-containment-backfill";
+export * from "./physical-rollup";
+export * from "./physical-containment-verifier";

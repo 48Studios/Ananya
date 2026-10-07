@@ -5,6 +5,7 @@ import {
   ParentLocationNotFoundError,
 } from "./location.errors";
 import type { LocationRepository } from "./location.repository";
+import { validatePhysicalContainer } from "./physical-containment";
 
 export class CreateLocation {
   constructor(private readonly locations: LocationRepository) {}
@@ -31,8 +32,23 @@ export class CreateLocation {
       }
     }
 
-    // Create the location using factory method
+    // Create the location using factory method.
+    //
+    // No cycle check is needed here: `Location.create` generates a brand-new
+    // identity, so the new location cannot already appear in its parent's
+    // ancestor chain (and it cannot be its own parent). A cycle can only be
+    // introduced by *re-parenting* an existing location, which
+    // `UpdateLocation` guards.
     const location = Location.create(input);
+
+    // Physical containment (RFC-0069 Phase 2). Omitted / null is a no-op, so a
+    // valid `parentId` with no `containerId` remains valid. Never inferred from
+    // parentId. (Requiring a container for in-container locations is Phase 5.)
+    await validatePhysicalContainer(this.locations, {
+      locationId: location.id,
+      containerId: input.containerId,
+      childKind: location.kind,
+    });
 
     // Persist the aggregate
     return this.locations.save(location);

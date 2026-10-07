@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
   RebuildInventoryProjections,
+  collectPhysicalSubtreeIds,
   type InventoryProjection,
   type InventoryProjectionRepository,
   type InventoryTransactionRepository,
@@ -43,9 +44,9 @@ export class InventoryProjectionsService {
   }
 
   /**
-   * Returns projections at the given location **and** every descendant location
-   * in the hierarchy.  This gives each ancestor location an aggregated view of
-   * all components stored anywhere in its subtree.
+   * Returns projections at the given location **and** every location physically
+   * contained beneath it (RFC-0069 Phase 4). Physical stock aggregation follows
+   * physical containment, not the organizational hierarchy.
    *
    * The implementation loads the full location list once (single query) and
    * resolves the subtree in-memory, then queries projections for the complete
@@ -54,32 +55,17 @@ export class InventoryProjectionsService {
   async getByLocation(locationId: string): Promise<InventoryProjection[]> {
     const allLocations = await this.locationRepository.findMany();
 
-    // Build a parent → children index for fast traversal.
-    const childrenByParent = new Map<string, string[]>();
-    for (const loc of allLocations) {
-      if (loc.parentId) {
-        const siblings = childrenByParent.get(loc.parentId);
-        if (siblings) {
-          siblings.push(loc.id);
-        } else {
-          childrenByParent.set(loc.parentId, [loc.id]);
-        }
-      }
-    }
-
-    // BFS to collect every descendant ID (including locationId itself).
-    const subtreeIds: string[] = [locationId];
-    const queue: string[] = [locationId];
-    while (queue.length > 0) {
-      const current = queue.pop()!;
-      const children = childrenByParent.get(current);
-      if (children) {
-        for (const childId of children) {
-          subtreeIds.push(childId);
-          queue.push(childId);
-        }
-      }
-    }
+    // RFC-0069 Phase 4: the physical rollup follows PHYSICAL containment
+    // (`containerId`), never the organizational hierarchy (`parentId`).
+    // `collectPhysicalSubtreeIds` reads `containerId` when present and falls
+    // back to a physically-valid `parentId` only while the database is
+    // partially backfilled; a physically-invalid organisation edge (a violation
+    // such as `cabinet → bin`) never creates a physical rollup. Traversal is
+    // cycle-safe. Set ANANYA_PHYSICAL_ROLLUP_STRICT=1 to drop the fallback
+    // (RFC-0069 Phase 5) once the backfill has populated `containerId`.
+    const subtreeIds = collectPhysicalSubtreeIds(locationId, allLocations, {
+      legacyParentFallback: process.env.ANANYA_PHYSICAL_ROLLUP_STRICT !== '1',
+    });
 
     return this.projectionRepository.findManyByLocations(subtreeIds);
   }

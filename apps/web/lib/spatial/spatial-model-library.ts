@@ -93,6 +93,32 @@ export function resolveLocationModelInstance(
   return result.valid ? result.instance : null;
 }
 
+/**
+ * The model id a rendered definition must report.
+ *
+ * The spatial domain model foundation (`CANONICAL_SPATIAL_MODEL_DEFINITIONS`)
+ * is the single authority for model identity, exactly as
+ * `SPATIAL_CATEGORY_DEFINITIONS` is for category identity. A row whose `kind`
+ * IS a canonical physical category therefore reports the canonical id, never a
+ * locally minted `procedural-*` id — otherwise the *same* location kind would
+ * have two model ids depending on which table a consumer read.
+ *
+ * A row whose `kind` is a legacy spelling (`tray`, `tube`, `slot`, …) keeps a
+ * local id: `resolveSpatialModel` resolves such inputs to their canonical
+ * category first, so these rows are never reachable through the public
+ * resolver and their id can never disagree with a live location's identity.
+ */
+function canonicalModelId(kind: string): string {
+  const category = normalizeLocationCategory(kind);
+  const canonical =
+    category === kind
+      ? CANONICAL_SPATIAL_MODEL_DEFINITIONS[
+          category as keyof typeof CANONICAL_SPATIAL_MODEL_DEFINITIONS
+        ]
+      : undefined;
+  return canonical?.modelId ?? `procedural-${kind}`;
+}
+
 const physical = (
   kind: string,
   displayName: string,
@@ -100,7 +126,7 @@ const physical = (
   structure: Exclude<SpatialModelStructure, "none" | "warehouse">,
 ): SpatialModelDefinition => ({
   kind,
-  modelId: `procedural-${kind}`,
+  modelId: canonicalModelId(kind),
   displayName,
   category: "physical",
   dimensionsMm,
@@ -143,7 +169,6 @@ const context = (
     canCompose: true,
   };
 };
-
 export const SPATIAL_MODEL_DEFINITIONS: Readonly<
   Record<string, SpatialModelDefinition>
 > = {
@@ -274,12 +299,11 @@ export function resolveTemplateSpatialModel(
   if (!preset) return null;
   const requestedRoot = normalizeLocationCategory(rootKind);
   if (rootKind && requestedRoot !== preset.rootCategory) return null;
-  const modelId =
-    CANONICAL_SPATIAL_MODEL_DEFINITIONS[
-      preset.rootCategory as keyof typeof CANONICAL_SPATIAL_MODEL_DEFINITIONS
-    ]?.modelId;
-  const model = resolveSpatialModel(preset.rootCategory);
-  return model && modelId ? { ...model, modelId } : null;
+  // A Builder root is always a canonical physical category, so the model
+  // resolved for it already carries the canonical model id — no override is
+  // needed (and none may be introduced, or a template-rendered location could
+  // report a different id than the same location rendered directly).
+  return resolveSpatialModel(preset.rootCategory);
 }
 
 export const SUPPORTED_PHYSICAL_LOCATION_KINDS = Object.freeze(

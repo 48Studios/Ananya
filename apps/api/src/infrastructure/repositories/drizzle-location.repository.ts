@@ -30,6 +30,9 @@ function toDomain(row: LocationRow): Location {
     name: row.name,
     kind: row.kind,
     parentId: row.parentId,
+    // RFC-0069 Phase 2: physical containment is a first-class field. It is read
+    // verbatim and never derived from parentId.
+    containerId: row.containerId,
     isActive: row.isActive,
     metadata: row.metadata,
     createdAt: row.createdAt,
@@ -47,6 +50,9 @@ function toRow(
     parentId: location.parentId,
     isActive: location.isActive,
     metadata: location.metadata,
+    // RFC-0069 Phase 2: persisted verbatim. Null explicitly clears physical
+    // containment; the value is never copied from parentId.
+    containerId: location.containerId,
   };
 }
 
@@ -79,6 +85,66 @@ export class DrizzleLocationRepository implements LocationRepository {
       .orderBy(locations.code);
 
     return rows.map(toDomain);
+  }
+
+  /**
+   * Walks the parent chain from `id` upward. Each step reads only the parent row
+   * (a single indexed lookup), and a visited guard terminates on any
+   * pre-existing cycle, so a malformed tree can never loop forever.
+   */
+  async findAncestorIds(id: string): Promise<string[]> {
+    const ancestorIds: string[] = [];
+    const visited = new Set<string>([id]);
+    let currentId: string | null = id;
+
+    while (currentId) {
+      const rows: Array<{ parentId: string | null }> = await db
+        .select({ parentId: locations.parentId })
+        .from(locations)
+        .where(eq(locations.id, currentId))
+        .limit(1);
+
+      const parentId: string | null = rows[0]?.parentId ?? null;
+      if (!parentId || visited.has(parentId)) {
+        break;
+      }
+
+      visited.add(parentId);
+      ancestorIds.push(parentId);
+      currentId = parentId;
+    }
+
+    return ancestorIds;
+  }
+
+  /**
+   * Walks the PHYSICAL `containerId` chain from `id` upward. Independent of
+   * {@link findAncestorIds}: the organizational and physical graphs are
+   * separate. Bounded by a visited guard so malformed data cannot loop.
+   */
+  async findContainerAncestorIds(id: string): Promise<string[]> {
+    const ancestorIds: string[] = [];
+    const visited = new Set<string>([id]);
+    let currentId: string | null = id;
+
+    while (currentId) {
+      const rows: Array<{ containerId: string | null }> = await db
+        .select({ containerId: locations.containerId })
+        .from(locations)
+        .where(eq(locations.id, currentId))
+        .limit(1);
+
+      const containerId: string | null = rows[0]?.containerId ?? null;
+      if (!containerId || visited.has(containerId)) {
+        break;
+      }
+
+      visited.add(containerId);
+      ancestorIds.push(containerId);
+      currentId = containerId;
+    }
+
+    return ancestorIds;
   }
 
   async findMany(): Promise<Location[]> {

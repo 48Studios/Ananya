@@ -183,6 +183,13 @@
       "when": 1791229000000,
       "tag": "0025_add_heartbeat_at",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791323623670,
+      "tag": "0026_lyrical_maestro",
+      "breakpoints": true
     }
   ]
 }

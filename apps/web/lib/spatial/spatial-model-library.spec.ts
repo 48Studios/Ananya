@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import {
+  BUILDER_PRESET_DEFINITIONS,
+  CANONICAL_SPATIAL_MODEL_DEFINITIONS,
+} from "@ananya/inventory";
+import {
   SPATIAL_MODEL_DEFINITIONS,
   SUPPORTED_CONTEXT_LOCATION_KINDS,
   SUPPORTED_PHYSICAL_LOCATION_KINDS,
@@ -165,6 +169,66 @@ describe("Spatial Model Library", () => {
         location: { id: "unknown", kind: "unknown_future_kind" },
       }).source,
     ).toBe("fallback");
+  });
+
+  it("reports the canonical model id for every live category, never a procedural id", () => {
+    // Single source of truth: model identity comes from the domain model
+    // foundation, exactly as category identity does. The web model table may
+    // describe dimensions/structure, but it must not mint a competing id — a
+    // location would otherwise report two different model ids depending on
+    // whether a consumer read `SPATIAL_MODEL_DEFINITIONS` or
+    // `CANONICAL_SPATIAL_MODEL_DEFINITIONS`.
+    for (const category of SUPPORTED_PHYSICAL_LOCATION_KINDS) {
+      const local = SPATIAL_MODEL_DEFINITIONS[category];
+      expect(local, `table row ${category}`).toBeDefined();
+      expect(local!.modelId).toBe(
+        CANONICAL_SPATIAL_MODEL_DEFINITIONS[
+          category as keyof typeof CANONICAL_SPATIAL_MODEL_DEFINITIONS
+        ].modelId,
+      );
+      expect(local!.modelId).not.toContain("procedural-");
+      // The public resolver must agree with the table entry.
+      expect(resolveSpatialModel(category)?.modelId).toBe(local!.modelId);
+    }
+  });
+
+  it("keeps legacy read-compatibility rows off the canonical identity namespace", () => {
+    // Alias rows (`tray`, `tube`, `room`) map to a canonical category, so the
+    // resolver returns the canonical row and never the legacy one; the legacy
+    // row therefore keeps a local id that cannot be observed for a live kind.
+    for (const legacy of ["tray", "tube", "room"]) {
+      const resolved = resolveSpatialModel(legacy)!;
+      // The legacy row's own id differs from the canonical id the resolver
+      // reports for the same spelling.
+      expect(SPATIAL_MODEL_DEFINITIONS[legacy]?.modelId).not.toBe(
+        resolved.modelId,
+      );
+      expect(resolved).not.toBe(SPATIAL_MODEL_DEFINITIONS[legacy]);
+    }
+    // `slot` has NO canonical category, so it is the single identity for that
+    // kind: it is reachable and keeps a local id (nothing to compete with).
+    expect(resolveSpatialModel("slot")).toBe(SPATIAL_MODEL_DEFINITIONS.slot);
+    expect(SPATIAL_MODEL_DEFINITIONS.slot?.modelId).toContain("procedural-");
+  });
+
+  it("resolves a Builder template model to the same identity as the model resolver", () => {
+    // The Builder preview must not mint its own model id either: a location
+    // rendered as a Builder root and the same location rendered directly have
+    // to report one model identity.
+    for (const preset of Object.values(BUILDER_PRESET_DEFINITIONS)) {
+      const viaTemplate = resolveTemplateSpatialModel(preset.type);
+      const viaResolver = resolveSpatialModel(preset.rootCategory);
+      expect(viaTemplate?.modelId).toBe(viaResolver?.modelId);
+      expect(viaTemplate?.modelId).toBe(
+        CANONICAL_SPATIAL_MODEL_DEFINITIONS[
+          preset.rootCategory as keyof typeof CANONICAL_SPATIAL_MODEL_DEFINITIONS
+        ].modelId,
+      );
+    }
+    // A template whose root kind does not match the requested root resolves to
+    // null (unchanged contract).
+    expect(resolveTemplateSpatialModel("SMD_DRAWER_CABINET", "rack")).toBeNull();
+    expect(resolveTemplateSpatialModel("unknown-template")).toBeNull();
   });
 
   it("normalizes location kind aliases through the canonical resolver", () => {

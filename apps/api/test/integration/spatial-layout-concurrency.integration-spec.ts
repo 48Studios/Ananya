@@ -238,6 +238,20 @@ describe('Spatial Layout Concurrency — hierarchy lock serialization', () => {
       await db
         .delete(locations)
         .where(inArray(locations.id, createdLocationIds));
+
+      // Guard: this run's fixtures must be gone. Turns any future leak into a
+      // loud failure instead of silent database drift.
+      const leftovers = await db
+        .select({ id: locations.id, code: locations.code })
+        .from(locations)
+        .where(inArray(locations.id, createdLocationIds));
+      if (leftovers.length > 0) {
+        throw new Error(
+          `spatial-layout-concurrency fixture leak: ${leftovers.length} location(s) survived cleanup: ${leftovers
+            .map((row) => row.code)
+            .join(', ')}`,
+        );
+      }
     }
 
     await closeDatabaseConnection();

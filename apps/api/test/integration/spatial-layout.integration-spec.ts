@@ -11,7 +11,7 @@ import {
   spatialLayoutRevisions,
   spatialNodes,
 } from '@ananya/database/schema';
-import { eq, inArray } from '@ananya/database/query';
+import { eq, ilike, inArray } from '@ananya/database/query';
 import { SpatialLayoutService } from '../../src/spatial/spatial-layout.service';
 import { DrizzleSpatialLayoutRepository } from '../../src/infrastructure/repositories/drizzle-spatial-layout.repository';
 import { DrizzleLocationRepository } from '../../src/infrastructure/repositories/drizzle-location.repository';
@@ -223,17 +223,34 @@ describe('Spatial Layout Persistence & Publication Integration', () => {
   afterAll(async () => {
     if (!hasDbUrl) return;
 
-    // Clean up created layouts and their mappings/revisions/nodes
-    for (const layoutId of createdLayoutIds) {
-      await db
-        .delete(spatialNodes)
-        .where(
-          inArray(spatialNodes.locationId, [
-            childLoc1Id,
-            childLoc2Id,
-            childLoc3Id,
-          ]),
-        );
+    // -------------------------------------------------------------------
+    // FIXTURE CLEANUP — this suite must leak ZERO rows.
+    //
+    // The previous teardown deleted only a hand-listed set of the `beforeAll`
+    // locations. It never removed the locations created by `createContainerPair`
+    // (4 test cases) nor the `CONC-CAB-*` / `CONC-DRW-*` pair, even though all of
+    // them were tracked in `createdLocationIds`. Every run therefore left 10
+    // `CAB-*` / `DRW-*` / `CONC-*` rows behind, which is what drifted the
+    // development database from the RFC-0069 Phase 3A approved state (262 → 302
+    // locations, unparented 101 → 103) and halted the Phase 3B backfill guard.
+    //
+    // Both leaks are fixed by (a) discovering EVERY layout this run produced —
+    // tracked or not — and (b) removing the complete tracked location set.
+    // -------------------------------------------------------------------
+
+    // 1. Remove fixture layouts. Discovery is by code prefix as well as by
+    //    `createdLayoutIds`, so a test that throws before it can push its layout
+    //    id cannot leave a layout whose `parent_location_id` RESTRICT FK would
+    //    then block the location delete. Mappings and revisions cascade.
+    const layoutRows = await db
+      .select({ id: spatialLayouts.id })
+      .from(spatialLayouts)
+      .where(ilike(spatialLayouts.code, `%${testRunId}%`));
+    const layoutIds = new Set<string>([
+      ...createdLayoutIds,
+      ...layoutRows.map((row) => row.id),
+    ]);
+    for (const layoutId of layoutIds) {
       await db
         .delete(spatialLayoutRevisions)
         .where(eq(spatialLayoutRevisions.layoutId, layoutId));
@@ -243,23 +260,48 @@ describe('Spatial Layout Persistence & Publication Integration', () => {
       await db.delete(spatialLayouts).where(eq(spatialLayouts.id, layoutId));
     }
 
-    // Clean up locations (children before parents)
+    // 2. Remove fixture spatial nodes, then the complete tracked location set.
     if (createdLocationIds.length > 0) {
       await db
         .delete(spatialNodes)
         .where(inArray(spatialNodes.locationId, createdLocationIds));
-      // Delete children first
-      const children = [
-        childLoc1Id,
-        childLoc2Id,
-        childLoc3Id,
-        inactiveLocId,
-        warehouseLocId,
-        unrelatedChildId,
-      ];
-      await db.delete(locations).where(inArray(locations.id, children));
-      const parents = [parentLocationId, unrelatedParentId];
-      await db.delete(locations).where(inArray(locations.id, parents));
+
+      // Delete deepest locations first so the self-referencing
+      // `locations.parent_id` RESTRICT FK is satisfied at every step.
+      const rows = await db
+        .select({ id: locations.id, parentId: locations.parentId })
+        .from(locations)
+        .where(inArray(locations.id, createdLocationIds));
+      const parentOf = new Map(rows.map((row) => [row.id, row.parentId]));
+      const depthOf = (id: string): number => {
+        let depth = 0;
+        const seen = new Set<string>([id]);
+        let current = parentOf.get(id) ?? null;
+        while (current && parentOf.has(current) && !seen.has(current)) {
+          seen.add(current);
+          depth += 1;
+          current = parentOf.get(current) ?? null;
+        }
+        return depth;
+      };
+      const ordered = [...createdLocationIds].sort(
+        (a, b) => depthOf(b) - depthOf(a),
+      );
+      await db.delete(locations).where(inArray(locations.id, ordered));
+    }
+
+    // 3. Guard: this run's fixtures must be gone. Turns any future leak into a
+    //    loud failure instead of silent database drift.
+    const leftovers = await db
+      .select({ id: locations.id, code: locations.code })
+      .from(locations)
+      .where(inArray(locations.id, createdLocationIds));
+    if (leftovers.length > 0) {
+      throw new Error(
+        `spatial-layout fixture leak: ${leftovers.length} location(s) survived cleanup: ${leftovers
+          .map((row) => row.code)
+          .join(', ')}`,
+      );
     }
 
     await closeDatabaseConnection();

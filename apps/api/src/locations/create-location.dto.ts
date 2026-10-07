@@ -41,6 +41,14 @@ export class CreateLocationDto {
   @IsUUID()
   parentId?: string | null;
 
+  /**
+   * Physical container (RFC-0069). Independent of `parentId` and never inferred
+   * from it. Omitted or null means "not physically contained".
+   */
+  @IsOptional()
+  @IsUUID()
+  containerId?: string | null;
+
   @IsOptional()
   @IsString()
   metadata?: Record<string, unknown>;

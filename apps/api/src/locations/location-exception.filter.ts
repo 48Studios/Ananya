@@ -12,6 +12,12 @@ import {
   LocationNotFoundError,
   LocationHasChildrenError,
   CannotParentToSelfError,
+  LocationHierarchyCycleError,
+  ContainerLocationNotFoundError,
+  InactiveContainerLocationError,
+  CannotContainSelfError,
+  ContainerHierarchyCycleError,
+  InvalidPhysicalContainmentError,
   LocationInUseError,
   InvalidLocationKindError,
 } from '@ananya/inventory';
@@ -46,6 +52,25 @@ export class LocationExceptionFilter implements ExceptionFilter {
       status = HttpStatus.BAD_REQUEST;
       message = exception.message;
     } else if (exception instanceof CannotParentToSelfError) {
+      status = HttpStatus.BAD_REQUEST;
+      message = exception.message;
+    } else if (exception instanceof LocationHierarchyCycleError) {
+      status = HttpStatus.BAD_REQUEST;
+      message = exception.message;
+    } else if (exception instanceof ContainerLocationNotFoundError) {
+      // Physical containment (RFC-0069 Phase 2).
+      status = HttpStatus.BAD_REQUEST;
+      message = exception.message;
+    } else if (exception instanceof InactiveContainerLocationError) {
+      status = HttpStatus.CONFLICT;
+      message = exception.message;
+    } else if (exception instanceof CannotContainSelfError) {
+      status = HttpStatus.BAD_REQUEST;
+      message = exception.message;
+    } else if (exception instanceof ContainerHierarchyCycleError) {
+      status = HttpStatus.BAD_REQUEST;
+      message = exception.message;
+    } else if (exception instanceof InvalidPhysicalContainmentError) {
       status = HttpStatus.BAD_REQUEST;
       message = exception.message;
     } else if (exception instanceof LocationInUseError) {

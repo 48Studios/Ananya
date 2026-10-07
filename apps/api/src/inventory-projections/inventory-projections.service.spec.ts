@@ -15,17 +15,30 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
+interface MakeLocationOptions {
+  parentId?: string | null;
+  containerId?: string | null;
+  kind?: string;
+}
+
+/**
+ * RFC-0069 Phase 4: physical stock rollup follows PHYSICAL containment
+ * (`containerId`). Fixtures therefore carry a canonical `kind` and an explicit
+ * `containerId`; `parentId` is the organizational relation and only falls back
+ * to a physical container while its pair is physically valid.
+ */
 function makeLocation(
   id: string,
   code: string,
-  parentId: string | null = null,
+  options: MakeLocationOptions = {},
 ): Location {
   return LocationAggregate.rehydrate({
     id,
     code,
     name: code,
-    kind: 'bin',
-    parentId,
+    kind: options.kind ?? 'bin',
+    parentId: options.parentId ?? null,
+    containerId: options.containerId ?? null,
     isActive: true,
     metadata: {},
     createdAt: new Date(),
@@ -77,6 +90,8 @@ function createMockLocationRepo(locations: Location[]): LocationRepository {
     findById: jest.fn(),
     findByCode: jest.fn(),
     findByParentId: jest.fn(),
+    findAncestorIds: jest.fn().mockResolvedValue([]),
+    findContainerAncestorIds: jest.fn().mockResolvedValue([]),
     findMany: jest.fn().mockResolvedValue(locations),
     save: jest.fn(),
     update: jest.fn(),
@@ -107,9 +122,9 @@ function createService(
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('InventoryProjectionsService.getByLocation', () => {
-  it('Case 1: direct component — A → Component', async () => {
-    const locA = makeLocation('A', 'LOC-A');
+describe('InventoryProjectionsService.getByLocation (physical rollup)', () => {
+  it('Case 1: direct component — container → component', async () => {
+    const locA = makeLocation('A', 'LOC-A', { kind: 'cabinet' });
     const proj = makeProjection('comp-1', 'A');
 
     const service = createService([proj], [locA]);
@@ -119,53 +134,48 @@ describe('InventoryProjectionsService.getByLocation', () => {
     expect(result[0]!.componentId).toBe('comp-1');
   });
 
-  it('Case 2: one child level — A → B → Component', async () => {
-    const locA = makeLocation('A', 'LOC-A');
-    const locB = makeLocation('B', 'LOC-B', 'A');
+  it('Case 2: one physical level — cabinet → drawer → component', async () => {
+    const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
+    const drw = makeLocation('B', 'DRW', { kind: 'drawer', containerId: 'A' });
     const proj = makeProjection('comp-1', 'B');
 
-    const service = createService([proj], [locA, locB]);
+    const service = createService([proj], [cab, drw]);
 
-    // From A: should include B's component
-    const resultA = await service.getByLocation('A');
-    expect(resultA).toHaveLength(1);
-    expect(resultA[0]!.componentId).toBe('comp-1');
+    const resultCab = await service.getByLocation('A');
+    expect(resultCab).toHaveLength(1);
+    expect(resultCab[0]!.componentId).toBe('comp-1');
 
-    // From B: should include its own component
-    const resultB = await service.getByLocation('B');
-    expect(resultB).toHaveLength(1);
-    expect(resultB[0]!.componentId).toBe('comp-1');
+    const resultDrw = await service.getByLocation('B');
+    expect(resultDrw).toHaveLength(1);
+    expect(resultDrw[0]!.componentId).toBe('comp-1');
   });
 
-  it('Case 3: two child levels — A → B → C → Component', async () => {
-    const locA = makeLocation('A', 'LOC-A');
-    const locB = makeLocation('B', 'LOC-B', 'A');
-    const locC = makeLocation('C', 'LOC-C', 'B');
+  it('Case 3: two physical levels — cabinet → drawer → bin → component', async () => {
+    const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
+    const drw = makeLocation('B', 'DRW', { kind: 'drawer', containerId: 'A' });
+    const bin = makeLocation('C', 'BIN', { kind: 'bin', containerId: 'B' });
     const proj = makeProjection('comp-1', 'C');
 
-    const service = createService([proj], [locA, locB, locC]);
+    const service = createService([proj], [cab, drw, bin]);
 
-    const resultA = await service.getByLocation('A');
-    expect(resultA).toHaveLength(1);
-    expect(resultA[0]!.componentId).toBe('comp-1');
-
-    const resultB = await service.getByLocation('B');
-    expect(resultB).toHaveLength(1);
-    expect(resultB[0]!.componentId).toBe('comp-1');
-
-    const resultC = await service.getByLocation('C');
-    expect(resultC).toHaveLength(1);
-    expect(resultC[0]!.componentId).toBe('comp-1');
+    for (const locId of ['A', 'B', 'C']) {
+      const result = await service.getByLocation(locId);
+      expect(result).toHaveLength(1);
+      expect(result[0]!.componentId).toBe('comp-1');
+    }
   });
 
-  it('Case 4: three child levels — A → B → C → D → Component', async () => {
-    const locA = makeLocation('A', 'LOC-A');
-    const locB = makeLocation('B', 'LOC-B', 'A');
-    const locC = makeLocation('C', 'LOC-C', 'B');
-    const locD = makeLocation('D', 'LOC-D', 'C');
+  it('Case 4: three physical levels — cabinet → drawer → bin → compartment', async () => {
+    const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
+    const drw = makeLocation('B', 'DRW', { kind: 'drawer', containerId: 'A' });
+    const bin = makeLocation('C', 'BIN', { kind: 'bin', containerId: 'B' });
+    const cmp = makeLocation('D', 'CMP', {
+      kind: 'compartment',
+      containerId: 'C',
+    });
     const proj = makeProjection('comp-1', 'D');
 
-    const service = createService([proj], [locA, locB, locC, locD]);
+    const service = createService([proj], [cab, drw, bin, cmp]);
 
     for (const locId of ['A', 'B', 'C', 'D']) {
       const result = await service.getByLocation(locId);
@@ -174,73 +184,188 @@ describe('InventoryProjectionsService.getByLocation', () => {
     }
   });
 
-  it('Case 5: mixed depths — components at different levels', async () => {
-    // A
+  it('Case 5: mixed depths — components at different physical levels', async () => {
+    // cabinet
     // ├── comp-1
-    // └── B
+    // └── drawer
     //     ├── comp-2
-    //     └── C
+    //     └── bin
     //         └── comp-3
-    const locA = makeLocation('A', 'LOC-A');
-    const locB = makeLocation('B', 'LOC-B', 'A');
-    const locC = makeLocation('C', 'LOC-C', 'B');
+    const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
+    const drw = makeLocation('B', 'DRW', { kind: 'drawer', containerId: 'A' });
+    const bin = makeLocation('C', 'BIN', { kind: 'bin', containerId: 'B' });
 
     const proj1 = makeProjection('comp-1', 'A');
     const proj2 = makeProjection('comp-2', 'B');
     const proj3 = makeProjection('comp-3', 'C');
 
-    const service = createService([proj1, proj2, proj3], [locA, locB, locC]);
+    const service = createService([proj1, proj2, proj3], [cab, drw, bin]);
 
-    // A sees all three
     const resultA = await service.getByLocation('A');
     expect(resultA).toHaveLength(3);
-    const compIdsA = resultA.map((p) => p.componentId).sort();
-    expect(compIdsA).toEqual(['comp-1', 'comp-2', 'comp-3']);
+    expect(resultA.map((p) => p.componentId).sort()).toEqual([
+      'comp-1',
+      'comp-2',
+      'comp-3',
+    ]);
 
-    // B sees comp-2 and comp-3
     const resultB = await service.getByLocation('B');
     expect(resultB).toHaveLength(2);
-    const compIdsB = resultB.map((p) => p.componentId).sort();
-    expect(compIdsB).toEqual(['comp-2', 'comp-3']);
+    expect(resultB.map((p) => p.componentId).sort()).toEqual([
+      'comp-2',
+      'comp-3',
+    ]);
 
-    // C sees only comp-3
     const resultC = await service.getByLocation('C');
     expect(resultC).toHaveLength(1);
     expect(resultC[0]!.componentId).toBe('comp-3');
   });
 
   it('does not duplicate components within a location result', async () => {
-    const locA = makeLocation('A', 'LOC-A');
-    const locB = makeLocation('B', 'LOC-B', 'A');
-    // comp-1 appears only at B
+    const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
+    const drw = makeLocation('B', 'DRW', { kind: 'drawer', containerId: 'A' });
     const proj = makeProjection('comp-1', 'B');
 
-    const service = createService([proj], [locA, locB]);
+    const service = createService([proj], [cab, drw]);
     const result = await service.getByLocation('A');
 
-    // comp-1 should appear exactly once
     const compIds = result.map((p) => p.componentId);
     expect(compIds.filter((id) => id === 'comp-1')).toHaveLength(1);
   });
 
   it('returns empty array for a leaf location with no components', async () => {
-    const locA = makeLocation('A', 'LOC-A');
-    const locB = makeLocation('B', 'LOC-B', 'A');
+    const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
+    const drw = makeLocation('B', 'DRW', { kind: 'drawer', containerId: 'A' });
 
-    const service = createService([], [locA, locB]);
+    const service = createService([], [cab, drw]);
     const result = await service.getByLocation('B');
 
     expect(result).toEqual([]);
   });
 
-  it('handles a standalone root location with no children', async () => {
-    const locA = makeLocation('A', 'LOC-A');
+  it('handles a standalone top-level physical location with no children', async () => {
+    const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
     const proj = makeProjection('comp-1', 'A');
 
-    const service = createService([proj], [locA]);
+    const service = createService([proj], [cab]);
     const result = await service.getByLocation('A');
 
     expect(result).toHaveLength(1);
     expect(result[0]!.componentId).toBe('comp-1');
+  });
+
+  // -------------------------------------------------------------------------
+  // RFC-0069 Phase 4 regression tests
+  // -------------------------------------------------------------------------
+
+  it('organizational parent WITHOUT containerId does NOT create a physical rollup across an invalid edge', async () => {
+    // cabinet organizationally contains a bin. `cabinet → bin` is NOT canonical,
+    // so it must NOT create a physical rollup.
+    const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
+    const bin = makeLocation('B', 'BIN', { kind: 'bin', parentId: 'A' });
+    const proj = makeProjection('comp-1', 'B');
+
+    const service = createService([proj], [cab, bin]);
+
+    // From the cabinet, the organizationally-nested bin must NOT roll up.
+    expect(await service.getByLocation('A')).toEqual([]);
+
+    // The bin still sees its own stock.
+    expect(await service.getByLocation('B')).toHaveLength(1);
+  });
+
+  it('organizational parent does NOT roll up across shelf → shelf', async () => {
+    const s1 = makeLocation('A', 'S1', { kind: 'shelf' });
+    const s2 = makeLocation('B', 'S2', { kind: 'shelf', parentId: 'A' });
+    const proj = makeProjection('comp-1', 'B');
+
+    const service = createService([proj], [s1, s2]);
+    expect(await service.getByLocation('A')).toEqual([]);
+  });
+
+  it('valid containerId DOES create a physical rollup', async () => {
+    const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
+    // containerId set explicitly; parentId is a physically-invalid edge.
+    const bin = makeLocation('B', 'BIN', {
+      kind: 'bin',
+      parentId: 'A',
+      containerId: 'A',
+    });
+    const proj = makeProjection('comp-1', 'B');
+
+    const service = createService([proj], [cab, bin]);
+    const result = await service.getByLocation('A');
+    expect(result).toHaveLength(1);
+    expect(result[0]!.componentId).toBe('comp-1');
+  });
+
+  it('a physically-valid organizational parent still works while containerId is unpopulated (staged fallback)', async () => {
+    // cabinet → drawer IS canonical, so the parentId fallback applies.
+    const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
+    const drw = makeLocation('B', 'DRW', { kind: 'drawer', parentId: 'A' });
+    const proj = makeProjection('comp-1', 'B');
+
+    const service = createService([proj], [cab, drw]);
+    const result = await service.getByLocation('A');
+    expect(result).toHaveLength(1);
+  });
+
+  it('mixed organizational and physical hierarchies behave correctly', async () => {
+    const wh = makeLocation('WH', 'WH', { kind: 'warehouse' });
+    // Physically in the warehouse; organizationally unparented.
+    const cab = makeLocation('CAB', 'CAB', {
+      kind: 'cabinet',
+      containerId: 'WH',
+    });
+    // Organizationally under the warehouse, physically in the cabinet.
+    const drw = makeLocation('DRW', 'DRW', {
+      kind: 'drawer',
+      parentId: 'WH',
+      containerId: 'CAB',
+    });
+    const proj = makeProjection('comp-1', 'DRW');
+
+    const service = createService([proj], [wh, cab, drw]);
+
+    // Warehouse physically contains the cabinet, which contains the drawer.
+    expect(await service.getByLocation('WH')).toHaveLength(1);
+    expect(await service.getByLocation('CAB')).toHaveLength(1);
+  });
+
+  it('cycles cannot cause infinite traversal', async () => {
+    // Malformed: A physically contains B and B physically contains A.
+    const a = makeLocation('A', 'CAB', { kind: 'cabinet', containerId: 'B' });
+    const b = makeLocation('B', 'DRW', { kind: 'drawer', containerId: 'A' });
+    const proj = makeProjection('comp-1', 'B');
+
+    const service = createService([proj], [a, b]);
+    const result = await service.getByLocation('A');
+
+    // Terminates and includes the projection exactly once, without looping.
+    expect(result).toHaveLength(1);
+  });
+
+  it('existing stock totals remain unchanged for currently valid physical relationships', async () => {
+    // A canonical chain expressed with containerId must return exactly the same
+    // set as it did under the previous parentId-only rollup.
+    const cab = makeLocation('A', 'CAB', { kind: 'cabinet' });
+    const drw = makeLocation('B', 'DRW', { kind: 'drawer', containerId: 'A' });
+    const bin = makeLocation('C', 'BIN', { kind: 'bin', containerId: 'B' });
+
+    const projections = [
+      makeProjection('comp-1', 'A'),
+      makeProjection('comp-2', 'B'),
+      makeProjection('comp-3', 'C'),
+    ];
+
+    const service = createService(projections, [cab, drw, bin]);
+    const result = await service.getByLocation('A');
+
+    expect(result).toHaveLength(3);
+    expect(result.map((p) => p.componentId).sort()).toEqual([
+      'comp-1',
+      'comp-2',
+      'comp-3',
+    ]);
   });
 });

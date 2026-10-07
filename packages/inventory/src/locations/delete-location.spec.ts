@@ -13,6 +13,8 @@ describe("DeleteLocation", () => {
     findById: vi.fn().mockResolvedValue(null),
     findByCode: vi.fn().mockResolvedValue(null),
     findByParentId: vi.fn().mockResolvedValue([]),
+    findAncestorIds: vi.fn().mockResolvedValue([]),
+    findContainerAncestorIds: vi.fn().mockResolvedValue([]),
     findMany: vi.fn().mockResolvedValue([]),
     save: vi.fn(),
     update: vi.fn(),

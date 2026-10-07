@@ -78,7 +78,7 @@ const trayCell = (code) => ({
  * - WAREHOUSE   ROOT      (facility root, published bay plan for its children)
  */
 export const LOCATIONS_HIERARCHY = [
-  // Root facility
+  // 1. Warehouse context root
   {
     code: `${S}WAREHOUSE`,
     name: 'Demo Spatial Logistics Warehouse',
@@ -86,7 +86,20 @@ export const LOCATIONS_HIERARCHY = [
     parentCode: null,
   },
 
-  // Level 1: storage furniture under the warehouse
+  // 2. Rack physical root under Warehouse
+  {
+    code: `${S}RACK`,
+    name: 'Demo Pallet Rack (Bulk Bays)',
+    kind: 'rack',
+    parentCode: `${S}WAREHOUSE`,
+  },
+
+  // 3. Rack's Shelf children (6 bays across 3 levels)
+  ...['L1-B1', 'L1-B2', 'L2-B1', 'L2-B2', 'L3-B1', 'L3-B2'].map((code) =>
+    rackBay(code),
+  ),
+
+  // 4. Other physical hierarchy under Warehouse
   {
     code: `${S}CABINET-A`,
     name: 'Demo Cabinet A (SMD Drawers, primary demo)',
@@ -109,12 +122,6 @@ export const LOCATIONS_HIERARCHY = [
     code: `${S}OPEN-BINS`,
     name: 'Demo Open Bin Wall',
     kind: 'cabinet',
-    parentCode: `${S}WAREHOUSE`,
-  },
-  {
-    code: `${S}RACK`,
-    name: 'Demo Pallet Rack (Bulk Bays)',
-    kind: 'rack',
     parentCode: `${S}WAREHOUSE`,
   },
   {
@@ -187,11 +194,6 @@ export const LOCATIONS_HIERARCHY = [
     'C05',
   ].map((code) => openBin(code, `${S}OPEN-BINS`)),
 
-  // Pallet rack: 3 levels x 2 bays = 6, all mapped
-  ...['L1-B1', 'L1-B2', 'L2-B1', 'L2-B2', 'L3-B1', 'L3-B2'].map((code) =>
-    rackBay(code),
-  ),
-
   // Parts tray: 3 rows x 4 columns = 12 cells (archived layout, unmapped now)
   ...[
     'A01',
@@ -238,31 +240,6 @@ export const LOCATIONS_HIERARCHY = [
  * - ARCHIVED  : create draft -> publish -> archive (nodes pruned by archive)
  */
 export const LAYOUTS = [
-  {
-    code: `${S}LAYOUT-WAREHOUSE`,
-    name: 'Demo Warehouse Bay Plan',
-    parentCode: `${S}WAREHOUSE`,
-    templateType: 'PALLET_RACK',
-    status: 'PUBLISHED',
-    changeDescription: 'Demo seed: warehouse bay plan publication',
-    config: {
-      templateType: 'PALLET_RACK',
-      dimensions: { widthMm: 2600, heightMm: 2400, depthMm: 900 },
-      wallThicknessMm: 60,
-      uprightPostWidthMm: 60,
-      beamHeightMm: 80,
-      levels: 2,
-      baysPerLevel: 3,
-      naming: { pattern: 'LEVEL_BAY_NUMERIC', rowOrder: 'bottom_to_top' },
-    },
-    mappings: [
-      { slotCode: 'L1-B1', locationCode: `${S}CABINET-A` },
-      { slotCode: 'L1-B2', locationCode: `${S}CABINET-B` },
-      { slotCode: 'L1-B3', locationCode: `${S}OPEN-BINS` },
-      { slotCode: 'L2-B1', locationCode: `${S}RACK` },
-      // L2-B2 / L2-B3 intentionally vacant
-    ],
-  },
   {
     code: `${S}LAYOUT-CAB-A`,
     name: 'Demo Cabinet A Drawer Layout',

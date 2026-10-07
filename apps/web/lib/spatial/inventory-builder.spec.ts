@@ -104,11 +104,15 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
       expect(state.generatedResult?.totalCompartments).toBe(8);
       expect(state.generatedResult?.compartments[0]?.kind).toBe("shelf");
 
-      // Switch to Grid Parts Tray (24 slots)
+      // Switch to Grid Parts Tray (24 compartments)
       state = setTemplateType(state, "GRID_PARTS_TRAY");
       expect(state.config.templateType).toBe("GRID_PARTS_TRAY");
       expect(state.generatedResult?.totalCompartments).toBe(24);
-      expect(state.generatedResult?.compartments[0]?.kind).toBe("slot");
+      // The canonical parametric engine emits `compartment` for GRID_PARTS_TRAY
+      // cells (see parametric-storage-engine.spec.ts "generates 24 shallow tray
+      // slots"). `slot` was the pre-consolidation spelling and is no longer
+      // produced, so this expectation follows the canonical kind.
+      expect(state.generatedResult?.compartments[0]?.kind).toBe("compartment");
     });
 
     it("captures validation errors gracefully without crashing or losing previous result", () => {

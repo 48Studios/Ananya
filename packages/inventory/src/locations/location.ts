@@ -43,12 +43,22 @@ function resolveCanonicalKind(rawKind: string): string {
   return category;
 }
 
+/**
+ * Canonicalizes a location kind for persistence. Exposed so callers that need
+ * the canonical value without constructing an aggregate (e.g. validating a
+ * prospective update) share the exact same normalization.
+ */
+export function canonicalizeLocationKind(rawKind: string): string {
+  return resolveCanonicalKind(rawKind);
+}
+
 export interface LocationProps {
   id: string;
   code: string;
   name: string;
   kind: string;
   parentId: string | null;
+  containerId: string | null;
   isActive: boolean;
   metadata: Record<string, unknown>;
   createdAt: Date;
@@ -60,6 +70,8 @@ export interface CreateLocationInput {
   name: string;
   kind: string;
   parentId?: string | null;
+  /** Physical container (RFC-0069). Omitted or null means "not physically contained". */
+  containerId?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -68,6 +80,11 @@ export interface UpdateLocationInput {
   name?: string;
   kind?: string;
   parentId?: string | null;
+  /**
+   * Physical container (RFC-0069). Omitted leaves the current value unchanged;
+   * `null` explicitly clears it; a UUID replaces it (after validation).
+   */
+  containerId?: string | null;
   isActive?: boolean;
   metadata?: Record<string, unknown>;
 }
@@ -77,7 +94,16 @@ export class Location {
   public readonly code: string;
   public readonly name: string;
   public readonly kind: string;
+  /**
+   * ORGANIZATIONAL parent. Grouping/navigation only — never asserts physical
+   * containment. See {@link containerId} for the physical relation.
+   */
   public readonly parentId: string | null;
+  /**
+   * PHYSICAL container. What this location is physically stored inside.
+   * Independent of {@link parentId}; neither is derived from the other.
+   */
+  public readonly containerId: string | null;
   public readonly isActive: boolean;
   public readonly metadata: Record<string, unknown>;
   public readonly createdAt: Date;
@@ -89,6 +115,7 @@ export class Location {
     this.name = props.name;
     this.kind = props.kind;
     this.parentId = props.parentId;
+    this.containerId = props.containerId;
     this.isActive = props.isActive;
     this.metadata = props.metadata;
     this.createdAt = props.createdAt;
@@ -131,6 +158,9 @@ export class Location {
       name,
       kind,
       parentId: input.parentId ?? null,
+      // Physical containment is independent of the organizational parent and is
+      // never inferred from it. Omitted / null both mean "not contained".
+      containerId: input.containerId ?? null,
       isActive: true, // Default to active
       metadata: input.metadata ?? {},
       createdAt,
@@ -166,6 +196,10 @@ export class Location {
       name,
       kind,
       parentId: input.parentId !== undefined ? input.parentId : this.parentId,
+      // Omission leaves the physical container unchanged; an explicit null
+      // clears it. Never derived from parentId.
+      containerId:
+        input.containerId !== undefined ? input.containerId : this.containerId,
       isActive: input.isActive !== undefined ? input.isActive : this.isActive,
       metadata: input.metadata !== undefined ? input.metadata : this.metadata,
       createdAt: this.createdAt,

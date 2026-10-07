@@ -539,7 +539,8 @@ export const IMPORT_ENTITY_REGISTRY: Record<string, ImportEntityDefinition> = {
         label: 'Location Kind',
         type: 'string',
         required: false,
-        description: 'Kind of location (WAREHOUSE, ZONE, RACK, SHELF, BIN)',
+        description:
+          'Location kind. Canonical categories are persisted; legacy external spellings (WAREHOUSE, ZONE, RACK, SHELF, BIN, TRAY, TUBE) are normalized to the canonical category on import — ZONE imports as the "room_area" context category.',
         aliases: ['kind', 'locationkind', 'type'],
         sampleValue: 'BIN',
         sampleValue2: 'BIN',

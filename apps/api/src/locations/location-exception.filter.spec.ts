@@ -1,5 +1,12 @@
 import { HttpStatus, type ArgumentsHost } from '@nestjs/common';
-import { InvalidLocationKindError } from '@ananya/inventory';
+import {
+  CannotContainSelfError,
+  ContainerHierarchyCycleError,
+  ContainerLocationNotFoundError,
+  InactiveContainerLocationError,
+  InvalidLocationKindError,
+  InvalidPhysicalContainmentError,
+} from '@ananya/inventory';
 import { LocationExceptionFilter } from './location-exception.filter';
 
 /**
@@ -32,6 +39,45 @@ describe('LocationExceptionFilter — InvalidLocationKindError', () => {
         statusCode: HttpStatus.BAD_REQUEST,
         message: "Unknown location kind 'pallet'.",
       }),
+    );
+  });
+});
+
+/**
+ * Physical-containment errors (RFC-0069 Phase 2) must map to the HTTP statuses
+ * the RFC specifies, independently of the organizational (`parentId`) family.
+ */
+describe('LocationExceptionFilter — physical containment errors', () => {
+  const run = (exception: unknown) => {
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const host = {
+      switchToHttp: () => ({
+        getResponse: () => ({ status }),
+        getRequest: () => ({}),
+      }),
+    } as unknown as ArgumentsHost;
+
+    new LocationExceptionFilter().catch(exception, host);
+    return { status, json };
+  };
+
+  const cases: Array<[unknown, number]> = [
+    [new ContainerLocationNotFoundError('c-1'), HttpStatus.BAD_REQUEST],
+    [new InactiveContainerLocationError('c-2'), HttpStatus.CONFLICT],
+    [new CannotContainSelfError('l-1'), HttpStatus.BAD_REQUEST],
+    [new ContainerHierarchyCycleError('l-1', 'c-1'), HttpStatus.BAD_REQUEST],
+    [
+      new InvalidPhysicalContainmentError("'cabinet' cannot contain 'bin'."),
+      HttpStatus.BAD_REQUEST,
+    ],
+  ];
+
+  it.each(cases)('maps %p to the expected status', (exception, expected) => {
+    const { status, json } = run(exception);
+    expect(status).toHaveBeenCalledWith(expected);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: expected }),
     );
   });
 });

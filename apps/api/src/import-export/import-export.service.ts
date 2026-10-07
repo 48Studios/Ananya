@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { db } from '@ananya/database';
 import { TransactionType } from '@ananya/inventory';
+import { normalizeLocationCategory } from '@ananya/inventory';
 import { InventoryProjectionsService } from '../inventory-projections/inventory-projections.service';
 import {
   importExportJobs,
@@ -77,6 +78,48 @@ import { ComponentSkuService } from '../components/component-sku.service';
  */
 function normalizeComponentMatchKey(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * External location-kind spellings accepted by the bulk importer.
+ *
+ * Import files are an *external* format, so they keep the historic uppercase
+ * vocabulary (`WAREHOUSE`, `ZONE`, `RACK`, `SHELF`, `BIN`). `ZONE` is a real
+ * legacy external value with no canonical category today (`normalizeLocationCategory`
+ * returns `null` for it), but it is NOT dead: import templates shipped it, so it
+ * must be accepted and translated rather than rejected.
+ *
+ * The importer is an external boundary, so — exactly like the HTTP DTO — it must
+ * normalize to a canonical category before persisting. `ZONE` maps to the
+ * canonical context category `room_area`; `building`/`facility` are accepted and
+ * mapped to the `warehouse` context category. This keeps the canonical category
+ * the single persisted authority and prevents a second vocabulary from leaking
+ * into the `locations` table (e.g. a persisted `ZONE` or uppercase `BIN`).
+ */
+const IMPORT_LEGACY_KIND_CATEGORY: Readonly<Record<string, string>> = {
+  ZONE: 'room_area',
+  BUILDING: 'warehouse',
+  FACILITY: 'warehouse',
+};
+
+/**
+ * Resolves an imported kind token to a canonical category, or `null` when the
+ * token is unknown. Legacy aliases (`tray`, `tube`, `room`) are handled by
+ * `normalizeLocationCategory` itself; only tokens it cannot resolve fall through
+ * to the explicit external map above.
+ *
+ * Exported for focused unit coverage of the import-boundary vocabulary.
+ */
+export function normalizeImportedLocationKind(
+  rawKind: string | null | undefined,
+): string | null {
+  const token = (rawKind ?? '').trim();
+  if (!token) return null;
+  return (
+    normalizeLocationCategory(token) ??
+    IMPORT_LEGACY_KIND_CATEGORY[token.toUpperCase()] ??
+    null
+  );
 }
 
 function cleanHeader(str: string): string {
@@ -1138,9 +1181,15 @@ export class ImportExportService {
             const nameVal =
               this.getRowFieldValue(row, 'name', columnMapping) ||
               `Location ${codeVal}`;
-            const kindVal =
-              (this.getRowFieldValue(row, 'kind', columnMapping) as
-                'WAREHOUSE' | 'ZONE' | 'SHELF' | 'BIN') || 'BIN';
+            const rawKindVal = this.getRowFieldValue(
+              row,
+              'kind',
+              columnMapping,
+            );
+            // External boundary: normalize the imported spelling (including the
+            // legacy uppercase `ZONE`) to a canonical category before persisting,
+            // so the `locations` table only ever holds canonical kinds.
+            const kindVal = normalizeImportedLocationKind(rawKindVal) ?? 'bin';
             const descVal = this.getRowFieldValue(
               row,
               'description',
