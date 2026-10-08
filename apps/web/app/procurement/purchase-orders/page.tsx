@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
   EntityDataTable,
   type FilterConfig,
@@ -59,7 +60,7 @@ interface PurchaseOrdersPageProps {
   autoOpenCreate?: boolean;
 }
 
-export default function PurchaseOrdersPage({
+function PurchaseOrdersContent({
   autoOpenCreate = false,
 }: PurchaseOrdersPageProps) {
   const router = useRouter();
@@ -665,5 +666,19 @@ export default function PurchaseOrdersPage({
         emptyMessage="Get started by creating your first purchase order."
       />
     </div>
+  );
+}
+
+export default function PurchaseOrdersPage(props: PurchaseOrdersPageProps) {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[400px]">
+          <LoadingState message="Loading Purchase Orders..." />
+        </div>
+      }
+    >
+      <PurchaseOrdersContent {...props} />
+    </React.Suspense>
   );
 }

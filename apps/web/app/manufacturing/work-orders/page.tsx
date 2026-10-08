@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
   EntityDataTable,
   type FilterConfig,
@@ -120,7 +121,7 @@ interface WorkOrdersPageProps {
   autoOpenCreate?: boolean;
 }
 
-export default function WorkOrdersPage({
+function WorkOrdersContent({
   autoOpenCreate = false,
 }: WorkOrdersPageProps) {
   const router = useRouter();
@@ -548,5 +549,19 @@ export default function WorkOrdersPage({
         emptyMessage="Get started by creating your first manufacturing production job."
       />
     </div>
+  );
+}
+
+export default function WorkOrdersPage(props: WorkOrdersPageProps) {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[400px]">
+          <LoadingState message="Loading Work Orders..." />
+        </div>
+      }
+    >
+      <WorkOrdersContent {...props} />
+    </React.Suspense>
   );
 }

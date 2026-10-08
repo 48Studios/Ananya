@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
   EntityDataTable,
   type FilterConfig,
@@ -61,7 +62,7 @@ interface ComponentsPageProps {
   initialSku?: string;
 }
 
-export default function ComponentsPage({
+function ComponentsPageContent({
   autoOpenCreate = false,
   initialSku,
 }: ComponentsPageProps) {
@@ -825,5 +826,19 @@ export default function ComponentsPage({
         onActionComplete={() => void refreshReviewQueueCount()}
       />
     </div>
+  );
+}
+
+export default function ComponentsPage(props: ComponentsPageProps) {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[400px]">
+          <LoadingState message="Loading Components Catalog..." />
+        </div>
+      }
+    >
+      <ComponentsPageContent {...props} />
+    </React.Suspense>
   );
 }
