@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
@@ -101,14 +101,24 @@ export default function ComponentsPage({
       // The badge is informational; a failure must not disturb the catalog.
     }
   }, []);
+  const searchParams = useSearchParams();
+  const stockFilterParam = searchParams.get("filter") || searchParams.get("stockStatus") || "";
+  const categoryParam = searchParams.get("categoryId") || "";
+
   // Dynamic Specifications & Category Filter State
   const [selectedCategoryId, setSelectedCategoryId] =
-    React.useState<string>("");
+    React.useState<string>(categoryParam);
   const [attributeFilters, setAttributeFilters] = React.useState<
     Record<string, AttributeFilterCriteria>
   >({});
-  const [inStockOnly, setInStockOnly] = React.useState(false);
-  const [activeOnly, setActiveOnly] = React.useState(false);
+  const [inStockOnly, setInStockOnly] = React.useState(stockFilterParam === "in_stock");
+  const [activeOnly, setActiveOnly] = React.useState(stockFilterParam === "active");
+
+  React.useEffect(() => {
+    if (categoryParam) {
+      setSelectedCategoryId(categoryParam);
+    }
+  }, [categoryParam]);
 
   const fetchData = React.useCallback(async () => {
     setLoading(true);
@@ -179,6 +189,17 @@ export default function ComponentsPage({
   // Real-time dynamic attribute & category filtering
   const filteredComponents = React.useMemo(() => {
     return components.filter((comp) => {
+      // Stock status from URL drill-down
+      if (stockFilterParam === "out_of_stock" && (stockMap[comp.id] || 0) > 0) {
+        return false;
+      }
+      if (
+        stockFilterParam === "low_stock" &&
+        ((stockMap[comp.id] || 0) <= 0 || (stockMap[comp.id] || 0) > 10)
+      ) {
+        return false;
+      }
+
       // In stock only
       if (inStockOnly && (stockMap[comp.id] || 0) <= 0) {
         return false;
@@ -300,6 +321,7 @@ export default function ComponentsPage({
     stockMap,
     selectedCategoryId,
     attributeFilters,
+    stockFilterParam,
   ]);
 
   const handleClearAllFilters = () => {

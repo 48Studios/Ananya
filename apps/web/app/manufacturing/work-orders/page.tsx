@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
@@ -124,6 +124,8 @@ export default function WorkOrdersPage({
   autoOpenCreate = false,
 }: WorkOrdersPageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const statusParam = searchParams.get("status") || searchParams.get("filter") || "";
   const [workOrders, setWorkOrders] = React.useState<WorkOrderDto[]>([]);
   const [componentsMap, setComponentsMap] = React.useState<
     Record<string, ComponentDto>
@@ -404,6 +406,27 @@ export default function WorkOrdersPage({
     fetchWorkOrders();
   };
 
+  const filteredWorkOrders = React.useMemo(() => {
+    if (!statusParam) return workOrders;
+    if (statusParam === "delayed") {
+      const now = new Date();
+      return workOrders.filter(
+        (w) =>
+          w.endDate &&
+          new Date(w.endDate) < now &&
+          w.status !== "COMPLETED" &&
+          w.status !== "CLOSED" &&
+          w.status !== "CANCELLED",
+      );
+    }
+    if (statusParam === "active") {
+      return workOrders.filter(
+        (w) => w.status === "IN_PROGRESS" || w.status === "RELEASED",
+      );
+    }
+    return workOrders.filter((w) => w.status === statusParam);
+  }, [workOrders, statusParam]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -516,7 +539,7 @@ export default function WorkOrdersPage({
           </>
         }
         columns={columns}
-        data={workOrders}
+        data={filteredWorkOrders}
         searchKey="productionNumber"
         searchPlaceholder="Search by Work Order # or notes..."
         filters={filterConfigs}

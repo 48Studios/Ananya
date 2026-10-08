@@ -179,7 +179,7 @@ export const navigationModules: NavigationModule[] = [
         items: [
           {
             id: "inv-overview",
-            title: "Overview",
+            title: "Inventory Dashboard",
             href: "/inventory",
             icon: <LayoutDashboard className="w-4 h-4" />,
           },
@@ -377,7 +377,7 @@ export const navigationModules: NavigationModule[] = [
         items: [
           {
             id: "proc-overview",
-            title: "Overview",
+            title: "Procurement Dashboard",
             href: "/procurement",
             icon: <LayoutDashboard className="w-4 h-4" />,
           },
@@ -461,7 +461,7 @@ export const navigationModules: NavigationModule[] = [
         items: [
           {
             id: "mfg-overview",
-            title: "Overview",
+            title: "Manufacturing Dashboard",
             href: "/manufacturing",
             icon: <LayoutDashboard className="w-4 h-4" />,
           },

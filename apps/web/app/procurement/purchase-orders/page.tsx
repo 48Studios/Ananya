@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
@@ -63,6 +63,8 @@ export default function PurchaseOrdersPage({
   autoOpenCreate = false,
 }: PurchaseOrdersPageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const statusParam = searchParams.get("status") || searchParams.get("filter") || "";
   const [orders, setOrders] = React.useState<PurchaseOrderDto[]>([]);
   const [suppliersMap, setSuppliersMap] = React.useState<
     Record<string, SupplierDto>
@@ -126,6 +128,21 @@ export default function PurchaseOrdersPage({
     () => orders.filter((o) => o.status === "FULFILLED").length,
     [orders],
   );
+
+  const filteredOrders = React.useMemo(() => {
+    if (!statusParam) return orders;
+    if (statusParam === "overdue") {
+      const now = new Date();
+      return orders.filter(
+        (o) =>
+          o.expectedDeliveryDate &&
+          new Date(o.expectedDeliveryDate) < now &&
+          o.status !== "FULFILLED" &&
+          o.status !== "CANCELLED",
+      );
+    }
+    return orders.filter((o) => o.status === statusParam);
+  }, [orders, statusParam]);
 
   const handleSubmitPo = async (po: PurchaseOrderDto) => {
     setApiAlert(null);
@@ -638,7 +655,7 @@ export default function PurchaseOrdersPage({
           </>
         }
         columns={columns}
-        data={orders}
+        data={filteredOrders}
         entityType="PurchaseOrder"
         searchKey="poNumber"
         searchPlaceholder="Search purchase orders by PO number..."
