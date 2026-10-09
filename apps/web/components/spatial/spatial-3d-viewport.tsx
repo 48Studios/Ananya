@@ -1114,7 +1114,11 @@ export function Spatial3DViewport({
         openable: openableChild,
         isOpen: openableChild && child.locationId === activeDrawerId,
       });
-      rootGroup.add(childMesh);
+      // Authoritative parent/child hierarchy: when viewing a container, child compartments
+      // belong inside carcassContainer so childWorldTransform = parentWorldTransform * childLocalTransform.
+      // In a warehouse overview, floor-standing equipment meshes stand directly in rootGroup on the floor.
+      const parentAssembly = rendersWarehouseShell ? rootGroup : carcassContainer;
+      parentAssembly.add(childMesh);
 
       // A warehouse overview composes floor-standing equipment: the child is
       // built with its authoritative position, rotation, scale and geometry,
@@ -1238,7 +1242,8 @@ export function Spatial3DViewport({
         }
       }
 
-      rootGroup.add(anchorsGroup);
+      const parentAssembly = rendersWarehouseShell ? rootGroup : carcassContainer;
+      parentAssembly.add(anchorsGroup);
     }
 
     scene.add(rootGroup);

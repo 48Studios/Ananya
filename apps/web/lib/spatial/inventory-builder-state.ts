@@ -27,7 +27,7 @@ import type { LocationDto } from "../api/locations-api";
 import type { LocationOperationalViewDto } from "../api/spatial-api";
 import type { SceneChildLayout, Vector3D } from "./spatial-3d-layout";
 import {
-  cornerOriginToCenteredPosition,
+  cornerOriginToContainerLocalPosition,
   mmToMeters,
 } from "./spatial-3d-layout";
 
@@ -866,13 +866,6 @@ export function convertGeneratedToSceneLayout(
           ...compartments.map((c) => c.position.z + c.dimensions.depthMm / 2),
         )
       : 0);
-  const containerH =
-    containerDimensions?.heightMm ??
-    (compartments.length > 0
-      ? Math.max(
-          ...compartments.map((c) => c.position.y + c.dimensions.heightMm / 2),
-        )
-      : 0);
 
   const operationalChildren = new Map(
     (operationalView?.children ?? []).map((child) => [
@@ -905,7 +898,10 @@ export function convertGeneratedToSceneLayout(
         : comp.dimensions;
 
     // Transform corner-origin coordinates [0, W] x [0, H] x [0, D]
-    // into the centered parent carcass frame on all three axes.
+    // into canonical Container Local Space:
+    // - X centered: [-W/2, W/2]
+    // - Y base-grounded: [0, H] (0 is bottom base, H is top)
+    // - Z centered: [-D/2, D/2]
     const isCenterOrigin =
       (comp.metadata as Record<string, unknown> | undefined)?.origin ===
       "center";
@@ -915,9 +911,8 @@ export function convertGeneratedToSceneLayout(
           y: mmToMeters(comp.position.y),
           z: mmToMeters(comp.position.z),
         }
-      : cornerOriginToCenteredPosition(comp.position, {
+      : cornerOriginToContainerLocalPosition(comp.position, {
           widthMm: containerW,
-          heightMm: containerH,
           depthMm: containerD,
         });
 

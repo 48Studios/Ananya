@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import * as THREE from "three";
+import { computeFrontElevation } from "./spatial-front-elevation";
 import {
   calculateCameraFit,
   computeSceneBoundingBox,
@@ -53,6 +55,7 @@ function createMockChild(
     anchorRot?: { x: number; y: number; z: number };
     anchorBounds?: { w: number; h: number; d: number };
     modelDims?: { w: number; h: number; d: number };
+    slotDimensionsMm?: { widthMm: number; heightMm: number; depthMm: number };
     isActive?: boolean;
   } = {},
 ): LocationOperationalViewChildDto {
@@ -65,6 +68,7 @@ function createMockChild(
     anchorRot,
     anchorBounds,
     modelDims,
+    slotDimensionsMm,
     isActive = true,
   } = options;
 
@@ -143,6 +147,7 @@ function createMockChild(
     node,
     model,
     anchor,
+    slotDimensionsMm,
   };
 }
 
@@ -1927,6 +1932,329 @@ describe("Spatial 3D Layout & Scene Engine", () => {
       expect(shell.x).toBeGreaterThan(0);
       expect(shell.y).toBeGreaterThan(0);
       expect(shell.z).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Regression Suite: SMD-CAB-01 3D Spatial Layout Root Cause Validation", () => {
+    // Exact production configuration for SMD-CAB-01
+    const prodCabinetDims = {
+      x: mmToMeters(400),
+      y: mmToMeters(200),
+      z: mmToMeters(200),
+    }; // 400 x 200 x 200 mm
+    const wallMm = 10;
+    const dividerMm = 1;
+    const slotDimsMm = { widthMm: 189.5, heightMm: 89.5, depthMm: 190 };
+
+    // 4 Drawers with production persisted coordinates (from parametric storage engine)
+    const createProdDrawers = () => [
+      createMockChild("drw-01", "SMD-DRW-01", {
+        kind: "drawer",
+        nodePos: { x: 105.25, y: 145.25, z: 105 },
+        slotDimensionsMm: slotDimsMm,
+      }),
+      createMockChild("drw-02", "SMD-DRW-02", {
+        kind: "drawer",
+        nodePos: { x: 294.75, y: 145.25, z: 105 },
+        slotDimensionsMm: slotDimsMm,
+      }),
+      createMockChild("drw-03", "SMD-DRW-03", {
+        kind: "drawer",
+        nodePos: { x: 105.25, y: 54.75, z: 105 },
+        slotDimensionsMm: slotDimsMm,
+      }),
+      createMockChild("drw-04", "SMD-DRW-04", {
+        kind: "drawer",
+        nodePos: { x: 294.75, y: 54.75, z: 105 },
+        slotDimensionsMm: slotDimsMm,
+      }),
+    ];
+
+    it("places all 4 production drawers strictly inside the SMD-CAB-01 carcass envelope", () => {
+      const drawers = createProdDrawers();
+      // Ensure node metadata matches inventory_builder source as in production
+      for (const d of drawers) {
+        d.node!.metadata = { source: "inventory_builder" };
+      }
+
+      const { mapped } = layoutChildrenFor3D(
+        drawers,
+        null,
+        new Map(),
+        prodCabinetDims,
+      );
+      expect(mapped).toHaveLength(4);
+
+      const parentOffset = resolveOperationalParentBodyOffset(prodCabinetDims, {
+        rendersWarehouseShell: false,
+      });
+      expect(parentOffset.y).toBeCloseTo(0.1, 6); // H / 2 = 100mm = 0.1m
+
+      // Cabinet carcass span: [-W/2, W/2] x [0, H] x [-D/2, D/2]
+      const carcassBounds = {
+        minX: -prodCabinetDims.x / 2,
+        maxX: prodCabinetDims.x / 2,
+        minY: 0,
+        maxY: prodCabinetDims.y,
+        minZ: -prodCabinetDims.z / 2,
+        maxZ: prodCabinetDims.z / 2,
+      };
+
+      for (const drawer of mapped) {
+        const halfX = drawer.dimensions.x / 2;
+        const halfY = drawer.dimensions.y / 2;
+        const halfZ = drawer.dimensions.z / 2;
+
+        const dMinX = drawer.position.x - halfX;
+        const dMaxX = drawer.position.x + halfX;
+        const dMinY = drawer.position.y - halfY;
+        const dMaxY = drawer.position.y + halfY;
+        const dMinZ = drawer.position.z - halfZ;
+        const dMaxZ = drawer.position.z + halfZ;
+
+        // Drawer bounding box must be strictly within carcass bounds
+        expect(dMinX).toBeGreaterThanOrEqual(carcassBounds.minX - 1e-6);
+        expect(dMaxX).toBeLessThanOrEqual(carcassBounds.maxX + 1e-6);
+        expect(dMinY).toBeGreaterThanOrEqual(carcassBounds.minY - 1e-6);
+        expect(dMaxY).toBeLessThanOrEqual(carcassBounds.maxY + 1e-6);
+        expect(dMinZ).toBeGreaterThanOrEqual(carcassBounds.minZ - 1e-6);
+        expect(dMaxZ).toBeLessThanOrEqual(carcassBounds.maxZ + 1e-6);
+      }
+    });
+
+    it("verifies bottom row drawers do not hang below the cabinet base", () => {
+      const drawers = createProdDrawers();
+      for (const d of drawers) {
+        d.node!.metadata = { source: "inventory_builder" };
+      }
+
+      const { mapped } = layoutChildrenFor3D(
+        drawers,
+        null,
+        new Map(),
+        prodCabinetDims,
+      );
+
+      const drw1 = mapped.find((d) => d.locationCode === "SMD-DRW-01")!;
+      const drw3 = mapped.find((d) => d.locationCode === "SMD-DRW-03")!;
+      const drw4 = mapped.find((d) => d.locationCode === "SMD-DRW-04")!;
+
+      // Bottom row Y center: 54.75mm = 0.05475m
+      expect(drw3.position.y).toBeCloseTo(mmToMeters(54.75), 6);
+      expect(drw4.position.y).toBeCloseTo(mmToMeters(54.75), 6);
+
+      // Bottom edge: 54.75 - 44.75 = 10.0mm (exactly above 10mm wall base)
+      const bottomEdge3 = drw3.position.y - drw3.dimensions.y / 2;
+      const bottomEdge4 = drw4.position.y - drw4.dimensions.y / 2;
+      expect(bottomEdge3).toBeCloseTo(mmToMeters(wallMm), 6);
+      expect(bottomEdge4).toBeCloseTo(mmToMeters(wallMm), 6);
+      expect(bottomEdge3).toBeGreaterThan(0); // Strictly above the floor!
+
+      // Vertical distance between row 0 and row 1 center exactly equals drawer height + divider
+      expect(drw1.position.y - drw3.position.y).toBeCloseTo(
+        mmToMeters(slotDimsMm.heightMm + dividerMm),
+        6,
+      );
+    });
+
+    it("verifies top row drawers reach the upper cabinet interior without empty top volume", () => {
+      const drawers = createProdDrawers();
+      for (const d of drawers) {
+        d.node!.metadata = { source: "inventory_builder" };
+      }
+
+      const { mapped } = layoutChildrenFor3D(
+        drawers,
+        null,
+        new Map(),
+        prodCabinetDims,
+      );
+
+      const drw1 = mapped.find((d) => d.locationCode === "SMD-DRW-01")!;
+      const drw2 = mapped.find((d) => d.locationCode === "SMD-DRW-02")!;
+
+      // Top row Y center: 145.25mm = 0.14525m
+      expect(drw1.position.y).toBeCloseTo(mmToMeters(145.25), 6);
+      expect(drw2.position.y).toBeCloseTo(mmToMeters(145.25), 6);
+
+      // Top edge: 145.25 + 44.75 = 190.0mm (exactly under 10mm top wall)
+      const topEdge1 = drw1.position.y + drw1.dimensions.y / 2;
+      const topEdge2 = drw2.position.y + drw2.dimensions.y / 2;
+      expect(topEdge1).toBeCloseTo(mmToMeters(200 - wallMm), 6);
+      expect(topEdge2).toBeCloseTo(mmToMeters(200 - wallMm), 6);
+      expect(topEdge1).toBeLessThan(prodCabinetDims.y); // Under top panel
+    });
+
+    it("verifies computeSceneBoundingBox contains both carcass and all drawers within [0, H]", () => {
+      const drawers = createProdDrawers();
+      const { mapped } = layoutChildrenFor3D(
+        drawers,
+        null,
+        new Map(),
+        prodCabinetDims,
+      );
+
+      const bounds = computeSceneBoundingBox(prodCabinetDims, mapped);
+      expect(bounds.min.y).toBeCloseTo(0, 5); // Grounded at base
+      expect(bounds.max.y).toBeCloseTo(prodCabinetDims.y, 5); // Exactly cabinet height
+      expect(bounds.size.y).toBeCloseTo(prodCabinetDims.y, 5);
+    });
+  });
+
+  describe("Authoritative Scene Graph & Transform Composition Invariance", () => {
+    it("composes child world position as parentWorldTransform * childLocalTransform under rotation, translation, and scale", () => {
+      // Parent cabinet at world position (3.0m, 1.0m, -2.0m), rotated 45 deg around Y, scaled 1.5x
+      const parentGroup = new THREE.Group();
+      parentGroup.position.set(3.0, 1.0, -2.0);
+      parentGroup.rotation.set(0, Math.PI / 4, 0); // 45 degrees
+      parentGroup.scale.set(1.5, 1.5, 1.5);
+
+      // Child drawer at local position (-0.09475m, 0.05475m, 0.005m)
+      const childGroup = new THREE.Group();
+      childGroup.position.set(-0.09475, 0.05475, 0.005);
+      childGroup.rotation.set(0, 0, 0);
+      childGroup.scale.set(1, 1, 1);
+
+      parentGroup.add(childGroup);
+      parentGroup.updateMatrixWorld(true);
+
+      const childWorldPos = new THREE.Vector3();
+      childGroup.getWorldPosition(childWorldPos);
+
+      // Verify analytical matrix multiplication
+      const localVec = new THREE.Vector3(-0.09475, 0.05475, 0.005);
+      localVec.applyMatrix4(parentGroup.matrixWorld);
+
+      expect(childWorldPos.x).toBeCloseTo(localVec.x, 6);
+      expect(childWorldPos.y).toBeCloseTo(localVec.y, 6);
+      expect(childWorldPos.z).toBeCloseTo(localVec.z, 6);
+    });
+
+    it("verifies children correctly follow parent rotation across 90 and 180 degrees", () => {
+      const parentGroup = new THREE.Group();
+      parentGroup.position.set(0, 0, 0);
+      parentGroup.rotation.set(0, Math.PI / 2, 0); // 90 deg around Y
+
+      const childGroup = new THREE.Group();
+      childGroup.position.set(0.1, 0.5, 0.0); // local +X = 0.1m, Y = 0.5m
+      parentGroup.add(childGroup);
+      parentGroup.updateMatrixWorld(true);
+
+      const worldPos = new THREE.Vector3();
+      childGroup.getWorldPosition(worldPos);
+
+      // 90 deg Y rotation transforms local (x, y, z) to (z, y, -x):
+      // (+0.1, 0.5, 0) -> (0, 0.5, -0.1)
+      expect(worldPos.x).toBeCloseTo(0.0, 6);
+      expect(worldPos.y).toBeCloseTo(0.5, 6);
+      expect(worldPos.z).toBeCloseTo(-0.1, 6);
+    });
+  });
+
+  describe("Multi-tier Nested Location Spatial Hierarchy", () => {
+    it("maintains correct world coordinates across Cabinet -> Drawer -> Compartment -> Component", () => {
+      // Cabinet at world (10.0, 0.0, 5.0)
+      const cabinetGroup = new THREE.Group();
+      cabinetGroup.position.set(10.0, 0.0, 5.0);
+
+      // Drawer at local position inside cabinet (0.0, 0.8, 0.0)
+      const drawerGroup = new THREE.Group();
+      drawerGroup.position.set(0.0, 0.8, 0.0);
+      cabinetGroup.add(drawerGroup);
+
+      // Compartment at local position inside drawer (0.05, 0.02, 0.03)
+      const compGroup = new THREE.Group();
+      compGroup.position.set(0.05, 0.02, 0.03);
+      drawerGroup.add(compGroup);
+
+      // Component at local position inside compartment (0.01, 0.005, 0.01)
+      const componentGroup = new THREE.Group();
+      componentGroup.position.set(0.01, 0.005, 0.01);
+      compGroup.add(componentGroup);
+
+      cabinetGroup.updateMatrixWorld(true);
+
+      const componentWorldPos = new THREE.Vector3();
+      componentGroup.getWorldPosition(componentWorldPos);
+
+      // Expected world position = (10.0 + 0.0 + 0.05 + 0.01, 0.0 + 0.8 + 0.02 + 0.005, 5.0 + 0.0 + 0.03 + 0.01)
+      expect(componentWorldPos.x).toBeCloseTo(10.06, 6);
+      expect(componentWorldPos.y).toBeCloseTo(0.825, 6);
+      expect(componentWorldPos.z).toBeCloseTo(5.04, 6);
+    });
+  });
+
+  describe("Arbitrary Grid Configurations & Dimension-Driven Placement", () => {
+    const testGridConfigurations = [
+      { rows: 1, cols: 1 },
+      { rows: 1, cols: 2 },
+      { rows: 2, cols: 1 },
+      { rows: 2, cols: 2 },
+      { rows: 2, cols: 4 },
+      { rows: 4, cols: 4 },
+      { rows: 3, cols: 5 },
+    ];
+
+    for (const { rows, cols } of testGridConfigurations) {
+      it(`mathematically spaces ${rows}x${cols} compartments inside cabinet envelope without magic offsets`, () => {
+        const config = {
+          ...createDefaultSmdCabinetConfig(),
+          rows,
+          columns: cols,
+          dimensions: { widthMm: 800, heightMm: 600, depthMm: 300 },
+        };
+        const gen = generateStorageCompartments(config);
+        expect(gen.compartments).toHaveLength(rows * cols);
+
+        const scene = convertGeneratedToSceneLayout(
+          gen.compartments,
+          new Map(),
+          config.dimensions,
+        );
+        expect(scene).toHaveLength(rows * cols);
+
+        const H = mmToMeters(config.dimensions.heightMm);
+        const W = mmToMeters(config.dimensions.widthMm);
+
+        for (const item of scene) {
+          // Every compartment must fit within [0, H] vertically
+          const minY = item.position.y - item.dimensions.y / 2;
+          const maxY = item.position.y + item.dimensions.y / 2;
+          expect(minY).toBeGreaterThanOrEqual(-1e-5);
+          expect(maxY).toBeLessThanOrEqual(H + 1e-5);
+
+          // Every compartment must fit within [-W/2, W/2] horizontally
+          const minX = item.position.x - item.dimensions.x / 2;
+          const maxX = item.position.x + item.dimensions.x / 2;
+          expect(minX).toBeGreaterThanOrEqual(-W / 2 - 1e-5);
+          expect(maxX).toBeLessThanOrEqual(W / 2 + 1e-5);
+        }
+      });
+    }
+  });
+
+  describe("2D Elevation Grid and 3D Scene Canonical Parity", () => {
+    it("guarantees 1:1 mathematical parity between 2D front elevation and 3D scene Y coordinates", () => {
+      const config = {
+        ...createDefaultSmdCabinetConfig(),
+        rows: 3,
+        columns: 3,
+        dimensions: { widthMm: 600, heightMm: 900, depthMm: 400 },
+      };
+
+      const gen = generateStorageCompartments(config);
+      const scene = convertGeneratedToSceneLayout(
+        gen.compartments,
+        new Map(),
+        config.dimensions,
+      );
+      const elevation = computeFrontElevation(gen.compartments, config.dimensions);
+
+      for (const slot of elevation.slots) {
+        const sceneChild = scene.find((c) => c.locationId === slot.slotId)!;
+        // Direct parity: 3D scene Y in mm is EXACTLY the 2D front elevation centerYMm!
+        expect(metersToMm(sceneChild.position.y)).toBeCloseTo(slot.centerYMm, 5);
+      }
     });
   });
 });

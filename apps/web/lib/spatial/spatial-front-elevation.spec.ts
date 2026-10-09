@@ -385,12 +385,10 @@ describe("Spatial 2D Front Elevation Projection", () => {
             slot.centerXMm,
             metersToMm(sceneChild.position.x) + config.dimensions.widthMm / 2,
           );
-          // Scene Y is centered on the parent model, while the front elevation
-          // remains corner-origin, so restore the container half-height.
+          // Scene Y and 2D front elevation both share the canonical base-grounded Y [0, H]
           expectClose(
             slot.centerYMm,
-            metersToMm(sceneChild.position.y) +
-              config.dimensions.heightMm / 2,
+            metersToMm(sceneChild.position.y),
           );
         }
       }

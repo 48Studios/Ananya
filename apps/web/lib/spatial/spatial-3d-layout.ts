@@ -34,12 +34,33 @@ export function metersToMm(meters: number): number {
 }
 
 /**
- * Converts a parametric lower-left-back corner-frame point into the centered
- * local frame used by procedural model geometry.
+ * Converts a parametric lower-left-back corner-frame point into canonical
+ * Container Local Space:
+ * - X is centered: [-W/2, W/2]
+ * - Y is base-grounded: [0, H] (0 is bottom base, H is top)
+ * - Z is centered: [-D/2, D/2]
  *
- * Parametric coordinates describe slot centers from the container corner:
- * [0, W] x [0, H] x [0, D]. Procedural model geometry is centered on its
- * local origin, so all three axes use the same conversion.
+ * This establishes 1:1 mathematical parity between:
+ * - 2D Front Elevation (centerYMm in [0, H])
+ * - Builder 3D Preview (Y in meters in [0, H])
+ * - Database Persisted Nodes & Anchors (Y in [0, H])
+ * - Location Details 3D View (Y in meters in [0, H])
+ */
+export function cornerOriginToContainerLocalPosition(
+  positionMm: { x: number; y: number; z: number },
+  dimensionsMm: { widthMm: number; heightMm?: number; depthMm: number },
+): Vector3D {
+  return {
+    x: mmToMeters(positionMm.x - dimensionsMm.widthMm / 2),
+    y: mmToMeters(positionMm.y),
+    z: mmToMeters(positionMm.z - dimensionsMm.depthMm / 2),
+  };
+}
+
+/**
+ * Legacy helper: converts a parametric lower-left-back corner-frame point into
+ * a fully centered frame across all three axes.
+ * Prefer `cornerOriginToContainerLocalPosition` for container-relative layout.
  */
 export function cornerOriginToCenteredPosition(
   positionMm: { x: number; y: number; z: number },
@@ -247,20 +268,23 @@ export function isCornerAuthoredAnchorZ(
 /**
  * Resolves the 3D local position of a child node relative to its parent model in meters.
  *
+ * Canonical Container Local Space:
+ * - X is centered: [-W/2, W/2]
+ * - Y is base-grounded: [0, H] (0 is bottom base, H is top)
+ * - Z is centered: [-D/2, D/2]
+ *
  * Coordinates are interpreted per source:
  * - Anchor X/Y are corner-based ([0, W], [0, H]) and shift into the centred
- *   parent frame; an explicit `metadata.origin === "center"` skips the shift.
+ *   parent frame on X; an explicit `metadata.origin === "center"` skips the shift.
  * - Anchor Z is either corner-based ([0, depth], see
  *   `isCornerAuthoredAnchorZ`) or sits on the mid-depth elevation plane used by
  *   the anchor editor's default (Z = 0 = centre), so it only shifts when the
- *   anchor is corner-authored. Shifting every Z in [0, depth] pushed
- *   elevation-authored children half a container out of their parent.
+ *   anchor is corner-authored.
  * - Builder-published node coordinates are corner-authored slot centres in all
  *   axes (the storage engine emits `origin: "corner"`), and refine an anchor
  *   placement as an offset when both are present.
- * - Manual/anchor-authored Y coordinates remain grounded on the floor/bottom
- *   [0, height]. Builder-owned node coordinates use the parametric corner
- *   frame and are centered on Y with the same conversion as X/Z.
+ * - Y coordinates remain grounded on the container base [0, H] consistently
+ *   for both manual/anchor-authored children and builder-published children.
  */
 export function resolveChildPosition(
   node: SpatialNodeDto | null | undefined,
@@ -278,18 +302,9 @@ export function resolveChildPosition(
 
   const rawX = (anchor?.localPositionX ?? 0) + (node?.positionX ?? 0);
   const rawY = (anchor?.localPositionY ?? 0) + (node?.positionY ?? 0);
-  const nodeMetadata =
-    node?.metadata && typeof node.metadata === "object"
-      ? (node.metadata as Record<string, unknown>)
-      : null;
-  const isBuilderOwnedNode = nodeMetadata?.source === "inventory_builder";
 
   let x = mmToMeters(rawX);
   const y = mmToMeters(rawY);
-  const centeredY =
-    isBuilderOwnedNode && !anchor && parentDimensions
-      ? y - parentDimensions.y / 2
-      : y;
 
   // Corner-based X and builder node Z shift into the centred parent frame.
   if (frameWidth > 0 && !isExplicitlyCentered && rawX >= 0 && x <= frameWidth) {
@@ -319,7 +334,7 @@ export function resolveChildPosition(
     }
   }
 
-  return { x, y: centeredY, z };
+  return { x, y, z };
 }
 
 /**
@@ -1199,20 +1214,24 @@ export const WAREHOUSE_FLOOR_ELEVATION_METERS = SPATIAL_GROUND_PLANE_Y_METERS;
 export const WAREHOUSE_GROUNDING_CLEARANCE_METERS = 0.001;
 
 /**
- * Operational child anchors use a floor-origin Y frame, while procedural
- * parent bodies are authored around their centred model origin. Move only the
- * procedural parent body into that child frame; child placement and persisted
- * coordinates remain untouched. Builder previews deliberately keep their
- * existing assembly frame.
+ * Container children use a base-grounded local Y frame [0, H], where Y = 0 is
+ * the container floor/base and Y = H is the container top.
+ * Procedural carcass bodies are generated with panels centered around (0, 0, 0)
+ * spanning [-H/2, H/2]. Placing the procedural body at (0, H/2, 0) aligns its
+ * base to Y = 0 so its geometry spans [0, H], matching normalized custom GLTF
+ * models and child slot placement identically across both Builder preview and
+ * Location Details.
+ * For warehouse spaces, the procedural cutaway shell already positions its
+ * floor top at Y = 0, so no vertical offset is needed.
  */
 export function resolveOperationalParentBodyOffset(
   parentDimensions: Vector3D,
   options: {
-    isAuthoringLayout: boolean;
+    isAuthoringLayout?: boolean;
     rendersWarehouseShell: boolean;
   },
 ): Vector3D {
-  if (options.isAuthoringLayout || options.rendersWarehouseShell) {
+  if (options.rendersWarehouseShell) {
     return { x: 0, y: 0, z: 0 };
   }
 
@@ -1220,10 +1239,9 @@ export function resolveOperationalParentBodyOffset(
 }
 
 /**
- * Builder roots are generated from a corner-origin parametric layout and need
- * one render-time lift so their centered physical model rests on world ground.
- * Persisted Location Details nodes already carry authoritative placement and
- * must never be normalized by this policy.
+ * Root assemblies now sit directly on the canonical world ground plane (Y = 0)
+ * because procedural carcasses and normalized custom assets are both aligned
+ * with base at Y = 0.
  */
 export function shouldGroundRootAssembly(
   isBuilderRoot: boolean,

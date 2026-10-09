@@ -402,9 +402,9 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
             expect(minX).toBeGreaterThanOrEqual(-halfW - eps);
             expect(maxX).toBeLessThanOrEqual(halfW + eps);
 
-            // Y must span inside the centered frame [-H/2, H/2]
-            expect(minY).toBeGreaterThanOrEqual(-H / 2 - eps);
-            expect(maxY).toBeLessThanOrEqual(H / 2 + eps);
+            // Y must span inside the container local frame [0, H]
+            expect(minY).toBeGreaterThanOrEqual(-eps);
+            expect(maxY).toBeLessThanOrEqual(H + eps);
 
             // Z must span inside [-D/2, D/2]
             expect(minZ).toBeGreaterThanOrEqual(-halfD - eps);
@@ -413,7 +413,7 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
         });
       }
 
-      it("correctly handles asymmetric dimensions in the centered frame", () => {
+      it("correctly handles asymmetric dimensions in the container local frame", () => {
         const asymmetricConfig: SmdDrawerCabinetConfig = {
           templateType: "SMD_DRAWER_CABINET",
           dimensions: { widthMm: 1200, heightMm: 800, depthMm: 350 },
@@ -451,8 +451,8 @@ describe("Phase 2: Inventory Builder Workspace & Parametric Controls", () => {
 
           expect(minX).toBeGreaterThanOrEqual(-halfW - eps);
           expect(maxX).toBeLessThanOrEqual(halfW + eps);
-          expect(minY).toBeGreaterThanOrEqual(-H / 2 - eps);
-          expect(maxY).toBeLessThanOrEqual(H / 2 + eps);
+          expect(minY).toBeGreaterThanOrEqual(-eps);
+          expect(maxY).toBeLessThanOrEqual(H + eps);
           expect(minZ).toBeGreaterThanOrEqual(-halfD - eps);
           expect(maxZ).toBeLessThanOrEqual(halfD + eps);
         }
